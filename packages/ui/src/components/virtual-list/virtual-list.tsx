@@ -23,6 +23,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { List } from '../list-item/list-item';
+import { t } from '../../lib/i18n';
 
 /**
  * A long list with only the visible part in the DOM.
@@ -153,7 +154,10 @@ const SCROLLS =
 /** How close to the end, in items, the next page is asked for. */
 const AHEAD = 10;
 
-const moreLoadedDefault = (added: number): string => `${String(added)} more loaded`;
+const moreLoadedDefault = (added: number): string =>
+  t('components.virtual-list.virtual-list.more_loaded', '{{added}} more loaded', {
+    added: String(added),
+  });
 
 /** Columns that fit `width`, as CSS `auto-fill` with `minmax(min(100%, min), 1fr)` counts them. */
 export function columnsFor(width: number, minItemWidth: number, gap: number): number {
@@ -211,7 +215,10 @@ const inBrowser = (): boolean => true;
 const onServer = (): boolean => false;
 
 /** A length React will not print in exponent form: rounded, never negative. */
-const px = (n: number): string => `${String(Math.max(0, Math.round(n)))}px`;
+const px = (n: number): string =>
+  t('components.virtual-list.virtual-list.px', '{{max}}px', {
+    max: String(Math.max(0, Math.round(n))),
+  });
 
 export function VirtualList<T>({
   items,
@@ -410,7 +417,9 @@ export function VirtualList<T>({
 
   const placeholder = loadingMore ? (
     <div aria-busy="true" className="p-3" style={{ height: estimateItemHeight }}>
-      <span className="sr-only">Loading more</span>
+      <span className="sr-only">
+        {t('components.virtual-list.virtual-list.loading_more', 'Loading more')}
+      </span>
       <Skeleton className="h-full w-full rounded-md" />
     </div>
   ) : null;

@@ -24,6 +24,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * HR's review of the national identifiers our checks doubted (PEO-125; PRD
@@ -100,8 +101,14 @@ export interface IdCheckActions {
 }
 
 const LEVEL = {
-  mismatch: { tone: 'danger', text: 'Does not compute' },
-  attention: { tone: 'warning', text: 'Needs attention' },
+  mismatch: {
+    tone: 'danger',
+    text: t('review.identifier-reviews.does_not_compute', 'Does not compute'),
+  },
+  attention: {
+    tone: 'warning',
+    text: t('review.identifier-reviews.needs_attention', 'Needs attention'),
+  },
 } as const;
 
 /** An item's id in Review's address: whose identifier, and which. */
@@ -113,8 +120,8 @@ export function verdictOf(item: ReviewItem): {
   readonly text: string;
 } {
   return item.findings.some((f) => f.level === 'mismatch')
-    ? { tone: 'danger', text: 'Failed' }
-    : { tone: 'warning', text: 'Unverifiable' };
+    ? { tone: 'danger', text: t('review.identifier-reviews.failed', 'Failed') }
+    : { tone: 'warning', text: t('review.identifier-reviews.unverifiable', 'Unverifiable') };
 }
 
 const day = (iso: string): string =>
@@ -149,27 +156,44 @@ export function IdCheckDetail({
             <span className="font-normal text-fg-muted"> · {item.label}</span>
           </h2>
           <p className="text-sm text-fg-muted">
-            Entered {item.enteredBy == null ? '' : `by ${item.enteredBy} `}on {day(item.enteredAt)}
+            {t('review.identifier-reviews.entered', 'Entered')}{' '}
+            {item.enteredBy == null
+              ? ''
+              : t('review.identifier-reviews.by', 'by {{enteredBy}}', {
+                  enteredBy: item.enteredBy,
+                }) + ' '}
+            {t('review.identifier-reviews.on', 'on')} {day(item.enteredAt)}
           </p>
         </div>
         {item.held === true ? (
           <Badge tone="warning" size="sm" className="shrink-0">
-            Waiting for approval
+            {t('review.identifier-reviews.waiting_for_approval', 'Waiting for approval')}
           </Badge>
         ) : null}
       </div>
       {refused === null ? null : (
-        <Alert tone="danger" title="Could not show the value">
+        <Alert
+          tone="danger"
+          title={t(
+            'review.identifier-reviews.could_not_show_the_value',
+            'Could not show the value',
+          )}
+        >
           {refused}
         </Alert>
       )}
       <div className="@container grid gap-3 @md:grid-cols-2">
         <Card variant="fill" padded className="flex flex-col gap-2">
-          <p className="text-xs font-semibold text-fg-muted">What they entered</p>
+          <p className="text-xs font-semibold text-fg-muted">
+            {t('review.identifier-reviews.what_they_entered', 'What they entered')}
+          </p>
           <MaskedValue
             masked={item.last4 === null ? '—' : `•••• ${item.last4}`}
             value={shown}
-            label={`${item.name}'s ${item.label} in full`}
+            label={t('review.identifier-reviews.s_in_full', "{{name}}'s {{label}} in full", {
+              name: item.name,
+              label: item.label,
+            })}
             onReveal={() => {
               setRefused(null);
               void onReveal(item.personId, item.attributeKey).then((r) => {
@@ -183,7 +207,9 @@ export function IdCheckDetail({
           />
         </Card>
         <Card variant="fill" padded className="flex flex-col gap-2">
-          <p className="text-xs font-semibold text-fg-muted">What the checks found</p>
+          <p className="text-xs font-semibold text-fg-muted">
+            {t('review.identifier-reviews.what_the_checks_found', 'What the checks found')}
+          </p>
           <ul className="flex flex-col gap-2">
             {item.findings.map((f) => {
               const level = f.level === 'mismatch' ? LEVEL.mismatch : LEVEL.attention;
@@ -202,7 +228,10 @@ export function IdCheckDetail({
         </Card>
       </div>
       <p className="text-sm text-fg-muted">
-        Revealing the value is logged. Whatever you decide is final.
+        {t(
+          'review.identifier-reviews.revealing_the_value_is_logged_whatever',
+          'Revealing the value is logged. Whatever you decide is final.',
+        )}
       </p>
       <div
         {...PINNED_BAR}
@@ -210,21 +239,31 @@ export function IdCheckDetail({
       >
         <Button
           // Each name starts with what the button says (WCAG 2.5.3, Label in Name).
-          aria-label={`Ask ${first} to correct it: ${item.name}'s ${item.label}`}
+          aria-label={t(
+            'review.identifier-reviews.ask_to_correct_it_s',
+            "Ask {{first}} to correct it: {{name}}'s {{label}}",
+            { first, name: item.name, label: item.label },
+          )}
           onClick={() => {
             setDeciding(false);
           }}
         >
-          Ask {first} to correct it
+          {t('review.identifier-reviews.ask_to_correct_it', 'Ask {{first}} to correct it', {
+            first,
+          })}
         </Button>
         <Button
           variant="primary"
-          aria-label={`Mark as correct anyway: ${item.name}'s ${item.label}`}
+          aria-label={t(
+            'review.identifier-reviews.mark_as_correct_anyway_s',
+            "Mark as correct anyway: {{name}}'s {{label}}",
+            { name: item.name, label: item.label },
+          )}
           onClick={() => {
             setDeciding(true);
           }}
         >
-          Mark as correct anyway
+          {t('review.identifier-reviews.mark_as_correct_anyway', 'Mark as correct anyway')}
         </Button>
       </div>
       {deciding === null ? null : (
@@ -257,7 +296,9 @@ function Decide({
   const [refused, setRefused] = useState<string | null>(null);
   // Sent back without a reason, the employee cannot tell what to correct.
   const [unexplained, setUnexplained] = useState(false);
-  const verb = accept ? 'Accept' : 'Send back';
+  const verb = accept
+    ? t('review.identifier-reviews.accept', 'Accept')
+    : t('review.identifier-reviews.send_back', 'Send back');
 
   return (
     <Dialog
@@ -269,16 +310,33 @@ function Decide({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {accept ? 'Accept' : 'Send back'} {item.name}’s {item.label}
+            {accept
+              ? t('review.identifier-reviews.accept', 'Accept')
+              : t('review.identifier-reviews.send_back', 'Send back')}{' '}
+            {item.name}’s {item.label}
           </DialogTitle>
           <DialogDescription>
             {accept
               ? item.held === true
-                ? 'Final: this value will not be flagged again, and the change can now be approved.'
-                : 'Final: this value will not be flagged again, whatever a later check says.'
+                ? t(
+                    'review.identifier-reviews.final_this_value_will_not_be',
+                    'Final: this value will not be flagged again, and the change can now be approved.',
+                  )
+                : t(
+                    'review.identifier-reviews.final_this_value_will_not_be_2',
+                    'Final: this value will not be flagged again, whatever a later check says.',
+                  )
               : item.held === true
-                ? `The change is declined, and ${item.name} is asked to correct it. They see your reason on their record and by email.`
-                : `${item.name} is asked to correct it, and their record shows it needs attention.`}
+                ? t(
+                    'review.identifier-reviews.the_change_is_declined_and_is',
+                    'The change is declined, and {{name}} is asked to correct it. They see your reason on their record and by email.',
+                    { name: item.name },
+                  )
+                : t(
+                    'review.identifier-reviews.is_asked_to_correct_it_and',
+                    '{{name}} is asked to correct it, and their record shows it needs attention.',
+                    { name: item.name },
+                  )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -289,7 +347,11 @@ function Decide({
               ))}
             </ul>
             <Field required={!accept} invalid={!accept && unexplained}>
-              <FieldLabel>{accept ? 'Note' : 'What is wrong'}</FieldLabel>
+              <FieldLabel>
+                {accept
+                  ? t('review.identifier-reviews.note', 'Note')
+                  : t('review.identifier-reviews.what_is_wrong', 'What is wrong')}
+              </FieldLabel>
               <FieldControl>
                 <Textarea
                   value={note}
@@ -303,23 +365,35 @@ function Decide({
               <FieldDescription>
                 {accept
                   ? 'Optional; kept with the decision.'
-                  : `${item.name} sees it on their record, so they know what to correct.`}
+                  : t(
+                      'review.identifier-reviews.sees_it_on_their_record_so',
+                      '{{name}} sees it on their record, so they know what to correct.',
+                      { name: item.name },
+                    )}
               </FieldDescription>
-              <FieldError>Say what is wrong, so they know what to correct.</FieldError>
+              <FieldError>
+                {t(
+                  'review.identifier-reviews.say_what_is_wrong_so_they',
+                  'Say what is wrong, so they know what to correct.',
+                )}
+              </FieldError>
             </Field>
             {refused === null ? null : (
-              <Alert tone="danger" title="Not decided">
+              <Alert
+                tone="danger"
+                title={t('review.identifier-reviews.not_decided', 'Not decided')}
+              >
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('review.identifier-reviews.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('review.identifier-reviews.saving', 'Saving')}
             onClick={() => {
               if (!accept && note.trim() === '') {
                 setUnexplained(true);

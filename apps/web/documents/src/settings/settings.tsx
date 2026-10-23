@@ -46,6 +46,7 @@ import type {
   SettingsData,
   TypeDraft,
 } from '../types';
+import { t as tr } from '../i18n';
 
 /**
  * Settings › Documents (S1–S3, S5, S6; MS1–MS3, MS5, MS6): document types as
@@ -64,14 +65,24 @@ function Page({
   readonly description: string;
   readonly children: (data: SettingsData) => JSX.Element;
 }): JSX.Element {
-  if (load.status === 'loading') return <Skeleton shape="page" label={`Loading ${title}`} />;
+  if (load.status === 'loading')
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('settings.settings.loading', 'Loading {{title}}', { title })}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={title} description={description} />
       <Loaded load={load} what={title.toLowerCase()}>
         {(data) => (
           <div className="flex max-w-3xl flex-col gap-6">
-            {data.hr ? null : <Alert tone="info">Only HR can change these.</Alert>}
+            {data.hr ? null : (
+              <Alert tone="info">
+                {tr('settings.settings.only_hr_can_change_these', 'Only HR can change these.')}
+              </Alert>
+            )}
             {children(data)}
           </div>
         )}
@@ -82,24 +93,50 @@ function Page({
 
 /* ----------------------------------------------------------- types (S2) -- */
 
-const AUDIENCE = { subject: 'the person and HR', everyone: 'everyone', hr: 'HR only' } as const;
+const AUDIENCE = {
+  subject: tr('settings.settings.the_person_and_hr', 'the person and HR'),
+  everyone: 'everyone',
+  hr: tr('settings.settings.hr_only', 'HR only'),
+} as const;
 
 /** "Filed to each person. The person and HR see it, Confidential. Signed by them, then HR." */
 export function sentence(t: DocumentType & { readonly retentionWords: string }): string {
   return [
-    t.filedTo === 'person' ? 'Filed to each person' : 'A company document',
-    `${AUDIENCE[t.audience]} ${t.audience === 'everyone' ? 'sees' : 'see'} it${t.confidential ? ', Confidential' : ''}`,
+    t.filedTo === 'person'
+      ? tr('settings.settings.filed_to_each_person', 'Filed to each person')
+      : tr('settings.settings.a_company_document', 'A company document'),
+    tr('settings.settings.it', '{{AUDIENCE}} {{value}} it{{value2}}', {
+      AUDIENCE: AUDIENCE[t.audience],
+      value: t.audience === 'everyone' ? 'sees' : 'see',
+      value2: t.confidential ? tr('settings.settings.confidential_suffix', ', Confidential') : '',
+    }),
     t.signers.length === 0
       ? null
-      : `Signed by ${t.signers.map((s) => (s === 'subject' ? 'them' : 'HR')).join(', then ')}`,
-    t.acknowledge ? 'Everyone acknowledges each version' : null,
+      : tr('settings.settings.signed_by', 'Signed by {{join}}', {
+          join: t.signers.map((s) => (s === 'subject' ? 'them' : 'HR')).join(', then '),
+        }),
+    t.acknowledge
+      ? tr(
+          'settings.settings.everyone_acknowledges_each_version',
+          'Everyone acknowledges each version',
+        )
+      : null,
     t.requiredFor === null
       ? null
-      : `Required for ${t.requiredFor === 'new_starters' ? 'new starters, before day one' : 'everyone'}`,
+      : tr('settings.settings.required_for', 'Required for {{value}}', {
+          value: t.requiredFor === 'new_starters' ? 'new starters, before day one' : 'everyone',
+        }),
     t.expiryReminders.length === 0
       ? null
-      : `Reminders ${t.expiryReminders.join(' and ')} days before it expires`,
-    `Kept ${t.retentionWords.charAt(0).toLowerCase()}${t.retentionWords.slice(1)}`,
+      : tr(
+          'settings.settings.reminders_days_before_it_expires',
+          'Reminders {{join}} days before it expires',
+          { join: t.expiryReminders.join(' and ') },
+        ),
+    tr('settings.settings.kept', 'Kept {{charAt}}{{slice}}', {
+      charAt: t.retentionWords.charAt(0).toLowerCase(),
+      slice: t.retentionWords.slice(1),
+    }),
   ]
     .filter(Boolean)
     .join('. ')
@@ -122,8 +159,11 @@ export function DocumentTypes({
   return (
     <Page
       load={load}
-      title="Document types"
-      description="Where each kind of document is filed, who sees it, what it needs and how long it is kept."
+      title={tr('settings.settings.document_types', 'Document types')}
+      description={tr(
+        'settings.settings.where_each_kind_of_document_is',
+        'Where each kind of document is filed, who sees it, what it needs and how long it is kept.',
+      )}
     >
       {(data) => (
         <>
@@ -136,7 +176,7 @@ export function DocumentTypes({
                 setEditing(BLANK);
               }}
             >
-              New document type
+              {tr('settings.settings.new_document_type', 'New document type')}
             </Button>
           ) : null}
           {data.hr && data.ai.sorting && onDescribe !== undefined ? (
@@ -160,13 +200,18 @@ export function DocumentTypes({
                     <span className="flex flex-wrap gap-1.5">
                       {t.requiredFor === null ? null : (
                         <Badge tone="accent" size="sm">
-                          Required
+                          {tr('settings.settings.required', 'Required')}
                         </Badge>
                       )}
-                      {t.signers.length === 0 ? null : <Badge size="sm">Signature</Badge>}
-                      {t.expiryReminders.length === 0 ? null : <Badge size="sm">Expires</Badge>}
+                      {t.signers.length === 0 ? null : (
+                        <Badge size="sm">{tr('settings.settings.signature', 'Signature')}</Badge>
+                      )}
+                      {t.expiryReminders.length === 0 ? null : (
+                        <Badge size="sm">{tr('settings.settings.expires', 'Expires')}</Badge>
+                      )}
                       <Badge size="sm" tone="neutral">
-                        {t.used} document{t.used === 1 ? '' : 's'}
+                        {t.used} {tr('settings.settings.document', 'document')}
+                        {t.used === 1 ? '' : 's'}
                       </Badge>
                     </span>
                   }
@@ -179,7 +224,7 @@ export function DocumentTypes({
                           setEditing(t);
                         }}
                       >
-                        Edit
+                        {tr('settings.settings.edit', 'Edit')}
                       </Button>
                     ) : null
                   }
@@ -237,18 +282,31 @@ function Describe({
   return (
     <Card variant="assistant" padded className="flex flex-col gap-3">
       <Field>
-        <FieldLabel>Or describe it, and Kithena drafts the settings</FieldLabel>
+        <FieldLabel>
+          {tr(
+            'settings.settings.or_describe_it_and_kithena_drafts',
+            'Or describe it, and Kithena drafts the settings',
+          )}
+        </FieldLabel>
         <FieldControl>
           <Input
             value={text}
             maxLength={1000}
-            placeholder="Visa letters: filed to the person, HR only, kept a year after they leave"
+            placeholder={tr(
+              'settings.settings.visa_letters_filed_to_the_person',
+              'Visa letters: filed to the person, HR only, kept a year after they leave',
+            )}
             onChange={(e) => {
               setText(e.target.value);
             }}
           />
         </FieldControl>
-        <FieldDescription>You check every choice before it is saved.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'settings.settings.you_check_every_choice_before_it',
+            'You check every choice before it is saved.',
+          )}
+        </FieldDescription>
       </Field>
       {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
       <Button
@@ -270,7 +328,7 @@ function Describe({
           });
         }}
       >
-        Draft it
+        {tr('settings.settings.draft_it', 'Draft it')}
       </Button>
     </Card>
   );
@@ -340,19 +398,28 @@ function TypeDialog({
     >
       <DialogContent sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>{isNew ? 'New document type' : t.name}</DialogTitle>
+          <DialogTitle>
+            {isNew ? tr('settings.settings.new_document_type', 'New document type') : t.name}
+          </DialogTitle>
           <DialogDescription>
-            The whole type is one sentence; each part is a choice.
+            {tr(
+              'settings.settings.the_whole_type_is_one_sentence',
+              'The whole type is one sentence; each part is a choice.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {question === null ? null : (
-            <Alert tone="info" title="Drafted by Kithena" icon={<icons.assistant />}>
+            <Alert
+              tone="info"
+              title={tr('settings.settings.drafted_by_kithena', 'Drafted by Kithena')}
+              icon={<icons.assistant />}
+            >
               {question}
             </Alert>
           )}
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('settings.settings.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={t.name}
@@ -364,7 +431,7 @@ function TypeDialog({
             </FieldControl>
           </Field>
           <Choice
-            label="Looks like"
+            label={tr('settings.settings.looks_like', 'Looks like')}
             value={t.kind}
             onChange={(v) => {
               set('kind', v as Kind);
@@ -372,7 +439,7 @@ function TypeDialog({
             options={KINDS.map((k) => [k, k])}
           />
           <Choice
-            label="Filed to"
+            label={tr('settings.settings.filed_to', 'Filed to')}
             value={t.filedTo}
             onChange={(v) => {
               setT({
@@ -384,24 +451,24 @@ function TypeDialog({
               });
             }}
             options={[
-              ['person', 'Each person'],
-              ['company', 'The company'],
+              ['person', tr('settings.settings.each_person', 'Each person')],
+              ['company', tr('settings.settings.the_company', 'The company')],
             ]}
           />
           <Choice
-            label="Who sees it besides HR"
+            label={tr('settings.settings.who_sees_it_besides_hr', 'Who sees it besides HR')}
             value={t.audience}
             onChange={(v) => {
               set('audience', v as DocumentType['audience']);
             }}
             options={[
-              ['subject', 'The person it is about'],
-              ['everyone', 'Everyone'],
-              ['hr', 'Nobody else'],
+              ['subject', tr('settings.settings.the_person_it_is_about', 'The person it is about')],
+              ['everyone', tr('settings.settings.everyone', 'Everyone')],
+              ['hr', tr('settings.settings.nobody_else', 'Nobody else')],
             ]}
           />
           <Field orientation="horizontal">
-            <FieldLabel>Confidential</FieldLabel>
+            <FieldLabel>{tr('settings.settings.confidential', 'Confidential')}</FieldLabel>
             <FieldControl>
               <Switch
                 checked={t.confidential}
@@ -412,7 +479,12 @@ function TypeDialog({
             </FieldControl>
           </Field>
           <Field orientation="horizontal">
-            <FieldLabel>Medical: HR only, dates read only</FieldLabel>
+            <FieldLabel>
+              {tr(
+                'settings.settings.medical_hr_only_dates_read_only',
+                'Medical: HR only, dates read only',
+              )}
+            </FieldLabel>
             <FieldControl>
               <Switch
                 checked={t.medical}
@@ -428,21 +500,26 @@ function TypeDialog({
           </Field>
           {t.filedTo === 'person' ? (
             <Choice
-              label="Signed by"
+              label={tr('settings.settings.signed_by_2', 'Signed by')}
               value={t.signers.join(',') || 'none'}
               onChange={(v) => {
                 set('signers', v === 'none' ? [] : (v.split(',') as DocumentType['signers']));
               }}
               options={[
-                ['none', 'Nobody'],
-                ['subject', 'Them'],
-                ['subject,hr', 'Them, then HR'],
+                ['none', tr('settings.settings.nobody', 'Nobody')],
+                ['subject', tr('settings.settings.them', 'Them')],
+                ['subject,hr', tr('settings.settings.them_then_hr', 'Them, then HR')],
                 ['hr', 'HR'],
               ]}
             />
           ) : (
             <Field orientation="horizontal">
-              <FieldLabel>Everyone acknowledges each version</FieldLabel>
+              <FieldLabel>
+                {tr(
+                  'settings.settings.everyone_acknowledges_each_version',
+                  'Everyone acknowledges each version',
+                )}
+              </FieldLabel>
               <FieldControl>
                 <Checkbox
                   checked={t.acknowledge}
@@ -455,20 +532,31 @@ function TypeDialog({
           )}
           {t.filedTo === 'person' ? (
             <Choice
-              label="Required"
+              label={tr('settings.settings.required', 'Required')}
               value={t.requiredFor ?? 'no'}
               onChange={(v) => {
                 set('requiredFor', v === 'no' ? null : (v as 'new_starters' | 'everyone'));
               }}
               options={[
-                ['no', 'Not required'],
-                ['new_starters', 'For new starters, before day one'],
-                ['everyone', 'For everyone'],
+                ['no', tr('settings.settings.not_required', 'Not required')],
+                [
+                  'new_starters',
+                  tr(
+                    'settings.settings.for_new_starters_before_day_one',
+                    'For new starters, before day one',
+                  ),
+                ],
+                ['everyone', tr('settings.settings.for_everyone', 'For everyone')],
               ]}
             />
           ) : null}
           <Field orientation="horizontal">
-            <FieldLabel>Expires: remind 60 days before</FieldLabel>
+            <FieldLabel>
+              {tr(
+                'settings.settings.expires_remind_60_days_before',
+                'Expires: remind 60 days before',
+              )}
+            </FieldLabel>
             <FieldControl>
               <Switch
                 checked={t.expiryReminders.length > 0}
@@ -479,7 +567,7 @@ function TypeDialog({
             </FieldControl>
           </Field>
           <Choice
-            label="Kept"
+            label={tr('settings.settings.kept_2', 'Kept')}
             value={retention.kind}
             onChange={(v) => {
               const n = Math.max(1, years);
@@ -496,18 +584,28 @@ function TypeDialog({
               set('retention', next);
             }}
             options={[
-              ['after_leaving', 'Years after they leave'],
-              ['until_leaving', 'Until they leave, plus years'],
-              ['years', 'Years from filing'],
-              ['days', 'Days from filing'],
-              ['forever', 'Forever'],
+              [
+                'after_leaving',
+                tr('settings.settings.years_after_they_leave', 'Years after they leave'),
+              ],
+              [
+                'until_leaving',
+                tr('settings.settings.until_they_leave_plus_years', 'Until they leave, plus years'),
+              ],
+              ['years', tr('settings.settings.years_from_filing', 'Years from filing')],
+              ['days', tr('settings.settings.days_from_filing', 'Days from filing')],
+              ['forever', tr('settings.settings.forever', 'Forever')],
             ]}
           />
           {retention.kind === 'forever' ? null : (
             <Field>
               <FieldControl>
                 <NumberField
-                  label={retention.kind === 'days' ? 'Days' : 'Years'}
+                  label={
+                    retention.kind === 'days'
+                      ? tr('settings.settings.days', 'Days')
+                      : tr('settings.settings.years', 'Years')
+                  }
                   value={years}
                   min={retention.kind === 'until_leaving' ? 0 : 1}
                   max={retention.kind === 'days' ? 3650 : 50}
@@ -524,11 +622,16 @@ function TypeDialog({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>Nothing is deleted without HR confirming first.</FieldDescription>
+              <FieldDescription>
+                {tr(
+                  'settings.settings.nothing_is_deleted_without_hr_confirming',
+                  'Nothing is deleted without HR confirming first.',
+                )}
+              </FieldDescription>
             </Field>
           )}
           {write.error === null ? null : (
-            <Alert tone="danger" title="Not saved">
+            <Alert tone="danger" title={tr('settings.settings.not_saved', 'Not saved')}>
               {write.error}
             </Alert>
           )}
@@ -542,11 +645,11 @@ function TypeDialog({
                 save(true);
               }}
             >
-              Archive
+              {tr('settings.settings.archive', 'Archive')}
             </Button>
           )}
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {tr('settings.settings.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -556,7 +659,7 @@ function TypeDialog({
               save(false);
             }}
           >
-            Save
+            {tr('settings.settings.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -610,8 +713,11 @@ export function AccessSettings({
   return (
     <Page
       load={load}
-      title="Access and sharing"
-      description="What new documents start as, how far people can share, and what Confidential enforces."
+      title={tr('settings.settings.access_and_sharing', 'Access and sharing')}
+      description={tr(
+        'settings.settings.what_new_documents_start_as_how',
+        'What new documents start as, how far people can share, and what Confidential enforces.',
+      )}
     >
       {(data) => <AccessForm access={data.access} hr={data.hr} onSave={onSave} />}
     </Page>
@@ -652,21 +758,31 @@ function AccessForm({
     <>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>New documents</CardTitle>
+          <CardTitle level={2}>{tr('settings.settings.new_documents', 'New documents')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <p className="text-sm">Every new document starts Private.</p>
+          <p className="text-sm">
+            {tr(
+              'settings.settings.every_new_document_starts_private',
+              'Every new document starts Private.',
+            )}
+          </p>
           {toggle('askAfterUpload', 'After an upload, ask once whether to share')}
           {toggle('peopleMayTurnOffQuestion', 'People can turn the question off')}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Sharing</CardTitle>
+          <CardTitle level={2}>{tr('settings.settings.sharing', 'Sharing')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Field>
-            <FieldLabel>Share with everyone at the company</FieldLabel>
+            <FieldLabel>
+              {tr(
+                'settings.settings.share_with_everyone_at_the_company',
+                'Share with everyone at the company',
+              )}
+            </FieldLabel>
             <Select
               value={access.everyoneShare}
               disabled={!hr}
@@ -680,8 +796,8 @@ function AccessForm({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="hr">HR only</SelectItem>
-                <SelectItem value="anyone">Anyone</SelectItem>
+                <SelectItem value="hr">{tr('settings.settings.hr_only', 'HR only')}</SelectItem>
+                <SelectItem value="anyone">{tr('settings.settings.anyone', 'Anyone')}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -690,12 +806,14 @@ function AccessForm({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Confidential</CardTitle>
+          <CardTitle level={2}>{tr('settings.settings.confidential', 'Confidential')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <p className="text-sm text-fg-muted">
-            HR, the document’s type, or its owner can mark a document Confidential. Only HR lowers
-            what HR or the type set.
+            {tr(
+              'settings.settings.hr_the_documents_type_or_its',
+              'HR, the document’s type, or its owner can mark a document Confidential. Only HR lowers what HR or the type set.',
+            )}
           </p>
           {toggle('watermark', 'Watermark with the viewer’s name')}
           {toggle(
@@ -708,14 +826,16 @@ function AccessForm({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Personal sections</CardTitle>
+          <CardTitle level={2}>
+            {tr('settings.settings.personal_sections', 'Personal sections')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {toggle('personalSections', 'Everyone can create them', 'Only they see them')}
         </CardContent>
       </Card>
       {write.error === null ? null : (
-        <Alert tone="danger" title="Not saved">
+        <Alert tone="danger" title={tr('settings.settings.not_saved', 'Not saved')}>
           {write.error}
         </Alert>
       )}
@@ -735,14 +855,17 @@ export function RetentionSettings({
   return (
     <Page
       load={load}
-      title="Retention and legal holds"
-      description="One rule per kind of document. Legal holds override them; nothing is deleted without HR confirming."
+      title={tr('settings.settings.retention_and_legal_holds', 'Retention and legal holds')}
+      description={tr(
+        'settings.settings.one_rule_per_kind_of_document',
+        'One rule per kind of document. Legal holds override them; nothing is deleted without HR confirming.',
+      )}
     >
       {(data) => (
         <>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Rules</CardTitle>
+              <CardTitle level={2}>{tr('settings.settings.rules', 'Rules')}</CardTitle>
             </CardHeader>
             <CardContent>
               <List>
@@ -762,12 +885,15 @@ export function RetentionSettings({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Legal holds</CardTitle>
+              <CardTitle level={2}>{tr('settings.settings.legal_holds', 'Legal holds')}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.holds.length === 0 ? (
                 <p className="text-sm text-fg-muted">
-                  No holds. Place one from a document while a case is open.
+                  {tr(
+                    'settings.settings.no_holds_place_one_from_a',
+                    'No holds. Place one from a document while a case is open.',
+                  )}
                 </p>
               ) : (
                 <List>
@@ -776,7 +902,16 @@ export function RetentionSettings({
                       key={h.id}
                       icon={<icons.locked />}
                       iconTone="danger"
-                      description={`${h.setBy} · ${shortDate(h.setAt)} · ${String(h.count)} document${h.count === 1 ? '' : 's'}`}
+                      description={tr(
+                        'settings.settings.document_2',
+                        '{{setBy}} · {{setAt}} · {{count}} document{{value}}',
+                        {
+                          setBy: h.setBy,
+                          setAt: shortDate(h.setAt),
+                          count: String(h.count),
+                          value: h.count === 1 ? '' : 's',
+                        },
+                      )}
                       trailing={data.hr ? <Lift id={h.id} onLift={onLift} /> : null}
                     >
                       {h.name}
@@ -787,7 +922,12 @@ export function RetentionSettings({
             </CardContent>
           </Card>
           <Card padded>
-            <p className="text-sm">Deleted documents are kept for 30 days, then gone.</p>
+            <p className="text-sm">
+              {tr(
+                'settings.settings.deleted_documents_are_kept_for_30',
+                'Deleted documents are kept for 30 days, then gone.',
+              )}
+            </p>
           </Card>
         </>
       )}
@@ -812,7 +952,7 @@ function Lift({
         write.run(() => onLift?.(id) ?? Promise.resolve({ ok: true }));
       }}
     >
-      Lift
+      {tr('settings.settings.lift', 'Lift')}
     </Button>
   );
 }
@@ -820,32 +960,53 @@ function Lift({
 /* ------------------------------------------------- Kithena reading (S7) -- */
 
 const FEATURES: readonly { key: AiFeature; label: string; description: string }[] = [
-  { key: 'summaries', label: 'Summaries', description: 'On every document a person opens' },
+  {
+    key: 'summaries',
+    label: tr('settings.settings.summaries', 'Summaries'),
+    description: tr(
+      'settings.settings.on_every_document_a_person_opens',
+      'On every document a person opens',
+    ),
+  },
   {
     key: 'questions',
-    label: 'Questions about a document',
-    description: 'Answered from its pages, citing them',
+    label: tr('settings.settings.questions_about_a_document', 'Questions about a document'),
+    description: tr(
+      'settings.settings.answered_from_its_pages_citing_them',
+      'Answered from its pages, citing them',
+    ),
   },
   {
     key: 'across',
-    label: 'Questions across documents',
-    description: 'From the search box, only from documents the person can open',
+    label: tr('settings.settings.questions_across_documents', 'Questions across documents'),
+    description: tr(
+      'settings.settings.from_the_search_box_only_from',
+      'From the search box, only from documents the person can open',
+    ),
   },
   {
     key: 'sorting',
-    label: 'Sort uploads',
-    description: 'Type, person and dates, for HR to confirm',
+    label: tr('settings.settings.sort_uploads', 'Sort uploads'),
+    description: tr(
+      'settings.settings.type_person_and_dates_for_hr',
+      'Type, person and dates, for HR to confirm',
+    ),
   },
   {
     key: 'fields',
-    label: 'Read fields into People',
-    description: 'Always reviewed before anything is saved',
+    label: tr('settings.settings.read_fields_into_people', 'Read fields into People'),
+    description: tr(
+      'settings.settings.always_reviewed_before_anything_is_saved',
+      'Always reviewed before anything is saved',
+    ),
   },
   {
     key: 'photos',
-    label: 'Read photos and scans',
-    description:
+    label: tr('settings.settings.read_photos_and_scans', 'Read photos and scans'),
+    description: tr(
+      'settings.settings.off_by_default_a_picture_is',
       'Off by default: a picture is sent as it is, since names in it cannot be hidden first',
+    ),
   },
 ];
 
@@ -860,13 +1021,18 @@ export function AiSettings({
   return (
     <Page
       load={load}
-      title="Kithena reading"
-      description="What Kithena may do with your documents. Medical documents are only ever read for their dates."
+      title={tr('settings.settings.kithena_reading', 'Kithena reading')}
+      description={tr(
+        'settings.settings.what_kithena_may_do_with_your',
+        'What Kithena may do with your documents. Medical documents are only ever read for their dates.',
+      )}
     >
       {(data) => (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>What Kithena does</CardTitle>
+            <CardTitle level={2}>
+              {tr('settings.settings.what_kithena_does', 'What Kithena does')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {FEATURES.map((f) => (
@@ -886,8 +1052,10 @@ export function AiSettings({
             ))}
             {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
             <p className="text-sm text-fg-muted">
-              A type can also be kept from Kithena entirely, in its settings. Every answer cites the
-              pages it came from, and only somebody who may open a document is ever told about it.
+              {tr(
+                'settings.settings.a_type_can_also_be_kept',
+                'A type can also be kept from Kithena entirely, in its settings. Every answer cites the pages it came from, and only somebody who may open a document is ever told about it.',
+              )}
             </p>
           </CardContent>
         </Card>

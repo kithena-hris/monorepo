@@ -61,6 +61,7 @@ import { FieldEditor } from './field-editor';
 import { PublishDialog } from './publish';
 import { SignupPreview } from './signup-preview';
 import { COLLECT_LABEL, DATA_TYPE_LABEL, listed } from './words';
+import { t } from '../i18n';
 
 const { add: Plus, locked: Lock } = icons;
 
@@ -193,12 +194,22 @@ function Registry({
 
   const status =
     draft.published === null
-      ? 'Nothing published yet'
-      : `Version ${String(draft.published.version)} · published ${day(draft.published.publishedAt)}`;
+      ? t('settings.field-registry.nothing_published_yet', 'Nothing published yet')
+      : t(
+          'settings.field-registry.version_published',
+          'Version {{version}} · published {{publishedAt}}',
+          {
+            version: String(draft.published.version),
+            publishedAt: day(draft.published.publishedAt),
+          },
+        );
   const pending =
     draft.unpublishedChanges === 0
-      ? 'nothing to publish'
-      : `${String(draft.unpublishedChanges)} unpublished ${draft.unpublishedChanges === 1 ? 'change' : 'changes'}`;
+      ? t('settings.field-registry.nothing_to_publish', 'nothing to publish')
+      : t('settings.field-registry.unpublished', '{{unpublishedChanges}} unpublished {{value}}', {
+          unpublishedChanges: String(draft.unpublishedChanges),
+          value: draft.unpublishedChanges === 1 ? 'change' : 'changes',
+        });
   const clear = (): void => {
     setQuery('');
     setOnly('all');
@@ -208,8 +219,11 @@ function Registry({
   return (
     <>
       <PageHeader
-        title="Employee fields"
-        description={`${status} · ${pending}`}
+        title={t('settings.field-registry.employee_fields', 'Employee fields')}
+        description={t('settings.field-registry.text', '{{status}} · {{pending}}', {
+          status,
+          pending,
+        })}
         actions={
           <>
             <Legend />
@@ -220,7 +234,7 @@ function Registry({
                 setOpen('preview');
               }}
             >
-              Preview sign-up
+              {t('settings.field-registry.preview_sign_up', 'Preview sign-up')}
             </Button>
             <Button
               variant="primary"
@@ -229,7 +243,7 @@ function Registry({
                 setPublishing(true);
               }}
             >
-              Publish version {next}
+              {t('settings.field-registry.publish_version', 'Publish version')} {next}
             </Button>
           </>
         }
@@ -241,7 +255,14 @@ function Registry({
         <Alert
           tone="info"
           className="hidden touch:flex"
-          title={`${String(draft.unpublishedChanges)} ${draft.unpublishedChanges === 1 ? 'change is' : 'changes are'} waiting to be published`}
+          title={t(
+            'settings.field-registry.waiting_to_be_published',
+            '{{unpublishedChanges}} {{value}} waiting to be published',
+            {
+              unpublishedChanges: String(draft.unpublishedChanges),
+              value: draft.unpublishedChanges === 1 ? 'change is' : 'changes are',
+            },
+          )}
         />
       )}
 
@@ -250,8 +271,16 @@ function Registry({
           tone="warning"
           title={
             reviewing.length === 1
-              ? `${reviewing[0]?.label ?? ''} changes type or format`
-              : `${String(reviewing.length)} fields change type or format`
+              ? t(
+                  'settings.field-registry.changes_type_or_format',
+                  '{{value}} changes type or format',
+                  { value: reviewing[0]?.label ?? '' },
+                )
+              : t(
+                  'settings.field-registry.fields_change_type_or_format',
+                  '{{length}} fields change type or format',
+                  { length: String(reviewing.length) },
+                )
           }
           action={
             onReview === undefined ? undefined : (
@@ -264,23 +293,30 @@ function Registry({
                       onReview(f.key, f.dataType);
                     }}
                   >
-                    {reviewing.length === 1 ? 'Review the values' : `Review ${f.label}`}
+                    {reviewing.length === 1
+                      ? t('settings.field-registry.review_the_values', 'Review the values')
+                      : t('settings.field-registry.review', 'Review {{label}}', { label: f.label })}
                   </Button>
                 ))}
               </div>
             )
           }
         >
-          Every value it holds is checked against the new format before it’s published, and you
-          decide what happens to any that don’t fit.
+          {t(
+            'settings.field-registry.every_value_it_holds_is_checked',
+            'Every value it holds is checked against the new format before it’s published, and you decide what happens to any that don’t fit.',
+          )}
         </Alert>
       )}
 
       {sections.length === 0 ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <SearchField
-            label="Search fields"
-            placeholder="Search by name or key"
+            label={t('settings.field-registry.search_fields', 'Search fields')}
+            placeholder={t(
+              'settings.field-registry.search_by_name_or_key',
+              'Search by name or key',
+            )}
             value={query}
             onValueChange={setQuery}
             containerClassName="min-w-0 flex-1 basis-60"
@@ -291,7 +327,10 @@ function Registry({
               setOnly(value);
             }}
           >
-            <SelectTrigger aria-label="Show" className="w-auto min-w-48">
+            <SelectTrigger
+              aria-label={t('settings.field-registry.show', 'Show')}
+              className="w-auto min-w-48"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -306,15 +345,24 @@ function Registry({
       )}
 
       {failed === null ? null : (
-        <Alert tone="danger" title="That change was not saved">
+        <Alert
+          tone="danger"
+          title={t(
+            'settings.field-registry.that_change_was_not_saved',
+            'That change was not saved',
+          )}
+        >
           {failed}
         </Alert>
       )}
 
       {section === undefined ? (
         <EmptyState
-          title="No sections yet"
-          description="A section groups fields that are seen and filled in by the same people."
+          title={t('settings.field-registry.no_sections_yet', 'No sections yet')}
+          description={t(
+            'settings.field-registry.a_section_groups_fields_that_are',
+            'A section groups fields that are seen and filled in by the same people.',
+          )}
           action={
             <Button
               startIcon={<Plus />}
@@ -322,7 +370,7 @@ function Registry({
                 setOpen('section');
               }}
             >
-              Add section
+              {t('settings.field-registry.add_section', 'Add section')}
             </Button>
           }
         />
@@ -348,13 +396,15 @@ function Registry({
             onBack={() => {
               setChosen(null);
             }}
-            backLabel="All sections"
+            backLabel={t('settings.field-registry.all_sections', 'All sections')}
             list={
               <div className="p-3">
-                <h2 className="px-1 pb-2 text-sm font-semibold text-fg-muted">Sections</h2>
+                <h2 className="px-1 pb-2 text-sm font-semibold text-fg-muted">
+                  {t('settings.field-registry.sections', 'Sections')}
+                </h2>
                 <SortableList
                   moveButtons="on-focus"
-                  label="Sections"
+                  label={t('settings.field-registry.sections', 'Sections')}
                   items={sections.map((s) => ({ ...s, id: s.key, locked: s.fixed }))}
                   itemLabel={(s) => s.label}
                   onReorder={({ order }) => {
@@ -374,7 +424,11 @@ function Registry({
                       aria-current={s.key === section.key ? 'true' : undefined}
                       endIcon={
                         <span className="flex items-center gap-2 text-fg-subtle">
-                          {s.fixed ? <Lock aria-label="Fixed rules" /> : null}
+                          {s.fixed ? (
+                            <Lock
+                              aria-label={t('settings.field-registry.fixed_rules', 'Fixed rules')}
+                            />
+                          ) : null}
                           <span className="text-xs tabular-nums">
                             {draft.fields.filter((f) => f.sectionKey === s.key).length}
                           </span>
@@ -397,7 +451,7 @@ function Registry({
                     setOpen('section');
                   }}
                 >
-                  Add section
+                  {t('settings.field-registry.add_section', 'Add section')}
                 </Button>
               </div>
             }
@@ -474,7 +528,10 @@ function SectionFields({
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
-  const count = `${String(fields.length)} ${fields.length === 1 ? 'field' : 'fields'}`;
+  const count = t('settings.field-registry.text_2', '{{length}} {{value}}', {
+    length: String(fields.length),
+    value: fields.length === 1 ? 'field' : 'fields',
+  });
   return (
     <Stack gap={0}>
       <div className="flex items-center gap-3 p-4">
@@ -482,22 +539,35 @@ function SectionFields({
           <h2 className="font-display text-lg font-bold">{section.label}</h2>
           <p className="mt-1 text-sm text-fg-muted">
             {section.fixed
-              ? `${count} · these rules are fixed`
-              : `${count} · drag a row to reorder · click Asked or Assistant to change it here`}
+              ? t(
+                  'settings.field-registry.these_rules_are_fixed',
+                  '{{count}} · these rules are fixed',
+                  { count },
+                )
+              : t(
+                  'settings.field-registry.drag_a_row_to_reorder_click',
+                  '{{count}} · drag a row to reorder · click Asked or Assistant to change it here',
+                  { count },
+                )}
           </p>
         </div>
         {section.fixed ? null : (
           <Button variant="secondary" size="sm" startIcon={<Plus />} onClick={onAdd}>
-            Add field
+            {t('settings.field-registry.add_field', 'Add field')}
           </Button>
         )}
       </div>
 
       {section.fixed ? (
         <div className="px-4 pb-4">
-          <Alert tone="info" title="These rules are fixed">
-            Answers here are voluntary and only ever reported in aggregate. The fields can be read;
-            they cannot be edited or moved.
+          <Alert
+            tone="info"
+            title={t('settings.field-registry.these_rules_are_fixed_2', 'These rules are fixed')}
+          >
+            {t(
+              'settings.field-registry.answers_here_are_voluntary_and_only',
+              'Answers here are voluntary and only ever reported in aggregate. The fields can be read; they cannot be edited or moved.',
+            )}
           </Alert>
         </div>
       ) : null}
@@ -505,8 +575,14 @@ function SectionFields({
       {fields.length === 0 ? (
         <div className="p-4">
           <EmptyState
-            title="No fields in this section"
-            description="Add the first one. Nothing changes for anybody until you publish."
+            title={t(
+              'settings.field-registry.no_fields_in_this_section',
+              'No fields in this section',
+            )}
+            description={t(
+              'settings.field-registry.add_the_first_one_nothing_changes',
+              'Add the first one. Nothing changes for anybody until you publish.',
+            )}
           />
         </div>
       ) : (
@@ -514,7 +590,9 @@ function SectionFields({
           <Columns />
           <SortableList
             moveButtons="on-focus"
-            label={`Fields in ${section.label}`}
+            label={t('settings.field-registry.fields_in', 'Fields in {{label}}', {
+              label: section.label,
+            })}
             items={fields.map((f) => ({
               ...f,
               id: f.key,
@@ -550,10 +628,12 @@ function Columns(): JSX.Element {
       aria-hidden
       className="flex items-center gap-3 border-y border-border px-4 py-2.5 text-xs font-semibold text-fg-muted touch:hidden"
     >
-      <span className="min-w-0 flex-1 ps-11">Field</span>
-      <span className={COLUMN.asked}>Asked</span>
-      <span className={COLUMN.seen}>Seen by</span>
-      <span className={COLUMN.assistant}>Assistant</span>
+      <span className="min-w-0 flex-1 ps-11">{t('settings.field-registry.field', 'Field')}</span>
+      <span className={COLUMN.asked}>{t('settings.field-registry.asked', 'Asked')}</span>
+      <span className={COLUMN.seen}>{t('settings.field-registry.seen_by', 'Seen by')}</span>
+      <span className={COLUMN.assistant}>
+        {t('settings.field-registry.assistant', 'Assistant')}
+      </span>
       <span className="w-4" />
     </div>
   );
@@ -576,17 +656,29 @@ type Filter = 'all' | 'required' | 'protected' | 'employee' | 'draft';
 
 /** The list's filters: each a question an HR admin asks of it. */
 const FILTERS: Record<Filter, { label: string; keep: (f: RegistryField) => boolean }> = {
-  all: { label: 'All fields', keep: () => true },
-  required: { label: 'Required', keep: (f) => f.requiredness !== 'never' },
+  all: { label: t('settings.field-registry.all_fields', 'All fields'), keep: () => true },
+  required: {
+    label: t('settings.field-registry.required', 'Required'),
+    keep: (f) => f.requiredness !== 'never',
+  },
   protected: {
-    label: 'Needs approval or confidential',
+    label: t(
+      'settings.field-registry.needs_approval_or_confidential',
+      'Needs approval or confidential',
+    ),
     keep: (f) =>
       f.requiresApproval === true ||
       f.classification === 'confidential' ||
       f.classification === 'special-category',
   },
-  employee: { label: 'Asked of employees', keep: (f) => f.collectAt !== 'hr_only' },
-  draft: { label: 'Not yet published', keep: (f) => f.pending !== null },
+  employee: {
+    label: t('settings.field-registry.asked_of_employees', 'Asked of employees'),
+    keep: (f) => f.collectAt !== 'hr_only',
+  },
+  draft: {
+    label: t('settings.field-registry.not_yet_published', 'Not yet published'),
+    keep: (f) => f.pending !== null,
+  },
 };
 
 function matches(field: RegistryField, needle: string): boolean {
@@ -624,9 +716,16 @@ function Found({
   if (groups.length === 0) {
     return (
       <EmptyState
-        title="No fields match"
-        description="Clear the search, or show All fields, to see every field."
-        action={<Button onClick={onClear}>Clear search</Button>}
+        title={t('settings.field-registry.no_fields_match', 'No fields match')}
+        description={t(
+          'settings.field-registry.clear_the_search_or_show_all',
+          'Clear the search, or show All fields, to see every field.',
+        )}
+        action={
+          <Button onClick={onClear}>
+            {t('settings.field-registry.clear_search', 'Clear search')}
+          </Button>
+        }
       />
     );
   }
@@ -635,10 +734,15 @@ function Found({
     <Card>
       <div className="flex items-center gap-3 px-4 py-3.5">
         <p className="flex-1 text-base font-semibold" aria-live="polite">
-          {`${String(total)} ${total === 1 ? 'field matches' : 'fields match'}, in ${String(groups.length)} ${groups.length === 1 ? 'section' : 'sections'}`}
+          {t('settings.field-registry.in', '{{total}} {{value}}, in {{length}} {{value2}}', {
+            total: String(total),
+            value: total === 1 ? 'field matches' : 'fields match',
+            length: String(groups.length),
+            value2: groups.length === 1 ? 'section' : 'sections',
+          })}
         </p>
         <Button variant="ghost" size="sm" onClick={onClear}>
-          Clear search
+          {t('settings.field-registry.clear_search', 'Clear search')}
         </Button>
       </div>
       <Columns />
@@ -668,7 +772,10 @@ function Found({
 
 function typeOf(field: RegistryField): string {
   return field.options.length > 0
-    ? `${DATA_TYPE_LABEL[field.dataType]} · ${String(field.options.length)} options`
+    ? t('settings.field-registry.options', '{{DATA_TYPE_LABEL}} · {{length}} options', {
+        DATA_TYPE_LABEL: DATA_TYPE_LABEL[field.dataType],
+        length: String(field.options.length),
+      })
     : DATA_TYPE_LABEL[field.dataType];
 }
 
@@ -676,9 +783,9 @@ function typeOf(field: RegistryField): string {
 const SHORT_SCOPE: Record<ViewerScope, string> = {
   self: 'employee',
   manager: 'manager',
-  manager_chain: 'line managers',
+  manager_chain: t('settings.field-registry.line_managers', 'line managers'),
   hr: 'HR',
-  finance: 'Finance',
+  finance: t('settings.field-registry.finance', 'Finance'),
   admin: 'administrators',
   directory: 'everyone',
 };
@@ -686,23 +793,35 @@ const SHORT_WRITER: Record<WriterRole, string> = {
   employee: 'employee',
   manager: 'manager',
   hr: 'HR',
-  finance: 'Finance',
-  system: 'a connected system',
-  external: 'an external HR system',
+  finance: t('settings.field-registry.finance', 'Finance'),
+  system: t('settings.field-registry.a_connected_system', 'a connected system'),
+  external: t('settings.field-registry.an_external_hr_system', 'an external HR system'),
 };
 const opening = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Who reads it (F1's Seen by): the directory makes it everyone's. */
 function seenBy(field: RegistryField): { who: string; changes: string; icon: JSX.Element } {
   const writers = listed(field.ownership.map((w) => SHORT_WRITER[w]));
-  const changes = writers === '' ? 'Nobody changes it' : `${opening(writers)} change it`;
+  const changes =
+    writers === ''
+      ? t('settings.field-registry.nobody_changes_it', 'Nobody changes it')
+      : t('settings.field-registry.change_it', '{{opening}} change it', {
+          opening: opening(writers),
+        });
   if (field.visibility.includes('directory')) {
-    return { who: 'Everyone', changes, icon: <icons.visible aria-hidden /> };
+    return {
+      who: t('settings.field-registry.everyone', 'Everyone'),
+      changes,
+      icon: <icons.visible aria-hidden />,
+    };
   }
   const who = listed(field.visibility.map((s) => SHORT_SCOPE[s]));
   const wide = field.visibility.some((s) => s !== 'self' && s !== 'hr' && s !== 'admin');
   return {
-    who: who === '' ? 'Nobody by default' : opening(who),
+    who:
+      who === ''
+        ? t('settings.field-registry.nobody_by_default', 'Nobody by default')
+        : opening(who),
     changes,
     icon: wide ? <icons.people aria-hidden /> : <icons.locked aria-hidden />,
   };
@@ -713,43 +832,58 @@ const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[]
   {
     badge: (
       <Badge tone="sensitive" size="sm">
-        Needs approval
+        {t('settings.field-registry.needs_approval', 'Needs approval')}
       </Badge>
     ),
-    means: 'A second HR member approves each change.',
+    means: t(
+      'settings.field-registry.a_second_hr_member_approves_each',
+      'A second HR member approves each change.',
+    ),
   },
   {
     badge: (
       <Badge tone="warning" size="sm">
-        Confidential
+        {t('settings.field-registry.confidential', 'Confidential')}
       </Badge>
     ),
-    means: 'Would harm someone if it leaked. Never shared with the assistant.',
+    means: t(
+      'settings.field-registry.would_harm_someone_if_it_leaked',
+      'Would harm someone if it leaked. Never shared with the assistant.',
+    ),
   },
   {
     badge: (
       <Badge size="sm">
         <icons.locked aria-hidden className="size-3" />
-        Encrypted
+        {t('settings.field-registry.encrypted', 'Encrypted')}
       </Badge>
     ),
-    means: 'Only the last four characters show. Never searchable, sent to chat or webhooks.',
+    means: t(
+      'settings.field-registry.only_the_last_four_characters_show',
+      'Only the last four characters show. Never searchable, sent to chat or webhooks.',
+    ),
   },
   {
     badge: (
       <Badge tone="danger" size="sm">
-        Special category
+        {t('settings.field-registry.special_category', 'Special category')}
       </Badge>
     ),
-    means: 'Health, beliefs or similar. Kept out of AI, events and exports.',
+    means: t(
+      'settings.field-registry.health_beliefs_or_similar_kept_out',
+      'Health, beliefs or similar. Kept out of AI, events and exports.',
+    ),
   },
   {
     badge: (
       <Badge tone="warning" size="sm">
-        ~ Changed
+        {t('settings.field-registry.changed', '~ Changed')}
       </Badge>
     ),
-    means: 'A draft change, applied when you publish. Also + Added and − Archived.',
+    means: t(
+      'settings.field-registry.a_draft_change_applied_when_you',
+      'A draft change, applied when you publish. Also + Added and − Archived.',
+    ),
   },
 ];
 
@@ -759,16 +893,23 @@ function Legend(): JSX.Element {
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          aria-label="What the labels mean"
+          aria-label={t('settings.field-registry.what_the_labels_mean', 'What the labels mean')}
           startIcon={<icons.help aria-hidden />}
         />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-86 max-w-[calc(100vw-2rem)]">
         <Stack gap={3}>
-          <p className="text-base font-semibold">What the labels mean</p>
+          <p className="text-base font-semibold">
+            {t('settings.field-registry.what_the_labels_mean', 'What the labels mean')}
+          </p>
           <p className="text-sm text-fg-muted">
-            <b className="text-fg">Asked</b> is when someone is asked, and whether it’s required.{' '}
-            <b className="text-fg">Seen by</b> is who can see it.
+            <b className="text-fg">{t('settings.field-registry.asked', 'Asked')}</b>{' '}
+            {t(
+              'settings.field-registry.is_when_someone_is_asked_and',
+              'is when someone is asked, and whether it’s required.',
+            )}{' '}
+            <b className="text-fg">{t('settings.field-registry.seen_by', 'Seen by')}</b>{' '}
+            {t('settings.field-registry.is_who_can_see_it', 'is who can see it.')}
           </p>
           <dl className="flex flex-col gap-3">
             {LEGEND.map((l) => (
@@ -796,27 +937,27 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
       )}
       {field.review === true ? (
         <Badge tone="warning" size="sm">
-          Values to review
+          {t('settings.field-registry.values_to_review', 'Values to review')}
         </Badge>
       ) : null}
       {field.requiresApproval === true ? (
         <Badge tone="sensitive" size="sm">
-          Needs approval
+          {t('settings.field-registry.needs_approval', 'Needs approval')}
         </Badge>
       ) : null}
       {field.encrypted === true ? (
         <Badge size="sm">
           <icons.locked aria-hidden className="size-3" />
-          Encrypted
+          {t('settings.field-registry.encrypted', 'Encrypted')}
         </Badge>
       ) : null}
       {field.classification === 'confidential' ? (
         <Badge tone="warning" size="sm">
-          Confidential
+          {t('settings.field-registry.confidential', 'Confidential')}
         </Badge>
       ) : field.classification === 'special-category' ? (
         <Badge tone="danger" size="sm">
-          Special category
+          {t('settings.field-registry.special_category', 'Special category')}
         </Badge>
       ) : null}
     </>
@@ -869,7 +1010,11 @@ function AssistantShare({
   ) : never ? (
     <Cell
       main="Never"
-      sub={field.encrypted === true ? 'Encrypted' : 'Confidential'}
+      sub={
+        field.encrypted === true
+          ? t('settings.field-registry.encrypted', 'Encrypted')
+          : t('settings.field-registry.confidential', 'Confidential')
+      }
       icon={<icons.locked aria-hidden />}
     />
   ) : (
@@ -885,14 +1030,23 @@ function AssistantShare({
           fullWidth
           className="justify-start"
           loading={busy}
-          loadingLabel="Saving"
-          aria-label={`${field.label}: assistant ${shared ? 'shared' : never ? 'never' : 'not shared'}. Change whether the assistant may use it`}
+          loadingLabel={t('settings.field-registry.saving', 'Saving')}
+          aria-label={t(
+            'settings.field-registry.assistant_change_whether_the_assistant_may',
+            '{{label}}: assistant {{value}}. Change whether the assistant may use it',
+            { label: field.label, value: shared ? 'shared' : never ? 'never' : 'not shared' },
+          )}
         >
           {cell}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>The assistant, in Kithena and in chat apps</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {t(
+            'settings.field-registry.the_assistant_in_kithena_and_in',
+            'The assistant, in Kithena and in chat apps',
+          )}
+        </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={shared ? 'shared' : 'not'}
           onValueChange={(value) => {
@@ -903,14 +1057,22 @@ function AssistantShare({
           }}
         >
           <DropdownMenuRadioItem value="shared" disabled={never}>
-            Shared
+            {t('settings.field-registry.shared', 'Shared')}
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="not">Not shared</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="not">
+            {t('settings.field-registry.not_shared', 'Not shared')}
+          </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <p className="max-w-64 px-2 py-1.5 text-xs text-fg-muted">
           {never
-            ? 'Confidential or encrypted: never shared with the assistant.'
-            : 'Shared, the assistant can answer questions about this field. It learns its name and options, never anybody’s value.'}
+            ? t(
+                'settings.field-registry.confidential_or_encrypted_never_shared_with',
+                'Confidential or encrypted: never shared with the assistant.',
+              )
+            : t(
+                'settings.field-registry.shared_the_assistant_can_answer_questions',
+                'Shared, the assistant can answer questions about this field. It learns its name and options, never anybody’s value.',
+              )}
         </p>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -935,13 +1097,17 @@ function Asked({
   const atSignup = (field.signup ?? null) !== null;
   const cell = (
     <Cell
-      main={atSignup ? 'At sign-up' : COLLECT_LABEL[field.collectAt].short}
+      main={
+        atSignup
+          ? t('settings.field-registry.at_sign_up', 'At sign-up')
+          : COLLECT_LABEL[field.collectAt].short
+      }
       sub={
         field.requiredness === 'always'
-          ? 'Required'
+          ? t('settings.field-registry.required', 'Required')
           : field.requiredness === 'conditional'
-            ? 'Required sometimes'
-            : 'Optional'
+            ? t('settings.field-registry.required_sometimes', 'Required sometimes')
+            : t('settings.field-registry.optional', 'Optional')
       }
     />
   );
@@ -960,15 +1126,24 @@ function Asked({
           fullWidth
           className="justify-start"
           loading={busy}
-          loadingLabel="Saving"
+          loadingLabel={t('settings.field-registry.saving', 'Saving')}
           endIcon={<icons.expand aria-hidden />}
-          aria-label={`${field.label}: asked ${atSignup ? 'at sign-up' : COLLECT_LABEL[field.collectAt].short.toLowerCase()}. Change whether sign-up asks for it`}
+          aria-label={t(
+            'settings.field-registry.asked_change_whether_sign_up_asks',
+            '{{label}}: asked {{value}}. Change whether sign-up asks for it',
+            {
+              label: field.label,
+              value: atSignup ? 'at sign-up' : COLLECT_LABEL[field.collectAt].short.toLowerCase(),
+            },
+          )}
         >
           {cell}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>Asked at sign-up</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {t('settings.field-registry.asked_at_sign_up', 'Asked at sign-up')}
+        </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={now}
           onValueChange={(value) => {
@@ -978,18 +1153,22 @@ function Asked({
             });
           }}
         >
-          <DropdownMenuRadioItem value="off">Not asked</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="off">
+            {t('settings.field-registry.not_asked', 'Not asked')}
+          </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="optional" disabled={field.signupAskable !== true}>
-            Optional
+            {t('settings.field-registry.optional', 'Optional')}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="required" disabled={field.signupAskable !== true}>
-            Required
+            {t('settings.field-registry.required', 'Required')}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         {field.signup === 'after' ? (
           <p className="max-w-60 px-2 py-1.5 text-xs text-fg-muted">
-            Asked on the first screen after sign-up: the sign-up page never holds a file or
-            confidential data.
+            {t(
+              'settings.field-registry.asked_on_the_first_screen_after',
+              'Asked on the first screen after sign-up: the sign-up page never holds a file or confidential data.',
+            )}
           </p>
         ) : null}
         <DropdownMenuSeparator />
@@ -998,7 +1177,7 @@ function Asked({
             onEdit(field);
           }}
         >
-          Other timings in the editor
+          {t('settings.field-registry.other_timings_in_the_editor', 'Other timings in the editor')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -1071,7 +1250,7 @@ function AddSection({
 
   const add = async (): Promise<void> => {
     if (label.trim() === '') {
-      setProblem('Give the section a name.');
+      setProblem(t('settings.field-registry.give_the_section_a_name', 'Give the section a name.'));
       return;
     }
     setSaving(true);
@@ -1096,11 +1275,11 @@ function AddSection({
           }}
         >
           <DialogHeader>
-            <DialogTitle>Add a section</DialogTitle>
+            <DialogTitle>{t('settings.field-registry.add_a_section', 'Add a section')}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <Field required invalid={problem !== null}>
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>{t('settings.field-registry.name', 'Name')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={label}
@@ -1118,15 +1297,15 @@ function AddSection({
                 onOpenChange(false);
               }}
             >
-              Cancel
+              {t('settings.field-registry.cancel', 'Cancel')}
             </Button>
             <Button
               type="submit"
               variant="primary"
               loading={saving}
-              loadingLabel="Adding the section"
+              loadingLabel={t('settings.field-registry.adding_the_section', 'Adding the section')}
             >
-              Add section
+              {t('settings.field-registry.add_section', 'Add section')}
             </Button>
           </DialogFooter>
         </form>

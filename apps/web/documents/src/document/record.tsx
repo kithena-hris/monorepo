@@ -22,6 +22,7 @@ import {
 import { useEffect, useState, type JSX } from 'react';
 
 import type { Read } from '../types';
+import { t } from '../i18n';
 
 /**
  * Filling a record from a document (G5, K9): what the document says beside
@@ -71,7 +72,7 @@ export function FillRecord({
           setOpen(true);
         }}
       >
-        Fill the record from it
+        {t('document.record.fill_the_record_from_it', 'Fill the record from it')}
       </Button>
       {open ? (
         <RecordDialog
@@ -147,31 +148,46 @@ function RecordDialog({
       <DialogContent sheetOnTouch>
         <DialogHeader>
           <DialogTitle>
-            {data?.ok === true ? `Fill ${data.data.name}’s record` : 'Fill the record'}
+            {data?.ok === true
+              ? t('document.record.fill_s_record', 'Fill {{name}}’s record', {
+                  name: data.data.name,
+                })
+              : t('document.record.fill_the_record', 'Fill the record')}
           </DialogTitle>
           <DialogDescription>
-            Kithena read the document. Nothing is saved until you tick it.
+            {t(
+              'document.record.kithena_read_the_document_nothing_is',
+              'Kithena read the document. Nothing is saved until you tick it.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {data === null ? (
-            <Spinner label="Kithena is reading the document" />
+            <Spinner
+              label={t(
+                'document.record.kithena_is_reading_the_document',
+                'Kithena is reading the document',
+              )}
+            />
           ) : !data.ok ? (
             <Alert tone="danger">{data.message}</Alert>
           ) : rows.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              The document states none of the record’s fields.
+              {t(
+                'document.record.the_document_states_none_of_the',
+                'The document states none of the record’s fields.',
+              )}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>
-                    <span className="sr-only">Save</span>
+                    <span className="sr-only">{t('document.record.save', 'Save')}</span>
                   </TableHead>
-                  <TableHead>Field</TableHead>
-                  <TableHead>Now</TableHead>
-                  <TableHead>In the document</TableHead>
+                  <TableHead>{t('document.record.field', 'Field')}</TableHead>
+                  <TableHead>{t('document.record.now', 'Now')}</TableHead>
+                  <TableHead>{t('document.record.in_the_document', 'In the document')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -179,7 +195,9 @@ function RecordDialog({
                   <TableRow key={r.key}>
                     <TableCell>
                       <Checkbox
-                        aria-label={`Save ${r.label}`}
+                        aria-label={t('document.record.save_2', 'Save {{label}}', {
+                          label: r.label,
+                        })}
                         checked={ticked.has(r.key)}
                         disabled={done?.ok === true}
                         onCheckedChange={(v) => {
@@ -195,7 +213,9 @@ function RecordDialog({
                     <TableCell>
                       {r.found?.value}{' '}
                       <Badge size="sm" tone="neutral">
-                        {`p. ${String(r.found?.page ?? 0)}`}
+                        {t('document.record.p', 'p. {{value}}', {
+                          value: String(r.found?.page ?? 0),
+                        })}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -204,10 +224,17 @@ function RecordDialog({
             </Table>
           )}
           {done === null ? null : done.ok ? (
-            <Alert tone="success" title="Saved">
+            <Alert tone="success" title={t('document.record.saved', 'Saved')}>
               {waiting === 0
-                ? 'The record has the ticked values.'
-                : `${String(waiting)} wait for approval before they show.`}
+                ? t(
+                    'document.record.the_record_has_the_ticked_values',
+                    'The record has the ticked values.',
+                  )
+                : t(
+                    'document.record.wait_for_approval_before_they_show',
+                    '{{waiting}} wait for approval before they show.',
+                    { waiting: String(waiting) },
+                  )}
             </Alert>
           ) : (
             <Alert tone="danger">{done.message}</Alert>
@@ -215,11 +242,13 @@ function RecordDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            {done?.ok === true ? 'Close' : 'Cancel'}
+            {done?.ok === true
+              ? t('document.record.close', 'Close')
+              : t('document.record.cancel', 'Cancel')}
           </Button>
           {done?.ok === true ? null : (
             <Button variant="primary" loading={busy} disabled={ticked.size === 0} onClick={apply}>
-              {`Save ${String(ticked.size)}`}
+              {t('document.record.save_3', 'Save {{size}}', { size: String(ticked.size) })}
             </Button>
           )}
         </DialogFooter>

@@ -23,6 +23,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Toggle } from './shared';
+import { t } from '../i18n';
 
 /**
  * Adding a leave type (T29's "Add leave type", TOF-099a): its name, what kind
@@ -34,11 +35,11 @@ import { Toggle } from './shared';
 type Category = 'annual_leave' | 'sick_leave' | 'parental_leave' | 'unpaid_leave' | 'other';
 
 const CATEGORIES: readonly (readonly [Category, string, string])[] = [
-  ['annual_leave', 'Vacation', 'sun'],
-  ['sick_leave', 'Sick leave', 'thermometer'],
-  ['parental_leave', 'Parental leave', 'baby'],
-  ['unpaid_leave', 'Unpaid leave', 'circle-slash'],
-  ['other', 'Something else', 'flag'],
+  ['annual_leave', t('settings.add-leave-type.vacation', 'Vacation'), 'sun'],
+  ['sick_leave', t('settings.add-leave-type.sick_leave', 'Sick leave'), 'thermometer'],
+  ['parental_leave', t('settings.add-leave-type.parental_leave', 'Parental leave'), 'baby'],
+  ['unpaid_leave', t('settings.add-leave-type.unpaid_leave', 'Unpaid leave'), 'circle-slash'],
+  ['other', t('settings.add-leave-type.something_else', 'Something else'), 'flag'],
 ];
 
 /** "Moving day" as `moving_day`: lowercase, underscores, starting with a letter. */
@@ -112,19 +113,27 @@ export function AddLeaveType({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a leave type</DialogTitle>
+          <DialogTitle>
+            {t('settings.add-leave-type.add_a_leave_type', 'Add a leave type')}
+          </DialogTitle>
           <DialogDescription>
-            A kind of time off people can ask for. Its policy says how much they earn.
+            {t(
+              'settings.add-leave-type.a_kind_of_time_off_people',
+              'A kind of time off people can ask for. Its policy says how much they earn.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('settings.add-leave-type.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={name}
                 maxLength={100}
-                placeholder="For example, Moving day"
+                placeholder={t(
+                  'settings.add-leave-type.for_example_moving_day',
+                  'For example, Moving day',
+                )}
                 onChange={(e) => {
                   setName(e.target.value);
                 }}
@@ -132,12 +141,19 @@ export function AddLeaveType({
             </FieldControl>
             <FieldDescription>
               {key === ''
-                ? 'Shown to everyone who can book it.'
-                : `Kept as “${key}” for exports and integrations.`}
+                ? t(
+                    'settings.add-leave-type.shown_to_everyone_who_can_book',
+                    'Shown to everyone who can book it.',
+                  )
+                : t(
+                    'settings.add-leave-type.kept_as_for_exports_and_integrations',
+                    'Kept as “{{key}}” for exports and integrations.',
+                    { key },
+                  )}
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Kind</FieldLabel>
+            <FieldLabel>{t('settings.add-leave-type.kind', 'Kind')}</FieldLabel>
             <Select
               value={category}
               onValueChange={(c) => {
@@ -159,7 +175,7 @@ export function AddLeaveType({
             </Select>
           </Field>
           <Field>
-            <FieldLabel>How it is paid</FieldLabel>
+            <FieldLabel>{t('settings.add-leave-type.how_it_is_paid', 'How it is paid')}</FieldLabel>
             <Select
               value={paid}
               onValueChange={(p) => {
@@ -172,18 +188,30 @@ export function AddLeaveType({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="paid">Paid by the company</SelectItem>
-                <SelectItem value="unpaid">Not paid</SelectItem>
-                <SelectItem value="statutory">Paid by Social Security</SelectItem>
+                <SelectItem value="paid">
+                  {t('settings.add-leave-type.paid_by_the_company', 'Paid by the company')}
+                </SelectItem>
+                <SelectItem value="unpaid">
+                  {t('settings.add-leave-type.not_paid', 'Not paid')}
+                </SelectItem>
+                <SelectItem value="statutory">
+                  {t('settings.add-leave-type.paid_by_social_security', 'Paid by Social Security')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </Field>
           <Toggle
-            label="Draws a balance"
+            label={t('settings.add-leave-type.draws_a_balance', 'Draws a balance')}
             description={
               tracked
-                ? 'People earn it under a policy and spend it'
-                : 'Off: booked without a balance, like sick leave'
+                ? t(
+                    'settings.add-leave-type.people_earn_it_under_a_policy',
+                    'People earn it under a policy and spend it',
+                  )
+                : t(
+                    'settings.add-leave-type.off_booked_without_a_balance_like',
+                    'Off: booked without a balance, like sick leave',
+                  )
             }
             checked={tracked}
             onChange={setTracked}
@@ -191,39 +219,44 @@ export function AddLeaveType({
           {tracked ? (
             <Toggle
               kind="checkbox"
-              label="Counted in hours"
-              description="Off: in days, with half days if the policy allows them"
+              label={t('settings.add-leave-type.counted_in_hours', 'Counted in hours')}
+              description={t(
+                'settings.add-leave-type.off_in_days_with_half_days',
+                'Off: in days, with half days if the policy allows them',
+              )}
               checked={hours}
               onChange={setHours}
             />
           ) : null}
           <Toggle
             kind="checkbox"
-            label="Teammates see only “Off”"
+            label={t('settings.add-leave-type.teammates_see_only_off', 'Teammates see only “Off”')}
             description={
-              category === 'sick_leave' ? 'Always, for sick leave' : 'Off: they see the type'
+              category === 'sick_leave'
+                ? t('settings.add-leave-type.always_for_sick_leave', 'Always, for sick leave')
+                : t('settings.add-leave-type.off_they_see_the_type', 'Off: they see the type')
             }
             checked={private_ || category === 'sick_leave'}
             disabled={category === 'sick_leave'}
             onChange={setPrivate}
           />
           {refused === null ? null : (
-            <Alert tone="danger" title="Not added">
+            <Alert tone="danger" title={t('settings.add-leave-type.not_added', 'Not added')}>
               {refused}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('settings.add-leave-type.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.add aria-hidden />}
             disabled={key === ''}
             loading={busy}
-            loadingLabel="Adding"
+            loadingLabel={t('settings.add-leave-type.adding', 'Adding')}
             onClick={save}
           >
-            Add leave type
+            {t('settings.add-leave-type.add_leave_type', 'Add leave type')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -6,6 +6,7 @@ import { useState, type JSX } from 'react';
 
 import { askCandidateForMoreTimes, bookCandidateTime } from '../../app/(app)/inbox/actions';
 import { Actions, type BodyProps } from './pane';
+import { t as tr } from '../../lib/t';
 
 /**
  * Recruiting's items in the Inbox. One is acted on here: the times a
@@ -30,8 +31,17 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
   const [time, setTime] = useState('');
   if (!parsed.success)
     return (
-      <Alert tone="warning" title="This can’t be shown here">
-        Open it in Recruiting instead.
+      <Alert
+        tone="warning"
+        title={tr(
+          'components.inbox.detail-recruiting.this_cant_be_shown_here',
+          'This can’t be shown here',
+        )}
+      >
+        {tr(
+          'components.inbox.detail-recruiting.open_it_in_recruiting_instead',
+          'Open it in Recruiting instead.',
+        )}
       </Alert>
     );
   const d = parsed.data;
@@ -49,28 +59,56 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
         layout="aligned"
         labelWidth="6rem"
         items={[
-          { label: 'Candidate', value: d.candidate },
-          { label: 'Role', value: d.job },
-          { label: 'Interview', value: `${d.interview} · ${String(d.minutes)} min` },
-          { label: 'Where', value: d.where ?? 'Google Meet, made when you book' },
-          ...(d.agenda === null ? [] : [{ label: 'Agenda', value: d.agenda }]),
+          {
+            label: tr('components.inbox.detail-recruiting.candidate', 'Candidate'),
+            value: d.candidate,
+          },
+          { label: tr('components.inbox.detail-recruiting.role', 'Role'), value: d.job },
+          {
+            label: tr('components.inbox.detail-recruiting.interview', 'Interview'),
+            value: `${d.interview} · ${String(d.minutes)} min`,
+          },
+          {
+            label: tr('components.inbox.detail-recruiting.where', 'Where'),
+            value: d.where ?? 'Google Meet, made when you book',
+          },
+          ...(d.agenda === null
+            ? []
+            : [
+                {
+                  label: tr('components.inbox.detail-recruiting.agenda', 'Agenda'),
+                  value: d.agenda,
+                },
+              ]),
         ]}
       />
-      <RadioGroup aria-label="The times the candidate gave" value={time} onValueChange={setTime}>
+      <RadioGroup
+        aria-label={tr(
+          'components.inbox.detail-recruiting.the_times_the_candidate_gave',
+          'The times the candidate gave',
+        )}
+        value={time}
+        onValueChange={setTime}
+      >
         {[...days.entries()].map(([label, times]) => (
           <section key={label} className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-fg-muted">{label}</h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {times.map((t) => (
                 <RadioCard key={t} value={t}>
-                  {`${hour.format(new Date(t))} – ${hour.format(new Date(Date.parse(t) + d.minutes * 60_000))}`}
+                  {tr('components.inbox.detail-recruiting.text', '{{format}} – {{format2}}', {
+                    format: hour.format(new Date(t)),
+                    format2: hour.format(new Date(Date.parse(t) + d.minutes * 60_000)),
+                  })}
                 </RadioCard>
               ))}
             </div>
           </section>
         ))}
       </RadioGroup>
-      <Actions hint={`Times in ${zone}`}>
+      <Actions
+        hint={tr('components.inbox.detail-recruiting.times_in', 'Times in {{zone}}', { zone })}
+      >
         <Button
           disabled={time === ''}
           onClick={() => {
@@ -81,7 +119,10 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
             });
           }}
         >
-          Book and send the invitation
+          {tr(
+            'components.inbox.detail-recruiting.book_and_send_the_invitation',
+            'Book and send the invitation',
+          )}
         </Button>
         <Button
           variant="secondary"
@@ -93,7 +134,10 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
             });
           }}
         >
-          None works: ask for more times
+          {tr(
+            'components.inbox.detail-recruiting.none_works_ask_for_more_times',
+            'None works: ask for more times',
+          )}
         </Button>
       </Actions>
     </div>
@@ -106,7 +150,9 @@ export function RecruitingBody(props: BodyProps): JSX.Element {
   return (
     <Actions>
       <Button asChild>
-        <a href={props.item.link}>Open in Recruiting</a>
+        <a href={props.item.link}>
+          {tr('components.inbox.detail-recruiting.open_in_recruiting', 'Open in Recruiting')}
+        </a>
       </Button>
     </Actions>
   );

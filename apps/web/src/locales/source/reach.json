@@ -1,0 +1,2166 @@
+{
+  "components.access-matrix.access-matrix.because_they_can_change_it": {
+    "text": "because they can change it",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/access-matrix/access-matrix.tsx, AccessMatrix: text inside <tbody>."
+  },
+  "components.access-matrix.access-matrix.text": {
+    "text": "{{label}}: {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/access-matrix/access-matrix.tsx, AccessStrip: text built in code. Filled in: {{label}}, {{value}}."
+  },
+  "components.access-matrix.access-matrix.ticking_ticks_too": {
+    "text": "Ticking {{changeLabel}} ticks {{seeLabel}} too.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/access-matrix/access-matrix.tsx, AccessMatrix: text inside <p>. Filled in: {{changeLabel}}, {{seeLabel}}."
+  },
+  "components.access-matrix.access-matrix.who": {
+    "text": "Who",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/access-matrix/access-matrix.tsx, AccessMatrix: text inside <th>."
+  },
+  "components.app-bar.app-bar.new": {
+    "text": "new",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/app-bar/app-bar.tsx, TabBarItem: text inside <span>."
+  },
+  "components.assistant.assistant.assistant_said": {
+    "text": "Assistant said:",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantMessage: text inside <p>."
+  },
+  "components.assistant.assistant.close_assistant": {
+    "text": "Close assistant",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantPanel: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.dismiss": {
+    "text": "Dismiss",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantLauncher: the aria-label of <button>."
+  },
+  "components.assistant.assistant.done": {
+    "text": "Done:",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantStep: text inside <span>."
+  },
+  "components.assistant.assistant.in_progress": {
+    "text": "In progress",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantStep: the label of <Spinner>."
+  },
+  "components.assistant.assistant.make_larger": {
+    "text": "Make larger",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantPanel: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.make_smaller": {
+    "text": "Make smaller",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantPanel: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.message": {
+    "text": "Message",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantComposer: the aria-label of <textarea>."
+  },
+  "components.assistant.assistant.minimise": {
+    "text": "Minimise",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantPanel: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.new_conversation": {
+    "text": "New conversation",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantPanel: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.send": {
+    "text": "Send",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantComposer: the aria-label of <Button>."
+  },
+  "components.assistant.assistant.sources": {
+    "text": "Sources",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantSources: the aria-label of <ul>."
+  },
+  "components.assistant.assistant.stop": {
+    "text": "Stop",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantComposer: the aria-label of <button>."
+  },
+  "components.assistant.assistant.you_said": {
+    "text": "You said:",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/assistant/assistant.tsx, AssistantMessage: text inside <p>."
+  },
+  "components.avatar.avatar.and_more": {
+    "text": "and {{overflow}} more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/avatar/avatar.tsx, AvatarGroup: text inside <span>. Filled in: {{overflow}}."
+  },
+  "components.badge.badge.remove": {
+    "text": "Remove {{children}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/badge/badge.tsx, Badge: the aria-label of <button>. Filled in: {{children}}."
+  },
+  "components.badge.badge.remove_2": {
+    "text": "Remove",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/badge/badge.tsx, Badge: the aria-label of <button>."
+  },
+  "components.breadcrumb.breadcrumb.breadcrumb": {
+    "text": "Breadcrumb",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, Breadcrumb: the aria-label of <nav>."
+  },
+  "components.breadcrumb.breadcrumb.collapsed_levels": {
+    "text": "Collapsed levels",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, BreadcrumbEllipsis: text inside <span>."
+  },
+  "components.breadcrumb.breadcrumb.filter": {
+    "text": "Filter {{menuLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, BreadcrumbMenu: the aria-label of <input>. Filled in: {{menuLabel}}."
+  },
+  "components.breadcrumb.breadcrumb.filter_2": {
+    "text": "Filter",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, BreadcrumbMenu: the placeholder of <input>."
+  },
+  "components.breadcrumb.breadcrumb.nothing_matches": {
+    "text": "Nothing matches.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, BreadcrumbMenu: text inside <p>."
+  },
+  "components.breadcrumb.breadcrumb.text": {
+    "text": "{{label}}, {{menuLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/breadcrumb/breadcrumb.tsx, BreadcrumbMenu: the aria-label of <button>. Filled in: {{label}}, {{menuLabel}}."
+  },
+  "components.calendar.calendar.calendar": {
+    "text": "Calendar",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: text built in code."
+  },
+  "components.calendar.calendar.choose_a_month": {
+    "text": "{{format}}, choose a month",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: the aria-label of <Button>. Filled in: {{format}}."
+  },
+  "components.calendar.calendar.choose_a_year": {
+    "text": "{{visibleYear}}, choose a year",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: the aria-label of <Button>. Filled in: {{visibleYear}}."
+  },
+  "components.calendar.calendar.months_of": {
+    "text": "Months of {{visibleYear}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: the aria-label of <div>. Filled in: {{visibleYear}}."
+  },
+  "components.calendar.calendar.text": {
+    "text": "{{decade}} – {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: text inside <p>. Filled in: {{decade}}, {{value}}."
+  },
+  "components.calendar.calendar.years_to": {
+    "text": "Years {{decade}} to {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/calendar/calendar.tsx, Calendar: the aria-label of <div>. Filled in: {{decade}}, {{value}}."
+  },
+  "components.carousel.carousel.next_slide": {
+    "text": "Next slide",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/carousel/carousel.tsx, Carousel: the aria-label of <Button>."
+  },
+  "components.carousel.carousel.of": {
+    "text": "{{value}} of {{length}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/carousel/carousel.tsx, Carousel: the aria-label of <div>. Filled in: {{value}}, {{length}}."
+  },
+  "components.carousel.carousel.previous_slide": {
+    "text": "Previous slide",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/carousel/carousel.tsx, Carousel: the aria-label of <Button>."
+  },
+  "components.carousel.carousel.slide": {
+    "text": "Slide {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/carousel/carousel.tsx, Carousel: the aria-label of <button>. Filled in: {{value}}."
+  },
+  "components.change-diff.change-diff.now": {
+    "text": "now",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/change-diff/change-diff.tsx, ChangeDiff: text inside <span>."
+  },
+  "components.change-diff.change-diff.was": {
+    "text": "was",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/change-diff/change-diff.tsx, ChangeDiff: text inside <span>."
+  },
+  "components.chart.bubble-chart.name": {
+    "text": "Name",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bubble-chart.tsx, BubbleChart: text inside <th>."
+  },
+  "components.chart.bubble-chart.size_is": {
+    "text": "Size is",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bubble-chart.tsx, BubbleChart: text inside <p>."
+  },
+  "components.chart.bubble-chart.text": {
+    "text": "{{label}}: {{xLabel}} {{formatX}}, {{yLabel}} {{formatY}}, {{sizeLabel}} {{formatSize}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bubble-chart.tsx, BubbleChart: text inside <div>. Filled in: {{label}}, {{xLabel}}, {{formatX}}, {{yLabel}}, {{formatY}}, {{sizeLabel}}, {{formatSize}}."
+  },
+  "components.chart.bullet-chart.measure": {
+    "text": "Measure",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <th>."
+  },
+  "components.chart.bullet-chart.met": {
+    "text": "Met",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <th>."
+  },
+  "components.chart.bullet-chart.no": {
+    "text": "No",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <td>."
+  },
+  "components.chart.bullet-chart.target": {
+    "text": "{{label}}: {{shown}}, target {{target}}{{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <ChartFrame>. Filled in: {{label}}, {{shown}}, {{target}}, {{value}}."
+  },
+  "components.chart.bullet-chart.target_2": {
+    "text": "Target",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <th>."
+  },
+  "components.chart.bullet-chart.value": {
+    "text": "Value",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <th>."
+  },
+  "components.chart.bullet-chart.yes": {
+    "text": "Yes",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/bullet-chart.tsx, BulletChart: text inside <td>."
+  },
+  "components.chart.calendar-heatmap.days_with_any": {
+    "text": "{{label}}: days with any",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/calendar-heatmap.tsx, CalendarHeatmap: the caption of <ChartDataTable>. Filled in: {{label}}."
+  },
+  "components.chart.calendar-heatmap.more": {
+    "text": "More · {{format}}+",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/calendar-heatmap.tsx, CalendarHeatmap: the high of <ChartScaleKey>. Filled in: {{format}}."
+  },
+  "components.chart.calendar-heatmap.text": {
+    "text": "{{format}}: {{format2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/calendar-heatmap.tsx, CalendarHeatmap: text built in code. Filled in: {{format}}, {{format2}}."
+  },
+  "components.chart.chart-window.copy_as_csv": {
+    "text": "Copy as CSV",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartFrame: text inside <ContextMenuItem>."
+  },
+  "components.chart.chart-window.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: text inside <p>."
+  },
+  "components.chart.chart-window.pan_left": {
+    "text": "Pan left",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: the aria-label of <Button>."
+  },
+  "components.chart.chart-window.pan_right": {
+    "text": "Pan right",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: the aria-label of <Button>."
+  },
+  "components.chart.chart-window.range_end": {
+    "text": "Range end",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartBrush: the aria-label of <span>."
+  },
+  "components.chart.chart-window.range_start": {
+    "text": "Range start",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartBrush: the aria-label of <span>."
+  },
+  "components.chart.chart-window.reset": {
+    "text": "Reset",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: text inside <Button>."
+  },
+  "components.chart.chart-window.reset_zoom": {
+    "text": "Reset zoom",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartFrame: text inside <ContextMenuItem>."
+  },
+  "components.chart.chart-window.to": {
+    "text": "{{value}} to {{value2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartBrush: text built in code. Filled in: {{value}}, {{value2}}."
+  },
+  "components.chart.chart-window.visible_range": {
+    "text": "Visible range",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartBrush: the aria-label of <div>."
+  },
+  "components.chart.chart-window.zoom_in": {
+    "text": "Zoom in",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: the aria-label of <Button>."
+  },
+  "components.chart.chart-window.zoom_out": {
+    "text": "Zoom out",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart-window.tsx, ChartZoomControls: the aria-label of <Button>."
+  },
+  "components.chart.chart.l_100_100_l_0_100": {
+    "text": "{{path}} L 100,100 L 0,100 Z",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, TrendChart: the d of <path>. Filled in: {{path}}."
+  },
+  "components.chart.chart.l_32_l_0_32_z": {
+    "text": "{{line}} L {{lastX}},32 L 0,32 Z",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, Sparkline: the d of <path>. Filled in: {{line}}, {{lastX}}."
+  },
+  "components.chart.chart.m": {
+    "text": "M {{join}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, Sparkline: text built in code. Filled in: {{join}}."
+  },
+  "components.chart.chart.more": {
+    "text": "more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, HorizontalBarChart: text inside <p>."
+  },
+  "components.chart.chart.more_up_to": {
+    "text": "More · up to {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, HeatmapChart: the high of <ChartScaleKey>. Filled in: {{format}}."
+  },
+  "components.chart.chart.of": {
+    "text": "{{label}}: {{format}}, {{round}}% of {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, FunnelChart: text inside <ol>. Filled in: {{label}}, {{format}}, {{round}}, {{value}}."
+  },
+  "components.chart.chart.period": {
+    "text": "Period",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, ChartDataTable: text inside <th>."
+  },
+  "components.chart.chart.row": {
+    "text": "Row",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, HeatmapChart: text inside <span>."
+  },
+  "components.chart.chart.text": {
+    "text": "{{label}}: {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, BarChart: text inside <div>. Filled in: {{label}}, {{format}}."
+  },
+  "components.chart.chart.text_2": {
+    "text": "{{period}}: {{join}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, TrendChart: the aria-label of <button>. Filled in: {{period}}, {{join}}."
+  },
+  "components.chart.chart.text_3": {
+    "text": "{{label}}, {{label2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, TrendChart: the caption of <ChartDataTable>. Filled in: {{label}}, {{label2}}."
+  },
+  "components.chart.chart.text_4": {
+    "text": "{{category}} · {{label}}: {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, StackedBarChart: text inside <div>. Filled in: {{category}}, {{label}}, {{format}}."
+  },
+  "components.chart.chart.text_5": {
+    "text": "{{row}} · {{column}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, HeatmapChart: the rows of <ChartFrame>. Filled in: {{row}}, {{column}}."
+  },
+  "components.chart.chart.text_6": {
+    "text": "{{row}}, {{column}}: {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, HeatmapChart: text inside <tr>. Filled in: {{row}}, {{column}}, {{format}}."
+  },
+  "components.chart.chart.text_named": {
+    "text": "{{name}} {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, TrendChart: the aria-label of <button>. Filled in: {{name}}, {{format}}."
+  },
+  "components.chart.chart.value": {
+    "text": "Value",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/chart.tsx, ChartDataTable: text built in code."
+  },
+  "components.chart.cohort-chart.not_yet": {
+    "text": "Not yet",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/cohort-chart.tsx, CohortChart: text inside <span>."
+  },
+  "components.chart.cohort-chart.text": {
+    "text": "{{label}} · {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/cohort-chart.tsx, CohortChart: the rows of <ChartFrame>. Filled in: {{label}}, {{value}}."
+  },
+  "components.chart.combo-chart.left": {
+    "text": "{{barLabel}} (left)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/combo-chart.tsx, ComboChart: the items of <ChartLegend>. Filled in: {{barLabel}}."
+  },
+  "components.chart.combo-chart.right": {
+    "text": "{{lineLabel}} (right)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/combo-chart.tsx, ComboChart: the items of <ChartLegend>. Filled in: {{lineLabel}}."
+  },
+  "components.chart.combo-chart.text": {
+    "text": "{{label}}: {{barLabel}} {{formatBar}}, {{lineLabel}} {{formatLine}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/combo-chart.tsx, ComboChart: the content of <ChartMark>. Filled in: {{label}}, {{barLabel}}, {{formatBar}}, {{lineLabel}}, {{formatLine}}."
+  },
+  "components.chart.combo-chart.text_2": {
+    "text": "{{label}}, {{barLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/combo-chart.tsx, ComboChart: the caption of <ChartDataTable>. Filled in: {{label}}, {{barLabel}}."
+  },
+  "components.chart.combo-chart.text_3": {
+    "text": "{{label}}, {{lineLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/combo-chart.tsx, ComboChart: the caption of <ChartDataTable>. Filled in: {{label}}, {{lineLabel}}."
+  },
+  "components.chart.donut-chart.by_part": {
+    "text": "{{label}}, {{label2}}, by part",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/donut-chart.tsx, DonutChart: the caption of <ChartDataTable>. Filled in: {{label}}, {{label2}}."
+  },
+  "components.chart.donut-chart.made_of": {
+    "text": "Made of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/donut-chart.tsx, DonutChart: the aria-label of <ul>."
+  },
+  "components.chart.donut-chart.of": {
+    "text": "{{label}} · {{label2}}: {{format}} ({{round}}% of {{label3}})",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/donut-chart.tsx, DonutChart: text inside <svg>. Filled in: {{label}}, {{label2}}, {{format}}, {{round}}, {{label3}}."
+  },
+  "components.chart.donut-chart.text": {
+    "text": "{{label}}: {{format}} ({{round}}%)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/donut-chart.tsx, DonutChart: text inside <svg>. Filled in: {{label}}, {{format}}, {{round}}."
+  },
+  "components.chart.gauge.target": {
+    "text": "target {{target}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/gauge.tsx, Gauge: the aria-valuetext of <div>. Filled in: {{target}}."
+  },
+  "components.chart.radar-chart.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/radar-chart.tsx, RadarChart: text inside <td>."
+  },
+  "components.chart.radar-chart.quality": {
+    "text": "Quality",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/radar-chart.tsx, RadarChart: text inside <th>."
+  },
+  "components.chart.radar-chart.text": {
+    "text": "{{label}} · {{axis}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/radar-chart.tsx, RadarChart: the rows of <ChartFrame>. Filled in: {{label}}, {{axis}}."
+  },
+  "components.chart.range-bar.from": {
+    "text": "From",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-bar.tsx, RangeBar: text inside <th>."
+  },
+  "components.chart.range-bar.segment": {
+    "text": "Segment",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-bar.tsx, RangeBar: text inside <th>."
+  },
+  "components.chart.range-bar.to": {
+    "text": "To",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-bar.tsx, RangeBar: text inside <th>."
+  },
+  "components.chart.range-chart.above_maximum": {
+    "text": "(above maximum)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>."
+  },
+  "components.chart.range-chart.above_the_maximum": {
+    "text": ", above the maximum",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <div>."
+  },
+  "components.chart.range-chart.all_inside_the_band": {
+    "text": "all inside the band",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <div>."
+  },
+  "components.chart.range-chart.band": {
+    "text": "Band",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <li>."
+  },
+  "components.chart.range-chart.below_minimum": {
+    "text": "(below minimum)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>."
+  },
+  "components.chart.range-chart.below_the_minimum": {
+    "text": ", below the minimum",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <div>."
+  },
+  "components.chart.range-chart.maximum": {
+    "text": "Maximum",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <th>."
+  },
+  "components.chart.range-chart.minimum": {
+    "text": "Minimum",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <th>."
+  },
+  "components.chart.range-chart.none": {
+    "text": "None",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>."
+  },
+  "components.chart.range-chart.not_compared": {
+    "text": "Not compared",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>."
+  },
+  "components.chart.range-chart.not_counted": {
+    "text": "Not counted",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>."
+  },
+  "components.chart.range-chart.of": {
+    "text": "{{outsideOf}} of {{length}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>. Filled in: {{outsideOf}}, {{length}}."
+  },
+  "components.chart.range-chart.outside_it": {
+    "text": "{{outsiders}} outside it",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <div>. Filled in: {{outsiders}}."
+  },
+  "components.chart.range-chart.outside_the_band": {
+    "text": "Outside the band",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <th>."
+  },
+  "components.chart.range-chart.to": {
+    "text": "{{label}}: {{format}} to {{format2}}, {{midLabel}} {{format3}}{{value}}{{value2}}{{value3}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <div>. Filled in: {{label}}, {{format}}, {{format2}}, {{midLabel}}, {{format3}}, {{value}}, {{value2}}, {{value3}}."
+  },
+  "components.chart.range-chart.to_2": {
+    "text": "{{format}} to {{format2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/range-chart.tsx, RangeChart: text inside <td>. Filled in: {{format}}, {{format2}}."
+  },
+  "components.chart.scatter-chart.fit_line_at_at": {
+    "text": "Fit line{{value}}: {{yLabel}} {{formatY}} at {{xLabel}} {{formatX}}, {{formatY2}} at {{formatX2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/scatter-chart.tsx, ScatterChart: text inside <li>. Filled in: {{value}}, {{yLabel}}, {{formatY}}, {{xLabel}}, {{formatX}}, {{formatY2}}, {{formatX2}}."
+  },
+  "components.chart.scatter-chart.name": {
+    "text": "Name",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/scatter-chart.tsx, ScatterChart: text inside <th>."
+  },
+  "components.chart.scatter-chart.text": {
+    "text": "{{label}}: {{xLabel}} {{formatX}}, {{yLabel}} {{formatY}}{{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/scatter-chart.tsx, ScatterChart: text inside <div>. Filled in: {{label}}, {{xLabel}}, {{formatX}}, {{yLabel}}, {{formatY}}, {{value}}."
+  },
+  "components.chart.stacked-area-chart.text": {
+    "text": "{{label}} {{format}} ({{round}}%)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/stacked-area-chart.tsx, StackedAreaChart: text inside <div>. Filled in: {{label}}, {{format}}, {{round}}."
+  },
+  "components.chart.stacked-area-chart.text_2": {
+    "text": "{{label}} {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/stacked-area-chart.tsx, StackedAreaChart: text inside <div>. Filled in: {{label}}, {{format}}."
+  },
+  "components.chart.stacked-area-chart.text_3": {
+    "text": "{{label}}, {{label2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/stacked-area-chart.tsx, StackedAreaChart: the caption of <ChartDataTable>. Filled in: {{label}}, {{label2}}."
+  },
+  "components.chart.timeline-chart.a_day": {
+    "text": "a day",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code."
+  },
+  "components.chart.timeline-chart.a_week": {
+    "text": "a week",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code."
+  },
+  "components.chart.timeline-chart.clashes_with_another_item": {
+    "text": ", clashes with another item",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx: text built in code."
+  },
+  "components.chart.timeline-chart.days": {
+    "text": "{{snapDays}} days",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code. Filled in: {{snapDays}}."
+  },
+  "components.chart.timeline-chart.drag_to_reschedule_drag_the_ends": {
+    "text": "Drag to reschedule, drag the ends to resize, drop on another lane to move it there. Without a pointer: Shift with Left or Right moves it a day, Shift and Alt with Left or Right changes the end date, Shift with Up or Down moves it to the lane above or below.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <p>."
+  },
+  "components.chart.timeline-chart.end": {
+    "text": "End",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <th>."
+  },
+  "components.chart.timeline-chart.item": {
+    "text": "Item",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <th>."
+  },
+  "components.chart.timeline-chart.lane": {
+    "text": "Lane",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <th>."
+  },
+  "components.chart.timeline-chart.milestone": {
+    "text": "{{start}}, milestone",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{start}}."
+  },
+  "components.chart.timeline-chart.milestone_2": {
+    "text": "Milestone",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <td>."
+  },
+  "components.chart.timeline-chart.moved_to": {
+    "text": "{{label}} moved to {{dates}}.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code. Filled in: {{label}}, {{dates}}."
+  },
+  "components.chart.timeline-chart.not_tracked": {
+    "text": "Not tracked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <td>."
+  },
+  "components.chart.timeline-chart.progress": {
+    "text": "Progress",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <th>."
+  },
+  "components.chart.timeline-chart.px": {
+    "text": "{{width}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: a \"width\" value. Filled in: {{width}}."
+  },
+  "components.chart.timeline-chart.px_2": {
+    "text": "{{max}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{max}}."
+  },
+  "components.chart.timeline-chart.px_3": {
+    "text": "{{value}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{value}}."
+  },
+  "components.chart.timeline-chart.start": {
+    "text": "Start",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text inside <th>."
+  },
+  "components.chart.timeline-chart.tentative": {
+    "text": ", tentative",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx: text built in code."
+  },
+  "components.chart.timeline-chart.text": {
+    "text": "{{name}}: {{dates}}{{done}}{{notes}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{name}}, {{dates}}, {{done}}, {{notes}}."
+  },
+  "components.chart.timeline-chart.text_2": {
+    "text": "{{label}} · {{label2}} ({{start}}{{value}})",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: a \"label\" value. Filled in: {{label}}, {{label2}}, {{start}}, {{value}}."
+  },
+  "components.chart.timeline-chart.text_3": {
+    "text": "{{label}} {{value}}{{toIso}}{{value2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{label}}, {{value}}, {{toIso}}, {{value2}}."
+  },
+  "components.chart.timeline-chart.text_4": {
+    "text": "{{label}}, {{label2}}: {{dates}}{{notes}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code. Filled in: {{label}}, {{label2}}, {{dates}}, {{notes}}."
+  },
+  "components.chart.timeline-chart.to": {
+    "text": "{{start}} to {{end}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{start}}, {{end}}."
+  },
+  "components.chart.timeline-chart.to_2": {
+    "text": "{{start}} to {{toIso}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code. Filled in: {{start}}, {{toIso}}."
+  },
+  "components.chart.timeline-chart.to_iso": {
+    "text": "to {{toIso}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: a \"value2\" value. Filled in: {{toIso}}."
+  },
+  "components.chart.timeline-chart.to_move_a_segment_press_space": {
+    "text": "To move a segment, press Space or Enter, then Left or Right to move it {{step}} at a time. Press Space or Enter again to drop it, or Escape to put it back.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: the accessibility of <DndContext>. Filled in: {{step}}."
+  },
+  "components.chart.timeline-chart.translate_px_px": {
+    "text": "translate({{dx}}px, {{dy}}px)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: a \"transform\" value. Filled in: {{dx}}, {{dy}}."
+  },
+  "components.chart.timeline-chart.translate_px_px_2": {
+    "text": "translate({{x}}px, {{y}}px)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineGantt: text built in code. Filled in: {{x}}, {{y}}."
+  },
+  "components.chart.timeline-chart.was_dropped_where_it_started": {
+    "text": "{{label}} was dropped where it started.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/timeline-chart.tsx, TimelineTrack: text built in code. Filled in: {{label}}."
+  },
+  "components.chart.treemap-chart.text": {
+    "text": "{{label}}: {{format}} ({{round}}%)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/treemap-chart.tsx, TreemapChart: text inside <div>. Filled in: {{label}}, {{format}}, {{round}}."
+  },
+  "components.chart.waterfall-chart.axis_starts_at": {
+    "text": "Axis starts at",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <p>."
+  },
+  "components.chart.waterfall-chart.balance": {
+    "text": "Balance",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <td>."
+  },
+  "components.chart.waterfall-chart.change": {
+    "text": "Change",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <th>."
+  },
+  "components.chart.waterfall-chart.running_total": {
+    "text": "Running total",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <th>."
+  },
+  "components.chart.waterfall-chart.step": {
+    "text": "Step",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <th>."
+  },
+  "components.chart.waterfall-chart.text": {
+    "text": "{{label}}: {{sign}}{{format}}{{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chart/waterfall-chart.tsx, WaterfallChart: text inside <div>. Filled in: {{label}}, {{sign}}, {{format}}, {{value}}."
+  },
+  "components.chat.chat-window.close": {
+    "text": "Close",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat-window.tsx, ChatWindow: the aria-label of <Button>."
+  },
+  "components.chat.chat.is_typing": {
+    "text": "{{author}} is typing",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat.tsx, ChatTyping: text inside <span>. Filled in: {{author}}."
+  },
+  "components.chat.chat.waiting_for_the_reply": {
+    "text": "Waiting for the reply",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat.tsx, ChatComposer: the loadingLabel of <Button>."
+  },
+  "components.chat.chat.writing": {
+    "text": "Writing",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat.tsx, Writing: text inside <span>."
+  },
+  "components.chat.chat.you": {
+    "text": "You",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat.tsx, ChatMessage: text built in code."
+  },
+  "components.chip.chip.show_fewer": {
+    "text": "Show fewer",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chip/chip.tsx, ChipRow: text inside <Chip>."
+  },
+  "components.coach-mark.coach-mark.got_it": {
+    "text": "Got it",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/coach-mark/coach-mark.tsx, CoachMark: text inside <Button>."
+  },
+  "components.coach-mark.coach-mark.new": {
+    "text": "New",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/coach-mark/coach-mark.tsx, CoachMarkDot: text built in code."
+  },
+  "components.coach-mark.coach-mark.next": {
+    "text": "Next",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/coach-mark/coach-mark.tsx, CoachMark: text inside <Button>."
+  },
+  "components.coach-mark.coach-mark.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/coach-mark/coach-mark.tsx, CoachMark: text inside <span>."
+  },
+  "components.combobox.combobox.available": {
+    "text": "available",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text inside <p>."
+  },
+  "components.combobox.combobox.clear": {
+    "text": "Clear {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.combobox.combobox.remove": {
+    "text": "Remove {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.combobox.combobox.removed": {
+    "text": "{{label}} removed",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text built in code. Filled in: {{label}}."
+  },
+  "components.combobox.combobox.search": {
+    "text": "{{label}} search",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <input>. Filled in: {{label}}."
+  },
+  "components.combobox.combobox.searching": {
+    "text": "Searching…",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text inside <li>."
+  },
+  "components.combobox.combobox.selected": {
+    "text": "{{length}} selected",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text built in code. Filled in: {{length}}."
+  },
+  "components.combobox.combobox.selected_2": {
+    "text": "{{label}}, {{length}} selected",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <ul>. Filled in: {{label}}, {{length}}."
+  },
+  "components.combobox.combobox.text": {
+    "text": "{{label}}: {{triggerLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <PopoverTrigger>. Filled in: {{label}}, {{triggerLabel}}."
+  },
+  "components.command-palette.command-palette.back": {
+    "text": "back",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <span>."
+  },
+  "components.command-palette.command-palette.back_from": {
+    "text": "Back from {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.command-palette.command-palette.cancel": {
+    "text": "Cancel",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <button>."
+  },
+  "components.command-palette.command-palette.command_palette": {
+    "text": "Command palette",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, CommandPalette: text inside <DialogPrimitive.Title>."
+  },
+  "components.command-palette.command-palette.esc": {
+    "text": "Esc",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <Kbd>."
+  },
+  "components.command-palette.command-palette.move": {
+    "text": "move",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <span>."
+  },
+  "components.command-palette.command-palette.no_results": {
+    "text": "No results",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <p>."
+  },
+  "components.command-palette.command-palette.open": {
+    "text": "open",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <span>."
+  },
+  "components.command-palette.command-palette.searching": {
+    "text": "Searching",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: the label of <Spinner>."
+  },
+  "components.command-palette.command-palette.text": {
+    "text": "{{length}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/command-palette/command-palette.tsx, Command: text inside <p>. Filled in: {{length}}, {{value}}."
+  },
+  "components.completeness-meter.completeness-meter.complete": {
+    "text": "Complete",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/completeness-meter/completeness-meter.tsx, CompletenessMeter: text inside <p>."
+  },
+  "components.completeness-meter.completeness-meter.parts": {
+    "text": "Parts",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/completeness-meter/completeness-meter.tsx, CompletenessMeter: the aria-label of <ul>."
+  },
+  "components.date-picker.date-picker.cant_be_chosen_here": {
+    "text": "{{format}} can’t be chosen here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text built in code. Filled in: {{format}}."
+  },
+  "components.date-picker.date-picker.go_to_today": {
+    "text": "Go to today",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text inside <Button>."
+  },
+  "components.date-picker.date-picker.last_month": {
+    "text": "Last month",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx: a \"label\" value."
+  },
+  "components.date-picker.date-picker.pick_a_date": {
+    "text": "Pick a date",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text built in code."
+  },
+  "components.date-picker.date-picker.text": {
+    "text": "{{format}} – {{format2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text built in code. Filled in: {{format}}, {{format2}}."
+  },
+  "components.date-picker.date-picker.text_2": {
+    "text": "{{label}}: {{display}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: the aria-label of <PopoverTrigger>. Filled in: {{label}}, {{display}}."
+  },
+  "components.date-picker.date-picker.this_month": {
+    "text": "This month",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx: a \"label\" value."
+  },
+  "components.date-picker.date-picker.this_quarter": {
+    "text": "This quarter",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx: a \"label\" value."
+  },
+  "components.date-picker.date-picker.type": {
+    "text": "Type {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text inside <FieldLabel>. Filled in: {{label}}."
+  },
+  "components.date-picker.date-picker.type_a_date_like": {
+    "text": "Type a date like {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: text built in code. Filled in: {{value}}."
+  },
+  "components.date-picker.date-picker.type_a_date_like_2": {
+    "text": "Type a date, like {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: the placeholder of <Input>. Filled in: {{value}}."
+  },
+  "components.date-picker.date-picker.type_the_end_date": {
+    "text": "Type the end date",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx, DatePicker: the placeholder of <Input>."
+  },
+  "components.date-picker.date-picker.year_to_date": {
+    "text": "Year to date",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/date-picker/date-picker.tsx: a \"label\" value."
+  },
+  "components.dialog.dialog.close": {
+    "text": "Close",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/dialog/dialog.tsx, DialogContent: text inside <span>."
+  },
+  "components.dropzone.dropzone.drop_a_file_here_or_click": {
+    "text": "Drop a file here, or click to browse",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/dropzone/dropzone.tsx, Dropzone: text inside <span>."
+  },
+  "components.dropzone.dropzone.release_to_drop_the_file": {
+    "text": "Release to drop the file",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/dropzone/dropzone.tsx, Dropzone: text inside <p>."
+  },
+  "components.effective-value.effective-value.from": {
+    "text": "from",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/effective-value/effective-value.tsx, EffectiveValue: text inside <span>."
+  },
+  "components.effective-value.effective-value.waiting_for_approval": {
+    "text": "Waiting for approval",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/effective-value/effective-value.tsx, EffectiveValue: text inside <span>."
+  },
+  "components.field.field.missing": {
+    "text": "Missing",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/field/field.tsx, FieldLabel: text inside <Badge>."
+  },
+  "components.field.field.required": {
+    "text": "(required)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/field/field.tsx, FieldLabel: text inside <span>."
+  },
+  "components.field.field.sensitive": {
+    "text": "Sensitive",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/field/field.tsx, FieldLabel: text inside <Badge>."
+  },
+  "components.file-uploader.file-uploader.a_file": {
+    "text": "a file",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.added": {
+    "text": "{{length}} {{value}} added.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text built in code. Filled in: {{length}}, {{value}}."
+  },
+  "components.file-uploader.file-uploader.any_file": {
+    "text": "Any file",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <p>."
+  },
+  "components.file-uploader.file-uploader.attach_a_file": {
+    "text": "Attach a file",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <label>."
+  },
+  "components.file-uploader.file-uploader.attach_files": {
+    "text": "Attach files",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <label>."
+  },
+  "components.file-uploader.file-uploader.b": {
+    "text": "{{bytes}} B",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx: text built in code. Filled in: {{bytes}}."
+  },
+  "components.file-uploader.file-uploader.cancel": {
+    "text": "Cancel {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.choose": {
+    "text": "Choose",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.files": {
+    "text": "{{label}}, {{length}} files",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the aria-label of <ul>. Filled in: {{label}}, {{length}}."
+  },
+  "components.file-uploader.file-uploader.here": {
+    "text": "here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.kb": {
+    "text": "{{value}} kB",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx: text built in code. Filled in: {{value}}."
+  },
+  "components.file-uploader.file-uploader.mb": {
+    "text": "{{value}} MB",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx: text built in code. Filled in: {{value}}."
+  },
+  "components.file-uploader.file-uploader.or_drop": {
+    "text": "or drop",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.refused": {
+    "text": "{{length}} refused. {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text built in code. Filled in: {{length}}, {{value}}."
+  },
+  "components.file-uploader.file-uploader.remove": {
+    "text": "Remove {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.removed_remaining": {
+    "text": "{{displayName}} removed. {{value}} remaining.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text built in code. Filled in: {{displayName}}, {{value}}."
+  },
+  "components.file-uploader.file-uploader.retry": {
+    "text": "Retry {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.text": {
+    "text": "{{length}} / {{maxFiles}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>. Filled in: {{length}}, {{maxFiles}}."
+  },
+  "components.file-uploader.file-uploader.the_upload_failed": {
+    "text": "The upload failed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <p>."
+  },
+  "components.file-uploader.file-uploader.up_to_each": {
+    "text": "· up to {{formatBytes}} each",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <p>. Filled in: {{formatBytes}}."
+  },
+  "components.file-uploader.file-uploader.uploaded": {
+    "text": "Uploaded",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <p>."
+  },
+  "components.file-uploader.file-uploader.uploading": {
+    "text": "Uploading {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the label of <Progress>. Filled in: {{name}}."
+  },
+  "components.filter-builder.filter-builder.add_condition": {
+    "text": "Add condition",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the action of <Button>."
+  },
+  "components.filter-builder.filter-builder.add_group": {
+    "text": "Add group",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.all": {
+    "text": "All",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, MatchToggle: text inside <ToggleGroupItem>."
+  },
+  "components.filter-builder.filter-builder.any": {
+    "text": "Any",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, MatchToggle: text inside <ToggleGroupItem>."
+  },
+  "components.filter-builder.filter-builder.choose_any": {
+    "text": "Choose any",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <Combobox>."
+  },
+  "components.filter-builder.filter-builder.choose_one": {
+    "text": "Choose one",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <SelectValue>."
+  },
+  "components.filter-builder.filter-builder.clear": {
+    "text": "Clear",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.condition": {
+    "text": "Condition",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.condition_field": {
+    "text": "Condition {{name}} field",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: the aria-label of <SelectTrigger>. Filled in: {{name}}."
+  },
+  "components.filter-builder.filter-builder.condition_operator": {
+    "text": "Condition {{name}} operator",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: the aria-label of <SelectTrigger>. Filled in: {{name}}."
+  },
+  "components.filter-builder.filter-builder.condition_value_for": {
+    "text": "Condition {{name}} value for {{fieldName}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: the label of <ValueInput>. Filled in: {{name}}, {{fieldName}}."
+  },
+  "components.filter-builder.filter-builder.conditions_in_this_group": {
+    "text": "Conditions in this group",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <ol>."
+  },
+  "components.filter-builder.filter-builder.field": {
+    "text": "Field",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: the placeholder of <SelectValue>."
+  },
+  "components.filter-builder.filter-builder.filters": {
+    "text": "Filters",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <section>."
+  },
+  "components.filter-builder.filter-builder.group_of_these": {
+    "text": "Group, {{match}} of these",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <div>. Filled in: {{match}}."
+  },
+  "components.filter-builder.filter-builder.is": {
+    "text": "Is",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: the placeholder of <SelectValue>."
+  },
+  "components.filter-builder.filter-builder.match": {
+    "text": "Match",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the label of <MatchToggle>."
+  },
+  "components.filter-builder.filter-builder.match_in_this_group": {
+    "text": "Match in this group",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the label of <MatchToggle>."
+  },
+  "components.filter-builder.filter-builder.no_conditions_yet": {
+    "text": "No conditions yet",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the title of <EmptyState>."
+  },
+  "components.filter-builder.filter-builder.of_these_are_true": {
+    "text": "of these are true",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <span>."
+  },
+  "components.filter-builder.filter-builder.pick_a_period": {
+    "text": "Pick a period",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <DatePicker>."
+  },
+  "components.filter-builder.filter-builder.remove_condition": {
+    "text": "Remove condition {{name}}, {{fieldName}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ConditionRow: text built in code. Filled in: {{name}}, {{fieldName}}."
+  },
+  "components.filter-builder.filter-builder.remove_this_group": {
+    "text": "Remove this group",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <Button>."
+  },
+  "components.filter-builder.filter-builder.up_to_conditions_remove_one_to": {
+    "text": "Up to {{maxConditions}} conditions. Remove one to add another.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <span>. Filled in: {{maxConditions}}."
+  },
+  "components.filter-builder.filter-builder.value": {
+    "text": "Value",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <Input>."
+  },
+  "components.filter-builder.filter-builder.where": {
+    "text": "Where",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-builder.tsx, FilterBuilder: the joiner of <ConditionRow>."
+  },
+  "components.filter-builder.filter-model.text": {
+    "text": "{{value}} – {{value2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/filter-builder/filter-model.ts: text built in code. Filled in: {{value}}, {{value2}}."
+  },
+  "components.form-sections.form-sections.done_so_far": {
+    "text": "Done so far",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/form-sections/form-sections.tsx, PinnedBar: the aria-label of <div>."
+  },
+  "components.image-uploader.image-uploader.add": {
+    "text": "Add",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.add_photo": {
+    "text": "Add photo",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.added_of_in_total": {
+    "text": "{{length}} {{value}} added. {{length2}} of {{maxFiles}} in total.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{length}}, {{value}}, {{length2}}, {{maxFiles}}."
+  },
+  "components.image-uploader.image-uploader.an_image": {
+    "text": "an image",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.b": {
+    "text": "{{bytes}} B",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx: text built in code. Filled in: {{bytes}}."
+  },
+  "components.image-uploader.image-uploader.change": {
+    "text": "Change",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.choose": {
+    "text": "Choose",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.dismiss": {
+    "text": "Dismiss {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the label of <TileRemove>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.dismissed": {
+    "text": "{{name}} dismissed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.here": {
+    "text": "here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.image": {
+    "text": "Image",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: the aria-label of <input>."
+  },
+  "components.image-uploader.image-uploader.is_not_an_accepted_image_type": {
+    "text": "{{name}} is not an accepted image type.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: a \"message\" value. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.is_the_limit_is": {
+    "text": "{{name}} is {{formatBytes}}. The limit is {{formatBytes2}}.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: a \"message\" value. Filled in: {{name}}, {{formatBytes}}, {{formatBytes2}}."
+  },
+  "components.image-uploader.image-uploader.kb": {
+    "text": "{{value}} kB",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx: text built in code. Filled in: {{value}}."
+  },
+  "components.image-uploader.image-uploader.mb": {
+    "text": "{{value}} MB",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx: text built in code. Filled in: {{value}}."
+  },
+  "components.image-uploader.image-uploader.minimum_up_to": {
+    "text": "minimum · up to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <p>."
+  },
+  "components.image-uploader.image-uploader.not_an_image": {
+    "text": "Not an image",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.or_drop": {
+    "text": "or drop",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.refused": {
+    "text": "{{name}}, refused",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the alt of <img>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.rejected": {
+    "text": "{{length}} rejected. {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{length}}, {{value}}."
+  },
+  "components.image-uploader.image-uploader.remove": {
+    "text": "Remove {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the label of <TileRemove>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.remove_2": {
+    "text": "Remove",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <DropdownMenuItem>."
+  },
+  "components.image-uploader.image-uploader.removed": {
+    "text": "{{name}} removed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.replace": {
+    "text": "Replace",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <DropdownMenuItem>."
+  },
+  "components.image-uploader.image-uploader.replace_or_remove": {
+    "text": "{{value}}: replace or remove",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: the aria-label of <DropdownMenuTrigger>. Filled in: {{value}}."
+  },
+  "components.image-uploader.image-uploader.up_to": {
+    "text": "· up to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <p>."
+  },
+  "components.image-uploader.image-uploader.uploading": {
+    "text": "Uploading {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the label of <CircularProgress>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.uploading_2": {
+    "text": "Uploading",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the label of <Progress>."
+  },
+  "components.image-uploader.image-uploader.uploading_image": {
+    "text": "Uploading image",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: the label of <Progress>."
+  },
+  "components.inline-cell.inline-cell.missing": {
+    "text": "Missing",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/inline-cell/inline-cell.tsx, InlineCell: the placeholder of <input>."
+  },
+  "components.kanban.kanban.actions_for": {
+    "text": "Actions for {{title}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: the aria-label of <Button>. Filled in: {{title}}."
+  },
+  "components.kanban.kanban.cancel": {
+    "text": "Cancel",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, Kanban: text inside <Button>."
+  },
+  "components.kanban.kanban.clear_selection": {
+    "text": "Clear selection",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanSelectionBar: the aria-label of <Button>."
+  },
+  "components.kanban.kanban.column_in_view": {
+    "text": "{{label}}: column in view",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, Kanban: the aria-label of <ToggleGroup>. Filled in: {{label}}."
+  },
+  "components.kanban.kanban.confirm": {
+    "text": "Confirm",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, Kanban: text inside <Button>."
+  },
+  "components.kanban.kanban.drag": {
+    "text": "Drag {{itemLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: the aria-label of <button>. Filled in: {{itemLabel}}."
+  },
+  "components.kanban.kanban.drop_a_card_here": {
+    "text": "Drop a card here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: text inside <p>."
+  },
+  "components.kanban.kanban.locked": {
+    "text": "Locked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: text inside <span>."
+  },
+  "components.kanban.kanban.more_actions": {
+    "text": "More actions",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanSelectionBar: the aria-label of <Button>."
+  },
+  "components.kanban.kanban.move": {
+    "text": "Move {{itemLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: the aria-label of <Button>. Filled in: {{itemLabel}}."
+  },
+  "components.kanban.kanban.move_down": {
+    "text": "Move down",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: text inside <DropdownMenuItem>."
+  },
+  "components.kanban.kanban.move_to": {
+    "text": "Move to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: text inside <DropdownMenuLabel>."
+  },
+  "components.kanban.kanban.move_up": {
+    "text": "Move up",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: text inside <DropdownMenuItem>."
+  },
+  "components.kanban.kanban.over_the_work_in_progress_limit": {
+    "text": "Over the work-in-progress limit.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: text inside <p>."
+  },
+  "components.kanban.kanban.select": {
+    "text": "Select {{itemLabel}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanCard: the aria-label of <Checkbox>. Filled in: {{itemLabel}}."
+  },
+  "components.kanban.kanban.select_all": {
+    "text": "Select all",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanSelectionBar: text inside <Button>."
+  },
+  "components.kanban.kanban.select_every_card_in": {
+    "text": "Select every card in {{title}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: the aria-label of <Checkbox>. Filled in: {{title}}."
+  },
+  "components.kanban.kanban.selected": {
+    "text": "selected",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanSelectionBar: text inside <p>."
+  },
+  "components.kanban.kanban.selection": {
+    "text": "Selection",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanSelectionBar: the aria-label of <div>."
+  },
+  "components.kanban.kanban.text": {
+    "text": "{{title}}, {{length}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kanban/kanban.tsx, KanbanColumn: the aria-label of <section>. Filled in: {{title}}, {{length}}, {{value}}."
+  },
+  "components.kbd.kbd.then": {
+    "text": "then",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/kbd/kbd.tsx, KbdShortcut: text inside <span>."
+  },
+  "components.masked-value.masked-value.hidden": {
+    "text": "{{label}}, hidden",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx, MaskedValue: the aria-label of <span>. Filled in: {{label}}."
+  },
+  "components.masked-value.masked-value.hide": {
+    "text": "Hide {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx, MaskedValue: the aria-label of <Button>. Filled in: {{label}}."
+  },
+  "components.masked-value.masked-value.left": {
+    "text": "{{minutes}}:{{padStart}} left",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx: text built in code. Filled in: {{minutes}}, {{padStart}}."
+  },
+  "components.masked-value.masked-value.show": {
+    "text": "Show {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx, MaskedValue: the aria-label of <Button>. Filled in: {{label}}."
+  },
+  "components.merge-compare.merge-compare.keep": {
+    "text": "{{labelText}}: keep {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/merge-compare/merge-compare.tsx, MergeCompare: the aria-label of <RadioGroupPrimitive.Item>. Filled in: {{labelText}}, {{value}}."
+  },
+  "components.merge-compare.merge-compare.the_same_in_both": {
+    "text": ", the same in both",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/merge-compare/merge-compare.tsx, MergeCompare: text inside <span>."
+  },
+  "components.modal-page.modal-page.back": {
+    "text": "Back",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/modal-page/modal-page.tsx, ModalPageHeader: text inside <span>."
+  },
+  "components.modal-page.modal-page.close": {
+    "text": "Close",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/modal-page/modal-page.tsx, ModalPageHeader: text inside <span>."
+  },
+  "components.nav.grouped-nav.items": {
+    "text": "items",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <span>."
+  },
+  "components.nav.grouped-nav.locked": {
+    "text": ", locked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <span>."
+  },
+  "components.nav.grouped-nav.no_matches_for": {
+    "text": "No matches for “{{query}}”",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: the title of <EmptyState>. Filled in: {{query}}."
+  },
+  "components.nav.grouped-nav.opens_the_first": {
+    "text": "opens the first",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <span>."
+  },
+  "components.nav.grouped-nav.pinned": {
+    "text": ", pinned",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <span>."
+  },
+  "components.nav.grouped-nav.search": {
+    "text": "Search {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: the label of <SearchField>. Filled in: {{label}}."
+  },
+  "components.nav.grouped-nav.text": {
+    "text": "{{results}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <p>. Filled in: {{results}}, {{value}}."
+  },
+  "components.nav.mega-menu.recent": {
+    "text": "Recent",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/mega-menu.tsx, MegaMenu: text inside <span>."
+  },
+  "components.nav.tertiary-nav-menu.text": {
+    "text": "{{label}}: {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/tertiary-nav-menu.tsx, TertiaryNavMenu: the aria-label of <Button>. Filled in: {{label}}, {{value}}."
+  },
+  "components.notification-center.notification-center.unread": {
+    "text": "Unread",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/notification-center/notification-center.tsx, NotificationItem: text inside <span>."
+  },
+  "components.number-field.number-field.decrease": {
+    "text": "Decrease {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/number-field/number-field.tsx, NumberField: the label of <Stepper>. Filled in: {{label}}."
+  },
+  "components.number-field.number-field.empty": {
+    "text": "Empty",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/number-field/number-field.tsx, NumberField: the aria-valuetext of <input>."
+  },
+  "components.number-field.number-field.increase": {
+    "text": "Increase {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/number-field/number-field.tsx, NumberField: the label of <Stepper>. Filled in: {{label}}."
+  },
+  "components.org-chart.org-chart.collapse_all": {
+    "text": "Collapse all",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.direct_reports": {
+    "text": "Direct reports",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <th>."
+  },
+  "components.org-chart.org-chart.direct_reports_in_total": {
+    "text": "{{length}} direct reports, {{total}} in total",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgBranch: text built in code. Filled in: {{length}}, {{total}}."
+  },
+  "components.org-chart.org-chart.drag_a_person_onto_a_manager": {
+    "text": "Drag a person onto a manager to change who they report to. Without a pointer, open a person's context menu and use “Report to”.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <p>."
+  },
+  "components.org-chart.org-chart.expand_all": {
+    "text": "Expand all",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.find_someone": {
+    "text": "Find someone",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the label of <Combobox>."
+  },
+  "components.org-chart.org-chart.fit": {
+    "text": "Fit",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <Button>."
+  },
+  "components.org-chart.org-chart.focused_branch": {
+    "text": "Focused branch",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the aria-label of <Breadcrumb>."
+  },
+  "components.org-chart.org-chart.go_to_manager": {
+    "text": "Go to manager",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.hide_reports": {
+    "text": "Hide reports",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.in_the_reporting_chain_above": {
+    "text": "in the reporting chain above",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgBranch: text built in code."
+  },
+  "components.org-chart.org-chart.name": {
+    "text": "Name",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <th>."
+  },
+  "components.org-chart.org-chart.name_or_title": {
+    "text": "Name or title",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the searchPlaceholder of <Combobox>."
+  },
+  "components.org-chart.org-chart.no_direct_reports": {
+    "text": "no direct reports",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgBranch: text built in code."
+  },
+  "components.org-chart.org-chart.nobody_by_that_name": {
+    "text": "Nobody by that name.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the emptyMessage of <Combobox>."
+  },
+  "components.org-chart.org-chart.not_shown": {
+    "text": "not shown:",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <p>."
+  },
+  "components.org-chart.org-chart.of_shown": {
+    "text": "of {{length}} shown",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <p>. Filled in: {{length}}."
+  },
+  "components.org-chart.org-chart.pan_and_zoom_canvas": {
+    "text": "{{label}}, pan and zoom canvas",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the aria-label of <div>. Filled in: {{label}}."
+  },
+  "components.org-chart.org-chart.report": {
+    "text": "{{reports}} report{{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgTreeList: text inside <p>. Filled in: {{reports}}, {{value}}."
+  },
+  "components.org-chart.org-chart.report_into_a_circular_management_chain": {
+    "text": "report into a circular management chain.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <p>."
+  },
+  "components.org-chart.org-chart.report_to": {
+    "text": "Report to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuSubTrigger>."
+  },
+  "components.org-chart.org-chart.reporting_lines_are_read_only": {
+    "text": "Reporting lines are read-only",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.reports_to": {
+    "text": "Reports to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <th>."
+  },
+  "components.org-chart.org-chart.reset_zoom": {
+    "text": "Reset zoom",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.show_only_this_chain": {
+    "text": "Show only this chain",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.show_reports": {
+    "text": "Show reports",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.show_their_whole_chart": {
+    "text": "Show their whole chart",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.show_whole_org": {
+    "text": "Show whole org",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <ContextMenuItem>."
+  },
+  "components.org-chart.org-chart.status": {
+    "text": "Status",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <th>."
+  },
+  "components.org-chart.org-chart.title": {
+    "text": "Title",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <th>."
+  },
+  "components.org-chart.org-chart.translate_px_px": {
+    "text": "translate({{dx}}px, {{dy}}px)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: a \"transform\" value. Filled in: {{dx}}, {{dy}}."
+  },
+  "components.org-chart.org-chart.view_as_chart": {
+    "text": "View as chart",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <Button>."
+  },
+  "components.org-chart.org-chart.view_as_list": {
+    "text": "View as list",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <Button>."
+  },
+  "components.org-chart.org-chart.whole_org": {
+    "text": "Whole org",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <button>."
+  },
+  "components.org-chart.org-chart.zoom_in": {
+    "text": "Zoom in",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the aria-label of <Button>."
+  },
+  "components.org-chart.org-chart.zoom_out": {
+    "text": "Zoom out",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: the aria-label of <Button>."
+  },
+  "components.page-layout.page-layout.click_or_drag_to_collapse": {
+    "text": "Click or drag to collapse",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, RailEdge: the content of <Tooltip>."
+  },
+  "components.page-layout.page-layout.click_or_drag_to_expand": {
+    "text": "Click or drag to expand",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, RailEdge: the content of <Tooltip>."
+  },
+  "components.page-layout.page-layout.details": {
+    "text": "Details",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageLayout: the aria-label of <aside>."
+  },
+  "components.page-layout.page-layout.details_2": {
+    "text": "details",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageLayout: the label of <RailToggle>."
+  },
+  "components.page-layout.page-layout.loading": {
+    "text": "Loading",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageHeader: the label of <Skeleton>."
+  },
+  "components.page-layout.page-layout.main": {
+    "text": "Main",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageLayout: the aria-label of <nav>."
+  },
+  "components.page-layout.page-layout.meta_control": {
+    "text": "Meta+{{shortcut}} Control+{{shortcut2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, RailToggle: the aria-keyshortcuts of <button>. Filled in: {{shortcut}}, {{shortcut2}}."
+  },
+  "components.page-layout.page-layout.navigation": {
+    "text": "navigation",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageLayout: the label of <RailToggle>."
+  },
+  "components.page-layout.page-layout.px": {
+    "text": "{{width}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, RailEdge: the onPointerMove of <div>. Filled in: {{width}}."
+  },
+  "components.page-layout.page-layout.sidebar": {
+    "text": "sidebar",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/page-layout/page-layout.tsx, PageLayout: the label of <RailToggle>."
+  },
+  "components.pagination.pagination.next_page": {
+    "text": "Next page",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: the aria-label of <Button>."
+  },
+  "components.pagination.pagination.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: text inside <p>."
+  },
+  "components.pagination.pagination.page": {
+    "text": "Page {{item}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: the aria-label of <Button>. Filled in: {{item}}."
+  },
+  "components.pagination.pagination.page_2": {
+    "text": "Page",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: text inside <li>."
+  },
+  "components.pagination.pagination.previous_page": {
+    "text": "Previous page",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: the aria-label of <Button>."
+  },
+  "components.pagination.pagination.showing": {
+    "text": "Showing",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pagination/pagination.tsx, Pagination: text inside <p>."
+  },
+  "components.password-field.password-field.empty": {
+    "text": "Empty",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: the aria-valuetext of <div>."
+  },
+  "components.password-field.password-field.hide": {
+    "text": "Hide {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.password-field.password-field.met": {
+    "text": ",  met",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: text inside <span>."
+  },
+  "components.password-field.password-field.not_met": {
+    "text": ",  not met",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: text inside <span>."
+  },
+  "components.password-field.password-field.show": {
+    "text": "Show {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.password-field.password-field.strength": {
+    "text": "{{label}} strength",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/password-field/password-field.tsx, PasswordField: the aria-label of <div>. Filled in: {{label}}."
+  },
+  "components.pdf-pages.pdf-pages.opening": {
+    "text": "Opening {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pdf-pages/pdf-pages.tsx, PdfPages: the label of <Skeleton>. Filled in: {{label}}."
+  },
+  "components.pdf-pages.pdf-pages.page_of": {
+    "text": "{{label}}, page {{number}} of {{length}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pdf-pages/pdf-pages.tsx, PdfPages: the label of <PageCanvas>. Filled in: {{label}}, {{number}}, {{length}}."
+  },
+  "components.pdf-pages.pdf-pages.the_document_could_not_be_shown": {
+    "text": "The document could not be shown",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pdf-pages/pdf-pages.tsx, PdfPages: the title of <Alert>."
+  },
+  "components.pdf-pages.pdf-pages.try_again_in_a_moment_or": {
+    "text": "Try again in a moment, or download it to read it.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pdf-pages/pdf-pages.tsx, PdfPages: text inside <Alert>."
+  },
+  "components.pin-input.pin-input.character_of": {
+    "text": "{{label}}, character {{value}} of {{length}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pin-input/pin-input.tsx, PinInput: the aria-label of <input>. Filled in: {{label}}, {{value}}, {{length}}."
+  },
+  "components.pin-input.pin-input.empty": {
+    "text": "{{label}} empty",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pin-input/pin-input.tsx, PinInput: text inside <p>. Filled in: {{label}}."
+  },
+  "components.pin-input.pin-input.of_characters_entered": {
+    "text": "{{length}} of {{length2}} characters entered",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/pin-input/pin-input.tsx, PinInput: text inside <p>. Filled in: {{length}}, {{length2}}."
+  },
+  "components.placement-layer.hug.px": {
+    "text": "{{value}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/placement-layer/hug.ts: text built in code. Filled in: {{value}}."
+  },
+  "components.placement-layer.hug.text": {
+    "text": "{{fontStyle}} {{fontWeight}} {{fontSize}} {{fontFamily}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/placement-layer/hug.ts: text built in code. Filled in: {{fontStyle}}, {{fontWeight}}, {{fontSize}}, {{fontFamily}}."
+  },
+  "components.progress.progress.text": {
+    "text": "{{label}}: {{join}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/progress/progress.tsx, SegmentedProgress: text built in code. Filled in: {{label}}, {{join}}."
+  },
+  "components.quick-look.quick-look.close": {
+    "text": "Close",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/quick-look/quick-look.tsx, QuickLook: the aria-label of <Button>."
+  },
+  "components.quick-look.quick-look.next_record": {
+    "text": "next record",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/quick-look/quick-look.tsx, QuickLook: text inside <span>."
+  },
+  "components.quick-look.quick-look.open": {
+    "text": "open",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/quick-look/quick-look.tsx, QuickLook: text inside <span>."
+  },
+  "components.quick-look.quick-look.open_the_full_page": {
+    "text": "Open the full page",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/quick-look/quick-look.tsx, QuickLook: the aria-label of <a>."
+  },
+  "components.rating.rating.not_rated": {
+    "text": "Not rated",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rating/rating.tsx, Rating: text inside <span>."
+  },
+  "components.rating.rating.of": {
+    "text": "{{rating}} of {{max}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rating/rating.tsx, Rating: text built in code. Filled in: {{rating}}, {{max}}."
+  },
+  "components.rating.rating.out_of": {
+    "text": "{{label}}: {{rounded}} out of {{max}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rating/rating.tsx, Rating: the aria-label of <div>. Filled in: {{label}}, {{rounded}}, {{max}}."
+  },
+  "components.rich-text.rich-text-editor.add_or_edit_link": {
+    "text": "Add or edit link",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: the aria-label of <button>."
+  },
+  "components.rich-text.rich-text-editor.apply": {
+    "text": "Apply",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: text inside <Button>."
+  },
+  "components.rich-text.rich-text-editor.end": {
+    "text": "End",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextToolbar: text built in code."
+  },
+  "components.rich-text.rich-text-editor.formatting": {
+    "text": "{{label}} formatting",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextEditorBody: the label of <RichTextToolbar>. Filled in: {{label}}."
+  },
+  "components.rich-text.rich-text-editor.formatting_2": {
+    "text": "Formatting",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextEditorBody: the label of <RichTextToolbar>."
+  },
+  "components.rich-text.rich-text-editor.home": {
+    "text": "Home",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextToolbar: text built in code."
+  },
+  "components.rich-text.rich-text-editor.link_address": {
+    "text": "Link address",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: text inside <label>."
+  },
+  "components.rich-text.rich-text-editor.noopener_noreferrer_nofollow": {
+    "text": "noopener noreferrer nofollow",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextEditorBody: a \"rel\" value."
+  },
+  "components.rich-text.rich-text-editor.opens_in_a_new_tab_with": {
+    "text": "Opens in a new tab, with",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: text inside <p>."
+  },
+  "components.rich-text.rich-text-editor.rel_noopener": {
+    "text": "rel=\"noopener\"",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: text inside <code>."
+  },
+  "components.rich-text.rich-text-editor.remove_link": {
+    "text": "Remove link",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: the aria-label of <button>."
+  },
+  "components.rich-text.rich-text-editor.write_something": {
+    "text": "Write something…",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, RichTextEditorBody: text built in code."
+  },
+  "components.rich-text.rich-text-frame.characters": {
+    "text": "{{used}} characters",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-frame.tsx, RichTextFrame: text inside <p>. Filled in: {{used}}."
+  },
+  "components.rich-text.rich-text-frame.text": {
+    "text": "{{used}} / {{characterLimit}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-frame.tsx, RichTextFrame: text inside <p>. Filled in: {{used}}, {{characterLimit}}."
+  },
+  "components.rich-text.rich-text-frame.text_2": {
+    "text": "{{words}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-frame.tsx, RichTextFrame: text inside <p>. Filled in: {{words}}, {{value}}."
+  },
+  "components.rich-text.rich-text.a_script_tag_an_inline_event": {
+    "text": "(a script tag, an inline event handler, a javascript: URL or an embedded frame).",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text.tsx, RichTextContent: text built in code."
+  },
+  "components.rich-text.rich-text.this_prop_is_inserted_verbatim_sanitise": {
+    "text": "This prop is inserted verbatim. Sanitise it on the server.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text.tsx, RichTextContent: text built in code."
+  },
+  "components.scheduler.scheduler-model.text": {
+    "text": "{{short}} {{date}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler-model.ts: a \"label\" value. Filled in: {{short}}, {{date}}."
+  },
+  "components.scheduler.scheduler.all_day": {
+    "text": "All day,",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx, Scheduler: text inside <span>."
+  },
+  "components.scheduler.scheduler.all_day_2": {
+    "text": "All day",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx, Agenda: text inside <span>."
+  },
+  "components.scheduler.scheduler.clashes": {
+    "text": ", clashes",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx, Scheduler: text inside <span>."
+  },
+  "components.scheduler.scheduler.more": {
+    "text": "more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx, Month: text inside <span>."
+  },
+  "components.scheduler.scheduler.to": {
+    "text": "{{formatMinutes}} to {{formatMinutes2}},",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx, Scheduler: text inside <span>. Filled in: {{formatMinutes}}, {{formatMinutes2}}."
+  },
+  "components.scheduler.scheduler.to_2": {
+    "text": "{{name}} to {{name2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/scheduler/scheduler.tsx: text built in code. Filled in: {{name}}, {{name2}}."
+  },
+  "components.sheet.sheet.close": {
+    "text": "Close",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sheet/sheet.tsx, SheetContent: text inside <span>."
+  },
+  "components.shortcuts.key-recorder.escape_cancels": {
+    "text": "{{recordingText}}. Escape cancels.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/shortcuts/key-recorder.tsx, KeyRecorder: text inside <span>. Filled in: {{recordingText}}."
+  },
+  "components.signature-pad.signature-pad.drawn": {
+    "text": "{{label}}: drawn",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: the aria-label of <svg>. Filled in: {{label}}."
+  },
+  "components.signature-pad.signature-pad.l": {
+    "text": "{{value}} L {{point}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: the onPointerMove of <svg>. Filled in: {{value}}, {{point}}."
+  },
+  "components.signature-pad.signature-pad.m": {
+    "text": "{{value}} M {{point}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: the onPointerDown of <svg>. Filled in: {{value}}, {{point}}."
+  },
+  "components.signature-pad.signature-pad.text": {
+    "text": "{{value}} {{value2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature-pad/signature-pad.tsx, SignaturePad: text built in code. Filled in: {{value}}, {{value2}}."
+  },
+  "components.signature.adopt-signature.a_signature_is_your_legal_first": {
+    "text": "A signature is your legal first and last name, as your company keeps them.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <FieldDescription>."
+  },
+  "components.signature.adopt-signature.adopt": {
+    "text": "Adopt",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.adopt_a_signature": {
+    "text": "Adopt a signature",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, SignatureInput: text inside <Button>."
+  },
+  "components.signature.adopt-signature.adopt_your_signature": {
+    "text": "Adopt your signature",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.by_adopting_it_you_agree_this": {
+    "text": "By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.cancel": {
+    "text": "Cancel",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <Button>."
+  },
+  "components.signature.adopt-signature.change_it": {
+    "text": "Change it",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, SignatureInput: text inside <Button>."
+  },
+  "components.signature.adopt-signature.change_your_signature": {
+    "text": "Change your signature",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, SignatureInput: the title of <AdoptSignatureDialog>."
+  },
+  "components.signature.adopt-signature.choose_a_style": {
+    "text": "Choose a style",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <SegmentedControlItem>."
+  },
+  "components.signature.adopt-signature.choose_how_it_looks_or_draw": {
+    "text": "Choose how it looks, or draw it.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <DialogDescription>."
+  },
+  "components.signature.adopt-signature.draw": {
+    "text": "Draw",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <SegmentedControlItem>."
+  },
+  "components.signature.adopt-signature.draw_your_signature": {
+    "text": "Draw your signature",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: the label of <SignaturePad>."
+  },
+  "components.signature.adopt-signature.how_you_sign": {
+    "text": "How you sign",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: the aria-label of <SegmentedControl>."
+  },
+  "components.signature.adopt-signature.in_the_style": {
+    "text": "{{shown}}, in the {{SIGNATURE_STYLE_LABEL}} style",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: the label of <Signature>. Filled in: {{shown}}, {{SIGNATURE_STYLE_LABEL}}."
+  },
+  "components.signature.adopt-signature.no_signature_yet": {
+    "text": "No signature yet",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, SignatureInput: text inside <p>."
+  },
+  "components.signature.adopt-signature.s_signature": {
+    "text": "{{name}}’s signature",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, SignatureInput: the label of <Signature>. Filled in: {{name}}."
+  },
+  "components.signature.adopt-signature.style": {
+    "text": "Style",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: the aria-label of <RadioGroup>."
+  },
+  "components.signature.adopt-signature.your_legal_name": {
+    "text": "Your legal name",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <FieldLabel>."
+  },
+  "components.signature.signature.text": {
+    "text": "{{value}} {{value2}} {{value3}} {{value4}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/signature/signature.tsx, Signature: the viewBox of <svg>. Filled in: {{value}}, {{value2}}, {{value3}}, {{value4}}."
+  },
+  "components.slider.slider.text": {
+    "text": "{{label}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slider/slider.tsx, Slider: the aria-label of <SliderPrimitive.Thumb>. Filled in: {{label}}, {{value}}."
+  },
+  "components.slot-picker.slot-picker.add_a_time": {
+    "text": "Add a time",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the placeholder of <Combobox>."
+  },
+  "components.slot-picker.slot-picker.all_picked": {
+    "text": "All picked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <span>."
+  },
+  "components.slot-picker.slot-picker.already_booked": {
+    "text": "Already booked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
+  },
+  "components.slot-picker.slot-picker.choose_a_time": {
+    "text": "Choose a time",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the placeholder of <Combobox>."
+  },
+  "components.slot-picker.slot-picker.day": {
+    "text": "{{label}}: day",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the label of <Calendar>. Filled in: {{label}}."
+  },
+  "components.slot-picker.slot-picker.no_time_like_that": {
+    "text": "No time like that",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the emptyMessage of <Combobox>."
+  },
+  "components.slot-picker.slot-picker.nothing_free": {
+    "text": "Nothing free",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
+  },
+  "components.slot-picker.slot-picker.nothing_free_that_day_pick_a": {
+    "text": "Nothing free that day. Pick a day with a green dot.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <p>."
+  },
+  "components.slot-picker.slot-picker.of": {
+    "text": "{{length}} of {{max}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <span>. Filled in: {{length}}, {{max}}."
+  },
+  "components.slot-picker.slot-picker.of_times_picked": {
+    "text": "{{length}} of {{max}} times picked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the label of <Progress>. Filled in: {{length}}, {{max}}."
+  },
+  "components.slot-picker.slot-picker.pick_more": {
+    "text": "Pick {{value}} more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <span>. Filled in: {{value}}."
+  },
+  "components.slot-picker.slot-picker.picked": {
+    "text": "{{max}} picked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the placeholder of <Combobox>. Filled in: {{max}}."
+  },
+  "components.slot-picker.slot-picker.picked_2": {
+    "text": "{{label}}: picked",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the aria-label of <ul>. Filled in: {{label}}."
+  },
+  "components.slot-picker.slot-picker.picked_on": {
+    "text": "Picked on {{format}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the aria-label of <ChipRow>. Filled in: {{format}}."
+  },
+  "components.slot-picker.slot-picker.remove": {
+    "text": "Remove {{range}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the removeLabel of <Chip>. Filled in: {{range}}."
+  },
+  "components.slot-picker.slot-picker.show": {
+    "text": "Show",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <span>."
+  },
+  "components.slot-picker.slot-picker.text": {
+    "text": "{{format}} – {{format2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text built in code. Filled in: {{format}}, {{format2}}."
+  },
+  "components.slot-picker.slot-picker.times_free": {
+    "text": "Times free",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
+  },
+  "components.slot-picker.slot-picker.times_on": {
+    "text": "{{label}}: times on {{day}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the label of <Combobox>. Filled in: {{label}}, {{day}}."
+  },
+  "components.slot-picker.slot-picker.type_a_time": {
+    "text": "Type a time",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the searchPlaceholder of <Combobox>."
+  },
+  "components.slot-picker.slot-picker.weekend": {
+    "text": "Weekend",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
+  },
+  "components.sortable.sortable.item": {
+    "text": "item {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sortable/sortable.tsx, SortableList: text built in code. Filled in: {{value}}."
+  },
+  "components.sortable.sortable.move_down": {
+    "text": "Move {{name}} down",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sortable/sortable.tsx, SortableRow: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.sortable.sortable.move_up": {
+    "text": "Move {{name}} up",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sortable/sortable.tsx, SortableRow: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.sortable.sortable.reorder": {
+    "text": "Reorder {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sortable/sortable.tsx, SortableRow: the aria-label of <button>. Filled in: {{name}}."
+  },
+  "components.sortable.sortable.use_the_move_up_and_move": {
+    "text": "Use the Move up and Move down buttons to change the order, or press Space on a drag handle and use the arrow keys.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/sortable/sortable.tsx, SortableList: text inside <p>."
+  },
+  "components.stat.stat.from": {
+    "text": "From",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/stat/stat.tsx, Stat: text inside <span>."
+  },
+  "components.stat.stat.to": {
+    "text": "to",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/stat/stat.tsx, Stat: text inside <span>."
+  },
+  "components.stepper.stepper.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/stepper/stepper.tsx, Stepper: text inside <span>."
+  },
+  "components.stepper.stepper.step": {
+    "text": "Step",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/stepper/stepper.tsx, Stepper: text inside <span>."
+  },
+  "components.stepper.stepper.step_of": {
+    "text": "Step {{shown}} of {{length}}: {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/stepper/stepper.tsx, Stepper: the valueLabel of <Progress>. Filled in: {{shown}}, {{length}}, {{value}}."
+  },
+  "components.switch.switch.saving": {
+    "text": "Saving",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/switch/switch.tsx, Switch: the label of <Spinner>."
+  },
+  "components.table.bulk-bar.clear_selection": {
+    "text": "Clear selection",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/bulk-bar.tsx, BulkBar: the aria-label of <Button>."
+  },
+  "components.table.bulk-bar.selected": {
+    "text": "{{count}} selected",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/bulk-bar.tsx, BulkBar: the aria-label of <div>. Filled in: {{count}}."
+  },
+  "components.table.bulk-bar.selected_2": {
+    "text": "selected",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/bulk-bar.tsx, BulkBar: text inside <span>."
+  },
+  "components.table.column-chooser.columns": {
+    "text": "Columns",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: the aria-label of <ul>."
+  },
+  "components.table.column-chooser.done": {
+    "text": "Done",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: text inside <Button>."
+  },
+  "components.table.column-chooser.find_a_column": {
+    "text": "Find a column",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: the label of <SearchField>."
+  },
+  "components.table.column-chooser.no_column_called": {
+    "text": "No column called “",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: text inside <li>."
+  },
+  "components.table.column-chooser.of": {
+    "text": "of",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: text inside <span>."
+  },
+  "components.table.column-chooser.reset": {
+    "text": "Reset",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: text inside <Button>."
+  },
+  "components.table.column-chooser.show_and_order_columns": {
+    "text": "Show and order columns",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/column-chooser.tsx, ColumnChooser: text inside <p>."
+  },
+  "components.table.data-table.actions": {
+    "text": "Actions",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>."
+  },
+  "components.table.data-table.clear_selection": {
+    "text": "Clear selection",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: the aria-label of <Checkbox>."
+  },
+  "components.table.data-table.expand": {
+    "text": "Expand",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>."
+  },
+  "components.table.data-table.loading_more": {
+    "text": "Loading more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>."
+  },
+  "components.table.data-table.more_loaded": {
+    "text": "{{added}} more loaded",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text built in code. Filled in: {{added}}."
+  },
+  "components.table.data-table.no_further_detail": {
+    "text": "No further detail",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, BodyRow: text inside <span>."
+  },
+  "components.table.data-table.px": {
+    "text": "{{widthFor}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <TableRow>. Filled in: {{widthFor}}."
+  },
+  "components.table.data-table.reorder": {
+    "text": "Reorder",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>."
+  },
+  "components.table.data-table.reorder_2": {
+    "text": "Reorder {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataRow: the aria-label of <button>. Filled in: {{name}}."
+  },
+  "components.table.data-table.resize": {
+    "text": "Resize {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, ResizeHandle: the aria-label of <span>. Filled in: {{name}}."
+  },
+  "components.table.data-table.rows_are_sorted_by_a_column": {
+    "text": "Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag them.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <p>."
+  },
+  "components.table.data-table.select": {
+    "text": "Select {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, BodyRow: the aria-label of <Checkbox>. Filled in: {{name}}."
+  },
+  "components.table.data-table.select_all": {
+    "text": "Select all",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>."
+  },
+  "components.table.data-table.select_all_rows": {
+    "text": "Select all {{length}} rows",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: the aria-label of <Checkbox>. Filled in: {{length}}."
+  },
+  "components.table.data-table.sorted_by": {
+    "text": "Sorted by",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <td>."
+  },
+  "components.table.data-table.text": {
+    "text": "{{value}} {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, BodyRow: the aria-label of <button>. Filled in: {{value}}, {{name}}."
+  },
+  "components.table.row-menu.actions_for": {
+    "text": "Actions for {{name}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/row-menu.tsx, RowMenu: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "components.table.table.sort": {
+    "text": ", sort",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/table.tsx, TableHead: text inside <span>."
+  },
+  "components.table.table.table": {
+    "text": "Table",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/table.tsx, Table: the aria-label of <div>."
+  },
+  "components.tags-input.tags-input.added_in_total": {
+    "text": "{{candidate}} added. {{value}} in total.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: text built in code. Filled in: {{candidate}}, {{value}}."
+  },
+  "components.tags-input.tags-input.at_most_allowed": {
+    "text": "At most {{max}} allowed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: text built in code. Filled in: {{max}}."
+  },
+  "components.tags-input.tags-input.entries": {
+    "text": "{{label}}, {{length}} entries",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: the aria-label of <ul>. Filled in: {{label}}, {{length}}."
+  },
+  "components.tags-input.tags-input.is_already_in_the_list": {
+    "text": "{{candidate}} is already in the list.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: text built in code. Filled in: {{candidate}}."
+  },
+  "components.tags-input.tags-input.limit_reached": {
+    "text": "Limit reached",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: the placeholder of <input>."
+  },
+  "components.tags-input.tags-input.remove": {
+    "text": "Remove {{tag}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: the removeLabel of <Chip>. Filled in: {{tag}}."
+  },
+  "components.tags-input.tags-input.removed_remaining": {
+    "text": "{{removed}} removed. {{value}} remaining.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: text built in code. Filled in: {{removed}}, {{value}}."
+  },
+  "components.tags-input.tags-input.tag": {
+    "text": "Tag",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tags-input/tags-input.tsx, TagsInput: text built in code."
+  },
+  "components.time-picker.time-picker.show_times_for": {
+    "text": "Show times for {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/time-picker/time-picker.tsx, TimePicker: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.timeline.timeline.effective": {
+    "text": "Effective",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/timeline/timeline.tsx, TimelineItem: text inside <p>."
+  },
+  "components.toast.toast.dismiss": {
+    "text": "Dismiss",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/toast/toast.tsx, ToastItem: text inside <span>."
+  },
+  "components.tree-view.tree-view.loading": {
+    "text": "Loading {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/tree-view/tree-view.tsx, TreeView: the label of <Spinner>. Filled in: {{label}}."
+  },
+  "components.typed-fields.typed-fields.clear": {
+    "text": "Clear {{label}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/typed-fields/typed-fields.tsx, SearchField: the aria-label of <button>. Filled in: {{label}}."
+  },
+  "components.typed-fields.typed-fields.country_dialling_code": {
+    "text": "Country dialling code",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/typed-fields/typed-fields.tsx, PhoneField: the startAdornment of <label>."
+  },
+  "components.typed-fields.typed-fields.text": {
+    "text": "{{next}} {{national}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/typed-fields/typed-fields.tsx, PhoneField: text built in code. Filled in: {{next}}, {{national}}."
+  },
+  "components.typed-fields.typed-fields.text_2": {
+    "text": "{{active}} {{value}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/typed-fields/typed-fields.tsx, PhoneField: the onChange of <Input>. Filled in: {{active}}, {{value}}."
+  },
+  "components.typed-fields.typed-fields.working_it_out": {
+    "text": "Working it out",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/typed-fields/typed-fields.tsx, SearchField: the label of <Spinner>."
+  },
+  "components.virtual-list.virtual-list.loading_more": {
+    "text": "Loading more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/virtual-list/virtual-list.tsx, VirtualList: text inside <span>."
+  },
+  "components.virtual-list.virtual-list.more_loaded": {
+    "text": "{{added}} more loaded",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/virtual-list/virtual-list.tsx: text built in code. Filled in: {{added}}."
+  },
+  "components.virtual-list.virtual-list.px": {
+    "text": "{{max}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/virtual-list/virtual-list.tsx: text built in code. Filled in: {{max}}."
+  },
+  "lib.brand-ramp.oklch": {
+    "text": "oklch({{lightness}} {{value}} {{angle}})",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). lib/brand-ramp.ts: text built in code. Filled in: {{lightness}}, {{value}}, {{angle}}."
+  },
+  "lib.use-drag-dismiss.px": {
+    "text": "{{value}}px",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). lib/use-drag-dismiss.ts, useDragDismiss: text built in code. Filled in: {{value}}."
+  },
+  "lib.use-media-query.pointer_coarse": {
+    "text": "(pointer: coarse)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). lib/use-media-query.ts, useCoarsePointer: text built in code."
+  },
+  "lib.use-media-query.prefers_reduced_motion_reduce": {
+    "text": "(prefers-reduced-motion: reduce)",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). lib/use-media-query.ts, usePrefersReducedMotion: text built in code."
+  }
+}

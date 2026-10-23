@@ -19,6 +19,7 @@ import {
 import { useState, type JSX, type ReactNode } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * What Time Off's settings pages share (TOF-078 to TOF-083): the shapes Time
@@ -95,13 +96,16 @@ const EMPLOYMENT: Record<string, string> = {
 
 /** Who a leave type or policy reaches, as a phrase: "Everyone", "Spain", "Spain and permanent". */
 export function appliesToLabel(predicate: Predicate | null): string {
-  if (predicate === null) return 'Everyone';
+  if (predicate === null) return t('settings.shared.everyone', 'Everyone');
   const parts = predicate.clauses.map((c) => {
     if (c.operand === 'country') return c.in.map(country).join(', ');
     if (c.operand === 'location') return c.in.map(placeName).join(', ');
     if (c.operand === 'employmentType')
       return c.in.map((e) => EMPLOYMENT[e] ?? e.replaceAll('_', ' ')).join(', ');
-    return `${String(c.in.length)} legal ${c.in.length === 1 ? 'entity' : 'entities'}`;
+    return t('settings.shared.legal', '{{length}} legal {{value}}', {
+      length: String(c.in.length),
+      value: c.in.length === 1 ? 'entity' : 'entities',
+    });
   });
   return parts.join(predicate.combine === 'all' ? ' and ' : ' or ');
 }
@@ -110,18 +114,22 @@ export function appliesToLabel(predicate: Predicate | null): string {
 export function appliesToParts(
   predicate: Predicate | null,
 ): readonly (readonly [string, string])[] {
-  if (predicate === null) return [['Who', 'Everyone']];
+  if (predicate === null)
+    return [[t('settings.shared.who', 'Who'), t('settings.shared.everyone', 'Everyone')]];
   return predicate.clauses.map((c) => [
-    { country: 'Country', location: 'Location', employmentType: 'Contract', legalEntity: 'Entity' }[
-      c.operand
-    ],
+    {
+      country: 'Country',
+      location: t('settings.shared.location', 'Location'),
+      employmentType: t('settings.shared.contract', 'Contract'),
+      legalEntity: t('settings.shared.entity', 'Entity'),
+    }[c.operand],
     appliesToLabel({ combine: 'all', clauses: [c] }),
   ]);
 }
 
 /** A chain of approvers as it reads: "Manager, then HR". */
 export function approversLabel(approvers: readonly Approver[]): string {
-  const names = approvers.map((a) => (a === 'hr' ? 'HR' : 'Manager'));
+  const names = approvers.map((a) => (a === 'hr' ? 'HR' : t('settings.shared.manager', 'Manager')));
   return names.join(', then ');
 }
 
@@ -134,23 +142,26 @@ export function ruleFor(rules: readonly ApprovalRule[], key: string): ApprovalRu
 }
 
 export const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
+  t('settings.shared.january', 'January'),
+  t('settings.shared.february', 'February'),
+  t('settings.shared.march', 'March'),
+  t('settings.shared.april', 'April'),
+  t('settings.shared.may', 'May'),
+  t('settings.shared.june', 'June'),
+  t('settings.shared.july', 'July'),
+  t('settings.shared.august', 'August'),
+  t('settings.shared.september', 'September'),
+  t('settings.shared.october', 'October'),
+  t('settings.shared.november', 'November'),
+  t('settings.shared.december', 'December'),
 ] as const;
 
 /** A month and day with no year: "1 January". */
 export const monthDay = (md: { readonly month: number; readonly day: number }): string =>
-  `${String(md.day)} ${MONTHS[md.month - 1] ?? ''}`;
+  t('settings.shared.text', '{{day}} {{value}}', {
+    day: String(md.day),
+    value: MONTHS[md.month - 1] ?? '',
+  });
 
 const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 /** A calendar date as people read it: "Thu 1 Jan". Dates are dates: UTC, so no zone moves them. */
@@ -171,7 +182,8 @@ export const longDate = (date: string): string =>
   }).format(asDate(date));
 
 /** "1 day", "2.5 days". */
-export const daysLabel = (n: string): string => `${n} ${n === '1' ? 'day' : 'days'}`;
+export const daysLabel = (n: string): string =>
+  t('settings.shared.text_2', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
 
 /* ----------------------------------------------------------- the pack -- */
 
@@ -184,10 +196,19 @@ export function PackNotice({ packs }: { readonly packs: readonly Pack[] }): JSX.
   if (unreviewed.length === 0) return null;
   const names = unreviewed.map((p) => country(p.country)).join(' and ');
   return (
-    <Alert tone="warning" title={`${names}’s rules are not reviewed yet`}>
-      The statutory leave types and public holidays for {names} come from a country pack that an
-      employment lawyer has not signed off. Check them against your own advice before you rely on
-      them.
+    <Alert
+      tone="warning"
+      title={t(
+        'settings.shared.s_rules_are_not_reviewed_yet',
+        '{{names}}’s rules are not reviewed yet',
+        { names },
+      )}
+    >
+      {t(
+        'settings.shared.the_statutory_leave_types_and_public',
+        'The statutory leave types and public holidays for {{names}} come from a country pack that an employment lawyer has not signed off. Check them against your own advice before you rely on them.',
+        { names },
+      )}
     </Alert>
   );
 }
@@ -253,7 +274,7 @@ export function MonthDayField({
       <legend className="mb-1.5 text-sm font-medium">{legend}</legend>
       <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3">
         <NumberField
-          label="Day"
+          label={t('settings.shared.day', 'Day')}
           value={value.day}
           min={1}
           max={last}
@@ -263,7 +284,7 @@ export function MonthDayField({
           }}
         />
         <Field>
-          <FieldLabel>Month</FieldLabel>
+          <FieldLabel>{t('settings.shared.month', 'Month')}</FieldLabel>
           <Select
             value={String(value.month)}
             onValueChange={(m) => {
@@ -344,7 +365,7 @@ export function useSaved<T>(saved: T): {
     ),
     refusal:
       refused === null ? null : (
-        <Alert tone="danger" title="Not saved">
+        <Alert tone="danger" title={t('settings.shared.not_saved', 'Not saved')}>
           {refused}
         </Alert>
       ),
@@ -376,7 +397,9 @@ export function SettingsSkeleton({
     <div className={`${container} flex flex-col gap-6`}>
       <PageHeader title={title} description={description} />
       <div role="status" className={columns}>
-        <span className="sr-only">Loading {title.toLowerCase()}</span>
+        <span className="sr-only">
+          {t('settings.shared.loading', 'Loading')} {title.toLowerCase()}
+        </span>
         {[main, side].map((blocks, i) => (
           <div key={i} className="flex min-w-0 flex-col gap-5">
             {blocks.map((h, j) => (

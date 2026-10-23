@@ -46,6 +46,7 @@ import {
 } from 'react';
 
 import type { CycleState, Done, Kind, ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * What every Performance screen does the same way (PRF-070): a link that
@@ -101,7 +102,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
   const [error, setError] = useState<string | null>(null);
   const call = async (name: string, variables: Readonly<Record<string, unknown>>): Promise<Done> =>
     props.onAct === undefined
-      ? { ok: false, message: 'Not available here' }
+      ? { ok: false, message: t('shared.not_available_here', 'Not available here') }
       : props.onAct(name, variables);
   return {
     pending,
@@ -127,7 +128,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
 
 export function Refusal({ error }: { readonly error: string | null }): JSX.Element | null {
   return error === null ? null : (
-    <Alert tone="danger" title="That did not go through">
+    <Alert tone="danger" title={t('shared.that_did_not_go_through', 'That did not go through')}>
       {error}
     </Alert>
   );
@@ -171,15 +172,15 @@ export const words = (key: string): string => {
 };
 
 const CYCLE: Readonly<Record<CycleState, readonly [string, Tone]>> = {
-  draft: ['Draft', 'neutral'],
-  scheduling: ['Scheduling', 'info'],
-  scheduled: ['Scheduled', 'accent'],
-  launching: ['Launching', 'info'],
-  launch_failed: ['Launch failed', 'danger'],
-  in_progress: ['In progress', 'success'],
-  closing: ['Closing', 'warning'],
-  closed: ['Closed', 'neutral'],
-  archived: ['Archived', 'neutral'],
+  draft: [t('shared.draft', 'Draft'), 'neutral'],
+  scheduling: [t('shared.scheduling', 'Scheduling'), 'info'],
+  scheduled: [t('shared.scheduled', 'Scheduled'), 'accent'],
+  launching: [t('shared.launching', 'Launching'), 'info'],
+  launch_failed: [t('shared.launch_failed', 'Launch failed'), 'danger'],
+  in_progress: [t('shared.in_progress', 'In progress'), 'success'],
+  closing: [t('shared.closing', 'Closing'), 'warning'],
+  closed: [t('shared.closed', 'Closed'), 'neutral'],
+  archived: [t('shared.archived', 'Archived'), 'neutral'],
 };
 
 export function CycleBadge({ state }: { readonly state: string }): JSX.Element {
@@ -200,17 +201,17 @@ export function CycleBadge({ state }: { readonly state: string }): JSX.Element {
 }
 
 const REVIEW: Readonly<Record<string, readonly [string, Tone]>> = {
-  not_started: ['Not started', 'neutral'],
-  draft: ['In progress', 'warning'],
-  submitted: ['Submitted', 'success'],
-  unlock: ['Unlock requested', 'warning'],
-  unlocked: ['Unlocked', 'info'],
-  released: ['Released', 'accent'],
-  ack: ['Acknowledged', 'success'],
-  detached: ['Detached', 'neutral'],
-  overdue: ['Overdue', 'danger'],
-  declined: ['Declined', 'neutral'],
-  handed: ['Handed over', 'neutral'],
+  not_started: [t('shared.not_started', 'Not started'), 'neutral'],
+  draft: [t('shared.in_progress', 'In progress'), 'warning'],
+  submitted: [t('shared.submitted', 'Submitted'), 'success'],
+  unlock: [t('shared.unlock_requested', 'Unlock requested'), 'warning'],
+  unlocked: [t('shared.unlocked', 'Unlocked'), 'info'],
+  released: [t('shared.released', 'Released'), 'accent'],
+  ack: [t('shared.acknowledged', 'Acknowledged'), 'success'],
+  detached: [t('shared.detached', 'Detached'), 'neutral'],
+  overdue: [t('shared.overdue', 'Overdue'), 'danger'],
+  declined: [t('shared.declined', 'Declined'), 'neutral'],
+  handed: [t('shared.handed_over', 'Handed over'), 'neutral'],
   none: ['—', 'neutral'],
 };
 
@@ -224,12 +225,12 @@ export function ReviewBadge({ state }: { readonly state: string }): JSX.Element 
 }
 
 const KIND: Readonly<Record<Kind, string>> = {
-  self: 'Self review',
-  manager: 'Manager review',
-  peer: 'Peer review',
-  upward: 'Upward review',
-  skip: 'Skip-level review',
-  goals: 'Goals review',
+  self: t('shared.self_review', 'Self review'),
+  manager: t('shared.manager_review', 'Manager review'),
+  peer: t('shared.peer_review', 'Peer review'),
+  upward: t('shared.upward_review', 'Upward review'),
+  skip: t('shared.skip_level_review', 'Skip-level review'),
+  goals: t('shared.goals_review', 'Goals review'),
 };
 
 export const kindLabel = (k: string): string =>
@@ -297,7 +298,7 @@ export function SwitchRow({
               <Button
                 size="xs"
                 variant="ghost"
-                aria-label={`About ${label}: ${info}`}
+                aria-label={t('shared.about', 'About {{label}}: {{info}}', { label, info })}
                 startIcon={<icons.info aria-hidden />}
               />
             </Tooltip>
@@ -329,7 +330,7 @@ export function SwitchRow({
 export function Live(): JSX.Element {
   return (
     <Badge size="sm" tone="success" dot pulse>
-      Live
+      {t('shared.live', 'Live')}
     </Badge>
   );
 }
@@ -379,7 +380,7 @@ export function StepDialog({
   }, [step, dock.place]);
   const bar = (compact: boolean) => (
     <Stepper
-      label={`${title} steps`}
+      label={t('shared.steps', '{{title}} steps', { title })}
       size="sm"
       variant={compact ? 'compact' : 'default'}
       free
@@ -449,7 +450,12 @@ export function StepDialog({
           {children}
         </DialogBody>
         <DialogFooter>
-          <span className="mr-auto self-center px-1 text-sm text-fg-muted">{`Step ${String(step + 1)} of ${String(steps.length)}`}</span>
+          <span className="mr-auto self-center px-1 text-sm text-fg-muted">
+            {t('shared.step_of', 'Step {{value}} of {{length}}', {
+              value: String(step + 1),
+              length: String(steps.length),
+            })}
+          </span>
           <Button
             variant="secondary"
             onClick={() => {
@@ -457,7 +463,7 @@ export function StepDialog({
               else onStep(step - 1);
             }}
           >
-            {step === 0 ? 'Cancel' : 'Back'}
+            {step === 0 ? t('shared.cancel', 'Cancel') : t('shared.back', 'Back')}
           </Button>
           {/* One primary per dialog, and it is the finish; Next is promoted, not primary. */}
           <Button
@@ -469,7 +475,7 @@ export function StepDialog({
               else onStep(step + 1);
             }}
           >
-            {lastStep ? finishLabel : 'Next'}
+            {lastStep ? finishLabel : t('shared.next', 'Next')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -642,8 +648,8 @@ export const score = (h: number | null | undefined): string =>
   h === null || h === undefined ? '—' : (h / 100).toFixed(1);
 
 /** "1 review", "3 reviews". */
-export const plural = (n: number, one: string, many = `${one}s`): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
+export const plural = (n: number, one: string, many = t('shared.s', '{{one}}s', { one })): string =>
+  t('shared.text', '{{n}} {{value}}', { n: String(n), value: n === 1 ? one : many });
 
 export interface Found {
   readonly personId: string;
@@ -657,7 +663,7 @@ export interface Found {
  */
 export function PersonPicker({
   act,
-  label = 'Search people',
+  label = t('shared.search_people', 'Search people'),
   value,
   onChange,
   many,
@@ -681,7 +687,7 @@ export function PersonPicker({
     <div className="flex flex-col gap-2">
       <SearchField
         label={label}
-        placeholder="Type a name and press Enter"
+        placeholder={t('shared.type_a_name_and_press_enter', 'Type a name and press Enter')}
         value={q}
         onValueChange={setQ}
         onSearch={(v) => {
@@ -710,13 +716,15 @@ export function PersonPicker({
                   }}
                 />
               </FieldControl>
-              <FieldLabel>{`${p.name} · ${p.title}`}</FieldLabel>
+              <FieldLabel>
+                {t('shared.text_2', '{{name}} · {{title}}', { name: p.name, title: p.title })}
+              </FieldLabel>
             </Field>
           ))}
         </div>
       ) : (
         <RadioGroup
-          aria-label="Who"
+          aria-label={t('shared.who', 'Who')}
           value={value[0] ?? ''}
           onValueChange={(v) => {
             pick([v]);

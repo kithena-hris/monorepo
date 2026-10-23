@@ -1,0 +1,542 @@
+{
+  "frame.back": {
+    "text": "Back",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the aria-label of <nav>."
+  },
+  "frame.framed": {
+    "text": "Framed({{value}})",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx: text built in code. Filled in: {{value}}."
+  },
+  "frame.in": {
+    "text": "In {{section}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
+  },
+  "frame.onboarding": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx: a \"label\" value."
+  },
+  "frame.sections": {
+    "text": "Sections",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: text built in code."
+  },
+  "frame.showing_the_page_without_it": {
+    "text": "Showing the page without it.",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: text inside <Alert>."
+  },
+  "frame.switch": {
+    "text": "{{siblingsLabel}}, switch",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the menuLabel of <BreadcrumbMenu>. Filled in: {{siblingsLabel}}."
+  },
+  "frame.tabs": {
+    "text": "{{value}} tabs",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the label of <TertiaryNav>. Filled in: {{value}}."
+  },
+  "frame.tabs_2": {
+    "text": "{{section}} tabs",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the menuLabel of <BreadcrumbMenu>. Filled in: {{section}}."
+  },
+  "frame.waiting": {
+    "text": "waiting",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx: text inside <span>."
+  },
+  "home.a_plan_starts_when_a_hire": {
+    "text": "A plan starts when a hire arrives from Recruiting, People or another system.",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the description of <EmptyState>."
+  },
+  "home.arriving": {
+    "text": "Arriving",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: text inside <CardTitle>."
+  },
+  "home.as": {
+    "text": "As",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.as_a_manager_a_buddy_it": {
+    "text": "As a manager, a buddy, IT or HR. They are in your Inbox too.",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the description of <PageHeader>."
+  },
+  "home.due": {
+    "text": "Due",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.for": {
+    "text": "For",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.from_a_signed_contract_to_the": {
+    "text": "From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system.",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the description of <PageHeader>."
+  },
+  "home.late": {
+    "text": "Late",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.late_2": {
+    "text": "{{late}} late",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <Badge>. Filled in: {{late}}."
+  },
+  "home.late_3": {
+    "text": "Late · {{dueOn}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <Badge>. Filled in: {{dueOn}}."
+  },
+  "home.my_onboarding_tasks": {
+    "text": "My onboarding tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the title of <PageHeader>."
+  },
+  "home.nobody_is_arriving": {
+    "text": "Nobody is arriving",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <EmptyState>."
+  },
+  "home.nothing_to_do": {
+    "text": "Nothing to do",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the title of <EmptyState>."
+  },
+  "home.of_tasks": {
+    "text": "{{done}} of {{total}} tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: the label of <Progress>. Filled in: {{done}}, {{total}}."
+  },
+  "home.on_track": {
+    "text": "On track",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the label of <Stat>."
+  },
+  "home.onboarding": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the title of <PageHeader>."
+  },
+  "home.person": {
+    "text": "Person",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.plans_in_flight": {
+    "text": "Plans in flight",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the label of <Stat>."
+  },
+  "home.progress": {
+    "text": "Progress",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.starting_this_month": {
+    "text": "Starting this month",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the label of <Stat>."
+  },
+  "home.starts": {
+    "text": "Starts",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.state": {
+    "text": "State",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.task": {
+    "text": "Task",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
+  },
+  "home.tasks_late": {
+    "text": "Tasks late",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the label of <Stat>."
+  },
+  "home.with": {
+    "text": "with {{manager}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <span>. Filled in: {{manager}}."
+  },
+  "load.could_not_load": {
+    "text": "Could not load {{what}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
+  },
+  "load.loading": {
+    "text": "Loading {{what}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. load.tsx, Loaded: the label of <Spinner>. Filled in: {{what}}."
+  },
+  "load.try_again": {
+    "text": "Try again",
+    "context": "Onboarding: new joiners’ tasks and checklists. load.tsx, Loaded: the action of <Button>."
+  },
+  "plan.at_day_30_60_and_90": {
+    "text": "At day 30, 60 and 90, for the new hire and the manager",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>."
+  },
+  "plan.before_day_one": {
+    "text": "Before day one",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
+  },
+  "plan.buddy": {
+    "text": "Buddy",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the items of <KeyValues>."
+  },
+  "plan.cancel": {
+    "text": "Cancel",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.check_in": {
+    "text": "Check-in",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardTitle>."
+  },
+  "plan.country": {
+    "text": "Country",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Badge>."
+  },
+  "plan.day": {
+    "text": "Day {{d}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <SelectItem>. Filled in: {{d}}."
+  },
+  "plan.day_2": {
+    "text": "Day {{day}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the items of <KeyValues>. Filled in: {{day}}."
+  },
+  "plan.day_one": {
+    "text": "Day one",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
+  },
+  "plan.ends": {
+    "text": "Ends {{probationEnd}}{{value}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>. Filled in: {{probationEnd}}, {{value}}."
+  },
+  "plan.every_open_task_that_hangs_off": {
+    "text": "Every open task that hangs off the start moves with it, and probation’s end by as much.",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <DialogDescription>."
+  },
+  "plan.extend": {
+    "text": "Extend",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <RadioCard>."
+  },
+  "plan.extend_by_months": {
+    "text": "Extend by, months",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the label of <NumberField>."
+  },
+  "plan.first_month": {
+    "text": "First month",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
+  },
+  "plan.first_week": {
+    "text": "First week",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
+  },
+  "plan.how_is_it_going": {
+    "text": "How is it going?",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <FieldLabel>."
+  },
+  "plan.hr_is_told_ending_the_employment": {
+    "text": "HR is told; ending the employment is People’s flow.",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the description of <RadioCard>."
+  },
+  "plan.late": {
+    "text": "Late",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Badge>."
+  },
+  "plan.manager": {
+    "text": "Manager",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the items of <KeyValues>."
+  },
+  "plan.move_s_start_date": {
+    "text": "Move {{name}}’s start date?",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "plan.move_start_date": {
+    "text": "Move start date",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the actions of <Button>."
+  },
+  "plan.move_the_tasks": {
+    "text": "Move the tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.new_start_date": {
+    "text": "New start date",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <FieldLabel>."
+  },
+  "plan.nobody_yet": {
+    "text": "Nobody yet",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <SelectItem>."
+  },
+  "plan.not_passed": {
+    "text": "Not passed",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <RadioCard>."
+  },
+  "plan.of_tasks": {
+    "text": "{{done}} of {{total}} tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the label of <Progress>. Filled in: {{done}}, {{total}}."
+  },
+  "plan.outcome": {
+    "text": "Outcome",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the aria-label of <RadioGroup>."
+  },
+  "plan.passed": {
+    "text": "Passed",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <RadioCard>."
+  },
+  "plan.people_records_the_probation_as_passed": {
+    "text": "People records the probation as passed.",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the description of <RadioCard>."
+  },
+  "plan.probation": {
+    "text": "Probation",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the items of <KeyValues>."
+  },
+  "plan.probation_review": {
+    "text": "Probation review",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardTitle>."
+  },
+  "plan.record_review": {
+    "text": "Record review",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.recorded": {
+    "text": "Recorded: {{words}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the title of <Alert>. Filled in: {{words}}."
+  },
+  "plan.s_plan": {
+    "text": "{{name}}’s plan",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the title of <PageHeader>. Filled in: {{name}}."
+  },
+  "plan.save": {
+    "text": "Save",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.starts": {
+    "text": "Starts {{startDate}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the description of <PageHeader>. Filled in: {{startDate}}."
+  },
+  "plan.submit": {
+    "text": "Submit",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.until_probation_ends": {
+    "text": "Until probation ends",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
+  },
+  "plan.which_check_in": {
+    "text": "Which check-in",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the aria-label of <SelectTrigger>."
+  },
+  "plan.within_what_the_contracts_country_allows": {
+    "text": "Within what the contract’s country allows.",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the description of <RadioCard>."
+  },
+  "shared.not_available_here": {
+    "text": "Not available here",
+    "context": "Onboarding: new joiners’ tasks and checklists. shared.tsx, useAct: a \"message\" value."
+  },
+  "shared.text": {
+    "text": "{{min}} – {{max}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. shared.tsx: text built in code. Filled in: {{min}}, {{max}}."
+  },
+  "shared.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Onboarding: new joiners’ tasks and checklists. shared.tsx, Refusal: the title of <Alert>."
+  },
+  "split.split": {
+    "text": "Split({{name}})",
+    "context": "Onboarding: new joiners’ tasks and checklists. split.tsx: text built in code. Filled in: {{name}}."
+  },
+  "templates.a_new_task": {
+    "text": "A new task",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: the aria-label of <Input>."
+  },
+  "templates.add_task": {
+    "text": "Add task",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <Button>."
+  },
+  "templates.administrators_of_onboarding_are_hr_as": {
+    "text": "Administrators of Onboarding are HR as well",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <CardDescription>."
+  },
+  "templates.close": {
+    "text": "Close",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <Button>."
+  },
+  "templates.comma_separated_empty_means_any": {
+    "text": "Comma-separated; empty means any.",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <FieldDescription>."
+  },
+  "templates.completed": {
+    "text": "Completed",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the label of <Stat>."
+  },
+  "templates.country_of_a_hire_people_sends": {
+    "text": "Country of a hire People sends",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <FieldLabel>."
+  },
+  "templates.dates": {
+    "text": "Dates",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <CardTitle>."
+  },
+  "templates.de_2026_12_25_2026_12": {
+    "text": "DE: 2026-12-25, 2026-12-26",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the placeholder of <Textarea>."
+  },
+  "templates.due": {
+    "text": "Due",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <TableHead>."
+  },
+  "templates.due_rules_days_from_the_start": {
+    "text": "Due rules: days from the start (-14d, 0, +30d) or from probation’s end (probation-14d).",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <CardDescription>."
+  },
+  "templates.edit": {
+    "text": "Edit",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: text inside <Button>."
+  },
+  "templates.every_department": {
+    "text": "Every department",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: the placeholder of <Input>."
+  },
+  "templates.every_template_whose_conditions_match_a": {
+    "text": "Every template whose conditions match a hire is merged into the plan. Country tasks are added on top and cannot be removed.",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: the description of <PageHeader>."
+  },
+  "templates.figures": {
+    "text": "Figures",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: text inside <h2>."
+  },
+  "templates.holidays_a_due_date_skips": {
+    "text": "Holidays a due date skips",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <FieldLabel>."
+  },
+  "templates.hr": {
+    "text": "HR",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+  },
+  "templates.in_use": {
+    "text": "In use",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <label>."
+  },
+  "templates.is_hr": {
+    "text": "{{name}} is HR",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the aria-label of <Switch>. Filled in: {{name}}."
+  },
+  "templates.is_it": {
+    "text": "{{name}} is IT",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the aria-label of <Switch>. Filled in: {{name}}."
+  },
+  "templates.it": {
+    "text": "IT",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+  },
+  "templates.kind": {
+    "text": "Kind",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <TableHead>."
+  },
+  "templates.late_tasks_by_owner": {
+    "text": "Late tasks by owner",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the title of <ChartCard>."
+  },
+  "templates.name": {
+    "text": "Name",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <FieldLabel>."
+  },
+  "templates.new_template": {
+    "text": "New template",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <CardTitle>."
+  },
+  "templates.no_templates_yet": {
+    "text": "No templates yet",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: the title of <EmptyState>."
+  },
+  "templates.nothing_late": {
+    "text": "Nothing late",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the title of <Alert>."
+  },
+  "templates.off": {
+    "text": "Off",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: text inside <Badge>."
+  },
+  "templates.on_track": {
+    "text": "On track",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the label of <Stat>."
+  },
+  "templates.onboarding": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the title of <PageHeader>."
+  },
+  "templates.onboarding_analytics": {
+    "text": "Onboarding analytics",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the title of <PageHeader>."
+  },
+  "templates.one_line_per_country_with_time": {
+    "text": "One line per country. With Time Off, its calendars are used too.",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <FieldDescription>."
+  },
+  "templates.only_for_countries_none_means_any": {
+    "text": "Only for countries (none means any)",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <legend>."
+  },
+  "templates.only_for_departments": {
+    "text": "Only for departments",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <FieldLabel>."
+  },
+  "templates.owner": {
+    "text": "Owner",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <TableHead>."
+  },
+  "templates.peoples_hire_names_no_country_recruitings": {
+    "text": "People’s hire names no country; Recruiting’s does.",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <FieldDescription>."
+  },
+  "templates.person": {
+    "text": "Person",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <TableHead>."
+  },
+  "templates.phase": {
+    "text": "Phase",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <TableHead>."
+  },
+  "templates.plans_in_flight": {
+    "text": "Plans in flight",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the label of <Stat>."
+  },
+  "templates.probation_outcomes": {
+    "text": "Probation outcomes",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the title of <ChartCard>."
+  },
+  "templates.remove": {
+    "text": "Remove",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <span>."
+  },
+  "templates.remove_2": {
+    "text": "Remove {{title}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: the aria-label of <Button>. Filled in: {{title}}."
+  },
+  "templates.save": {
+    "text": "Save",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <Button>."
+  },
+  "templates.save_template": {
+    "text": "Save template",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <Button>."
+  },
+  "templates.set_first_30_day_goals": {
+    "text": "Set first 30-day goals",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: the placeholder of <Input>."
+  },
+  "templates.settings": {
+    "text": "Settings",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the description of <PageHeader>."
+  },
+  "templates.task": {
+    "text": "Task",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: text inside <TableHead>."
+  },
+  "templates.tasks": {
+    "text": "{{length}} tasks{{value}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: text inside <span>. Filled in: {{length}}, {{value}}."
+  },
+  "templates.templates": {
+    "text": "Templates",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: the title of <PageHeader>."
+  },
+  "templates.text": {
+    "text": "{{c}}: {{join}}",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text built in code. Filled in: {{c}}, {{join}}."
+  },
+  "templates.the_first_hire_gets_the_default": {
+    "text": "The first hire gets the default template.",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Templates: the description of <EmptyState>."
+  },
+  "templates.title": {
+    "text": "Title",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Editor: the aria-label of <Input>."
+  },
+  "templates.who_does_hrs_and_its_tasks": {
+    "text": "Who does HR’s and IT’s tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: text inside <CardTitle>."
+  }
+}

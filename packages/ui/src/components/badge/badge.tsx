@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 const badge = cva(
   'inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold whitespace-nowrap [&_svg]:size-3.5',
@@ -155,7 +156,10 @@ export function Badge({
           type="button"
           onClick={onRemove}
           aria-label={
-            removeLabel ?? (typeof children === 'string' ? `Remove ${children}` : 'Remove')
+            removeLabel ??
+            (typeof children === 'string'
+              ? t('components.badge.badge.remove', 'Remove {{children}}', { children })
+              : t('components.badge.badge.remove_2', 'Remove'))
           }
           className={cn(
             'relative grid size-4 shrink-0 place-items-center rounded-full tap-target touch:size-5',

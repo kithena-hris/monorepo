@@ -4,6 +4,7 @@ import { Badge, ToastProvider, useToast } from '@reach/ui';
 import { Suspense, use, useEffect, useState, type JSX } from 'react';
 
 import type { InboxPeek } from '../../lib/inbox/peek';
+import { t as tr } from '../../lib/t';
 
 /**
  * The Inbox in the sidebar (B1–B3): the count of tasks beside its name (a dot
@@ -60,13 +61,23 @@ function CountBadge({
 }): JSX.Element | null {
   if (todo > 0) {
     return (
-      <Badge size="xs" variant="solid" tone="danger" aria-label={`${String(todo)} to do`}>
+      <Badge
+        size="xs"
+        variant="solid"
+        tone="danger"
+        aria-label={tr('components.inbox.bell.to_do', '{{todo}} to do', { todo: String(todo) })}
+      >
         {todo}
       </Badge>
     );
   }
   return updates > 0 ? (
-    <Badge size="xs" variant="solid" tone="accent" aria-label="Unread updates" />
+    <Badge
+      size="xs"
+      variant="solid"
+      tone="accent"
+      aria-label={tr('components.inbox.bell.unread_updates', 'Unread updates')}
+    />
   ) : null;
 }
 
@@ -116,7 +127,7 @@ function Arrivals({ inbox }: { readonly inbox: Promise<InboxPeek> }): null {
       ...(fresh.summary === null ? {} : { description: fresh.summary }),
       tone: 'neutral',
       action: {
-        label: 'Open',
+        label: tr('components.inbox.bell.open', 'Open'),
         onClick: () => {
           window.location.assign(`/inbox/todo?item=${encodeURIComponent(fresh.id)}`);
         },

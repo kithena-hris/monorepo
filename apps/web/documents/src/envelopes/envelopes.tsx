@@ -60,6 +60,7 @@ import type {
   Mark,
   Outcome,
 } from '../types';
+import { t as tr } from '../i18n';
 
 /**
  * Signatures on the web (K1–K10): the requests this person follows or must
@@ -68,19 +69,19 @@ import type {
  */
 
 const STATUS = {
-  waiting: ['Waiting', 'neutral'],
-  sent: ['Sent', 'info'],
-  opened: ['Opened', 'info'],
-  verified: ['Opened', 'info'],
-  signed: ['Signed', 'success'],
-  declined: ['Declined', 'danger'],
+  waiting: [tr('envelopes.envelopes.waiting', 'Waiting'), 'neutral'],
+  sent: [tr('envelopes.envelopes.sent', 'Sent'), 'info'],
+  opened: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
+  verified: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
+  signed: [tr('envelopes.envelopes.signed', 'Signed'), 'success'],
+  declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
 } as const;
 
 const ENVELOPE = {
-  sent: ['Waiting for a signature', 'warning'],
-  completed: ['Signed and sealed', 'success'],
-  declined: ['Declined', 'danger'],
-  voided: ['Cancelled', 'neutral'],
+  sent: [tr('envelopes.envelopes.waiting_for_a_signature', 'Waiting for a signature'), 'warning'],
+  completed: [tr('envelopes.envelopes.signed_and_sealed', 'Signed and sealed'), 'success'],
+  declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
+  voided: [tr('envelopes.envelopes.cancelled', 'Cancelled'), 'neutral'],
 } as const;
 
 /* ------------------------------------------------------------- K10 list -- */
@@ -93,17 +94,31 @@ export function Envelopes({
   readonly onNavigate?: ((href: string) => void) | undefined;
 }): JSX.Element {
   if (load.status === 'loading')
-    return <Skeleton shape="page" label="Loading signature requests" />;
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('envelopes.envelopes.loading_signature_requests', 'Loading signature requests')}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Signatures" description="Every request you sign or follow." />
+      <PageHeader
+        title={tr('envelopes.envelopes.signatures', 'Signatures')}
+        description={tr(
+          'envelopes.envelopes.every_request_you_sign_or_follow',
+          'Every request you sign or follow.',
+        )}
+      />
       <Loaded load={load} what="signature requests">
         {(data) =>
           data.rows.length === 0 ? (
             <EmptyState
               icon={<icons.edit />}
-              title="No signature requests"
-              description="Send one from a document."
+              title={tr('envelopes.envelopes.no_signature_requests', 'No signature requests')}
+              description={tr(
+                'envelopes.envelopes.send_one_from_a_document',
+                'Send one from a document.',
+              )}
             />
           ) : (
             <List>
@@ -112,10 +127,21 @@ export function Envelopes({
                   key={r.id}
                   icon={<icons.edit />}
                   iconTone={r.needsYou ? 'accent' : 'neutral'}
-                  description={`${String(r.signed)} of ${String(r.of)} signed${r.waitingOn === null ? '' : ` · waiting for ${r.waitingOn}`}${r.dueOn === null ? '' : ` · due ${shortDate(r.dueOn)}`}`}
+                  description={tr(
+                    'envelopes.envelopes.of_signed',
+                    '{{signed}} of {{of}} signed{{value}}{{value2}}',
+                    {
+                      signed: String(r.signed),
+                      of: String(r.of),
+                      value: r.waitingOn === null ? '' : ` · waiting for ${r.waitingOn}`,
+                      value2: r.dueOn === null ? '' : ` · due ${shortDate(r.dueOn)}`,
+                    },
+                  )}
                   meta={
                     <Badge tone={r.needsYou ? 'accent' : ENVELOPE[r.status][1]} size="sm" dot>
-                      {r.needsYou ? 'Your signature' : ENVELOPE[r.status][0]}
+                      {r.needsYou
+                        ? tr('envelopes.envelopes.your_signature', 'Your signature')
+                        : ENVELOPE[r.status][0]}
                     </Badge>
                   }
                   chevron
@@ -188,17 +214,35 @@ export interface SendProps {
 
 export function SendForSignature(props: SendProps): JSX.Element {
   if (props.load.status === 'loading')
-    return <Skeleton shape="page" label="Loading the document" />;
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('envelopes.envelopes.loading_the_document', 'Loading the document')}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
-      {props.load.status === 'error' ? <PageHeader title="Send for signature" /> : null}
+      {props.load.status === 'error' ? (
+        <PageHeader title={tr('envelopes.envelopes.send_for_signature', 'Send for signature')} />
+      ) : null}
       <Loaded load={props.load} what="the document">
         {(data) =>
           data.document === null ? (
-            <Alert tone="danger">You cannot open this document.</Alert>
+            <Alert tone="danger">
+              {tr(
+                'envelopes.envelopes.you_cannot_open_this_document',
+                'You cannot open this document.',
+              )}
+            </Alert>
           ) : !data.document.pdf ? (
-            <Alert tone="warning" title="Only a PDF can be signed">
-              Add the document as a PDF, then send it for signature.
+            <Alert
+              tone="warning"
+              title={tr('envelopes.envelopes.only_a_pdf_can_be_signed', 'Only a PDF can be signed')}
+            >
+              {tr(
+                'envelopes.envelopes.add_the_document_as_a_pdf',
+                'Add the document as a PDF, then send it for signature.',
+              )}
             </Alert>
           ) : (
             <SendSteps doc={data.document} {...props} />
@@ -259,16 +303,21 @@ function SendSteps({
   return (
     <>
       <PageHeader
-        title={`Send ${doc.row.title} for signature`}
-        description={`Version ${String(doc.current.n)} · ${String(pages)} pages`}
+        title={tr('envelopes.envelopes.send_for_signature_2', 'Send {{title}} for signature', {
+          title: doc.row.title,
+        })}
+        description={tr('envelopes.envelopes.version_pages', 'Version {{n}} · {{pages}} pages', {
+          n: String(doc.current.n),
+          pages: String(pages),
+        })}
       />
       <Stepper
-        label="Sending for signature"
+        label={tr('envelopes.envelopes.sending_for_signature', 'Sending for signature')}
         current={step}
         steps={[
-          { id: 'who', label: 'Who signs' },
-          { id: 'where', label: 'Where they sign' },
-          { id: 'review', label: 'Review and send' },
+          { id: 'who', label: tr('envelopes.envelopes.who_signs', 'Who signs') },
+          { id: 'where', label: tr('envelopes.envelopes.where_they_sign', 'Where they sign') },
+          { id: 'review', label: tr('envelopes.envelopes.review_and_send', 'Review and send') },
         ]}
         onStepChange={(i) => {
           if (i === 1) toPlacing();
@@ -278,10 +327,16 @@ function SendSteps({
       {step === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Who signs, in order</CardTitle>
+            <CardTitle level={2}>
+              {tr('envelopes.envelopes.who_signs_in_order', 'Who signs, in order')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {signers.length === 0 ? <p className="text-sm text-fg-muted">Nobody yet.</p> : null}
+            {signers.length === 0 ? (
+              <p className="text-sm text-fg-muted">
+                {tr('envelopes.envelopes.nobody_yet', 'Nobody yet.')}
+              </p>
+            ) : null}
             <List>
               {signers.map((s, i) => (
                 <ListItem
@@ -289,17 +344,31 @@ function SendSteps({
                   leading={<Avatar name={s.name} size="md" />}
                   description={
                     s.personId === null
-                      ? `${s.email} · confirms with a code by email`
-                      : 'Signs with their Kithena login'
+                      ? tr(
+                          'envelopes.envelopes.confirms_with_a_code_by_email',
+                          '{{email}} · confirms with a code by email',
+                          { email: s.email },
+                        )
+                      : tr(
+                          'envelopes.envelopes.signs_with_their_kithena_login',
+                          'Signs with their Kithena login',
+                        )
                   }
                   meta={
-                    <Badge size="sm">{`Signs ${String(i + 1)}${i === 0 ? 'st' : i === 1 ? 'nd' : 'th'}`}</Badge>
+                    <Badge size="sm">
+                      {tr('envelopes.envelopes.signs', 'Signs {{value}}{{value2}}', {
+                        value: String(i + 1),
+                        value2: i === 0 ? 'st' : i === 1 ? 'nd' : 'th',
+                      })}
+                    </Badge>
                   }
                   trailing={
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`Remove ${s.name}`}
+                      aria-label={tr('envelopes.envelopes.remove', 'Remove {{name}}', {
+                        name: s.name,
+                      })}
                       startIcon={<icons.close aria-hidden />}
                       onClick={() => {
                         setSigners(signers.filter((x) => x.key !== s.key));
@@ -312,10 +381,12 @@ function SendSteps({
               ))}
             </List>
             <Field>
-              <FieldLabel>Add a colleague</FieldLabel>
+              <FieldLabel>
+                {tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
+              </FieldLabel>
               <FieldControl>
                 <Combobox
-                  label="Add a colleague"
+                  label={tr('envelopes.envelopes.add_a_colleague', 'Add a colleague')}
                   options={doc.people
                     .filter((p) => !named.has(p.personId))
                     .map((p) => ({
@@ -328,18 +399,23 @@ function SendSteps({
                     const p = doc.people.find((x) => x.personId === v);
                     if (p !== undefined) add({ personId: p.personId, email: '', name: p.name });
                   }}
-                  placeholder="Find a colleague"
-                  searchPlaceholder="Find someone"
-                  emptyMessage="Nobody by that name"
+                  placeholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
+                  searchPlaceholder={tr('envelopes.envelopes.find_someone', 'Find someone')}
+                  emptyMessage={tr(
+                    'envelopes.envelopes.nobody_by_that_name',
+                    'Nobody by that name',
+                  )}
                 />
               </FieldControl>
             </Field>
             <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
               <Field>
-                <FieldLabel>Somebody outside</FieldLabel>
+                <FieldLabel>
+                  {tr('envelopes.envelopes.somebody_outside', 'Somebody outside')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
-                    placeholder="Their email"
+                    placeholder={tr('envelopes.envelopes.their_email', 'Their email')}
                     type="email"
                     value={outside.email}
                     onChange={(e) => {
@@ -349,7 +425,7 @@ function SendSteps({
                 </FieldControl>
               </Field>
               <Field>
-                <FieldLabel>Their name</FieldLabel>
+                <FieldLabel>{tr('envelopes.envelopes.their_name', 'Their name')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={outside.name}
@@ -371,11 +447,14 @@ function SendSteps({
                   setOutside({ email: '', name: '' });
                 }}
               >
-                Add
+                {tr('envelopes.envelopes.add', 'Add')}
               </Button>
             </div>
             <p className="text-sm text-fg-muted">
-              People outside confirm it is them with a code we email them.
+              {tr(
+                'envelopes.envelopes.people_outside_confirm_it_is_them',
+                'People outside confirm it is them with a code we email them.',
+              )}
             </p>
             <Button
               variant="primary"
@@ -383,7 +462,7 @@ function SendSteps({
               disabled={signers.length === 0}
               onClick={toPlacing}
             >
-              Next
+              {tr('envelopes.envelopes.next', 'Next')}
             </Button>
           </CardContent>
         </Card>
@@ -411,7 +490,13 @@ function SendSteps({
                           }}
                         />
                       </FieldControl>
-                      <FieldLabel>{`${s.name} may pass it to a colleague`}</FieldLabel>
+                      <FieldLabel>
+                        {tr(
+                          'envelopes.envelopes.may_pass_it_to_a_colleague',
+                          '{{name}} may pass it to a colleague',
+                          { name: s.name },
+                        )}
+                      </FieldLabel>
                     </Field>
                   ),
                 )}
@@ -425,7 +510,7 @@ function SendSteps({
                 setStep(0);
               }}
             >
-              Back
+              {tr('envelopes.envelopes.back', 'Back')}
             </Button>
             <Button
               variant="primary"
@@ -434,14 +519,16 @@ function SendSteps({
                 setStep(2);
               }}
             >
-              Next
+              {tr('envelopes.envelopes.next', 'Next')}
             </Button>
           </div>
         </div>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Review and send</CardTitle>
+            <CardTitle level={2}>
+              {tr('envelopes.envelopes.review_and_send', 'Review and send')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <List>
@@ -449,19 +536,30 @@ function SendSteps({
                 <ListItem
                   key={s.key}
                   leading={<Avatar name={s.name} size="md" />}
-                  description={`Signs ${String(i + 1)} of ${String(signers.length)} · ${String(fields.filter((f) => f.signer === s.key).length)} boxes`}
+                  description={tr(
+                    'envelopes.envelopes.signs_of_boxes',
+                    'Signs {{value}} of {{length}} · {{length2}} boxes',
+                    {
+                      value: String(i + 1),
+                      length: String(signers.length),
+                      length2: String(fields.filter((f) => f.signer === s.key).length),
+                    },
+                  )}
                 >
                   {s.name}
                 </ListItem>
               ))}
             </List>
             <Field>
-              <FieldLabel>Message</FieldLabel>
+              <FieldLabel>{tr('envelopes.envelopes.message', 'Message')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={message}
                   maxLength={2000}
-                  placeholder="Please sign by Friday"
+                  placeholder={tr(
+                    'envelopes.envelopes.please_sign_by_friday',
+                    'Please sign by Friday',
+                  )}
                   onChange={(e) => {
                     setMessage(e.target.value);
                   }}
@@ -469,13 +567,18 @@ function SendSteps({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Due</FieldLabel>
+              <FieldLabel>{tr('envelopes.envelopes.due', 'Due')}</FieldLabel>
               <FieldControl>
-                <DatePicker label="Due" placeholder="No date" value={dueOn} onChange={setDueOn} />
+                <DatePicker
+                  label={tr('envelopes.envelopes.due', 'Due')}
+                  placeholder={tr('envelopes.envelopes.no_date', 'No date')}
+                  value={dueOn}
+                  onChange={setDueOn}
+                />
               </FieldControl>
             </Field>
             {write.error === null ? null : (
-              <Alert tone="danger" title="Not sent">
+              <Alert tone="danger" title={tr('envelopes.envelopes.not_sent', 'Not sent')}>
                 {write.error}
               </Alert>
             )}
@@ -486,7 +589,7 @@ function SendSteps({
                   setStep(1);
                 }}
               >
-                Back
+                {tr('envelopes.envelopes.back', 'Back')}
               </Button>
               <Button
                 variant="primary"
@@ -526,7 +629,7 @@ function SendSteps({
                   });
                 }}
               >
-                Send
+                {tr('envelopes.envelopes.send', 'Send')}
               </Button>
             </div>
           </CardContent>
@@ -570,10 +673,18 @@ export interface EnvelopeProps {
 }
 
 export function Envelope(props: EnvelopeProps): JSX.Element {
-  if (props.load.status === 'loading') return <Skeleton shape="page" label="Loading the request" />;
+  if (props.load.status === 'loading')
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('envelopes.envelopes.loading_the_request', 'Loading the request')}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
-      {props.load.status === 'error' ? <PageHeader title="Signature request" /> : null}
+      {props.load.status === 'error' ? (
+        <PageHeader title={tr('envelopes.envelopes.signature_request', 'Signature request')} />
+      ) : null}
       <Loaded load={props.load} what="the request">
         {(env) => <EnvelopePage env={env} {...props} />}
       </Loaded>
@@ -639,7 +750,11 @@ function EnvelopePage({
     <>
       <PageHeader
         title={env.title}
-        description={`From ${env.sender} · ${shortDate(env.createdAt)}${env.dueOn === null ? '' : ` · due ${shortDate(env.dueOn)}`}`}
+        description={tr('envelopes.envelopes.from', 'From {{sender}} · {{createdAt}}{{value}}', {
+          sender: env.sender,
+          createdAt: shortDate(env.createdAt),
+          value: env.dueOn === null ? '' : ` · due ${shortDate(env.dueOn)}`,
+        })}
         actions={
           env.follows && env.status === 'sent' ? <SenderMenu env={env} {...props} /> : undefined
         }
@@ -650,17 +765,20 @@ function EnvelopePage({
         </Badge>
       </div>
       {env.message === '' ? null : (
-        <Alert tone="info" title={`${env.sender} says`}>
+        <Alert
+          tone="info"
+          title={tr('envelopes.envelopes.says', '{{sender}} says', { sender: env.sender })}
+        >
           {env.message}
         </Alert>
       )}
       {done === null ? null : (
-        <Alert tone="success" title="Signed">
+        <Alert tone="success" title={tr('envelopes.envelopes.signed', 'Signed')}>
           {done}
         </Alert>
       )}
       {env.voidReason === null ? null : (
-        <Alert tone="neutral" title="Cancelled">
+        <Alert tone="neutral" title={tr('envelopes.envelopes.cancelled', 'Cancelled')}>
           {env.voidReason}
         </Alert>
       )}
@@ -673,7 +791,9 @@ function EnvelopePage({
         <Card variant="fill">
           {link === null ? (
             <div className="grid min-h-[36rem] place-items-center">
-              <Spinner label="Opening the document" />
+              <Spinner
+                label={tr('envelopes.envelopes.opening_the_document', 'Opening the document')}
+              />
             </div>
           ) : (
             <div className="p-3">
@@ -692,7 +812,7 @@ function EnvelopePage({
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Signers</CardTitle>
+              <CardTitle level={2}>{tr('envelopes.envelopes.signers', 'Signers')}</CardTitle>
             </CardHeader>
             <CardContent>
               <List>
@@ -702,8 +822,10 @@ function EnvelopePage({
                     leading={<Avatar name={s.name} size="md" />}
                     description={[
                       s.check === 'login'
-                        ? 'Kithena login'
-                        : `Code by email${s.email === null ? '' : ` · ${s.email}`}`,
+                        ? tr('envelopes.envelopes.kithena_login', 'Kithena login')
+                        : tr('envelopes.envelopes.code_by_email', 'Code by email{{value}}', {
+                            value: s.email === null ? '' : ` · ${s.email}`,
+                          }),
                       s.signedAt === null ? null : shortDate(s.signedAt),
                     ]
                       .filter(Boolean)
@@ -731,24 +853,38 @@ function EnvelopePage({
           {env.status === 'completed' && env.signedVersion === null && env.follows ? (
             <Alert
               tone="warning"
-              title="Signed, not sealed yet"
+              title={tr('envelopes.envelopes.signed_not_sealed_yet', 'Signed, not sealed yet')}
               action={<SealAgain id={env.id} onSeal={props.onSeal} />}
             >
-              Everybody has signed; sealing the file did not finish.
+              {tr(
+                'envelopes.envelopes.everybody_has_signed_sealing_the_file',
+                'Everybody has signed; sealing the file did not finish.',
+              )}
             </Alert>
           ) : null}
           {env.status === 'completed' && env.signedVersion !== null ? (
-            <Alert tone="success" title="Signed and sealed">
-              {`Filed as version ${String(env.signedVersion)}, with a certificate of completion as its last page.`}
+            <Alert
+              tone="success"
+              title={tr('envelopes.envelopes.signed_and_sealed', 'Signed and sealed')}
+            >
+              {tr(
+                'envelopes.envelopes.filed_as_version_with_a_certificate',
+                'Filed as version {{signedVersion}}, with a certificate of completion as its last page.',
+                { signedVersion: String(env.signedVersion) },
+              )}
               <Button asChild size="sm" variant="secondary" className="mt-2">
-                <a href={`/documents/d/${env.documentId}`}>Open the signed document</a>
+                <a href={`/documents/d/${env.documentId}`}>
+                  {tr('envelopes.envelopes.open_the_signed_document', 'Open the signed document')}
+                </a>
               </Button>
             </Alert>
           ) : null}
           {env.trail.length === 0 ? null : (
             <Card>
               <CardHeader>
-                <CardTitle level={2}>What happened</CardTitle>
+                <CardTitle level={2}>
+                  {tr('envelopes.envelopes.what_happened', 'What happened')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <List>
@@ -757,7 +893,10 @@ function EnvelopePage({
                       key={`${t.at}-${String(i)}`}
                       description={[shortDate(t.at), t.note].filter(Boolean).join(' · ')}
                     >
-                      {`${t.who} · ${t.action.replaceAll('_', ' ')}`}
+                      {tr('envelopes.envelopes.text', '{{who}} · {{replaceAll}}', {
+                        who: t.who,
+                        replaceAll: t.action.replaceAll('_', ' '),
+                      })}
                     </ListItem>
                   ))}
                 </List>
@@ -802,29 +941,42 @@ export function SignPanel({
   return (
     <Card variant="assistant">
       <CardHeader>
-        <CardTitle level={2}>Your part</CardTitle>
+        <CardTitle level={2}>{tr('envelopes.envelopes.your_part', 'Your part')}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm">
           {left.length === 0
-            ? 'Everything is filled in. Finish, under the document, signs it.'
-            : `${String(left.length)} ${left.length === 1 ? 'place' : 'places'} to fill in. Start, under the document, takes you to each one.`}
+            ? tr(
+                'envelopes.envelopes.everything_is_filled_in_finish_under',
+                'Everything is filled in. Finish, under the document, signs it.',
+              )
+            : tr(
+                'envelopes.envelopes.to_fill_in_start_under_the',
+                '{{length}} {{value}} to fill in. Start, under the document, takes you to each one.',
+                { length: String(left.length), value: left.length === 1 ? 'place' : 'places' },
+              )}
         </p>
         {mark === null ? null : (
           <div className="h-16 rounded-md bg-surface-sunken">
-            <Signature value={mark} label={`${name}’s signature`} />
+            <Signature
+              value={mark}
+              label={tr('envelopes.envelopes.s_signature', '{{name}}’s signature', { name })}
+            />
           </div>
         )}
         {onFile ? (
           <p className="text-sm text-fg-muted">
-            Your signature on file.{' '}
+            {tr('envelopes.envelopes.your_signature_on_file', 'Your signature on file.')}{' '}
             <a href="/settings/documents/signature" className="text-accent-fg underline">
-              Change it in Settings
+              {tr('envelopes.envelopes.change_it_in_settings', 'Change it in Settings')}
             </a>
           </p>
         ) : env.signature?.canKeep === true ? (
           <p className="text-xs text-fg-muted">
-            The one you adopt is kept for next time; change it later in Settings.
+            {tr(
+              'envelopes.envelopes.the_one_you_adopt_is_kept',
+              'The one you adopt is kept for next time; change it later in Settings.',
+            )}
           </p>
         ) : null}
         {needsMark && !onFile ? (
@@ -835,19 +987,29 @@ export function SignPanel({
               signing.setAdopting(true);
             }}
           >
-            {mark === null ? 'Adopt your signature' : 'Change your signature'}
+            {mark === null
+              ? tr('envelopes.envelopes.adopt_your_signature', 'Adopt your signature')
+              : tr('envelopes.envelopes.change_your_signature', 'Change your signature')}
           </Button>
         ) : null}
         {problem === null ? null : (
-          <Alert tone="danger" title="Not signed">
+          <Alert tone="danger" title={tr('envelopes.envelopes.not_signed', 'Not signed')}>
             {problem}
           </Alert>
         )}
         {asked ? (
-          <Alert tone="success">Your question was sent. The request waits for you.</Alert>
+          <Alert tone="success">
+            {tr(
+              'envelopes.envelopes.your_question_was_sent_the_request',
+              'Your question was sent. The request waits for you.',
+            )}
+          </Alert>
         ) : null}
         <p className="text-xs text-fg-muted">
-          Signed with your Kithena login. The time and your device are recorded.
+          {tr(
+            'envelopes.envelopes.signed_with_your_kithena_login_the',
+            'Signed with your Kithena login. The time and your device are recorded.',
+          )}
         </p>
         <div className="flex gap-2">
           <Button
@@ -857,7 +1019,7 @@ export function SignPanel({
               setOther('ask');
             }}
           >
-            Ask a question
+            {tr('envelopes.envelopes.ask_a_question', 'Ask a question')}
           </Button>
           <Button
             variant="ghost"
@@ -866,7 +1028,7 @@ export function SignPanel({
               setOther('decline');
             }}
           >
-            Decline
+            {tr('envelopes.envelopes.decline', 'Decline')}
           </Button>
         </div>
       </CardContent>
@@ -885,15 +1047,25 @@ export function SignPanel({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {other === 'ask' ? `Ask ${env.sender} a question` : 'Decline to sign'}
+              {other === 'ask'
+                ? tr('envelopes.envelopes.ask_a_question_2', 'Ask {{sender}} a question', {
+                    sender: env.sender,
+                  })
+                : tr('envelopes.envelopes.decline_to_sign', 'Decline to sign')}
             </DialogTitle>
             <DialogDescription>
-              {other === 'ask' ? 'The request waits for you.' : `${env.sender} is told; say why.`}
+              {other === 'ask'
+                ? tr('envelopes.envelopes.the_request_waits_for_you', 'The request waits for you.')
+                : `${env.sender} is told; say why.`}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Field required>
-              <FieldLabel>{other === 'ask' ? 'Your question' : 'Why'}</FieldLabel>
+              <FieldLabel>
+                {other === 'ask'
+                  ? tr('envelopes.envelopes.your_question', 'Your question')
+                  : tr('envelopes.envelopes.why', 'Why')}
+              </FieldLabel>
               <FieldControl>
                 <Input
                   value={text}
@@ -912,7 +1084,7 @@ export function SignPanel({
                 setOther(null);
               }}
             >
-              Cancel
+              {tr('envelopes.envelopes.cancel', 'Cancel')}
             </Button>
             <Button
               variant={other === 'decline' ? 'danger' : 'primary'}
@@ -931,7 +1103,7 @@ export function SignPanel({
                 );
               }}
             >
-              Send
+              {tr('envelopes.envelopes.send', 'Send')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -964,11 +1136,17 @@ function SenderMenu({
           );
         }}
       >
-        {reminded ? 'Reminded' : 'Remind'}
+        {reminded
+          ? tr('envelopes.envelopes.reminded', 'Reminded')
+          : tr('envelopes.envelopes.remind', 'Remind')}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="secondary" aria-label="More" startIcon={<icons.more aria-hidden />} />
+          <Button
+            variant="secondary"
+            aria-label={tr('envelopes.envelopes.more', 'More')}
+            startIcon={<icons.more aria-hidden />}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem
@@ -976,19 +1154,26 @@ function SenderMenu({
               setCancelling(true);
             }}
           >
-            Cancel the request
+            {tr('envelopes.envelopes.cancel_the_request', 'Cancel the request')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={cancelling} onOpenChange={setCancelling}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel this request</DialogTitle>
-            <DialogDescription>Signers can no longer sign it. Say why.</DialogDescription>
+            <DialogTitle>
+              {tr('envelopes.envelopes.cancel_this_request', 'Cancel this request')}
+            </DialogTitle>
+            <DialogDescription>
+              {tr(
+                'envelopes.envelopes.signers_can_no_longer_sign_it',
+                'Signers can no longer sign it. Say why.',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Field required>
-              <FieldLabel>Why</FieldLabel>
+              <FieldLabel>{tr('envelopes.envelopes.why', 'Why')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={reason}
@@ -1008,7 +1193,7 @@ function SenderMenu({
                 setCancelling(false);
               }}
             >
-              Keep it
+              {tr('envelopes.envelopes.keep_it', 'Keep it')}
             </Button>
             <Button
               variant="danger"
@@ -1023,7 +1208,7 @@ function SenderMenu({
                 );
               }}
             >
-              Cancel the request
+              {tr('envelopes.envelopes.cancel_the_request', 'Cancel the request')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1044,7 +1229,7 @@ function Reassign({
   const write = useWrite();
   return (
     <Combobox
-      label="Pass to"
+      label={tr('envelopes.envelopes.pass_to', 'Pass to')}
       size="sm"
       options={env.people.map((p) => ({ value: p.personId, label: p.name }))}
       value={null}
@@ -1052,9 +1237,9 @@ function Reassign({
         if (typeof v !== 'string') return;
         write.run(() => onReassign?.(env.id, signerId, v) ?? Promise.resolve({ ok: true }));
       }}
-      placeholder="Pass to…"
-      searchPlaceholder="Find a colleague"
-      emptyMessage="Nobody by that name"
+      placeholder={tr('envelopes.envelopes.pass_to_2', 'Pass to…')}
+      searchPlaceholder={tr('envelopes.envelopes.find_a_colleague', 'Find a colleague')}
+      emptyMessage={tr('envelopes.envelopes.nobody_by_that_name', 'Nobody by that name')}
     />
   );
 }
@@ -1075,7 +1260,7 @@ function SealAgain({
         write.run(() => onSeal?.(id) ?? Promise.resolve({ ok: true }));
       }}
     >
-      Seal it now
+      {tr('envelopes.envelopes.seal_it_now', 'Seal it now')}
     </Button>
   );
 }

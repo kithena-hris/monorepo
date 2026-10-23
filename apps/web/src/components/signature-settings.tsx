@@ -23,6 +23,7 @@ import { useState, useTransition, type JSX } from 'react';
 import { changeMySignature } from '../app/(app)/settings/documents/signature/actions';
 import type { MySignature } from '../lib/my-signature';
 import { useShellData } from './app-shell';
+import { t } from '../lib/t';
 
 /**
  * Settings › Documents › Your signature. Adopted here, or the first time they
@@ -43,24 +44,47 @@ export function SignatureSettings({ mine }: { readonly mine: MySignature | null 
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/settings?area=documents">Settings</BreadcrumbLink>
+                <BreadcrumbLink href="/settings?area=documents">
+                  {t('components.signature-settings.settings', 'Settings')}
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Your signature</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {t('components.signature-settings.your_signature', 'Your signature')}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         }
-        title="Your signature"
-        description="The signature your documents are signed with. It is changed here, never while signing."
-        meta={pending ? <Badge size="sm">Saving</Badge> : undefined}
+        title={t('components.signature-settings.your_signature', 'Your signature')}
+        description={t(
+          'components.signature-settings.the_signature_your_documents_are_signed',
+          'The signature your documents are signed with. It is changed here, never while signing.',
+        )}
+        meta={
+          pending ? (
+            <Badge size="sm">{t('components.signature-settings.saving', 'Saving')}</Badge>
+          ) : undefined
+        }
       />
       {mine === null ? (
-        <Alert tone="info" title="Your company keeps no signature on file">
+        <Alert
+          tone="info"
+          title={t(
+            'components.signature-settings.your_company_keeps_no_signature_on',
+            'Your company keeps no signature on file',
+          )}
+        >
           {roles.admin
-            ? 'Add a field of the type “A signature” in Settings › Employee fields, and choose when people are asked for it: at sign-up, during onboarding, or any time.'
-            : 'You adopt one each time you sign a document.'}
+            ? t(
+                'components.signature-settings.add_a_field_of_the_type',
+                'Add a field of the type “A signature” in Settings › Employee fields, and choose when people are asked for it: at sign-up, during onboarding, or any time.',
+              )
+            : t(
+                'components.signature-settings.you_adopt_one_each_time_you',
+                'You adopt one each time you sign a document.',
+              )}
         </Alert>
       ) : (
         <Card className="max-w-xl">
@@ -68,7 +92,10 @@ export function SignatureSettings({ mine }: { readonly mine: MySignature | null 
             <CardTitle level={2}>{mine.label}</CardTitle>
             <CardDescription>
               {mine.canChange
-                ? 'Typed in a handwriting style, or drawn. Every box you sign takes it.'
+                ? t(
+                    'components.signature-settings.typed_in_a_handwriting_style_or',
+                    'Typed in a handwriting style, or drawn. Every box you sign takes it.',
+                  )
                 : 'HR keeps this one; ask them to change it.'}
             </CardDescription>
           </CardHeader>
@@ -92,13 +119,21 @@ export function SignatureSettings({ mine }: { readonly mine: MySignature | null 
               }}
             />
             {held ? (
-              <Alert tone="info" title="Waiting for HR">
-                Your new signature is used once HR approves it; until then you sign with the one
-                shown.
+              <Alert
+                tone="info"
+                title={t('components.signature-settings.waiting_for_hr', 'Waiting for HR')}
+              >
+                {t(
+                  'components.signature-settings.your_new_signature_is_used_once',
+                  'Your new signature is used once HR approves it; until then you sign with the one shown.',
+                )}
               </Alert>
             ) : null}
             {problem === null ? null : (
-              <Alert tone="danger" title="Not saved">
+              <Alert
+                tone="danger"
+                title={t('components.signature-settings.not_saved', 'Not saved')}
+              >
                 {problem}
               </Alert>
             )}

@@ -1,6 +1,7 @@
 import { use, type ComponentType, type JSX } from 'react';
 
 import { framed, type Frame } from './frame';
+import { t } from './i18n';
 
 /**
  * A screen in a chunk of its own, for the browser build (`index.browser.ts`).
@@ -48,6 +49,6 @@ export function split<M>(load: () => Promise<M>, name: keyof M & string): SplitS
     const Shown = Screen as ComponentType<Props>;
     return <Shown {...props} />;
   }
-  Split.displayName = `Split(${name})`;
+  Split.displayName = t('split.split', 'Split({{name}})', { name });
   return Object.assign(Split, { preload });
 }

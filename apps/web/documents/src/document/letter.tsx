@@ -21,6 +21,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { shortDate } from '../shared';
 import type { Outcome, Read } from '../types';
+import { t } from '../i18n';
 
 /**
  * A letter that changes a record (J7): a resignation's last working day,
@@ -59,7 +60,7 @@ export function ActOnLetter({
           setOpen(true);
         }}
       >
-        Act on this letter
+        {t('document.letter.act_on_this_letter', 'Act on this letter')}
       </Button>
       {open ? (
         <LetterDialog
@@ -111,18 +112,37 @@ function LetterDialog({
         <DialogHeader>
           <DialogTitle>
             {data?.ok === true
-              ? `What this letter changes for ${data.data.name}`
-              : 'Act on this letter'}
+              ? t(
+                  'document.letter.what_this_letter_changes_for',
+                  'What this letter changes for {{name}}',
+                  { name: data.data.name },
+                )
+              : t('document.letter.act_on_this_letter', 'Act on this letter')}
           </DialogTitle>
-          <DialogDescription>Each is a tick. Nothing changes until you save.</DialogDescription>
+          <DialogDescription>
+            {t(
+              'document.letter.each_is_a_tick_nothing_changes',
+              'Each is a tick. Nothing changes until you save.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {data === null ? (
-            <Spinner label="Kithena is reading the letter" />
+            <Spinner
+              label={t(
+                'document.letter.kithena_is_reading_the_letter',
+                'Kithena is reading the letter',
+              )}
+            />
           ) : !data.ok ? (
             <Alert tone="danger">{data.message}</Alert>
           ) : day === null ? (
-            <p className="text-sm text-fg-muted">The letter states no last working day.</p>
+            <p className="text-sm text-fg-muted">
+              {t(
+                'document.letter.the_letter_states_no_last_working',
+                'The letter states no last working day.',
+              )}
+            </p>
           ) : (
             <>
               <Field orientation="horizontal">
@@ -136,21 +156,36 @@ function LetterDialog({
                   />
                 </FieldControl>
                 <FieldLabel>
-                  {`Give notice: last working day ${shortDate(day.value)} `}
-                  <Badge size="sm" tone="neutral">{`p. ${String(day.page)}`}</Badge>
+                  {t(
+                    'document.letter.give_notice_last_working_day',
+                    'Give notice: last working day {{value}}',
+                    { value: shortDate(day.value) },
+                  ) + ' '}
+                  <Badge size="sm" tone="neutral">
+                    {t('document.letter.p', 'p. {{page}}', { page: String(day.page) })}
+                  </Badge>
                 </FieldLabel>
                 <FieldDescription>
-                  Their record shows them leaving, and offboarding starts from it.
+                  {t(
+                    'document.letter.their_record_shows_them_leaving_and',
+                    'Their record shows them leaving, and offboarding starts from it.',
+                  )}
                 </FieldDescription>
               </Field>
               <p className="text-sm text-fg-muted">
-                Their leave balance is settled on that day, as it is for anybody leaving.
+                {t(
+                  'document.letter.their_leave_balance_is_settled_on',
+                  'Their leave balance is settled on that day, as it is for anybody leaving.',
+                )}
               </p>
             </>
           )}
           {done === null ? null : done.ok ? (
-            <Alert tone="success" title="Saved">
-              Their notice is in their record.
+            <Alert tone="success" title={t('document.letter.saved', 'Saved')}>
+              {t(
+                'document.letter.their_notice_is_in_their_record',
+                'Their notice is in their record.',
+              )}
             </Alert>
           ) : (
             <Alert tone="danger">{done.message}</Alert>
@@ -158,7 +193,9 @@ function LetterDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            {done?.ok === true ? 'Close' : 'Cancel'}
+            {done?.ok === true
+              ? t('document.letter.close', 'Close')
+              : t('document.letter.cancel', 'Cancel')}
           </Button>
           {done?.ok === true || day === null || data?.ok !== true ? null : (
             <Button
@@ -173,7 +210,7 @@ function LetterDialog({
                 });
               }}
             >
-              Save
+              {t('document.letter.save', 'Save')}
             </Button>
           )}
         </DialogFooter>

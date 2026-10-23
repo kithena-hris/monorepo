@@ -106,6 +106,7 @@ import {
   type Act,
 } from './shared';
 import type { Kind, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Cycles (PRD §8, §19; design PF4–PF6, PF9): the list, setup in five steps in
@@ -132,12 +133,12 @@ export interface CyclesData {
 }
 
 const STATES = [
-  ['', 'All'],
-  ['draft', 'Draft'],
-  ['scheduled', 'Scheduled'],
-  ['in_progress', 'In progress'],
-  ['closed', 'Closed'],
-  ['archived', 'Archived'],
+  ['', tr('cycles.all', 'All')],
+  ['draft', tr('cycles.draft', 'Draft')],
+  ['scheduled', tr('cycles.scheduled', 'Scheduled')],
+  ['in_progress', tr('cycles.in_progress', 'In progress')],
+  ['closed', tr('cycles.closed', 'Closed')],
+  ['archived', tr('cycles.archived', 'Archived')],
 ] as const;
 
 export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
@@ -157,8 +158,11 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Cycles"
-            description="A cycle is a set of review activities for a group of people, with deadlines. Filters are in the address."
+            title={tr('cycles.cycles', 'Cycles')}
+            description={tr(
+              'cycles.a_cycle_is_a_set_of',
+              'A cycle is a set of review activities for a group of people, with deadlines. Filters are in the address.',
+            )}
             actions={
               data.hr ? (
                 <>
@@ -169,7 +173,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                       setCopying(true);
                     }}
                   >
-                    Copy a cycle
+                    {tr('cycles.copy_a_cycle', 'Copy a cycle')}
                   </Button>
                   <Button
                     startIcon={<icons.add aria-hidden />}
@@ -177,7 +181,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                       setStarting(true);
                     }}
                   >
-                    New cycle
+                    {tr('cycles.new_cycle', 'New cycle')}
                   </Button>
                 </>
               ) : undefined
@@ -188,14 +192,14 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             <CardContent className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <Search
-                  label="Search cycles"
-                  placeholder="Search cycles"
+                  label={tr('cycles.search_cycles', 'Search cycles')}
+                  placeholder={tr('cycles.search_cycles', 'Search cycles')}
                   initial={props.search?.['q'] ?? ''}
                   onSearch={(q) => {
                     props.onFilter?.({ q: q === '' ? null : q });
                   }}
                 />
-                <ChipRow aria-label="State">
+                <ChipRow aria-label={tr('cycles.state', 'State')}>
                   {STATES.map(([v, l]) => (
                     <Chip
                       key={v}
@@ -214,9 +218,11 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
               </div>
               {/* Every cycle, drawn only where it is in view. */}
               <DataTable
-                label="Cycles"
+                label={tr('cycles.cycles', 'Cycles')}
                 rows={data.rows}
-                endLabel={`That’s every cycle · ${String(data.rows.length)}`}
+                endLabel={tr('cycles.thats_every_cycle', 'That’s every cycle · {{length}}', {
+                  length: String(data.rows.length),
+                })}
                 rowId={(c) => c.id}
                 describeRow={(c) => c.name}
                 estimateRowHeight={57}
@@ -224,7 +230,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                 columns={[
                   {
                     id: 'cycle',
-                    header: 'Cycle',
+                    header: tr('cycles.cycle', 'Cycle'),
                     cell: (c) => (
                       <span className="flex flex-col">
                         <To
@@ -238,36 +244,48 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                           {c.name}
                         </To>
                         <span className="text-xs text-fg-muted">
-                          {c.owner === 'Automation' ? 'From an automation' : `Owner: ${c.owner}`}
+                          {c.owner === 'Automation'
+                            ? tr('cycles.from_an_automation', 'From an automation')
+                            : tr('cycles.owner', 'Owner: {{owner}}', { owner: c.owner })}
                         </span>
                       </span>
                     ),
                   },
-                  { id: 'state', header: 'State', cell: (c) => <CycleBadge state={c.state} /> },
+                  {
+                    id: 'state',
+                    header: tr('cycles.state', 'State'),
+                    cell: (c) => <CycleBadge state={c.state} />,
+                  },
                   {
                     id: 'who',
-                    header: 'Who',
+                    header: tr('cycles.who', 'Who'),
                     cell: (c) => <span className="text-sm text-fg-muted">{c.who}</span>,
                   },
                   {
                     id: 'kinds',
-                    header: 'Activities',
+                    header: tr('cycles.activities', 'Activities'),
                     cell: (c) => (
                       <span className="text-sm">{c.kinds.map(kindLabel).join(', ')}</span>
                     ),
                   },
                   {
                     id: 'dates',
-                    header: 'Dates',
+                    header: tr('cycles.dates', 'Dates'),
                     cell: (c) => <span className="text-sm text-fg-muted">{c.dates}</span>,
                   },
                   {
                     id: 'progress',
-                    header: 'Progress',
+                    header: tr('cycles.progress', 'Progress'),
                     className: 'min-w-28',
                     cell: (c) =>
                       ['in_progress', 'closed', 'archived'].includes(c.state) ? (
-                        <Progress value={c.progress} label={`${c.name}: ${String(c.progress)}%`} />
+                        <Progress
+                          value={c.progress}
+                          label={tr('cycles.text', '{{name}}: {{progress}}%', {
+                            name: c.name,
+                            progress: String(c.progress),
+                          })}
+                        />
                       ) : (
                         '—'
                       ),
@@ -276,9 +294,14 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                 empty={
                   <EmptyState
                     icon={<icons.review aria-hidden />}
-                    title="No cycles here"
+                    title={tr('cycles.no_cycles_here', 'No cycles here')}
                     description={
-                      data.hr ? 'Start one with New cycle.' : 'Cycles you take part in show here.'
+                      data.hr
+                        ? tr('cycles.start_one_with_new_cycle', 'Start one with New cycle.')
+                        : tr(
+                            'cycles.cycles_you_take_part_in_show',
+                            'Cycles you take part in show here.',
+                          )
                     }
                   />
                 }
@@ -299,8 +322,11 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
             onClose={() => {
               setCopying(false);
             }}
-            title="Copy a cycle"
-            description="Its settings are copied; setup opens next, where you name it and set its start."
+            title={tr('cycles.copy_a_cycle', 'Copy a cycle')}
+            description={tr(
+              'cycles.its_settings_are_copied_setup_opens',
+              'Its settings are copied; setup opens next, where you name it and set its start.',
+            )}
             footer={
               <>
                 <Button
@@ -309,28 +335,33 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                     setCopying(false);
                   }}
                 >
-                  Cancel
+                  {tr('cycles.cancel', 'Cancel')}
                 </Button>
                 <Button
                   disabled={from === ''}
                   loading={act.pending}
                   onClick={() => {
                     const source = data.rows.find((c) => c.id === from);
-                    create(`Copy of ${source?.name ?? 'a cycle'}`, from);
+                    create(
+                      tr('cycles.copy_of', 'Copy of {{value}}', {
+                        value: source?.name ?? 'a cycle',
+                      }),
+                      from,
+                    );
                   }}
                 >
-                  Continue to setup
+                  {tr('cycles.continue_to_setup', 'Continue to setup')}
                 </Button>
               </>
             }
           >
             <Refusal error={act.error} />
             <Field required>
-              <FieldLabel>Copy settings from</FieldLabel>
+              <FieldLabel>{tr('cycles.copy_settings_from', 'Copy settings from')}</FieldLabel>
               <Select value={from} onValueChange={setFrom}>
                 <FieldControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pick a cycle" />
+                    <SelectValue placeholder={tr('cycles.pick_a_cycle', 'Pick a cycle')} />
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
@@ -415,7 +446,7 @@ function NewCycle({
       wide
       onClose={onClose}
       title={basics.name}
-      description="Draft · saved as you go"
+      description={tr('cycles.draft_saved_as_you_go', 'Draft · saved as you go')}
       steps={STEPS}
       step={0}
       onStep={go}
@@ -579,7 +610,13 @@ export interface SetupData {
 }
 
 /** Five steps: when and what the subject sees, who, which reviews and their reminders, the timeline, and a last look. */
-const STEPS = ['Basics', 'People', 'Reviews and reminders', 'Timeline', 'Launch'];
+const STEPS = [
+  tr('cycles.basics', 'Basics'),
+  tr('cycles.people', 'People'),
+  tr('cycles.reviews_and_reminders', 'Reviews and reminders'),
+  tr('cycles.timeline', 'Timeline'),
+  tr('cycles.launch', 'Launch'),
+];
 const ZONES = [
   'Europe/Madrid',
   'Europe/London',
@@ -593,9 +630,9 @@ const ZONES = [
 const REMINDERS = [
   ['before:7', '7 days before'],
   ['before:3', '3 days before'],
-  ['on_day', 'On the day'],
-  ['late:2', 'Every 2 days when late'],
-  ['opens', 'When it opens'],
+  ['on_day', tr('cycles.on_the_day', 'On the day')],
+  ['late:2', tr('cycles.every_2_days_when_late', 'Every 2 days when late')],
+  ['opens', tr('cycles.when_it_opens', 'When it opens')],
 ] as const;
 
 /** PF4: setup in a centred dialog; each step saves as it changes. */
@@ -630,22 +667,29 @@ function SetupDialog({
   const blocked = data.checks.some((i) => i.level === 'block');
   const finishLabel =
     data.action === 'launch'
-      ? 'Launch cycle'
+      ? tr('cycles.launch_cycle', 'Launch cycle')
       : data.action === 'past'
-        ? 'The start date has passed'
-        : 'Schedule cycle';
+        ? tr('cycles.the_start_date_has_passed', 'The start date has passed')
+        : tr('cycles.schedule_cycle', 'Schedule cycle');
   const activity = (k: Kind, patch: Partial<ActivityConfig>): void => {
     save({ activities: { ...c.activities, [k]: { ...c.activities[k], ...patch } } });
   };
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={c.name} description="New cycle · draft saved" />
+      <PageHeader
+        title={c.name}
+        description={tr('cycles.new_cycle_draft_saved', 'New cycle · draft saved')}
+      />
       <StepDialog
         open
         wide
         onClose={close}
         title={c.name}
-        description={c.state === 'draft' ? 'Draft · saved as you go' : words(c.state)}
+        description={
+          c.state === 'draft'
+            ? tr('cycles.draft_saved_as_you_go', 'Draft · saved as you go')
+            : words(c.state)
+        }
         steps={STEPS}
         step={step}
         onStep={go}
@@ -704,7 +748,7 @@ function Basics({
   return (
     <div className="flex flex-col gap-4">
       <Field required>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('cycles.name', 'Name')}</FieldLabel>
         <Input
           value={name}
           onChange={(e) => {
@@ -716,10 +760,12 @@ function Basics({
         />
       </Field>
       <Field>
-        <FieldLabel>Description, shown to participants</FieldLabel>
+        <FieldLabel>
+          {tr('cycles.description_shown_to_participants', 'Description, shown to participants')}
+        </FieldLabel>
         <Input
           value={description}
-          placeholder="Optional"
+          placeholder={tr('cycles.optional', 'Optional')}
           onChange={(e) => {
             setDescription(e.target.value);
           }}
@@ -729,10 +775,10 @@ function Basics({
         />
       </Field>
       <Field>
-        <FieldLabel>Starts</FieldLabel>
+        <FieldLabel>{tr('cycles.starts', 'Starts')}</FieldLabel>
         <FieldControl>
           <DatePicker
-            label="Starts"
+            label={tr('cycles.starts', 'Starts')}
             value={c.start.date}
             onChange={(date) => {
               if (date !== null) save({ start: { ...c.start, date } });
@@ -741,17 +787,20 @@ function Basics({
         </FieldControl>
         <FieldDescription {...(action === 'past' ? { tone: 'warning' } : {})}>
           {action === 'launch'
-            ? 'Today, so it launches when you confirm.'
+            ? tr('cycles.today_so_it_launches_when_you', 'Today, so it launches when you confirm.')
             : action === 'past'
-              ? 'That day has passed: choose today or later.'
-              : 'Later, so it will be scheduled.'}
+              ? tr(
+                  'cycles.that_day_has_passed_choose_today',
+                  'That day has passed: choose today or later.',
+                )
+              : tr('cycles.later_so_it_will_be_scheduled', 'Later, so it will be scheduled.')}
         </FieldDescription>
       </Field>
       <Field>
-        <FieldLabel>At</FieldLabel>
+        <FieldLabel>{tr('cycles.at', 'At')}</FieldLabel>
         <FieldControl>
           <TimePicker
-            label="At"
+            label={tr('cycles.at', 'At')}
             value={c.start.time}
             onChange={(time) => {
               if (time !== null) save({ start: { ...c.start, time } });
@@ -760,7 +809,7 @@ function Basics({
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Time zone</FieldLabel>
+        <FieldLabel>{tr('cycles.time_zone', 'Time zone')}</FieldLabel>
         <Select
           value={c.start.zone}
           onValueChange={(v) => {
@@ -786,13 +835,18 @@ function Basics({
           <Separator />
           <FormSection
             headingLevel={3}
-            title="What the subject sees"
-            description="Their manager and HR always see who wrote what."
+            title={tr('cycles.what_the_subject_sees', 'What the subject sees')}
+            description={tr(
+              'cycles.their_manager_and_hr_always_see',
+              'Their manager and HR always see who wrote what.',
+            )}
           >
             <Field>
-              <FieldLabel>Their reviews reach them</FieldLabel>
+              <FieldLabel>
+                {tr('cycles.their_reviews_reach_them', 'Their reviews reach them')}
+              </FieldLabel>
               <RadioGroup
-                aria-label="Release"
+                aria-label={tr('cycles.release', 'Release')}
                 className="flex flex-col gap-2"
                 value={v.release.mode}
                 onValueChange={(mode) => {
@@ -801,27 +855,39 @@ function Basics({
               >
                 <RadioCard
                   value="manager"
-                  description="The manager releases each one once it is submitted."
+                  description={tr(
+                    'cycles.the_manager_releases_each_one_once',
+                    'The manager releases each one once it is submitted.',
+                  )}
                 >
-                  As each is submitted
+                  {tr('cycles.as_each_is_submitted', 'As each is submitted')}
                 </RadioCard>
-                <RadioCard value="hr_date" description="Everyone at once, on the day you choose.">
-                  On a date
+                <RadioCard
+                  value="hr_date"
+                  description={tr(
+                    'cycles.everyone_at_once_on_the_day',
+                    'Everyone at once, on the day you choose.',
+                  )}
+                >
+                  {tr('cycles.on_a_date', 'On a date')}
                 </RadioCard>
                 <RadioCard
                   value="close"
-                  description="When the cycle closes, after calibration if it has one."
+                  description={tr(
+                    'cycles.when_the_cycle_closes_after_calibration',
+                    'When the cycle closes, after calibration if it has one.',
+                  )}
                 >
-                  When the cycle closes
+                  {tr('cycles.when_the_cycle_closes', 'When the cycle closes')}
                 </RadioCard>
               </RadioGroup>
             </Field>
             {v.release.mode === 'hr_date' ? (
               <Field>
-                <FieldLabel>Release on</FieldLabel>
+                <FieldLabel>{tr('cycles.release_on', 'Release on')}</FieldLabel>
                 <FieldControl>
                   <DatePicker
-                    label="Release on"
+                    label={tr('cycles.release_on', 'Release on')}
                     value={v.release.date}
                     onChange={(date) => {
                       set({ release: { ...v.release, date } });
@@ -832,16 +898,19 @@ function Basics({
             ) : null}
             <div className="flex flex-col">
               <SwitchRow
-                label="Ask for an acknowledgement"
-                hint="“I’ve read this” is not agreement."
+                label={tr('cycles.ask_for_an_acknowledgement', 'Ask for an acknowledgement')}
+                hint={tr(
+                  'cycles.ive_read_this_is_not_agreement',
+                  '“I’ve read this” is not agreement.',
+                )}
                 checked={v.acknowledge}
                 onChange={(ack) => {
                   set({ acknowledge: ack });
                 }}
               />
               <SwitchRow
-                label="Let the subject comment"
-                hint="Shown to the manager and HR"
+                label={tr('cycles.let_the_subject_comment', 'Let the subject comment')}
+                hint={tr('cycles.shown_to_the_manager_and_hr', 'Shown to the manager and HR')}
                 checked={v.subjectComment}
                 onChange={(comment) => {
                   set({ subjectComment: comment });
@@ -849,8 +918,11 @@ function Basics({
               />
             </div>
             <NumberField
-              label="Response minimum"
-              hint="Confidential answers show only once this many are in."
+              label={tr('cycles.response_minimum', 'Response minimum')}
+              hint={tr(
+                'cycles.confidential_answers_show_only_once_this',
+                'Confidential answers show only once this many are in.',
+              )}
               value={v.minimum}
               suffix={unit(v.minimum, 'answer')}
               min={1}
@@ -867,14 +939,14 @@ function Basics({
 }
 
 const IS = [
-  { id: 'is', label: 'is any of', value: 'options' },
-  { id: 'not', label: 'is none of', value: 'options' },
+  { id: 'is', label: tr('cycles.is_any_of', 'is any of'), value: 'options' },
+  { id: 'not', label: tr('cycles.is_none_of', 'is none of'), value: 'options' },
 ] as const;
 const STATUS_LABEL: Readonly<Record<string, string>> = {
-  active: 'Active',
-  on_leave: 'On leave',
-  notice: 'On notice',
-  pre_hire: 'Starting soon',
+  active: tr('cycles.active', 'Active'),
+  on_leave: tr('cycles.on_leave', 'On leave'),
+  notice: tr('cycles.on_notice', 'On notice'),
+  pre_hire: tr('cycles.starting_soon', 'Starting soon'),
 };
 
 /** What the People step filters on: what Performance knows of each person. */
@@ -893,41 +965,46 @@ function filterFields(data: {
   return [
     {
       id: 'department',
-      label: 'Department',
+      label: tr('cycles.department', 'Department'),
       operators: IS,
       options: f.departments.map((d) => ({ value: d, label: d })),
     },
     {
       id: 'location',
-      label: 'Work location',
+      label: tr('cycles.work_location', 'Work location'),
       operators: IS,
       options: named(f.locations, data.places?.locations),
     },
     {
       id: 'legalEntity',
-      label: 'Legal entity',
+      label: tr('cycles.legal_entity', 'Legal entity'),
       operators: IS,
       options: named(f.legalEntities, data.places?.entities),
     },
-    { id: 'manager', label: 'Manager', operators: IS, options: f.managers ?? [] },
+    {
+      id: 'manager',
+      label: tr('cycles.manager', 'Manager'),
+      operators: IS,
+      options: f.managers ?? [],
+    },
     {
       id: 'status',
-      label: 'Status',
+      label: tr('cycles.status', 'Status'),
       operators: IS,
       options: f.statuses.map((x) => ({ value: x, label: STATUS_LABEL[x] ?? x })),
     },
     {
       id: 'title',
-      label: 'Job title',
+      label: tr('cycles.job_title', 'Job title'),
       operators: [{ id: 'contains', label: 'contains', value: 'text' }],
     },
     {
       id: 'hiredOn',
-      label: 'Start date',
+      label: tr('cycles.start_date', 'Start date'),
       operators: [
-        { id: 'before', label: 'is before', value: 'date' },
-        { id: 'after', label: 'is after', value: 'date' },
-        { id: 'between', label: 'is between', value: 'date-range' },
+        { id: 'before', label: tr('cycles.is_before', 'is before'), value: 'date' },
+        { id: 'after', label: tr('cycles.is_after', 'is after'), value: 'date' },
+        { id: 'between', label: tr('cycles.is_between', 'is between'), value: 'date-range' },
       ],
     },
   ];
@@ -997,9 +1074,9 @@ function FilterChips({
   const chips = chipsOf(fields, value);
   return (
     <>
-      <ChipRow role="group" aria-label="Filters in force">
+      <ChipRow role="group" aria-label={tr('cycles.filters_in_force', 'Filters in force')}>
         {match === 'any' && chips.length > 1 ? (
-          <span className="text-xs text-fg-muted">Any of:</span>
+          <span className="text-xs text-fg-muted">{tr('cycles.any_of', 'Any of:')}</span>
         ) : null}
         {chips.map((chip) => (
           <Chip
@@ -1011,7 +1088,10 @@ function FilterChips({
                 match,
               );
             }}
-            removeLabel={`Remove ${chip.field} ${chip.text}`}
+            removeLabel={tr('cycles.remove', 'Remove {{field}} {{text}}', {
+              field: chip.field,
+              text: chip.text,
+            })}
           >
             {chip.text}
           </Chip>
@@ -1024,7 +1104,7 @@ function FilterChips({
             setOpen(true);
           }}
         >
-          Add filter
+          {tr('cycles.add_filter', 'Add filter')}
         </Chip>
         {chips.length === 0 ? null : (
           <Button
@@ -1034,7 +1114,7 @@ function FilterChips({
               onApply([], 'all');
             }}
           >
-            Clear all
+            {tr('cycles.clear_all', 'Clear all')}
           </Button>
         )}
       </ChipRow>
@@ -1046,7 +1126,7 @@ function FilterChips({
           </DialogHeader>
           <DialogBody>
             <FilterBuilder
-              label="Conditions"
+              label={tr('cycles.conditions', 'Conditions')}
               fields={[...fields]}
               value={draft}
               onChange={setDraft}
@@ -1061,7 +1141,7 @@ function FilterChips({
                 setDraft({ match: 'all', conditions: [] });
               }}
             >
-              Clear
+              {tr('cycles.clear', 'Clear')}
             </Button>
             <Button
               variant="secondary"
@@ -1069,7 +1149,7 @@ function FilterChips({
                 setOpen(false);
               }}
             >
-              Cancel
+              {tr('cycles.cancel', 'Cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -1083,7 +1163,7 @@ function FilterChips({
                 setOpen(false);
               }}
             >
-              Apply
+              {tr('cycles.apply', 'Apply')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1174,7 +1254,7 @@ function Participants({
       header: 'Manager',
       cell: (r) =>
         r.manager === null ? (
-          <span className="text-sm text-fg-muted">No manager</span>
+          <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
         ) : (
           <To
             href={`/people/${r.manager.id}`}
@@ -1191,7 +1271,9 @@ function Participants({
       header: 'How',
       cell: (r) =>
         r.note === null ? (
-          <span className="text-sm text-fg-muted">By the filters</span>
+          <span className="text-sm text-fg-muted">
+            {tr('cycles.by_the_filters', 'By the filters')}
+          </span>
         ) : (
           <Badge size="sm" tone={r.note.startsWith('Excluded') ? 'neutral' : 'accent'}>
             {r.note}
@@ -1203,8 +1285,11 @@ function Participants({
     <div className="flex flex-col gap-3">
       {/* The settings first; the list of who is in scrolls last. */}
       <SwitchRow
-        label="Keep in step"
-        hint="People who start matching are added; people who stop matching are listed for you to decide."
+        label={tr('cycles.keep_in_step', 'Keep in step')}
+        hint={tr(
+          'cycles.people_who_start_matching_are_added',
+          'People who start matching are added; people who stop matching are listed for you to decide.',
+        )}
         checked={c.participants.keepInStep}
         onChange={(on) => {
           participants({ keepInStep: on });
@@ -1212,7 +1297,11 @@ function Participants({
       />
       {p.noLongerMatches.length === 0 ? null : (
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold">{`No longer matches · ${String(p.noLongerMatches.length)}`}</p>
+          <p className="text-sm font-semibold">
+            {tr('cycles.no_longer_matches', 'No longer matches · {{length}}', {
+              length: String(p.noLongerMatches.length),
+            })}
+          </p>
           {p.noLongerMatches.map((n) => (
             <Person key={n.personId} name={n.name} sub={n.title} />
           ))}
@@ -1220,10 +1309,16 @@ function Participants({
       )}
       <div className="flex items-center gap-2">
         <Input
-          aria-label="Describe who should be in, in words"
+          aria-label={tr(
+            'cycles.describe_who_should_be_in_in',
+            'Describe who should be in, in words',
+          )}
           className="flex-1"
           value={chat}
-          placeholder="Ask in words: Engineering and Product in Chicago, without anyone on leave"
+          placeholder={tr(
+            'cycles.ask_in_words_engineering_and_product',
+            'Ask in words: Engineering and Product in Chicago, without anyone on leave',
+          )}
           onChange={(e) => {
             setChat(e.target.value);
           }}
@@ -1249,13 +1344,13 @@ function Participants({
             });
           }}
         >
-          Propose
+          {tr('cycles.propose', 'Propose')}
         </Button>
       </div>
       {proposal === null ? null : (
         <Alert
           tone="info"
-          title="Change who is in"
+          title={tr('cycles.change_who_is_in', 'Change who is in')}
           action={
             <span className="flex gap-2">
               <Button
@@ -1265,7 +1360,7 @@ function Participants({
                   setProposal(null);
                 }}
               >
-                Discard
+                {tr('cycles.discard', 'Discard')}
               </Button>
               <Button
                 size="sm"
@@ -1274,7 +1369,7 @@ function Participants({
                   setProposal(null);
                 }}
               >
-                Apply
+                {tr('cycles.apply', 'Apply')}
               </Button>
             </span>
           }
@@ -1285,8 +1380,10 @@ function Participants({
       <Toolbar
         search={
           <Search
-            label="Search who is in"
-            placeholder={`Search ${plural(p.count, 'person', 'people')}`}
+            label={tr('cycles.search_who_is_in', 'Search who is in')}
+            placeholder={tr('cycles.search', 'Search {{count}}', {
+              count: plural(p.count, 'person', 'people'),
+            })}
             initial={q}
             onSearch={(next) => {
               onFilter?.({ q: next === '' ? null : next });
@@ -1298,8 +1395,11 @@ function Participants({
             fields={fields}
             value={c.participants.filter}
             match={match}
-            title="Who is in"
-            description="Everyone these match is in, with whoever you add by name. Nothing changes until you press Apply."
+            title={tr('cycles.who_is_in', 'Who is in')}
+            description={tr(
+              'cycles.everyone_these_match_is_in_with',
+              'Everyone these match is in, with whoever you add by name. Nothing changes until you press Apply.',
+            )}
             onApply={(filter, m) => {
               participants({ filter, match: m });
             }}
@@ -1308,12 +1408,12 @@ function Participants({
         actions={
           <span className="w-56">
             <Combobox
-              label="Add by name"
+              label={tr('cycles.add_by_name', 'Add by name')}
               multiple
               size="sm"
-              placeholder="Add by name"
-              searchPlaceholder="Search people"
-              emptyMessage="Nobody by that name"
+              placeholder={tr('cycles.add_by_name', 'Add by name')}
+              searchPlaceholder={tr('cycles.search_people', 'Search people')}
+              emptyMessage={tr('cycles.nobody_by_that_name', 'Nobody by that name')}
               options={people}
               value={c.participants.include.map((x) => x.personId)}
               onChange={(next) => {
@@ -1324,7 +1424,7 @@ function Participants({
                   .map((personId) => ({
                     personId,
                     reason: null,
-                    by: 'You',
+                    by: tr('cycles.you', 'You'),
                     at: new Date().toISOString(),
                   }));
                 participants({
@@ -1343,7 +1443,7 @@ function Participants({
       </p>
       {/* A page at a time, only the rows in view drawn; the next page comes at 70%. */}
       <DataTable
-        label="Who is in"
+        label={tr('cycles.who_is_in', 'Who is in')}
         rows={pages.items}
         rowId={(r) => r.personId}
         columns={columns}
@@ -1356,7 +1456,9 @@ function Participants({
         loadingMore={pages.loading}
         {...(pages.items.length > 0 && pages.loadMore === undefined
           ? {
-              endLabel: `That’s everyone · ${plural(p.total ?? p.rows.length, 'person', 'people')}`,
+              endLabel: tr('cycles.thats_everyone', 'That’s everyone · {{plural}}', {
+                plural: plural(p.total ?? p.rows.length, 'person', 'people'),
+              }),
             }
           : {})}
         rowActions={(r) =>
@@ -1364,7 +1466,7 @@ function Participants({
             ? [
                 {
                   id: 'leave-out',
-                  label: 'Leave out of this cycle',
+                  label: tr('cycles.leave_out_of_this_cycle', 'Leave out of this cycle'),
                   onSelect: () => {
                     setExcluding(r.personId);
                   },
@@ -1374,7 +1476,7 @@ function Participants({
               ? [
                   {
                     id: 'back-in',
-                    label: 'Take back in',
+                    label: tr('cycles.take_back_in', 'Take back in'),
                     onSelect: () => {
                       participants({
                         exclude: c.participants.exclude.filter((x) => x.personId !== r.personId),
@@ -1385,7 +1487,7 @@ function Participants({
               : [
                   {
                     id: 'remove',
-                    label: 'Remove, added by name',
+                    label: tr('cycles.remove_added_by_name', 'Remove, added by name'),
                     destructive: true,
                     onSelect: () => {
                       participants({
@@ -1398,9 +1500,15 @@ function Participants({
         empty={
           <EmptyState
             icon={<icons.people aria-hidden />}
-            title={q === '' ? 'Nobody yet' : 'Nobody matches'}
+            title={
+              q === ''
+                ? tr('cycles.nobody_yet', 'Nobody yet')
+                : tr('cycles.nobody_matches', 'Nobody matches')
+            }
             description={
-              q === '' ? 'Add a filter, or add people by name.' : 'Try another name or title.'
+              q === ''
+                ? tr('cycles.add_a_filter_or_add_people', 'Add a filter, or add people by name.')
+                : tr('cycles.try_another_name_or_title', 'Try another name or title.')
             }
           />
         }
@@ -1410,8 +1518,11 @@ function Participants({
         onClose={() => {
           setExcluding(null);
         }}
-        title="Leave them out of this cycle?"
-        description="The reason is kept with the decision, in the activity log."
+        title={tr('cycles.leave_them_out_of_this_cycle', 'Leave them out of this cycle?')}
+        description={tr(
+          'cycles.the_reason_is_kept_with_the',
+          'The reason is kept with the decision, in the activity log.',
+        )}
         footer={
           <>
             <Button
@@ -1420,7 +1531,7 @@ function Participants({
                 setExcluding(null);
               }}
             >
-              Cancel
+              {tr('cycles.cancel', 'Cancel')}
             </Button>
             <Button
               disabled={reason.trim() === ''}
@@ -1429,7 +1540,12 @@ function Participants({
                 participants({
                   exclude: [
                     ...c.participants.exclude,
-                    { personId: excluding, reason, by: 'You', at: new Date().toISOString() },
+                    {
+                      personId: excluding,
+                      reason,
+                      by: tr('cycles.you', 'You'),
+                      at: new Date().toISOString(),
+                    },
                   ],
                   include: c.participants.include.filter((x) => x.personId !== excluding),
                 });
@@ -1437,16 +1553,16 @@ function Participants({
                 setReason('');
               }}
             >
-              Leave out
+              {tr('cycles.leave_out', 'Leave out')}
             </Button>
           </>
         }
       >
         <Field required>
-          <FieldLabel>Reason</FieldLabel>
+          <FieldLabel>{tr('cycles.reason', 'Reason')}</FieldLabel>
           <Input
             value={reason}
-            placeholder="On leave until January"
+            placeholder={tr('cycles.on_leave_until_january', 'On leave until January')}
             onChange={(e) => {
               setReason(e.target.value);
             }}
@@ -1490,7 +1606,11 @@ function Reviews({
             <CardContent className="flex flex-col gap-4">
               <SwitchRow
                 label={kindLabel(k)}
-                hint={a.on ? 'Part of this cycle' : 'Not in this cycle'}
+                hint={
+                  a.on
+                    ? tr('cycles.part_of_this_cycle', 'Part of this cycle')
+                    : tr('cycles.not_in_this_cycle', 'Not in this cycle')
+                }
                 checked={a.on}
                 onChange={(on) => {
                   activity(k, { on });
@@ -1499,7 +1619,7 @@ function Reviews({
               {a.on ? (
                 <>
                   <Field>
-                    <FieldLabel>Form</FieldLabel>
+                    <FieldLabel>{tr('cycles.form', 'Form')}</FieldLabel>
                     <Select
                       value={a.templateId ?? ''}
                       onValueChange={(v) => {
@@ -1508,21 +1628,34 @@ function Reviews({
                     >
                       <FieldControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Choose a published form" />
+                          <SelectValue
+                            placeholder={tr(
+                              'cycles.choose_a_published_form',
+                              'Choose a published form',
+                            )}
+                          />
                         </SelectTrigger>
                       </FieldControl>
                       <SelectContent>
                         {options.map((t) => (
                           <SelectItem key={t.id} value={t.id}>
-                            {`${t.name} · v${String(t.published ?? 1)} · ${plural(t.questions, 'question')}`}
+                            {tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
+                              name: t.name,
+                              value: String(t.published ?? 1),
+                              questions: plural(t.questions, 'question'),
+                            })}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </Field>
                   <NumberField
-                    label={`Due after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`}
-                    hint={`Works out to ${day(resolveDue(c, d))}`}
+                    label={tr('cycles.due_after', 'Due after {{value}}', {
+                      value: d.from === 'nominations' ? 'nominations close' : 'the start',
+                    })}
+                    hint={tr('cycles.works_out_to', 'Works out to {{resolveDue}}', {
+                      resolveDue: day(resolveDue(c, d)),
+                    })}
                     value={d.days ?? 14}
                     suffix={unit(d.days ?? 14, 'day')}
                     min={0}
@@ -1539,8 +1672,12 @@ function Reviews({
               {k === 'peer' && a.on ? (
                 <>
                   <SwitchRow
-                    label="Every teammate"
-                    hint={`The person’s team (same manager), up to ${String(c.peer.max)}. Off: peers are nominated.`}
+                    label={tr('cycles.every_teammate', 'Every teammate')}
+                    hint={tr(
+                      'cycles.the_persons_team_same_manager_up',
+                      'The person’s team (same manager), up to {{max}}. Off: peers are nominated.',
+                      { max: String(c.peer.max) },
+                    )}
                     checked={c.peer.all}
                     onChange={(on) => {
                       save({ peer: { ...c.peer, all: on } });
@@ -1549,21 +1686,32 @@ function Reviews({
                   {c.peer.all ? null : (
                     <>
                       <Field>
-                        <FieldLabel>Who nominates</FieldLabel>
+                        <FieldLabel>{tr('cycles.who_nominates', 'Who nominates')}</FieldLabel>
                         <SegmentedControl
                           value={c.peer.picker}
                           onValueChange={(v) => {
                             save({ peer: { ...c.peer, picker: v } });
                           }}
                         >
-                          <SegmentedControlItem value="subject">The person</SegmentedControlItem>
-                          <SegmentedControlItem value="manager">Their manager</SegmentedControlItem>
-                          <SegmentedControlItem value="hr">HR</SegmentedControlItem>
+                          <SegmentedControlItem value="subject">
+                            {tr('cycles.the_person', 'The person')}
+                          </SegmentedControlItem>
+                          <SegmentedControlItem value="manager">
+                            {tr('cycles.their_manager', 'Their manager')}
+                          </SegmentedControlItem>
+                          <SegmentedControlItem value="hr">
+                            {tr('cycles.hr', 'HR')}
+                          </SegmentedControlItem>
                         </SegmentedControl>
                       </Field>
                       <NumberField
-                        label="Nominations due after the start"
-                        hint={`Works out to ${day(resolveDue(c, c.nominations))}`}
+                        label={tr(
+                          'cycles.nominations_due_after_the_start',
+                          'Nominations due after the start',
+                        )}
+                        hint={tr('cycles.works_out_to', 'Works out to {{resolveDue}}', {
+                          resolveDue: day(resolveDue(c, c.nominations)),
+                        })}
                         value={c.nominations.days ?? 3}
                         suffix={unit(c.nominations.days ?? 3, 'day')}
                         min={0}
@@ -1576,7 +1724,10 @@ function Reviews({
                         }}
                       />
                       <SwitchRow
-                        label="The manager approves nominations"
+                        label={tr(
+                          'cycles.the_manager_approves_nominations',
+                          'The manager approves nominations',
+                        )}
                         checked={c.peer.approval}
                         onChange={(on) => {
                           save({ peer: { ...c.peer, approval: on } });
@@ -1585,12 +1736,20 @@ function Reviews({
                     </>
                   )}
                   <Field>
-                    <FieldLabel>Peer reviewers per person</FieldLabel>
+                    <FieldLabel>
+                      {tr('cycles.peer_reviewers_per_person', 'Peer reviewers per person')}
+                    </FieldLabel>
                     <FieldControl>
                       <Slider
-                        label="Peer reviewers per person"
-                        thumbLabels={['At least', 'At most']}
-                        valueDisplay={`${String(peers[0])} to ${String(peers[1])}`}
+                        label={tr('cycles.peer_reviewers_per_person', 'Peer reviewers per person')}
+                        thumbLabels={[
+                          tr('cycles.at_least', 'At least'),
+                          tr('cycles.at_most', 'At most'),
+                        ]}
+                        valueDisplay={tr('cycles.to', '{{peers}} to {{peers2}}', {
+                          peers: String(peers[0]),
+                          peers2: String(peers[1]),
+                        })}
                         min={0}
                         max={PEERS_MAX}
                         showTicks
@@ -1608,7 +1767,10 @@ function Reviews({
                     </FieldControl>
                   </Field>
                   <SwitchRow
-                    label="A reviewer can decline, and is replaced"
+                    label={tr(
+                      'cycles.a_reviewer_can_decline_and_is',
+                      'A reviewer can decline, and is replaced',
+                    )}
                     checked={c.peer.declineReplace}
                     onChange={(on) => {
                       save({ peer: { ...c.peer, declineReplace: on } });
@@ -1616,8 +1778,8 @@ function Reviews({
                   />
                   <Identity value={c.visibility.peerNames} onChange={identity('peerNames')} />
                   <SwitchRow
-                    label="Share the peer summary"
-                    hint="Peer answers, without names"
+                    label={tr('cycles.share_the_peer_summary', 'Share the peer summary')}
+                    hint={tr('cycles.peer_answers_without_names', 'Peer answers, without names')}
                     checked={c.visibility.peerSummary}
                     onChange={(peerSummary) => {
                       save({ visibility: { ...c.visibility, peerSummary } });
@@ -1635,8 +1797,12 @@ function Reviews({
       <Card>
         <CardContent className="flex flex-col gap-4">
           <SwitchRow
-            label="Goals"
-            hint={c.goals === 'none' ? 'Not in this cycle' : 'Part of this cycle'}
+            label={tr('cycles.goals', 'Goals')}
+            hint={
+              c.goals === 'none'
+                ? tr('cycles.not_in_this_cycle', 'Not in this cycle')
+                : tr('cycles.part_of_this_cycle', 'Part of this cycle')
+            }
             checked={c.goals !== 'none'}
             onChange={(on) => {
               save({ goals: on ? 'context' : 'none' });
@@ -1644,7 +1810,7 @@ function Reviews({
           />
           {c.goals === 'none' ? null : (
             <RadioGroup
-              aria-label="How goals are used"
+              aria-label={tr('cycles.how_goals_are_used', 'How goals are used')}
               className="flex flex-col gap-2"
               value={c.goals}
               onValueChange={(v) => {
@@ -1653,15 +1819,21 @@ function Reviews({
             >
               <RadioCard
                 value="context"
-                description="Reviewers see each person’s goals beside the form."
+                description={tr(
+                  'cycles.reviewers_see_each_persons_goals_beside',
+                  'Reviewers see each person’s goals beside the form.',
+                )}
               >
-                Shown beside the review
+                {tr('cycles.shown_beside_the_review', 'Shown beside the review')}
               </RadioCard>
               <RadioCard
                 value="scored"
-                description="A section is added with each goal and its score."
+                description={tr(
+                  'cycles.a_section_is_added_with_each',
+                  'A section is added with each goal and its score.',
+                )}
               >
-                Scored in the review
+                {tr('cycles.scored_in_the_review', 'Scored in the review')}
               </RadioCard>
             </RadioGroup>
           )}
@@ -1699,7 +1871,7 @@ function Identity({
 }): JSX.Element {
   return (
     <Field>
-      <FieldLabel>Reviewer identity</FieldLabel>
+      <FieldLabel>{tr('cycles.reviewer_identity', 'Reviewer identity')}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
         <FieldControl>
           <SelectTrigger>
@@ -1719,9 +1891,9 @@ function Identity({
 }
 
 const NAMES = [
-  ['hidden', 'Hidden from the subject'],
-  ['shown', 'Shown to the subject'],
-  ['writer', 'The writer chooses'],
+  ['hidden', tr('cycles.hidden_from_the_subject', 'Hidden from the subject')],
+  ['shown', tr('cycles.shown_to_the_subject', 'Shown to the subject')],
+  ['writer', tr('cycles.the_writer_chooses', 'The writer chooses')],
 ] as const;
 const NAME_LABEL: Readonly<Record<string, string>> = Object.fromEntries(NAMES);
 
@@ -1737,8 +1909,12 @@ function ReminderOptions({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-semibold">Reminders</p>
-      <ChipRow aria-label={`When ${kind.toLowerCase()} are reminded`}>
+      <p className="text-sm font-semibold">{tr('cycles.reminders', 'Reminders')}</p>
+      <ChipRow
+        aria-label={tr('cycles.when_are_reminded', 'When {{kind}} are reminded', {
+          kind: kind.toLowerCase(),
+        })}
+      >
         {REMINDERS.map(([v, l]) => (
           <Chip
             key={v}
@@ -1757,22 +1933,25 @@ function ReminderOptions({
         ))}
       </ChipRow>
       <SwitchRow
-        label="Inbox"
+        label={tr('cycles.inbox', 'Inbox')}
         info="Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen."
         checked
         disabled
       />
       <SwitchRow
-        label="Email"
-        hint="By each person’s preference"
+        label={tr('cycles.email', 'Email')}
+        hint={tr('cycles.by_each_persons_preference', 'By each person’s preference')}
         checked={value.email}
         onChange={(email) => {
           onChange({ ...value, email });
         }}
       />
       <SwitchRow
-        label="Chat app"
-        hint="By each person’s preference, when connected"
+        label={tr('cycles.chat_app', 'Chat app')}
+        hint={tr(
+          'cycles.by_each_persons_preference_when_connected',
+          'By each person’s preference, when connected',
+        )}
         checked={value.chat}
         onChange={(chat) => {
           onChange({ ...value, chat });
@@ -1783,7 +1962,8 @@ function ReminderOptions({
 }
 
 /** "3 days", "1 answer": the unit a number field counts in, after it. */
-const unit = (n: number, one: string): string => (n === 1 ? one : `${one}s`);
+const unit = (n: number, one: string): string =>
+  n === 1 ? one : tr('cycles.s', '{{one}}s', { one });
 
 /** What may be changed on the plan: a draft's setup, or a running cycle's deadlines. */
 type PlanEdit =
@@ -1841,9 +2021,18 @@ function CyclePlan({
   const askDue = (k: string, to: string): void => {
     if (setup === null) return;
     open({
-      title: `When are ${name(k).toLowerCase()} due?`,
-      description: `Counted from ${setup.c.activities[k as Kind].due.from === 'nominations' ? 'when nominations close' : 'the start'}, so it moves with it.`,
-      confirm: 'Change the due date',
+      title: tr('cycles.when_are_due', 'When are {{name}} due?', { name: name(k).toLowerCase() }),
+      description: tr(
+        'cycles.counted_from_so_it_moves_with',
+        'Counted from {{value}}, so it moves with it.',
+        {
+          value:
+            setup.c.activities[k as Kind].due.from === 'nominations'
+              ? 'when nominations close'
+              : 'the start',
+        },
+      ),
+      confirm: tr('cycles.change_the_due_date', 'Change the due date'),
       date: to,
       run: (d) => {
         const a = setup.c.activities[k as Kind];
@@ -1862,10 +2051,12 @@ function CyclePlan({
   const askStart = (to: string): void => {
     if (setup === null) return;
     open({
-      title: 'When does the cycle start?',
-      description:
+      title: tr('cycles.when_does_the_cycle_start', 'When does the cycle start?'),
+      description: tr(
+        'cycles.every_deadline_and_reminder_is_counted',
         'Every deadline and reminder is counted from the start, so they all move with it.',
-      confirm: 'Move the start',
+      ),
+      confirm: tr('cycles.move_the_start', 'Move the start'),
       date: to,
       run: (d) => {
         setup.save({ start: { ...setup.c.start, date: d } });
@@ -1875,9 +2066,12 @@ function CyclePlan({
   const askNominations = (to: string): void => {
     if (setup === null) return;
     open({
-      title: 'When do nominations close?',
-      description: 'Peer reviews counted from when nominations close move with it.',
-      confirm: 'Change when they close',
+      title: tr('cycles.when_do_nominations_close', 'When do nominations close?'),
+      description: tr(
+        'cycles.peer_reviews_counted_from_when_nominations',
+        'Peer reviews counted from when nominations close move with it.',
+      ),
+      confirm: tr('cycles.change_when_they_close', 'Change when they close'),
       date: to,
       run: (d) => {
         setup.save({
@@ -1893,9 +2087,12 @@ function CyclePlan({
   const askRelease = (to: string): void => {
     if (setup === null) return;
     open({
-      title: 'When are reviews released?',
-      description: 'Everyone sees their reviews on this day.',
-      confirm: 'Change the release date',
+      title: tr('cycles.when_are_reviews_released', 'When are reviews released?'),
+      description: tr(
+        'cycles.everyone_sees_their_reviews_on_this',
+        'Everyone sees their reviews on this day.',
+      ),
+      confirm: tr('cycles.change_the_release_date', 'Change the release date'),
       date: to,
       run: (d) => {
         const v = setup.c.visibility;
@@ -1933,20 +2130,28 @@ function CyclePlan({
         ? [
             {
               id: 'extend',
-              label: 'Extend the deadline…',
+              label: tr('cycles.extend_the_deadline', 'Extend the deadline…'),
               onSelect: () => {
                 edit.extend(item.kind, dueOf(item.kind));
               },
             },
             {
               id: 'remind',
-              label: 'Remind everyone who has not submitted…',
+              label: tr(
+                'cycles.remind_everyone_who_has_not_submitted',
+                'Remind everyone who has not submitted…',
+              ),
               onSelect: () => {
                 open({
-                  title: 'Remind everyone who has not submitted?',
-                  description:
+                  title: tr(
+                    'cycles.remind_everyone_who_has_not_submitted_2',
+                    'Remind everyone who has not submitted?',
+                  ),
+                  description: tr(
+                    'cycles.by_the_cycles_channels_the_inbox',
                     'By the cycle’s channels: the Inbox, and email or chat where they are on.',
-                  confirm: 'Remind them',
+                  ),
+                  confirm: tr('cycles.remind_them', 'Remind them'),
                   run: () => {
                     edit.remind();
                   },
@@ -1962,27 +2167,34 @@ function CyclePlan({
         return [
           {
             id: 'due',
-            label: 'Change the due date…',
+            label: tr('cycles.change_the_due_date_2', 'Change the due date…'),
             onSelect: () => {
               askDue(item.kind, dueOf(item.kind));
             },
           },
           {
             id: 'start',
-            label: 'Move the cycle’s start…',
+            label: tr('cycles.move_the_cycles_start', 'Move the cycle’s start…'),
             onSelect: () => {
               askStart(edit.c.start.date);
             },
           },
           {
             id: 'remove',
-            label: `Take ${name(item.kind).toLowerCase()} out of this cycle…`,
+            label: tr('cycles.take_out_of_this_cycle', 'Take {{name}} out of this cycle…', {
+              name: name(item.kind).toLowerCase(),
+            }),
             destructive: true,
             onSelect: () => {
               open({
-                title: `Take ${name(item.kind).toLowerCase()} out of this cycle?`,
-                description: 'Its form and due date are kept: turn it back on in Reviews.',
-                confirm: 'Take it out',
+                title: tr('cycles.take_out_of_this_cycle_2', 'Take {{name}} out of this cycle?', {
+                  name: name(item.kind).toLowerCase(),
+                }),
+                description: tr(
+                  'cycles.its_form_and_due_date_are',
+                  'Its form and due date are kept: turn it back on in Reviews.',
+                ),
+                confirm: tr('cycles.take_it_out', 'Take it out'),
                 destructive: true,
                 run: () => {
                   const a = edit.c.activities[item.kind as Kind];
@@ -1999,7 +2211,7 @@ function CyclePlan({
         return [
           {
             id: 'close',
-            label: 'Change when nominations close…',
+            label: tr('cycles.change_when_nominations_close', 'Change when nominations close…'),
             onSelect: () => {
               askNominations(resolveDue(edit.c, edit.c.nominations));
             },
@@ -2009,13 +2221,20 @@ function CyclePlan({
         return [
           {
             id: 'stop',
-            label: `Stop reminding “${(REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase()}”…`,
+            label: tr('cycles.stop_reminding', 'Stop reminding “{{value}}”…', {
+              value: (REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase(),
+            }),
             destructive: true,
             onSelect: () => {
               open({
-                title: `Stop reminding “${(REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase()}”?`,
-                description: 'For every review in the cycle: one set of reminders serves them all.',
-                confirm: 'Stop it',
+                title: tr('cycles.stop_reminding_2', 'Stop reminding “{{value}}”?', {
+                  value: (REMINDER_LABEL[item.rule] ?? item.rule).toLowerCase(),
+                }),
+                description: tr(
+                  'cycles.for_every_review_in_the_cycle',
+                  'For every review in the cycle: one set of reminders serves them all.',
+                ),
+                confirm: tr('cycles.stop_it', 'Stop it'),
                 destructive: true,
                 run: () => {
                   edit.save({
@@ -2035,7 +2254,7 @@ function CyclePlan({
           : [
               {
                 id: 'release',
-                label: 'Change the release date…',
+                label: tr('cycles.change_the_release_date_2', 'Change the release date…'),
                 onSelect: () => {
                   askRelease(v.release.date ?? today ?? c.start.date);
                 },
@@ -2046,17 +2265,23 @@ function CyclePlan({
 
   return (
     <ChartCard
-      title="The cycle at a glance"
+      title={tr('cycles.the_cycle_at_a_glance', 'The cycle at a glance')}
       description={
         edit === undefined
           ? 'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.'
           : edit.mode === 'setup'
-            ? 'Drag a bar’s end or its pin to change when it is due, or the bar to move the start. Right-click for more, and drag across the dates to zoom.'
-            : 'Drag a due date later to extend it for everyone, or right-click a review to remind or extend. Drag across the dates to zoom.'
+            ? tr(
+                'cycles.drag_a_bars_end_or_its',
+                'Drag a bar’s end or its pin to change when it is due, or the bar to move the start. Right-click for more, and drag across the dates to zoom.',
+              )
+            : tr(
+                'cycles.drag_a_due_date_later_to',
+                'Drag a due date later to extend it for everyone, or right-click a review to remind or extend. Drag across the dates to zoom.',
+              )
       }
     >
       <TimelineChart
-        label="The cycle’s plan"
+        label={tr('cycles.the_cycles_plan', 'The cycle’s plan')}
         rows={rows}
         unit="week"
         separator="line"
@@ -2073,7 +2298,11 @@ function CyclePlan({
               onItemMove: moved,
               itemActions: actions,
             })}
-        empty={<p className="text-sm text-fg-muted">Turn a review on to see its plan.</p>}
+        empty={
+          <p className="text-sm text-fg-muted">
+            {tr('cycles.turn_a_review_on_to_see', 'Turn a review on to see its plan.')}
+          </p>
+        }
       />
       <Modal
         open={ask !== null}
@@ -2090,7 +2319,7 @@ function CyclePlan({
                 setAsk(null);
               }}
             >
-              Cancel
+              {tr('cycles.cancel', 'Cancel')}
             </Button>
             <Button
               variant={ask?.destructive === true ? 'danger' : 'primary'}
@@ -2100,17 +2329,17 @@ function CyclePlan({
                 setAsk(null);
               }}
             >
-              {ask?.confirm ?? 'Confirm'}
+              {ask?.confirm ?? tr('cycles.confirm', 'Confirm')}
             </Button>
           </>
         }
       >
         {ask?.date === undefined ? null : (
           <Field>
-            <FieldLabel>Date</FieldLabel>
+            <FieldLabel>{tr('cycles.date', 'Date')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Date"
+                label={tr('cycles.date', 'Date')}
                 value={date === '' ? null : date}
                 onChange={(d) => {
                   setDate(d ?? '');
@@ -2145,12 +2374,15 @@ const kindTone = (kind: string): (typeof TONES)[number] =>
 /** "14 days after the start": when a deadline falls, in words. */
 const dueAfter = (d: Deadline): string =>
   d.kind === 'exact'
-    ? 'on a set date'
-    : `${plural(d.days ?? 0, 'day')} after ${d.from === 'nominations' ? 'nominations close' : 'the start'}`;
+    ? tr('cycles.on_a_set_date', 'on a set date')
+    : tr('cycles.after', '{{plural}} after {{value}}', {
+        plural: plural(d.days ?? 0, 'day'),
+        value: d.from === 'nominations' ? 'nominations close' : 'the start',
+      });
 
 const PICKER: Readonly<Record<string, string>> = {
-  subject: 'the person',
-  manager: 'their manager',
+  subject: tr('cycles.the_person_2', 'the person'),
+  manager: tr('cycles.their_manager_2', 'their manager'),
   hr: 'HR',
 };
 
@@ -2169,8 +2401,12 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
   const form = (id: string | null): string => {
     const t = data.templates.find((x) => x.id === id);
     return t === undefined
-      ? 'No form chosen yet'
-      : `${t.name} · v${String(t.published ?? 1)} · ${plural(t.questions, 'question')}`;
+      ? tr('cycles.no_form_chosen_yet', 'No form chosen yet')
+      : tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
+          name: t.name,
+          value: String(t.published ?? 1),
+          questions: plural(t.questions, 'question'),
+        });
   };
   return (
     <div className="flex flex-col gap-5">
@@ -2179,16 +2415,23 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
           <CardTitle level={3}>
             {blocks === 0
               ? data.action === 'schedule'
-                ? 'Ready to schedule'
-                : 'Ready to launch'
-              : `${plural(blocks, 'thing')} to fix before it can ${data.action === 'schedule' ? 'be scheduled' : 'launch'}`}
+                ? tr('cycles.ready_to_schedule', 'Ready to schedule')
+                : tr('cycles.ready_to_launch', 'Ready to launch')
+              : tr('cycles.to_fix_before_it_can', '{{blocks}} to fix before it can {{value}}', {
+                  blocks: plural(blocks, 'thing'),
+                  value: data.action === 'schedule' ? 'be scheduled' : 'launch',
+                })}
           </CardTitle>
           <p className="text-sm text-fg-muted">
             {blocks === 0 && warns === 0
-              ? 'Every check passed.'
+              ? tr('cycles.every_check_passed', 'Every check passed.')
               : warns === 0
                 ? 'Fix what is marked; nothing else stops it.'
-                : `${plural(warns, 'warning')} to read. Warnings don’t stop it.`}
+                : tr(
+                    'cycles.to_read_warnings_dont_stop_it',
+                    '{{warns}} to read. Warnings don’t stop it.',
+                    { warns: plural(warns, 'warning') },
+                  )}
           </p>
         </CardHeader>
         {data.checks.length === 0 ? null : (
@@ -2218,26 +2461,36 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={3}>What launches</CardTitle>
+          <CardTitle level={3}>{tr('cycles.what_launches', 'What launches')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <div className="grid gap-3 sm:grid-cols-3">
             <Stat
-              label="People"
+              label={tr('cycles.people', 'People')}
               icon={<icons.people aria-hidden />}
               iconPosition="start"
               value={String(data.participants.count)}
-              description={`${String(data.participants.fromFilter)} by the filters, ${String(data.participants.included)} by name`}
+              description={tr(
+                'cycles.by_the_filters_by_name',
+                '{{fromFilter}} by the filters, {{included}} by name',
+                {
+                  fromFilter: String(data.participants.fromFilter),
+                  included: String(data.participants.included),
+                },
+              )}
             />
             <Stat
-              label="Starts"
+              label={tr('cycles.starts', 'Starts')}
               icon={<icons.calendar aria-hidden />}
               iconPosition="start"
               value={day(c.start.date)}
-              description={`${c.start.time} ${c.start.zone}`}
+              description={tr('cycles.text_2', '{{time}} {{zone}}', {
+                time: c.start.time,
+                zone: c.start.zone,
+              })}
             />
             <Stat
-              label="Last deadline"
+              label={tr('cycles.last_deadline', 'Last deadline')}
               icon={<icons.flagged aria-hidden />}
               iconPosition="start"
               value={last === undefined ? '—' : day(last)}
@@ -2245,9 +2498,14 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
             />
           </div>
           {on.length === 0 ? (
-            <p className="text-sm text-fg-muted">No review is part of this cycle yet.</p>
+            <p className="text-sm text-fg-muted">
+              {tr('cycles.no_review_is_part_of_this', 'No review is part of this cycle yet.')}
+            </p>
           ) : (
-            <IconList divided aria-label="Reviews in this cycle">
+            <IconList
+              divided
+              aria-label={tr('cycles.reviews_in_this_cycle', 'Reviews in this cycle')}
+            >
               {on.map((k, i) => {
                 const a = c.activities[k];
                 return (
@@ -2259,7 +2517,9 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                       <>
                         <span className="block">{form(a.templateId)}</span>
                         <span className="block">
-                          <span className="font-medium text-fg">{`Due ${day(dues[i] ?? '')}`}</span>
+                          <span className="font-medium text-fg">
+                            {tr('cycles.due', 'Due {{day}}', { day: day(dues[i] ?? '') })}
+                          </span>
                           {` · ${dueAfter(a.due)}`}
                           {k === 'peer'
                             ? c.peer.all
@@ -2280,7 +2540,7 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                   tone="neutral"
                   description={GOALS_LABEL[c.goals] ?? c.goals}
                 >
-                  Goals
+                  {tr('cycles.goals', 'Goals')}
                 </IconListItem>
               )}
             </IconList>
@@ -2289,32 +2549,58 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={3}>What the subject sees</CardTitle>
-          <p className="text-sm text-fg-muted">Set in Basics and Reviews; this is a last look.</p>
+          <CardTitle level={3}>
+            {tr('cycles.what_the_subject_sees', 'What the subject sees')}
+          </CardTitle>
+          <p className="text-sm text-fg-muted">
+            {tr(
+              'cycles.set_in_basics_and_reviews_this',
+              'Set in Basics and Reviews; this is a last look.',
+            )}
+          </p>
         </CardHeader>
         <CardContent>
           <KeyValues
             items={[
               {
-                label: 'Their reviews reach them',
+                label: tr('cycles.their_reviews_reach_them', 'Their reviews reach them'),
                 value:
                   v.release.mode === 'hr_date' && v.release.date !== null
                     ? `On ${day(v.release.date)}`
                     : (RELEASE_LABEL[v.release.mode] ?? v.release.mode),
               },
               ...(c.activities.peer.on
-                ? [{ label: 'Peer reviewers', value: NAME_LABEL[v.peerNames] ?? v.peerNames }]
+                ? [
+                    {
+                      label: tr('cycles.peer_reviewers', 'Peer reviewers'),
+                      value: NAME_LABEL[v.peerNames] ?? v.peerNames,
+                    },
+                  ]
                 : []),
               ...(c.activities.upward.on
-                ? [{ label: 'Upward reviewers', value: NAME_LABEL[v.upwardNames] ?? v.upwardNames }]
+                ? [
+                    {
+                      label: tr('cycles.upward_reviewers', 'Upward reviewers'),
+                      value: NAME_LABEL[v.upwardNames] ?? v.upwardNames,
+                    },
+                  ]
                 : []),
-              { label: 'Acknowledgement', value: v.acknowledge ? 'Asked for' : 'Not asked for' },
-              { label: 'Their comment', value: v.subjectComment ? 'Allowed' : 'Not allowed' },
               {
-                label: 'Peer summary',
+                label: tr('cycles.acknowledgement', 'Acknowledgement'),
+                value: v.acknowledge ? 'Asked for' : 'Not asked for',
+              },
+              {
+                label: tr('cycles.their_comment', 'Their comment'),
+                value: v.subjectComment ? 'Allowed' : 'Not allowed',
+              },
+              {
+                label: tr('cycles.peer_summary', 'Peer summary'),
                 value: v.peerSummary ? 'Shared, without names' : 'Kept back',
               },
-              { label: 'Response minimum', value: plural(v.minimum, 'answer') },
+              {
+                label: tr('cycles.response_minimum', 'Response minimum'),
+                value: plural(v.minimum, 'answer'),
+              },
             ]}
           />
         </CardContent>
@@ -2428,9 +2714,9 @@ type Dialog = 'extend' | 'close' | 'export' | 'add' | 'remove' | null;
 
 const REMINDER_LABEL: Readonly<Record<string, string>> = Object.fromEntries(REMINDERS);
 const RELEASE_LABEL: Readonly<Record<string, string>> = {
-  manager: 'As each is submitted',
-  hr_date: 'On a date',
-  close: 'When the cycle closes',
+  manager: tr('cycles.as_each_is_submitted', 'As each is submitted'),
+  hr_date: tr('cycles.on_a_date', 'On a date'),
+  close: tr('cycles.when_the_cycle_closes', 'When the cycle closes'),
 };
 
 /**
@@ -2459,24 +2745,34 @@ function CycleSettings({
         <p className="flex-1 text-sm text-fg-muted">
           {onEdit === undefined
             ? 'Deadlines move from the plan on the Overview; everything else was fixed at launch.'
-            : 'Not started yet, so all of it can still change.'}
+            : tr(
+                'cycles.not_started_yet_so_all_of',
+                'Not started yet, so all of it can still change.',
+              )}
         </p>
         {onEdit === undefined ? null : (
           <Button variant="secondary" startIcon={<icons.edit aria-hidden />} onClick={onEdit}>
-            Edit setup
+            {tr('cycles.edit_setup', 'Edit setup')}
           </Button>
         )}
       </div>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Reviews</CardTitle>
-          <p className="text-sm text-fg-muted">{`Starts ${day(data.plan.start.date)}`}</p>
+          <CardTitle level={2}>{tr('cycles.reviews', 'Reviews')}</CardTitle>
+          <p className="text-sm text-fg-muted">
+            {tr('cycles.starts_2', 'Starts {{date}}', { date: day(data.plan.start.date) })}
+          </p>
         </CardHeader>
         <CardContent>
           {kinds.length === 0 ? (
-            <p className="text-sm text-fg-muted">No review is part of this cycle.</p>
+            <p className="text-sm text-fg-muted">
+              {tr('cycles.no_review_is_part_of_this_2', 'No review is part of this cycle.')}
+            </p>
           ) : (
-            <IconList divided aria-label="Reviews in this cycle">
+            <IconList
+              divided
+              aria-label={tr('cycles.reviews_in_this_cycle', 'Reviews in this cycle')}
+            >
               {kinds.map((k) => {
                 const d = due(k);
                 return (
@@ -2484,14 +2780,18 @@ function CycleSettings({
                     key={k}
                     icon={<KindGlyph kind={k} />}
                     tone={kindTone(k)}
-                    description={d === null ? 'No deadline' : `Due ${day(d)}`}
+                    description={
+                      d === null
+                        ? tr('cycles.no_deadline', 'No deadline')
+                        : tr('cycles.due_2', 'Due {{d}}', { d: day(d) })
+                    }
                   >
                     {kindLabel(k)}
                   </IconListItem>
                 );
               })}
               <IconListItem icon={<icons.goal />} description={GOALS_LABEL[st.goals] ?? st.goals}>
-                Goals
+                {tr('cycles.goals', 'Goals')}
               </IconListItem>
             </IconList>
           )}
@@ -2500,13 +2800,17 @@ function CycleSettings({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Reminders</CardTitle>
+            <CardTitle level={2}>{tr('cycles.reminders', 'Reminders')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {st.reminders.rules.length === 0 ? (
-              <p className="text-sm text-fg-muted">No reminders are sent.</p>
+              <p className="text-sm text-fg-muted">
+                {tr('cycles.no_reminders_are_sent', 'No reminders are sent.')}
+              </p>
             ) : (
-              <ChipRow aria-label="When reviews are reminded">
+              <ChipRow
+                aria-label={tr('cycles.when_reviews_are_reminded', 'When reviews are reminded')}
+              >
                 {st.reminders.rules.map((r) => (
                   <Badge key={r} tone="accent">
                     {REMINDER_LABEL[r] ?? r}
@@ -2514,40 +2818,52 @@ function CycleSettings({
                 ))}
               </ChipRow>
             )}
-            <IconList aria-label="How reminders reach people">
+            <IconList
+              aria-label={tr('cycles.how_reminders_reach_people', 'How reminders reach people')}
+            >
               <IconListItem
                 icon={<icons.inbox />}
                 tone="success"
-                description="Always: every reminder lands in each person’s Inbox."
+                description={tr(
+                  'cycles.always_every_reminder_lands_in_each',
+                  'Always: every reminder lands in each person’s Inbox.',
+                )}
               >
-                Inbox
+                {tr('cycles.inbox', 'Inbox')}
               </IconListItem>
               <IconListItem
                 icon={<icons.email />}
                 tone={st.reminders.email ? 'success' : 'neutral'}
                 description={
-                  st.reminders.email ? 'On, by each person’s preference' : 'Off for this cycle'
+                  st.reminders.email
+                    ? tr('cycles.on_by_each_persons_preference', 'On, by each person’s preference')
+                    : tr('cycles.off_for_this_cycle', 'Off for this cycle')
                 }
               >
-                Email
+                {tr('cycles.email', 'Email')}
               </IconListItem>
               <IconListItem
                 icon={<icons.message />}
                 tone={st.reminders.chat ? 'success' : 'neutral'}
                 description={
                   st.reminders.chat
-                    ? 'On, by each person’s preference, when connected'
-                    : 'Off for this cycle'
+                    ? tr(
+                        'cycles.on_by_each_persons_preference_when',
+                        'On, by each person’s preference, when connected',
+                      )
+                    : tr('cycles.off_for_this_cycle', 'Off for this cycle')
                 }
               >
-                Chat app
+                {tr('cycles.chat_app', 'Chat app')}
               </IconListItem>
             </IconList>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>What the subject sees</CardTitle>
+            <CardTitle level={2}>
+              {tr('cycles.what_the_subject_sees', 'What the subject sees')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <IconList>
@@ -2557,28 +2873,43 @@ function CycleSettings({
                   st.visibility.release.mode === 'hr_date' &&
                   data.plan.visibility?.release.date !== null &&
                   data.plan.visibility?.release.date !== undefined
-                    ? `On ${day(data.plan.visibility.release.date)}`
-                    : 'When their reviews are released to them'
+                    ? tr('cycles.on', 'On {{date}}', {
+                        date: day(data.plan.visibility.release.date),
+                      })
+                    : tr(
+                        'cycles.when_their_reviews_are_released_to',
+                        'When their reviews are released to them',
+                      )
                 }
               >
                 {RELEASE_LABEL[st.visibility.release.mode] ?? words(st.visibility.release.mode)}
               </IconListItem>
               <IconListItem
                 icon={<icons.locked />}
-                description="Confidential answers show only once this many are in."
+                description={tr(
+                  'cycles.confidential_answers_show_only_once_this',
+                  'Confidential answers show only once this many are in.',
+                )}
               >
-                {`At least ${plural(st.visibility.minimum, 'answer')}`}
+                {tr('cycles.at_least_2', 'At least {{minimum}}', {
+                  minimum: plural(st.visibility.minimum, 'answer'),
+                })}
               </IconListItem>
               {c.kinds.includes('peer') ? (
                 <IconListItem
                   icon={<icons.people />}
                   description={
                     st.peer.all
-                      ? `Every teammate, up to ${String(st.peer.max)}`
-                      : `Nominated, ${String(st.peer.min)} to ${String(st.peer.max)} each`
+                      ? tr('cycles.every_teammate_up_to', 'Every teammate, up to {{max}}', {
+                          max: String(st.peer.max),
+                        })
+                      : tr('cycles.nominated_to_each', 'Nominated, {{min}} to {{max}} each', {
+                          min: String(st.peer.min),
+                          max: String(st.peer.max),
+                        })
                   }
                 >
-                  Peers
+                  {tr('cycles.peers', 'Peers')}
                 </IconListItem>
               ) : null}
             </IconList>
@@ -2589,9 +2920,9 @@ function CycleSettings({
   );
 }
 const GOALS_LABEL: Readonly<Record<string, string>> = {
-  none: 'Not part of this cycle',
-  context: 'Shown beside the review',
-  scored: 'Scored in the review',
+  none: tr('cycles.not_part_of_this_cycle', 'Not part of this cycle'),
+  context: tr('cycles.shown_beside_the_review', 'Shown beside the review'),
+  scored: tr('cycles.scored_in_the_review', 'Scored in the review'),
 };
 
 /** Whole days from one calendar date to another; negative when `to` is earlier. */
@@ -2599,48 +2930,48 @@ const daysBetween = (from: string, to: string): number =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 const REVIEW_STATES = [
-  { value: 'not_started', label: 'Not started' },
-  { value: 'draft', label: 'In progress' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'released', label: 'Released' },
-  { value: 'ack', label: 'Acknowledged' },
-  { value: 'unlock', label: 'Unlock requested' },
-  { value: 'none', label: 'None' },
+  { value: 'not_started', label: tr('cycles.not_started', 'Not started') },
+  { value: 'draft', label: tr('cycles.in_progress', 'In progress') },
+  { value: 'overdue', label: tr('cycles.overdue', 'Overdue') },
+  { value: 'submitted', label: tr('cycles.submitted', 'Submitted') },
+  { value: 'released', label: tr('cycles.released', 'Released') },
+  { value: 'ack', label: tr('cycles.acknowledged', 'Acknowledged') },
+  { value: 'unlock', label: tr('cycles.unlock_requested', 'Unlock requested') },
+  { value: 'none', label: tr('cycles.none', 'None') },
 ];
 const GROUPS = [
-  ['', 'No grouping'],
-  ['department', 'Department'],
-  ['location', 'Work location'],
-  ['legalEntity', 'Legal entity'],
-  ['manager', 'Manager'],
+  ['', tr('cycles.no_grouping', 'No grouping')],
+  ['department', tr('cycles.department', 'Department')],
+  ['location', tr('cycles.work_location', 'Work location')],
+  ['legalEntity', tr('cycles.legal_entity', 'Legal entity')],
+  ['manager', tr('cycles.manager', 'Manager')],
 ] as const;
 
 /** A row's group heading: the name of what it is grouped by. */
 function groupLabel(data: OverviewData, group: string, r: OverviewRow): string {
   switch (group) {
     case 'department':
-      return r.department ?? 'No department';
+      return r.department ?? tr('cycles.no_department', 'No department');
     case 'location':
       return r.locationId == null
-        ? 'No work location'
+        ? tr('cycles.no_work_location', 'No work location')
         : (data.places?.locations[r.locationId] ?? r.locationId);
     case 'legalEntity':
       return r.legalEntityId == null
-        ? 'No legal entity'
+        ? tr('cycles.no_legal_entity', 'No legal entity')
         : (data.places?.entities[r.legalEntityId] ?? r.legalEntityId);
     case 'manager':
-      return r.manager?.name ?? 'No manager';
+      return r.manager?.name ?? tr('cycles.no_manager', 'No manager');
     default:
       return '';
   }
 }
 
 const STANCES = [
-  { key: 'submitted', label: 'Submitted', tone: 'success' },
-  { key: 'started', label: 'In progress', tone: 'accent' },
-  { key: 'waiting', label: 'Not started', tone: 'neutral' },
-  { key: 'overdue', label: 'Overdue', tone: 'danger' },
+  { key: 'submitted', label: tr('cycles.submitted', 'Submitted'), tone: 'success' },
+  { key: 'started', label: tr('cycles.in_progress', 'In progress'), tone: 'accent' },
+  { key: 'waiting', label: tr('cycles.not_started', 'Not started'), tone: 'neutral' },
+  { key: 'overdue', label: tr('cycles.overdue', 'Overdue'), tone: 'danger' },
 ] as const;
 
 /**
@@ -2661,19 +2992,31 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <ChartCard
-        title="Where every review stands"
+        title={tr('cycles.where_every_review_stands', 'Where every review stands')}
         description={[
-          `${String(got.status.submitted)} of ${plural(total, 'review')} in`,
-          got.status.overdue > 0 ? `${String(got.status.overdue)} overdue` : 'none overdue',
+          tr('cycles.of_in', '{{submitted}} of {{total}} in', {
+            submitted: String(got.status.submitted),
+            total: plural(total, 'review'),
+          }),
+          got.status.overdue > 0
+            ? tr('cycles.overdue_2', '{{overdue}} overdue', { overdue: String(got.status.overdue) })
+            : tr('cycles.none_overdue', 'none overdue'),
           next === undefined || left === null
             ? null
-            : `${kindLabel(next.kind)}s due ${day(next.due)}${left === 0 ? ', today' : `, in ${plural(left, 'day')}`}`,
+            : tr('cycles.s_due', '{{kindLabel}}s due {{due}}{{value}}', {
+                kindLabel: kindLabel(next.kind),
+                due: day(next.due),
+                value: left === 0 ? ', today' : `, in ${plural(left, 'day')}`,
+              }),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
       >
         <DonutChart
-          label="Reviews by where they stand, and by kind"
+          label={tr(
+            'cycles.reviews_by_where_they_stand_and',
+            'Reviews by where they stand, and by kind',
+          )}
           // Inside, where each review stands; around it, which kinds they are,
           // each in its colour on the timeline below.
           data={STANCES.map((x) => ({
@@ -2684,7 +3027,13 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
               const n = got.statusByKind?.[x.key][k] ?? 0;
               return n === 0
                 ? []
-                : [{ label: `${kindLabel(k)}s`, value: n, tone: TONES[i] ?? 'chart-1' }];
+                : [
+                    {
+                      label: tr('cycles.s_2', '{{kindLabel}}s', { kindLabel: kindLabel(k) }),
+                      value: n,
+                      tone: TONES[i] ?? 'chart-1',
+                    },
+                  ];
             }),
           }))}
           center={`${String(done)}%`}
@@ -2693,11 +3042,17 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
         />
       </ChartCard>
       <ChartCard
-        title="Who is behind"
-        description="Each department’s reviews by where they stand, the least done first."
+        title={tr('cycles.who_is_behind', 'Who is behind')}
+        description={tr(
+          'cycles.each_departments_reviews_by_where_they',
+          'Each department’s reviews by where they stand, the least done first.',
+        )}
       >
         <StackedBarChart
-          label="Reviews by department and where they stand"
+          label={tr(
+            'cycles.reviews_by_department_and_where_they',
+            'Reviews by department and where they stand',
+          )}
           normalise
           categories={got.byDepartment.map((d) => d.department)}
           series={STANCES.map((x) => ({
@@ -2824,10 +3179,13 @@ function PeopleToolbar({
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Input
-          aria-label="Ask who to show, in words"
+          aria-label={tr('cycles.ask_who_to_show_in_words', 'Ask who to show, in words')}
           className="flex-1"
           value={words}
-          placeholder="Ask in words: Engineering in London whose self review is overdue, by manager"
+          placeholder={tr(
+            'cycles.ask_in_words_engineering_in_london',
+            'Ask in words: Engineering in London whose self review is overdue, by manager',
+          )}
           onChange={(e) => {
             setWords(e.target.value);
           }}
@@ -2842,21 +3200,22 @@ function PeopleToolbar({
           loading={asking}
           onClick={ask}
         >
-          Ask
+          {tr('cycles.ask', 'Ask')}
         </Button>
       </div>
       <Refusal error={refused} />
       {said.length === 0 ? null : (
-        <p
-          className="text-sm text-fg-muted"
-          aria-live="polite"
-        >{`Understood: ${said.join(' · ')}`}</p>
+        <p className="text-sm text-fg-muted" aria-live="polite">
+          {tr('cycles.understood', 'Understood: {{join}}', { join: said.join(' · ') })}
+        </p>
       )}
       <Toolbar
         search={
           <Search
-            label="Search people"
-            placeholder={`Search ${String(data.total)} people`}
+            label={tr('cycles.search_people', 'Search people')}
+            placeholder={tr('cycles.search_people_2', 'Search {{total}} people', {
+              total: String(data.total),
+            })}
             initial={props.search?.['q'] ?? ''}
             onSearch={(q) => {
               props.onFilter?.({ q: q === '' ? null : q, page: null });
@@ -2868,8 +3227,11 @@ function PeopleToolbar({
             fields={fields}
             value={stored}
             match={match}
-            title="Filter people"
-            description="Who they are, and where their reviews stand. Nothing applies until you press Apply."
+            title={tr('cycles.filter_people', 'Filter people')}
+            description={tr(
+              'cycles.who_they_are_and_where_their',
+              'Who they are, and where their reviews stand. Nothing applies until you press Apply.',
+            )}
             onApply={(filter, m) => {
               setSaid([]);
               apply(filter, m);
@@ -2883,19 +3245,27 @@ function PeopleToolbar({
               <PopoverTrigger asChild>
                 <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
                   {group === ''
-                    ? 'View'
-                    : `View · by ${(GROUPS.find(([v]) => v === group)?.[1] ?? '').toLowerCase()}`}
+                    ? tr('cycles.view', 'View')
+                    : tr('cycles.view_by', 'View · by {{value}}', {
+                        value: (GROUPS.find(([v]) => v === group)?.[1] ?? '').toLowerCase(),
+                      })}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" aria-label="View" className="flex w-72 flex-col gap-2.5">
-                <p className="text-xs font-semibold text-fg-subtle">Group by</p>
+              <PopoverContent
+                align="end"
+                aria-label={tr('cycles.view', 'View')}
+                className="flex w-72 flex-col gap-2.5"
+              >
+                <p className="text-xs font-semibold text-fg-subtle">
+                  {tr('cycles.group_by', 'Group by')}
+                </p>
                 <Select
                   value={group === '' ? 'none' : group}
                   onValueChange={(v) => {
                     props.onFilter?.({ group: v === 'none' ? null : v, page: null });
                   }}
                 >
-                  <SelectTrigger aria-label="Group by" size="sm">
+                  <SelectTrigger aria-label={tr('cycles.group_by', 'Group by')} size="sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -2985,7 +3355,7 @@ function OverviewTable({
             </To>
             {data.away?.[r.personId] === undefined ? null : (
               <Badge size="sm" tone="neutral" className="ml-2">
-                Away until {data.away[r.personId]}
+                {tr('cycles.away_until', 'Away until')} {data.away[r.personId]}
               </Badge>
             )}
           </span>
@@ -2999,7 +3369,7 @@ function OverviewTable({
       header: 'Manager',
       cell: (r) =>
         r.manager === null ? (
-          <span className="text-sm text-fg-muted">No manager</span>
+          <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
         ) : (
           <To
             href={`/people/${r.manager.id}`}
@@ -3049,7 +3419,7 @@ function OverviewTable({
                     .map((f) => (
                       <span key={f.id} className="flex items-center gap-1.5 text-xs text-fg-muted">
                         <Badge size="sm" tone="warning">
-                          Former manager
+                          {tr('cycles.former_manager', 'Former manager')}
                         </Badge>
                         {`${f.name} · ${REVIEW_STATES.find((x) => x.value === f.state)?.label ?? words(f.state)}`}
                       </span>
@@ -3080,7 +3450,7 @@ function OverviewTable({
   ];
   return (
     <DataTable
-      label="People in this cycle"
+      label={tr('cycles.people_in_this_cycle', 'People in this cycle')}
       rows={pages.items}
       rowId={(r) => r.personId}
       columns={columns}
@@ -3097,7 +3467,9 @@ function OverviewTable({
         : { groupBy: (r: OverviewRow) => groupLabel(data, view.group ?? '', r) })}
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
-      endLabel={`That’s everyone · ${plural(data.total, 'person', 'people')}`}
+      endLabel={tr('cycles.thats_everyone_2', 'That’s everyone · {{total}}', {
+        total: plural(data.total, 'person', 'people'),
+      })}
       {...(data.hr
         ? {
             selectable: true,
@@ -3109,7 +3481,7 @@ function OverviewTable({
       rowActions={(r) => [
         {
           id: 'open',
-          label: 'Open their reviews',
+          label: tr('cycles.open_their_reviews', 'Open their reviews'),
           onSelect: () => {
             onNavigate?.(`/performance/cycles/${id}/about/${r.personId}`);
           },
@@ -3118,7 +3490,7 @@ function OverviewTable({
           ? [
               {
                 id: 'nominate',
-                label: 'Nominate peers for feedback',
+                label: tr('cycles.nominate_peers_for_feedback', 'Nominate peers for feedback'),
                 onSelect: () => {
                   onNavigate?.(`/performance/nominations/${r.nominationId ?? ''}`);
                 },
@@ -3129,21 +3501,21 @@ function OverviewTable({
           ? [
               {
                 id: 'remind',
-                label: 'Remind',
+                label: tr('cycles.remind', 'Remind'),
                 onSelect: () => {
                   run('RemindPerformanceCycle', { personIds: [r.personId] });
                 },
               },
               {
                 id: 'extend',
-                label: 'Extend a deadline',
+                label: tr('cycles.extend_a_deadline', 'Extend a deadline'),
                 onSelect: () => {
                   onDialog('extend', r.personId);
                 },
               },
               {
                 id: 'remove',
-                label: 'Remove from the cycle',
+                label: tr('cycles.remove_from_the_cycle', 'Remove from the cycle'),
                 destructive: true,
                 onSelect: () => {
                   onDialog('remove', r.personId);
@@ -3155,11 +3527,14 @@ function OverviewTable({
       empty={
         <EmptyState
           icon={<icons.people aria-hidden />}
-          title="Nobody here yet"
+          title={tr('cycles.nobody_here_yet', 'Nobody here yet')}
           description={
             c.state === 'draft'
-              ? 'Participants are fixed when the cycle launches.'
-              : 'No one matches the search.'
+              ? tr(
+                  'cycles.participants_are_fixed_when_the_cycle',
+                  'Participants are fixed when the cycle launches.',
+                )
+              : tr('cycles.no_one_matches_the_search', 'No one matches the search.')
           }
         />
       }
@@ -3192,7 +3567,11 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
             <PageHeader
               title={c.name}
               meta={<CycleBadge state={c.state} />}
-              description={`${c.who} · ${c.dates}${c.versions === '' ? '' : ` · ${c.versions}`}`}
+              description={tr('cycles.text_3', '{{who}} · {{dates}}{{value}}', {
+                who: c.who,
+                dates: c.dates,
+                value: c.versions === '' ? '' : ` · ${c.versions}`,
+              })}
               actions={
                 data.hr ? (
                   <>
@@ -3205,7 +3584,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           setDialog('export');
                         }}
                       >
-                        Export
+                        {tr('cycles.export', 'Export')}
                       </Button>
                     ) : null}
                     {c.state === 'in_progress' ? (
@@ -3217,14 +3596,14 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           run('RemindPerformanceCycle', { personIds: [] });
                         }}
                       >
-                        Remind
+                        {tr('cycles.remind', 'Remind')}
                       </Button>
                     ) : null}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="secondary"
-                          aria-label="More actions"
+                          aria-label={tr('cycles.more_actions', 'More actions')}
                           startIcon={<icons.more aria-hidden />}
                         />
                       </DropdownMenuTrigger>
@@ -3235,7 +3614,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               props.onNavigate?.(`/performance/cycles/${id}/setup`);
                             }}
                           >
-                            Edit setup
+                            {tr('cycles.edit_setup', 'Edit setup')}
                           </DropdownMenuItem>
                         ) : null}
                         {c.state === 'scheduled' ? (
@@ -3244,7 +3623,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               act.run('UnschedulePerformanceCycle', { id });
                             }}
                           >
-                            Unschedule
+                            {tr('cycles.unschedule', 'Unschedule')}
                           </DropdownMenuItem>
                         ) : null}
                         {c.state === 'in_progress' ? (
@@ -3253,7 +3632,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               setDialog('add');
                             }}
                           >
-                            Add someone
+                            {tr('cycles.add_someone', 'Add someone')}
                           </DropdownMenuItem>
                         ) : null}
                         {c.state === 'in_progress' ? (
@@ -3262,7 +3641,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               setDialog('close');
                             }}
                           >
-                            Close the cycle
+                            {tr('cycles.close_the_cycle', 'Close the cycle')}
                           </DropdownMenuItem>
                         ) : null}
                         {['in_progress', 'closed'].includes(c.state) ? (
@@ -3271,7 +3650,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               props.onNavigate?.(`/performance/calibration?cycle=${id}`);
                             }}
                           >
-                            Open calibration
+                            {tr('cycles.open_calibration', 'Open calibration')}
                           </DropdownMenuItem>
                         ) : null}
                         {c.state === 'closed' ? (
@@ -3280,7 +3659,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               act.run('ArchivePerformanceCycle', { id, input: { archived: true } });
                             }}
                           >
-                            Archive
+                            {tr('cycles.archive', 'Archive')}
                           </DropdownMenuItem>
                         ) : null}
                         {c.state === 'archived' ? (
@@ -3292,7 +3671,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                               });
                             }}
                           >
-                            Unarchive
+                            {tr('cycles.unarchive', 'Unarchive')}
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>
@@ -3302,7 +3681,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
               }
               tabs={
                 <TertiaryNav
-                  label="Cycle"
+                  label={tr('cycles.cycle', 'Cycle')}
                   orientation="horizontal"
                   variant="line"
                   activeId={tab}
@@ -3310,22 +3689,26 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   // Each tab is its own address, followed by the shell's router.
                   // A `#tab` anchor and a push of `?tab=` raced, and the push lost.
                   items={[
-                    { id: 'overview', label: 'Overview', href: `/performance/cycles/${id}` },
+                    {
+                      id: 'overview',
+                      label: tr('cycles.overview', 'Overview'),
+                      href: `/performance/cycles/${id}`,
+                    },
                     ...(data.hr
                       ? [
                           {
                             id: 'analytics',
-                            label: 'Analytics',
+                            label: tr('cycles.analytics', 'Analytics'),
                             href: `/performance/cycles/${id}?tab=analytics`,
                           },
                           {
                             id: 'changes',
-                            label: 'Changes',
+                            label: tr('cycles.changes', 'Changes'),
                             href: `/performance/cycles/${id}?tab=changes`,
                           },
                           {
                             id: 'settings',
-                            label: 'Settings',
+                            label: tr('cycles.settings', 'Settings'),
                             href: `/performance/cycles/${id}?tab=settings`,
                           },
                         ]
@@ -3338,7 +3721,11 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
             {c.state === 'launch_failed' ? (
               <Alert
                 tone="danger"
-                title={`The launch stopped at ${String(c.launch.created)} of ${String(c.launch.total)} reviews`}
+                title={tr(
+                  'cycles.the_launch_stopped_at_of_reviews',
+                  'The launch stopped at {{created}} of {{total}} reviews',
+                  { created: String(c.launch.created), total: String(c.launch.total) },
+                )}
                 action={
                   <span className="flex gap-2">
                     <Button
@@ -3349,7 +3736,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                         act.run('RetryPerformanceLaunch', { id });
                       }}
                     >
-                      Retry launch
+                      {tr('cycles.retry_launch', 'Retry launch')}
                     </Button>
                     <Button
                       size="sm"
@@ -3358,12 +3745,12 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                         act.run('UnschedulePerformanceCycle', { id });
                       }}
                     >
-                      Back to draft
+                      {tr('cycles.back_to_draft', 'Back to draft')}
                     </Button>
                   </span>
                 }
               >
-                {`${c.launch.error ?? 'Something stopped it.'} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.`}
+                {`${c.launch.error ?? tr('cycles.something_stopped_it', 'Something stopped it.')} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.`}
               </Alert>
             ) : null}
             {c.state === 'launching' ? (
@@ -3371,7 +3758,11 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                 value={
                   c.launch.total === 0 ? 0 : Math.round((c.launch.created / c.launch.total) * 100)
                 }
-                label={`Creating reviews · ${String(c.launch.created)} of ${String(c.launch.total)}`}
+                label={tr(
+                  'cycles.creating_reviews_of',
+                  'Creating reviews · {{created}} of {{total}}',
+                  { created: String(c.launch.created), total: String(c.launch.total) },
+                )}
                 showValue
               />
             ) : null}
@@ -3426,7 +3817,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           run('RemindPerformanceCycle', { personIds: chosen });
                         }}
                       >
-                        Remind
+                        {tr('cycles.remind', 'Remind')}
                       </Button>
                       <Button
                         size="sm"
@@ -3435,7 +3826,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           setDialog('extend');
                         }}
                       >
-                        Extend deadline
+                        {tr('cycles.extend_deadline', 'Extend deadline')}
                       </Button>
                       <Button
                         size="sm"
@@ -3444,7 +3835,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                           run('ReleasePerformanceCycle', { personIds: chosen });
                         }}
                       >
-                        Release
+                        {tr('cycles.release', 'Release')}
                       </Button>
                     </>
                   }
@@ -3455,12 +3846,18 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
               // Every change is a line of the company's activity log, filtered to this cycle.
               <EmptyState
                 icon={<icons.history />}
-                title="Changes are in the activity log"
-                description="Who changed this cycle, and when, with the fields by name and never their values."
+                title={tr(
+                  'cycles.changes_are_in_the_activity_log',
+                  'Changes are in the activity log',
+                )}
+                description={tr(
+                  'cycles.who_changed_this_cycle_and_when',
+                  'Who changed this cycle, and when, with the fields by name and never their values.',
+                )}
                 action={
                   <Button asChild variant="outline">
                     <a href={`/settings/activity?module=performance&subject=${id}`}>
-                      Open this cycle’s activity
+                      {tr('cycles.open_this_cycles_activity', 'Open this cycle’s activity')}
                     </a>
                   </Button>
                 }
@@ -3568,11 +3965,11 @@ function ExtendDialog({
     <Modal
       open
       onClose={onDone}
-      title={`Extend the deadline for ${who}?`}
+      title={tr('cycles.extend_the_deadline_for', 'Extend the deadline for {{who}}?', { who })}
       footer={
         <>
           <Button variant="secondary" onClick={onDone}>
-            Cancel
+            {tr('cycles.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={due === '' || reason.trim() === ''}
@@ -3585,14 +3982,16 @@ function ExtendDialog({
               );
             }}
           >
-            {`Extend for ${people.length === 0 ? 'everyone' : String(people.length)}`}
+            {tr('cycles.extend_for', 'Extend for {{value}}', {
+              value: people.length === 0 ? 'everyone' : String(people.length),
+            })}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field>
-        <FieldLabel>Activity</FieldLabel>
+        <FieldLabel>{tr('cycles.activity', 'Activity')}</FieldLabel>
         <Select value={kind} onValueChange={setKind}>
           <FieldControl>
             <SelectTrigger>
@@ -3604,17 +4003,19 @@ function ExtendDialog({
               .filter((k) => k !== 'goals')
               .map((k) => (
                 <SelectItem key={k} value={k}>
-                  {`${kindLabel(k)}s about them`}
+                  {tr('cycles.s_about_them', '{{kindLabel}}s about them', {
+                    kindLabel: kindLabel(k),
+                  })}
                 </SelectItem>
               ))}
           </SelectContent>
         </Select>
       </Field>
       <Field required>
-        <FieldLabel>New deadline</FieldLabel>
+        <FieldLabel>{tr('cycles.new_deadline', 'New deadline')}</FieldLabel>
         <FieldControl>
           <DatePicker
-            label="New deadline"
+            label={tr('cycles.new_deadline', 'New deadline')}
             value={due === '' ? null : due}
             onChange={(date) => {
               setDue(date ?? '');
@@ -3623,10 +4024,12 @@ function ExtendDialog({
         </FieldControl>
       </Field>
       <Field required>
-        <FieldLabel>Reason, kept in the audit log</FieldLabel>
+        <FieldLabel>
+          {tr('cycles.reason_kept_in_the_audit_log', 'Reason, kept in the audit log')}
+        </FieldLabel>
         <Input
           value={reason}
-          placeholder="Engineering offsite"
+          placeholder={tr('cycles.engineering_offsite', 'Engineering offsite')}
           onChange={(e) => {
             setReason(e.target.value);
           }}
@@ -3652,11 +4055,11 @@ function CloseDialog({
     <Modal
       open
       onClose={onDone}
-      title={`Close ${name}?`}
+      title={tr('cycles.close', 'Close {{name}}?', { name })}
       footer={
         <>
           <Button variant="secondary" onClick={onDone}>
-            Cancel
+            {tr('cycles.cancel', 'Cancel')}
           </Button>
           <Button
             variant="danger"
@@ -3669,37 +4072,55 @@ function CloseDialog({
               );
             }}
           >
-            Close cycle
+            {tr('cycles.close_cycle', 'Close cycle')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
-      <p>Closing locks every review. Each one ends in one of three states:</p>
+      <p>
+        {tr(
+          'cycles.closing_locks_every_review_each_one',
+          'Closing locks every review. Each one ends in one of three states:',
+        )}
+      </p>
       <KeyValues
         layout="split"
         items={[
           {
-            label: 'Submitted',
+            label: tr('cycles.submitted', 'Submitted'),
             value: (
               <Badge size="sm" tone="success">
-                Completed
+                {tr('cycles.completed', 'Completed')}
               </Badge>
             ),
           },
           {
-            label: 'Unlocked and edited, once submitted before',
+            label: tr(
+              'cycles.unlocked_and_edited_once_submitted_before',
+              'Unlocked and edited, once submitted before',
+            ),
             value: 'Completed, on the last submitted revision',
           },
-          { label: 'Draft, never submitted', value: <Badge size="sm">Withdrawn</Badge> },
-          { label: 'Not started', value: <Badge size="sm">Abandoned</Badge> },
+          {
+            label: tr('cycles.draft_never_submitted', 'Draft, never submitted'),
+            value: <Badge size="sm">{tr('cycles.withdrawn', 'Withdrawn')}</Badge>,
+          },
+          {
+            label: tr('cycles.not_started', 'Not started'),
+            value: <Badge size="sm">{tr('cycles.abandoned', 'Abandoned')}</Badge>,
+          },
         ]}
       />
       <Field>
-        <FieldLabel>Reviews not yet released</FieldLabel>
+        <FieldLabel>{tr('cycles.reviews_not_yet_released', 'Reviews not yet released')}</FieldLabel>
         <SegmentedControl value={release} onValueChange={setRelease}>
-          <SegmentedControlItem value="now">Release them now</SegmentedControlItem>
-          <SegmentedControlItem value="keep">Keep them unreleased</SegmentedControlItem>
+          <SegmentedControlItem value="now">
+            {tr('cycles.release_them_now', 'Release them now')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="keep">
+            {tr('cycles.keep_them_unreleased', 'Keep them unreleased')}
+          </SegmentedControlItem>
         </SegmentedControl>
       </Field>
     </Modal>
@@ -3725,8 +4146,12 @@ function ExportDialog({
     <StepDialog
       open
       onClose={onDone}
-      title="Export reviews"
-      steps={['Whose view', 'What', 'As']}
+      title={tr('cycles.export_reviews', 'Export reviews')}
+      steps={[
+        tr('cycles.whose_view', 'Whose view'),
+        tr('cycles.what', 'What'),
+        tr('cycles.as', 'As'),
+      ]}
       step={step}
       onStep={setStep}
       finishLabel="Export"
@@ -3744,15 +4169,28 @@ function ExportDialog({
     >
       <Refusal error={act.error} />
       {step === 0 ? (
-        <RadioGroup aria-label="Whose view" value={full} onValueChange={setFull}>
+        <RadioGroup
+          aria-label={tr('cycles.whose_view', 'Whose view')}
+          value={full}
+          onValueChange={setFull}
+        >
           <RadioCard
             value="subject"
-            description="Private questions and confidential names removed."
+            description={tr(
+              'cycles.private_questions_and_confidential_names_removed',
+              'Private questions and confidential names removed.',
+            )}
           >
-            As each subject would see it
+            {tr('cycles.as_each_subject_would_see_it', 'As each subject would see it')}
           </RadioCard>
-          <RadioCard value="full" description="Every answer and name. Logged as a sensitive read.">
-            Full, for HR
+          <RadioCard
+            value="full"
+            description={tr(
+              'cycles.every_answer_and_name_logged_as',
+              'Every answer and name. Logged as a sensitive read.',
+            )}
+          >
+            {tr('cycles.full_for_hr', 'Full, for HR')}
           </RadioCard>
         </RadioGroup>
       ) : null}
@@ -3776,15 +4214,24 @@ function ExportDialog({
         </div>
       ) : null}
       {step === 2 ? (
-        <RadioGroup aria-label="As" value={format} onValueChange={setFormat}>
-          <RadioCard value="pdf" description="Every submitted review, a page each, in one file.">
-            One PDF
+        <RadioGroup aria-label={tr('cycles.as', 'As')} value={format} onValueChange={setFormat}>
+          <RadioCard
+            value="pdf"
+            description={tr(
+              'cycles.every_submitted_review_a_page_each',
+              'Every submitted review, a page each, in one file.',
+            )}
+          >
+            {tr('cycles.one_pdf', 'One PDF')}
           </RadioCard>
           <RadioCard
             value="zip"
-            description="Each review its own PDF, named for whose it is, with an index of them all."
+            description={tr(
+              'cycles.each_review_its_own_pdf_named',
+              'Each review its own PDF, named for whose it is, with an index of them all.',
+            )}
           >
-            A zip of PDFs
+            {tr('cycles.a_zip_of_pdfs', 'A zip of PDFs')}
           </RadioCard>
         </RadioGroup>
       ) : null}
@@ -3810,12 +4257,15 @@ function AddDialog({
     <Modal
       open
       onClose={onDone}
-      title="Add someone to the cycle"
-      description="Their reviews are created from the cycle’s settings; with under a week left, they are due a week from today."
+      title={tr('cycles.add_someone_to_the_cycle', 'Add someone to the cycle')}
+      description={tr(
+        'cycles.their_reviews_are_created_from_the',
+        'Their reviews are created from the cycle’s settings; with under a week left, they are due a week from today.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onDone}>
-            Cancel
+            {tr('cycles.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={chosen === null}
@@ -3828,15 +4278,15 @@ function AddDialog({
               );
             }}
           >
-            Add
+            {tr('cycles.add', 'Add')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <SearchField
-        label="Search people"
-        placeholder="Search everyone"
+        label={tr('cycles.search_people', 'Search people')}
+        placeholder={tr('cycles.search_everyone', 'Search everyone')}
         value={q}
         onValueChange={setQ}
         onSearch={(v) => {
@@ -3845,7 +4295,11 @@ function AddDialog({
           });
         }}
       />
-      <RadioGroup aria-label="Who" value={chosen ?? ''} onValueChange={setChosen}>
+      <RadioGroup
+        aria-label={tr('cycles.who', 'Who')}
+        value={chosen ?? ''}
+        onValueChange={setChosen}
+      >
         {found.map((p) => (
           <RadioCard key={p.personId} value={p.personId} description={p.title}>
             {p.name}
@@ -3872,12 +4326,17 @@ function RemoveDialog({
     <Modal
       open
       onClose={onDone}
-      title={`Remove ${person?.name ?? 'them'} from the cycle?`}
-      description="Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are cancelled."
+      title={tr('cycles.remove_from_the_cycle_2', 'Remove {{value}} from the cycle?', {
+        value: person?.name ?? 'them',
+      })}
+      description={tr(
+        'cycles.started_reviews_about_them_become_detached',
+        'Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are cancelled.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onDone}>
-            Cancel
+            {tr('cycles.cancel', 'Cancel')}
           </Button>
           <Button
             variant="danger"
@@ -3891,14 +4350,14 @@ function RemoveDialog({
               );
             }}
           >
-            Remove
+            {tr('cycles.remove_2', 'Remove')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field required>
-        <FieldLabel>Reason</FieldLabel>
+        <FieldLabel>{tr('cycles.reason', 'Reason')}</FieldLabel>
         <Input
           value={reason}
           onChange={(e) => {

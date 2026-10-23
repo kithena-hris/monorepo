@@ -2,6 +2,7 @@ import { Button } from '@reach/ui';
 import type { JSX } from 'react';
 
 import type { AppSignIn } from '../lib/app-sign-in';
+import { t } from '../lib/t';
 
 /**
  * Signing in with Google, for a company that has switched it on.
@@ -31,7 +32,9 @@ export function GoogleSignIn({
   }
   return (
     <Button asChild fullWidth startIcon={<GoogleMark />}>
-      <a href={start.toString()}>Sign in with Google</a>
+      <a href={start.toString()}>
+        {t('components.google-sign-in.sign_in_with_google', 'Sign in with Google')}
+      </a>
     </Button>
   );
 }

@@ -9,6 +9,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuSub,
@@ -48,7 +50,10 @@ import {
 } from 'react';
 
 import { searchPeople } from '../app/(app)/people/actions';
+import { saveLanguage } from '../app/(app)/settings/language/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
+import { useLanguage } from '../lib/i18n';
+import { LANGUAGES, type Language } from '../lib/languages';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { useInAppLinks, useWarmPages } from '../lib/links';
 import { AREAS as REMOTES, firstUnder, matchPath } from '../lib/remotes';
@@ -80,6 +85,7 @@ import {
   useShortcuts,
   type ShortcutsValue,
 } from './shortcuts';
+import { t as tr } from '../lib/t';
 
 /*
  * Reach's icon set, by meaning rather than by drawing.
@@ -247,9 +253,9 @@ function isCurrent(href: string, pathname: string): boolean {
 
 /** What their access is called, for the line under their name. */
 function roleOf(roles: ShellData['roles']): string | null {
-  if (roles.admin) return 'Administrator';
+  if (roles.admin) return tr('components.app-shell.administrator', 'Administrator');
   if (roles.hr) return 'HR';
-  if (roles.finance) return 'Finance';
+  if (roles.finance) return tr('components.app-shell.finance', 'Finance');
   return null;
 }
 
@@ -523,7 +529,7 @@ export function AppShell({
           sections={remote.sections}
           route={remote.route}
           counts={remote.counts ?? {}}
-          label={`${label} sections`}
+          label={tr('components.app-shell.sections', '{{label}} sections', { label })}
         />
       ),
       expanded: isCurrent(href, here),
@@ -628,7 +634,9 @@ export function AppShell({
             sidebarHeader={
               <Link
                 href="/"
-                aria-label={`${companyName}, home`}
+                aria-label={tr('components.app-shell.home', '{{companyName}}, home', {
+                  companyName,
+                })}
                 className="flex min-w-0 flex-1 items-center gap-2.5"
               >
                 <Avatar
@@ -654,7 +662,7 @@ export function AppShell({
                 {/* Under the logo, before any area: search (the command palette, every
                     page and anybody they may read), then the areas. What is waiting for
                     them is the Inbox, with its count beside its name. */}
-                <Nav label="Search">
+                <Nav label={tr('components.app-shell.search', 'Search')}>
                   <NavList>
                     <NavItem
                       asChild
@@ -671,12 +679,15 @@ export function AppShell({
                           setPaletteOpen(true);
                         }}
                       >
-                        Search
+                        {tr('components.app-shell.search', 'Search')}
                       </button>
                     </NavItem>
                   </NavList>
                 </Nav>
-                <Nav label="Areas" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+                <Nav
+                  label={tr('components.app-shell.areas', 'Areas')}
+                  className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+                >
                   <NavList>
                     {areas.map((area) =>
                       area.built ? (
@@ -762,7 +773,7 @@ export function AppShell({
                 {/* Pinned: settings and the person stay reachable however long the list above grows. */}
                 <div className="mt-auto flex shrink-0 flex-col gap-2">
                   <Separator className="mx-1.5 my-1 group-data-[collapsed]/sidebar:hidden" />
-                  <Nav label="Account">
+                  <Nav label={tr('components.app-shell.account', 'Account')}>
                     <NavList>
                       <NavItem
                         asChild
@@ -770,7 +781,9 @@ export function AppShell({
                         current={isCurrent('/settings', pathname)}
                         shortcut={hint('/settings')}
                       >
-                        <Link href="/settings">Settings</Link>
+                        <Link href="/settings">
+                          {tr('components.app-shell.settings', 'Settings')}
+                        </Link>
                       </NavItem>
                     </NavList>
                   </Nav>
@@ -787,7 +800,11 @@ export function AppShell({
                     subtitle={
                       person.viewing == null
                         ? [role, companyName].filter((x) => x !== null).join(' · ')
-                        : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`
+                        : tr(
+                            'components.app-shell.viewing_as_read_only',
+                            'Viewing as {{value}} · read-only',
+                            { value: person.name.split(' ')[0] ?? person.name },
+                          )
                     }
                     companyName={companyName}
                     timeOff={areas.some((a) => a.href === '/time-off' && a.built)}
@@ -920,7 +937,7 @@ function SearchPalette({
             path: t.path,
             label: t.label,
             icon: s.icon,
-            description: `In ${s.label}`,
+            description: tr('components.app-shell.in', 'In {{label}}', { label: s.label }),
             group: 'People',
           })),
         ]),
@@ -961,7 +978,9 @@ function SearchPalette({
         : [
             {
               id: 'create',
-              label: `Create… ${create.label}`,
+              label: tr('components.app-shell.create', 'Create… {{label}}', {
+                label: create.label,
+              }),
               group: 'Actions',
               icon: iconOf('add'),
               keywords: ['new', 'add'],
@@ -983,7 +1002,7 @@ function SearchPalette({
         ? [
             {
               id: 'export',
-              label: 'Export people',
+              label: tr('components.app-shell.export_people', 'Export people'),
               group: 'Actions',
               icon: iconOf('export'),
               keywords: ['download', 'csv'],
@@ -995,7 +1014,9 @@ function SearchPalette({
         : []),
       {
         id: 'theme',
-        label: dark ? 'Switch to light mode' : 'Switch to dark mode',
+        label: dark
+          ? tr('components.app-shell.switch_to_light_mode', 'Switch to light mode')
+          : tr('components.app-shell.switch_to_dark_mode', 'Switch to dark mode'),
         group: 'Actions',
         icon: iconOf('themeDark'),
         keywords: ['theme', 'dark', 'light'],
@@ -1005,7 +1026,10 @@ function SearchPalette({
       },
       {
         id: 'sidebar',
-        label: 'Collapse or expand the sidebar',
+        label: tr(
+          'components.app-shell.collapse_or_expand_the_sidebar',
+          'Collapse or expand the sidebar',
+        ),
         group: 'Actions',
         icon: iconOf('menu'),
         ...keysOfId('sidebar'),
@@ -1017,7 +1041,7 @@ function SearchPalette({
       },
       {
         id: 'help',
-        label: 'Show keyboard shortcuts',
+        label: tr('components.app-shell.show_keyboard_shortcuts', 'Show keyboard shortcuts'),
         group: 'Actions',
         icon: iconOf('shortcuts'),
         keywords: ['keys', 'hotkeys'],
@@ -1086,13 +1110,16 @@ function SearchPalette({
         if (!next) setQuery('');
       }}
       hotkey="k"
-      label="Search people and pages"
-      placeholder="Search people and pages"
+      label={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
+      placeholder={tr('components.app-shell.search_people_and_pages', 'Search people and pages')}
       items={items}
       filter={false}
       loading={loading}
       onQueryChange={setQuery}
-      empty="Nobody and nothing by that name."
+      empty={tr(
+        'components.app-shell.nobody_and_nothing_by_that_name',
+        'Nobody and nothing by that name.',
+      )}
     />
   );
 }
@@ -1169,7 +1196,7 @@ function PersonMenu({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              End viewing as {person.name}
+              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
               {viewKeys.length === 0 ? null : (
                 <DropdownMenuShortcut className="flex">
                   <KbdShortcut keys={viewKeys} />
@@ -1182,7 +1209,7 @@ function PersonMenu({
         <DropdownMenuItem asChild>
           <Link href="/people/me">
             <icons.person />
-            My profile
+            {tr('components.app-shell.my_profile', 'My profile')}
             {hint('/people/me') === undefined ? null : (
               <DropdownMenuShortcut className="flex">{hint('/people/me')}</DropdownMenuShortcut>
             )}
@@ -1193,18 +1220,18 @@ function PersonMenu({
           <DropdownMenuItem asChild>
             <Link href="/time-off/overview">
               <icons.calendar />
-              My time off
+              {tr('components.app-shell.my_time_off', 'My time off')}
             </Link>
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled>
             <icons.calendar />
-            My time off
+            {tr('components.app-shell.my_time_off', 'My time off')}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={openHelp}>
           <icons.shortcuts />
-          Keyboard shortcuts
+          {tr('components.app-shell.keyboard_shortcuts', 'Keyboard shortcuts')}
           {prefs.characterKeys ? (
             <DropdownMenuShortcut className="flex">
               <KbdShortcut keys={table.find((s) => s.id === 'help')?.keys ?? []} />
@@ -1214,10 +1241,12 @@ function PersonMenu({
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <icons.adjust />
-            Preferences
+            {tr('components.app-shell.preferences', 'Preferences')}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-52">
             <ThemeChoice dark={dark} onChange={onTheme} />
+            <DropdownMenuSeparator />
+            <LanguageChoice />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
@@ -1225,10 +1254,12 @@ function PersonMenu({
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
             <icons.company />
-            Switch company
+            {tr('components.app-shell.switch_company', 'Switch company')}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-52">
-            <DropdownMenuLabel>Your companies</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {tr('components.app-shell.your_companies', 'Your companies')}
+            </DropdownMenuLabel>
             <DropdownMenuCheckboxItem
               checked
               onSelect={(event) => {
@@ -1245,7 +1276,7 @@ function PersonMenu({
           }}
         >
           <SignOut />
-          Sign out
+          {tr('components.app-shell.sign_out', 'Sign out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
       {/* A POST, so no prefetcher or link scanner can end a session. */}
@@ -1277,8 +1308,54 @@ function ThemeChoice({
       onCheckedChange={onChange}
     >
       <ThemeDark />
-      Dark mode
+      {tr('components.app-shell.dark_mode', 'Dark mode')}
     </DropdownMenuCheckboxItem>
+  );
+}
+
+/**
+ * The language Kithena speaks to this person, among their preferences: one of
+ * a list, each named in itself. Kept with their account and on this device
+ * (`app/(app)/settings/language/actions.ts`), then the page loads again in it,
+ * so every screen, the remotes' module-level words included, is in the new one.
+ */
+function LanguageChoice(): JSX.Element {
+  const language = useLanguage();
+  const [saving, setSaving] = useState<Language | null>(null);
+  return (
+    <>
+      <DropdownMenuLabel>{tr('components.app-shell.language', 'Language')}</DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        value={saving ?? language}
+        onValueChange={(next) => {
+          const chosen = LANGUAGES.find((l) => l.code === next)?.code;
+          if (chosen === undefined || chosen === language) return;
+          setSaving(chosen);
+          void saveLanguage(chosen).then((result) => {
+            // Viewing as somebody changes nothing of theirs; anything else is kept on this device at least.
+            if (!result.ok && result.message.startsWith('You are viewing')) {
+              setSaving(null);
+              return;
+            }
+            window.location.reload();
+          });
+        }}
+      >
+        {LANGUAGES.map((l) => (
+          <DropdownMenuRadioItem
+            key={l.code}
+            value={l.code}
+            lang={l.code}
+            disabled={saving !== null}
+            onSelect={(event) => {
+              event.preventDefault();
+            }}
+          >
+            {l.name}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
   );
 }
 
@@ -1301,7 +1378,9 @@ export function AccountSheet({
   const who =
     person.viewing == null
       ? [person.name, role, company].filter((x) => x != null && x !== '').join(' · ')
-      : `Viewing as ${person.name.split(' ')[0] ?? person.name} · read-only`;
+      : tr('components.app-shell.viewing_as_read_only', 'Viewing as {{value}} · read-only', {
+          value: person.name.split(' ')[0] ?? person.name,
+        });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -1309,7 +1388,7 @@ export function AccountSheet({
           variant="ghost"
           size="sm"
           className="relative tap-target rounded-full p-0"
-          aria-label="Your account"
+          aria-label={tr('components.app-shell.your_account', 'Your account')}
         >
           <Avatar name={person.name} size="md" />
         </Button>
@@ -1320,7 +1399,7 @@ export function AccountSheet({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              End viewing as {person.name}
+              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -1328,37 +1407,48 @@ export function AccountSheet({
         <DropdownMenuItem asChild>
           <Link href="/people/me">
             <icons.person />
-            My profile
+            {tr('components.app-shell.my_profile', 'My profile')}
           </Link>
         </DropdownMenuItem>
         {timeOff ? (
           <DropdownMenuItem asChild>
             <Link href="/time-off/overview">
               <icons.calendar />
-              My time off
+              {tr('components.app-shell.my_time_off', 'My time off')}
             </Link>
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled>
             <icons.calendar />
-            My time off
+            {tr('components.app-shell.my_time_off', 'My time off')}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
           <Link href="/settings">
             <Settings />
-            Settings
+            {tr('components.app-shell.settings', 'Settings')}
           </Link>
         </DropdownMenuItem>
         <ThemeChoice dark={dark} onChange={setTheme} />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <icons.adjust />
+            {tr('components.app-shell.language', 'Language')}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-52">
+            <LanguageChoice />
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         {company === undefined ? null : (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <icons.company />
-              Switch company
+              {tr('components.app-shell.switch_company', 'Switch company')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-52">
-              <DropdownMenuLabel>Your companies</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                {tr('components.app-shell.your_companies', 'Your companies')}
+              </DropdownMenuLabel>
               <DropdownMenuCheckboxItem
                 checked
                 onSelect={(event) => {
@@ -1378,7 +1468,7 @@ export function AccountSheet({
           }}
         >
           <SignOut />
-          Sign out
+          {tr('components.app-shell.sign_out', 'Sign out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
       {/* A POST, so no prefetcher or link scanner can end a session. */}
@@ -1441,12 +1531,17 @@ function MobileTabs({
     current: boolean;
     count?: number;
   }[] = [
-    { href: '/', label: 'Home', icon: <Home />, current: pathname === '/' },
+    {
+      href: '/',
+      label: tr('components.app-shell.home_2', 'Home'),
+      icon: <Home />,
+      current: pathname === '/',
+    },
     ...(timeOff
       ? [
           {
             href: '/time-off/overview',
-            label: 'Time off',
+            label: tr('components.app-shell.time_off', 'Time off'),
             icon: <Leave />,
             current: isCurrent('/time-off', pathname),
           },
@@ -1456,20 +1551,20 @@ function MobileTabs({
       ? [
           {
             href: '/people/menu',
-            label: 'People',
+            label: tr('components.app-shell.people', 'People'),
             icon: <People />,
             current: isCurrent('/people', pathname) && !isCurrent('/people/me', pathname),
           },
           {
             href: '/inbox/todo',
-            label: 'Inbox',
+            label: tr('components.app-shell.inbox', 'Inbox'),
             icon: <icons.inbox />,
             current: isCurrent('/inbox', pathname),
             count: todo,
           },
           {
             href: '/people/me',
-            label: 'Me',
+            label: tr('components.app-shell.me', 'Me'),
             icon: <icons.person />,
             current: isCurrent('/people/me', pathname),
           },
@@ -1477,7 +1572,10 @@ function MobileTabs({
       : []),
   ];
   return (
-    <TabBar label="Main, compact" className="border-0 bg-transparent p-0 shadow-none">
+    <TabBar
+      label={tr('components.app-shell.main_compact', 'Main, compact')}
+      className="border-0 bg-transparent p-0 shadow-none"
+    >
       {tabs.map((t) => (
         <TabBarItem
           key={t.href}

@@ -1,5 +1,6 @@
 import type { Classification, CollectAt, RequirednessMode, ViewerScope, WriterRole } from './model';
 import { COLLECT_LABEL, SCOPE_LABEL, WRITER_LABEL, inSentence, listed } from './words';
+import { t } from '../i18n';
 
 /**
  * The visibility step's plain sentence: who can see this field and who can
@@ -16,26 +17,42 @@ export function readBack(
 ): string {
   const sees = (...scopes: ViewerScope[]): boolean => scopes.some((s) => visibility.includes(s));
   const audiences: { who: string; see: boolean; edit: boolean }[] = [
-    { who: 'The employee', see: sees('self', 'directory'), edit: ownership.includes('employee') },
     {
-      who: 'Their manager',
+      who: t('settings.read-back.the_employee', 'The employee'),
+      see: sees('self', 'directory'),
+      edit: ownership.includes('employee'),
+    },
+    {
+      who: t('settings.read-back.their_manager', 'Their manager'),
       see: sees('manager', 'manager_chain', 'directory'),
       edit: ownership.includes('manager'),
     },
     { who: 'HR', see: sees('hr', 'admin'), edit: ownership.includes('hr') },
-    { who: 'Finance', see: sees('finance', 'directory'), edit: ownership.includes('finance') },
+    {
+      who: t('settings.read-back.finance', 'Finance'),
+      see: sees('finance', 'directory'),
+      edit: ownership.includes('finance'),
+    },
   ];
 
   const sentences = audiences
     // Finance is only worth a sentence when it is involved at all.
     .filter((a) => a.who !== 'Finance' || a.see || a.edit)
     .map(({ who, see, edit }) => {
-      if (see && edit) return `${who} can see and edit this.`;
-      if (see) return `${who} can see it.`;
+      if (see && edit)
+        return t('settings.read-back.can_see_and_edit_this', '{{who}} can see and edit this.', {
+          who,
+        });
+      if (see) return t('settings.read-back.can_see_it', '{{who}} can see it.', { who });
       // Owning a field you cannot read is possible for a system-fed value, but
       // for a person it is a form they fill in and never see again.
-      if (edit) return `${who} can fill it in but not see it afterwards.`;
-      return `${who} cannot.`;
+      if (edit)
+        return t(
+          'settings.read-back.can_fill_it_in_but_not',
+          '{{who}} can fill it in but not see it afterwards.',
+          { who },
+        );
+      return t('settings.read-back.cannot', '{{who}} cannot.', { who });
     });
   if (visibility.includes('directory')) sentences.push('Everyone can find it in the directory.');
   return sentences.join(' ');
@@ -57,9 +74,12 @@ export interface Summarised {
 const opening = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 const SENSITIVITY: Record<Classification, string> = {
-  public: 'not sensitive',
-  internal: 'not sensitive',
-  confidential: 'confidential, so it is kept out of logs and AI',
+  public: t('settings.read-back.not_sensitive', 'not sensitive'),
+  internal: t('settings.read-back.not_sensitive', 'not sensitive'),
+  confidential: t(
+    'settings.read-back.confidential_so_it_is_kept_out',
+    'confidential, so it is kept out of logs and AI',
+  ),
   'special-category':
     'special-category data, so it never reaches AI, events or the standard export',
 };
@@ -83,40 +103,74 @@ export function summary(field: Summarised): string {
  * can be picked out in the summary beside it.
  */
 export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3 }[] {
-  const label = field.label.trim() === '' ? 'this field' : field.label.trim();
+  const label =
+    field.label.trim() === ''
+      ? t('settings.read-back.this_field', 'this field')
+      : field.label.trim();
   const others = field.ownership
     .filter((w) => w !== 'employee')
     .map((w) => inSentence(WRITER_LABEL[w]));
   const asked =
     field.collectAt === 'hr_only'
       ? others.length === 0
-        ? `Nobody is ever asked for ${label}.`
+        ? t('settings.read-back.nobody_is_ever_asked_for', 'Nobody is ever asked for {{label}}.', {
+            label,
+          })
         : `${opening(listed(others))} ${others.length === 1 ? 'fills' : 'fill'} in ${label}; the employee is never asked for it.`
       : field.ownership.includes('employee')
-        ? `The employee is asked for their ${label} ${COLLECT_LABEL[field.collectAt].when}.`
-        : `${opening(listed(others))} ${others.length === 1 ? 'fills' : 'fill'} in ${label} ${COLLECT_LABEL[field.collectAt].when}.`;
+        ? t(
+            'settings.read-back.the_employee_is_asked_for_their',
+            'The employee is asked for their {{label}} {{when}}.',
+            { label, when: COLLECT_LABEL[field.collectAt].when },
+          )
+        : t('settings.read-back.in', '{{opening}} {{value}} in {{label}} {{when}}.', {
+            opening: opening(listed(others)),
+            value: others.length === 1 ? 'fills' : 'fill',
+            label,
+            when: COLLECT_LABEL[field.collectAt].when,
+          });
   const required = {
-    never: 'It is optional.',
-    always: 'It is required for everyone.',
-    conditional: 'It is required only where its conditions hold.',
+    never: t('settings.read-back.it_is_optional', 'It is optional.'),
+    always: t('settings.read-back.it_is_required_for_everyone', 'It is required for everyone.'),
+    conditional: t(
+      'settings.read-back.it_is_required_only_where_its',
+      'It is required only where its conditions hold.',
+    ),
   }[field.requiredness];
   const writers = field.ownership.map((w) => inSentence(WRITER_LABEL[w]));
   const change =
     writers.length === 1
-      ? `Only ${writers[0] ?? ''} can change it.`
-      : `${opening(listed(writers))} can change it.`;
+      ? t('settings.read-back.only_can_change_it', 'Only {{value}} can change it.', {
+          value: writers[0] ?? '',
+        })
+      : t('settings.read-back.can_change_it', '{{opening}} can change it.', {
+          opening: opening(listed(writers)),
+        });
   const readers = field.visibility.map((s) => inSentence(SCOPE_LABEL[s]));
   const see =
     readers.length === 0
-      ? 'Nobody sees it except through its rules.'
-      : `${opening(listed(readers))} can see it${field.rules > 0 ? ', and others on some records' : ''}.`;
+      ? t(
+          'settings.read-back.nobody_sees_it_except_through_its',
+          'Nobody sees it except through its rules.',
+        )
+      : t('settings.read-back.can_see_it_2', '{{opening}} can see it{{value}}.', {
+          opening: opening(listed(readers)),
+          value: field.rules > 0 ? ', and others on some records' : '',
+        });
   const kind =
     field.classification === null
       ? 'How sensitive it is is still to be chosen'
       : opening(SENSITIVITY[field.classification]);
   const extras = [
-    field.requiresApproval ? 'changes wait for a second HR member to approve them' : null,
-    field.encrypted ? 'it is stored encrypted' : null,
+    field.requiresApproval
+      ? t(
+          'settings.read-back.changes_wait_for_a_second_hr',
+          'changes wait for a second HR member to approve them',
+        )
+      : null,
+    field.encrypted
+      ? t('settings.read-back.it_is_stored_encrypted', 'it is stored encrypted')
+      : null,
   ].filter((x) => x !== null);
   return [
     { text: asked, step: 2 },

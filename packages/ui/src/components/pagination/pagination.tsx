@@ -5,6 +5,7 @@ import type { JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * Offset pagination.
@@ -98,11 +99,12 @@ export function Pagination({
     >
       {first && last && totalItems ? (
         <p className="text-sm text-fg-muted touch:hidden">
-          Showing{' '}
+          {t('components.pagination.pagination.showing', 'Showing')}{' '}
           <span className="font-medium tabular-nums text-fg">
             {first}–{last}
           </span>{' '}
-          of <span className="font-medium tabular-nums text-fg">{totalItems}</span>
+          {t('components.pagination.pagination.of', 'of')}{' '}
+          <span className="font-medium tabular-nums text-fg">{totalItems}</span>
         </p>
       ) : (
         <span />
@@ -114,7 +116,7 @@ export function Pagination({
             size="sm"
             variant="secondary"
             className={ROUND}
-            aria-label="Previous page"
+            aria-label={t('components.pagination.pagination.previous_page', 'Previous page')}
             disabled={page <= 1}
             onClick={() => {
               onPageChange(page - 1);
@@ -140,7 +142,9 @@ export function Pagination({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label={`Page ${String(item)}`}
+                aria-label={t('components.pagination.pagination.page', 'Page {{item}}', {
+                  item: String(item),
+                })}
                 aria-current={item === page ? 'page' : undefined}
                 onClick={() => {
                   onPageChange(item);
@@ -162,7 +166,9 @@ export function Pagination({
         )}
 
         <li aria-live="polite" className="hidden text-base text-fg-muted tabular-nums touch:block">
-          Page <span className="font-semibold text-fg">{page}</span> of {pageCount}
+          {t('components.pagination.pagination.page_2', 'Page')}{' '}
+          <span className="font-semibold text-fg">{page}</span>{' '}
+          {t('components.pagination.pagination.of', 'of')} {pageCount}
         </li>
 
         <li>
@@ -170,7 +176,7 @@ export function Pagination({
             size="sm"
             variant="secondary"
             className={ROUND}
-            aria-label="Next page"
+            aria-label={t('components.pagination.pagination.next_page', 'Next page')}
             disabled={page >= pageCount}
             onClick={() => {
               onPageChange(page + 1);

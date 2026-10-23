@@ -1,5 +1,6 @@
 import { Badge, DataTable, EmptyState, PageSection } from '@reach/ui';
 import type { JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * Country packs (S21), a tab of Organisation beside the legal entities they
@@ -36,10 +37,13 @@ const CHECK: Record<
   NonNullable<CountryPackRow['check']>,
   { readonly label: string; readonly tone: 'success' | 'info' | 'warning' }
 > = {
-  checksum: { label: 'Checksum', tone: 'success' },
-  allocation: { label: 'Allocation rules', tone: 'success' },
-  ranges: { label: 'Ranges', tone: 'info' },
-  shape: { label: 'Shape only', tone: 'warning' },
+  checksum: { label: t('settings.country-packs.checksum', 'Checksum'), tone: 'success' },
+  allocation: {
+    label: t('settings.country-packs.allocation_rules', 'Allocation rules'),
+    tone: 'success',
+  },
+  ranges: { label: t('settings.country-packs.ranges', 'Ranges'), tone: 'info' },
+  shape: { label: t('settings.country-packs.shape_only', 'Shape only'), tone: 'warning' },
 };
 
 export function CountryPacks({
@@ -53,40 +57,48 @@ export function CountryPacks({
   const entitiesIn = (country: string) =>
     entities.filter((e) => !e.archived && e.country === country);
   return (
-    <PageSection surface title="Country packs">
+    <PageSection surface title={t('settings.country-packs.country_packs', 'Country packs')}>
       <DataTable<CountryPackRow>
-        label="Country packs"
+        label={t('settings.country-packs.country_packs', 'Country packs')}
         rows={packs}
         rowId={(p) => p.country}
         empty={
           <EmptyState
-            title="No country packs"
-            description="Packs arrive with People, one per country it has paperwork rules for."
+            title={t('settings.country-packs.no_country_packs', 'No country packs')}
+            description={t(
+              'settings.country-packs.packs_arrive_with_people_one_per',
+              'Packs arrive with People, one per country it has paperwork rules for.',
+            )}
           />
         }
         columns={[
           {
             id: 'country',
-            header: 'Country',
+            header: t('settings.country-packs.country', 'Country'),
             cell: (p) => <span className="font-semibold">{p.countryName}</span>,
           },
           {
             id: 'adds',
-            header: 'Adds',
+            header: t('settings.country-packs.adds', 'Adds'),
             cell: (p) => (
               <span className="whitespace-normal">
                 {p.sections.map((s) => s.label).join(', ')} ·{' '}
-                {`${String(p.fields)} ${p.fields === 1 ? 'field' : 'fields'}`}
+                {t('settings.country-packs.text', '{{fields}} {{value}}', {
+                  fields: String(p.fields),
+                  value: p.fields === 1 ? 'field' : 'fields',
+                })}
               </span>
             ),
           },
           {
             id: 'entities',
-            header: 'Entities',
+            header: t('settings.country-packs.entities', 'Entities'),
             cell: (p) => {
               const here = entitiesIn(p.country);
               return here.length === 0 ? (
-                <span className="text-sm text-fg-muted">No entity yet</span>
+                <span className="text-sm text-fg-muted">
+                  {t('settings.country-packs.no_entity_yet', 'No entity yet')}
+                </span>
               ) : (
                 <span className="flex flex-wrap gap-1.5">
                   {here.map((e) => (
@@ -102,7 +114,7 @@ export function CountryPacks({
             ? [
                 {
                   id: 'check',
-                  header: 'Check',
+                  header: t('settings.country-packs.check', 'Check'),
                   cardTrailing: true,
                   cell: (p: CountryPackRow) =>
                     p.check == null ? null : (
@@ -114,8 +126,10 @@ export function CountryPacks({
         ]}
       />
       <p className="mt-4 text-sm text-fg-muted">
-        Where no public check exists, the pack says so, and values are flagged for review instead of
-        refused.
+        {t(
+          'settings.country-packs.where_no_public_check_exists_the',
+          'Where no public check exists, the pack says so, and values are flagged for review instead of refused.',
+        )}
       </p>
     </PageSection>
   );

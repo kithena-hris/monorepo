@@ -14,6 +14,7 @@ import {
   floatLabel,
   floatRoot,
 } from './field-styles';
+import { t } from '../../lib/i18n';
 
 /**
  * Form field wiring.
@@ -164,12 +165,14 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
           *
         </span>
       ) : null}
-      {required ? <span className="sr-only">(required)</span> : null}
+      {required ? (
+        <span className="sr-only">{t('components.field.field.required', '(required)')}</span>
+      ) : null}
       {sensitive ? (
         <>
           {/* A space, so the accessible name reads "Bank account Sensitive". */}{' '}
           <Badge tone="sensitive" size="sm" className="ms-1">
-            Sensitive
+            {t('components.field.field.sensitive', 'Sensitive')}
           </Badge>
         </>
       ) : null}
@@ -177,7 +180,7 @@ export function FieldLabel({ className, children, ...props }: FieldLabelProps): 
         <>
           {' '}
           <Badge tone="attention" size="sm" className="ms-1">
-            Missing
+            {t('components.field.field.missing', 'Missing')}
           </Badge>
         </>
       ) : null}

@@ -33,6 +33,7 @@ import { useState, type JSX } from 'react';
 import type { Loadable } from '../load';
 import { Overview, OverviewSkeleton, type OverviewData } from '../overview/overview';
 import { amount, longSpan, monthName, shortDate, spanLabel } from '../words';
+import { t as tr } from '../i18n';
 
 /**
  * Describe it, get the best dates (T4, MT8, PRD §14.2): a sentence, what it
@@ -121,17 +122,23 @@ export function DescribeRequest({ load, onAsk, onNavigate }: DescribeProps): JSX
       >
         <DialogContent sheetOnTouch className="max-w-190">
           <DialogHeader className="flex flex-row flex-wrap items-center gap-3">
-            <DialogTitle className="flex-1">Request time off</DialogTitle>
+            <DialogTitle className="flex-1">
+              {tr('request.describe.request_time_off', 'Request time off')}
+            </DialogTitle>
             <SegmentedControl
               size="sm"
-              aria-label="How to ask"
+              aria-label={tr('request.describe.how_to_ask', 'How to ask')}
               value="describe"
               onValueChange={(value) => {
                 if (value === 'pick') onNavigate?.('/time-off/request');
               }}
             >
-              <SegmentedControlItem value="describe">Describe it</SegmentedControlItem>
-              <SegmentedControlItem value="pick">Pick dates</SegmentedControlItem>
+              <SegmentedControlItem value="describe">
+                {tr('request.describe.describe_it', 'Describe it')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="pick">
+                {tr('request.describe.pick_dates', 'Pick dates')}
+              </SegmentedControlItem>
             </SegmentedControl>
           </DialogHeader>
           {load.status === 'ready' ? (
@@ -140,11 +147,11 @@ export function DescribeRequest({ load, onAsk, onNavigate }: DescribeProps): JSX
             <DialogBody>
               <Alert
                 tone="danger"
-                title="Could not find dates"
+                title={tr('request.describe.could_not_find_dates', 'Could not find dates')}
                 action={
                   load.retry === undefined ? undefined : (
                     <Button size="sm" onClick={load.retry}>
-                      Try again
+                      {tr('request.describe.try_again', 'Try again')}
                     </Button>
                   )
                 }
@@ -154,7 +161,9 @@ export function DescribeRequest({ load, onAsk, onNavigate }: DescribeProps): JSX
             </DialogBody>
           ) : (
             <DialogBody className="flex flex-col gap-3" role="status">
-              <span className="sr-only">Finding dates</span>
+              <span className="sr-only">
+                {tr('request.describe.finding_dates', 'Finding dates')}
+              </span>
               <Skeleton className="h-20 rounded-lg" />
               <Skeleton className="h-8 rounded-full" />
               {[0, 1, 2].map((n) => (
@@ -198,13 +207,20 @@ function Described({
               'push',
             );
           }}
-          placeholder="Describe the time off you want"
+          placeholder={tr(
+            'request.describe.describe_the_time_off_you_want',
+            'Describe the time off you want',
+          )}
           disclaimer="Nothing is sent until you pick dates and send them."
           className="px-0 pt-0 pb-0"
         />
         {data.sentence === null ? null : (
           <ChipRow
-            label={<AssistantLabel>Understood as</AssistantLabel>}
+            label={
+              <AssistantLabel>
+                {tr('request.describe.understood_as', 'Understood as')}
+              </AssistantLabel>
+            }
             action={
               <Button
                 variant="ghost"
@@ -214,12 +230,21 @@ function Described({
                   setAdjusting((was) => !was);
                 }}
               >
-                {adjusting ? 'Done' : 'Change'}
+                {adjusting
+                  ? tr('request.describe.done', 'Done')
+                  : tr('request.describe.change', 'Change')}
               </Button>
             }
           >
-            <Chip field="Type">{u.leaveTypeName ?? 'Time off'}</Chip>
-            <Chip field="Length">{`About ${String(u.days)} ${u.days === 1 ? 'day' : 'days'}`}</Chip>
+            <Chip field="Type">
+              {u.leaveTypeName ?? tr('request.describe.time_off', 'Time off')}
+            </Chip>
+            <Chip field="Length">
+              {tr('request.describe.about', 'About {{days}} {{value}}', {
+                days: String(u.days),
+                value: u.days === 1 ? 'day' : 'days',
+              })}
+            </Chip>
             {u.month === null ? null : (
               <Chip
                 field="When"
@@ -237,7 +262,7 @@ function Described({
                   ask({ holiday: '0' });
                 }}
               >
-                Next to a holiday
+                {tr('request.describe.next_to_a_holiday', 'Next to a holiday')}
               </Chip>
             ) : null}
             {u.avoidShort ? (
@@ -247,12 +272,12 @@ function Described({
                   ask({ team: '0' });
                 }}
               >
-                Below team minimum
+                {tr('request.describe.below_team_minimum', 'Below team minimum')}
               </Chip>
             ) : null}
             {u.ai ? (
               <Badge tone="assistant" size="sm">
-                AI
+                {tr('request.describe.ai', 'AI')}
               </Badge>
             ) : null}
           </ChipRow>
@@ -260,7 +285,7 @@ function Described({
         {data.sentence === null || !adjusting ? null : (
           <div className="grid gap-3 @lg/describe:grid-cols-3">
             <Field>
-              <FieldLabel>Type</FieldLabel>
+              <FieldLabel>{tr('request.describe.type', 'Type')}</FieldLabel>
               <Select
                 value={u.leaveTypeKey ?? ''}
                 onValueChange={(type) => {
@@ -282,7 +307,7 @@ function Described({
               </Select>
             </Field>
             <Field>
-              <FieldLabel>Length</FieldLabel>
+              <FieldLabel>{tr('request.describe.length', 'Length')}</FieldLabel>
               <Select
                 value={String(u.days)}
                 onValueChange={(days) => {
@@ -299,14 +324,17 @@ function Described({
                     .toSorted((a, b) => a - b)
                     .map((n) => (
                       <SelectItem key={n} value={String(n)}>
-                        {`About ${String(n)} ${n === 1 ? 'day' : 'days'}`}
+                        {tr('request.describe.about_2', 'About {{n}} {{value}}', {
+                          n: String(n),
+                          value: n === 1 ? 'day' : 'days',
+                        })}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field>
-              <FieldLabel>When</FieldLabel>
+              <FieldLabel>{tr('request.describe.when', 'When')}</FieldLabel>
               <Select
                 value={u.month ?? 'none'}
                 onValueChange={(month) => {
@@ -319,17 +347,24 @@ function Described({
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
-                  <SelectItem value="none">The next three months</SelectItem>
+                  <SelectItem value="none">
+                    {tr('request.describe.the_next_three_months', 'The next three months')}
+                  </SelectItem>
                   {months.map((m) => (
                     <SelectItem key={m} value={m}>
-                      {`${monthName(`${m}-01`)} ${m.slice(0, 4)}`}
+                      {tr('request.describe.text', '{{monthName}} {{slice}}', {
+                        monthName: monthName(`${m}-01`),
+                        slice: m.slice(0, 4),
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Field>
             <Field orientation="horizontal">
-              <FieldLabel className="flex-1">Next to a holiday</FieldLabel>
+              <FieldLabel className="flex-1">
+                {tr('request.describe.next_to_a_holiday', 'Next to a holiday')}
+              </FieldLabel>
               <FieldControl>
                 <Switch
                   checked={u.nextToHoliday}
@@ -340,7 +375,9 @@ function Described({
               </FieldControl>
             </Field>
             <Field orientation="horizontal">
-              <FieldLabel className="flex-1">Not when the team is short</FieldLabel>
+              <FieldLabel className="flex-1">
+                {tr('request.describe.not_when_the_team_is_short', 'Not when the team is short')}
+              </FieldLabel>
               <FieldControl>
                 <Switch
                   checked={u.avoidShort}
@@ -354,11 +391,14 @@ function Described({
         )}
         {data.options.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            No dates fit that. Try another month or a different length.
+            {tr(
+              'request.describe.no_dates_fit_that_try_another',
+              'No dates fit that. Try another month or a different length.',
+            )}
           </p>
         ) : (
           <RadioGroup
-            aria-label="Dates to ask for"
+            aria-label={tr('request.describe.dates_to_ask_for', 'Dates to ask for')}
             value={choice}
             onValueChange={setChoice}
             className="flex flex-col gap-2"
@@ -373,12 +413,12 @@ function Described({
                   <span className="inline-flex gap-1.5">
                     {index === 0 ? (
                       <Badge tone="accent" size="sm">
-                        Best value
+                        {tr('request.describe.best_value', 'Best value')}
                       </Badge>
                     ) : null}
                     {o.line.ai ? (
                       <Badge tone="assistant" size="sm">
-                        AI
+                        {tr('request.describe.ai', 'AI')}
                       </Badge>
                     ) : null}
                   </span>
@@ -391,9 +431,16 @@ function Described({
         )}
         {picked?.leftAfter == null ? null : (
           <p className="text-sm text-fg-muted">
-            {`${u.leaveTypeName ?? 'Balance'} after ${spanLabel(picked.from, picked.to)}: ${amount(
-              picked.leftAfter,
-            )} days${picked.fits ? '' : ', below zero'}`}
+            {tr(
+              'request.describe.after_days',
+              '{{value}} after {{spanLabel}}: {{leftAfter}} days{{value2}}',
+              {
+                value: u.leaveTypeName ?? 'Balance',
+                spanLabel: spanLabel(picked.from, picked.to),
+                leftAfter: amount(picked.leftAfter),
+                value2: picked.fits ? '' : tr('request.describe.below_zero', ', below zero'),
+              },
+            )}
           </p>
         )}
       </DialogBody>
@@ -403,7 +450,9 @@ function Described({
             <a
               href={`/time-off/request?type=${u.leaveTypeKey}&from=${picked.from}&to=${picked.to}`}
             >
-              {`Request ${spanLabel(picked.from, picked.to)}`}
+              {tr('request.describe.request', 'Request {{spanLabel}}', {
+                spanLabel: spanLabel(picked.from, picked.to),
+              })}
             </a>
           </Button>
         )}
@@ -414,14 +463,25 @@ function Described({
 
 /** "Uses 4 · away 9 · 5 of 7 in every day", or the day the team falls short. */
 function impact(o: DateOption): string {
-  const cost = `Uses ${String(o.used)} · away ${String(o.away.days)}`;
+  const cost = tr('request.describe.uses_away', 'Uses {{used}} · away {{days}}', {
+    used: String(o.used),
+    days: String(o.away.days),
+  });
   const first = o.short[0];
   if (first !== undefined) {
-    return `${cost} · ${shortDate(first.date)}: ${String(first.in)} of ${String(first.of)} in, below minimum`;
+    return tr(
+      'request.describe.of_in_below_minimum',
+      '{{cost}} · {{date}}: {{in}} of {{of}} in, below minimum',
+      { cost, date: shortDate(first.date), in: String(first.in), of: String(first.of) },
+    );
   }
   return o.fewest === null
     ? cost
-    : `${cost} · ${String(o.fewest.in)} of ${String(o.fewest.of)} in every day`;
+    : tr('request.describe.of_in_every_day', '{{cost}} · {{in}} of {{of}} in every day', {
+        cost,
+        in: String(o.fewest.in),
+        of: String(o.fewest.of),
+      });
 }
 
 /** `2026-10` and the months after it. */

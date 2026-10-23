@@ -19,6 +19,7 @@ import { useState, useTransition, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { SettingsSkeleton, useSaved } from './shared';
+import { t as tr } from '../i18n';
 
 /**
  * Attendance rules (T33, TOF-081): how people clock in, the breaks and
@@ -68,14 +69,14 @@ export interface AttendanceSettingsProps {
   }) => Promise<Outcome>;
 }
 
-const TITLE = 'Attendance';
+const TITLE = tr('settings.attendance-settings.attendance', 'Attendance');
 
 const onOff = (on: boolean): JSX.Element =>
   on ? (
-    <Badge size="sm">On</Badge>
+    <Badge size="sm">{tr('settings.attendance-settings.on', 'On')}</Badge>
   ) : (
     <Badge size="sm" variant="outline">
-      Off
+      {tr('settings.attendance-settings.off', 'Off')}
     </Badge>
   );
 const DESCRIPTION = 'How people clock in, and what counts as a working day.';
@@ -123,35 +124,55 @@ function Ready({
       {form.refusal}
       <div className={columns}>
         <FormSections>
-          <FormSection title="Ways to clock in" description="Where a punch can come from.">
-            <List aria-label="Ways to clock in">
+          <FormSection
+            title={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
+            description={tr(
+              'settings.attendance-settings.where_a_punch_can_come_from',
+              'Where a punch can come from.',
+            )}
+          >
+            <List
+              aria-label={tr('settings.attendance-settings.ways_to_clock_in', 'Ways to clock in')}
+            >
               <ListItem
                 icon={<icons.system aria-hidden />}
-                description="Everyone"
+                description={tr('settings.attendance-settings.everyone', 'Everyone')}
                 trailing={onOff(rules.clockIn?.web ?? true)}
               >
-                Web, from the top bar
+                {tr('settings.attendance-settings.web_from_the_top_bar', 'Web, from the top bar')}
               </ListItem>
               <ListItem
                 icon={<icons.phone aria-hidden />}
-                description="Everyone"
+                description={tr('settings.attendance-settings.everyone', 'Everyone')}
                 trailing={onOff(rules.clockIn?.mobile ?? true)}
               >
-                Mobile app
+                {tr('settings.attendance-settings.mobile_app', 'Mobile app')}
               </ListItem>
               <ListItem
                 icon={<icons.location aria-hidden />}
-                description="Location is only checked at the moment of a punch, and never kept."
+                description={tr(
+                  'settings.attendance-settings.location_is_only_checked_at_the',
+                  'Location is only checked at the moment of a punch, and never kept.',
+                )}
                 trailing={onOff(rules.clockIn?.area ?? false)}
               >
-                Only inside the office area
+                {tr(
+                  'settings.attendance-settings.only_inside_the_office_area',
+                  'Only inside the office area',
+                )}
               </ListItem>
             </List>
           </FormSection>
-          <FormSection title="Breaks and limits" description="What the working-time law asks for.">
+          <FormSection
+            title={tr('settings.attendance-settings.breaks_and_limits', 'Breaks and limits')}
+            description={tr(
+              'settings.attendance-settings.what_the_working_time_law_asks',
+              'What the working-time law asks for.',
+            )}
+          >
             <div className="grid grid-cols-1 gap-3 @min-[28rem]/attendance:grid-cols-2">
               <NumberField
-                label="Break after (hours)"
+                label={tr('settings.attendance-settings.break_after_hours', 'Break after (hours)')}
                 value={hours(rules.breakAfterMinutes)}
                 min={0}
                 max={24}
@@ -161,7 +182,10 @@ function Ready({
                 }}
               />
               <NumberField
-                label="Break length (minutes)"
+                label={tr(
+                  'settings.attendance-settings.break_length_minutes',
+                  'Break length (minutes)',
+                )}
                 value={rules.breakMinutes}
                 min={0}
                 max={240}
@@ -171,7 +195,10 @@ function Ready({
                 }}
               />
               <NumberField
-                label="Rest between days (hours)"
+                label={tr(
+                  'settings.attendance-settings.rest_between_days_hours',
+                  'Rest between days (hours)',
+                )}
                 value={hours(rules.restMinutes)}
                 min={0}
                 max={48}
@@ -181,8 +208,11 @@ function Ready({
                 }}
               />
               <NumberField
-                label="Weekly maximum (hours)"
-                hint="Overtime included"
+                label={tr(
+                  'settings.attendance-settings.weekly_maximum_hours',
+                  'Weekly maximum (hours)',
+                )}
+                hint={tr('settings.attendance-settings.overtime_included', 'Overtime included')}
                 value={hours(rules.weeklyMaxMinutes)}
                 min={0}
                 max={168}
@@ -193,9 +223,15 @@ function Ready({
               />
             </div>
           </FormSection>
-          <FormSection title="Overtime becomes" description="Once a manager approves it.">
+          <FormSection
+            title={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
+            description={tr(
+              'settings.attendance-settings.once_a_manager_approves_it',
+              'Once a manager approves it.',
+            )}
+          >
             <SegmentedControl
-              aria-label="Overtime becomes"
+              aria-label={tr('settings.attendance-settings.overtime_becomes', 'Overtime becomes')}
               value={rules.overtime.becomes}
               onValueChange={(becomes) => {
                 if (becomes !== '')
@@ -207,13 +243,22 @@ function Ready({
                   });
               }}
             >
-              <SegmentedControlItem value="comp">Comp time</SegmentedControlItem>
-              <SegmentedControlItem value="paid">Paid</SegmentedControlItem>
-              <SegmentedControlItem value="choose">Person chooses</SegmentedControlItem>
+              <SegmentedControlItem value="comp">
+                {tr('settings.attendance-settings.comp_time', 'Comp time')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="paid">
+                {tr('settings.attendance-settings.paid', 'Paid')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="choose">
+                {tr('settings.attendance-settings.person_chooses', 'Person chooses')}
+              </SegmentedControlItem>
             </SegmentedControl>
             {paid ? (
               <NumberField
-                label="Paid at (× the hourly rate)"
+                label={tr(
+                  'settings.attendance-settings.paid_at_the_hourly_rate',
+                  'Paid at (× the hourly rate)',
+                )}
                 value={Number(rules.overtime.multiplier)}
                 min={1}
                 max={5}
@@ -227,18 +272,32 @@ function Ready({
             <p className="text-sm text-fg-muted">
               {
                 {
-                  comp: 'Banked hour for hour as comp time.',
-                  paid: `Sent to Payroll at ${rules.overtime.multiplier}×.`,
-                  choose: `Comp time hour for hour, or paid at ${rules.overtime.multiplier}× through Payroll, as the person chooses.`,
+                  comp: tr(
+                    'settings.attendance-settings.banked_hour_for_hour_as_comp',
+                    'Banked hour for hour as comp time.',
+                  ),
+                  paid: tr(
+                    'settings.attendance-settings.sent_to_payroll_at',
+                    'Sent to Payroll at {{multiplier}}×.',
+                    { multiplier: rules.overtime.multiplier },
+                  ),
+                  choose: tr(
+                    'settings.attendance-settings.comp_time_hour_for_hour_or',
+                    'Comp time hour for hour, or paid at {{multiplier}}× through Payroll, as the person chooses.',
+                    { multiplier: rules.overtime.multiplier },
+                  ),
                 }[rules.overtime.becomes]
               }
             </p>
           </FormSection>
         </FormSections>
         <div className="flex min-w-0 flex-col gap-6">
-          <PageSection title="Working week" surface>
+          <PageSection
+            title={tr('settings.attendance-settings.working_week', 'Working week')}
+            surface
+          >
             {onSaveWeek === undefined || !editableWeek(data.defaultSchedule) ? (
-              <List aria-label="Schedules">
+              <List aria-label={tr('settings.attendance-settings.schedules', 'Schedules')}>
                 <ListItem
                   icon={<icons.scheduled aria-hidden />}
                   description={scheduleLine(data.defaultSchedule)}
@@ -250,13 +309,24 @@ function Ready({
               <WeekEditor schedule={data.defaultSchedule} onSave={onSaveWeek} />
             )}
             <p className="mt-3 text-sm text-fg-muted">
-              Anyone without a schedule of their own works this week. Interviews and meetings are
-              only offered inside it.
+              {tr(
+                'settings.attendance-settings.anyone_without_a_schedule_of_their',
+                'Anyone without a schedule of their own works this week. Interviews and meetings are only offered inside it.',
+              )}
             </p>
           </PageSection>
-          <Alert tone="info" icon={<icons.locked aria-hidden />} title="What Kithena never records">
-            No location trail, no screenshots, no keyboard or app activity. Only the punches people
-            make.
+          <Alert
+            tone="info"
+            icon={<icons.locked aria-hidden />}
+            title={tr(
+              'settings.attendance-settings.what_kithena_never_records',
+              'What Kithena never records',
+            )}
+          >
+            {tr(
+              'settings.attendance-settings.no_location_trail_no_screenshots_no',
+              'No location trail, no screenshots, no keyboard or app activity. Only the punches people make.',
+            )}
           </Alert>
         </div>
       </div>
@@ -265,8 +335,24 @@ function Ready({
   );
 }
 
-const DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const DAY_NAME = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY = [
+  tr('settings.attendance-settings.mon', 'Mon'),
+  tr('settings.attendance-settings.tue', 'Tue'),
+  tr('settings.attendance-settings.wed', 'Wed'),
+  tr('settings.attendance-settings.thu', 'Thu'),
+  tr('settings.attendance-settings.fri', 'Fri'),
+  tr('settings.attendance-settings.sat', 'Sat'),
+  tr('settings.attendance-settings.sun', 'Sun'),
+];
+const DAY_NAME = [
+  tr('settings.attendance-settings.monday', 'Monday'),
+  tr('settings.attendance-settings.tuesday', 'Tuesday'),
+  tr('settings.attendance-settings.wednesday', 'Wednesday'),
+  tr('settings.attendance-settings.thursday', 'Thursday'),
+  tr('settings.attendance-settings.friday', 'Friday'),
+  tr('settings.attendance-settings.saturday', 'Saturday'),
+  tr('settings.attendance-settings.sunday', 'Sunday'),
+];
 const toMinutes = (hhmm: string): number => {
   const [h = 0, m = 0] = hhmm.split(':').map(Number);
   return h * 60 + m;
@@ -303,20 +389,39 @@ function WeekEditor({
   return (
     <div className="flex flex-col gap-3">
       {said === null ? null : said.ok ? (
-        <Alert tone="success" title="The working week is saved" />
+        <Alert
+          tone="success"
+          title={tr(
+            'settings.attendance-settings.the_working_week_is_saved',
+            'The working week is saved',
+          )}
+        />
       ) : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={tr(
+            'settings.attendance-settings.that_did_not_go_through',
+            'That did not go through',
+          )}
+        >
           {said.message}
         </Alert>
       )}
-      <ul className="flex flex-col gap-2" aria-label="Working days">
+      <ul
+        className="flex flex-col gap-2"
+        aria-label={tr('settings.attendance-settings.working_days', 'Working days')}
+      >
         {DAY_NAME.map((name, i) => {
           const day = String(i + 1);
           const w = week[day];
           return (
             <li key={day} className="flex flex-wrap items-center gap-3">
               <Switch
-                aria-label={`${name} is a working day`}
+                aria-label={tr(
+                  'settings.attendance-settings.is_a_working_day',
+                  '{{name}} is a working day',
+                  { name },
+                )}
                 checked={w !== undefined}
                 onCheckedChange={(on) => {
                   put(day, on ? (week['1'] ?? standard) : undefined);
@@ -324,11 +429,13 @@ function WeekEditor({
               />
               <span className="w-24 text-sm font-medium">{name}</span>
               {w === undefined ? (
-                <span className="text-sm text-fg-muted">Not worked</span>
+                <span className="text-sm text-fg-muted">
+                  {tr('settings.attendance-settings.not_worked', 'Not worked')}
+                </span>
               ) : (
                 <>
                   <TimePicker
-                    label={`${name} starts`}
+                    label={tr('settings.attendance-settings.starts', '{{name}} starts', { name })}
                     size="sm"
                     step={15}
                     value={clock(w.start)}
@@ -340,7 +447,7 @@ function WeekEditor({
                     –
                   </span>
                   <TimePicker
-                    label={`${name} ends`}
+                    label={tr('settings.attendance-settings.ends', '{{name}} ends', { name })}
                     size="sm"
                     step={15}
                     value={clock(w.end)}
@@ -355,7 +462,12 @@ function WeekEditor({
         })}
       </ul>
       {wrong ? (
-        <p className="text-sm text-danger-fg">Each working day ends after it starts.</p>
+        <p className="text-sm text-danger-fg">
+          {tr(
+            'settings.attendance-settings.each_working_day_ends_after_it',
+            'Each working day ends after it starts.',
+          )}
+        </p>
       ) : null}
       <div>
         <Button
@@ -368,7 +480,7 @@ function WeekEditor({
             });
           }}
         >
-          Save the working week
+          {tr('settings.attendance-settings.save_the_working_week', 'Save the working week')}
         </Button>
       </div>
     </div>
@@ -392,7 +504,12 @@ function scheduleLine(schedule: AttendanceSettingsData['defaultSchedule']): stri
     ? `${DAY[(nums[0] ?? 1) - 1] ?? ''}–${DAY[(nums.at(-1) ?? 1) - 1] ?? ''}`
     : nums.map((n) => DAY[n - 1]).join(', ');
   const weekly = days.reduce((t, [, w]) => t + w.end - w.start - w.breakMinutes, 0) / 60;
-  return `${span} · ${clock(first.start)}–${clock(first.end)} · ${String(weekly)}h`;
+  return tr('settings.attendance-settings.h', '{{span}} · {{clock}}–{{clock2}} · {{weekly}}h', {
+    span,
+    clock: clock(first.start),
+    clock2: clock(first.end),
+    weekly: String(weekly),
+  });
 }
 
 /** The page while it loads: the three sections, and the schedules and the promise beside them. */

@@ -4,6 +4,7 @@ import { useRef, useState, type JSX, type PointerEvent } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * A signature drawn with a pointer: a mouse, a finger, a pen.
@@ -51,14 +52,21 @@ export function SignaturePad({
     if (box === undefined || box.width === 0) return '0 0';
     const x = ((event.clientX - box.left) / box.width) * WIDTH;
     const y = ((event.clientY - box.top) / box.height) * HEIGHT;
-    return `${x.toFixed(1)} ${y.toFixed(1)}`;
+    return t('components.signature-pad.signature-pad.text', '{{value}} {{value2}}', {
+      value: x.toFixed(1),
+      value2: y.toFixed(1),
+    });
   };
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <svg
         ref={ref}
         role="img"
-        aria-label={value === '' ? label : `${label}: drawn`}
+        aria-label={
+          value === ''
+            ? label
+            : t('components.signature-pad.signature-pad.drawn', '{{label}}: drawn', { label })
+        }
         viewBox={`0 0 ${String(WIDTH)} ${String(HEIGHT)}`}
         className={cn(
           'h-28 w-full touch-none rounded-lg bg-surface-sunken text-fg',
@@ -68,11 +76,21 @@ export function SignaturePad({
           if (disabled) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           setDrawing(true);
-          onValueChange(`${value} M ${point(event)}`.trim());
+          onValueChange(
+            t('components.signature-pad.signature-pad.m', '{{value}} M {{point}}', {
+              value,
+              point: point(event),
+            }).trim(),
+          );
         }}
         onPointerMove={(event) => {
           if (!drawing) return;
-          onValueChange(`${value} L ${point(event)}`);
+          onValueChange(
+            t('components.signature-pad.signature-pad.l', '{{value}} L {{point}}', {
+              value,
+              point: point(event),
+            }),
+          );
         }}
         onPointerUp={() => {
           setDrawing(false);

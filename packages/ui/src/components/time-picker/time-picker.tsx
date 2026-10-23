@@ -8,6 +8,7 @@ import { cn } from '../../lib/cn';
 import { useCoarsePointer } from '../../lib/use-media-query';
 import { fieldShell, fieldShellHas, floatShell, floatValue } from '../field/field-styles';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
+import { t } from '../../lib/i18n';
 
 /**
  * A time of day, stored as 24-hour `HH:MM` whatever the locale shows.
@@ -310,7 +311,11 @@ export function TimePicker({
               // Out of the tab order: the arrow keys already open the list
               // from the field, and one stop per field is the contract.
               tabIndex={-1}
-              aria-label={`Show times for ${label}`}
+              aria-label={t(
+                'components.time-picker.time-picker.show_times_for',
+                'Show times for {{label}}',
+                { label },
+              )}
               disabled={disabled}
               onMouseDown={(event) => {
                 // Keeps focus, and the draft, in the input.

@@ -42,6 +42,7 @@ import { useState, type JSX } from 'react';
 
 import { useHeld } from '../../held';
 import type { Outcome } from '../../load';
+import { t } from '../../i18n';
 
 /** One SCIM path and the attribute it keeps upstream (PEO-073). */
 export interface MappingEntry {
@@ -102,44 +103,72 @@ const pathLabel = (path: string, extension: string) =>
  */
 export function Provisioning(props: ProvisioningProps): JSX.Element {
   const { scim } = props;
-  const [connecting, setConnecting] = useHeld(
-    props.connecting,
-    props.onConnectingChange,
-    false,
-  );
+  const [connecting, setConnecting] = useHeld(props.connecting, props.onConnectingChange, false);
   const [token, setToken] = useState<{ system: string; value: string } | null>(null);
 
   return (
     <PageSection
-      title="Provisioning from your identity provider (SCIM)"
-      description="Add and remove people automatically from Okta, Microsoft Entra or another system. Mapped fields become read-only here."
+      title={t(
+        'settings.integrations.provisioning.provisioning_from_your_identity_provider_scim',
+        'Provisioning from your identity provider (SCIM)',
+      )}
+      description={t(
+        'settings.integrations.provisioning.add_and_remove_people_automatically_from',
+        'Add and remove people automatically from Okta, Microsoft Entra or another system. Mapped fields become read-only here.',
+      )}
       actions={
         <Button
           onClick={() => {
             setConnecting(true);
           }}
         >
-          Connect a system
+          {t('settings.integrations.provisioning.connect_a_system', 'Connect a system')}
         </Button>
       }
     >
       <Stack gap={4}>
-        {scim.url === '' ? null : <CopyField value={scim.url} label="Copy the SCIM base URL" />}
+        {scim.url === '' ? null : (
+          <CopyField
+            value={scim.url}
+            label={t(
+              'settings.integrations.provisioning.copy_the_scim_base_url',
+              'Copy the SCIM base URL',
+            )}
+          />
+        )}
         {token === null ? null : (
-          <Alert tone="warning" title="Copy the token now">
+          <Alert
+            tone="warning"
+            title={t('settings.integrations.provisioning.copy_the_token_now', 'Copy the token now')}
+          >
             <Stack gap={2}>
               <p>
-                This is the only time the token for {token.system} is shown. Paste it into{' '}
-                {token.system} as the bearer token. If it is lost, rotate it.
+                {t(
+                  'settings.integrations.provisioning.this_is_the_only_time_the',
+                  'This is the only time the token for {{system}} is shown. Paste it into {{system2}} as the bearer token. If it is lost, rotate it.',
+                  { system: token.system, system2: token.system },
+                )}
               </p>
-              <CopyField value={token.value} label="Copy the SCIM token" />
+              <CopyField
+                value={token.value}
+                label={t(
+                  'settings.integrations.provisioning.copy_the_scim_token',
+                  'Copy the SCIM token',
+                )}
+              />
             </Stack>
           </Alert>
         )}
         {scim.connections.length === 0 ? (
           <EmptyState
-            title="No systems connected"
-            description="Connect Okta, Entra or your HRIS to provision people into People."
+            title={t(
+              'settings.integrations.provisioning.no_systems_connected',
+              'No systems connected',
+            )}
+            description={t(
+              'settings.integrations.provisioning.connect_okta_entra_or_your_hris',
+              'Connect Okta, Entra or your HRIS to provision people into People.',
+            )}
           />
         ) : (
           scim.connections.map((connection) => (
@@ -215,31 +244,59 @@ function ConnectionCard({
       aria-label={connection.system}
       title={connection.system}
       description={[
-        `${String(connection.linked)} people provisioned`,
-        `connected ${connection.createdAt.slice(0, 10)}`,
+        t(
+          'settings.integrations.provisioning.people_provisioned',
+          '{{linked}} people provisioned',
+          { linked: String(connection.linked) },
+        ),
+        t('settings.integrations.provisioning.connected', 'connected {{slice}}', {
+          slice: connection.createdAt.slice(0, 10),
+        }),
         connection.tokenRotatedAt === null
           ? null
-          : `token rotated ${connection.tokenRotatedAt.slice(0, 10)}`,
+          : t('settings.integrations.provisioning.token_rotated', 'token rotated {{slice}}', {
+              slice: connection.tokenRotatedAt.slice(0, 10),
+            }),
       ]
         .filter((x) => x !== null)
         .join(' · ')}
       actions={
-        <Badge tone={live ? 'success' : 'neutral'}>{live ? 'Connected' : 'Disconnected'}</Badge>
+        <Badge tone={live ? 'success' : 'neutral'}>
+          {live
+            ? t('settings.integrations.provisioning.connected_2', 'Connected')
+            : t('settings.integrations.provisioning.disconnected', 'Disconnected')}
+        </Badge>
       }
     >
       <Stack gap={4}>
         {mapping.length === 0 ? (
           <p className="text-fg-muted text-sm">
-            Nothing is mapped yet: {connection.system} can create people, and keeps none of their
-            fields.
+            {t(
+              'settings.integrations.provisioning.nothing_is_mapped_yet_can_create',
+              'Nothing is mapped yet: {{system}} can create people, and keeps none of their fields.',
+              { system: connection.system },
+            )}
           </p>
         ) : (
-          <Table aria-label={`Fields kept in ${connection.system}`}>
+          <Table
+            aria-label={t(
+              'settings.integrations.provisioning.fields_kept_in',
+              'Fields kept in {{system}}',
+              { system: connection.system },
+            )}
+          >
             <TableHeader>
               <TableRow>
-                <TableHead>SCIM attribute</TableHead>
-                <TableHead>Field, kept in {connection.system}</TableHead>
-                {live ? <TableHead>Change</TableHead> : null}
+                <TableHead>
+                  {t('settings.integrations.provisioning.scim_attribute', 'SCIM attribute')}
+                </TableHead>
+                <TableHead>
+                  {t('settings.integrations.provisioning.field_kept_in', 'Field, kept in')}{' '}
+                  {connection.system}
+                </TableHead>
+                {live ? (
+                  <TableHead>{t('settings.integrations.provisioning.change', 'Change')}</TableHead>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -256,12 +313,16 @@ function ConnectionCard({
                       <Button
                         size="sm"
                         variant="ghost"
-                        aria-label={`Stop keeping ${labelOf.get(m.key) ?? m.key} in ${connection.system}`}
+                        aria-label={t(
+                          'settings.integrations.provisioning.stop_keeping_in',
+                          'Stop keeping {{value}} in {{system}}',
+                          { value: labelOf.get(m.key) ?? m.key, system: connection.system },
+                        )}
                         onClick={() => {
                           setMapping(mapping.filter((x) => x.path !== m.path));
                         }}
                       >
-                        Remove
+                        {t('settings.integrations.provisioning.remove', 'Remove')}
                       </Button>
                     </TableCell>
                   ) : null}
@@ -273,7 +334,9 @@ function ConnectionCard({
         {live ? (
           <div className="flex flex-wrap items-end gap-3">
             <Field>
-              <FieldLabel>SCIM attribute</FieldLabel>
+              <FieldLabel>
+                {t('settings.integrations.provisioning.scim_attribute', 'SCIM attribute')}
+              </FieldLabel>
               <Select
                 value={path}
                 onValueChange={(value) => {
@@ -286,7 +349,12 @@ function ConnectionCard({
               >
                 <FieldControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose an attribute" />
+                    <SelectValue
+                      placeholder={t(
+                        'settings.integrations.provisioning.choose_an_attribute',
+                        'Choose an attribute',
+                      )}
+                    />
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
@@ -299,11 +367,16 @@ function ConnectionCard({
               </Select>
             </Field>
             <Field disabled={extensionKey !== null}>
-              <FieldLabel>Field</FieldLabel>
+              <FieldLabel>{t('settings.integrations.provisioning.field', 'Field')}</FieldLabel>
               <Select value={key} disabled={extensionKey !== null} onValueChange={setKey}>
                 <FieldControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a field" />
+                    <SelectValue
+                      placeholder={t(
+                        'settings.integrations.provisioning.choose_a_field',
+                        'Choose a field',
+                      )}
+                    />
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
@@ -325,18 +398,25 @@ function ConnectionCard({
                 setKey('');
               }}
             >
-              Add to mapping
+              {t('settings.integrations.provisioning.add_to_mapping', 'Add to mapping')}
             </Button>
           </div>
         ) : null}
         {changed ? (
           <Alert tone="info">
-            Saving makes every mapped field read-only in People for the people {connection.system}{' '}
-            provisions. HR, managers and employees change them in {connection.system}.
+            {t(
+              'settings.integrations.provisioning.saving_makes_every_mapped_field_read',
+              'Saving makes every mapped field read-only in People for the people {{system}} provisions. HR, managers and employees change them in',
+              { system: connection.system },
+            )}{' '}
+            {connection.system}.
           </Alert>
         ) : null}
         {refused === null ? null : (
-          <Alert tone="danger" title="Not saved">
+          <Alert
+            tone="danger"
+            title={t('settings.integrations.provisioning.not_saved', 'Not saved')}
+          >
             {refused}
           </Alert>
         )}
@@ -346,12 +426,12 @@ function ConnectionCard({
               variant="primary"
               disabled={!changed}
               loading={busy}
-              loadingLabel="Saving"
+              loadingLabel={t('settings.integrations.provisioning.saving', 'Saving')}
               onClick={() => {
                 void attempt(() => onSetMapping(connection.id, mapping));
               }}
             >
-              Save mapping
+              {t('settings.integrations.provisioning.save_mapping', 'Save mapping')}
             </Button>
             <Button
               disabled={busy}
@@ -359,24 +439,35 @@ function ConnectionCard({
                 void attempt(onRotate);
               }}
             >
-              Rotate token
+              {t('settings.integrations.provisioning.rotate_token', 'Rotate token')}
             </Button>
             {/* Asked first: a disconnected system cannot be connected again with its old token. */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="danger-soft" disabled={busy} className="ms-auto">
-                  Disconnect
+                  {t('settings.integrations.provisioning.disconnect', 'Disconnect')}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogTitle>{`Disconnect ${connection.system}?`}</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t('settings.integrations.provisioning.disconnect_2', 'Disconnect {{system}}?', {
+                    system: connection.system,
+                  })}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Its token stops working, and it no longer adds or removes people here. To
-                  provision from it again, connect it as a new system.
+                  {t(
+                    'settings.integrations.provisioning.its_token_stops_working_and_it',
+                    'Its token stops working, and it no longer adds or removes people here. To provision from it again, connect it as a new system.',
+                  )}
                 </AlertDialogDescription>
                 <AlertDialogFooter>
                   <AlertDialogCancel asChild>
-                    <Button>Keep it connected</Button>
+                    <Button>
+                      {t(
+                        'settings.integrations.provisioning.keep_it_connected',
+                        'Keep it connected',
+                      )}
+                    </Button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
                     <Button
@@ -385,7 +476,7 @@ function ConnectionCard({
                         void attempt(() => onDisconnect(connection.id));
                       }}
                     >
-                      Disconnect
+                      {t('settings.integrations.provisioning.disconnect', 'Disconnect')}
                     </Button>
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -415,29 +506,42 @@ function Connect({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Connect a system</DialogTitle>
+          <DialogTitle>
+            {t('settings.integrations.provisioning.connect_a_system', 'Connect a system')}
+          </DialogTitle>
           <DialogDescription>
-            Paste the address and token into the tool’s SCIM settings. The token is shown once.
+            {t(
+              'settings.integrations.provisioning.paste_the_address_and_token_into',
+              'Paste the address and token into the tool’s SCIM settings. The token is shown once.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <Field required>
-              <FieldLabel>System</FieldLabel>
+              <FieldLabel>{t('settings.integrations.provisioning.system', 'System')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={system}
                   maxLength={80}
-                  placeholder="Okta"
+                  placeholder={t('settings.integrations.provisioning.okta', 'Okta')}
                   onChange={(e) => {
                     setSystem(e.target.value);
                   }}
                 />
               </FieldControl>
-              <FieldDescription>For example Okta, Microsoft Entra or Workday.</FieldDescription>
+              <FieldDescription>
+                {t(
+                  'settings.integrations.provisioning.for_example_okta_microsoft_entra_or',
+                  'For example Okta, Microsoft Entra or Workday.',
+                )}
+              </FieldDescription>
             </Field>
             {refused === null ? null : (
-              <Alert tone="danger" title="Not connected">
+              <Alert
+                tone="danger"
+                title={t('settings.integrations.provisioning.not_connected', 'Not connected')}
+              >
                 {refused}
               </Alert>
             )}
@@ -449,13 +553,13 @@ function Connect({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('settings.integrations.provisioning.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
             disabled={system.trim() === ''}
             loading={busy}
-            loadingLabel="Connecting"
+            loadingLabel={t('settings.integrations.provisioning.connecting', 'Connecting')}
             onClick={() => {
               void (async () => {
                 setBusy(true);
@@ -469,7 +573,7 @@ function Connect({
               })();
             }}
           >
-            Connect
+            {t('settings.integrations.provisioning.connect', 'Connect')}
           </Button>
         </DialogFooter>
       </DialogContent>

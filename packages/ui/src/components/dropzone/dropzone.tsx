@@ -4,6 +4,7 @@ import { useRef, useState, type DragEvent, type JSX, type ReactNode } from 'reac
 import { Upload } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A surface that accepts a dropped file.
@@ -213,7 +214,13 @@ export function Dropzone({
                   rejecting ? 'text-danger-fg' : 'text-fg-muted',
                 )}
               >
-                {rejecting ? rejectMessage : (hint ?? 'Drop a file here, or click to browse')}
+                {rejecting
+                  ? rejectMessage
+                  : (hint ??
+                    t(
+                      'components.dropzone.dropzone.drop_a_file_here_or_click',
+                      'Drop a file here, or click to browse',
+                    ))}
               </span>
             </span>
           </>
@@ -242,7 +249,11 @@ export function Dropzone({
       {/* Announced rather than only coloured. A border turning red is not an
           error message. */}
       <p aria-live="polite" className="sr-only">
-        {over ? (rejecting ? rejectMessage : 'Release to drop the file') : ''}
+        {over
+          ? rejecting
+            ? rejectMessage
+            : t('components.dropzone.dropzone.release_to_drop_the_file', 'Release to drop the file')
+          : ''}
       </p>
     </div>
   );

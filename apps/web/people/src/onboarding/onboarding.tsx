@@ -6,6 +6,7 @@ import { FieldFiles, type UploadOutcome } from '../record/files';
 import { seenBy, type RecordSection, type Values } from '../record/model';
 import { ReviewNotices, type IdentifierReview } from '../record/review-notices';
 import { SectionForm } from '../record/section-form';
+import { t } from '../i18n';
 
 export interface OnboardingSection extends RecordSection {
   /** Voluntary is its own word: diversity questions are never "optional homework". */
@@ -34,9 +35,9 @@ export interface OnboardingProps {
 }
 
 const ASK = {
-  required: { tone: 'warning', text: 'Required' },
-  optional: { tone: 'neutral', text: 'Optional' },
-  voluntary: { tone: 'info', text: 'Voluntary' },
+  required: { tone: 'warning', text: t('onboarding.onboarding.required', 'Required') },
+  optional: { tone: 'neutral', text: t('onboarding.onboarding.optional', 'Optional') },
+  voluntary: { tone: 'info', text: t('onboarding.onboarding.voluntary', 'Voluntary') },
 } as const;
 
 /**
@@ -76,10 +77,17 @@ function Sections({
   if (state.sections.length === 0) {
     return (
       <Stack gap={6}>
-        <PageHeader title={`Welcome, ${state.firstName}`} />
+        <PageHeader
+          title={t('onboarding.onboarding.welcome', 'Welcome, {{firstName}}', {
+            firstName: state.firstName,
+          })}
+        />
         <EmptyState
-          title="Nothing to fill in"
-          description="Your company has not asked for anything during onboarding."
+          title={t('onboarding.onboarding.nothing_to_fill_in', 'Nothing to fill in')}
+          description={t(
+            'onboarding.onboarding.your_company_has_not_asked_for',
+            'Your company has not asked for anything during onboarding.',
+          )}
         />
       </Stack>
     );
@@ -100,19 +108,27 @@ function Sections({
   return (
     <Stack gap={6}>
       <PageHeader
-        title={`Welcome, ${state.firstName}`}
+        title={t('onboarding.onboarding.welcome', 'Welcome, {{firstName}}', {
+          firstName: state.firstName,
+        })}
         description={
           done === total
-            ? 'All done. You can change any of this later from your profile.'
+            ? t(
+                'onboarding.onboarding.all_done_you_can_change_any',
+                'All done. You can change any of this later from your profile.',
+              )
             : `${String(done)} of ${String(total)} sections done. You can stop any time; nothing you have saved is lost.`
         }
       />
       <Progress
         value={done}
         max={total}
-        label="Sections done"
+        label={t('onboarding.onboarding.sections_done', 'Sections done')}
         showValue
-        valueLabel={`${String(done)} of ${String(total)}`}
+        valueLabel={t('onboarding.onboarding.of', '{{done}} of {{total}}', {
+          done: String(done),
+          total: String(total),
+        })}
         className="max-w-105 touch:max-w-none"
       />
       <ReviewNotices reviews={state.reviews} />
@@ -124,13 +140,15 @@ function Sections({
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[18.75rem_minmax(0,1fr)] @4xl/page:items-start">
         <Card padded className="touch:hidden">
           <Stepper
-            label="Onboarding sections"
+            label={t('onboarding.onboarding.onboarding_sections', 'Onboarding sections')}
             orientation="vertical"
             current={section === null ? total : index}
             steps={state.sections.map((s) => ({
               id: s.key,
               label: s.label,
-              description: saved.has(s.key) ? 'Saved' : ASK[s.ask].text,
+              description: saved.has(s.key)
+                ? t('onboarding.onboarding.saved', 'Saved')
+                : ASK[s.ask].text,
               status: saved.has(s.key) ? 'complete' : s.key === open ? 'current' : 'upcoming',
             }))}
             onStepChange={(_, step) => {
@@ -141,8 +159,11 @@ function Sections({
         {section === null ? (
           <Card padded>
             <EmptyState
-              title="All done"
-              description="Everything is saved. Change any of it later from your profile."
+              title={t('onboarding.onboarding.all_done', 'All done')}
+              description={t(
+                'onboarding.onboarding.everything_is_saved_change_any_of',
+                'Everything is saved. Change any of it later from your profile.',
+              )}
             />
           </Card>
         ) : (
@@ -151,7 +172,7 @@ function Sections({
               <h2 className="font-display text-lg font-bold">{section.label}</h2>
               {saved.has(section.key) ? (
                 <Badge tone="success" size="sm">
-                  Saved
+                  {t('onboarding.onboarding.saved', 'Saved')}
                 </Badge>
               ) : (
                 <Badge tone={ASK[section.ask].tone} size="sm">
@@ -165,7 +186,11 @@ function Sections({
               section={section}
               values={values}
               columns={2}
-              submitLabel={nextOf(section.key) === undefined ? 'Save' : 'Save and continue'}
+              submitLabel={
+                nextOf(section.key) === undefined
+                  ? t('onboarding.onboarding.save', 'Save')
+                  : t('onboarding.onboarding.save_and_continue', 'Save and continue')
+              }
               {...(onCheck === undefined ? {} : { onCheck })}
               footer={
                 section.ask === 'required' || nextOf(section.key) === undefined ? undefined : (
@@ -175,7 +200,7 @@ function Sections({
                       setOpen(nextOf(section.key)?.key ?? '');
                     }}
                   >
-                    Do this later
+                    {t('onboarding.onboarding.do_this_later', 'Do this later')}
                   </Button>
                 )
               }

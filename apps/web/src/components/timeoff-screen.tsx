@@ -17,6 +17,7 @@ import type { areaFrame } from '../lib/shell-data';
 import { noteInAddress, withQuery, type HistoryMode } from '../lib/url-state';
 import { useShellData } from './app-shell';
 import { RemoteScreen, type RemoteRoute } from './remote-screen';
+import { t } from '../lib/t';
 
 /**
  * A Time Off screen's props, from what the server fetched and the actions
@@ -172,7 +173,7 @@ export function TimeOffScreen({ route, load, frame }: TimeOffScreenProps): JSX.E
           ...(documents
             ? {
                 notes: {
-                  label: 'From Documents',
+                  label: t('components.timeoff-screen.from_documents', 'From Documents'),
                   load: notesToAttach,
                   onAttach: attachNoteFromDocuments,
                   onUpload: attachNewNote,

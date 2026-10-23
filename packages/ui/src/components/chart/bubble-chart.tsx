@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { ChartGrid, ChartMark, seriesTone, toneVar, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface BubblePoint {
   /** Printed on the bubble, or beside it when the bubble is too small. */
@@ -100,7 +101,19 @@ export function BubbleChart({
               const size = diameter(point.size);
               const tone = toneVar[point.tone ?? seriesTone(index)];
               const inside = size >= 44;
-              const readout = `${point.label}: ${xLabel} ${formatX(point.x)}, ${yLabel} ${formatY(point.y)}, ${sizeLabel} ${formatSize(point.size)}`;
+              const readout = t(
+                'components.chart.bubble-chart.text',
+                '{{label}}: {{xLabel}} {{formatX}}, {{yLabel}} {{formatY}}, {{sizeLabel}} {{formatSize}}',
+                {
+                  label: point.label,
+                  xLabel,
+                  formatX: formatX(point.x),
+                  yLabel,
+                  formatY: formatY(point.y),
+                  sizeLabel,
+                  formatSize: formatSize(point.size),
+                },
+              );
               return (
                 <ChartMark key={point.label} content={readout}>
                   <div
@@ -147,7 +160,7 @@ export function BubbleChart({
         <span>{formatX(xMax)}</span>
       </div>
       <p aria-hidden className="mt-2.5 text-sm text-fg-muted">
-        Size is {sizeLabel.toLowerCase()}.
+        {t('components.chart.bubble-chart.size_is', 'Size is')} {sizeLabel.toLowerCase()}.
       </p>
 
       <div className="sr-only">
@@ -155,7 +168,7 @@ export function BubbleChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
+              <th scope="col">{t('components.chart.bubble-chart.name', 'Name')}</th>
               <th scope="col">{xLabel}</th>
               <th scope="col">{yLabel}</th>
               <th scope="col">{sizeLabel}</th>

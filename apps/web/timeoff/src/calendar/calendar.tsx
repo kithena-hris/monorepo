@@ -45,6 +45,7 @@ import {
   type Range,
 } from '../approvals/words';
 import { ClashCard } from './clash';
+import { t as tr } from '../i18n';
 
 /**
  * The team calendar (T12–T15, MT13, MT14, §10.1): who is away by month, as
@@ -115,7 +116,7 @@ export function TeamCalendar(props: TeamCalendarProps): JSX.Element {
   if (load.status === 'loading') return <TeamCalendarSkeleton view={viewOf(path)} />;
   return (
     <div className="@container/calendar flex flex-col gap-4">
-      <PageHeader title="Calendar" />
+      <PageHeader title={tr('calendar.calendar.calendar', 'Calendar')} />
       <Loaded load={load} what="the calendar">
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
@@ -214,12 +215,12 @@ function Ready({
                 go({ year: null });
               }}
             >
-              This year
+              {tr('calendar.calendar.this_year', 'This year')}
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Previous year"
+              aria-label={tr('calendar.calendar.previous_year', 'Previous year')}
               startIcon={<icons.previous aria-hidden />}
               onClick={() => {
                 go({ year: String(data.year - 1) });
@@ -228,7 +229,7 @@ function Ready({
             <Button
               size="sm"
               variant="ghost"
-              aria-label="Next year"
+              aria-label={tr('calendar.calendar.next_year', 'Next year')}
               startIcon={<icons.next aria-hidden />}
               onClick={() => {
                 go({ year: String(data.year + 1) });
@@ -244,13 +245,13 @@ function Ready({
                 go({ month: null, week: null });
               }}
             >
-              Today
+              {tr('calendar.calendar.today', 'Today')}
             </Button>
             <span className={`gap-1 ${deskOnly} flex`}>
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Previous month"
+                aria-label={tr('calendar.calendar.previous_month', 'Previous month')}
                 startIcon={<icons.previous aria-hidden />}
                 onClick={() => {
                   go({ month: shiftMonth(data.month, -1), week: null });
@@ -259,7 +260,7 @@ function Ready({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Next month"
+                aria-label={tr('calendar.calendar.next_month', 'Next month')}
                 startIcon={<icons.next aria-hidden />}
                 onClick={() => {
                   go({ month: shiftMonth(data.month, 1), week: null });
@@ -270,7 +271,7 @@ function Ready({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Previous week"
+                aria-label={tr('calendar.calendar.previous_week', 'Previous week')}
                 startIcon={<icons.previous aria-hidden />}
                 onClick={() => {
                   const week = addDays(data.week, -7);
@@ -280,7 +281,7 @@ function Ready({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Next week"
+                aria-label={tr('calendar.calendar.next_week', 'Next week')}
                 startIcon={<icons.next aria-hidden />}
                 onClick={() => {
                   const week = addDays(data.week, 7);
@@ -299,16 +300,20 @@ function Ready({
       {/* Who: the team, the company or me, and which team. */}
       <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl
-          aria-label="Whose time off"
+          aria-label={tr('calendar.calendar.whose_time_off', 'Whose time off')}
           size="sm"
           value={data.scope}
           onValueChange={(scope) => {
             go({ scope: scope === 'team' ? null : scope, team: null, request: null });
           }}
         >
-          <SegmentedControlItem value="team">Team</SegmentedControlItem>
-          <SegmentedControlItem value="company">Company</SegmentedControlItem>
-          <SegmentedControlItem value="me">Me</SegmentedControlItem>
+          <SegmentedControlItem value="team">
+            {tr('calendar.calendar.team', 'Team')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="company">
+            {tr('calendar.calendar.company', 'Company')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="me">{tr('calendar.calendar.me', 'Me')}</SegmentedControlItem>
         </SegmentedControl>
         {teams.length > 1 || data.teamKey !== null ? (
           <Select
@@ -321,11 +326,15 @@ function Ready({
               );
             }}
           >
-            <SelectTrigger size="sm" aria-label="Team" className="w-44">
+            <SelectTrigger
+              size="sm"
+              aria-label={tr('calendar.calendar.team', 'Team')}
+              className="w-44"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All teams</SelectItem>
+              <SelectItem value="all">{tr('calendar.calendar.all_teams', 'All teams')}</SelectItem>
               {teams.map(([key, name]) => (
                 <SelectItem key={key} value={key}>
                   {name}
@@ -339,17 +348,27 @@ function Ready({
             value={holidays === '' ? 'all' : holidays}
             onValueChange={(value) => onFilter?.({ holidays: value === 'all' ? null : value })}
           >
-            <SelectTrigger size="sm" aria-label="Holidays" className="w-48">
+            <SelectTrigger
+              size="sm"
+              aria-label={tr('calendar.calendar.holidays', 'Holidays')}
+              className="w-48"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Holidays: everywhere</SelectItem>
+              <SelectItem value="all">
+                {tr('calendar.calendar.holidays_everywhere', 'Holidays: everywhere')}
+              </SelectItem>
               {locations.map((l) => (
                 <SelectItem key={l} value={l}>
-                  {`Holidays: ${placeName(l)}`}
+                  {tr('calendar.calendar.holidays_2', 'Holidays: {{placeName}}', {
+                    placeName: placeName(l),
+                  })}
                 </SelectItem>
               ))}
-              <SelectItem value="none">No holidays</SelectItem>
+              <SelectItem value="none">
+                {tr('calendar.calendar.no_holidays', 'No holidays')}
+              </SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -357,12 +376,23 @@ function Ready({
 
       {data.view === 'year' ? (
         <CalendarHeatmap
-          label={`Days off across ${String(data.year)}`}
+          label={tr('calendar.calendar.days_off_across', 'Days off across {{year}}', {
+            year: String(data.year),
+          })}
           from={`${String(data.year)}-01-01`}
           to={`${String(data.year)}-12-31`}
           data={(data.days ?? []).map((d) => ({ date: d.date, value: d.off }))}
-          describe={(value) => `${String(value)} ${value === 1 ? 'person' : 'people'} off`}
-          summary={`How many people are off each day in ${String(data.year)}.`}
+          describe={(value) =>
+            tr('calendar.calendar.off', '{{value}} {{value2}} off', {
+              value: String(value),
+              value2: value === 1 ? 'person' : 'people',
+            })
+          }
+          summary={tr(
+            'calendar.calendar.how_many_people_are_off_each',
+            'How many people are off each day in {{year}}.',
+            { year: String(data.year) },
+          )}
           focus={new Date().toISOString().slice(0, 10)}
         />
       ) : view === null ? null : (
@@ -412,7 +442,9 @@ function Ready({
               from={data.week}
               to={weekEnd}
               today={data.today}
-              label={`The week of ${spanLabel(data.week, weekEnd)}`}
+              label={tr('calendar.calendar.the_week_of', 'The week of {{spanLabel}}', {
+                spanLabel: spanLabel(data.week, weekEnd),
+              })}
               {...(day === null ? {} : { selected: day })}
               onSelect={selectDay}
               {...(detail === undefined ? {} : { detail })}
@@ -441,7 +473,10 @@ function Ready({
               />
             )}
             <p className="text-xs text-fg-subtle">
-              Outlined and striped: waiting for approval. Weekends and holidays are shaded.
+              {tr(
+                'calendar.calendar.outlined_and_striped_waiting_for_approval',
+                'Outlined and striped: waiting for approval. Weekends and holidays are shaded.',
+              )}
             </p>
           </div>
         </>
@@ -473,7 +508,11 @@ function monthEvents(
         end: 0,
         allDay: true,
         title: names.get(e.personId) ?? '',
-        detail: waiting ? `${look.name}, waiting for approval` : look.name,
+        detail: waiting
+          ? tr('calendar.calendar.waiting_for_approval', '{{name}}, waiting for approval', {
+              name: look.name,
+            })
+          : look.name,
         tone: look.tone,
         ...(waiting ? { tentative: true } : {}),
       }));
@@ -499,11 +538,17 @@ const placeName = (key: string): string =>
 
 const STATUS: Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' | 'info' }> =
   {
-    approved: { label: 'Approved', tone: 'success' },
-    taken: { label: 'Taken', tone: 'neutral' },
-    pending: { label: 'Waiting', tone: 'warning' },
-    change_pending: { label: 'Change waiting', tone: 'warning' },
-    counter_proposed: { label: 'New dates suggested', tone: 'info' },
+    approved: { label: tr('calendar.calendar.approved', 'Approved'), tone: 'success' },
+    taken: { label: tr('calendar.calendar.taken', 'Taken'), tone: 'neutral' },
+    pending: { label: tr('calendar.calendar.waiting', 'Waiting'), tone: 'warning' },
+    change_pending: {
+      label: tr('calendar.calendar.change_waiting', 'Change waiting'),
+      tone: 'warning',
+    },
+    counter_proposed: {
+      label: tr('calendar.calendar.new_dates_suggested', 'New dates suggested'),
+      tone: 'info',
+    },
   };
 
 /** Who is off on one day (T14, MT14): the type as the viewer may see it, and whether approved. */
@@ -529,12 +574,17 @@ export function DayDetail({
         {cover === undefined || !cover.checked ? null : (
           <Badge size="sm" tone={cover.below ? 'danger' : 'neutral'}>
             {cover.below ? <icons.warning aria-hidden /> : null}
-            {`${String(cover.in)} of ${String(cover.of)} in`}
+            {tr('calendar.calendar.of_in', '{{in}} of {{of}} in', {
+              in: String(cover.in),
+              of: String(cover.of),
+            })}
           </Badge>
         )}
       </div>
       {off.length === 0 && holidays.length === 0 ? (
-        <p className="text-sm text-fg-muted">Nobody is off.</p>
+        <p className="text-sm text-fg-muted">
+          {tr('calendar.calendar.nobody_is_off', 'Nobody is off.')}
+        </p>
       ) : (
         <List>
           {holidays.map((h) => (
@@ -542,7 +592,11 @@ export function DayDetail({
               key={`${h.locationKey}:${h.name}`}
               icon={<icons.flagged />}
               iconTone="neutral"
-              description={`Public holiday · ${placeName(h.locationKey)}`}
+              description={tr(
+                'calendar.calendar.public_holiday',
+                'Public holiday · {{placeName}}',
+                { placeName: placeName(h.locationKey) },
+              )}
             >
               {h.name}
             </ListItem>
@@ -554,7 +608,10 @@ export function DayDetail({
               <ListItem
                 key={e.requestId}
                 leading={<Avatar name={name(e.personId)} />}
-                description={`${look.name} · ${spanLabel(e.span.from, e.span.to)}`}
+                description={tr('calendar.calendar.text', '{{name}} · {{spanLabel}}', {
+                  name: look.name,
+                  spanLabel: spanLabel(e.span.from, e.span.to),
+                })}
                 trailing={
                   <Badge size="sm" tone={status.tone} dot>
                     {status.label}
@@ -569,13 +626,18 @@ export function DayDetail({
       )}
       {off.some((e) => e.leaveTypeKey === null) ? (
         <p className="text-xs text-fg-subtle">
-          Some time off shows as “Off”: its type stays with the person’s manager and HR.
+          {tr(
+            'calendar.calendar.some_time_off_shows_as_off',
+            'Some time off shows as “Off”: its type stays with the person’s manager and HR.',
+          )}
         </p>
       ) : null}
       {review === undefined ? null : (
         <Button variant="primary" size="sm" asChild>
           <a href={`/time-off/approvals/waiting/${review.requestId}`}>
-            {`Review ${firstName(name(review.personId))}’s request`}
+            {tr('calendar.calendar.review_s_request', 'Review {{firstName}}’s request', {
+              firstName: firstName(name(review.personId)),
+            })}
           </a>
         </Button>
       )}
@@ -613,23 +675,32 @@ function Subscribe({
           startIcon={<icons.calendar aria-hidden />}
           disabled={onSubscribe === undefined}
         >
-          Subscribe
+          {tr('calendar.calendar.subscribe', 'Subscribe')}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-96 flex-col gap-3">
-        <p className="text-sm font-semibold">Add to your calendar app</p>
+        <p className="text-sm font-semibold">
+          {tr('calendar.calendar.add_to_your_calendar_app', 'Add to your calendar app')}
+        </p>
         {answer === null || pending ? (
           <Skeleton className="h-10 rounded-md" />
         ) : answer.ok ? (
-          <CopyField label="Feed address" value={answer.url} mono size="sm" />
+          <CopyField
+            label={tr('calendar.calendar.feed_address', 'Feed address')}
+            value={answer.url}
+            mono
+            size="sm"
+          />
         ) : (
-          <Alert tone="danger" title="No feed address">
+          <Alert tone="danger" title={tr('calendar.calendar.no_feed_address', 'No feed address')}>
             {answer.message}
           </Alert>
         )}
         <p className="text-xs text-fg-muted">
-          It shows what you see here and nothing more. Anyone with the address sees it too, so keep
-          it to yourself.
+          {tr(
+            'calendar.calendar.it_shows_what_you_see_here',
+            'It shows what you see here and nothing more. Anyone with the address sees it too, so keep it to yourself.',
+          )}
         </p>
       </PopoverContent>
     </Popover>
@@ -642,9 +713,11 @@ function Subscribe({
 export function TeamCalendarSkeleton({ view }: { readonly view: CalendarViewName }): JSX.Element {
   return (
     <div className="@container/calendar flex flex-col gap-4">
-      <PageHeader title="Calendar" />
+      <PageHeader title={tr('calendar.calendar.calendar', 'Calendar')} />
       <div role="status" className="flex flex-col gap-4">
-        <span className="sr-only">Loading the calendar</span>
+        <span className="sr-only">
+          {tr('calendar.calendar.loading_the_calendar', 'Loading the calendar')}
+        </span>
         <div className="flex items-center gap-2">
           <Skeleton className="h-8 w-16 rounded-full" />
           <Skeleton className="h-8 w-40" />

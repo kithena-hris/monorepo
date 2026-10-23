@@ -15,6 +15,7 @@ import { useState, type JSX } from 'react';
 
 import { Frame, type Candidate } from './dialogs';
 import type { Shown } from '../../lib/inbox/model';
+import { t as tr } from '../../lib/t';
 
 /**
  * The Inbox dialogs that pick a date or a time, in a chunk of their own: Reach's
@@ -35,16 +36,23 @@ export function SnoozeDialog({
   const [at, setAt] = useState('');
   return (
     <Frame
-      title="Remind me"
+      title={tr('components.inbox.dated-dialogs.remind_me', 'Remind me')}
       description={
         item.due === null
-          ? 'It comes back to To do then.'
-          : `It comes back by the day it’s due, ${item.due}, at the latest.`
+          ? tr(
+              'components.inbox.dated-dialogs.it_comes_back_to_to_do',
+              'It comes back to To do then.',
+            )
+          : tr(
+              'components.inbox.dated-dialogs.it_comes_back_by_the_day',
+              'It comes back by the day it’s due, {{due}}, at the latest.',
+              { due: item.due },
+            )
       }
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('components.inbox.dated-dialogs.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             disabled={at === ''}
@@ -52,16 +60,16 @@ export function SnoozeDialog({
               onPick(new Date(at).toISOString());
             }}
           >
-            Remind me
+            {tr('components.inbox.dated-dialogs.remind_me', 'Remind me')}
           </Button>
         </>
       }
     >
       <Field>
-        <FieldLabel>When</FieldLabel>
+        <FieldLabel>{tr('components.inbox.dated-dialogs.when', 'When')}</FieldLabel>
         <FieldControl>
           <DatePicker
-            label="When"
+            label={tr('components.inbox.dated-dialogs.when', 'When')}
             {...(item.due === null ? {} : { max: item.due })}
             value={at === '' ? null : at.slice(0, 10)}
             onChange={(d) => {
@@ -71,10 +79,10 @@ export function SnoozeDialog({
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>At</FieldLabel>
+        <FieldLabel>{tr('components.inbox.dated-dialogs.at', 'At')}</FieldLabel>
         <FieldControl>
           <TimePicker
-            label="At"
+            label={tr('components.inbox.dated-dialogs.at', 'At')}
             value={at === '' ? null : at.slice(11, 16)}
             onChange={(t) => {
               if (t !== null && at !== '') setAt(`${at.slice(0, 10)}T${t}`);
@@ -99,28 +107,31 @@ export function DueDialog({
   const [day, setDay] = useState(due ?? '');
   return (
     <Frame
-      title="Change the due date"
-      description="For everyone who still has it. Reminders follow the new date."
+      title={tr('components.inbox.dated-dialogs.change_the_due_date', 'Change the due date')}
+      description={tr(
+        'components.inbox.dated-dialogs.for_everyone_who_still_has_it',
+        'For everyone who still has it. Reminders follow the new date.',
+      )}
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('components.inbox.dated-dialogs.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             onClick={() => {
               onPick(day === '' ? null : day);
             }}
           >
-            Change
+            {tr('components.inbox.dated-dialogs.change', 'Change')}
           </Button>
         </>
       }
     >
       <Field>
-        <FieldLabel>Due</FieldLabel>
+        <FieldLabel>{tr('components.inbox.dated-dialogs.due', 'Due')}</FieldLabel>
         <FieldControl>
           <DatePicker
-            label="Due"
+            label={tr('components.inbox.dated-dialogs.due', 'Due')}
             value={day === '' ? null : day}
             onChange={(d) => {
               setDay(d ?? '');
@@ -156,17 +167,27 @@ export function HandOverDialog({
   const ready = from !== '' && to !== '' && to >= from && delegateId !== '';
   return (
     <Frame
-      title="Hand over while you’re away"
-      description="Approvals go to someone else for these dates. People waiting see who has them."
+      title={tr(
+        'components.inbox.dated-dialogs.hand_over_while_youre_away',
+        'Hand over while you’re away',
+      )}
+      description={tr(
+        'components.inbox.dated-dialogs.approvals_go_to_someone_else_for',
+        'Approvals go to someone else for these dates. People waiting see who has them.',
+      )}
       onClose={onClose}
       footer={
         <>
           {current === null ? null : (
             <Button variant="ghost" className="me-auto" onClick={onStop}>
-              {`Stop handing to ${current.delegateName}`}
+              {tr(
+                'components.inbox.dated-dialogs.stop_handing_to',
+                'Stop handing to {{delegateName}}',
+                { delegateName: current.delegateName },
+              )}
             </Button>
           )}
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('components.inbox.dated-dialogs.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             disabled={!ready}
@@ -174,20 +195,26 @@ export function HandOverDialog({
               onSave({ delegateId, from, to });
             }}
           >
-            Hand over
+            {tr('components.inbox.dated-dialogs.hand_over', 'Hand over')}
           </Button>
         </>
       }
     >
       {current === null ? null : (
-        <Alert tone="info">{`${current.delegateName} has them from ${current.from} to ${current.to}.`}</Alert>
+        <Alert tone="info">
+          {tr(
+            'components.inbox.dated-dialogs.has_them_from_to',
+            '{{delegateName}} has them from {{from}} to {{to}}.',
+            { delegateName: current.delegateName, from: current.from, to: current.to },
+          )}
+        </Alert>
       )}
       <div className="grid grid-cols-2 gap-3">
         <Field required>
-          <FieldLabel>From</FieldLabel>
+          <FieldLabel>{tr('components.inbox.dated-dialogs.from', 'From')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="From"
+              label={tr('components.inbox.dated-dialogs.from', 'From')}
               value={from === '' ? null : from}
               onChange={(d) => {
                 setFrom(d ?? '');
@@ -196,10 +223,10 @@ export function HandOverDialog({
           </FieldControl>
         </Field>
         <Field required>
-          <FieldLabel>Until</FieldLabel>
+          <FieldLabel>{tr('components.inbox.dated-dialogs.until', 'Until')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="Until"
+              label={tr('components.inbox.dated-dialogs.until', 'Until')}
               value={to === '' ? null : to}
               onChange={(d) => {
                 setTo(d ?? '');
@@ -208,7 +235,11 @@ export function HandOverDialog({
           </FieldControl>
         </Field>
       </div>
-      <RadioGroup aria-label="Hand to" value={delegateId} onValueChange={setDelegateId}>
+      <RadioGroup
+        aria-label={tr('components.inbox.dated-dialogs.hand_to', 'Hand to')}
+        value={delegateId}
+        onValueChange={setDelegateId}
+      >
         {candidates.map((c) => (
           <RadioGroupItem key={c.personId} value={c.personId}>
             {c.displayName}
@@ -216,7 +247,10 @@ export function HandOverDialog({
         ))}
       </RadioGroup>
       <p className="text-sm text-fg-subtle">
-        Time off approvals are handed over; People’s Review stays with HR.
+        {tr(
+          'components.inbox.dated-dialogs.time_off_approvals_are_handed_over',
+          'Time off approvals are handed over; People’s Review stays with HR.',
+        )}
       </p>
     </Frame>
   );

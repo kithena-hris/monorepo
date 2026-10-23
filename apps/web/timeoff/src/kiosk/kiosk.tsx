@@ -11,6 +11,7 @@ import {
 
 import { clockTime, localDate, minuteOfDay, type PunchKind } from '../attendance/time';
 import { longDate } from '../words';
+import { t } from '../i18n';
 
 /**
  * The kiosk at the door (T25, T26; PRD §11.9): a wall tablet with no session
@@ -84,17 +85,21 @@ const READER_GAP_MS = 300;
 const PIN_LENGTH = 6;
 
 function greeting(who: { firstName: string; kind: PunchKind }, minute: number): string {
-  if (who.kind === 'out') return `Goodbye, ${who.firstName}`;
-  if (who.kind === 'break_end') return `Welcome back, ${who.firstName}`;
+  if (who.kind === 'out')
+    return t('kiosk.kiosk.goodbye', 'Goodbye, {{firstName}}', { firstName: who.firstName });
+  if (who.kind === 'break_end')
+    return t('kiosk.kiosk.welcome_back', 'Welcome back, {{firstName}}', {
+      firstName: who.firstName,
+    });
   const part = minute < 12 * 60 ? 'morning' : minute < 18 * 60 ? 'afternoon' : 'evening';
-  return `Good ${part}, ${who.firstName}`;
+  return t('kiosk.kiosk.good', 'Good {{part}}, {{firstName}}', { part, firstName: who.firstName });
 }
 
 const DID: Record<PunchKind, string> = {
-  in: 'Clocked in at',
-  out: 'Clocked out at',
-  break_start: 'Break started at',
-  break_end: 'Back from your break at',
+  in: t('kiosk.kiosk.clocked_in_at', 'Clocked in at'),
+  out: t('kiosk.kiosk.clocked_out_at', 'Clocked out at'),
+  break_start: t('kiosk.kiosk.break_started_at', 'Break started at'),
+  break_end: t('kiosk.kiosk.back_from_your_break_at', 'Back from your break at'),
 };
 
 export function Kiosk({
@@ -197,9 +202,9 @@ export function Kiosk({
   return (
     <div className="dark flex min-h-dvh flex-col bg-canvas text-fg">
       <header className="flex items-center justify-between gap-4 px-6 py-5 text-fg-muted sm:px-9 sm:py-7">
-        <p className="truncate text-md font-semibold">{place ?? 'Kiosk'}</p>
+        <p className="truncate text-md font-semibold">{place ?? t('kiosk.kiosk.kiosk', 'Kiosk')}</p>
         <Badge tone={online ? 'success' : 'warning'} size="lg" dot>
-          {online ? 'Online' : 'Offline'}
+          {online ? t('kiosk.kiosk.online', 'Online') : t('kiosk.kiosk.offline', 'Offline')}
         </Badge>
       </header>
 
@@ -208,7 +213,7 @@ export function Kiosk({
           <Confirmation phase={phase} minute={minuteOfDay(phase.at, timeZone)} onUndo={idle} />
         ) : phase.step === 'checking' ? (
           <div className="flex flex-1 items-center justify-center">
-            <Spinner size="lg" label="Checking" />
+            <Spinner size="lg" label={t('kiosk.kiosk.checking', 'Checking')} />
           </div>
         ) : phase.step === 'unknown' ? (
           <div
@@ -217,13 +222,16 @@ export function Kiosk({
           >
             <span className="text-danger-fg [&_svg]:size-20">{icon('danger')}</span>
             <h1 className="font-display text-3xl font-bold tracking-tight sm:text-[4rem]">
-              Not recognised
+              {t('kiosk.kiosk.not_recognised', 'Not recognised')}
             </h1>
             <p className="max-w-xl text-lg text-fg-muted">
-              Try again, or ask HR to set up your badge or PIN.
+              {t(
+                'kiosk.kiosk.try_again_or_ask_hr_to',
+                'Try again, or ask HR to set up your badge or PIN.',
+              )}
             </p>
             <Button size="lg" onClick={idle}>
-              Back
+              {t('kiosk.kiosk.back', 'Back')}
             </Button>
           </div>
         ) : phase.step === 'pin' ? (
@@ -234,9 +242,11 @@ export function Kiosk({
               if (pin.length === PIN_LENGTH) void tap({ kind: 'pin', value: pin });
             }}
           >
-            <h1 className="font-display text-3xl font-bold tracking-tight">Enter your PIN</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight">
+              {t('kiosk.kiosk.enter_your_pin', 'Enter your PIN')}
+            </h1>
             <PinInput
-              label="Your PIN"
+              label={t('kiosk.kiosk.your_pin', 'Your PIN')}
               value={pin}
               onChange={setPin}
               onComplete={(value) => {
@@ -248,7 +258,7 @@ export function Kiosk({
               autoFocus
             />
             <Button size="lg" onClick={idle}>
-              Cancel
+              {t('kiosk.kiosk.cancel', 'Cancel')}
             </Button>
           </form>
         ) : phase.step === 'scan' ? (
@@ -271,14 +281,16 @@ export function Kiosk({
                 {icon('tap')}
               </span>
             </div>
-            <h1 className="sr-only">Clock in or out</h1>
+            <h1 className="sr-only">{t('kiosk.kiosk.clock_in_or_out', 'Clock in or out')}</h1>
           </div>
         )}
       </main>
 
       {phase.step === 'idle' ? (
         <footer className="flex flex-col items-center gap-6 px-6 pb-10">
-          <p className="text-2xl font-semibold">Hold your badge or phone here</p>
+          <p className="text-2xl font-semibold">
+            {t('kiosk.kiosk.hold_your_badge_or_phone_here', 'Hold your badge or phone here')}
+          </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button
               size="lg"
@@ -287,7 +299,7 @@ export function Kiosk({
                 setPhase({ step: 'pin' });
               }}
             >
-              Use a PIN
+              {t('kiosk.kiosk.use_a_pin', 'Use a PIN')}
             </Button>
             <Button
               size="lg"
@@ -296,7 +308,7 @@ export function Kiosk({
                 setPhase({ step: 'scan' });
               }}
             >
-              Show my QR code
+              {t('kiosk.kiosk.show_my_qr_code', 'Show my QR code')}
             </Button>
           </div>
         </footer>
@@ -327,16 +339,25 @@ function Confirmation({
       </span>
       <div role="status" className="space-y-3">
         <h1 className="font-display text-[3rem] leading-tight font-bold tracking-tight sm:text-[4rem]">
-          {who === null ? 'Saved on this kiosk' : greeting(who, minute)}
+          {who === null
+            ? t('kiosk.kiosk.saved_on_this_kiosk', 'Saved on this kiosk')
+            : greeting(who, minute)}
         </h1>
         <p className="text-2xl text-fg-muted">
           {who === null
-            ? `Taken at ${clockTime(minute)}. It is sent when the network is back.`
-            : `${DID[who.kind]} ${clockTime(minute)}`}
+            ? t(
+                'kiosk.kiosk.taken_at_it_is_sent_when',
+                'Taken at {{clockTime}}. It is sent when the network is back.',
+                { clockTime: clockTime(minute) },
+              )
+            : t('kiosk.kiosk.text', '{{DID}} {{clockTime}}', {
+                DID: DID[who.kind],
+                clockTime: clockTime(minute),
+              })}
         </p>
       </div>
       <Button size="lg" startIcon={icon('undo')} onClick={onUndo}>
-        {`Not you? Undo · ${String(phase.left)}`}
+        {t('kiosk.kiosk.not_you_undo', 'Not you? Undo · {{left}}', { left: String(phase.left) })}
       </Button>
     </div>
   );
@@ -391,23 +412,31 @@ function Scan({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <h1 className="font-display text-3xl font-bold tracking-tight">Show your QR code</h1>
+      <h1 className="font-display text-3xl font-bold tracking-tight">
+        {t('kiosk.kiosk.show_your_qr_code', 'Show your QR code')}
+      </h1>
       <p className="max-w-xl text-lg text-fg-muted">
         {camera
-          ? 'Open Time Off on your phone, show your kiosk code and hold it up to the camera.'
-          : 'Open Time Off on your phone, show your kiosk code and hold it to the reader.'}
+          ? t(
+              'kiosk.kiosk.open_time_off_on_your_phone',
+              'Open Time Off on your phone, show your kiosk code and hold it up to the camera.',
+            )
+          : t(
+              'kiosk.kiosk.open_time_off_on_your_phone_2',
+              'Open Time Off on your phone, show your kiosk code and hold it to the reader.',
+            )}
       </p>
       {camera ? (
         <video
           ref={video}
           muted
           playsInline
-          aria-label="Camera"
+          aria-label={t('kiosk.kiosk.camera', 'Camera')}
           className="aspect-square w-72 rounded-2xl bg-surface object-cover"
         />
       ) : null}
       <Button size="lg" onClick={onCancel}>
-        Cancel
+        {t('kiosk.kiosk.cancel', 'Cancel')}
       </Button>
     </div>
   );

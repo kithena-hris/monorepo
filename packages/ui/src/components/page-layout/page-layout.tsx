@@ -30,6 +30,7 @@ import { cn } from '../../lib/cn';
 import { Skeleton } from '../feedback/feedback';
 import { Kbd } from '../kbd/kbd';
 import { Tooltip } from '../tooltip/tooltip';
+import { t } from '../../lib/i18n';
 
 /**
  * Page skeletons, as named slots.
@@ -450,7 +451,7 @@ export function PageLayout({
           <nav
             ref={nav}
             id={sidebarId}
-            aria-label="Main"
+            aria-label={t('components.page-layout.page-layout.main', 'Main')}
             data-collapsed={sidebarState.collapsed || undefined}
             data-fading={sidebarState.fading || undefined}
             className={cn(
@@ -541,7 +542,7 @@ export function PageLayout({
                         controls={sidebarId}
                         collapsed={sidebarState.collapsed}
                         onToggle={sidebarState.toggle}
-                        label="sidebar"
+                        label={t('components.page-layout.page-layout.sidebar', 'sidebar')}
                         shortcut={sidebarShortcut}
                         className="shrink-0"
                       />
@@ -610,7 +611,7 @@ export function PageLayout({
         {hasAside ? (
           <aside
             id={asideId}
-            aria-label="Details"
+            aria-label={t('components.page-layout.page-layout.details', 'Details')}
             data-collapsed={asideState.collapsed || undefined}
             className={cn(
               'row-start-3 hidden shrink-0 border-s border-border bg-surface @7xl/page:block',
@@ -636,7 +637,7 @@ export function PageLayout({
                   controls={asideId}
                   collapsed={asideState.collapsed}
                   onToggle={asideState.toggle}
-                  label="details"
+                  label={t('components.page-layout.page-layout.details_2', 'details')}
                   shortcut={null}
                   className="sticky top-0 z-10 flex justify-start p-2 pb-0"
                 />
@@ -659,7 +660,7 @@ export function PageLayout({
             controls={sidebarId}
             collapsed
             onToggle={sidebarState.toggle}
-            label="navigation"
+            label={t('components.page-layout.page-layout.navigation', 'navigation')}
             shortcut={sidebarShortcut}
             className="absolute top-16 start-2 z-30 hidden @min-[40rem]/page:block"
           />
@@ -671,7 +672,7 @@ export function PageLayout({
             controls={asideId}
             collapsed
             onToggle={asideState.toggle}
-            label="details"
+            label={t('components.page-layout.page-layout.details_2', 'details')}
             shortcut={null}
             className="absolute top-16 end-2 z-30 hidden @7xl/page:block"
           />
@@ -777,7 +778,15 @@ function RailToggle({
           aria-expanded={!collapsed}
           aria-controls={controls}
           aria-label={name}
-          aria-keyshortcuts={shortcut ? `Meta+${shortcut} Control+${shortcut}` : undefined}
+          aria-keyshortcuts={
+            shortcut
+              ? t(
+                  'components.page-layout.page-layout.meta_control',
+                  'Meta+{{shortcut}} Control+{{shortcut2}}',
+                  { shortcut, shortcut2: shortcut },
+                )
+              : undefined
+          }
           onClick={onToggle}
           className={cn(
             'tap-target relative pointer-events-auto grid place-items-center rounded-[0.625rem]',
@@ -882,7 +891,9 @@ function RailEdge({
         state.moved = true;
         element.setAttribute('data-dragging', '');
         const next = railDrag(state.width, delta, open.current);
-        element.style.width = `${String(next.width)}px`;
+        element.style.width = t('components.page-layout.page-layout.px', '{{width}}px', {
+          width: String(next.width),
+        });
         // Open or shut as the edge crosses the line, with no phases: the
         // pointer is already moving it.
         if (next.collapsed !== state.collapsed) {
@@ -900,7 +911,17 @@ function RailEdge({
       {/* The border, lit. */}
       <span className="absolute inset-y-0 start-1 w-1 rounded-full bg-accent opacity-0 transition-opacity duration-(--animate-duration-fast) group-hover/edge:opacity-100" />
       <Tooltip
-        content={collapsed ? 'Click or drag to expand' : 'Click or drag to collapse'}
+        content={
+          collapsed
+            ? t(
+                'components.page-layout.page-layout.click_or_drag_to_expand',
+                'Click or drag to expand',
+              )
+            : t(
+                'components.page-layout.page-layout.click_or_drag_to_collapse',
+                'Click or drag to collapse',
+              )
+        }
         side="right"
       >
         <span className="absolute top-1/2 -start-1.5 grid h-13 w-7 -translate-y-1/2 place-items-center rounded-full bg-surface-raised text-accent-fg opacity-0 shadow-md ring-2 ring-accent transition-opacity duration-(--animate-duration-fast) group-hover/edge:opacity-100 [&_svg]:size-[15px] rtl:[&_svg]:rotate-180">
@@ -1128,7 +1149,11 @@ export function PageHeader({
         {tabs ?? frame.tabs}
       </div>
       {frame.pending === true ? (
-        <Skeleton shape="body" label="Loading" data-pending-body="" />
+        <Skeleton
+          shape="body"
+          label={t('components.page-layout.page-layout.loading', 'Loading')}
+          data-pending-body=""
+        />
       ) : null}
     </>
   );

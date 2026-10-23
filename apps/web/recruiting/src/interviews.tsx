@@ -46,6 +46,7 @@ import type {
   ScheduleData,
   ScreenProps,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R14–R17: my interviews, the kit and scorecard, scheduling and the debrief.
@@ -53,7 +54,12 @@ import type {
  * every disagreement is Recruiting's, never computed here.
  */
 
-const ANCHORS = ['Strong no', 'No', 'Yes', 'Strong yes'] as const;
+const ANCHORS = [
+  tr('interviews.strong_no', 'Strong no'),
+  tr('interviews.no', 'No'),
+  tr('interviews.yes', 'Yes'),
+  tr('interviews.strong_yes', 'Strong yes'),
+] as const;
 const RECOMMENDATIONS: readonly Recommendation[] = ['strong_no', 'no', 'yes', 'strong_yes'];
 
 /** RM1 on the web: what I interview next and the scorecards I owe. */
@@ -63,20 +69,30 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="My interviews"
-            description="The next 30 days, and every scorecard you owe."
+            title={tr('interviews.my_interviews', 'My interviews')}
+            description={tr(
+              'interviews.the_next_30_days_and_every',
+              'The next 30 days, and every scorecard you owe.',
+            )}
           />
           {data.owed.length === 0 ? null : (
             <Alert
               tone="warning"
-              title={`${String(data.owed.length)} scorecard${data.owed.length === 1 ? '' : 's'} to submit`}
+              title={tr(
+                'interviews.scorecard_to_submit',
+                '{{length}} scorecard{{value}} to submit',
+                { length: String(data.owed.length), value: data.owed.length === 1 ? '' : 's' },
+              )}
             >
-              Due 24 hours after each interview.
+              {tr(
+                'interviews.due_24_hours_after_each_interview',
+                'Due 24 hours after each interview.',
+              )}
             </Alert>
           )}
           {[
-            { title: 'Scorecards owed', rows: data.owed },
-            { title: 'Coming up', rows: data.upcoming },
+            { title: tr('interviews.scorecards_owed', 'Scorecards owed'), rows: data.owed },
+            { title: tr('interviews.coming_up', 'Coming up'), rows: data.upcoming },
           ].map((group) => (
             <Card key={group.title}>
               <CardHeader>
@@ -84,15 +100,18 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
               </CardHeader>
               <CardContent>
                 {group.rows.length === 0 ? (
-                  <EmptyState icon={<icons.meeting aria-hidden />} title="Nothing here" />
+                  <EmptyState
+                    icon={<icons.meeting aria-hidden />}
+                    title={tr('interviews.nothing_here', 'Nothing here')}
+                  />
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Candidate</TableHead>
-                        <TableHead>Interview</TableHead>
-                        <TableHead>When</TableHead>
-                        <TableHead>State</TableHead>
+                        <TableHead>{tr('interviews.candidate', 'Candidate')}</TableHead>
+                        <TableHead>{tr('interviews.interview', 'Interview')}</TableHead>
+                        <TableHead>{tr('interviews.when', 'When')}</TableHead>
+                        <TableHead>{tr('interviews.state', 'State')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -154,19 +173,23 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Working hours</CardTitle>
+        <CardTitle level={2}>{tr('interviews.working_hours', 'Working hours')}</CardTitle>
         <CardDescription>
-          Candidates book you inside these hours, Monday to Friday, around anything on your
-          connected calendar.
+          {tr(
+            'interviews.candidates_book_you_inside_these_hours',
+            'Candidates book you inside these hours, Monday to Friday, around anything on your connected calendar.',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-3">
         {(['from', 'to'] as const).map((k) => (
           <Field key={k}>
-            <FieldLabel>{k === 'from' ? 'From' : 'To'}</FieldLabel>
+            <FieldLabel>
+              {k === 'from' ? tr('interviews.from', 'From') : tr('interviews.to', 'To')}
+            </FieldLabel>
             <FieldControl>
               <TimePicker
-                label={k === 'from' ? 'From' : 'To'}
+                label={k === 'from' ? tr('interviews.from', 'From') : tr('interviews.to', 'To')}
                 value={clock(hours[k])}
                 step={30}
                 onChange={(t) => {
@@ -178,7 +201,7 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
           </Field>
         ))}
         <Field>
-          <FieldLabel>Time zone</FieldLabel>
+          <FieldLabel>{tr('interviews.time_zone', 'Time zone')}</FieldLabel>
           <FieldControl>
             <Input
               value={hours.timeZone}
@@ -208,7 +231,7 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
             );
           }}
         >
-          {saved ? 'Saved' : 'Save'}
+          {saved ? tr('interviews.saved', 'Saved') : tr('interviews.save', 'Save')}
         </Button>
         <Refusal error={act.error} />
       </CardContent>
@@ -218,9 +241,9 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
 }
 
 const PROVIDER: Readonly<Record<string, string>> = {
-  google: 'Google Calendar',
-  microsoft: 'Microsoft 365',
-  zoom: 'Zoom',
+  google: tr('interviews.google_calendar', 'Google Calendar'),
+  microsoft: tr('interviews.microsoft_365', 'Microsoft 365'),
+  zoom: tr('interviews.zoom', 'Zoom'),
 };
 
 /**
@@ -250,8 +273,10 @@ function Connections({
   return (
     <CardContent className="flex flex-col gap-3">
       <p className="text-sm text-fg-muted">
-        Connected, your calendar’s busy times are left out of the slots offered, and interviews go
-        on it with a video link.
+        {tr(
+          'interviews.connected_your_calendars_busy_times_are',
+          'Connected, your calendar’s busy times are left out of the slots offered, and interviews go on it with a video link.',
+        )}
       </p>
       <ul className="flex flex-col gap-2">
         {state.offered.map((kind) => {
@@ -261,13 +286,16 @@ function Connections({
               <span className="min-w-40 font-medium">{PROVIDER[kind] ?? kind}</span>
               {on ? (
                 <Badge size="sm" tone="success">
-                  Connected
+                  {tr('interviews.connected', 'Connected')}
                 </Badge>
               ) : null}
               <Button
                 size="sm"
                 variant={on ? 'secondary' : 'primary'}
-                aria-label={`${on ? 'Disconnect' : 'Connect'} ${PROVIDER[kind] ?? kind}`}
+                aria-label={tr('interviews.text', '{{value}} {{value2}}', {
+                  value: on ? 'Disconnect' : 'Connect',
+                  value2: PROVIDER[kind] ?? kind,
+                })}
                 disabled={act.pending}
                 onClick={() => {
                   if (on) act.run('DisconnectRecruitingCalendar', { kind }, load);
@@ -281,7 +309,9 @@ function Connections({
                     );
                 }}
               >
-                {on ? 'Disconnect' : 'Connect'}
+                {on
+                  ? tr('interviews.disconnect', 'Disconnect')
+                  : tr('interviews.connect', 'Connect')}
               </Button>
             </li>
           );
@@ -313,15 +343,19 @@ function Notifications({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Notifications</CardTitle>
+        <CardTitle level={2}>{tr('interviews.notifications', 'Notifications')}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Field orientation="horizontal">
           <span className="flex min-w-0 flex-col">
-            <FieldLabel>Email me when a candidate acts</FieldLabel>
+            <FieldLabel>
+              {tr('interviews.email_me_when_a_candidate_acts', 'Email me when a candidate acts')}
+            </FieldLabel>
             <FieldDescription>
-              On unless you switch it off: when they give times, ask to move an interview or answer
-              a question. Your Inbox has each one either way.
+              {tr(
+                'interviews.on_unless_you_switch_it_off',
+                'On unless you switch it off: when they give times, ask to move an interview or answer a question. Your Inbox has each one either way.',
+              )}
             </FieldDescription>
           </span>
           <FieldControl>
@@ -364,7 +398,7 @@ function Scale({
     >
       {ANCHORS.map((a, i) => (
         <SegmentedControlItem key={a} value={String(i + 1)}>
-          {`${String(i + 1)} · ${a}`}
+          {tr('interviews.text_2', '{{value}} · {{a}}', { value: String(i + 1), a })}
         </SegmentedControlItem>
       ))}
     </SegmentedControl>
@@ -410,7 +444,10 @@ function KitBody({
       <PageHeader
         title={i.title}
         meta={<StateBadge state={i.state} />}
-        description={`${data.candidate.name} · ${data.job.title}`}
+        description={tr('interviews.text_3', '{{name}} · {{title}}', {
+          name: data.candidate.name,
+          title: data.job.title,
+        })}
         actions={
           i.state === 'scheduled' ? (
             <>
@@ -421,7 +458,7 @@ function KitBody({
                   act.run('SetInterviewState', { interviewId: i.id, input: { to: 'no_show' } });
                 }}
               >
-                No-show
+                {tr('interviews.no_show', 'No-show')}
               </Button>
               <Button
                 loading={act.pending}
@@ -429,7 +466,7 @@ function KitBody({
                   act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } });
                 }}
               >
-                Mark completed
+                {tr('interviews.mark_completed', 'Mark completed')}
               </Button>
             </>
           ) : null
@@ -442,10 +479,13 @@ function KitBody({
             <KeyValues
               layout="stacked"
               items={[
-                { label: 'When', value: `${when(i.startsAt)} · ${String(i.minutes)} min` },
-                { label: 'Where', value: i.videoUrl ?? i.place ?? '—' },
                 {
-                  label: 'With',
+                  label: tr('interviews.when', 'When'),
+                  value: `${when(i.startsAt)} · ${String(i.minutes)} min`,
+                },
+                { label: tr('interviews.where', 'Where'), value: i.videoUrl ?? i.place ?? '—' },
+                {
+                  label: tr('interviews.with', 'With'),
                   value: i.interviewerIds.map((id) => data.names[id] ?? id).join(', '),
                 },
               ]}
@@ -458,31 +498,46 @@ function KitBody({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Join the call
+                  {tr('interviews.join_the_call', 'Join the call')}
                 </a>
               </div>
             )}
           </Card>
           <Card padded>
             <To href={`/recruiting/candidates/${data.candidate.id}`} onNavigate={props.onNavigate}>
-              {`${data.candidate.name}’s profile and CV`}
+              {tr('interviews.s_profile_and_cv', '{{name}}’s profile and CV', {
+                name: data.candidate.name,
+              })}
             </To>
           </Card>
           {done ? null : (
-            <Alert tone="info" title="Hidden until you submit">
-              Other interviewers’ scorecards.
+            <Alert
+              tone="info"
+              title={tr('interviews.hidden_until_you_submit', 'Hidden until you submit')}
+            >
+              {tr('interviews.other_interviewers_scorecards', 'Other interviewers’ scorecards.')}
             </Alert>
           )}
         </div>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>{`Scorecard: ${i.title}`}</CardTitle>
-            <CardDescription>Rated 1–4 with labelled anchors. No midpoint.</CardDescription>
+            <CardTitle level={2}>
+              {tr('interviews.scorecard', 'Scorecard: {{title}}', { title: i.title })}
+            </CardTitle>
+            <CardDescription>
+              {tr(
+                'interviews.rated_1_4_with_labelled_anchors',
+                'Rated 1–4 with labelled anchors. No midpoint.',
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-5">
             {data.competencies.length === 0 ? (
               <p className="text-sm text-fg-muted">
-                No scorecard on this interview; give the overall recommendation.
+                {tr(
+                  'interviews.no_scorecard_on_this_interview_give',
+                  'No scorecard on this interview; give the overall recommendation.',
+                )}
               </p>
             ) : null}
             {data.competencies.map((c) => (
@@ -512,9 +567,11 @@ function KitBody({
               </section>
             ))}
             <section className="flex flex-col gap-2">
-              <h3 className="font-semibold">Overall recommendation</h3>
+              <h3 className="font-semibold">
+                {tr('interviews.overall_recommendation', 'Overall recommendation')}
+              </h3>
               <Scale
-                label="Overall recommendation"
+                label={tr('interviews.overall_recommendation', 'Overall recommendation')}
                 value={recommendation === null ? null : RECOMMENDATIONS.indexOf(recommendation) + 1}
                 disabled={done}
                 onChange={(v) => {
@@ -524,7 +581,7 @@ function KitBody({
             </section>
             {done ? null : (
               <Field>
-                <FieldLabel>Notes</FieldLabel>
+                <FieldLabel>{tr('interviews.notes', 'Notes')}</FieldLabel>
                 <FieldControl>
                   <Textarea
                     autoResize
@@ -532,13 +589,17 @@ function KitBody({
                     onChange={(e) => {
                       setNotes(e.target.value);
                     }}
-                    placeholder="What you saw and heard"
+                    placeholder={tr('interviews.what_you_saw_and_heard', 'What you saw and heard')}
                   />
                 </FieldControl>
               </Field>
             )}
             {done ? (
-              <Badge tone="success">{`Submitted ${day(mine.submittedAt)}`}</Badge>
+              <Badge tone="success">
+                {tr('interviews.submitted', 'Submitted {{submittedAt}}', {
+                  submittedAt: day(mine.submittedAt),
+                })}
+              </Badge>
             ) : (
               <div className="flex justify-end gap-2">
                 <Button
@@ -548,7 +609,7 @@ function KitBody({
                     save(false);
                   }}
                 >
-                  Save draft
+                  {tr('interviews.save_draft', 'Save draft')}
                 </Button>
                 <Button
                   loading={act.pending}
@@ -556,7 +617,7 @@ function KitBody({
                     save(true);
                   }}
                 >
-                  Submit scorecard
+                  {tr('interviews.submit_scorecard', 'Submit scorecard')}
                 </Button>
               </div>
             )}
@@ -566,7 +627,7 @@ function KitBody({
       {others.length === 0 ? null : (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Other scorecards</CardTitle>
+            <CardTitle level={2}>{tr('interviews.other_scorecards', 'Other scorecards')}</CardTitle>
           </CardHeader>
           <CardContent>
             <KeyValues
@@ -597,33 +658,46 @@ function AskRow({
   const tone = ask.state === 'open' ? 'warning' : ask.state === 'answered' ? 'success' : 'neutral';
   const title =
     ask.kind === 'slots'
-      ? `${ask.times.length === 1 ? 'A time' : `${String(ask.times.length)} times`} offered for the ${ask.label.toLowerCase()}`
+      ? tr('interviews.offered_for_the', '{{value}} offered for the {{label}}', {
+          value: ask.times.length === 1 ? 'A time' : `${String(ask.times.length)} times`,
+          label: ask.label.toLowerCase(),
+        })
       : ask.kind === 'info'
-        ? `Asked: ${ask.label}`
+        ? tr('interviews.asked', 'Asked: {{label}}', { label: ask.label })
         : ask.kind === 'availability'
-          ? `Candidate offered ${String(ask.times.length)} time${ask.times.length === 1 ? '' : 's'} for the ${ask.label.toLowerCase()}`
-          : `Candidate asks to move the ${ask.label.toLowerCase()}`;
+          ? tr(
+              'interviews.candidate_offered_time_for_the',
+              'Candidate offered {{length}} time{{value}} for the {{label}}',
+              {
+                length: String(ask.times.length),
+                value: ask.times.length === 1 ? '' : 's',
+                label: ask.label.toLowerCase(),
+              },
+            )
+          : tr('interviews.candidate_asks_to_move_the', 'Candidate asks to move the {{label}}', {
+              label: ask.label.toLowerCase(),
+            });
   return (
     <div className="flex flex-col gap-1 border-b border-[var(--reach-line)] pb-3 last:border-b-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{title}</span>
         <Badge size="sm" tone={tone}>
           {ask.state === 'open'
-            ? 'Waiting on the candidate'
+            ? tr('interviews.waiting_on_the_candidate', 'Waiting on the candidate')
             : ask.state === 'answered'
               ? ask.kind === 'slots' && ask.answer?.time != null
-                ? 'Booked'
-                : 'Answered'
+                ? tr('interviews.booked', 'Booked')
+                : tr('interviews.answered', 'Answered')
               : ask.closedBecause === 'replaced'
-                ? 'Replaced by new times'
+                ? tr('interviews.replaced_by_new_times', 'Replaced by new times')
                 : ask.closedBecause === 'more_times'
-                  ? 'Asked for more times'
-                  : 'Closed'}
+                  ? tr('interviews.asked_for_more_times', 'Asked for more times')
+                  : tr('interviews.closed', 'Closed')}
         </Badge>
         <span className="text-xs text-fg-muted">{when(ask.createdAt)}</span>
         {onClose !== undefined && ask.state !== 'closed' ? (
           <Button variant="ghost" size="sm" loading={pending} onClick={onClose} className="ms-auto">
-            Mark dealt with
+            {tr('interviews.mark_dealt_with', 'Mark dealt with')}
           </Button>
         ) : null}
       </div>
@@ -631,13 +705,20 @@ function AskRow({
         <span className="text-sm text-fg-muted">{ask.times.map(when).join(' · ')}</span>
       ) : null}
       {ask.agenda === null ? null : (
-        <span className="text-sm text-fg-muted">{`Agenda: ${ask.agenda.text}`}</span>
+        <span className="text-sm text-fg-muted">
+          {tr('interviews.agenda', 'Agenda: {{text}}', { text: ask.agenda.text })}
+        </span>
       )}
       {ask.detail === null ? null : <span className="text-sm text-fg-muted">{ask.detail}</span>}
       {ask.answer === null ? null : (
         <span className="text-sm">
-          {ask.answer.time !== null ? `Chose ${when(ask.answer.time)}. ` : ''}
-          {ask.answer.text ?? (ask.answer.time === null ? 'None of the times work.' : '')}
+          {ask.answer.time !== null
+            ? tr('interviews.chose', 'Chose {{time}}.', { time: when(ask.answer.time) }) + ' '
+            : ''}
+          {ask.answer.text ??
+            (ask.answer.time === null
+              ? tr('interviews.none_of_the_times_work', 'None of the times work.')
+              : '')}
         </span>
       )}
     </div>
@@ -714,10 +795,12 @@ function AgendaEditor({
     <Field>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <FieldLabel>Agenda</FieldLabel>
+          <FieldLabel>{tr('interviews.agenda_2', 'Agenda')}</FieldLabel>
           <FieldDescription>
-            In the invitation and the calendar event. Kept for the next time this interview is
-            booked.
+            {tr(
+              'interviews.in_the_invitation_and_the_calendar',
+              'In the invitation and the calendar event. Kept for the next time this interview is booked.',
+            )}
           </FieldDescription>
         </div>
         <Button
@@ -727,12 +810,14 @@ function AgendaEditor({
           startIcon={<icons.assistant aria-hidden />}
           onClick={onDraft}
         >
-          {value === null ? 'Draft with AI' : 'Redraft with AI'}
+          {value === null
+            ? tr('interviews.draft_with_ai', 'Draft with AI')
+            : tr('interviews.redraft_with_ai', 'Redraft with AI')}
         </Button>
       </div>
       <FieldControl>
         <RichTextEditor
-          label="Agenda"
+          label={tr('interviews.agenda_2', 'Agenda')}
           value={value?.html ?? ''}
           minHeight="10rem"
           onChange={(next) => {
@@ -771,29 +856,41 @@ function WhereFields({
   return (
     <>
       <Field>
-        <FieldLabel>Where</FieldLabel>
+        <FieldLabel>{tr('interviews.where', 'Where')}</FieldLabel>
         <SegmentedControl
-          aria-label="Where"
+          aria-label={tr('interviews.where', 'Where')}
           value={where}
           onValueChange={(v) => {
             onWhere(v as Where);
           }}
         >
-          <SegmentedControlItem value="meet">Google Meet</SegmentedControlItem>
-          <SegmentedControlItem value="link">A link</SegmentedControlItem>
-          <SegmentedControlItem value="place">An address</SegmentedControlItem>
+          <SegmentedControlItem value="meet">
+            {tr('interviews.google_meet', 'Google Meet')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="link">
+            {tr('interviews.a_link', 'A link')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="place">
+            {tr('interviews.an_address', 'An address')}
+          </SegmentedControlItem>
         </SegmentedControl>
         {where === 'meet' ? (
           <FieldDescription>
             {meet
-              ? 'A Meet link is made on the organiser’s calendar at booking and sent with the invitation.'
-              : 'No calendar is connected for these interviewers: connect one under Settings, Integrations, or paste a link.'}
+              ? tr(
+                  'interviews.a_meet_link_is_made_on',
+                  'A Meet link is made on the organiser’s calendar at booking and sent with the invitation.',
+                )
+              : tr(
+                  'interviews.no_calendar_is_connected_for_these',
+                  'No calendar is connected for these interviewers: connect one under Settings, Integrations, or paste a link.',
+                )}
           </FieldDescription>
         ) : null}
       </Field>
       {where === 'link' ? (
         <Field required>
-          <FieldLabel>Video link</FieldLabel>
+          <FieldLabel>{tr('interviews.video_link', 'Video link')}</FieldLabel>
           <FieldControl>
             <Input
               type="url"
@@ -808,14 +905,14 @@ function WhereFields({
       ) : null}
       {where === 'place' ? (
         <Field required>
-          <FieldLabel>Address</FieldLabel>
+          <FieldLabel>{tr('interviews.address', 'Address')}</FieldLabel>
           <FieldControl>
             <Input
               value={place}
               onChange={(e) => {
                 onPlace(e.target.value);
               }}
-              placeholder="Berlin office, 3rd floor"
+              placeholder={tr('interviews.berlin_office_3rd_floor', 'Berlin office, 3rd floor')}
             />
           </FieldControl>
         </Field>
@@ -863,7 +960,9 @@ function ScheduleBody({
   const plan = data.plan.find((p) => p.key === data.planKey);
   const today = DAY_KEY(data.from);
   const nameOf = (id: string): string =>
-    data.members.find((m) => m.personId === id)?.name ?? data.names[id] ?? 'Someone';
+    data.members.find((m) => m.personId === id)?.name ??
+    data.names[id] ??
+    tr('interviews.someone', 'Someone');
   const back = () =>
     props.onNavigate?.(
       `/recruiting/candidates/${data.candidate.id}?application=${applicationId}&tab=process`,
@@ -889,15 +988,25 @@ function ScheduleBody({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={plan === undefined ? 'Schedule an interview' : `Schedule: ${plan.title}`}
-        description={`${data.candidate.name} · ${data.job.title}`}
+        title={
+          plan === undefined
+            ? tr('interviews.schedule_an_interview', 'Schedule an interview')
+            : tr('interviews.schedule', 'Schedule: {{title}}', { title: plan.title })
+        }
+        description={tr('interviews.text_3', '{{name}} · {{title}}', {
+          name: data.candidate.name,
+          title: data.job.title,
+        })}
       />
       <Refusal error={act.error} />
       {data.plan.length === 0 ? (
         <EmptyState
           icon={<icons.meeting aria-hidden />}
-          title="No interview plan"
-          description="Add the interviews to the job’s plan first."
+          title={tr('interviews.no_interview_plan', 'No interview plan')}
+          description={tr(
+            'interviews.add_the_interviews_to_the_jobs',
+            'Add the interviews to the job’s plan first.',
+          )}
         />
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -905,16 +1014,34 @@ function ScheduleBody({
             {offered.map((a) => (
               <Card key={a.id}>
                 <CardHeader>
-                  <CardTitle
-                    level={2}
-                  >{`${data.candidate.name} offered ${String(a.times.length)} time${a.times.length === 1 ? '' : 's'}`}</CardTitle>
+                  <CardTitle level={2}>
+                    {tr('interviews.offered_time', '{{name}} offered {{length}} time{{value}}', {
+                      name: data.candidate.name,
+                      length: String(a.times.length),
+                      value: a.times.length === 1 ? '' : 's',
+                    })}
+                  </CardTitle>
                   <CardDescription>
-                    {`Pick one and book it: the invitation goes with ${a.videoUrl ?? a.place ?? 'a Google Meet link'}${a.agenda === null ? '' : ' and the agenda you wrote'}. None works? Ask for more and these are left out.`}
+                    {tr(
+                      'interviews.pick_one_and_book_it_the',
+                      'Pick one and book it: the invitation goes with {{value}}{{value2}}. None works? Ask for more and these are left out.',
+                      {
+                        value: a.videoUrl ?? a.place ?? 'a Google Meet link',
+                        value2:
+                          a.agenda === null
+                            ? ''
+                            : ' ' +
+                              tr('interviews.and_the_agenda_you_wrote', 'and the agenda you wrote'),
+                      },
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                   <SlotPicker
-                    label="Times the candidate offered"
+                    label={tr(
+                      'interviews.times_the_candidate_offered',
+                      'Times the candidate offered',
+                    )}
                     slots={a.times}
                     max={1}
                     today={today}
@@ -940,7 +1067,10 @@ function ScheduleBody({
                         );
                       }}
                     >
-                      Book this time and send the invitation
+                      {tr(
+                        'interviews.book_this_time_and_send_the',
+                        'Book this time and send the invitation',
+                      )}
                     </Button>
                     <Button
                       variant="secondary"
@@ -953,7 +1083,10 @@ function ScheduleBody({
                         });
                       }}
                     >
-                      None works: ask for more times
+                      {tr(
+                        'interviews.none_works_ask_for_more_times',
+                        'None works: ask for more times',
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -961,16 +1094,18 @@ function ScheduleBody({
             ))}
             <Card>
               <CardHeader>
-                <CardTitle level={2}>The interview</CardTitle>
+                <CardTitle level={2}>{tr('interviews.the_interview', 'The interview')}</CardTitle>
                 <CardDescription>
-                  Which interview of the plan, and who runs it. Everyone chosen is invited, and only
-                  times free for all of them, and for you, are offered.
+                  {tr(
+                    'interviews.which_interview_of_the_plan_and',
+                    'Which interview of the plan, and who runs it. Everyone chosen is invited, and only times free for all of them, and for you, are offered.',
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-5">
                 {data.plan.length > 1 ? (
                   <RadioGroup
-                    aria-label="Interview"
+                    aria-label={tr('interviews.interview', 'Interview')}
                     className="grid gap-2 sm:grid-cols-2"
                     value={data.planKey ?? ''}
                     onValueChange={(v) => props.onFilter?.({ plan: v, with: null })}
@@ -979,7 +1114,13 @@ function ScheduleBody({
                       <RadioCard
                         key={p.key}
                         value={p.key}
-                        description={`${String(p.minutes)} min${p.competencies.length === 0 ? '' : ` · ${String(p.competencies.length)} to assess`}`}
+                        description={tr('interviews.min', '{{minutes}} min{{value}}', {
+                          minutes: String(p.minutes),
+                          value:
+                            p.competencies.length === 0
+                              ? ''
+                              : ` · ${String(p.competencies.length)} to assess`,
+                        })}
                       >
                         {p.title}
                       </RadioCard>
@@ -988,25 +1129,34 @@ function ScheduleBody({
                 ) : plan === undefined ? null : (
                   <KeyValues
                     items={[
-                      { label: 'Interview', value: plan.title },
-                      { label: 'Length', value: `${String(plan.minutes)} min` },
+                      { label: tr('interviews.interview', 'Interview'), value: plan.title },
+                      {
+                        label: tr('interviews.length', 'Length'),
+                        value: `${String(plan.minutes)} min`,
+                      },
                     ]}
                   />
                 )}
                 <Field required>
-                  <FieldLabel>Interviewers</FieldLabel>
+                  <FieldLabel>{tr('interviews.interviewers', 'Interviewers')}</FieldLabel>
                   <FieldDescription>
                     {plan !== undefined && plan.interviewerIds.length > 0
-                      ? 'From the job’s plan. Change them for this interview only.'
-                      : 'The job’s hiring team to start. Change them for this interview.'}
+                      ? tr(
+                          'interviews.from_the_jobs_plan_change_them',
+                          'From the job’s plan. Change them for this interview only.',
+                        )
+                      : tr(
+                          'interviews.the_jobs_hiring_team_to_start',
+                          'The job’s hiring team to start. Change them for this interview.',
+                        )}
                   </FieldDescription>
                   <FieldControl>
                     <Combobox
-                      label="Interviewers"
+                      label={tr('interviews.interviewers', 'Interviewers')}
                       multiple
                       chips
-                      placeholder="Choose who runs it"
-                      searchPlaceholder="Search people"
+                      placeholder={tr('interviews.choose_who_runs_it', 'Choose who runs it')}
+                      searchPlaceholder={tr('interviews.search_people', 'Search people')}
                       options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
                       value={data.interviewers}
                       onChange={(v) => {
@@ -1022,28 +1172,41 @@ function ScheduleBody({
             <Card>
               <CardHeader>
                 <CardTitle level={2}>
-                  {how === 'link' ? 'The candidate picks' : 'Pick a day, then a time'}
+                  {how === 'link'
+                    ? tr('interviews.the_candidate_picks', 'The candidate picks')
+                    : tr('interviews.pick_a_day_then_a_time', 'Pick a day, then a time')}
                 </CardTitle>
                 <CardDescription>
                   {panelReady
-                    ? `Free for you, ${data.interviewers.map(nameOf).join(', ')}. A struck day has nothing free: a weekend, a holiday, someone away, or the hours over.`
-                    : 'Choose who runs the interview to see the times that suit them.'}
+                    ? tr(
+                        'interviews.free_for_you_a_struck_day',
+                        'Free for you, {{join}}. A struck day has nothing free: a weekend, a holiday, someone away, or the hours over.',
+                        { join: data.interviewers.map(nameOf).join(', ') },
+                      )
+                    : tr(
+                        'interviews.choose_who_runs_the_interview_to',
+                        'Choose who runs the interview to see the times that suit them.',
+                      )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {!panelReady ? (
                   <EmptyState
                     icon={<icons.people aria-hidden />}
-                    title="No interviewers yet"
-                    description="Choose them above."
+                    title={tr('interviews.no_interviewers_yet', 'No interviewers yet')}
+                    description={tr('interviews.choose_them_above', 'Choose them above.')}
                   />
                 ) : how === 'link' ? (
                   <p className="text-sm text-fg-muted">
-                    {`${data.candidate.name} gets a link to the same free times, in their own time zone, holidays and days away left out, and gives ten. You book one from here.`}
+                    {tr(
+                      'interviews.gets_a_link_to_the_same',
+                      '{{name}} gets a link to the same free times, in their own time zone, holidays and days away left out, and gives ten. You book one from here.',
+                      { name: data.candidate.name },
+                    )}
                   </p>
                 ) : (
                   <SlotPicker
-                    label="Interview times"
+                    label={tr('interviews.interview_times', 'Interview times')}
                     slots={data.slots}
                     booked={data.booked.map((b) => b.startsAt)}
                     today={today}
@@ -1070,14 +1233,21 @@ function ScheduleBody({
             {data.asks.length === 0 && data.booked.length === 0 ? null : (
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>With the candidate</CardTitle>
-                  <CardDescription>What is booked, offered or asked, newest first.</CardDescription>
+                  <CardTitle level={2}>
+                    {tr('interviews.with_the_candidate', 'With the candidate')}
+                  </CardTitle>
+                  <CardDescription>
+                    {tr(
+                      'interviews.what_is_booked_offered_or_asked',
+                      'What is booked, offered or asked, newest first.',
+                    )}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {data.booked.map((b) => (
                     <div key={b.id} className="flex flex-wrap items-center gap-2 text-sm">
                       <Badge size="sm" tone="accent">
-                        Booked
+                        {tr('interviews.booked', 'Booked')}
                       </Badge>
                       <span className="font-medium">{b.title}</span>
                       <span className="text-fg-muted">{when(b.startsAt)}</span>
@@ -1099,11 +1269,11 @@ function ScheduleBody({
           </div>
           <Card className="lg:sticky lg:top-4">
             <CardHeader>
-              <CardTitle level={2}>How to book</CardTitle>
+              <CardTitle level={2}>{tr('interviews.how_to_book', 'How to book')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <RadioGroup
-                aria-label="How to book"
+                aria-label={tr('interviews.how_to_book', 'How to book')}
                 value={how}
                 onValueChange={(v) => {
                   setHow(v as typeof how);
@@ -1112,21 +1282,32 @@ function ScheduleBody({
               >
                 <RadioCard
                   value="book"
-                  description="One time, booked now. The invitation goes at once."
+                  description={tr(
+                    'interviews.one_time_booked_now_the_invitation',
+                    'One time, booked now. The invitation goes at once.',
+                  )}
                 >
-                  Book a time
+                  {tr('interviews.book_a_time', 'Book a time')}
                 </RadioCard>
                 <RadioCard
                   value="offer"
-                  description={`Several times; ${data.candidate.name} picks one or asks for others.`}
+                  description={tr(
+                    'interviews.several_times_picks_one_or_asks',
+                    'Several times; {{name}} picks one or asks for others.',
+                    { name: data.candidate.name },
+                  )}
                 >
-                  Offer times to choose from
+                  {tr('interviews.offer_times_to_choose_from', 'Offer times to choose from')}
                 </RadioCard>
                 <RadioCard
                   value="link"
-                  description={`${data.candidate.name} gives ten times that fit everyone; you book one.`}
+                  description={tr(
+                    'interviews.gives_ten_times_that_fit_everyone',
+                    '{{name}} gives ten times that fit everyone; you book one.',
+                    { name: data.candidate.name },
+                  )}
                 >
-                  Ask for their availability
+                  {tr('interviews.ask_for_their_availability', 'Ask for their availability')}
                 </RadioCard>
               </RadioGroup>
               <WhereFields
@@ -1140,7 +1321,12 @@ function ScheduleBody({
               />
               {how === 'offer' ? (
                 <Field>
-                  <FieldLabel>A line for the candidate (optional)</FieldLabel>
+                  <FieldLabel>
+                    {tr(
+                      'interviews.a_line_for_the_candidate_optional',
+                      'A line for the candidate (optional)',
+                    )}
+                  </FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
@@ -1156,14 +1342,17 @@ function ScheduleBody({
                 <KeyValues
                   items={[
                     {
-                      label: 'Invited',
+                      label: tr('interviews.invited', 'Invited'),
                       value: [data.candidate.name, ...data.interviewers.map(nameOf)].join(', '),
                     },
                     ...(how === 'link' || picked.length === 0
                       ? []
                       : [
                           {
-                            label: picked.length === 1 ? 'When' : 'Times',
+                            label:
+                              picked.length === 1
+                                ? tr('interviews.when', 'When')
+                                : tr('interviews.times', 'Times'),
                             value:
                               picked.length === 1
                                 ? when(picked[0] ?? '')
@@ -1189,7 +1378,7 @@ function ScheduleBody({
                     );
                   }}
                 >
-                  Book and send the invitation
+                  {tr('interviews.book_and_send_the_invitation', 'Book and send the invitation')}
                 </Button>
               ) : how === 'offer' ? (
                 <Button
@@ -1212,7 +1401,9 @@ function ScheduleBody({
                     );
                   }}
                 >
-                  {`Send ${picked.length === 1 ? 'this time' : `${String(picked.length)} times`} to the candidate`}
+                  {tr('interviews.send_to_the_candidate', 'Send {{value}} to the candidate', {
+                    value: picked.length === 1 ? 'this time' : `${String(picked.length)} times`,
+                  })}
                 </Button>
               ) : (
                 <Button
@@ -1237,12 +1428,14 @@ function ScheduleBody({
                     );
                   }}
                 >
-                  Send the link
+                  {tr('interviews.send_the_link', 'Send the link')}
                 </Button>
               )}
               <p className="text-xs text-fg-muted">
-                The email goes the moment you press. Without a calendar, the invitation carries an
-                .ics file.
+                {tr(
+                  'interviews.the_email_goes_the_moment_you',
+                  'The email goes the moment you press. Without a calendar, the invitation carries an .ics file.',
+                )}
               </p>
             </CardContent>
           </Card>
@@ -1287,16 +1480,22 @@ function DebriefBody({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={`Debrief: ${data.candidate.name}`}
-        description={`${data.job.title} · averages and disagreements computed by Kithena`}
+        title={tr('interviews.debrief', 'Debrief: {{name}}', { name: data.candidate.name })}
+        description={tr(
+          'interviews.averages_and_disagreements_computed_by_kithena',
+          '{{title}} · averages and disagreements computed by Kithena',
+          { title: data.job.title },
+        )}
       />
       <Refusal error={act.error} />
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Summary</CardTitle>
+          <CardTitle level={2}>{tr('interviews.summary', 'Summary')}</CardTitle>
           <CardDescription>
-            Written by a model from the scorecards; every line names the scorecards it came from.
-            Its suggestion is only that: the decision is yours.
+            {tr(
+              'interviews.written_by_a_model_from_the',
+              'Written by a model from the scorecards; every line names the scorecards it came from. Its suggestion is only that: the decision is yours.',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -1311,7 +1510,7 @@ function DebriefBody({
                 });
               }}
             >
-              Summarise the scorecards
+              {tr('interviews.summarise_the_scorecards', 'Summarise the scorecards')}
             </Button>
           ) : (
             <div className="flex flex-col gap-4">
@@ -1328,10 +1527,13 @@ function DebriefBody({
                     variant="solid"
                   >
                     {summary.suggestion === 'proceed'
-                      ? 'Suggests: proceed'
+                      ? tr('interviews.suggests_proceed', 'Suggests: proceed')
                       : summary.suggestion === 'reject'
-                        ? 'Suggests: reject'
-                        : 'Suggests: gather more evidence'}
+                        ? tr('interviews.suggests_reject', 'Suggests: reject')
+                        : tr(
+                            'interviews.suggests_gather_more_evidence',
+                            'Suggests: gather more evidence',
+                          )}
                   </Badge>
                   <Badge
                     tone={
@@ -1343,7 +1545,7 @@ function DebriefBody({
                     }
                     variant="soft"
                   >
-                    {`Tone: ${summary.tone}`}
+                    {tr('interviews.tone', 'Tone: {{tone}}', { tone: summary.tone })}
                   </Badge>
                 </div>
                 {summary.direction === '' ? null : (
@@ -1373,20 +1575,27 @@ function DebriefBody({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Scorecards side by side</CardTitle>
-            <CardDescription>{`${String(data.submitted)} of ${String(data.expected)} submitted`}</CardDescription>
+            <CardTitle level={2}>
+              {tr('interviews.scorecards_side_by_side', 'Scorecards side by side')}
+            </CardTitle>
+            <CardDescription>
+              {tr('interviews.of_submitted', '{{submitted}} of {{expected}} submitted', {
+                submitted: String(data.submitted),
+                expected: String(data.expected),
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Competency</TableHead>
+                  <TableHead>{tr('interviews.competency', 'Competency')}</TableHead>
                   {people.map((p) => (
                     <TableHead key={p}>{data.names[p] ?? p}</TableHead>
                   ))}
-                  <TableHead>Average</TableHead>
+                  <TableHead>{tr('interviews.average', 'Average')}</TableHead>
                   <TableHead>
-                    <span className="sr-only">Disagreement</span>
+                    <span className="sr-only">{tr('interviews.disagreement', 'Disagreement')}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -1412,7 +1621,7 @@ function DebriefBody({
                     <TableCell>
                       {r.disagreement ? (
                         <Badge size="sm" tone="warning">
-                          Disagree by 2+
+                          {tr('interviews.disagree_by_2', 'Disagree by 2+')}
                         </Badge>
                       ) : null}
                     </TableCell>
@@ -1422,24 +1631,29 @@ function DebriefBody({
             </Table>
             <div className="mt-3 flex flex-wrap gap-2">
               {RECOMMENDATIONS.filter((k) => data.recommendations[k] > 0).map((k) => (
-                <Badge
-                  key={k}
-                  tone={k === 'yes' || k === 'strong_yes' ? 'success' : 'danger'}
-                >{`${words(k)} × ${String(data.recommendations[k])}`}</Badge>
+                <Badge key={k} tone={k === 'yes' || k === 'strong_yes' ? 'success' : 'danger'}>
+                  {tr('interviews.text_4', '{{k}} × {{recommendations}}', {
+                    k: words(k),
+                    recommendations: String(data.recommendations[k]),
+                  })}
+                </Badge>
               ))}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Decision</CardTitle>
+            <CardTitle level={2}>{tr('interviews.decision', 'Decision')}</CardTitle>
             <CardDescription>
-              The job’s recruiter or hiring manager decides, with a reason
+              {tr(
+                'interviews.the_jobs_recruiter_or_hiring_manager',
+                'The job’s recruiter or hiring manager decides, with a reason',
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <SegmentedControl
-              aria-label="Decision"
+              aria-label={tr('interviews.decision', 'Decision')}
               value={decision}
               onValueChange={(v) => {
                 setDecision(v as typeof decision);
@@ -1447,12 +1661,18 @@ function DebriefBody({
               disabled={!data.decider}
               className="w-full"
             >
-              <SegmentedControlItem value="advance">Advance</SegmentedControlItem>
-              <SegmentedControlItem value="reject">Reject</SegmentedControlItem>
-              <SegmentedControlItem value="offer">Make an offer</SegmentedControlItem>
+              <SegmentedControlItem value="advance">
+                {tr('interviews.advance', 'Advance')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="reject">
+                {tr('interviews.reject', 'Reject')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="offer">
+                {tr('interviews.make_an_offer', 'Make an offer')}
+              </SegmentedControlItem>
             </SegmentedControl>
             <Field required>
-              <FieldLabel>Reason</FieldLabel>
+              <FieldLabel>{tr('interviews.reason', 'Reason')}</FieldLabel>
               <FieldControl>
                 <Textarea
                   autoResize
@@ -1474,11 +1694,14 @@ function DebriefBody({
                 });
               }}
             >
-              Record decision
+              {tr('interviews.record_decision', 'Record decision')}
             </Button>
             {data.decider ? null : (
               <p className="text-xs text-fg-muted">
-                Only the job’s recruiter or hiring manager records the decision.
+                {tr(
+                  'interviews.only_the_jobs_recruiter_or_hiring',
+                  'Only the job’s recruiter or hiring manager records the decision.',
+                )}
               </p>
             )}
           </CardContent>

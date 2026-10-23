@@ -49,6 +49,7 @@ import {
   type Plan,
   type TeamSees,
 } from './shared';
+import { t } from '../i18n';
 
 /**
  * Planning parental leave (T8–T10, MT11, MT12), one step per address:
@@ -107,10 +108,10 @@ export interface ParentalPlanProps {
 }
 
 const STEPS = [
-  { id: 'about', label: 'About the baby' },
-  { id: 'plan', label: 'Your plan' },
-  { id: 'handover', label: 'Handover' },
-  { id: 'send', label: 'Send to HR' },
+  { id: 'about', label: t('parental.plan.about_the_baby', 'About the baby') },
+  { id: 'plan', label: t('parental.plan.your_plan', 'Your plan') },
+  { id: 'handover', label: t('parental.plan.handover', 'Handover') },
+  { id: 'send', label: t('parental.plan.send_to_hr', 'Send to HR') },
 ] as const;
 type Step = (typeof STEPS)[number]['id'];
 
@@ -121,7 +122,9 @@ export function ParentalPlan(props: ParentalPlanProps): JSX.Element {
   if (load.status === 'loading') return <ParentalSkeleton />;
   return (
     <div className="@container/parental flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Plan parental leave" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('parental.plan.plan_parental_leave', 'Plan parental leave')} />
+      ) : null}
       <Loaded load={load} what="your parental leave plan">
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -133,7 +136,7 @@ export function ParentalPlan(props: ParentalPlanProps): JSX.Element {
 
 /** "Marco", or "your manager" when nobody is named. */
 const managerWord = (data: ParentalData): string =>
-  data.managerName?.split(' ')[0] ?? 'your manager';
+  data.managerName?.split(' ')[0] ?? t('parental.plan.your_manager', 'your manager');
 
 function Ready({
   data,
@@ -143,11 +146,23 @@ function Ready({
   if (data.member === null || !data.supported) {
     return (
       <>
-        <PageHeader title="Plan parental leave" />
-        <Alert tone="info" title="Parental leave can’t be planned here yet">
+        <PageHeader title={t('parental.plan.plan_parental_leave', 'Plan parental leave')} />
+        <Alert
+          tone="info"
+          title={t(
+            'parental.plan.parental_leave_cant_be_planned_here',
+            'Parental leave can’t be planned here yet',
+          )}
+        >
           {data.member === null
-            ? 'Plans belong to the person taking the leave. Open one from HR’s view of the case.'
-            : 'The law where you work isn’t in Time Off yet. HR can plan your leave with you.'}
+            ? t(
+                'parental.plan.plans_belong_to_the_person_taking',
+                'Plans belong to the person taking the leave. Open one from HR’s view of the case.',
+              )
+            : t(
+                'parental.plan.the_law_where_you_work_isnt',
+                'The law where you work isn’t in Time Off yet. HR can plan your leave with you.',
+              )}
         </Alert>
       </>
     );
@@ -176,13 +191,17 @@ function Frame({
   return (
     <>
       <PageHeader
-        title="Plan parental leave"
-        description={`Built from the law where you work and your company’s policy. Private until you send it to HR and ${managerWord(data)}.`}
+        title={t('parental.plan.plan_parental_leave', 'Plan parental leave')}
+        description={t(
+          'parental.plan.built_from_the_law_where_you',
+          'Built from the law where you work and your company’s policy. Private until you send it to HR and {{managerWord}}.',
+          { managerWord: managerWord(data) },
+        )}
         actions={actions}
       />
       <Stepper
         className="max-w-4xl"
-        label="Planning parental leave"
+        label={t('parental.plan.planning_parental_leave', 'Planning parental leave')}
         orientation="horizontal"
         current={index}
         steps={STEPS.map((s) => ({ id: s.id, label: s.label }))}
@@ -273,9 +292,9 @@ function Refused({
 /* ------------------------------------------------------------- T8 -- */
 
 const ROLES: readonly { value: ParentRole; label: string }[] = [
-  { value: 'birth_parent', label: 'The birth parent' },
-  { value: 'other_parent', label: 'The other parent' },
-  { value: 'adopting', label: 'Adopting or fostering' },
+  { value: 'birth_parent', label: t('parental.plan.the_birth_parent', 'The birth parent') },
+  { value: 'other_parent', label: t('parental.plan.the_other_parent', 'The other parent') },
+  { value: 'adopting', label: t('parental.plan.adopting_or_fostering', 'Adopting or fostering') },
 ];
 
 function Choice({
@@ -318,18 +337,22 @@ function TeamSeesChoice({
   return (
     <div className="flex flex-col gap-2">
       <Choice
-        label="What your team sees"
+        label={t('parental.plan.what_your_team_sees', 'What your team sees')}
         value={value}
         onChange={(v) => {
           onChange(v === 'away' ? 'away' : 'type');
         }}
         options={[
-          { value: 'type', label: 'Parental leave' },
-          { value: 'away', label: 'Just “Away”' },
+          { value: 'type', label: t('parental.plan.parental_leave', 'Parental leave') },
+          { value: 'away', label: t('parental.plan.just_away', 'Just “Away”') },
         ]}
       />
       <p className="text-xs text-fg-muted">
-        {`HR and ${manager} always see the type. You can change this later.`}
+        {t(
+          'parental.plan.hr_and_always_see_the_type',
+          'HR and {{manager}} always see the type. You can change this later.',
+          { manager },
+        )}
       </p>
     </div>
   );
@@ -385,7 +408,7 @@ function About({
               save(false);
             }}
           >
-            Save draft
+            {t('parental.plan.save_draft', 'Save draft')}
           </Button>
           <Button
             variant="primary"
@@ -395,16 +418,16 @@ function About({
               save(true);
             }}
           >
-            Next: your plan
+            {t('parental.plan.next_your_plan', 'Next: your plan')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-5 @min-[56rem]/parental:grid @min-[56rem]/parental:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] @min-[56rem]/parental:items-start">
-        <PageSection title="About the baby">
+        <PageSection title={t('parental.plan.about_the_baby', 'About the baby')}>
           <Card padded className="flex flex-col gap-5">
             <Choice
-              label="You are"
+              label={t('parental.plan.you_are', 'You are')}
               value={role}
               onChange={(v) => {
                 setRole(v as ParentRole);
@@ -412,24 +435,32 @@ function About({
               options={ROLES}
             />
             <Field>
-              <FieldLabel>{role === 'adopting' ? 'Date of the decision' : 'Due date'}</FieldLabel>
+              <FieldLabel>
+                {role === 'adopting'
+                  ? t('parental.plan.date_of_the_decision', 'Date of the decision')
+                  : t('parental.plan.due_date', 'Due date')}
+              </FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label={role === 'adopting' ? 'Date of the decision' : 'Due date'}
+                  label={
+                    role === 'adopting'
+                      ? t('parental.plan.date_of_the_decision', 'Date of the decision')
+                      : t('parental.plan.due_date', 'Due date')
+                  }
                   value={childDate}
                   onChange={setChildDate}
                 />
               </FieldControl>
             </Field>
             <Choice
-              label="Family"
+              label={t('parental.plan.family', 'Family')}
               value={singleParent ? 'single' : 'two'}
               onChange={(v) => {
                 setSingleParent(v === 'single');
               }}
               options={[
-                { value: 'two', label: 'Two parents' },
-                { value: 'single', label: 'Single parent' },
+                { value: 'two', label: t('parental.plan.two_parents', 'Two parents') },
+                { value: 'single', label: t('parental.plan.single_parent', 'Single parent') },
               ]}
             />
             <Field orientation="horizontal" className="items-start justify-start gap-3">
@@ -442,12 +473,20 @@ function About({
                 />
               </FieldControl>
               <div>
-                <FieldLabel>Twins or more</FieldLabel>
-                <FieldDescription>Adds weeks for each child after the first</FieldDescription>
+                <FieldLabel>{t('parental.plan.twins_or_more', 'Twins or more')}</FieldLabel>
+                <FieldDescription>
+                  {t(
+                    'parental.plan.adds_weeks_for_each_child_after',
+                    'Adds weeks for each child after the first',
+                  )}
+                </FieldDescription>
               </div>
             </Field>
             <TeamSeesChoice value={teamSees} onChange={setTeamSees} manager={managerWord(data)} />
-            <Refused failed={write.failed} title="Your answers were not saved" />
+            <Refused
+              failed={write.failed}
+              title={t('parental.plan.your_answers_were_not_saved', 'Your answers were not saved')}
+            />
           </Card>
         </PageSection>
         <EntitlementCard entitlement={entitlement} role={role} childDate={childDate} />
@@ -468,60 +507,95 @@ function EntitlementCard({
 }): JSX.Element {
   return (
     <AssistantCard
-      title="What you’re entitled to"
+      title={t('parental.plan.what_youre_entitled_to', 'What you’re entitled to')}
       action={e === null ? undefined : <Badge size="sm">{e.law}</Badge>}
-      note="Based on your contract, location and length of service. HR confirms it."
+      note={t(
+        'parental.plan.based_on_your_contract_location_and',
+        'Based on your contract, location and length of service. HR confirms it.',
+      )}
     >
       {e === null || childDate === null ? (
         <p className="text-sm text-fg-muted">
-          Say who you are and the date, and the weeks the law and your company give you show here.
+          {t(
+            'parental.plan.say_who_you_are_and_the',
+            'Say who you are and the date, and the weeks the law and your company give you show here.',
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-4">
           <div className="grid gap-2 @min-[40rem]/parental:grid-cols-3">
             <Stat
-              label="Mandatory"
+              label={t('parental.plan.mandatory', 'Mandatory')}
               value={String(e.mandatoryWeeks)}
               unit="weeks"
-              description={`Straight after the ${role === 'adopting' ? 'decision' : 'birth'}, full time`}
+              description={t(
+                'parental.plan.straight_after_the_full_time',
+                'Straight after the {{value}}, full time',
+                { value: role === 'adopting' ? 'decision' : 'birth' },
+              )}
             />
             <Stat
-              label="Flexible"
+              label={t('parental.plan.flexible', 'Flexible')}
               value={String(e.flexibleWeeks)}
               unit="weeks"
-              description={`Any time before ${longDate(e.flexibleBefore)}`}
+              description={t('parental.plan.any_time_before', 'Any time before {{longDate}}', {
+                longDate: longDate(e.flexibleBefore),
+              })}
             />
             <Stat
-              label="For later"
+              label={t('parental.plan.for_later', 'For later')}
               value={String(e.laterWeeks)}
               unit="weeks"
-              description={`Any time before your child turns ${String(Number(year(e.laterBefore)) - Number(year(childDate)))}`}
+              description={t(
+                'parental.plan.any_time_before_your_child_turns',
+                'Any time before your child turns {{value}}',
+                { value: String(Number(year(e.laterBefore)) - Number(year(childDate))) },
+              )}
             />
           </div>
           <List>
             <ListItem
               icon={<icons.payment aria-hidden />}
               iconTone="chart-3"
-              description="HR prepares the certificate you need for your claim."
+              description={t(
+                'parental.plan.hr_prepares_the_certificate_you_need',
+                'HR prepares the certificate you need for your claim.',
+              )}
             >
-              {`${weeks(lawWeeks(e))}, paid at ${String(e.payPercent)}% by ${PAYER[e.paidBy] ?? e.paidBy}`}
+              {t('parental.plan.paid_at_by', '{{weeks}}, paid at {{payPercent}}% by {{value}}', {
+                weeks: weeks(lawWeeks(e)),
+                payPercent: String(e.payPercent),
+                value: PAYER[e.paidBy] ?? e.paidBy,
+              })}
             </ListItem>
             {e.companyWeeks > 0 ? (
               <ListItem
                 icon={<icons.company aria-hidden />}
                 iconTone="chart-2"
-                description={`Company policy for parents with ${String(e.companyAfterYears ?? 0)} ${e.companyAfterYears === 1 ? 'year' : 'years'} of service.`}
+                description={t(
+                  'parental.plan.company_policy_for_parents_with_of',
+                  'Company policy for parents with {{value}} {{value2}} of service.',
+                  {
+                    value: String(e.companyAfterYears ?? 0),
+                    value2: e.companyAfterYears === 1 ? 'year' : 'years',
+                  },
+                )}
               >
-                {`Your company adds ${weeks(e.companyWeeks)}, paid`}
+                {t('parental.plan.your_company_adds_paid', 'Your company adds {{weeks}}, paid', {
+                  weeks: weeks(e.companyWeeks),
+                })}
               </ListItem>
             ) : null}
             {e.vacationAccrues ? (
               <ListItem
                 icon={<icons.vacation aria-hidden />}
                 iconTone="chart-1"
-                description="It is there when you’re back, even in a later year."
+                description={t(
+                  'parental.plan.it_is_there_when_youre_back',
+                  'It is there when you’re back, even in a later year.',
+                )}
               >
-                You keep earning vacation
+                {t('parental.plan.you_keep_earning_vacation', 'You keep earning vacation')}
               </ListItem>
             ) : null}
           </List>
@@ -614,21 +688,32 @@ function Laid({
       actions={
         <>
           <Button asChild>
-            <a href={href('about')}>Back</a>
+            <a href={href('about')}>{t('parental.plan.back', 'Back')}</a>
           </Button>
           <Button variant="primary" asChild endIcon={<icons.forward aria-hidden />}>
-            <a href={href('handover')}>Next: handover</a>
+            <a href={href('handover')}>{t('parental.plan.next_handover', 'Next: handover')}</a>
           </Button>
         </>
       }
     >
       <div className="grid grid-cols-3 gap-2 @min-[40rem]/parental:hidden">
-        <Stat label="By law" value={String(lawWeeks(e))} unit="weeks" />
-        <Stat label="Company" value={String(e.companyWeeks)} unit="weeks" />
-        <Stat label="Paid" value={`${String(e.payPercent)}%`} />
+        <Stat
+          label={t('parental.plan.by_law', 'By law')}
+          value={String(lawWeeks(e))}
+          unit="weeks"
+        />
+        <Stat
+          label={t('parental.plan.company', 'Company')}
+          value={String(e.companyWeeks)}
+          unit="weeks"
+        />
+        <Stat label={t('parental.plan.paid', 'Paid')} value={`${String(e.payPercent)}%`} />
       </div>
       {plan.problems.length === 0 ? null : (
-        <Alert tone="warning" title="This plan can’t be sent yet">
+        <Alert
+          tone="warning"
+          title={t('parental.plan.this_plan_cant_be_sent_yet', 'This plan can’t be sent yet')}
+        >
           <ul className="list-disc ps-5">
             {plan.problems.map((p) => (
               <li key={p.code}>{p.message}</li>
@@ -636,8 +721,13 @@ function Laid({
           </ul>
         </Alert>
       )}
-      <Refused failed={write.failed} title="The block did not move" />
-      <PageSection title={`Your plan · ${weeks(total)}`}>
+      <Refused
+        failed={write.failed}
+        title={t('parental.plan.the_block_did_not_move', 'The block did not move')}
+      />
+      <PageSection
+        title={t('parental.plan.your_plan_2', 'Your plan · {{weeks}}', { weeks: weeks(total) })}
+      >
         <Card padded className="@max-[40rem]/parental:hidden">
           <PlanTrack plan={plan} {...(onBlocks === undefined ? {} : { onMove: move })} />
         </Card>
@@ -646,7 +736,10 @@ function Laid({
         </Card>
       </PageSection>
       <div className="flex flex-col gap-5 @min-[56rem]/parental:grid @min-[56rem]/parental:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @min-[56rem]/parental:items-start">
-        <PageSection title="Pay while you’re away" className="@max-[40rem]/parental:hidden">
+        <PageSection
+          title={t('parental.plan.pay_while_youre_away', 'Pay while you’re away')}
+          className="@max-[40rem]/parental:hidden"
+        >
           <List>
             {payPeriods(plan.blocks).map((p) => (
               <ListItem
@@ -655,8 +748,12 @@ function Laid({
                 iconTone={p.paidBy === 'employer' ? 'chart-2' : 'chart-3'}
                 description={
                   p.paidBy === 'employer'
-                    ? 'Normal pay'
-                    : `${String(p.percent)}% of your regulatory base`
+                    ? t('parental.plan.normal_pay', 'Normal pay')
+                    : t(
+                        'parental.plan.of_your_regulatory_base',
+                        '{{percent}}% of your regulatory base',
+                        { percent: String(p.percent) },
+                      )
                 }
                 trailing={<span className="text-sm text-fg-muted">{spanLabel(p.from, p.to)}</span>}
               >
@@ -666,15 +763,18 @@ function Laid({
           </List>
         </PageSection>
         <AssistantCard
-          title="Why this plan"
+          title={t('parental.plan.why_this_plan', 'Why this plan')}
           action={
             plan.explanation?.ai === true ? (
               <Badge tone="assistant" size="sm">
-                AI
+                {t('parental.plan.ai', 'AI')}
               </Badge>
             ) : undefined
           }
-          note="Drag any block on the timeline. The rules are checked as you go."
+          note={t(
+            'parental.plan.drag_any_block_on_the_timeline',
+            'Drag any block on the timeline. The rules are checked as you go.',
+          )}
         >
           {plan.explanation === undefined ? null : (
             <p className="text-sm text-fg-muted">{plan.explanation.text}</p>
@@ -697,35 +797,46 @@ const VERTICAL: Record<
   (b: Block, plan: Plan) => { lead: string; title: string; detail: string }
 > = {
   mandatory: (b, plan) => ({
-    lead: `From the birth · ${plan.birth === null ? `due ${shortDate(plan.childDate)}` : `born ${shortDate(plan.childDate)}`}`,
-    title: `${duration(b.from, b.to)}, mandatory`,
-    detail: `${spanLabel(b.from, b.to)} · full time`,
+    lead: t('parental.plan.from_the_birth', 'From the birth · {{value}}', {
+      value:
+        plan.birth === null
+          ? `due ${shortDate(plan.childDate)}`
+          : `born ${shortDate(plan.childDate)}`,
+    }),
+    title: t('parental.plan.mandatory_2', '{{from}}, mandatory', { from: duration(b.from, b.to) }),
+    detail: t('parental.plan.full_time', '{{spanLabel}} · full time', {
+      spanLabel: spanLabel(b.from, b.to),
+    }),
   }),
   flexible: (b, plan) => {
     const notice = plan.reminders.find((r) => r.blockFrom === b.from);
     return {
       lead: spanLabel(b.from, b.to),
-      title: `${duration(b.from, b.to)} flexible`,
+      title: t('parental.plan.flexible_2', '{{from}} flexible', { from: duration(b.from, b.to) }),
       detail:
         notice === undefined
-          ? 'Social Security pays'
-          : `Give notice by ${shortDate(notice.remindOn)}`,
+          ? t('parental.plan.social_security_pays', 'Social Security pays')
+          : t('parental.plan.give_notice_by', 'Give notice by {{remindOn}}', {
+              remindOn: shortDate(notice.remindOn),
+            }),
     };
   },
   vacation: (b) => ({
     lead: spanLabel(b.from, b.to),
-    title: `${duration(b.from, b.to)} of vacation`,
-    detail: 'Normal pay',
+    title: t('parental.plan.of_vacation', '{{from}} of vacation', { from: duration(b.from, b.to) }),
+    detail: t('parental.plan.normal_pay', 'Normal pay'),
   }),
   company: (b) => ({
     lead: spanLabel(b.from, b.to),
-    title: `${duration(b.from, b.to)} from your company`,
-    detail: 'Normal pay',
+    title: t('parental.plan.from_your_company', '{{from}} from your company', {
+      from: duration(b.from, b.to),
+    }),
+    detail: t('parental.plan.normal_pay', 'Normal pay'),
   }),
   later: (b) => ({
     lead: spanLabel(b.from, b.to),
-    title: `${duration(b.from, b.to)} later`,
-    detail: 'Social Security pays',
+    title: t('parental.plan.later', '{{from}} later', { from: duration(b.from, b.to) }),
+    detail: t('parental.plan.social_security_pays', 'Social Security pays'),
   }),
 };
 
@@ -733,7 +844,7 @@ const VERTICAL: Record<
 function VerticalPlan({ plan }: { readonly plan: Plan }): JSX.Element {
   const sorted = plan.blocks.toSorted((a, b) => a.from.localeCompare(b.from));
   return (
-    <List aria-label="Your plan, block by block">
+    <List aria-label={t('parental.plan.your_plan_block_by_block', 'Your plan, block by block')}>
       {sorted.map((b) => {
         const v = VERTICAL[b.kind](b, plan);
         return (
@@ -754,10 +865,14 @@ function VerticalPlan({ plan }: { readonly plan: Plan }): JSX.Element {
         <ListItem
           icon={<icons.scheduled aria-hidden />}
           iconTone="neutral"
-          meta={`Until ${year(plan.entitlement.laterBefore)}`}
-          description="Book any time"
+          meta={t('parental.plan.until', 'Until {{year}}', {
+            year: year(plan.entitlement.laterBefore),
+          })}
+          description={t('parental.plan.book_any_time', 'Book any time')}
         >
-          {`${weeks(plan.keptWeeks)} kept for later`}
+          {t('parental.plan.kept_for_later', '{{weeks}} kept for later', {
+            weeks: weeks(plan.keptWeeks),
+          })}
         </ListItem>
       ) : null}
     </List>
@@ -799,7 +914,7 @@ function Handover({
       actions={
         <>
           <Button asChild>
-            <a href={href('plan')}>Back</a>
+            <a href={href('plan')}>{t('parental.plan.back', 'Back')}</a>
           </Button>
           <Button
             variant="primary"
@@ -807,19 +922,25 @@ function Handover({
             disabled={onHandover === undefined || write.pending}
             onClick={next}
           >
-            Next: send
+            {t('parental.plan.next_send', 'Next: send')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-5 @min-[56rem]/parental:grid @min-[56rem]/parental:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[56rem]/parental:items-start">
         <PageSection
-          title="Who covers your work"
-          description={`Nobody is asked until ${managerWord(data)} agrees. They can say no.`}
+          title={t('parental.plan.who_covers_your_work', 'Who covers your work')}
+          description={t(
+            'parental.plan.nobody_is_asked_until_agrees_they',
+            'Nobody is asked until {{managerWord}} agrees. They can say no.',
+            { managerWord: managerWord(data) },
+          )}
         >
           <Card padded className="flex flex-col gap-4">
             {items.length === 0 ? (
-              <p className="text-sm text-fg-muted">Nothing handed over yet.</p>
+              <p className="text-sm text-fg-muted">
+                {t('parental.plan.nothing_handed_over_yet', 'Nothing handed over yet.')}
+              </p>
             ) : (
               <List>
                 {items.map((item, i) => (
@@ -832,7 +953,9 @@ function Handover({
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-label={`Remove ${item.work}`}
+                        aria-label={t('parental.plan.remove', 'Remove {{work}}', {
+                          work: item.work,
+                        })}
                         startIcon={<icons.remove aria-hidden />}
                         onClick={() => {
                           setItems(items.filter((_, j) => j !== i));
@@ -847,26 +970,29 @@ function Handover({
             )}
             <div className="flex flex-col gap-3 @min-[40rem]/parental:flex-row @min-[40rem]/parental:items-end">
               <Field className="flex-1">
-                <FieldLabel>Work</FieldLabel>
+                <FieldLabel>{t('parental.plan.work', 'Work')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={work}
                     onChange={(ev) => {
                       setWork(ev.target.value);
                     }}
-                    placeholder="Billing v2 code reviews"
+                    placeholder={t(
+                      'parental.plan.billing_v2_code_reviews',
+                      'Billing v2 code reviews',
+                    )}
                   />
                 </FieldControl>
               </Field>
               <Field className="flex-1">
-                <FieldLabel>Covered by</FieldLabel>
+                <FieldLabel>{t('parental.plan.covered_by', 'Covered by')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={coveredBy}
                     onChange={(ev) => {
                       setCoveredBy(ev.target.value);
                     }}
-                    placeholder="A teammate"
+                    placeholder={t('parental.plan.a_teammate', 'A teammate')}
                   />
                 </FieldControl>
               </Field>
@@ -875,38 +1001,52 @@ function Handover({
                 onClick={add}
                 disabled={work.trim() === '' || coveredBy.trim() === ''}
               >
-                Add
+                {t('parental.plan.add', 'Add')}
               </Button>
             </div>
           </Card>
         </PageSection>
         <div className="flex flex-col gap-5">
-          <PageSection title="While you’re away">
+          <PageSection title={t('parental.plan.while_youre_away', 'While you’re away')}>
             <Card padded className="flex flex-col gap-4">
               <Integration
                 icon={<icons.email aria-hidden />}
-                label="Out-of-office reply"
+                label={t('parental.plan.out_of_office_reply', 'Out-of-office reply')}
                 needs="calendar"
-                detail={`From ${shortDate(plan.childDate)}${away === null ? '' : `, until ${shortDate(away)}`}`}
+                detail={t('parental.plan.from', 'From {{childDate}}{{value}}', {
+                  childDate: shortDate(plan.childDate),
+                  value: away === null ? '' : `, until ${shortDate(away)}`,
+                })}
               />
               <Integration
                 icon={<icons.message aria-hidden />}
-                label="Chat status"
+                label={t('parental.plan.chat_status', 'Chat status')}
                 needs="chat"
                 detail={
-                  away === null ? 'On parental leave' : `On parental leave until ${shortDate(away)}`
+                  away === null
+                    ? t('parental.plan.on_parental_leave', 'On parental leave')
+                    : t(
+                        'parental.plan.on_parental_leave_until',
+                        'On parental leave until {{away}}',
+                        { away: shortDate(away) },
+                      )
                 }
               />
               <Integration
                 icon={<icons.calendar aria-hidden />}
-                label="Recurring meetings"
+                label={t('parental.plan.recurring_meetings', 'Recurring meetings')}
                 needs="calendar"
-                detail={`Declined from ${shortDate(plan.childDate)}`}
+                detail={t('parental.plan.declined_from', 'Declined from {{childDate}}', {
+                  childDate: shortDate(plan.childDate),
+                })}
               />
             </Card>
           </PageSection>
           <TeamSeesChoice value={teamSees} onChange={setTeamSees} manager={managerWord(data)} />
-          <Refused failed={write.failed} title="The handover was not saved" />
+          <Refused
+            failed={write.failed}
+            title={t('parental.plan.the_handover_was_not_saved', 'The handover was not saved')}
+          />
         </div>
       </div>
     </Frame>
@@ -931,7 +1071,13 @@ function Integration({
         {icon}
         <div>
           <FieldLabel>{label}</FieldLabel>
-          <FieldDescription>{`${detail}. Needs the ${needs} integration.`}</FieldDescription>
+          <FieldDescription>
+            {t(
+              'parental.plan.needs_the_integration',
+              '{{detail}}. Needs the {{needs}} integration.',
+              { detail, needs },
+            )}
+          </FieldDescription>
         </div>
       </div>
       <FieldControl>
@@ -948,14 +1094,14 @@ function summary(data: ParentalData, plan: Plan): { label: string; value: string
   const back = backOn(plan);
   return [
     {
-      label: 'Leave',
+      label: t('parental.plan.leave', 'Leave'),
       value:
         e.companyWeeks > 0
           ? `${weeks(lawWeeks(e))} + ${weeks(e.companyWeeks)} from your company`
           : weeks(lawWeeks(e)),
     },
     {
-      label: 'First day',
+      label: t('parental.plan.first_day', 'First day'),
       value:
         plan.role === 'adopting'
           ? `The decision, ${longDate(plan.childDate)}`
@@ -963,17 +1109,19 @@ function summary(data: ParentalData, plan: Plan): { label: string; value: string
             ? `The birth, due ${longDate(plan.childDate)}`
             : `The birth, ${longDate(plan.childDate)}`,
     },
-    ...(back === null ? [] : [{ label: 'Back at work', value: dayDate(back) }]),
+    ...(back === null
+      ? []
+      : [{ label: t('parental.plan.back_at_work', 'Back at work'), value: dayDate(back) }]),
     ...(plan.keptWeeks > 0
       ? [
           {
-            label: 'Kept for later',
+            label: t('parental.plan.kept_for_later_2', 'Kept for later'),
             value: `${weeks(plan.keptWeeks)}, until ${year(e.laterBefore)}`,
           },
         ]
       : []),
     {
-      label: 'Who sees it',
+      label: t('parental.plan.who_sees_it', 'Who sees it'),
       value: `HR, ${data.managerName ?? 'your manager'}. Team sees ${plan.teamSees === 'type' ? '“Parental leave”' : '“Away”'}`,
     },
   ];
@@ -995,7 +1143,7 @@ function Send({
       actions={
         <>
           <Button asChild>
-            <a href={href('handover')}>Back</a>
+            <a href={href('handover')}>{t('parental.plan.back', 'Back')}</a>
           </Button>
           <Button
             variant="primary"
@@ -1005,14 +1153,22 @@ function Send({
               if (onSend !== undefined) write.run(() => onSend(plan.planId));
             }}
           >
-            {`Send to HR and ${managerWord(data)}`}
+            {t('parental.plan.send_to_hr_and', 'Send to HR and {{managerWord}}', {
+              managerWord: managerWord(data),
+            })}
           </Button>
         </>
       }
     >
       <div className="flex max-w-3xl flex-col gap-5">
         {blocked ? (
-          <Alert tone="warning" title="Fix the plan before sending it">
+          <Alert
+            tone="warning"
+            title={t(
+              'parental.plan.fix_the_plan_before_sending_it',
+              'Fix the plan before sending it',
+            )}
+          >
             <ul className="list-disc ps-5">
               {plan.problems.map((p) => (
                 <li key={p.code}>{p.message}</li>
@@ -1020,21 +1176,36 @@ function Send({
             </ul>
           </Alert>
         ) : null}
-        <PageSection title="Summary">
+        <PageSection title={t('parental.plan.summary', 'Summary')}>
           <Card padded>
             <KeyValues items={summary(data, plan)} />
           </Card>
         </PageSection>
         {plan.role === 'adopting' ? null : (
-          <Alert tone="info" title="The dates follow the birth">
-            If the baby arrives early or late, the plan shifts. Record the date and the mandatory
-            weeks move with it.
+          <Alert
+            tone="info"
+            title={t('parental.plan.the_dates_follow_the_birth', 'The dates follow the birth')}
+          >
+            {t(
+              'parental.plan.if_the_baby_arrives_early_or',
+              'If the baby arrives early or late, the plan shifts. Record the date and the mandatory weeks move with it.',
+            )}
           </Alert>
         )}
-        <Alert tone="neutral" title="Private until you send it">
-          {`Your draft is only visible to you. HR and ${managerWord(data)} get it when you press Send.`}
+        <Alert
+          tone="neutral"
+          title={t('parental.plan.private_until_you_send_it', 'Private until you send it')}
+        >
+          {t(
+            'parental.plan.your_draft_is_only_visible_to',
+            'Your draft is only visible to you. HR and {{managerWord}} get it when you press Send.',
+            { managerWord: managerWord(data) },
+          )}
         </Alert>
-        <Refused failed={write.failed} title="The plan was not sent" />
+        <Refused
+          failed={write.failed}
+          title={t('parental.plan.the_plan_was_not_sent', 'The plan was not sent')}
+        />
       </div>
     </Frame>
   );
@@ -1053,15 +1224,23 @@ function Sent({
   return (
     <>
       <PageHeader
-        title="Your parental leave"
-        description={plan.sentAt === null ? undefined : `Sent ${dayDate(plan.sentAt)}`}
+        title={t('parental.plan.your_parental_leave', 'Your parental leave')}
+        description={
+          plan.sentAt === null
+            ? undefined
+            : t('parental.plan.sent', 'Sent {{dayDate}}', { dayDate: dayDate(plan.sentAt) })
+        }
         actions={
           <Badge tone={approved ? 'success' : 'warning'} dot>
-            {approved ? 'Approved' : `With HR and ${managerWord(data)}`}
+            {approved
+              ? t('parental.plan.approved', 'Approved')
+              : t('parental.plan.with_hr_and', 'With HR and {{managerWord}}', {
+                  managerWord: managerWord(data),
+                })}
           </Badge>
         }
       />
-      <PageSection title="Your plan">
+      <PageSection title={t('parental.plan.your_plan', 'Your plan')}>
         <Card padded className="@max-[40rem]/parental:hidden">
           <PlanTrack plan={plan} />
         </Card>
@@ -1070,21 +1249,28 @@ function Sent({
         </Card>
       </PageSection>
       <div className="flex flex-col gap-5 @min-[56rem]/parental:grid @min-[56rem]/parental:grid-cols-2 @min-[56rem]/parental:items-start">
-        <PageSection title="Summary">
+        <PageSection title={t('parental.plan.summary', 'Summary')}>
           <Card padded>
             <KeyValues items={summary(data, plan)} />
           </Card>
         </PageSection>
         {plan.role === 'adopting' || plan.birth !== null || onBirth === undefined ? null : (
           <PageSection
-            title="The baby is here"
-            description="The mandatory weeks move to the day of the birth, and HR and your manager are told."
+            title={t('parental.plan.the_baby_is_here', 'The baby is here')}
+            description={t(
+              'parental.plan.the_mandatory_weeks_move_to_the',
+              'The mandatory weeks move to the day of the birth, and HR and your manager are told.',
+            )}
           >
             <Card padded className="flex flex-col gap-4">
               <Field>
-                <FieldLabel>Date of birth</FieldLabel>
+                <FieldLabel>{t('parental.plan.date_of_birth', 'Date of birth')}</FieldLabel>
                 <FieldControl>
-                  <DatePicker label="Date of birth" value={birth} onChange={setBirth} />
+                  <DatePicker
+                    label={t('parental.plan.date_of_birth', 'Date of birth')}
+                    value={birth}
+                    onChange={setBirth}
+                  />
                 </FieldControl>
               </Field>
               <Button
@@ -1095,9 +1281,12 @@ function Sent({
                   if (birth !== null) write.run(() => onBirth(plan.planId, birth));
                 }}
               >
-                Record the birth
+                {t('parental.plan.record_the_birth', 'Record the birth')}
               </Button>
-              <Refused failed={write.failed} title="The birth was not recorded" />
+              <Refused
+                failed={write.failed}
+                title={t('parental.plan.the_birth_was_not_recorded', 'The birth was not recorded')}
+              />
             </Card>
           </PageSection>
         )}
@@ -1112,9 +1301,14 @@ function Sent({
 export function ParentalSkeleton(): JSX.Element {
   return (
     <div className="@container/parental flex flex-col gap-6">
-      <PageHeader title="Plan parental leave" description={' '} />
+      <PageHeader
+        title={t('parental.plan.plan_parental_leave', 'Plan parental leave')}
+        description={' '}
+      />
       <div role="status" className="flex flex-col gap-5">
-        <span className="sr-only">Loading your parental leave plan</span>
+        <span className="sr-only">
+          {t('parental.plan.loading_your_parental_leave_plan', 'Loading your parental leave plan')}
+        </span>
         <Skeleton className="h-12 max-w-4xl rounded-lg" />
         <div className="flex flex-col gap-5 @min-[56rem]/parental:grid @min-[56rem]/parental:grid-cols-2">
           <Skeleton className="h-96 rounded-lg" />

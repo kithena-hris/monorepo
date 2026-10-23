@@ -68,11 +68,35 @@ function guarded<T>(context: Context, fn: () => T): T {
   }
 }
 
-let context: Context | undefined;
-let exported: Record<string, unknown> | undefined;
+/*
+ * Words, in the page's language. Reach's `t` asks one function for every
+ * screen (`@reach/ui` `setTranslate`), and a render is synchronous, so the
+ * function is set for each render, from that render's language, and nothing
+ * else can run in between. A remote works some words out once, as its build
+ * is evaluated, so the build is evaluated once per language, in that
+ * language: a page in German never shows English worked out for someone else.
+ */
+type Words = Readonly<Record<string, Readonly<Record<string, string>>>>;
+const catalogues = new Map<string, Words>();
+/** `''` is the build as written, in English: what `load` checks. */
+const builds = new Map<string, { context: Context; exported: Record<string, unknown> }>();
+let source: string | undefined;
 
-function evaluate(code: string): void {
-  context = createContext(
+function speak(language: string): void {
+  const words = catalogues.get(language);
+  Reach.setTranslate(
+    words === undefined
+      ? null
+      : (ns, key, fallback, vars) => Reach.interpolate(words[ns]?.[key] ?? fallback, vars),
+  );
+}
+
+function evaluate(
+  code: string,
+  language: string,
+): { context: Context; exported: Record<string, unknown> } {
+  speak(language);
+  const context = createContext(
     {},
     {
       name: 'remote server build',
@@ -95,11 +119,16 @@ function evaluate(code: string): void {
   guarded(context, () => {
     wrapper(require, module, module.exports);
   });
-  exported = module.exports;
+  const build = { context, exported: module.exports };
+  builds.set(language, build);
+  return build;
 }
 
-function render(component: string, props: string, prefix: string): string {
-  if (context === undefined || exported === undefined) throw new Error('no build is loaded');
+function render(component: string, props: string, prefix: string, language: string | null): string {
+  if (source === undefined) throw new Error('no build is loaded');
+  const lang = language !== null && catalogues.has(language) ? language : '';
+  speak(lang);
+  const { context, exported } = builds.get(lang) ?? evaluate(source, lang);
   const Screen = exported[component];
   if (typeof Screen !== 'function') throw new Error(`the build does not export ${component}`);
   const parsed = JSON.parse(props, (_key, value: unknown) =>
@@ -120,12 +149,14 @@ function render(component: string, props: string, prefix: string): string {
 
 type Message =
   | { readonly type: 'load'; readonly code: string }
+  | { readonly type: 'messages'; readonly language: string; readonly messages: Words }
   | {
       readonly type: 'render';
       readonly id: number;
       readonly component: string;
       readonly props: string;
       readonly prefix: string;
+      readonly language: string | null;
     };
 
 const send = (message: unknown): void => {
@@ -133,9 +164,15 @@ const send = (message: unknown): void => {
 };
 
 process.on('message', (message: Message) => {
+  if (message.type === 'messages') {
+    catalogues.set(message.language, message.messages);
+    return;
+  }
   if (message.type === 'load') {
     try {
-      evaluate(message.code);
+      source = message.code;
+      builds.clear();
+      evaluate(message.code, '');
       send({ type: 'ready' });
     } catch (error) {
       send({ type: 'refused', error: error instanceof Error ? error.message : String(error) });
@@ -143,7 +180,10 @@ process.on('message', (message: Message) => {
     return;
   }
   try {
-    send({ id: message.id, html: render(message.component, message.props, message.prefix) });
+    send({
+      id: message.id,
+      html: render(message.component, message.props, message.prefix, message.language),
+    });
   } catch (error) {
     send({ id: message.id, error: error instanceof Error ? error.message : String(error) });
   }

@@ -19,6 +19,7 @@ import {
   icons,
 } from '@reach/ui';
 import { useId, type JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * The work locations a file names, set up inside the import, right after
@@ -71,7 +72,10 @@ export interface PlacesHere {
 export type PlaceChoices = Readonly<Record<string, PlaceChoice>>;
 
 const plural = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+  t('import.work-locations.text', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? one : many,
+  });
 
 /** Every zone the browser knows, as Organisation's own picker lists them. */
 const ZONES = [...new Set(['Etc/UTC', ...Intl.supportedValuesOf('timeZone')])].map((z) => ({
@@ -128,19 +132,33 @@ export function WorkLocationsStep({
       title={
         n === 1
           ? '1 work location in this file. Here’s how it maps.'
-          : `${String(n)} work locations in this file. Here’s how each maps.`
+          : t(
+              'import.work-locations.work_locations_in_this_file_heres',
+              '{{n}} work locations in this file. Here’s how each maps.',
+              { n: String(n) },
+            )
       }
     >
       <p className="text-sm text-fg-muted">
-        Map each to a work location here, add it as a new one, or leave it empty: the people it
-        leaves are listed for HR. Nothing is added until you approve the plan.
+        {t(
+          'import.work-locations.map_each_to_a_work_location',
+          'Map each to a work location here, add it as a new one, or leave it empty: the people it leaves are listed for HR. Nothing is added until you approve the plan.',
+        )}
       </p>
     </AssistantCard>
   );
   const note = readOnly ? (
-    <Alert tone="info" title="An administrator sets up work locations">
-      These are the suggestions. Until a People administrator maps or adds them, the rows import
-      without a work location and HR is given the list.
+    <Alert
+      tone="info"
+      title={t(
+        'import.work-locations.an_administrator_sets_up_work_locations',
+        'An administrator sets up work locations',
+      )}
+    >
+      {t(
+        'import.work-locations.these_are_the_suggestions_until_a',
+        'These are the suggestions. Until a People administrator maps or adds them, the rows import without a work location and HR is given the list.',
+      )}
     </Alert>
   ) : null;
   if (coarse) {
@@ -161,8 +179,10 @@ export function WorkLocationsStep({
         {cards}
       </div>
       <p className="text-sm text-fg-muted">
-        A new work location is added in Settings › Organisation, with the name, country and time
-        zone you give it, by the run that imports the file.
+        {t(
+          'import.work-locations.a_new_work_location_is_added',
+          'A new work location is added in Settings › Organisation, with the name, country and time zone you give it, by the run that imports the file.',
+        )}
       </p>
     </div>
   );
@@ -175,20 +195,38 @@ export function placesSummary(
 ): string {
   const counts = tally(workplaces, choices);
   const parts = [
-    counts.here + counts.mapped > 0 ? `${String(counts.here + counts.mapped)} already here` : null,
-    counts.added > 0 ? `${String(counts.added)} to add` : null,
+    counts.here + counts.mapped > 0
+      ? t('import.work-locations.already_here', '{{value}} already here', {
+          value: String(counts.here + counts.mapped),
+        })
+      : null,
+    counts.added > 0
+      ? t('import.work-locations.to_add', '{{added}} to add', { added: String(counts.added) })
+      : null,
     counts.left > 0
-      ? `${String(counts.left)} ${counts.left === 1 ? 'person' : 'people'} left empty`
+      ? t('import.work-locations.left_empty', '{{left}} {{value}} left empty', {
+          left: String(counts.left),
+          value: counts.left === 1 ? 'person' : 'people',
+        })
       : null,
   ].filter((x) => x !== null);
-  return `${String(workplaces.length)} in this file${parts.length === 0 ? '' : `: ${parts.join(', ')}`}`;
+  return t('import.work-locations.in_this_file', '{{length}} in this file{{value}}', {
+    length: String(workplaces.length),
+    value: parts.length === 0 ? '' : `: ${parts.join(', ')}`,
+  });
 }
 
 /** Where a value ends up, in words, for the card's title. */
 function targetOf(choice: PlaceChoice, here: PlacesHere): string {
-  if (choice.kind === 'leave') return 'Left empty';
-  if (choice.kind === 'add') return choice.name.trim() === '' ? 'A new work location' : choice.name;
-  return here.locations.find((l) => l.id === choice.locationId)?.name ?? 'A work location here';
+  if (choice.kind === 'leave') return t('import.work-locations.left_empty_2', 'Left empty');
+  if (choice.kind === 'add')
+    return choice.name.trim() === ''
+      ? t('import.work-locations.a_new_work_location', 'A new work location')
+      : choice.name;
+  return (
+    here.locations.find((l) => l.id === choice.locationId)?.name ??
+    t('import.work-locations.a_work_location_here', 'A work location here')
+  );
 }
 
 function WorkLocationCard({
@@ -225,19 +263,19 @@ function WorkLocationCard({
   const badge =
     w.found !== null ? (
       <Badge tone="success" size="sm">
-        Already here
+        {t('import.work-locations.already_here_2', 'Already here')}
       </Badge>
     ) : w.looksLikeId ? (
       <Badge tone="neutral" size="sm">
-        An id from another system
+        {t('import.work-locations.an_id_from_another_system', 'An id from another system')}
       </Badge>
     ) : w.suggestion !== null ? (
       <Badge tone="assistant" size="sm">
-        Close to {w.suggestion.name}
+        {t('import.work-locations.close_to', 'Close to')} {w.suggestion.name}
       </Badge>
     ) : (
       <Badge tone="info" size="sm">
-        Not here yet
+        {t('import.work-locations.not_here_yet', 'Not here yet')}
       </Badge>
     );
   const suggested = (kind: PlaceChoice['kind']) =>
@@ -245,7 +283,7 @@ function WorkLocationCard({
       ? {
           badge: (
             <Badge tone="assistant" size="sm">
-              Suggested
+              {t('import.work-locations.suggested', 'Suggested')}
             </Badge>
           ),
         }
@@ -263,13 +301,18 @@ function WorkLocationCard({
       <p className="text-sm text-fg-muted">
         {/* Left empty, the people are the table below: named once. */}
         {choice.kind === 'leave' || w.people.length === 0
-          ? `${people} in the file`
-          : `${people} in the file: ${w.people.join(', ')}${
-              w.rows > w.people.length ? ` and ${String(w.rows - w.people.length)} more` : ''
-            }`}
+          ? t('import.work-locations.in_the_file', '{{people}} in the file', { people })
+          : t('import.work-locations.in_the_file_2', '{{people}} in the file: {{join}}{{value}}', {
+              people,
+              join: w.people.join(', '),
+              value:
+                w.rows > w.people.length ? ` and ${String(w.rows - w.people.length)} more` : '',
+            })}
       </p>
       <RadioGroup
-        aria-label={`What happens to “${w.value}”`}
+        aria-label={t('import.work-locations.what_happens_to', 'What happens to “{{value}}”', {
+          value: w.value,
+        })}
         value={choice.kind}
         disabled={readOnly}
         onValueChange={(kind) => {
@@ -284,32 +327,45 @@ function WorkLocationCard({
           disabled={here.locations.length === 0}
           impact={
             here.locations.length === 0
-              ? 'There are no work locations here yet'
-              : `${people} join it`
+              ? t(
+                  'import.work-locations.there_are_no_work_locations_here',
+                  'There are no work locations here yet',
+                )
+              : t('import.work-locations.join_it', '{{people}} join it', { people })
           }
           {...suggested('map')}
         >
-          Map it to a work location here
+          {t('import.work-locations.map_it_to_a_work_location', 'Map it to a work location here')}
         </RadioCard>
         <RadioCard
           value="add"
           disabled={here.entities.length === 0}
           impact={
             here.entities.length === 0
-              ? 'There is no legal entity to add it to yet'
-              : 'Added in Settings › Organisation by the run'
+              ? t(
+                  'import.work-locations.there_is_no_legal_entity_to',
+                  'There is no legal entity to add it to yet',
+                )
+              : t(
+                  'import.work-locations.added_in_settings_organisation_by_the',
+                  'Added in Settings › Organisation by the run',
+                )
           }
           {...suggested('add')}
         >
-          Add it as a new work location
+          {t('import.work-locations.add_it_as_a_new_work', 'Add it as a new work location')}
         </RadioCard>
-        <RadioCard value="leave" impact={`${people} listed for HR`} {...suggested('leave')}>
-          Leave it empty
+        <RadioCard
+          value="leave"
+          impact={t('import.work-locations.listed_for_hr', '{{people}} listed for HR', { people })}
+          {...suggested('leave')}
+        >
+          {t('import.work-locations.leave_it_empty', 'Leave it empty')}
         </RadioCard>
       </RadioGroup>
       {choice.kind === 'map' ? (
         <Field>
-          <FieldLabel>Work location</FieldLabel>
+          <FieldLabel>{t('import.work-locations.work_location', 'Work location')}</FieldLabel>
           <Select
             value={choice.locationId}
             disabled={readOnly}
@@ -325,7 +381,11 @@ function WorkLocationCard({
             <SelectContent>
               {here.locations.map((l) => (
                 <SelectItem key={l.id} value={l.id}>
-                  {l.id === w.suggestion?.id ? `${l.name} (suggested)` : l.name}
+                  {l.id === w.suggestion?.id
+                    ? t('import.work-locations.suggested_2', '{{name}} (suggested)', {
+                        name: l.name,
+                      })
+                    : l.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -333,7 +393,10 @@ function WorkLocationCard({
         </Field>
       ) : null}
       {choice.kind === 'add' && w.note ? (
-        <Alert tone="warning" title="Check where it is">
+        <Alert
+          tone="warning"
+          title={t('import.work-locations.check_where_it_is', 'Check where it is')}
+        >
           {w.note}
         </Alert>
       ) : null}
@@ -342,9 +405,15 @@ function WorkLocationCard({
       ) : null}
       {choice.kind === 'leave' && w.people.length > 0 ? (
         <DataTable
-          label={`Left without a work location: “${w.value}”`}
+          label={t(
+            'import.work-locations.left_without_a_work_location',
+            'Left without a work location: “{{value}}”',
+            { value: w.value },
+          )}
           rows={w.people.map((name, i) => ({ id: `${String(i)} ${name}`, name }))}
-          columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
+          columns={[
+            { id: 'name', header: t('import.work-locations.name', 'Name'), cell: (r) => r.name },
+          ]}
           rowId={(r) => r.id}
           dense
         />
@@ -372,7 +441,7 @@ function NewLocationFields({
   return (
     <div className="grid gap-4 border-t border-border pt-4 @2xl/page:grid-cols-2">
       <Field required invalid={choice.name.trim() === ''}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{t('import.work-locations.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={choice.name}
@@ -385,7 +454,7 @@ function NewLocationFields({
       </Field>
       {here.entities.length > 1 ? (
         <Field>
-          <FieldLabel>Legal entity</FieldLabel>
+          <FieldLabel>{t('import.work-locations.legal_entity', 'Legal entity')}</FieldLabel>
           <Select
             value={choice.legalEntityId ?? here.entities[0]?.id ?? ''}
             disabled={readOnly}
@@ -409,7 +478,7 @@ function NewLocationFields({
         </Field>
       ) : null}
       <Field required>
-        <FieldLabel>Country</FieldLabel>
+        <FieldLabel>{t('import.work-locations.country', 'Country')}</FieldLabel>
         <Select
           value={choice.country}
           disabled={readOnly}
@@ -419,7 +488,9 @@ function NewLocationFields({
         >
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose a country" />
+              <SelectValue
+                placeholder={t('import.work-locations.choose_a_country', 'Choose a country')}
+              />
             </SelectTrigger>
           </FieldControl>
           <SelectContent>
@@ -432,12 +503,12 @@ function NewLocationFields({
         </Select>
       </Field>
       <Field required>
-        <FieldLabel>Time zone</FieldLabel>
+        <FieldLabel>{t('import.work-locations.time_zone', 'Time zone')}</FieldLabel>
         <FieldControl>
           <Combobox
-            label="Time zone"
-            placeholder="Choose a time zone"
-            searchPlaceholder="Search time zones"
+            label={t('import.work-locations.time_zone', 'Time zone')}
+            placeholder={t('import.work-locations.choose_a_time_zone', 'Choose a time zone')}
+            searchPlaceholder={t('import.work-locations.search_time_zones', 'Search time zones')}
             options={
               // The file's zone, even where this browser lists it by another name (Asia/Calcutta).
               choice.timeZone === '' || ZONES.some((z) => z.value === choice.timeZone)

@@ -19,6 +19,7 @@ import { useState, type JSX } from 'react';
 
 import { currentPlace, type Place } from '../lib/remotes';
 import { useHint } from './shortcuts';
+import { t } from '../lib/t';
 
 export { currentPlace };
 
@@ -65,7 +66,7 @@ function Count({ path, n }: { readonly path: string; readonly n: number }): JSX.
       tone={path.startsWith('/people/review/') ? 'danger' : 'warning'}
     >
       {n}
-      <span className="sr-only"> waiting</span>
+      <span className="sr-only"> {t('components.people-nav.waiting', 'waiting')}</span>
     </Badge>
   );
 }
@@ -84,7 +85,7 @@ export function PeopleSubnav({
   sections,
   route,
   counts = {},
-  label = 'People sections',
+  label = t('components.people-nav.people_sections', 'People sections'),
 }: PeopleNavProps & { readonly label?: string }): JSX.Element {
   const current = currentPlace(sections, route);
   const hint = useHint();
@@ -115,7 +116,7 @@ export function PeopleSections({
   sections,
   route,
   counts = {},
-  title = 'People',
+  title = t('components.people-nav.people', 'People'),
   home = '/people',
 }: PeopleNavProps & { readonly title?: string; readonly home?: string }): JSX.Element | null {
   const hint = useHint();
@@ -131,19 +132,19 @@ export function PeopleSections({
           <>
             <icons.settings aria-hidden />
             <span>
-              Fields and roles are in{' '}
+              {t('components.people-nav.fields_and_roles_are_in', 'Fields and roles are in')}{' '}
               <Link
                 href="/settings"
                 className="font-semibold text-fg underline-offset-4 hover:underline"
               >
-                Settings › People
+                {t('components.people-nav.settings_people', 'Settings › People')}
               </Link>
             </span>
           </>
         )
       }
     >
-      <Nav label={`${title} sections`}>
+      <Nav label={t('components.people-nav.sections', '{{title}} sections', { title })}>
         <NavList>
           {sections.map((s) => (
             <NavItem
@@ -180,9 +181,13 @@ export function PeopleMenu({
   return (
     <div className="flex flex-col gap-4">
       <SearchField
-        label="Search people"
+        label={t('components.people-nav.search_people', 'Search people')}
         placeholder={
-          total == null ? 'Search people' : `Search ${total.toLocaleString('en-GB')} people`
+          total == null
+            ? t('components.people-nav.search_people', 'Search people')
+            : t('components.people-nav.search_people_2', 'Search {{toLocaleString}} people', {
+                toLocaleString: total.toLocaleString('en-GB'),
+              })
         }
         value={query}
         onValueChange={setQuery}
@@ -190,13 +195,17 @@ export function PeopleMenu({
           router.push(`/people/directory/list?q=${encodeURIComponent(value)}` as Route);
         }}
       />
-      <List aria-label="People sections">
+      <List aria-label={t('components.people-nav.people_sections', 'People sections')}>
         {sections.map((s) => {
           const n = counts[s.path];
           // What waits for you says so, in the count's red; otherwise the line says what it holds.
           const waiting =
             n !== undefined && s.path.startsWith('/people/review/') ? (
-              <span className="font-semibold text-danger-fg">{`${String(n)} waiting for you`}</span>
+              <span className="font-semibold text-danger-fg">
+                {t('components.people-nav.waiting_for_you', '{{n}} waiting for you', {
+                  n: String(n),
+                })}
+              </span>
             ) : undefined;
           return (
             <ListItem
@@ -212,7 +221,12 @@ export function PeopleMenu({
           );
         })}
       </List>
-      <p className="px-4 text-sm text-fg-muted">Your own profile is in the Me tab.</p>
+      <p className="px-4 text-sm text-fg-muted">
+        {t(
+          'components.people-nav.your_own_profile_is_in_the',
+          'Your own profile is in the Me tab.',
+        )}
+      </p>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { DisplayValue } from '../record/display';
 import { FieldFiles } from '../record/files';
 import type { AttributeValue, RecordField, Values } from '../record/model';
 import type { RegistryField } from './model';
+import { t } from '../i18n';
 
 /**
  * The sign-up flow as a new starter meets it from their email link, drawn
@@ -87,13 +88,26 @@ export function SignupPreview({
     .filter((f) => f.signup === 'after' && f.pending !== 'archived')
     .map(asRecord);
   const steps: { id: StepId; label: string; description?: string }[] = [
-    { id: 'about', label: 'About you' },
-    ...(page.length === 0 ? [] : [{ id: 'details' as const, label: 'Your details' }]),
-    { id: 'review', label: 'Review' },
-    { id: 'passkey', label: 'Your passkey' },
+    { id: 'about', label: t('settings.signup-preview.about_you', 'About you') },
+    ...(page.length === 0
+      ? []
+      : [
+          {
+            id: 'details' as const,
+            label: t('settings.signup-preview.your_details', 'Your details'),
+          },
+        ]),
+    { id: 'review', label: t('settings.signup-preview.review', 'Review') },
+    { id: 'passkey', label: t('settings.signup-preview.your_passkey', 'Your passkey') },
     ...(after.length === 0
       ? []
-      : [{ id: 'after' as const, label: 'Finish setting up', description: 'After signing in' }]),
+      : [
+          {
+            id: 'after' as const,
+            label: t('settings.signup-preview.finish_setting_up', 'Finish setting up'),
+            description: t('settings.signup-preview.after_signing_in', 'After signing in'),
+          },
+        ]),
   ];
   const [at, setAt] = useState(0);
   const [values, setValues] = useState<Values>({});
@@ -122,15 +136,20 @@ export function SignupPreview({
     >
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Sign-up preview</DialogTitle>
+          <DialogTitle>
+            {t('settings.signup-preview.sign_up_preview', 'Sign-up preview')}
+          </DialogTitle>
           <DialogDescription>
-            What somebody sees from their email link. Nothing here is saved or sent.
+            {t(
+              'settings.signup-preview.what_somebody_sees_from_their_email',
+              'What somebody sees from their email link. Nothing here is saved or sent.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <div className="grid gap-6 sm:grid-cols-[12.5rem_minmax(0,1fr)]">
             <Stepper
-              label="Sign-up steps"
+              label={t('settings.signup-preview.sign_up_steps', 'Sign-up steps')}
               orientation="vertical"
               steps={steps}
               current={at}
@@ -146,7 +165,7 @@ export function SignupPreview({
               {step === 'details' ? inputs(page) : null}
               {step === 'review' ? (
                 <KeyValues
-                  aria-label="Your answers"
+                  aria-label={t('settings.signup-preview.your_answers', 'Your answers')}
                   items={[...NAMES, ...page].map((f) => ({
                     label: f.label,
                     value: <DisplayValue field={f} value={values[f.key]} />,
@@ -154,9 +173,17 @@ export function SignupPreview({
                 />
               ) : null}
               {step === 'passkey' ? (
-                <Alert tone="info" title="Your device asks for a fingerprint, a face or a PIN">
-                  A passkey is made on their own device, so it is not part of this preview. They
-                  sign in with it from then on.
+                <Alert
+                  tone="info"
+                  title={t(
+                    'settings.signup-preview.your_device_asks_for_a_fingerprint',
+                    'Your device asks for a fingerprint, a face or a PIN',
+                  )}
+                >
+                  {t(
+                    'settings.signup-preview.a_passkey_is_made_on_their',
+                    'A passkey is made on their own device, so it is not part of this preview. They sign in with it from then on.',
+                  )}
                 </Alert>
               ) : null}
               {step === 'after' ? (
@@ -164,12 +191,21 @@ export function SignupPreview({
                   value={{
                     known: new Map(),
                     upload: () =>
-                      Promise.resolve({ ok: false, message: 'Nothing is uploaded in a preview.' }),
+                      Promise.resolve({
+                        ok: false,
+                        message: t(
+                          'settings.signup-preview.nothing_is_uploaded_in_a_preview',
+                          'Nothing is uploaded in a preview.',
+                        ),
+                      }),
                   }}
                 >
                   <Stack gap={4}>
                     <p className="text-sm text-fg-muted">
-                      Asked after sign-in. Sign-up never asks for files or confidential data.
+                      {t(
+                        'settings.signup-preview.asked_after_sign_in_sign_up',
+                        'Asked after sign-in. Sign-up never asks for files or confidential data.',
+                      )}
                     </p>
                     {inputs(after)}
                   </Stack>
@@ -185,7 +221,7 @@ export function SignupPreview({
               setAt((i) => Math.max(0, i - 1));
             }}
           >
-            Back
+            {t('settings.signup-preview.back', 'Back')}
           </Button>
           <Button
             variant="primary"
@@ -194,7 +230,9 @@ export function SignupPreview({
               else setAt((i) => i + 1);
             }}
           >
-            {at >= steps.length - 1 ? 'Close preview' : 'Next'}
+            {at >= steps.length - 1
+              ? t('settings.signup-preview.close_preview', 'Close preview')
+              : t('settings.signup-preview.next', 'Next')}
           </Button>
         </DialogFooter>
       </DialogContent>

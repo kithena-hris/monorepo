@@ -1,6 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useState, useSyncExternalStore, type RefObject } from 'react';
+import { t } from './i18n';
 
 /**
  * Subscribe to a media query.
@@ -66,7 +67,7 @@ export function useBreakpoint(name: Breakpoint): boolean {
 
 /** True when the primary pointer cannot hover, a finger, not a mouse. */
 export function useCoarsePointer(): boolean {
-  return useMediaQuery('(pointer: coarse)');
+  return useMediaQuery(t('lib.use-media-query.pointer_coarse', '(pointer: coarse)'));
 }
 
 /**
@@ -91,5 +92,7 @@ export function useCoarsePointerAt(ref: RefObject<Element | null>): boolean {
  * from JS (a count-up, a scroll tween) has no stylesheet to collapse.
  */
 export function usePrefersReducedMotion(): boolean {
-  return useMediaQuery('(prefers-reduced-motion: reduce)');
+  return useMediaQuery(
+    t('lib.use-media-query.prefers_reduced_motion_reduce', '(prefers-reduced-motion: reduce)'),
+  );
 }

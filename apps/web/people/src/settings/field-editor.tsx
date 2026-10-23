@@ -88,6 +88,7 @@ import {
   keyFromLabel,
   listed,
 } from './words';
+import { t } from '../i18n';
 
 /**
  * The five steps (design F4–F8): what it is, who sees and changes it, when it
@@ -96,11 +97,11 @@ import {
  * the form knows enough for the suggestion to be good.
  */
 const STEPS = [
-  { id: 'editor-field', label: 'The field' },
-  { id: 'editor-access', label: 'Access' },
-  { id: 'editor-when', label: 'When it’s asked' },
-  { id: 'editor-sensitivity', label: 'Sensitivity' },
-  { id: 'editor-review', label: 'Review' },
+  { id: 'editor-field', label: t('settings.field-editor.the_field', 'The field') },
+  { id: 'editor-access', label: t('settings.field-editor.access', 'Access') },
+  { id: 'editor-when', label: t('settings.field-editor.when_its_asked', 'When it’s asked') },
+  { id: 'editor-sensitivity', label: t('settings.field-editor.sensitivity', 'Sensitivity') },
+  { id: 'editor-review', label: t('settings.field-editor.review', 'Review') },
 ] as const;
 
 /** The tiles a new field starts with; the rest are a press away. */
@@ -294,7 +295,11 @@ function specialCategoryProblem(
     if (clause.operand !== 'attribute') continue;
     const named = others.find((f) => f.key === clause.key);
     if (named?.classification === 'special-category') {
-      return `${named.label} is special-category data, so it cannot decide whether a field is required: a missing value would tell whoever sees it that the condition held.`;
+      return t(
+        'settings.field-editor.is_special_category_data_so_it',
+        '{{label}} is special-category data, so it cannot decide whether a field is required: a missing value would tell whoever sees it that the condition held.',
+        { label: named.label },
+      );
     }
   }
   return null;
@@ -322,21 +327,37 @@ function problemsIn(
     >
   > = {};
   if (step === 0) {
-    if (draft.label.trim() === '') problems.label = 'Give the field a name.';
+    if (draft.label.trim() === '')
+      problems.label = t('settings.field-editor.give_the_field_a_name', 'Give the field a name.');
     if (draft.dataType === 'money' && draft.currency !== '' && !/^[A-Z]{3}$/.test(draft.currency)) {
-      problems.currency = 'A three-letter currency code, like EUR.';
+      problems.currency = t(
+        'settings.field-editor.a_three_letter_currency_code_like',
+        'A three-letter currency code, like EUR.',
+      );
     }
     if (!KEY.test(draft.key)) {
-      problems.key = 'Lower-case letters, digits and underscores, starting with a letter.';
+      problems.key = t(
+        'settings.field-editor.lower_case_letters_digits_and_underscores',
+        'Lower-case letters, digits and underscores, starting with a letter.',
+      );
     } else if (keyTaken(draft.key)) {
-      problems.key = 'Another field already uses this key.';
+      problems.key = t(
+        'settings.field-editor.another_field_already_uses_this_key',
+        'Another field already uses this key.',
+      );
     }
     if (WITH_OPTIONS.has(draft.dataType) && draft.options.length === 0) {
-      problems.options = 'Add at least one option.';
+      problems.options = t(
+        'settings.field-editor.add_at_least_one_option',
+        'Add at least one option.',
+      );
     }
   }
   if (step === 1 && draft.ownership.length === 0) {
-    problems.ownership = 'Somebody has to be able to change it.';
+    problems.ownership = t(
+      'settings.field-editor.somebody_has_to_be_able_to',
+      'Somebody has to be able to change it.',
+    );
   }
   if (step === 2 && draft.requiredness === 'conditional') {
     const problem =
@@ -346,8 +367,10 @@ function problemsIn(
   // Checked again where requiredness is chosen: a required field needs
   // somebody who can always read it, not only through a rule.
   if (step === 2 && draft.requiredness !== 'never' && draft.visibility.length === 0) {
-    problems.unseen =
-      'A required field needs somebody who can always see it. Choose who can see it under Access.';
+    problems.unseen = t(
+      'settings.field-editor.a_required_field_needs_somebody_who',
+      'A required field needs somebody who can always see it. Choose who can see it under Access.',
+    );
   }
   if (step === 1) {
     // A rule holds of some records, so it is no answer for a required field:
@@ -356,23 +379,38 @@ function problemsIn(
       draft.visibility.length === 0 &&
       (draft.visibilityRules.length === 0 || draft.requiredness !== 'never')
     ) {
-      problems.visibility = 'Nobody could ever read it. Choose at least one.';
+      problems.visibility = t(
+        'settings.field-editor.nobody_could_ever_read_it_choose',
+        'Nobody could ever read it. Choose at least one.',
+      );
     }
     for (const rule of draft.visibilityRules) {
       const problem =
         rule.scopes.length === 0
-          ? 'Every rule shows the field to somebody.'
+          ? t(
+              'settings.field-editor.every_rule_shows_the_field_to',
+              'Every rule shows the field to somebody.',
+            )
           : predicateProblem(rule.when);
       if (problem !== null) problems.rules = problem;
     }
   }
   if (step === 3) {
-    if (draft.classification === null) problems.kind = 'Choose what kind of data this is.';
+    if (draft.classification === null)
+      problems.kind = t(
+        'settings.field-editor.choose_what_kind_of_data_this',
+        'Choose what kind of data this is.',
+      );
     else if (draft.classification === 'special-category' && !draft.confirmedSpecial) {
-      problems.kind = 'Special-category data needs your explicit confirmation.';
+      problems.kind = t(
+        'settings.field-editor.special_category_data_needs_your_explicit',
+        'Special-category data needs your explicit confirmation.',
+      );
     } else if (draft.classification === 'special-category' && draft.visibilityRules.length > 0) {
-      problems.kind =
-        'Special-category data is never shown by a rule. Remove the rules under Access.';
+      problems.kind = t(
+        'settings.field-editor.special_category_data_is_never_shown',
+        'Special-category data is never shown by a rule. Remove the rules under Access.',
+      );
     }
   }
   return problems;
@@ -560,14 +598,29 @@ export function FieldEditor({
   const canSeal = field === null ? SEALABLE.has(draft.dataType) : field.encryptable === true;
   const sealLocked = forced || wasSealed || !canSeal;
   const sealWhy = forced
-    ? 'Always on for financial details and ID numbers.'
+    ? t(
+        'settings.field-editor.always_on_for_financial_details_and',
+        'Always on for financial details and ID numbers.',
+      )
     : wasSealed
-      ? 'On. Encryption can’t be turned off.'
+      ? t(
+          'settings.field-editor.on_encryption_cant_be_turned_off',
+          'On. Encryption can’t be turned off.',
+        )
       : !canSeal
-        ? 'Not available for this field type.'
+        ? t(
+            'settings.field-editor.not_available_for_this_field_type',
+            'Not available for this field type.',
+          )
         : draft.encrypted && field !== null
-          ? 'Existing values are encrypted when you publish. This can’t be undone.'
-          : 'Only the last four characters are shown. Never searchable or shared.';
+          ? t(
+              'settings.field-editor.existing_values_are_encrypted_when_you',
+              'Existing values are encrypted when you publish. This can’t be undone.',
+            )
+          : t(
+              'settings.field-editor.only_the_last_four_characters_are',
+              'Only the last four characters are shown. Never searchable or shared.',
+            );
   const approval = draft.requiresApproval ?? sealed;
   // People shares a field with the assistant only where it could: public or internal, never sealed.
   const shareable =
@@ -623,7 +676,11 @@ export function FieldEditor({
       if (!assistant.ok) {
         setSaving(false);
         setRefused(
-          `The field is saved, but not whether the assistant may use it. ${assistant.message}`,
+          t(
+            'settings.field-editor.the_field_is_saved_but_not',
+            'The field is saved, but not whether the assistant may use it. {{message}}',
+            { message: assistant.message },
+          ),
         );
         return;
       }
@@ -659,7 +716,11 @@ export function FieldEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-250" sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>{editing ? `Edit ${field.label}` : 'New field'}</DialogTitle>
+          <DialogTitle>
+            {editing
+              ? t('settings.field-editor.edit', 'Edit {{label}}', { label: field.label })
+              : t('settings.field-editor.new_field', 'New field')}
+          </DialogTitle>
           <DialogDescription>
             {section.label}
             {field !== null && field.origin !== 'tenant'
@@ -669,7 +730,7 @@ export function FieldEditor({
         </DialogHeader>
         <DialogBody className="flex flex-col gap-5">
           <Stepper
-            label="Parts of the field"
+            label={t('settings.field-editor.parts_of_the_field', 'Parts of the field')}
             current={step}
             free={editing}
             onStepChange={(index) => {
@@ -691,9 +752,14 @@ export function FieldEditor({
               {step === 0 ? (
                 <Stack gap={5}>
                   {field !== null && field.origin !== 'tenant' ? (
-                    <Alert tone="info" title="Built into Kithena">
-                      You can change its name, description and access. Its type is fixed, and
-                      protection can only be increased.
+                    <Alert
+                      tone="info"
+                      title={t('settings.field-editor.built_into_kithena', 'Built into Kithena')}
+                    >
+                      {t(
+                        'settings.field-editor.you_can_change_its_name_description',
+                        'You can change its name, description and access. Its type is fixed, and protection can only be increased.',
+                      )}
                     </Alert>
                   ) : null}
                   {editing ? null : (
@@ -703,13 +769,16 @@ export function FieldEditor({
                           <FieldLabel>
                             <span className="inline-flex items-center gap-2 text-accent-fg">
                               <icons.assistant aria-hidden className="size-4" />
-                              Describe it
+                              {t('settings.field-editor.describe_it', 'Describe it')}
                             </span>
                           </FieldLabel>
                           <FieldControl>
                             <Textarea
                               value={description}
-                              placeholder="T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it."
+                              placeholder={t(
+                                'settings.field-editor.t_shirt_size_for_the_offsite',
+                                'T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it.',
+                              )}
                               onChange={(e) => {
                                 describe(e.target.value);
                               }}
@@ -717,8 +786,14 @@ export function FieldEditor({
                           </FieldControl>
                           <FieldDescription>
                             {drafted.size > 0
-                              ? 'Kithena filled in the name, the options and steps 2 to 4. Check each step before adding it.'
-                              : 'Kithena fills in the name, the type and steps 2 to 4 from it. A rule, not a model.'}
+                              ? t(
+                                  'settings.field-editor.kithena_filled_in_the_name_the',
+                                  'Kithena filled in the name, the options and steps 2 to 4. Check each step before adding it.',
+                                )
+                              : t(
+                                  'settings.field-editor.kithena_fills_in_the_name_the',
+                                  'Kithena fills in the name, the type and steps 2 to 4 from it. A rule, not a model.',
+                                )}
                           </FieldDescription>
                         </Field>
                       </Stack>
@@ -726,7 +801,9 @@ export function FieldEditor({
                   )}
                   {editing ? null : (
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm text-fg-muted">Or start from</span>
+                      <span className="text-sm text-fg-muted">
+                        {t('settings.field-editor.or_start_from', 'Or start from')}
+                      </span>
                       {TEMPLATES.map((template) => {
                         const key = keyFromLabel(template.label);
                         const taken = takenKeys.includes(key);
@@ -750,11 +827,11 @@ export function FieldEditor({
                   )}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field required invalid={show.label !== undefined}>
-                      <FieldLabel>Field name</FieldLabel>
+                      <FieldLabel>{t('settings.field-editor.field_name', 'Field name')}</FieldLabel>
                       <FieldControl>
                         <Input
                           value={draft.label}
-                          placeholder="T-shirt size"
+                          placeholder={t('settings.field-editor.t_shirt_size', 'T-shirt size')}
                           onChange={(e) => {
                             const label = e.target.value;
                             set(keyEdited ? { label } : { label, key: keyFromLabel(label) });
@@ -762,13 +839,16 @@ export function FieldEditor({
                         />
                       </FieldControl>
                       <FieldDescription>
-                        What people see above the field on a form.
+                        {t(
+                          'settings.field-editor.what_people_see_above_the_field',
+                          'What people see above the field on a form.',
+                        )}
                       </FieldDescription>
                       <FieldError>{show.label}</FieldError>
                     </Field>
                     {sections.length > 1 ? (
                       <Field>
-                        <FieldLabel>Section</FieldLabel>
+                        <FieldLabel>{t('settings.field-editor.section', 'Section')}</FieldLabel>
                         <Select
                           value={draft.sectionKey}
                           onValueChange={(sectionKey) => {
@@ -791,14 +871,19 @@ export function FieldEditor({
                           </SelectContent>
                         </Select>
                         <FieldDescription>
-                          Where it sits on the profile and on forms.
+                          {t(
+                            'settings.field-editor.where_it_sits_on_the_profile',
+                            'Where it sits on the profile and on forms.',
+                          )}
                         </FieldDescription>
                       </Field>
                     ) : null}
                   </div>
                   {editing ? (
                     <Field disabled={field.origin !== 'tenant'}>
-                      <FieldLabel>Type of answer</FieldLabel>
+                      <FieldLabel>
+                        {t('settings.field-editor.type_of_answer', 'Type of answer')}
+                      </FieldLabel>
                       <Select
                         value={draft.dataType}
                         disabled={field.origin !== 'tenant'}
@@ -827,19 +912,31 @@ export function FieldEditor({
                       <FieldDescription>
                         {DATA_TYPE_HINT[draft.dataType]}{' '}
                         {field.origin !== 'tenant'
-                          ? 'A built-in field keeps its type.'
+                          ? t(
+                              'settings.field-editor.a_built_in_field_keeps_its',
+                              'A built-in field keeps its type.',
+                            )
                           : draft.dataType === field.dataType
-                            ? 'Changing the type checks every saved value first.'
-                            : `Changed from ${DATA_TYPE_LABEL[field.dataType]}. After saving, you review every value before it’s published.`}
+                            ? t(
+                                'settings.field-editor.changing_the_type_checks_every_saved',
+                                'Changing the type checks every saved value first.',
+                              )
+                            : t(
+                                'settings.field-editor.changed_from_after_saving_you_review',
+                                'Changed from {{DATA_TYPE_LABEL}}. After saving, you review every value before it’s published.',
+                                { DATA_TYPE_LABEL: DATA_TYPE_LABEL[field.dataType] },
+                              )}
                       </FieldDescription>
                     </Field>
                   ) : (
                     // A new field picks its type from tiles (F9): the picture is
                     // how the eye finds one, and each says what it checks below.
                     <fieldset className="flex flex-col gap-2.5">
-                      <legend className="mb-2.5 text-sm font-medium">Type of answer</legend>
+                      <legend className="mb-2.5 text-sm font-medium">
+                        {t('settings.field-editor.type_of_answer', 'Type of answer')}
+                      </legend>
                       <RadioGroup
-                        aria-label="Type of answer"
+                        aria-label={t('settings.field-editor.type_of_answer', 'Type of answer')}
                         aria-describedby="editor-type-hint"
                         value={draft.dataType}
                         onValueChange={(value) => {
@@ -865,7 +962,9 @@ export function FieldEditor({
                               setAllTypes(true);
                             }}
                           >
-                            {`All ${String(DATA_TYPE_GROUPS.flatMap((g) => g.types).length)} types`}
+                            {t('settings.field-editor.all_types', 'All {{length}} types', {
+                              length: String(DATA_TYPE_GROUPS.flatMap((g) => g.types).length),
+                            })}
                           </Button>
                         </div>
                       )}
@@ -873,23 +972,29 @@ export function FieldEditor({
                   )}
                   {WITH_DECIMALS.has(draft.dataType) ? (
                     <NumberField
-                      label="Decimal places"
+                      label={t('settings.field-editor.decimal_places', 'Decimal places')}
                       min={0}
                       max={6}
                       value={draft.decimals ?? 0}
                       onChange={(decimals) => {
                         set({ decimals: decimals === null ? 0 : Math.round(decimals) });
                       }}
-                      hint="How many digits after the point a value keeps."
+                      hint={t(
+                        'settings.field-editor.how_many_digits_after_the_point',
+                        'How many digits after the point a value keeps.',
+                      )}
                     />
                   ) : null}
                   {draft.dataType === 'money' ? (
                     <Field invalid={show.currency !== undefined}>
-                      <FieldLabel>Currency</FieldLabel>
+                      <FieldLabel>{t('settings.field-editor.currency', 'Currency')}</FieldLabel>
                       <FieldControl>
                         <Input
                           value={draft.currency}
-                          placeholder="Each person’s own"
+                          placeholder={t(
+                            'settings.field-editor.each_persons_own',
+                            'Each person’s own',
+                          )}
                           maxLength={3}
                           onChange={(e) => {
                             set({ currency: e.target.value.toUpperCase() });
@@ -897,8 +1002,10 @@ export function FieldEditor({
                         />
                       </FieldControl>
                       <FieldDescription>
-                        A three-letter code, like EUR, when every amount is in one currency. Leave
-                        it empty to use each person’s own.
+                        {t(
+                          'settings.field-editor.a_three_letter_code_like_eur',
+                          'A three-letter code, like EUR, when every amount is in one currency. Leave it empty to use each person’s own.',
+                        )}
                       </FieldDescription>
                       <FieldError>{show.currency}</FieldError>
                     </Field>
@@ -906,10 +1013,14 @@ export function FieldEditor({
                   {draft.dataType === 'date' ? (
                     <Field orientation="horizontal" className="items-start justify-between gap-4">
                       <div>
-                        <FieldLabel>Can be indefinite</FieldLabel>
+                        <FieldLabel>
+                          {t('settings.field-editor.can_be_indefinite', 'Can be indefinite')}
+                        </FieldLabel>
                         <FieldDescription>
-                          Offers “No end date” beside the date, for things like a contract end.
-                          Indefinite is an answer, so a required field holding it is complete.
+                          {t(
+                            'settings.field-editor.offers_no_end_date_beside_the',
+                            'Offers “No end date” beside the date, for things like a contract end. Indefinite is an answer, so a required field holding it is complete.',
+                          )}
                         </FieldDescription>
                       </div>
                       <FieldControl>
@@ -924,14 +1035,20 @@ export function FieldEditor({
                   ) : null}
                   {WITH_OPTIONS.has(draft.dataType) ? (
                     <TagsInput
-                      label="Options"
+                      label={t('settings.field-editor.options', 'Options')}
                       value={draft.options}
                       invalid={show.options !== undefined}
                       hint={
                         show.options ??
                         (editing
-                          ? 'Type one, then press Enter. A removed option is retired: records holding it are reviewed when you publish.'
-                          : 'Type one, then press Enter. Add as many as you need.')
+                          ? t(
+                              'settings.field-editor.type_one_then_press_enter_a',
+                              'Type one, then press Enter. A removed option is retired: records holding it are reviewed when you publish.',
+                            )
+                          : t(
+                              'settings.field-editor.type_one_then_press_enter_add',
+                              'Type one, then press Enter. Add as many as you need.',
+                            ))
                       }
                       onChange={(options) => {
                         set({ options });
@@ -939,17 +1056,25 @@ export function FieldEditor({
                     />
                   ) : null}
                   <Field>
-                    <FieldLabel>Help text</FieldLabel>
+                    <FieldLabel>{t('settings.field-editor.help_text', 'Help text')}</FieldLabel>
                     <FieldControl>
                       <Textarea
                         value={draft.description}
-                        placeholder="Optional. What to enter, and why you ask."
+                        placeholder={t(
+                          'settings.field-editor.optional_what_to_enter_and_why',
+                          'Optional. What to enter, and why you ask.',
+                        )}
                         onChange={(e) => {
                           set({ description: e.target.value });
                         }}
                       />
                     </FieldControl>
-                    <FieldDescription>Shown under the field on every form.</FieldDescription>
+                    <FieldDescription>
+                      {t(
+                        'settings.field-editor.shown_under_the_field_on_every',
+                        'Shown under the field on every form.',
+                      )}
+                    </FieldDescription>
                   </Field>
                   <Accordion
                     type="single"
@@ -959,11 +1084,11 @@ export function FieldEditor({
                   >
                     <AccordionItem value="key">
                       <AccordionTrigger meta={<span className="font-mono">{draft.key}</span>}>
-                        Key for integrations
+                        {t('settings.field-editor.key_for_integrations', 'Key for integrations')}
                       </AccordionTrigger>
                       <AccordionContent>
                         <Field invalid={show.key !== undefined} disabled={editing}>
-                          <FieldLabel>Key</FieldLabel>
+                          <FieldLabel>{t('settings.field-editor.key', 'Key')}</FieldLabel>
                           <FieldControl>
                             <Input
                               className="font-mono"
@@ -975,8 +1100,10 @@ export function FieldEditor({
                             />
                           </FieldControl>
                           <FieldDescription>
-                            Used by exports and integrations. Generated from the name and fixed once
-                            published.
+                            {t(
+                              'settings.field-editor.used_by_exports_and_integrations_generated',
+                              'Used by exports and integrations. Generated from the name and fixed once published.',
+                            )}
                           </FieldDescription>
                           <FieldError>{show.key}</FieldError>
                         </Field>
@@ -990,11 +1117,22 @@ export function FieldEditor({
                 <Stack gap={4}>
                   <Field orientation="horizontal" className="items-start justify-between gap-4">
                     <div>
-                      <FieldLabel>Everyone at the company can see it</FieldLabel>
+                      <FieldLabel>
+                        {t(
+                          'settings.field-editor.everyone_at_the_company_can_see',
+                          'Everyone at the company can see it',
+                        )}
+                      </FieldLabel>
                       <FieldDescription>
                         {seenByEveryone(draft.visibility)
-                          ? 'Shows in the directory, so every See box below is ticked.'
-                          : 'Off: only the groups ticked below can see it.'}
+                          ? t(
+                              'settings.field-editor.shows_in_the_directory_so_every',
+                              'Shows in the directory, so every See box below is ticked.',
+                            )
+                          : t(
+                              'settings.field-editor.off_only_the_groups_ticked_below',
+                              'Off: only the groups ticked below can see it.',
+                            )}
                       </FieldDescription>
                     </div>
                     <FieldControl>
@@ -1007,7 +1145,10 @@ export function FieldEditor({
                     </FieldControl>
                   </Field>
                   <AccessMatrix
-                    label="Who can see and change it"
+                    label={t(
+                      'settings.field-editor.who_can_see_and_change_it',
+                      'Who can see and change it',
+                    )}
                     audiences={AUDIENCES}
                     value={accessOf(draft.visibility, draft.ownership)}
                     allSee={seenByEveryone(draft.visibility)}
@@ -1030,11 +1171,17 @@ export function FieldEditor({
                       <AccordionTrigger
                         meta={
                           draft.visibilityRules.length === 0
-                            ? 'No exceptions'
-                            : `${String(draft.visibilityRules.length)} ${draft.visibilityRules.length === 1 ? 'rule' : 'rules'}`
+                            ? t('settings.field-editor.no_exceptions', 'No exceptions')
+                            : t('settings.field-editor.text', '{{length}} {{value}}', {
+                                length: String(draft.visibilityRules.length),
+                                value: draft.visibilityRules.length === 1 ? 'rule' : 'rules',
+                              })
                         }
                       >
-                        Let more people see it, on some records only
+                        {t(
+                          'settings.field-editor.let_more_people_see_it_on',
+                          'Let more people see it, on some records only',
+                        )}
                       </AccordionTrigger>
                       <AccordionContent>
                         <Rules
@@ -1053,7 +1200,9 @@ export function FieldEditor({
               {step === 2 ? (
                 <Stack gap={4}>
                   <fieldset className="flex flex-col gap-2">
-                    <legend className="mb-2 text-sm font-medium">When is it asked?</legend>
+                    <legend className="mb-2 text-sm font-medium">
+                      {t('settings.field-editor.when_is_it_asked', 'When is it asked?')}
+                    </legend>
                     <RadioGroup
                       value={draft.collectAt}
                       onValueChange={(value) => {
@@ -1065,7 +1214,14 @@ export function FieldEditor({
                         <RadioCard
                           key={when}
                           value={when}
-                          description={`${COLLECT_LABEL[when].description} ${COLLECT_LABEL[when].example}`}
+                          description={t(
+                            'settings.field-editor.text_2',
+                            '{{description}} {{example}}',
+                            {
+                              description: COLLECT_LABEL[when].description,
+                              example: COLLECT_LABEL[when].example,
+                            },
+                          )}
                         >
                           {COLLECT_LABEL[when].label}
                         </RadioCard>
@@ -1074,9 +1230,11 @@ export function FieldEditor({
                   </fieldset>
                   <StageNote draft={draft} />
                   <Field>
-                    <FieldLabel>Is it required?</FieldLabel>
+                    <FieldLabel>
+                      {t('settings.field-editor.is_it_required', 'Is it required?')}
+                    </FieldLabel>
                     <SegmentedControl
-                      aria-label="Is it required?"
+                      aria-label={t('settings.field-editor.is_it_required', 'Is it required?')}
                       value={draft.requiredness}
                       onValueChange={(requiredness) => {
                         set({ requiredness: requiredness as RequirednessMode });
@@ -1086,21 +1244,23 @@ export function FieldEditor({
                         {REQUIREDNESS_LABEL.never}
                       </SegmentedControlItem>
                       <SegmentedControlItem value="always">
-                        Required for everyone
+                        {t('settings.field-editor.required_for_everyone', 'Required for everyone')}
                       </SegmentedControlItem>
                       <SegmentedControlItem value="conditional">
-                        Required when…
+                        {t('settings.field-editor.required_when', 'Required when…')}
                       </SegmentedControlItem>
                     </SegmentedControl>
                     <FieldDescription>
-                      Required fields count towards a complete record. People who already have one
-                      are reminded at most once a week.
+                      {t(
+                        'settings.field-editor.required_fields_count_towards_a_complete',
+                        'Required fields count towards a complete record. People who already have one are reminded at most once a week.',
+                      )}
                     </FieldDescription>
                   </Field>
                   {draft.requiredness === 'conditional' ? (
                     <Stack gap={2}>
                       <PredicateEditor
-                        legend="Required when"
+                        legend={t('settings.field-editor.required_when_2', 'Required when')}
                         value={draft.requiredWhen}
                         onChange={(requiredWhen) => {
                           set({ requiredWhen });
@@ -1132,9 +1292,11 @@ export function FieldEditor({
                     }}
                   />
                   <fieldset className="flex flex-col gap-4">
-                    <legend className="mb-1 text-sm font-medium">Protection</legend>
+                    <legend className="mb-1 text-sm font-medium">
+                      {t('settings.field-editor.protection', 'Protection')}
+                    </legend>
                     <Toggle
-                      label="Store it encrypted"
+                      label={t('settings.field-editor.store_it_encrypted', 'Store it encrypted')}
                       description={sealWhy}
                       checked={sealed}
                       disabled={sealLocked}
@@ -1143,8 +1305,14 @@ export function FieldEditor({
                       }}
                     />
                     <Toggle
-                      label="Changes need a second HR approval"
-                      description="The old value stays until someone else approves."
+                      label={t(
+                        'settings.field-editor.changes_need_a_second_hr_approval',
+                        'Changes need a second HR approval',
+                      )}
+                      description={t(
+                        'settings.field-editor.the_old_value_stays_until_someone',
+                        'The old value stays until someone else approves.',
+                      )}
                       checked={approval}
                       onChange={(on) => {
                         set({ requiresApproval: on });
@@ -1152,11 +1320,20 @@ export function FieldEditor({
                     />
                     {onAssistant === undefined ? null : (
                       <Toggle
-                        label="Shared with the assistant"
+                        label={t(
+                          'settings.field-editor.shared_with_the_assistant',
+                          'Shared with the assistant',
+                        )}
                         description={
                           shareable
-                            ? 'Kithena and chat apps learn its name and options, never values.'
-                            : 'Confidential, special-category or encrypted: never shared with the assistant.'
+                            ? t(
+                                'settings.field-editor.kithena_and_chat_apps_learn_its',
+                                'Kithena and chat apps learn its name and options, never values.',
+                              )
+                            : t(
+                                'settings.field-editor.confidential_special_category_or_encrypted_never',
+                                'Confidential, special-category or encrypted: never shared with the assistant.',
+                              )
                         }
                         checked={shared}
                         disabled={!shareable}
@@ -1179,9 +1356,17 @@ export function FieldEditor({
                     onChange={goTo}
                   />
                   {field === null ? (
-                    <Alert tone="neutral" title="What changes when you publish">
-                      The field is added to the draft. Nobody sees it until the next version is
-                      published.
+                    <Alert
+                      tone="neutral"
+                      title={t(
+                        'settings.field-editor.what_changes_when_you_publish',
+                        'What changes when you publish',
+                      )}
+                    >
+                      {t(
+                        'settings.field-editor.the_field_is_added_to_the',
+                        'The field is added to the draft. Nobody sees it until the next version is published.',
+                      )}
                     </Alert>
                   ) : (
                     <Changes field={field} draft={draft} approval={approval} />
@@ -1190,19 +1375,21 @@ export function FieldEditor({
               ) : null}
 
               {refused === null ? null : (
-                <Alert tone="danger" title="Not saved">
+                <Alert tone="danger" title={t('settings.field-editor.not_saved', 'Not saved')}>
                   {refused}
                 </Alert>
               )}
             </Stack>
 
-            <aside aria-label="Preview">
+            <aside aria-label={t('settings.field-editor.preview', 'Preview')}>
               <Card variant="fill" padded>
                 <Stack gap={4}>
                   <Preview draft={draft} approval={approval} />
                   <Separator />
                   <Stack gap={2}>
-                    <p className="text-sm font-semibold text-fg-muted">In plain words</p>
+                    <p className="text-sm font-semibold text-fg-muted">
+                      {t('settings.field-editor.in_plain_words', 'In plain words')}
+                    </p>
                     <p className="text-sm leading-7 text-pretty">
                       {summaryParts({
                         label: draft.label,
@@ -1235,7 +1422,10 @@ export function FieldEditor({
         </DialogBody>
         <DialogFooter>
           <p className="me-auto text-sm text-fg-muted touch:hidden">
-            Saved as a draft, applied when you publish.
+            {t(
+              'settings.field-editor.saved_as_a_draft_applied_when',
+              'Saved as a draft, applied when you publish.',
+            )}
           </p>
           {step > 0 ? (
             <Button
@@ -1244,7 +1434,7 @@ export function FieldEditor({
                 goTo(step - 1);
               }}
             >
-              Back
+              {t('settings.field-editor.back', 'Back')}
             </Button>
           ) : editing ? null : (
             <Button
@@ -1253,26 +1443,30 @@ export function FieldEditor({
                 onOpenChange(false);
               }}
             >
-              Cancel
+              {t('settings.field-editor.cancel', 'Cancel')}
             </Button>
           )}
           {last ? null : (
             <Button variant={editing ? 'secondary' : 'primary'} onClick={next}>
-              {`Next: ${STEPS[step + 1]?.label ?? ''}`}
+              {t('settings.field-editor.next', 'Next: {{value}}', {
+                value: STEPS[step + 1]?.label ?? '',
+              })}
             </Button>
           )}
           {editing || last ? (
             <Button
               variant="primary"
               loading={saving}
-              loadingLabel="Saving the field"
+              loadingLabel={t('settings.field-editor.saving_the_field', 'Saving the field')}
               // Save waits while the suggestion is worked out (F7).
               disabled={advice === 'asking' || (advice === null && draft.label.trim() !== '')}
               onClick={() => {
                 void save();
               }}
             >
-              {editing ? 'Save field' : 'Add field'}
+              {editing
+                ? t('settings.field-editor.save_field', 'Save field')
+                : t('settings.field-editor.add_field', 'Add field')}
             </Button>
           ) : null}
         </DialogFooter>
@@ -1324,9 +1518,17 @@ function Rules({
 }): JSX.Element {
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="sr-only">Let more people see it, on some records only</legend>
+      <legend className="sr-only">
+        {t(
+          'settings.field-editor.let_more_people_see_it_on',
+          'Let more people see it, on some records only',
+        )}
+      </legend>
       <p className="text-sm text-fg-muted">
-        Give extra access on matching records only, for example managers on contractors’ records.
+        {t(
+          'settings.field-editor.give_extra_access_on_matching_records',
+          'Give extra access on matching records only, for example managers on contractors’ records.',
+        )}
       </p>
       {draft.visibilityRules.map((rule, index) => {
         const name = `Rule ${String(index + 1)}`;
@@ -1341,12 +1543,19 @@ function Rules({
             <CardContent>
               <Stack gap={3}>
                 <Field>
-                  <FieldLabel>{name}: who else can see it</FieldLabel>
+                  <FieldLabel>
+                    {name}
+                    {t('settings.field-editor.who_else_can_see_it', ': who else can see it')}
+                  </FieldLabel>
                   <FieldControl>
                     <Combobox
-                      label={`${name}: who else can see it`}
+                      label={t(
+                        'settings.field-editor.who_else_can_see_it_2',
+                        '{{name}}: who else can see it',
+                        { name },
+                      )}
                       multiple
-                      placeholder="Choose who"
+                      placeholder={t('settings.field-editor.choose_who', 'Choose who')}
                       options={SCOPES.map((scope) => ({
                         value: scope,
                         label: SCOPE_LABEL[scope],
@@ -1362,7 +1571,7 @@ function Rules({
                   </FieldControl>
                 </Field>
                 <PredicateEditor
-                  legend={`${name}: when`}
+                  legend={t('settings.field-editor.when', '{{name}}: when', { name })}
                   value={rule.when}
                   onChange={(when) => {
                     change({ ...rule, when });
@@ -1380,7 +1589,7 @@ function Rules({
                       });
                     }}
                   >
-                    Remove {name.toLowerCase()}
+                    {t('settings.field-editor.remove', 'Remove')} {name.toLowerCase()}
                   </Button>
                 </div>
               </Stack>
@@ -1402,13 +1611,15 @@ function Rules({
               });
             }}
           >
-            Add a rule
+            {t('settings.field-editor.add_a_rule', 'Add a rule')}
           </Button>
         </div>
       ) : null}
       <p className="text-sm text-fg-muted">
-        A rule applies only to matching records, and only to people who can see the fields it
-        checks.
+        {t(
+          'settings.field-editor.a_rule_applies_only_to_matching',
+          'A rule applies only to matching records, and only to people who can see the fields it checks.',
+        )}
       </p>
     </fieldset>
   );
@@ -1437,7 +1648,7 @@ function Review({
   const rows: readonly { step: number; label: string; value: string }[] = [
     {
       step: 0,
-      label: 'The field',
+      label: t('settings.field-editor.the_field', 'The field'),
       value: [
         `${draft.label.trim() || 'Unnamed'} · ${DATA_TYPE_LABEL[draft.dataType]} · ${where}`,
         draft.description.trim() === '' ? null : `Help text: “${draft.description.trim()}”`,
@@ -1447,7 +1658,7 @@ function Review({
     },
     {
       step: 1,
-      label: 'Access',
+      label: t('settings.field-editor.access', 'Access'),
       value: `${opening(writers(draft.ownership))} can change it. ${
         seenByEveryone(draft.visibility)
           ? 'Everyone can see it.'
@@ -1456,7 +1667,7 @@ function Review({
     },
     {
       step: 2,
-      label: 'When it’s asked',
+      label: t('settings.field-editor.when_its_asked', 'When it’s asked'),
       value: `${COLLECT_LABEL[draft.collectAt].label} · ${
         draft.requiredness === 'always'
           ? 'required for everyone'
@@ -1467,7 +1678,7 @@ function Review({
     },
     {
       step: 3,
-      label: 'Sensitivity',
+      label: t('settings.field-editor.sensitivity', 'Sensitivity'),
       value: [
         draft.classification === null
           ? 'Still to choose'
@@ -1497,12 +1708,14 @@ function Review({
             <Button
               size="sm"
               variant="link"
-              aria-label={`Change ${row.label.toLowerCase()}`}
+              aria-label={t('settings.field-editor.change_2', 'Change {{label}}', {
+                label: row.label.toLowerCase(),
+              })}
               onClick={() => {
                 onChange(row.step);
               }}
             >
-              Change
+              {t('settings.field-editor.change', 'Change')}
             </Button>
           </dd>
         </div>
@@ -1536,7 +1749,14 @@ function Classify({
   readonly onConfirm: (value: boolean) => void;
 }): JSX.Element {
   if (advice === 'asking' || advice === null) {
-    return <Spinner label="Working out what kind of data this is" />;
+    return (
+      <Spinner
+        label={t(
+          'settings.field-editor.working_out_what_kind_of_data',
+          'Working out what kind of data this is',
+        )}
+      />
+    );
   }
 
   const floor: Classification =
@@ -1552,21 +1772,41 @@ function Classify({
   return (
     <Stack gap={4}>
       {advice === 'failed' ? (
-        <Alert tone="warning" title="No suggestion this time">
-          Choose what fits. Nothing is suggested, so nothing is pre-selected.
+        <Alert
+          tone="warning"
+          title={t('settings.field-editor.no_suggestion_this_time', 'No suggestion this time')}
+        >
+          {t(
+            'settings.field-editor.choose_what_fits_nothing_is_suggested',
+            'Choose what fits. Nothing is suggested, so nothing is pre-selected.',
+          )}
         </Alert>
       ) : advice.kind === 'protect' ? (
-        <Alert tone="warning" title="This looks like special-category data">
+        <Alert
+          tone="warning"
+          title={t(
+            'settings.field-editor.this_looks_like_special_category_data',
+            'This looks like special-category data',
+          )}
+        >
           {advice.reason}
         </Alert>
       ) : advice.kind === 'choose' ? (
-        <Alert tone="info" title="Two answers are close">
-          Nothing is pre-selected. Each option says why it might fit.
+        <Alert
+          tone="info"
+          title={t('settings.field-editor.two_answers_are_close', 'Two answers are close')}
+        >
+          {t(
+            'settings.field-editor.nothing_is_pre_selected_each_option',
+            'Nothing is pre-selected. Each option says why it might fit.',
+          )}
         </Alert>
       ) : null}
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">What kind of data is this?</legend>
+        <legend className="mb-2 text-sm font-medium">
+          {t('settings.field-editor.what_kind_of_data_is_this', 'What kind of data is this?')}
+        </legend>
         <RadioGroup
           value={value ?? ''}
           onValueChange={(next) => {
@@ -1601,8 +1841,10 @@ function Classify({
             />
           </FieldControl>
           <FieldLabel>
-            I confirm this is special-category data. It will be excluded from AI, events and
-            standard exports.
+            {t(
+              'settings.field-editor.i_confirm_this_is_special_category',
+              'I confirm this is special-category data. It will be excluded from AI, events and standard exports.',
+            )}
           </FieldLabel>
         </Field>
       ) : null}
@@ -1624,7 +1866,10 @@ function Preview({ draft, approval }: { readonly draft: Draft; readonly approval
   const uploaded = draft.dataType === 'document_ref' || draft.dataType === 'image';
   const field = {
     key: 'preview',
-    label: draft.label.trim() === '' ? 'Your new field' : draft.label.trim(),
+    label:
+      draft.label.trim() === ''
+        ? t('settings.field-editor.your_new_field', 'Your new field')
+        : draft.label.trim(),
     description: draft.description.trim() === '' ? null : draft.description.trim(),
     dataType: draft.dataType,
     options: draft.options.map((o) => ({ value: o, label: o })),
@@ -1635,12 +1880,19 @@ function Preview({ draft, approval }: { readonly draft: Draft; readonly approval
   return (
     <Stack gap={3}>
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm font-semibold text-fg-muted">Preview</p>
-        <p className="text-xs text-fg-subtle">Try it; nothing is saved</p>
+        <p className="text-sm font-semibold text-fg-muted">
+          {t('settings.field-editor.preview', 'Preview')}
+        </p>
+        <p className="text-xs text-fg-subtle">
+          {t('settings.field-editor.try_it_nothing_is_saved', 'Try it; nothing is saved')}
+        </p>
       </div>
       {uploaded ? (
         <p className="text-sm text-fg-muted">
-          Uploaded on the profile rather than typed into a form.
+          {t(
+            'settings.field-editor.uploaded_on_the_profile_rather_than',
+            'Uploaded on the profile rather than typed into a form.',
+          )}
         </p>
       ) : (
         <AttributeInput field={field} value={value} onChange={setValue} />
@@ -1657,36 +1909,72 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
     (draft.dataType === 'image' || draft.dataType === 'document_ref')
   ) {
     return (
-      <Alert tone="info" title="Asked on the first screen after sign-up">
+      <Alert
+        tone="info"
+        title={t(
+          'settings.field-editor.asked_on_the_first_screen_after',
+          'Asked on the first screen after sign-up',
+        )}
+      >
         {employee
-          ? 'Files are requested on the first screen after account setup.'
-          : 'Only the employee can answer there. Tick The employee under Who can change it, or choose another moment.'}
+          ? t(
+              'settings.field-editor.files_are_requested_on_the_first',
+              'Files are requested on the first screen after account setup.',
+            )
+          : t(
+              'settings.field-editor.only_the_employee_can_answer_there',
+              'Only the employee can answer there. Tick The employee under Who can change it, or choose another moment.',
+            )}
       </Alert>
     );
   }
   if (draft.collectAt === 'signup' || draft.collectAt === 'enrolment') {
     return (
-      <Alert tone="info" title="Shown on the account setup page">
+      <Alert
+        tone="info"
+        title={t(
+          'settings.field-editor.shown_on_the_account_setup_page',
+          'Shown on the account setup page',
+        )}
+      >
         {employee
-          ? 'The person answers it while setting up their account, before they have used Kithena.'
-          : 'Only the employee can answer on that page. Tick The employee under Who can change it, or choose another moment.'}
+          ? t(
+              'settings.field-editor.the_person_answers_it_while_setting',
+              'The person answers it while setting up their account, before they have used Kithena.',
+            )
+          : t(
+              'settings.field-editor.only_the_employee_can_answer_on',
+              'Only the employee can answer on that page. Tick The employee under Who can change it, or choose another moment.',
+            )}
       </Alert>
     );
   }
   if (draft.collectAt === 'hr_only' && employee) {
     return (
-      <Alert tone="warning" title="The employee is never shown this field">
-        They are allowed to change it, but no form ever asks them, so in practice only{' '}
+      <Alert
+        tone="warning"
+        title={t(
+          'settings.field-editor.the_employee_is_never_shown_this',
+          'The employee is never shown this field',
+        )}
+      >
+        {t(
+          'settings.field-editor.they_are_allowed_to_change_it',
+          'They are allowed to change it, but no form ever asks them, so in practice only',
+        )}{' '}
         {listed(draft.ownership.filter((w) => w !== 'employee').map((w) => WRITER_LABEL[w])) ||
           'nobody'}{' '}
-        fills it in.
+        {t('settings.field-editor.fills_it_in', 'fills it in.')}
       </Alert>
     );
   }
   if (draft.collectAt !== 'hr_only' && !employee) {
     return (
       <Alert tone="info">
-        Employees can’t edit this field. To ask them for it, allow the employee to change it.
+        {t(
+          'settings.field-editor.employees_cant_edit_this_field_to',
+          'Employees can’t edit this field. To ask them for it, allow the employee to change it.',
+        )}
       </Alert>
     );
   }
@@ -1774,22 +2062,41 @@ function Changes({
 
   if (lines.length === 0) {
     return (
-      <Alert tone="info" title="Nothing changed yet">
-        Saving keeps the field as it is.
+      <Alert
+        tone="info"
+        title={t('settings.field-editor.nothing_changed_yet', 'Nothing changed yet')}
+      >
+        {t(
+          'settings.field-editor.saving_keeps_the_field_as_it',
+          'Saving keeps the field as it is.',
+        )}
       </Alert>
     );
   }
   return (
-    <Alert tone="warning" title="What changes when you publish">
+    <Alert
+      tone="warning"
+      title={t(
+        'settings.field-editor.what_changes_when_you_publish',
+        'What changes when you publish',
+      )}
+    >
       <ul className="list-disc ps-5">
         {lines.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
       <p className="mt-2">
-        Saving changes the draft only; nobody’s forms change until you publish.
+        {t(
+          'settings.field-editor.saving_changes_the_draft_only_nobodys',
+          'Saving changes the draft only; nobody’s forms change until you publish.',
+        )}
         {tightened
-          ? ' Records without a value then become incomplete, and the publish step says how many.'
+          ? ' ' +
+            t(
+              'settings.field-editor.records_without_a_value_then_become',
+              'Records without a value then become incomplete, and the publish step says how many.',
+            )
           : ''}
       </p>
     </Alert>

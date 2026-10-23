@@ -25,6 +25,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '../context-menu/context-menu';
+import { t } from '../../lib/i18n';
 
 /**
  * Windowing, dragging and the right-click menu, shared by every chart that has
@@ -152,7 +153,7 @@ export function ChartZoomControls({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Pan left"
+        aria-label={t('components.chart.chart-window.pan_left', 'Pan left')}
         disabled={state.window.start === 0}
         onClick={() => {
           state.pan(-1);
@@ -162,7 +163,7 @@ export function ChartZoomControls({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Zoom in"
+        aria-label={t('components.chart.chart-window.zoom_in', 'Zoom in')}
         disabled={!state.canZoomIn}
         onClick={() => {
           state.zoom(0.5);
@@ -172,7 +173,7 @@ export function ChartZoomControls({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Zoom out"
+        aria-label={t('components.chart.chart-window.zoom_out', 'Zoom out')}
         disabled={!state.canZoomOut}
         onClick={() => {
           state.zoom(2);
@@ -182,7 +183,7 @@ export function ChartZoomControls({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Pan right"
+        aria-label={t('components.chart.chart-window.pan_right', 'Pan right')}
         disabled={state.window.end === total - 1}
         onClick={() => {
           state.pan(1);
@@ -191,14 +192,15 @@ export function ChartZoomControls({
       />
       {state.windowed ? (
         <Button size="sm" variant="ghost" startIcon={<Maximize2 />} onClick={state.reset}>
-          Reset
+          {t('components.chart.chart-window.reset', 'Reset')}
         </Button>
       ) : null}
 
       {/* The window in words. A zoomed chart that does not say what it is
           showing is a chart people misread with confidence. */}
       <p aria-live="polite" className="ms-1 text-xs text-fg-muted">
-        {visibleLabels[0]} – {visibleLabels.at(-1)} · {visibleLabels.length} of {total}
+        {visibleLabels[0]} – {visibleLabels.at(-1)} · {visibleLabels.length}{' '}
+        {t('components.chart.chart-window.of', 'of')} {total}
       </p>
     </div>
   );
@@ -407,7 +409,7 @@ export function ChartFrame({
               }}
             >
               <ZoomIn aria-hidden />
-              Zoom in
+              {t('components.chart.chart-window.zoom_in', 'Zoom in')}
             </ContextMenuItem>
             <ContextMenuItem
               disabled={!windowState.canZoomOut}
@@ -416,11 +418,11 @@ export function ChartFrame({
               }}
             >
               <ZoomOut aria-hidden />
-              Zoom out
+              {t('components.chart.chart-window.zoom_out', 'Zoom out')}
             </ContextMenuItem>
             <ContextMenuItem disabled={!windowState.windowed} onSelect={windowState.reset}>
               <Maximize2 aria-hidden />
-              Reset zoom
+              {t('components.chart.chart-window.reset_zoom', 'Reset zoom')}
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
@@ -432,7 +434,7 @@ export function ChartFrame({
           }}
         >
           <Copy aria-hidden />
-          Copy as CSV
+          {t('components.chart.chart-window.copy_as_csv', 'Copy as CSV')}
         </ContextMenuItem>
 
         {menuItems ? (
@@ -551,7 +553,10 @@ export function ChartBrush({ state, values, labels, className }: ChartBrushProps
     )
     .join(' ');
 
-  const range = `${labels[start] ?? ''} to ${labels[end] ?? ''}`;
+  const range = t('components.chart.chart-window.to', '{{value}} to {{value2}}', {
+    value: labels[start] ?? '',
+    value2: labels[end] ?? '',
+  });
   const slider = (part: BrushPart) => ({
     'data-brush-part': part,
     role: 'slider',
@@ -597,7 +602,7 @@ export function ChartBrush({ state, values, labels, className }: ChartBrushProps
 
       <div
         {...slider('window')}
-        aria-label="Visible range"
+        aria-label={t('components.chart.chart-window.visible_range', 'Visible range')}
         aria-valuemax={last - (end - start)}
         aria-valuenow={start}
         aria-valuetext={range}
@@ -613,7 +618,11 @@ export function ChartBrush({ state, values, labels, className }: ChartBrushProps
           <span
             key={part}
             {...slider(part)}
-            aria-label={part === 'start' ? 'Range start' : 'Range end'}
+            aria-label={
+              part === 'start'
+                ? t('components.chart.chart-window.range_start', 'Range start')
+                : t('components.chart.chart-window.range_end', 'Range end')
+            }
             aria-valuemax={last}
             aria-valuenow={index}
             aria-valuetext={labels[index] ?? String(index)}

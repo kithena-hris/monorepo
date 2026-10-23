@@ -18,6 +18,7 @@ import {
   type IconName,
 } from '@reach/ui';
 import { Fragment, createElement, type ComponentType, type JSX, type ReactNode } from 'react';
+import { t as tr } from './i18n';
 
 /**
  * What the host puts in a screen's header: where the screen is, and the
@@ -86,7 +87,7 @@ export interface Frame {
 const phoneBack = (
   trail: readonly { readonly href: string; readonly label: string }[],
 ): { readonly href: string; readonly label: string } =>
-  trail.at(-1) ?? { href: '/documents', label: 'Documents' };
+  trail.at(-1) ?? { href: '/documents', label: tr('frame.documents', 'Documents') };
 
 /** A Reach icon by name; an unknown name draws nothing rather than failing. */
 function iconOf(name: string | undefined): ReactNode {
@@ -104,7 +105,7 @@ function countOf(href: string, count: number | undefined): ReactNode {
       tone={/\/(requests|approvals)\//.test(href) ? 'danger' : 'warning'}
     >
       {count}
-      <span className="sr-only"> waiting</span>
+      <span className="sr-only"> {tr('frame.waiting', 'waiting')}</span>
     </Badge>
   );
 }
@@ -129,9 +130,9 @@ export function ScreenFrame({
   const {
     section = null,
     actions = [],
-    trail = [{ href: '/documents', label: 'Documents' }],
+    trail = [{ href: '/documents', label: tr('frame.documents', 'Documents') }],
     siblings = [],
-    siblingsLabel = 'Sections',
+    siblingsLabel = tr('frame.sections', 'Sections'),
     tabs = [],
     notice,
     pending = false,
@@ -149,7 +150,7 @@ export function ScreenFrame({
       tabs={
         tabs.length === 0 ? undefined : (
           <TertiaryNav
-            label={`${section ?? 'Page'} tabs`}
+            label={tr('frame.tabs', '{{value}} tabs', { value: section ?? 'Page' })}
             orientation="horizontal"
             variant="line"
             current="page"
@@ -197,7 +198,7 @@ export function ScreenFrame({
                           : [
                               ...withIcons,
                               {
-                                label: `In ${section}`,
+                                label: tr('frame.in', 'In {{section}}', { section }),
                                 items: tabs.map((t) => ({
                                   href: t.href,
                                   label: t.label,
@@ -215,7 +216,7 @@ export function ScreenFrame({
                     <BreadcrumbItem>
                       <BreadcrumbMenu
                         label={tab.label}
-                        menuLabel={`${section} tabs`}
+                        menuLabel={tr('frame.tabs_2', '{{section}} tabs', { section })}
                         groups={[
                           {
                             label: section,
@@ -239,7 +240,7 @@ export function ScreenFrame({
               is the large title.
             */}
             <nav
-              aria-label="Back"
+              aria-label={tr('frame.back', 'Back')}
               className="-mt-1 hidden min-h-12 items-center gap-2 touch:grid touch:grid-cols-[6rem_minmax(0,1fr)_6rem]"
             >
               <AppBarBack asChild className="max-w-full min-w-0 justify-self-start">
@@ -260,7 +261,7 @@ export function ScreenFrame({
                         badge: countOf(item.href, item.count),
                       })),
                     }))}
-                    menuLabel={`${siblingsLabel}, switch`}
+                    menuLabel={tr('frame.switch', '{{siblingsLabel}}, switch', { siblingsLabel })}
                   />
                 )}
               </div>
@@ -308,7 +309,7 @@ export function ScreenFrame({
         // Said, not swallowed: the link asked for something it cannot have.
         <Stack gap={4}>
           <Alert tone="warning" title={notice}>
-            Showing the page without it.
+            {tr('frame.showing_the_page_without_it', 'Showing the page without it.')}
           </Alert>
           {children}
         </Stack>
@@ -333,6 +334,8 @@ export function framed<P extends object>(
       </TooltipProvider>
     );
   }
-  Framed.displayName = `Framed(${Screen.displayName ?? Screen.name})`;
+  Framed.displayName = tr('frame.framed', 'Framed({{value}})', {
+    value: Screen.displayName ?? Screen.name,
+  });
   return Framed;
 }

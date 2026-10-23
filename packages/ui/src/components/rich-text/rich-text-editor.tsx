@@ -43,6 +43,7 @@ import { Input } from '../input/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 
 import { RichTextFrame, type RichTextEditorProps, type RichTextGroup } from './rich-text-frame';
+import { t } from '../../lib/i18n';
 
 /*
  * The editor itself, on Tiptap: its own chunk, which `rich-text.tsx` loads
@@ -204,7 +205,7 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
     label,
     'aria-labelledby': ariaLabelledBy,
     hint,
-    placeholder = 'Write something…',
+    placeholder = t('components.rich-text.rich-text-editor.write_something', 'Write something…'),
     toolbar = defaultToolbar,
     characterLimit,
     showCount = false,
@@ -232,7 +233,13 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
           openOnClick: false,
           // A link in an employee-authored document is untrusted input.
           // `rel` is what stops a target window reaching back into this one.
-          HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
+          HTMLAttributes: {
+            rel: t(
+              'components.rich-text.rich-text-editor.noopener_noreferrer_nofollow',
+              'noopener noreferrer nofollow',
+            ),
+            target: '_blank',
+          },
         },
       }),
       Placeholder.configure({ placeholder }),
@@ -308,7 +315,13 @@ export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
             editor={editor}
             groups={toolbar}
             sticky={stickyToolbar}
-            label={label ? `${label} formatting` : 'Formatting'}
+            label={
+              label
+                ? t('components.rich-text.rich-text-editor.formatting', '{{label}} formatting', {
+                    label,
+                  })
+                : t('components.rich-text.rich-text-editor.formatting_2', 'Formatting')
+            }
             end={props.toolbarEnd}
           />
         ) : null
@@ -362,7 +375,12 @@ function RichTextToolbar({
    */
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      const keys = ['ArrowRight', 'ArrowLeft', 'Home', 'End'];
+      const keys = [
+        'ArrowRight',
+        'ArrowLeft',
+        t('components.rich-text.rich-text-editor.home', 'Home'),
+        t('components.rich-text.rich-text-editor.end', 'End'),
+      ];
       if (!keys.includes(event.key)) return;
       event.preventDefault();
 
@@ -501,7 +519,10 @@ function LinkControls({
           <button
             type="button"
             data-toolbar-item
-            aria-label="Add or edit link"
+            aria-label={t(
+              'components.rich-text.rich-text-editor.add_or_edit_link',
+              'Add or edit link',
+            )}
             aria-pressed={active}
             tabIndex={startIndex === focusIndex ? 0 : -1}
             onFocus={() => {
@@ -528,7 +549,7 @@ function LinkControls({
             className="flex flex-col gap-2"
           >
             <label htmlFor={`${String(startIndex)}-link`} className="text-sm font-medium text-fg">
-              Link address
+              {t('components.rich-text.rich-text-editor.link_address', 'Link address')}
             </label>
             <Input
               id={`${String(startIndex)}-link`}
@@ -540,10 +561,17 @@ function LinkControls({
               }}
             />
             <p className={fieldHintClass}>
-              Opens in a new tab, with <code className="font-mono">rel=&quot;noopener&quot;</code>.
+              {t(
+                'components.rich-text.rich-text-editor.opens_in_a_new_tab_with',
+                'Opens in a new tab, with',
+              )}{' '}
+              <code className="font-mono">
+                {t('components.rich-text.rich-text-editor.rel_noopener', 'rel="noopener"')}
+              </code>
+              .
             </p>
             <Button type="submit" size="sm" variant="primary">
-              Apply
+              {t('components.rich-text.rich-text-editor.apply', 'Apply')}
             </Button>
           </form>
         </PopoverContent>
@@ -552,7 +580,7 @@ function LinkControls({
       <button
         type="button"
         data-toolbar-item
-        aria-label="Remove link"
+        aria-label={t('components.rich-text.rich-text-editor.remove_link', 'Remove link')}
         disabled={!active}
         tabIndex={startIndex + 1 === focusIndex ? 0 : -1}
         onFocus={() => {

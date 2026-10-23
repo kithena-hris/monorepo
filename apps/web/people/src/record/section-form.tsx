@@ -12,6 +12,7 @@ import {
   type Values,
 } from './model';
 import { PendingNote } from './pending';
+import { t } from '../i18n';
 
 /**
  * One section of a record, as a form that saves on its own.
@@ -31,7 +32,7 @@ export function SectionForm({
   values,
   onSave,
   onCheck,
-  submitLabel = 'Save',
+  submitLabel = t('record.section-form.save', 'Save'),
   footer,
   pending = [],
   onWithdraw,
@@ -110,7 +111,10 @@ export function SectionForm({
     const missing = Object.fromEntries(
       writable
         .filter((f) => f.required && isMissing(draft[f.key]))
-        .map((f) => [f.key, `${f.label} is required.`]),
+        .map((f) => [
+          f.key,
+          t('record.section-form.is_required', '{{label}} is required.', { label: f.label }),
+        ]),
     );
     setProblems(missing);
     if (Object.keys(missing).length > 0) return;
@@ -154,7 +158,11 @@ export function SectionForm({
     const messages = shown.filter((f) => f.key === key).map((f) => f.message);
     return messages.length === 0
       ? undefined
-      : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
+      : t(
+          'record.section-form.our_checks_suggest_this_may_be',
+          'Our checks suggest this may be wrong: {{join}}',
+          { join: messages.join(' ') },
+        );
   };
   const labels = [...new Set(shown.map((f) => f.label))];
 
@@ -206,25 +214,50 @@ export function SectionForm({
           ))}
         </div>
         {shown.length === 0 ? null : (
-          <Alert tone="warning" title="Our checks suggest this may be wrong">
-            Please look again at {labels.join(' and ')}. If it is right as it is, save anyway: HR
-            will review it, and what they decide is final.
+          <Alert
+            tone="warning"
+            title={t(
+              'record.section-form.our_checks_suggest_this_may_be_2',
+              'Our checks suggest this may be wrong',
+            )}
+          >
+            {t(
+              'record.section-form.please_look_again_at_if_it',
+              'Please look again at {{join}}. If it is right as it is, save anyway: HR will review it, and what they decide is final.',
+              { join: labels.join(' and ') },
+            )}
           </Alert>
         )}
         {reviewed.length === 0 ? null : (
-          <Alert tone="info" title="Saved, and sent to HR for review">
-            Our checks doubted {[...new Set(reviewed.map((f) => f.label))].join(' and ')}. HR will
-            look at it; you will see here if they ask you to correct it.
+          <Alert
+            tone="info"
+            title={t(
+              'record.section-form.saved_and_sent_to_hr_for',
+              'Saved, and sent to HR for review',
+            )}
+          >
+            {t('record.section-form.our_checks_doubted', 'Our checks doubted')}{' '}
+            {[...new Set(reviewed.map((f) => f.label))].join(' and ')}
+            {t(
+              'record.section-form.hr_will_look_at_it_you',
+              '. HR will look at it; you will see here if they ask you to correct it.',
+            )}
           </Alert>
         )}
         {held.length === 0 ? null : (
-          <Alert tone="info" title="Sent to HR for approval">
-            {held.join(' and ')} {held.length === 1 ? 'is' : 'are'} not changed until HR approves;
-            until then the record keeps what it had. You can withdraw the change while it waits.
+          <Alert
+            tone="info"
+            title={t('record.section-form.sent_to_hr_for_approval', 'Sent to HR for approval')}
+          >
+            {held.join(' and ')} {held.length === 1 ? 'is' : 'are'}{' '}
+            {t(
+              'record.section-form.not_changed_until_hr_approves_until',
+              'not changed until HR approves; until then the record keeps what it had. You can withdraw the change while it waits.',
+            )}
           </Alert>
         )}
         {refused === null ? null : (
-          <Alert tone="danger" title="Not saved">
+          <Alert tone="danger" title={t('record.section-form.not_saved', 'Not saved')}>
             {refused}
           </Alert>
         )}
@@ -243,10 +276,10 @@ export function SectionForm({
               type="submit"
               variant="primary"
               loading={saving}
-              loadingLabel="Saving"
+              loadingLabel={t('record.section-form.saving', 'Saving')}
               shortcut="form.submit"
             >
-              {shown.length > 0 ? 'Save anyway' : submitLabel}
+              {shown.length > 0 ? t('record.section-form.save_anyway', 'Save anyway') : submitLabel}
             </Button>
           </span>
         </div>

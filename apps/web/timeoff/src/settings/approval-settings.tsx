@@ -30,6 +30,7 @@ import {
   type Approver,
   type LeaveTypeRow,
 } from './shared';
+import { t as tr } from '../i18n';
 
 /**
  * Approval rules and team minimums (T34, TOF-082): who approves each kind of
@@ -80,7 +81,7 @@ export interface ApprovalSettingsProps {
   ) => Promise<Outcome>;
 }
 
-const TITLE = 'Approvals';
+const TITLE = tr('settings.approval-settings.approvals', 'Approvals');
 const DESCRIPTION = 'Who approves each kind of request, and when it’s automatic.';
 const page = '@container/approvals flex flex-col gap-6';
 const columns =
@@ -108,19 +109,30 @@ const chainOf = (approvers: readonly Approver[]): string =>
   Object.entries(CHAINS).find(([, c]) => c.join() === approvers.join())?.[0] ?? 'manager';
 
 const SUBJECT: Record<ApprovalRule['subject'], string> = {
-  request: 'Request',
-  plan: 'Plan',
-  timesheet: 'Timesheet',
+  request: tr('settings.approval-settings.request', 'Request'),
+  plan: tr('settings.approval-settings.plan', 'Plan'),
+  timesheet: tr('settings.approval-settings.timesheet', 'Timesheet'),
 };
 
 /** What a rule covers, as a phrase: "Any request below zero", "Parental leave plans". */
 function ruleTitle(rule: ApprovalRule, names: ReadonlyMap<string, string>): string {
   const types =
     rule.leaveTypes === null ? null : rule.leaveTypes.map((k) => names.get(k) ?? k).join(', ');
-  if (rule.subject === 'timesheet') return 'Overtime and timesheet changes';
-  if (rule.subject === 'plan') return `${types ?? 'Parental leave'} plans`;
-  const what = types ?? 'Any request';
-  return { always: what, below_zero: `${what} below zero`, unpaid: `${what}, unpaid` }[rule.when];
+  if (rule.subject === 'timesheet')
+    return tr(
+      'settings.approval-settings.overtime_and_timesheet_changes',
+      'Overtime and timesheet changes',
+    );
+  if (rule.subject === 'plan')
+    return tr('settings.approval-settings.plans', '{{value}} plans', {
+      value: types ?? 'Parental leave',
+    });
+  const what = types ?? tr('settings.approval-settings.any_request', 'Any request');
+  return {
+    always: what,
+    below_zero: tr('settings.approval-settings.below_zero', '{{what}} below zero', { what }),
+    unpaid: tr('settings.approval-settings.unpaid', '{{what}}, unpaid', { what }),
+  }[rule.when];
 }
 
 interface Form {
@@ -171,37 +183,42 @@ function AddRule({
   );
   return (
     <fieldset className="flex min-w-0 flex-col gap-3">
-      <legend className="mb-1 text-sm font-medium">Add a rule</legend>
+      <legend className="mb-1 text-sm font-medium">
+        {tr('settings.approval-settings.add_a_rule', 'Add a rule')}
+      </legend>
       <div className="flex flex-col gap-3 @min-[36rem]/approvals:flex-row">
         {pick(
-          'Covers',
+          tr('settings.approval-settings.covers', 'Covers'),
           subject,
           (v) => {
             setSubject(v as ApprovalRule['subject']);
           },
           [
-            ['request', 'A request'],
-            ['plan', 'A parental plan'],
-            ['timesheet', 'Overtime and timesheets'],
+            ['request', tr('settings.approval-settings.a_request', 'A request')],
+            ['plan', tr('settings.approval-settings.a_parental_plan', 'A parental plan')],
+            [
+              'timesheet',
+              tr('settings.approval-settings.overtime_and_timesheets', 'Overtime and timesheets'),
+            ],
           ],
         )}
         {subject === 'timesheet'
           ? null
-          : pick('Leave type', type, setType, [
-              [ANY, 'Any'],
+          : pick(tr('settings.approval-settings.leave_type', 'Leave type'), type, setType, [
+              [ANY, tr('settings.approval-settings.any', 'Any')],
               ...types.map((t) => [t.definition.key, t.definition.name.default] as const),
             ])}
         {subject === 'request'
           ? pick(
-              'When',
+              tr('settings.approval-settings.when', 'When'),
               when,
               (v) => {
                 setWhen(v as ApprovalRule['when']);
               },
               [
-                ['always', 'Always'],
-                ['below_zero', 'Below zero'],
-                ['unpaid', 'Unpaid'],
+                ['always', tr('settings.approval-settings.always', 'Always')],
+                ['below_zero', tr('settings.approval-settings.below_zero_2', 'Below zero')],
+                ['unpaid', tr('settings.approval-settings.unpaid_2', 'Unpaid')],
               ],
             )
           : null}
@@ -220,7 +237,7 @@ function AddRule({
             });
           }}
         >
-          Add rule
+          {tr('settings.approval-settings.add_rule', 'Add rule')}
         </Button>
       </div>
     </fieldset>
@@ -252,12 +269,18 @@ function Ready({
       <div className={columns}>
         <FormSections>
           <FormSection
-            title="Who approves"
-            description="Each kind of request, and who decides it, in order."
+            title={tr('settings.approval-settings.who_approves', 'Who approves')}
+            description={tr(
+              'settings.approval-settings.each_kind_of_request_and_who',
+              'Each kind of request, and who decides it, in order.',
+            )}
           >
             {rules.length === 0 ? (
               <p className="text-sm text-fg-muted">
-                No rules yet: every request goes to the person’s manager.
+                {tr(
+                  'settings.approval-settings.no_rules_yet_every_request_goes',
+                  'No rules yet: every request goes to the person’s manager.',
+                )}
               </p>
             ) : (
               rules.map((rule, i) => (
@@ -267,7 +290,9 @@ function Ready({
                     <FieldDescription>
                       {[
                         SUBJECT[rule.subject],
-                        ...rule.approvers.map((a) => (a === 'hr' ? 'HR' : 'Manager')),
+                        ...rule.approvers.map((a) =>
+                          a === 'hr' ? 'HR' : tr('settings.approval-settings.manager', 'Manager'),
+                        ),
                       ].join(' → ')}
                     </FieldDescription>
                   </div>
@@ -293,7 +318,11 @@ function Ready({
                   </Select>
                   <Button
                     variant="ghost"
-                    aria-label={`Remove the rule for ${ruleTitle(rule, names)}`}
+                    aria-label={tr(
+                      'settings.approval-settings.remove_the_rule_for',
+                      'Remove the rule for {{ruleTitle}}',
+                      { ruleTitle: ruleTitle(rule, names) },
+                    )}
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       set({ rules: rules.filter((_, j) => j !== i) });
@@ -310,12 +339,21 @@ function Ready({
             />
           </FormSection>
           <FormSection
-            title="Approved automatically"
-            description="Requests that only give time back, or that nobody needs to weigh."
+            title={tr(
+              'settings.approval-settings.approved_automatically',
+              'Approved automatically',
+            )}
+            description={tr(
+              'settings.approval-settings.requests_that_only_give_time_back',
+              'Requests that only give time back, or that nobody needs to weigh.',
+            )}
           >
             <Toggle
               kind="checkbox"
-              label="Shortening or cancelling time off"
+              label={tr(
+                'settings.approval-settings.shortening_or_cancelling_time_off',
+                'Shortening or cancelling time off',
+              )}
               checked={auto.shortenOrCancel}
               onChange={(shortenOrCancel) => {
                 set({ autoApproval: { ...auto, shortenOrCancel } });
@@ -323,10 +361,13 @@ function Ready({
             />
             <Toggle
               kind="checkbox"
-              label="Short sick leave"
+              label={tr('settings.approval-settings.short_sick_leave', 'Short sick leave')}
               description={
                 auto.sickUnderDays === null
-                  ? 'Off: every sick day goes to the manager'
+                  ? tr(
+                      'settings.approval-settings.off_every_sick_day_goes_to',
+                      'Off: every sick day goes to the manager',
+                    )
                   : `Under ${String(auto.sickUnderDays)} days; the manager is told`
               }
               checked={auto.sickUnderDays !== null}
@@ -336,7 +377,10 @@ function Ready({
             />
             {auto.sickUnderDays === null ? null : (
               <NumberField
-                label="Sick leave approved automatically under (days)"
+                label={tr(
+                  'settings.approval-settings.sick_leave_approved_automatically_under_days',
+                  'Sick leave approved automatically under (days)',
+                )}
                 value={auto.sickUnderDays}
                 min={1}
                 max={30}
@@ -348,7 +392,10 @@ function Ready({
             )}
             <Toggle
               kind="checkbox"
-              label="One day of vacation with the team above its minimum"
+              label={tr(
+                'settings.approval-settings.one_day_of_vacation_with_the',
+                'One day of vacation with the team above its minimum',
+              )}
               checked={auto.oneDayAboveMinimum}
               onChange={(oneDayAboveMinimum) => {
                 set({ autoApproval: { ...auto, oneDayAboveMinimum } });
@@ -358,14 +405,22 @@ function Ready({
         </FormSections>
         <div className="flex min-w-0 flex-col gap-6">
           <PageSection
-            title="Team minimums"
-            description="How many must be in, every weekday."
+            title={tr('settings.approval-settings.team_minimums', 'Team minimums')}
+            description={tr(
+              'settings.approval-settings.how_many_must_be_in_every',
+              'How many must be in, every weekday.',
+            )}
             surface
           >
             {data.teams.length === 0 ? (
-              <p className="text-sm text-fg-muted">No teams yet.</p>
+              <p className="text-sm text-fg-muted">
+                {tr('settings.approval-settings.no_teams_yet', 'No teams yet.')}
+              </p>
             ) : (
-              <ul aria-label="Team minimums" className="flex flex-col gap-4">
+              <ul
+                aria-label={tr('settings.approval-settings.team_minimums', 'Team minimums')}
+                className="flex flex-col gap-4"
+              >
                 {data.teams.map((team) => {
                   const minimum = minimums[team.teamKey] ?? null;
                   const name = team.teamName ?? team.teamKey;
@@ -394,9 +449,21 @@ function Ready({
                             </SelectTrigger>
                           </FieldControl>
                           <SelectContent>
-                            <SelectItem value="none">No minimum</SelectItem>
-                            <SelectItem value="people">A number of people</SelectItem>
-                            <SelectItem value="percent">A share of the team</SelectItem>
+                            <SelectItem value="none">
+                              {tr('settings.approval-settings.no_minimum', 'No minimum')}
+                            </SelectItem>
+                            <SelectItem value="people">
+                              {tr(
+                                'settings.approval-settings.a_number_of_people',
+                                'A number of people',
+                              )}
+                            </SelectItem>
+                            <SelectItem value="percent">
+                              {tr(
+                                'settings.approval-settings.a_share_of_the_team',
+                                'A share of the team',
+                              )}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </Field>
@@ -404,8 +471,16 @@ function Ready({
                         <NumberField
                           label={
                             minimum.unit === 'people'
-                              ? `${name}: at least (people in)`
-                              : `${name}: at least (% in)`
+                              ? tr(
+                                  'settings.approval-settings.at_least_people_in',
+                                  '{{name}}: at least (people in)',
+                                  { name },
+                                )
+                              : tr(
+                                  'settings.approval-settings.at_least_in',
+                                  '{{name}}: at least (% in)',
+                                  { name },
+                                )
                           }
                           value={minimum.atLeast}
                           min={minimum.unit === 'percent' ? 1 : 0}
@@ -422,17 +497,29 @@ function Ready({
               </ul>
             )}
           </PageSection>
-          <Alert tone="info" title="Minimums warn, they don’t block">
-            People can still send a request. The manager sees the clash and decides.
+          <Alert
+            tone="info"
+            title={tr(
+              'settings.approval-settings.minimums_warn_they_dont_block',
+              'Minimums warn, they don’t block',
+            )}
+          >
+            {tr(
+              'settings.approval-settings.people_can_still_send_a_request',
+              'People can still send a request. The manager sees the clash and decides.',
+            )}
           </Alert>
           <PageSection
-            title="If nobody decides"
-            description="Nothing waits for ever: it moves on, and whoever decides is reminded daily."
+            title={tr('settings.approval-settings.if_nobody_decides', 'If nobody decides')}
+            description={tr(
+              'settings.approval-settings.nothing_waits_for_ever_it_moves',
+              'Nothing waits for ever: it moves on, and whoever decides is reminded daily.',
+            )}
             surface
           >
             <div className="flex flex-col gap-4">
               <NumberField
-                label="After (working days)"
+                label={tr('settings.approval-settings.after_working_days', 'After (working days)')}
                 value={escalation.afterWorkingDays}
                 min={1}
                 max={20}
@@ -442,7 +529,7 @@ function Ready({
                 }}
               />
               <Field>
-                <FieldLabel>Goes to</FieldLabel>
+                <FieldLabel>{tr('settings.approval-settings.goes_to', 'Goes to')}</FieldLabel>
                 <Select
                   value={escalation.to}
                   onValueChange={(to) => {
@@ -455,21 +542,37 @@ function Ready({
                     </SelectTrigger>
                   </FieldControl>
                   <SelectContent>
-                    <SelectItem value="manager">The manager’s manager</SelectItem>
-                    <SelectItem value="hr">HR</SelectItem>
+                    <SelectItem value="manager">
+                      {tr(
+                        'settings.approval-settings.the_managers_manager',
+                        'The manager’s manager',
+                      )}
+                    </SelectItem>
+                    <SelectItem value="hr">{tr('settings.approval-settings.hr', 'HR')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FieldDescription>
                   {escalation.to === 'manager'
-                    ? 'HR, when the manager has nobody above them.'
-                    : 'Straight to HR, whoever the manager reports to.'}
+                    ? tr(
+                        'settings.approval-settings.hr_when_the_manager_has_nobody',
+                        'HR, when the manager has nobody above them.',
+                      )
+                    : tr(
+                        'settings.approval-settings.straight_to_hr_whoever_the_manager',
+                        'Straight to HR, whoever the manager reports to.',
+                      )}
                 </FieldDescription>
               </Field>
               <Field>
-                <FieldLabel>Reminder, every day at</FieldLabel>
+                <FieldLabel>
+                  {tr('settings.approval-settings.reminder_every_day_at', 'Reminder, every day at')}
+                </FieldLabel>
                 <FieldControl>
                   <TimePicker
-                    label="Reminder, every day at"
+                    label={tr(
+                      'settings.approval-settings.reminder_every_day_at',
+                      'Reminder, every day at',
+                    )}
                     value={clock(escalation.remindAt)}
                     step={15}
                     onChange={(time) => {

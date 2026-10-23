@@ -31,6 +31,7 @@ import {
   toneMix,
   type ChartTone,
 } from './tones';
+import { t } from '../../lib/i18n';
 
 /**
  * Small charts, drawn by hand.
@@ -319,7 +320,7 @@ export function ChartLegend({
 export function ChartDataTable({
   caption,
   data,
-  valueLabel = 'Value',
+  valueLabel = t('components.chart.chart.value', 'Value'),
   format,
 }: {
   caption: string;
@@ -333,7 +334,7 @@ export function ChartDataTable({
         <caption>{caption}</caption>
         <thead>
           <tr>
-            <th scope="col">Period</th>
+            <th scope="col">{t('components.chart.chart.period', 'Period')}</th>
             <th scope="col">{valueLabel}</th>
           </tr>
         </thead>
@@ -394,7 +395,7 @@ export function Sparkline({
     return `${String(x)},${String(y)}`;
   });
 
-  const line = `M ${points.join(' L ')}`;
+  const line = t('components.chart.chart.m', 'M {{join}}', { join: points.join(' L ') });
   const last = data.at(-1);
   const lastX = (data.length - 1) * step;
   const lastY = max === min || !last ? 16 : 30 - ((last.value - min) / span) * 28;
@@ -409,7 +410,10 @@ export function Sparkline({
       >
         {area ? (
           <path
-            d={`${line} L ${String(lastX)},32 L 0,32 Z`}
+            d={t('components.chart.chart.l_32_l_0_32_z', '{{line}} L {{lastX}},32 L 0,32 Z', {
+              line,
+              lastX: String(lastX),
+            })}
             className={cn(fillTone[tone], 'opacity-15 motion-safe:animate-fade-in')}
             stroke="none"
           />
@@ -591,7 +595,10 @@ export function BarChart({
             const future = futureFrom !== undefined && index >= futureFrom;
             const below =
               warnBelowReference && reference !== undefined && point.value < reference.value;
-            const readout = `${point.label}: ${format(point.value)}`;
+            const readout = t('components.chart.chart.text', '{{label}}: {{format}}', {
+              label: point.label,
+              format: format(point.value),
+            });
 
             const bar = (
               <span
@@ -921,7 +928,11 @@ export function TrendChart({
                   <g key={entry.label}>
                     {area && entry.dashed !== true ? (
                       <path
-                        d={`${path} L 100,100 L 0,100 Z`}
+                        d={t(
+                          'components.chart.chart.l_100_100_l_0_100',
+                          '{{path}} L 100,100 L 0,100 Z',
+                          { path },
+                        )}
                         className={cn(
                           fillTone[toneOf(entry)],
                           visible.length > 1 ? 'opacity-12' : 'opacity-18',
@@ -991,9 +1002,17 @@ export function TrendChart({
                   >
                     <button
                       type="button"
-                      aria-label={`${period}: ${Object.entries(readout)
-                        .map(([name, value]) => `${name} ${format(value)}`)
-                        .join(', ')}`}
+                      aria-label={t('components.chart.chart.text_2', '{{period}}: {{join}}', {
+                        period,
+                        join: Object.entries(readout)
+                          .map(([name, value]) =>
+                            t('components.chart.chart.text_named', '{{name}} {{format}}', {
+                              name,
+                              format: format(value),
+                            }),
+                          )
+                          .join(', '),
+                      })}
                       onFocus={() => {
                         setHovered(index);
                       }}
@@ -1099,7 +1118,10 @@ export function TrendChart({
       {series.map((entry) => (
         <ChartDataTable
           key={entry.label}
-          caption={`${label}, ${entry.label}`}
+          caption={t('components.chart.chart.text_3', '{{label}}, {{label2}}', {
+            label,
+            label2: entry.label,
+          })}
           data={entry.data}
           valueLabel={entry.label}
           format={format}
@@ -1217,7 +1239,10 @@ export function HorizontalBarChart({
         {shown.map((point) => {
           const index = dataIndex.get(point.label) ?? -1;
           const selected = selectedIndex === index;
-          const readout = `${point.label}: ${format(point.value)}`;
+          const readout = t('components.chart.chart.text', '{{label}}: {{format}}', {
+            label: point.label,
+            format: format(point.value),
+          });
           const row = (
             <>
               {/*
@@ -1285,7 +1310,7 @@ export function HorizontalBarChart({
 
       {hiddenCount > 0 ? (
         <p aria-hidden className="mt-2 text-xs text-fg-subtle">
-          +{hiddenCount} more
+          +{hiddenCount} {t('components.chart.chart.more', 'more')}
         </p>
       ) : null}
 
@@ -1420,7 +1445,11 @@ export function StackedBarChart({
                     const value = entry.values[index] ?? 0;
                     const share = total === 0 ? 0 : (value / total) * 100;
                     if (share === 0) return null;
-                    const readout = `${category} · ${entry.label}: ${format(value)}`;
+                    const readout = t(
+                      'components.chart.chart.text_4',
+                      '{{category}} · {{label}}: {{format}}',
+                      { category, label: entry.label, format: format(value) },
+                    );
                     return (
                       <ChartMark key={entry.label} content={readout}>
                         <span
@@ -1483,7 +1512,10 @@ export function StackedBarChart({
       {series.map((entry) => (
         <ChartDataTable
           key={entry.label}
-          caption={`${label}, ${entry.label}`}
+          caption={t('components.chart.chart.text_3', '{{label}}, {{label2}}', {
+            label,
+            label2: entry.label,
+          })}
           valueLabel={entry.label}
           data={categories.map((category, index) => ({
             label: category,
@@ -1575,7 +1607,13 @@ export function HeatmapChart({
   return (
     <ChartFrame
       label={label}
-      rows={cells.map((cell) => ({ label: `${cell.row} · ${cell.column}`, value: cell.value }))}
+      rows={cells.map((cell) => ({
+        label: t('components.chart.chart.text_5', '{{row}} · {{column}}', {
+          row: cell.row,
+          column: cell.column,
+        }),
+        value: cell.value,
+      }))}
       {...(zoomable ? { window: windowState } : {})}
       {...(menuItems ? { menuItems } : {})}
       className={cn('w-full', className)}
@@ -1603,7 +1641,7 @@ export function HeatmapChart({
           <thead>
             <tr>
               <th scope="col">
-                <span className="sr-only">Row</span>
+                <span className="sr-only">{t('components.chart.chart.row', 'Row')}</span>
               </th>
               {shownColumns.map((column) => (
                 <th
@@ -1629,7 +1667,12 @@ export function HeatmapChart({
                   const value = lookup.get(`${row}|${column}`) ?? 0;
                   const intensity = ceiling === 0 ? 0 : value / ceiling;
                   const description =
-                    describe?.(value, row, column) ?? `${row}, ${column}: ${format(value)}`;
+                    describe?.(value, row, column) ??
+                    t('components.chart.chart.text_6', '{{row}}, {{column}}: {{format}}', {
+                      row,
+                      column,
+                      format: format(value),
+                    });
                   return (
                     <td key={column} className="p-0">
                       <ChartMark content={description}>
@@ -1681,7 +1724,13 @@ export function HeatmapChart({
         </table>
       </div>
 
-      <ChartScaleKey tone={tone} low="Less" high={`More · up to ${format(ceiling)}`} />
+      <ChartScaleKey
+        tone={tone}
+        low="Less"
+        high={t('components.chart.chart.more_up_to', 'More · up to {{format}}', {
+          format: format(ceiling),
+        })}
+      />
     </ChartFrame>
   );
 }
@@ -1803,8 +1852,16 @@ export function FunnelChart({
           // Name), the share of the first stage included.
           const readout =
             overall !== null && index > 0
-              ? `${stage.label}: ${format(stage.value)}, ${String(Math.round(overall * 100))}% of ${data[0]?.label ?? ''}`
-              : `${stage.label}: ${format(stage.value)}`;
+              ? t('components.chart.chart.of', '{{label}}: {{format}}, {{round}}% of {{value}}', {
+                  label: stage.label,
+                  format: format(stage.value),
+                  round: String(Math.round(overall * 100)),
+                  value: data[0]?.label ?? '',
+                })
+              : t('components.chart.chart.text', '{{label}}: {{format}}', {
+                  label: stage.label,
+                  format: format(stage.value),
+                });
           const StepIcon = grew ? ArrowUp : ArrowDown;
 
           return (

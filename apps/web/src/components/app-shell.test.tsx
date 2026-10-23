@@ -22,6 +22,9 @@ vi.mock('../app/(app)/inbox/actions', () => ({
 vi.mock('../app/(app)/settings/shortcuts/actions', () => ({
   saveShortcuts: vi.fn(() => Promise.resolve({ ok: true })),
 }));
+vi.mock('../app/(app)/settings/language/actions', () => ({
+  saveLanguage: vi.fn(() => Promise.resolve({ ok: true })),
+}));
 vi.mock('../app/assistant/actions', () => ({ askAssistant: vi.fn() }));
 const punch = vi.fn((..._args: unknown[]) => Promise.resolve({ ok: true }));
 vi.mock('../app/(app)/time-off/actions', () => ({ punch, correctPunch: vi.fn() }));

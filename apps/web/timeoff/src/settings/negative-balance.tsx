@@ -25,6 +25,7 @@ import { useState, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { amount } from '../overview/overview';
 import { SettingsSkeleton, Toggle, daysLabel, useSaved } from './shared';
+import { t } from '../i18n';
 
 /**
  * Negative balance rules (T31, TOF-080): how far below zero people may go
@@ -63,7 +64,7 @@ export interface NegativeBalanceProps {
   readonly onSave?: (policyId: string, rule: Rule | null, publish: boolean) => Promise<Outcome>;
 }
 
-const TITLE = 'Negative balance';
+const TITLE = t('settings.negative-balance.negative_balance', 'Negative balance');
 const DESCRIPTION = 'What happens when someone books more than they’ve earned.';
 const page = '@container/negative flex flex-col gap-6';
 const columns =
@@ -99,8 +100,11 @@ function Ready({
   const policy = data.policies.find((p) => p.policyId === chosen);
   if (policy === undefined) {
     return (
-      <Alert tone="info" title="No policies yet">
-        A leave type needs a policy before anyone can go below zero on it.
+      <Alert tone="info" title={t('settings.negative-balance.no_policies_yet', 'No policies yet')}>
+        {t(
+          'settings.negative-balance.a_leave_type_needs_a_policy',
+          'A leave type needs a policy before anyone can go below zero on it.',
+        )}
       </Alert>
     );
   }
@@ -134,17 +138,31 @@ function Editor({
   return (
     <>
       {policy.status === 'draft' ? (
-        <Alert tone="info" title={`${policy.leaveTypeName} has a draft`}>
-          What you save here joins it, and holds once the draft is published.
+        <Alert
+          tone="info"
+          title={t('settings.negative-balance.has_a_draft', '{{leaveTypeName}} has a draft', {
+            leaveTypeName: policy.leaveTypeName,
+          })}
+        >
+          {t(
+            'settings.negative-balance.what_you_save_here_joins_it',
+            'What you save here joins it, and holds once the draft is published.',
+          )}
         </Alert>
       ) : null}
       {form.refusal}
       <div className={columns}>
         <FormSections>
-          <FormSection title="Borrowing" description="How far below zero, and who says yes.">
+          <FormSection
+            title={t('settings.negative-balance.borrowing', 'Borrowing')}
+            description={t(
+              'settings.negative-balance.how_far_below_zero_and_who',
+              'How far below zero, and who says yes.',
+            )}
+          >
             {data.policies.length > 1 ? (
               <Field>
-                <FieldLabel>For</FieldLabel>
+                <FieldLabel>{t('settings.negative-balance.for', 'For')}</FieldLabel>
                 <Select value={policy.policyId} onValueChange={onChoose}>
                   <FieldControl>
                     <SelectTrigger>
@@ -162,7 +180,10 @@ function Editor({
               </Field>
             ) : null}
             <Toggle
-              label="Let people go below zero"
+              label={t(
+                'settings.negative-balance.let_people_go_below_zero',
+                'Let people go below zero',
+              )}
               checked={rule !== null}
               onChange={(on) => {
                 form.set(on ? (policy.rule ?? DEFAULT_RULE) : null);
@@ -171,7 +192,7 @@ function Editor({
             {rule === null ? null : (
               <>
                 <NumberField
-                  label="Up to (days)"
+                  label={t('settings.negative-balance.up_to_days', 'Up to (days)')}
                   value={Number(rule.limit)}
                   min={0}
                   step={0.5}
@@ -182,7 +203,7 @@ function Editor({
                 />
                 <div className="flex flex-col gap-1.5">
                   <span id="negative-approvers" className="text-sm font-medium">
-                    Who approves
+                    {t('settings.negative-balance.who_approves', 'Who approves')}
                   </span>
                   <SegmentedControl
                     aria-labelledby="negative-approvers"
@@ -191,20 +212,32 @@ function Editor({
                       if (approvers !== '') set({ approvers: approvers as Rule['approvers'] });
                     }}
                   >
-                    <SegmentedControlItem value="manager">Manager</SegmentedControlItem>
-                    <SegmentedControlItem value="manager_then_hr">
-                      Manager, then HR
+                    <SegmentedControlItem value="manager">
+                      {t('settings.negative-balance.manager', 'Manager')}
                     </SegmentedControlItem>
-                    <SegmentedControlItem value="hr">HR only</SegmentedControlItem>
+                    <SegmentedControlItem value="manager_then_hr">
+                      {t('settings.negative-balance.manager_then_hr', 'Manager, then HR')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="hr">
+                      {t('settings.negative-balance.hr_only', 'HR only')}
+                    </SegmentedControlItem>
                   </SegmentedControl>
                 </div>
               </>
             )}
           </FormSection>
           {rule === null ? null : (
-            <FormSection title="What happens next" description="When the days are not earned back.">
+            <FormSection
+              title={t('settings.negative-balance.what_happens_next', 'What happens next')}
+              description={t(
+                'settings.negative-balance.when_the_days_are_not_earned',
+                'When the days are not earned back.',
+              )}
+            >
               <fieldset className="flex min-w-0 flex-col gap-2">
-                <legend className="mb-2 text-sm font-medium">At the end of the year</legend>
+                <legend className="mb-2 text-sm font-medium">
+                  {t('settings.negative-balance.at_the_end_of_the_year', 'At the end of the year')}
+                </legend>
                 <RadioGroup
                   value={rule.atYearEnd}
                   onValueChange={(atYearEnd) => {
@@ -213,22 +246,47 @@ function Editor({
                 >
                   <RadioCard
                     value="next_year"
-                    description="The person starts the year with fewer days."
-                    badge={<Badge size="sm">Most common</Badge>}
+                    description={t(
+                      'settings.negative-balance.the_person_starts_the_year_with',
+                      'The person starts the year with fewer days.',
+                    )}
+                    badge={
+                      <Badge size="sm">
+                        {t('settings.negative-balance.most_common', 'Most common')}
+                      </Badge>
+                    }
                   >
-                    Take it from next year’s allowance
+                    {t(
+                      'settings.negative-balance.take_it_from_next_years_allowance',
+                      'Take it from next year’s allowance',
+                    )}
                   </RadioCard>
-                  <RadioCard value="unpaid" description="Deducted from December’s pay.">
-                    Make it unpaid
+                  <RadioCard
+                    value="unpaid"
+                    description={t(
+                      'settings.negative-balance.deducted_from_decembers_pay',
+                      'Deducted from December’s pay.',
+                    )}
+                  >
+                    {t('settings.negative-balance.make_it_unpaid', 'Make it unpaid')}
                   </RadioCard>
-                  <RadioCard value="write_off" description="The company absorbs it.">
-                    Write it off
+                  <RadioCard
+                    value="write_off"
+                    description={t(
+                      'settings.negative-balance.the_company_absorbs_it',
+                      'The company absorbs it.',
+                    )}
+                  >
+                    {t('settings.negative-balance.write_it_off', 'Write it off')}
                   </RadioCard>
                 </RadioGroup>
               </fieldset>
               <fieldset className="flex min-w-0 flex-col gap-2">
                 <legend className="mb-2 text-sm font-medium">
-                  If someone leaves while negative
+                  {t(
+                    'settings.negative-balance.if_someone_leaves_while_negative',
+                    'If someone leaves while negative',
+                  )}
                 </legend>
                 <RadioGroup
                   value={rule.onLeaving}
@@ -238,15 +296,33 @@ function Editor({
                 >
                   <RadioCard
                     value="final_pay"
-                    description="Shown on the leaver’s checklist and sent to Payroll."
+                    description={t(
+                      'settings.negative-balance.shown_on_the_leavers_checklist_and',
+                      'Shown on the leaver’s checklist and sent to Payroll.',
+                    )}
                   >
-                    Deduct it from final pay
+                    {t(
+                      'settings.negative-balance.deduct_it_from_final_pay',
+                      'Deduct it from final pay',
+                    )}
                   </RadioCard>
-                  <RadioCard value="write_off" description="The company absorbs it.">
-                    Write it off
+                  <RadioCard
+                    value="write_off"
+                    description={t(
+                      'settings.negative-balance.the_company_absorbs_it',
+                      'The company absorbs it.',
+                    )}
+                  >
+                    {t('settings.negative-balance.write_it_off', 'Write it off')}
                   </RadioCard>
-                  <RadioCard value="hr_decides" description="HR is asked when someone leaves.">
-                    HR decides each time
+                  <RadioCard
+                    value="hr_decides"
+                    description={t(
+                      'settings.negative-balance.hr_is_asked_when_someone_leaves',
+                      'HR is asked when someone leaves.',
+                    )}
+                  >
+                    {t('settings.negative-balance.hr_decides_each_time', 'HR decides each time')}
                   </RadioCard>
                 </RadioGroup>
               </fieldset>
@@ -256,9 +332,14 @@ function Editor({
         <div className="flex min-w-0 flex-col gap-6">
           <WhatPeopleSee rule={rule} typeName={policy.leaveTypeName} />
           {rule?.onLeaving === 'final_pay' ? (
-            <Alert tone="info" title="Check your contracts">
-              Deducting from final pay needs a clause in the employment contract. Anyone whose
-              contract lacks it has the days written off instead.
+            <Alert
+              tone="info"
+              title={t('settings.negative-balance.check_your_contracts', 'Check your contracts')}
+            >
+              {t(
+                'settings.negative-balance.deducting_from_final_pay_needs_a',
+                'Deducting from final pay needs a clause in the employment contract. Anyone whose contract lacks it has the days written off instead.',
+              )}
             </Alert>
           ) : null}
         </div>
@@ -271,25 +352,55 @@ function Editor({
 }
 
 const APPROVES: Record<Rule['approvers'], string> = {
-  manager: 'Your manager approves it.',
-  manager_then_hr: 'Your manager approves it, then HR.',
-  hr: 'HR approves it.',
+  manager: t('settings.negative-balance.your_manager_approves_it', 'Your manager approves it.'),
+  manager_then_hr: t(
+    'settings.negative-balance.your_manager_approves_it_then_hr',
+    'Your manager approves it, then HR.',
+  ),
+  hr: t('settings.negative-balance.hr_approves_it', 'HR approves it.'),
 };
 const YEAR_END: Record<Rule['atYearEnd'], string> = {
-  next_year: 'They come from next year’s allowance.',
-  unpaid: 'Any still below zero at the end of the year are unpaid, deducted from December’s pay.',
-  write_off: 'Any still below zero at the end of the year are written off.',
+  next_year: t(
+    'settings.negative-balance.they_come_from_next_years_allowance',
+    'They come from next year’s allowance.',
+  ),
+  unpaid: t(
+    'settings.negative-balance.any_still_below_zero_at_the',
+    'Any still below zero at the end of the year are unpaid, deducted from December’s pay.',
+  ),
+  write_off: t(
+    'settings.negative-balance.any_still_below_zero_at_the_2',
+    'Any still below zero at the end of the year are written off.',
+  ),
 };
 const LEAVING: Record<Rule['onLeaving'], string> = {
-  final_pay: 'If you leave before earning them back, they’re deducted from your final pay.',
-  write_off: 'If you leave before earning them back, they’re written off.',
-  hr_decides: 'If you leave before earning them back, HR decides what happens.',
+  final_pay: t(
+    'settings.negative-balance.if_you_leave_before_earning_them',
+    'If you leave before earning them back, they’re deducted from your final pay.',
+  ),
+  write_off: t(
+    'settings.negative-balance.if_you_leave_before_earning_them_2',
+    'If you leave before earning them back, they’re written off.',
+  ),
+  hr_decides: t(
+    'settings.negative-balance.if_you_leave_before_earning_them_3',
+    'If you leave before earning them back, HR decides what happens.',
+  ),
 };
 
 /** The sentence a request that crosses zero shows its employee, word for word. */
 export function negativeSentence(rule: Rule): string {
   const limit = daysLabel(amount(rule.limit));
-  return `This can take you up to ${limit} below zero. ${YEAR_END[rule.atYearEnd]} ${LEAVING[rule.onLeaving]} ${APPROVES[rule.approvers]}`;
+  return t(
+    'settings.negative-balance.this_can_take_you_up_to',
+    'This can take you up to {{limit}} below zero. {{YEAR_END}} {{LEAVING}} {{APPROVES}}',
+    {
+      limit,
+      YEAR_END: YEAR_END[rule.atYearEnd],
+      LEAVING: LEAVING[rule.onLeaving],
+      APPROVES: APPROVES[rule.approvers],
+    },
+  );
 }
 
 function WhatPeopleSee({
@@ -301,20 +412,27 @@ function WhatPeopleSee({
 }): JSX.Element {
   return (
     <PageSection
-      title="What people see"
-      actions={<Badge size="sm">Preview</Badge>}
-      description="When a request would take them below zero."
+      title={t('settings.negative-balance.what_people_see', 'What people see')}
+      actions={<Badge size="sm">{t('settings.negative-balance.preview', 'Preview')}</Badge>}
+      description={t(
+        'settings.negative-balance.when_a_request_would_take_them',
+        'When a request would take them below zero.',
+      )}
       surface
     >
       {rule === null ? (
         <p className="text-sm">
-          {`A request for more ${typeName.toLowerCase()} than someone has is refused, with what they have left.`}
+          {t(
+            'settings.negative-balance.a_request_for_more_than_someone',
+            'A request for more {{typeName}} than someone has is refused, with what they have left.',
+            { typeName: typeName.toLowerCase() },
+          )}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
           <Stat
             inset
-            label={`${typeName} balance`}
+            label={t('settings.negative-balance.balance', '{{typeName}} balance', { typeName })}
             from="0"
             value={`−${amount(rule.limit)}`}
             unit="days"

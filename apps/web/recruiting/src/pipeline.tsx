@@ -39,6 +39,7 @@ import { Loaded } from './load';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import { CATEGORY_TONE, Refusal, Search, To, day, useAct, when, words } from './shared';
 import type { Card as CardData, PipelineData, ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * R10, a job's pipeline (design R10–R10d): a board by stage or a table, the
@@ -69,7 +70,7 @@ function CandidateCard({
       {ideal ? (
         <span className="flex items-center gap-1.5 text-xs font-semibold text-success-fg">
           <icons.starred aria-hidden className="size-3.5 fill-current" />
-          Ideal candidate
+          {t('pipeline.ideal_candidate', 'Ideal candidate')}
         </span>
       ) : null}
       <div className="flex items-center gap-2">
@@ -82,7 +83,11 @@ function CandidateCard({
           {card.name}
         </To>
         {card.unread > 0 ? (
-          <Badge size="sm" tone="accent" aria-label={`${String(card.unread)} unread`}>
+          <Badge
+            size="sm"
+            tone="accent"
+            aria-label={t('pipeline.unread', '{{unread}} unread', { unread: String(card.unread) })}
+          >
             {card.unread}
           </Badge>
         ) : null}
@@ -90,12 +95,12 @@ function CandidateCard({
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {card.flagged ? (
           <Badge size="sm" tone="warning">
-            Knockout to review
+            {t('pipeline.knockout_to_review', 'Knockout to review')}
           </Badge>
         ) : null}
         {card.duplicate ? (
           <Badge size="sm" tone="info">
-            Possible duplicate
+            {t('pipeline.possible_duplicate', 'Possible duplicate')}
           </Badge>
         ) : null}
         {card.match == null ? null : (
@@ -109,19 +114,31 @@ function CandidateCard({
                   : 'neutral'
             }
             variant="soft"
-            aria-label={`AI match ${String(Math.round(card.match.scoreBp / 100))} percent, ${card.match.band}`}
+            aria-label={t('pipeline.ai_match_percent', 'AI match {{round}} percent, {{band}}', {
+              round: String(Math.round(card.match.scoreBp / 100)),
+              band: card.match.band,
+            })}
           >
-            {`${String(Math.round(card.match.scoreBp / 100))}% match`}
+            {t('pipeline.match', '{{round}}% match', {
+              round: String(Math.round(card.match.scoreBp / 100)),
+            })}
           </Badge>
         )}
         <span
           className={card.daysInStage > 4 ? 'text-[var(--reach-warning-text)]' : 'text-fg-muted'}
-        >{`${String(card.daysInStage)} d in stage`}</span>
+        >
+          {t('pipeline.d_in_stage', '{{daysInStage}} d in stage', {
+            daysInStage: String(card.daysInStage),
+          })}
+        </span>
       </div>
       {card.nextInterview === null ? null : (
         <div className="flex items-center gap-1.5 border-t border-[var(--reach-line)] pt-2 text-sm text-fg-muted">
           <icons.meeting aria-hidden className="size-3.5" />
-          {`${card.nextInterview.title} ${when(card.nextInterview.startsAt)}`}
+          {t('pipeline.text', '{{title}} {{startsAt}}', {
+            title: card.nextInterview.title,
+            startsAt: when(card.nextInterview.startsAt),
+          })}
         </div>
       )}
     </div>
@@ -153,8 +170,15 @@ function UndoBar({
       role="status"
       className="flex items-center gap-3 rounded-2xl bg-[var(--reach-surface-raised)] p-3 shadow-lg"
     >
-      <span className="flex-1">{`${undo.name} moved to ${undo.stage}`}</span>
-      <Button size="sm" variant="secondary" onClick={onUndo}>{`Undo · ${String(left)} s`}</Button>
+      <span className="flex-1">
+        {t('pipeline.moved_to', '{{name}} moved to {{stage}}', {
+          name: undo.name,
+          stage: undo.stage,
+        })}
+      </span>
+      <Button size="sm" variant="secondary" onClick={onUndo}>
+        {t('pipeline.undo_s', 'Undo · {{left}} s', { left: String(left) })}
+      </Button>
     </div>
   );
 }
@@ -171,7 +195,7 @@ function pipelineColumns(
   return [
     {
       id: 'candidate',
-      header: 'Candidate',
+      header: t('pipeline.candidate', 'Candidate'),
       sortBy: (c) => c.name,
       cell: (c) => (
         <To href={`/recruiting/candidates/${c.candidateId}`} onNavigate={onNavigate}>
@@ -181,27 +205,27 @@ function pipelineColumns(
     },
     {
       id: 'stage',
-      header: 'Stage',
+      header: t('pipeline.stage', 'Stage'),
       sortBy: (c) => stages.findIndex((s) => s.id === c.stageId),
       cell: (c) => <Badge size="sm">{stages.find((s) => s.id === c.stageId)?.name ?? ''}</Badge>,
     },
     {
       id: 'source',
-      header: 'Source',
+      header: t('pipeline.source', 'Source'),
       hideOnCard: true,
       sortBy: (c) => c.source,
       cell: (c) => <span className="text-sm text-fg-muted">{words(c.source)}</span>,
     },
     {
       id: 'inStage',
-      header: 'In stage',
+      header: t('pipeline.in_stage', 'In stage'),
       numeric: true,
       sortBy: (c) => c.daysInStage,
-      cell: (c) => `${String(c.daysInStage)} d`,
+      cell: (c) => t('pipeline.d', '{{daysInStage}} d', { daysInStage: String(c.daysInStage) }),
     },
     {
       id: 'next',
-      header: 'Next',
+      header: t('pipeline.next', 'Next'),
       sortBy: (c) => c.nextInterview?.startsAt ?? '',
       cell: (c) => (
         <span className="text-sm text-fg-muted">
@@ -211,7 +235,7 @@ function pipelineColumns(
     },
     {
       id: 'applied',
-      header: 'Applied',
+      header: t('pipeline.applied', 'Applied'),
       sortBy: (c) => c.appliedAt,
       cell: (c) => <span className="text-sm text-fg-muted">{day(c.appliedAt)}</span>,
     },
@@ -299,16 +323,22 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
           <div className="flex flex-col gap-3">
             <PageHeader
               title={data.job.title}
-              description={`${String(active.length)} active candidates`}
+              description={t('pipeline.active_candidates', '{{length}} active candidates', {
+                length: String(active.length),
+              })}
               actions={
                 <>
                   <SegmentedControl
                     value={view}
                     onValueChange={(v) => props.onFilter?.({ view: v === 'board' ? null : v })}
-                    aria-label="View"
+                    aria-label={t('pipeline.view', 'View')}
                   >
-                    <SegmentedControlItem value="board">Board</SegmentedControlItem>
-                    <SegmentedControlItem value="table">Table</SegmentedControlItem>
+                    <SegmentedControlItem value="board">
+                      {t('pipeline.board', 'Board')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="table">
+                      {t('pipeline.table', 'Table')}
+                    </SegmentedControlItem>
                   </SegmentedControl>
                   {/* R7, from the board: open the job if it is a draft, then put it on Kithena Jobs. */}
                   {data.job.onKithenaJobs ? (
@@ -318,7 +348,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       startIcon={<icons.externalLink aria-hidden />}
                     >
                       <a href={data.job.publicUrl} target="_blank" rel="noreferrer">
-                        On Kithena Jobs
+                        {t('pipeline.on_kithena_jobs', 'On Kithena Jobs')}
                       </a>
                     </Button>
                   ) : data.may.includes('job.edit') ? (
@@ -338,7 +368,9 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                           );
                       }}
                     >
-                      {data.job.state === 'open' ? 'Publish on Kithena Jobs' : 'Open and publish'}
+                      {data.job.state === 'open'
+                        ? t('pipeline.publish_on_kithena_jobs', 'Publish on Kithena Jobs')
+                        : t('pipeline.open_and_publish', 'Open and publish')}
                     </Button>
                   ) : null}
                   <Button
@@ -346,14 +378,14 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     startIcon={<icons.settings aria-hidden />}
                     onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}/setup`)}
                   >
-                    Job setup
+                    {t('pipeline.job_setup', 'Job setup')}
                   </Button>
                   <Button
                     variant="secondary"
                     startIcon={<icons.analytics aria-hidden />}
                     onClick={() => props.onNavigate?.(`/recruiting/analytics?job=${data.job.id}`)}
                   >
-                    Job dashboard
+                    {t('pipeline.job_dashboard', 'Job dashboard')}
                   </Button>
                   {data.may.includes('job.edit') ? (
                     <>
@@ -367,7 +399,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                           });
                         }}
                       >
-                        Read everyone with AI
+                        {t('pipeline.read_everyone_with_ai', 'Read everyone with AI')}
                       </Button>
                       <Button
                         variant="secondary"
@@ -378,7 +410,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                           });
                         }}
                       >
-                        Rediscover from pools
+                        {t('pipeline.rediscover_from_pools', 'Rediscover from pools')}
                       </Button>
                     </>
                   ) : null}
@@ -388,30 +420,44 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             {assessed === null ? null : (
               <Alert
                 tone={assessed.failed.length === 0 ? 'success' : 'warning'}
-                title={`${String(assessed.assessed)} read against the criteria, ${String(assessed.skipped)} already were`}
+                title={t(
+                  'pipeline.read_against_the_criteria_already_were',
+                  '{{assessed}} read against the criteria, {{skipped}} already were',
+                  { assessed: String(assessed.assessed), skipped: String(assessed.skipped) },
+                )}
                 onDismiss={() => {
                   setAssessed(null);
                 }}
               >
                 {assessed.failed.length === 0
-                  ? 'A label on each card, not a decision: every finding cites the CV and a person agrees or not.'
-                  : `${String(assessed.failed.length)} could not be read: ${[...new Set(assessed.failed)].join('; ')}`}
+                  ? t(
+                      'pipeline.a_label_on_each_card_not',
+                      'A label on each card, not a decision: every finding cites the CV and a person agrees or not.',
+                    )
+                  : t('pipeline.could_not_be_read', '{{length}} could not be read: {{join}}', {
+                      length: String(assessed.failed.length),
+                      join: [...new Set(assessed.failed)].join('; '),
+                    })}
               </Alert>
             )}
             {found === null ? null : (
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>From your talent pools</CardTitle>
+                  <CardTitle level={2}>
+                    {t('pipeline.from_your_talent_pools', 'From your talent pools')}
+                  </CardTitle>
                   <CardDescription>
-                    People who agreed to be kept, read against this job’s criteria. A label, not a
-                    decision: invite the ones you choose.
+                    {t(
+                      'pipeline.people_who_agreed_to_be_kept',
+                      'People who agreed to be kept, read against this job’s criteria. A label, not a decision: invite the ones you choose.',
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {found.length === 0 ? (
                     <EmptyState
                       icon={<icons.people aria-hidden />}
-                      title="Nobody in the pools yet"
+                      title={t('pipeline.nobody_in_the_pools_yet', 'Nobody in the pools yet')}
                     />
                   ) : (
                     <ul className="flex flex-col gap-2">
@@ -423,7 +469,9 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                           >
                             {r.name}
                           </To>
-                          <Badge size="sm" tone="neutral">{`${words(r.band)} match`}</Badge>
+                          <Badge size="sm" tone="neutral">
+                            {t('pipeline.match_2', '{{band}} match', { band: words(r.band) })}
+                          </Badge>
                         </li>
                       ))}
                     </ul>
@@ -433,8 +481,8 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             )}
             <div className="flex flex-wrap items-center gap-2">
               <Search
-                label="Search candidates"
-                placeholder="Search by name"
+                label={t('pipeline.search_candidates', 'Search candidates')}
+                placeholder={t('pipeline.search_by_name', 'Search by name')}
                 initial={props.search?.['q'] ?? ''}
                 onSearch={(q) => props.onFilter?.({ q: q === '' ? null : q })}
                 className="w-64"
@@ -443,29 +491,37 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 value={props.search?.['sort'] ?? 'newest'}
                 onValueChange={(v) => props.onFilter?.({ sort: v === 'newest' ? null : v })}
               >
-                <SelectTrigger aria-label="Sort" className="w-44">
+                <SelectTrigger aria-label={t('pipeline.sort', 'Sort')} className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                  <SelectItem value="days">Longest in stage</SelectItem>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="match">Match, strongest first</SelectItem>
+                  <SelectItem value="newest">
+                    {t('pipeline.newest_first', 'Newest first')}
+                  </SelectItem>
+                  <SelectItem value="days">
+                    {t('pipeline.longest_in_stage', 'Longest in stage')}
+                  </SelectItem>
+                  <SelectItem value="name">{t('pipeline.name', 'Name')}</SelectItem>
+                  <SelectItem value="match">
+                    {t('pipeline.match_strongest_first', 'Match, strongest first')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Select
                 value={band === '' ? 'any' : band}
                 onValueChange={(v) => props.onFilter?.({ band: v === 'any' ? null : v })}
               >
-                <SelectTrigger aria-label="AI match" className="w-44">
+                <SelectTrigger aria-label={t('pipeline.ai_match', 'AI match')} className="w-44">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="any">Any match</SelectItem>
-                  <SelectItem value="strong">Ideal candidates</SelectItem>
-                  <SelectItem value="good">Good matches</SelectItem>
-                  <SelectItem value="weak">Weak matches</SelectItem>
-                  <SelectItem value="none">Not read yet</SelectItem>
+                  <SelectItem value="any">{t('pipeline.any_match', 'Any match')}</SelectItem>
+                  <SelectItem value="strong">
+                    {t('pipeline.ideal_candidates', 'Ideal candidates')}
+                  </SelectItem>
+                  <SelectItem value="good">{t('pipeline.good_matches', 'Good matches')}</SelectItem>
+                  <SelectItem value="weak">{t('pipeline.weak_matches', 'Weak matches')}</SelectItem>
+                  <SelectItem value="none">{t('pipeline.not_read_yet', 'Not read yet')}</SelectItem>
                 </SelectContent>
               </Select>
               {strongAtStart.length > 0 && canMove && second !== undefined ? (
@@ -483,16 +539,21 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     });
                   }}
                 >
-                  {`Shortlist ${String(strongAtStart.length)} ideal to ${second.name}`}
+                  {t('pipeline.shortlist_ideal_to', 'Shortlist {{length}} ideal to {{name}}', {
+                    length: String(strongAtStart.length),
+                    name: second.name,
+                  })}
                 </Button>
               ) : null}
             </div>
             <Refusal error={act.error} />
             {view === 'board' ? (
               <>
-                <h2 className="sr-only">Candidates by stage</h2>
+                <h2 className="sr-only">
+                  {t('pipeline.candidates_by_stage', 'Candidates by stage')}
+                </h2>
                 <Kanban
-                  label={`${data.job.title} pipeline`}
+                  label={t('pipeline.pipeline', '{{title}} pipeline', { title: data.job.title })}
                   columnWidth="300px"
                   columns={data.stages
                     .filter((s) => s.category !== 'hired')
@@ -513,7 +574,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   cardActions={[
                     {
                       id: 'reject',
-                      label: 'Reject…',
+                      label: t('pipeline.reject', 'Reject…'),
                       run: (cards: readonly (CardData & { id: string })[]) => {
                         setRejecting({
                           ids: cards.map((c) => c.applicationId),
@@ -528,10 +589,12 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               <>
                 {selected.size === 0 ? null : (
                   <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-[var(--reach-fill)] p-2">
-                    <span className="px-2 font-semibold">{`${String(selected.size)} selected`}</span>
+                    <span className="px-2 font-semibold">
+                      {t('pipeline.selected', '{{size}} selected', { size: String(selected.size) })}
+                    </span>
                     <Select value={moveTo} onValueChange={setMoveTo}>
-                      <SelectTrigger aria-label="Move to" className="w-48">
-                        <SelectValue placeholder="Move to…" />
+                      <SelectTrigger aria-label={t('pipeline.move_to', 'Move to')} className="w-48">
+                        <SelectValue placeholder={t('pipeline.move_to_2', 'Move to…')} />
                       </SelectTrigger>
                       <SelectContent>
                         {data.stages
@@ -557,7 +620,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                         );
                       }}
                     >
-                      Move
+                      {t('pipeline.move', 'Move')}
                     </Button>
                     <Button
                       size="sm"
@@ -570,13 +633,13 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                         });
                       }}
                     >
-                      Reject
+                      {t('pipeline.reject_2', 'Reject')}
                     </Button>
                   </div>
                 )}
                 {/* Infinite: the page's one scroll, only the rows on screen drawn. */}
                 <DataTable<CardData>
-                  label="Candidates"
+                  label={t('pipeline.candidates', 'Candidates')}
                   rows={active}
                   rowId={applicationOf}
                   describeRow={nameOf}
@@ -586,7 +649,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   onSelectedChange={(ids) => {
                     setSelected(new Set(ids));
                   }}
-                  empty="Nobody at this stage"
+                  empty={t('pipeline.nobody_at_this_stage', 'Nobody at this stage')}
                   columns={columns}
                 />
               </>
@@ -629,21 +692,27 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Which interview?</DialogTitle>
+                  <DialogTitle>{t('pipeline.which_interview', 'Which interview?')}</DialogTitle>
                   <DialogDescription>
-                    {asking === null ? '' : `${asking.card.name} moves to an interview stage.`}
+                    {asking === null
+                      ? ''
+                      : t(
+                          'pipeline.moves_to_an_interview_stage',
+                          '{{name}} moves to an interview stage.',
+                          { name: asking.card.name },
+                        )}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
                   <Field required>
-                    <FieldLabel>Interview</FieldLabel>
+                    <FieldLabel>{t('pipeline.interview', 'Interview')}</FieldLabel>
                     <FieldControl>
                       <Input
                         value={interviewType}
                         onChange={(e) => {
                           setInterviewType(e.target.value);
                         }}
-                        placeholder="Technical interview"
+                        placeholder={t('pipeline.technical_interview', 'Technical interview')}
                       />
                     </FieldControl>
                   </Field>
@@ -655,7 +724,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       setAsking(null);
                     }}
                   >
-                    Cancel
+                    {t('pipeline.cancel', 'Cancel')}
                   </Button>
                   <Button
                     disabled={interviewType.trim() === ''}
@@ -665,7 +734,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       setInterviewType('');
                     }}
                   >
-                    Move
+                    {t('pipeline.move', 'Move')}
                   </Button>
                 </DialogFooter>
               </DialogContent>

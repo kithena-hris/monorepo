@@ -15,6 +15,7 @@ import { Badge } from '../badge/badge';
 import { parseIsoDate } from '../calendar/calendar';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { formatMinutes, layoutEvents, type Minutes } from './scheduler-model';
+import { t } from '../../lib/i18n';
 
 /**
  * Week and day grids for interviews, rotas and meetings, and an agenda list.
@@ -445,14 +446,25 @@ export function Scheduler({
                     >
                       <span className="sr-only">
                         {event.allDay
-                          ? 'All day, '
-                          : `${formatMinutes(event.start)} to ${formatMinutes(event.end)}, `}
+                          ? t('components.scheduler.scheduler.all_day', 'All day,') + ' '
+                          : t(
+                              'components.scheduler.scheduler.to',
+                              '{{formatMinutes}} to {{formatMinutes2}},',
+                              {
+                                formatMinutes: formatMinutes(event.start),
+                                formatMinutes2: formatMinutes(event.end),
+                              },
+                            ) + ' '}
                       </span>
                       {event.title}
                       {event.detail ? (
                         <span className="block font-normal">{event.detail}</span>
                       ) : null}
-                      {event.clash ? <span className="sr-only">, clashes</span> : null}
+                      {event.clash ? (
+                        <span className="sr-only">
+                          {t('components.scheduler.scheduler.clashes', ', clashes')}
+                        </span>
+                      ) : null}
                     </li>
                   );
                 })}
@@ -505,7 +517,9 @@ function Agenda({
               {mine.map((event) => (
                 <li key={event.id} className="flex items-stretch gap-3 px-4.5 py-2.5 touch:px-4">
                   <span className="w-14 shrink-0 self-center text-sm font-semibold text-fg-muted tabular-nums">
-                    {event.allDay ? 'All day' : formatMinutes(event.start)}
+                    {event.allDay
+                      ? t('components.scheduler.scheduler.all_day_2', 'All day')
+                      : formatMinutes(event.start)}
                   </span>
                   <span
                     aria-hidden
@@ -537,7 +551,10 @@ function spoken(event: SchedulerEvent, columns: readonly SchedulerColumn[]): str
   };
   const days =
     event.endColumn && event.endColumn !== event.column
-      ? `${name(event.column)} to ${name(event.endColumn)}`
+      ? t('components.scheduler.scheduler.to_2', '{{name}} to {{name2}}', {
+          name: name(event.column),
+          name2: name(event.endColumn),
+        })
       : name(event.column);
   return [days, event.title, event.detail].filter(Boolean).join(', ');
 }
@@ -973,7 +990,7 @@ function Month({
                   aria-hidden
                   className="ps-0.5 text-2xs leading-none font-semibold text-fg-muted"
                 >
-                  +{mine.length - maxChips} more
+                  +{mine.length - maxChips} {t('components.scheduler.scheduler.more', 'more')}
                 </span>
               ) : null}
             </li>

@@ -19,6 +19,7 @@ import { useMemo, type JSX } from 'react';
 import { Loaded } from './load';
 import { StateBadge, To, day } from './shared';
 import type { HomeData, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R1, Recruiting home (design R1): tasks first, then the jobs the viewer is
@@ -42,12 +43,14 @@ function MiniPipeline({
   return (
     <span
       className="flex h-6 items-end gap-0.5"
-      aria-label={counts.byStage.map((s) => `${s.name} ${String(s.count)}`).join(', ')}
+      aria-label={counts.byStage
+        .map((s) => tr('home.text', '{{name}} {{count}}', { name: s.name, count: String(s.count) }))
+        .join(', ')}
     >
       {counts.byStage.map((s, i) => (
         <span
           key={s.stageId}
-          title={`${s.name}: ${String(s.count)}`}
+          title={tr('home.text_2', '{{name}}: {{count}}', { name: s.name, count: String(s.count) })}
           className="w-3 rounded-sm bg-[var(--reach-chart-1)]"
           style={{ height: `${String(Math.max(3, (s.count / max) * 24))}px`, opacity: 1 - i * 0.1 }}
         />
@@ -72,15 +75,20 @@ function Tasks({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>My tasks</CardTitle>
-        <CardDescription>From the Inbox, for Recruiting</CardDescription>
+        <CardTitle level={2}>{tr('home.my_tasks', 'My tasks')}</CardTitle>
+        <CardDescription>
+          {tr('home.from_the_inbox_for_recruiting', 'From the Inbox, for Recruiting')}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {data.tasks.length === 0 ? (
           <EmptyState
             icon={<icons.success aria-hidden />}
-            title="Nothing waiting for you"
-            description="Approvals, scorecards and today’s interviews land here."
+            title={tr('home.nothing_waiting_for_you', 'Nothing waiting for you')}
+            description={tr(
+              'home.approvals_scorecards_and_todays_interviews_land',
+              'Approvals, scorecards and today’s interviews land here.',
+            )}
           />
         ) : (
           <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
@@ -131,11 +139,11 @@ function JobsTable({
     return (
       <EmptyState
         icon={<icons.work aria-hidden />}
-        title="No jobs yet"
+        title={tr('home.no_jobs_yet', 'No jobs yet')}
         description={
           data.requisitionsOn
-            ? 'A job opens from an approved requisition.'
-            : 'Open a job to start hiring.'
+            ? tr('home.a_job_opens_from_an_approved', 'A job opens from an approved requisition.')
+            : tr('home.open_a_job_to_start_hiring', 'Open a job to start hiring.')
         }
         action={
           <Button
@@ -145,7 +153,9 @@ function JobsTable({
               );
             }}
           >
-            {data.requisitionsOn ? 'New requisition' : 'New job'}
+            {data.requisitionsOn
+              ? tr('home.new_requisition', 'New requisition')
+              : tr('home.new_job', 'New job')}
           </Button>
         }
       />
@@ -153,7 +163,7 @@ function JobsTable({
   }
   return (
     <DataTable<JobRow>
-      label="My jobs"
+      label={tr('home.my_jobs', 'My jobs')}
       rows={data.jobs}
       rowId={idOf}
       describeRow={titleOf}
@@ -174,7 +184,7 @@ function jobColumns(
   return [
     {
       id: 'job',
-      header: 'Job',
+      header: tr('home.job', 'Job'),
       sortBy: (j) => j.title,
       cell: (j) => (
         <span className="flex flex-col">
@@ -184,8 +194,8 @@ function jobColumns(
           <span className="text-sm text-fg-muted">
             {[
               j.department,
-              `${String(j.counts.active)} candidates`,
-              `${String(j.counts.newThisWeek)} new`,
+              tr('home.candidates', '{{active}} candidates', { active: String(j.counts.active) }),
+              tr('home.new', '{{newThisWeek}} new', { newThisWeek: String(j.counts.newThisWeek) }),
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -195,13 +205,13 @@ function jobColumns(
     },
     {
       id: 'pipeline',
-      header: 'Pipeline',
+      header: tr('home.pipeline', 'Pipeline'),
       hideOnCard: true,
       cell: (j) => <MiniPipeline counts={j.counts} />,
     },
     {
       id: 'state',
-      header: 'State',
+      header: tr('home.state', 'State'),
       cardTrailing: true,
       sortBy: (j) => j.state,
       cell: (j) => <StateBadge state={j.state} />,
@@ -223,10 +233,15 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
             <PageHeader
               title={
                 data.viewer.name === null
-                  ? 'Recruiting'
-                  : `Hello, ${data.viewer.name.split(' ')[0] ?? ''}`
+                  ? tr('home.recruiting', 'Recruiting')
+                  : tr('home.hello', 'Hello, {{value}}', {
+                      value: data.viewer.name.split(' ')[0] ?? '',
+                    })
               }
-              description="Tasks first, then your jobs. Everything here also lands in the Inbox."
+              description={tr(
+                'home.tasks_first_then_your_jobs_everything',
+                'Tasks first, then your jobs. Everything here also lands in the Inbox.',
+              )}
               actions={
                 <>
                   {data.requisitionsOn ? (
@@ -237,7 +252,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                         props.onNavigate?.('/recruiting/requisitions/new');
                       }}
                     >
-                      New requisition
+                      {tr('home.new_requisition', 'New requisition')}
                     </Button>
                   ) : null}
                   {!data.requisitionsOn || data.viewer.admin ? (
@@ -247,7 +262,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                         props.onNavigate?.('/recruiting/jobs/new/setup');
                       }}
                     >
-                      New job
+                      {tr('home.new_job', 'New job')}
                     </Button>
                   ) : null}
                 </>
@@ -256,31 +271,43 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Card padded>
                 <Stat
-                  label="Open jobs"
+                  label={tr('home.open_jobs', 'Open jobs')}
                   value={String(open.length)}
-                  description={`${String(data.jobs.length)} in all`}
+                  description={tr('home.in_all', '{{length}} in all', {
+                    length: String(data.jobs.length),
+                  })}
                 />
               </Card>
               <Card padded>
                 <Stat
-                  label="Active candidates"
+                  label={tr('home.active_candidates', 'Active candidates')}
                   value={String(candidates)}
-                  description={`${String(fresh)} new this week`}
+                  description={tr('home.new_this_week', '{{fresh}} new this week', {
+                    fresh: String(fresh),
+                  })}
                 />
               </Card>
               <Card padded>
-                <Stat label="Interviews today" value={String(interviews)} />
+                <Stat
+                  label={tr('home.interviews_today', 'Interviews today')}
+                  value={String(interviews)}
+                />
               </Card>
               <Card padded>
-                <Stat label="Scorecards owed" value={String(scorecards)} />
+                <Stat
+                  label={tr('home.scorecards_owed', 'Scorecards owed')}
+                  value={String(scorecards)}
+                />
               </Card>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <Tasks data={data} props={props} />
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>My jobs</CardTitle>
-                  <CardDescription>{`${String(open.length)} open`}</CardDescription>
+                  <CardTitle level={2}>{tr('home.my_jobs', 'My jobs')}</CardTitle>
+                  <CardDescription>
+                    {tr('home.open', '{{length}} open', { length: String(open.length) })}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <JobsTable data={data} props={props} />
@@ -301,8 +328,11 @@ export function Jobs(props: ScreenProps<HomeData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Jobs"
-            description="Every job you hire for. Published is each target’s state, not the job’s."
+            title={tr('home.jobs', 'Jobs')}
+            description={tr(
+              'home.every_job_you_hire_for_published',
+              'Every job you hire for. Published is each target’s state, not the job’s.',
+            )}
             actions={
               <Button
                 startIcon={<icons.add aria-hidden />}
@@ -310,7 +340,7 @@ export function Jobs(props: ScreenProps<HomeData>): JSX.Element {
                   props.onNavigate?.('/recruiting/jobs/new/setup');
                 }}
               >
-                New job
+                {tr('home.new_job', 'New job')}
               </Button>
             }
           />

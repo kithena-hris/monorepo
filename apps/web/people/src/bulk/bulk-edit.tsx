@@ -44,6 +44,7 @@ import {
   type ManagerChange,
 } from '../record/manager-change';
 import type { AttributeValue, RecordField, RecordSection } from '../record/model';
+import { t } from '../i18n';
 
 export interface BulkEditState {
   /** The people chosen, by name. */
@@ -183,9 +184,9 @@ export function BulkEdit({
 
 function WhatToDo(): JSX.Element {
   return (
-    <TabsList aria-label="What to do">
-      <TabsTrigger value="edit">Set values</TabsTrigger>
-      <TabsTrigger value="hire">Hire</TabsTrigger>
+    <TabsList aria-label={t('bulk.bulk-edit.what_to_do', 'What to do')}>
+      <TabsTrigger value="edit">{t('bulk.bulk-edit.set_values', 'Set values')}</TabsTrigger>
+      <TabsTrigger value="hire">{t('bulk.bulk-edit.hire', 'Hire')}</TabsTrigger>
     </TabsList>
   );
 }
@@ -198,7 +199,7 @@ function BackToDirectory({
 }): JSX.Element | null {
   return onBack === undefined ? null : (
     <Button variant="ghost" size="sm" startIcon={<icons.back aria-hidden />} onClick={onBack}>
-      Directory
+      {t('bulk.bulk-edit.directory', 'Directory')}
     </Button>
   );
 }
@@ -221,10 +222,10 @@ const TONE = {
   held: 'warning',
 } as const;
 const WORD = {
-  changed: 'Changes',
-  unchanged: 'Already set',
-  refused: 'Refused',
-  held: 'Pending approval',
+  changed: t('bulk.bulk-edit.changes', 'Changes'),
+  unchanged: t('bulk.bulk-edit.already_set', 'Already set'),
+  refused: t('bulk.bulk-edit.refused', 'Refused'),
+  held: t('bulk.bulk-edit.pending_approval', 'Pending approval'),
 } as const;
 
 /**
@@ -306,7 +307,10 @@ function Editor({
   // A new manager for them all: asked once, before anything is applied.
   const managerConfirm = useManagerConfirm(
     managerChange,
-    `Change the manager of ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}?`,
+    t('bulk.bulk-edit.change_the_manager_of', 'Change the manager of {{length}} {{value}}?', {
+      length: String(state.people.length),
+      value: state.people.length === 1 ? 'person' : 'people',
+    }),
   );
   const commit = async (): Promise<void> => {
     const moving = managerChange !== undefined && chosen.includes(MANAGER_KEY);
@@ -341,9 +345,16 @@ function Editor({
   if (state.people.length === 0) {
     return (
       <EmptyState
-        title="Nobody is chosen"
-        description="Choose people in the directory, then edit them together."
-        action={onBack === undefined ? undefined : <Button onClick={onBack}>Directory</Button>}
+        title={t('bulk.bulk-edit.nobody_is_chosen', 'Nobody is chosen')}
+        description={t(
+          'bulk.bulk-edit.choose_people_in_the_directory_then',
+          'Choose people in the directory, then edit them together.',
+        )}
+        action={
+          onBack === undefined ? undefined : (
+            <Button onClick={onBack}>{t('bulk.bulk-edit.directory', 'Directory')}</Button>
+          )
+        }
       />
     );
   }
@@ -352,13 +363,16 @@ function Editor({
     <Stack gap={5}>
       {managerConfirm.dialog}
       <PageHeader
-        title={`Edit ${String(state.people.length)} ${state.people.length === 1 ? 'person' : 'people'}`}
+        title={t('bulk.bulk-edit.edit', 'Edit {{length}} {{value}}', {
+          length: String(state.people.length),
+          value: state.people.length === 1 ? 'person' : 'people',
+        })}
         description={state.people.map((p) => p.name).join(', ')}
         actions={<BackToDirectory onBack={onBack} />}
       />
       {tabs}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @4xl/page:items-start">
-        <PageSection surface title="What to change">
+        <PageSection surface title={t('bulk.bulk-edit.what_to_change', 'What to change')}>
           <Stack gap={3}>
             {chosen.map((key) => {
               const field = byKey.get(key);
@@ -369,7 +383,7 @@ function Editor({
                   className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end"
                 >
                   <Field>
-                    <FieldLabel>Field</FieldLabel>
+                    <FieldLabel>{t('bulk.bulk-edit.field', 'Field')}</FieldLabel>
                     <Select
                       value={key}
                       onValueChange={(next) => {
@@ -406,7 +420,9 @@ function Editor({
                   ) : (
                     <Button
                       variant="ghost"
-                      aria-label={`Remove ${field.label}`}
+                      aria-label={t('bulk.bulk-edit.remove', 'Remove {{label}}', {
+                        label: field.label,
+                      })}
                       startIcon={<icons.close aria-hidden />}
                       onClick={() => {
                         reset();
@@ -428,15 +444,15 @@ function Editor({
                     setChosen((c) => [...c, open[0]?.key ?? '']);
                   }}
                 >
-                  Add a field
+                  {t('bulk.bulk-edit.add_a_field', 'Add a field')}
                 </Button>
               </div>
             )}
             <Field>
-              <FieldLabel>Takes effect from</FieldLabel>
+              <FieldLabel>{t('bulk.bulk-edit.takes_effect_from', 'Takes effect from')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Takes effect from"
+                  label={t('bulk.bulk-edit.takes_effect_from', 'Takes effect from')}
                   value={effectiveFrom}
                   onChange={(next) => {
                     reset();
@@ -445,7 +461,10 @@ function Editor({
                 />
               </FieldControl>
               <FieldDescription>
-                Empty clears the field. Fields kept without dates change on the day.
+                {t(
+                  'bulk.bulk-edit.empty_clears_the_field_fields_kept',
+                  'Empty clears the field. Fields kept without dates change on the day.',
+                )}
               </FieldDescription>
             </Field>
             {sensitive.length === 0 ? null : (
@@ -459,10 +478,18 @@ function Editor({
                     }}
                   />
                 </FieldControl>
-                <FieldLabel>Apply sensitive values without approval</FieldLabel>
+                <FieldLabel>
+                  {t(
+                    'bulk.bulk-edit.apply_sensitive_values_without_approval',
+                    'Apply sensitive values without approval',
+                  )}
+                </FieldLabel>
                 <FieldDescription>
-                  {sensitive.map((f) => f.label).join(', ')} otherwise wait for a second HR member
-                  to approve each one. Recorded either way.
+                  {sensitive.map((f) => f.label).join(', ')}{' '}
+                  {t(
+                    'bulk.bulk-edit.otherwise_wait_for_a_second_hr',
+                    'otherwise wait for a second HR member to approve each one. Recorded either way.',
+                  )}
                 </FieldDescription>
               </Field>
             )}
@@ -470,49 +497,71 @@ function Editor({
               <Button
                 disabled={chosen.length === 0}
                 loading={busy && shown === null}
-                loadingLabel="Working out what would change"
+                loadingLabel={t(
+                  'bulk.bulk-edit.working_out_what_would_change',
+                  'Working out what would change',
+                )}
                 onClick={() => {
                   void run(onPreview);
                 }}
               >
-                Preview changes
+                {t('bulk.bulk-edit.preview_changes', 'Preview changes')}
               </Button>
             </div>
           </Stack>
         </PageSection>
 
-        <PageSection surface title="Preview">
+        <PageSection surface title={t('bulk.bulk-edit.preview', 'Preview')}>
           <Stack gap={4}>
             {problem === null ? null : (
-              <Alert tone="danger" title="That did not go through">
+              <Alert
+                tone="danger"
+                title={t('bulk.bulk-edit.that_did_not_go_through', 'That did not go through')}
+              >
                 {problem}
               </Alert>
             )}
             {shown === null ? (
               <p className="text-sm text-fg-muted">
-                Preview the changes to see, for each person, what would change and what would be
-                refused. Nothing is saved until you apply them.
+                {t(
+                  'bulk.bulk-edit.preview_the_changes_to_see_for',
+                  'Preview the changes to see, for each person, what would change and what would be refused. Nothing is saved until you apply them.',
+                )}
               </p>
             ) : (
               <>
                 {shown.committed ? (
                   <Alert tone={count('refused') === 0 ? 'success' : 'warning'}>
-                    {`Saved for ${String(count('changed'))} ${count('changed') === 1 ? 'person' : 'people'}.`}
+                    {t('bulk.bulk-edit.saved_for', 'Saved for {{count}} {{value}}.', {
+                      count: String(count('changed')),
+                      value: count('changed') === 1 ? 'person' : 'people',
+                    })}
                     {count('refused') === 0
                       ? ''
                       : ` ${String(count('refused'))} refused, as each says below; nothing was written for them.`}
                   </Alert>
                 ) : (
-                  <Alert tone="info" title="Nothing is saved yet">
-                    Each person is saved separately, so one error won’t stop the rest.
+                  <Alert
+                    tone="info"
+                    title={t('bulk.bulk-edit.nothing_is_saved_yet', 'Nothing is saved yet')}
+                  >
+                    {t(
+                      'bulk.bulk-edit.each_person_is_saved_separately_so',
+                      'Each person is saved separately, so one error won’t stop the rest.',
+                    )}
                   </Alert>
                 )}
                 <Tiles
                   items={[
-                    [shown.committed ? 'Changed' : 'Will change', count('changed')],
-                    ['Already set', count('unchanged')],
-                    ['Refused', count('refused')],
-                    ['Wait for approval', count('held')],
+                    [
+                      shown.committed
+                        ? t('bulk.bulk-edit.changed', 'Changed')
+                        : t('bulk.bulk-edit.will_change', 'Will change'),
+                      count('changed'),
+                    ],
+                    [t('bulk.bulk-edit.already_set', 'Already set'), count('unchanged')],
+                    [t('bulk.bulk-edit.refused', 'Refused'), count('refused')],
+                    [t('bulk.bulk-edit.wait_for_approval', 'Wait for approval'), count('held')],
                   ]}
                 />
                 <Results rows={shown.rows} byKey={byKey} />
@@ -523,12 +572,15 @@ function Editor({
                       startIcon={<icons.confirm aria-hidden />}
                       disabled={count('changed') + count('held') === 0}
                       loading={busy}
-                      loadingLabel="Saving"
+                      loadingLabel={t('bulk.bulk-edit.saving', 'Saving')}
                       onClick={() => {
                         void commit();
                       }}
                     >
-                      {`Apply to ${String(count('changed') + count('held'))} ${count('changed') + count('held') === 1 ? 'person' : 'people'}`}
+                      {t('bulk.bulk-edit.apply_to', 'Apply to {{value}} {{value2}}', {
+                        value: String(count('changed') + count('held')),
+                        value2: count('changed') + count('held') === 1 ? 'person' : 'people',
+                      })}
                     </Button>
                   </div>
                 )}
@@ -650,7 +702,7 @@ function Hire({
     return (
       <Stack gap={2}>
         <DatePicker
-          label={`Start date for ${who}`}
+          label={t('bulk.bulk-edit.start_date_for', 'Start date for {{who}}', { who })}
           size="sm"
           value={dates[r.personId] ?? day}
           onChange={(next) => {
@@ -687,19 +739,25 @@ function Hire({
   return (
     <Stack gap={5}>
       <PageHeader
-        title={`Hire ${String(shown === null ? state.people.length : hired)} ${(shown === null ? state.people.length : hired) === 1 ? 'person' : 'people'}`}
-        description="People without a start date become employees on the date you choose."
+        title={t('bulk.bulk-edit.hire_2', 'Hire {{value}} {{value2}}', {
+          value: String(shown === null ? state.people.length : hired),
+          value2: (shown === null ? state.people.length : hired) === 1 ? 'person' : 'people',
+        })}
+        description={t(
+          'bulk.bulk-edit.people_without_a_start_date_become',
+          'People without a start date become employees on the date you choose.',
+        )}
         actions={<BackToDirectory onBack={onBack} />}
       />
       {tabs}
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] @4xl/page:items-start">
-        <PageSection surface title="When and where">
+        <PageSection surface title={t('bulk.bulk-edit.when_and_where', 'When and where')}>
           <Stack gap={4}>
             <Field>
-              <FieldLabel>Start date</FieldLabel>
+              <FieldLabel>{t('bulk.bulk-edit.start_date', 'Start date')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Start date"
+                  label={t('bulk.bulk-edit.start_date', 'Start date')}
                   value={day}
                   onChange={(next) => {
                     setDay(next ?? state.today);
@@ -707,16 +765,24 @@ function Hire({
                 />
               </FieldControl>
               <FieldDescription>
-                A day on each person’s own calendar, past or future. Change it for one person in the
-                preview.
+                {t(
+                  'bulk.bulk-edit.a_day_on_each_persons_own',
+                  'A day on each person’s own calendar, past or future. Change it for one person in the preview.',
+                )}
               </FieldDescription>
             </Field>
             {nowhere.length === 0 ? null : (
               <Alert
                 tone="neutral"
-                title={`${nowhere.join(', ')} ${nowhere.length === 1 ? 'is' : 'are'} placed nowhere`}
+                title={t('bulk.bulk-edit.placed_nowhere', '{{join}} {{value}} placed nowhere', {
+                  join: nowhere.join(', '),
+                  value: nowhere.length === 1 ? 'is' : 'are',
+                })}
               >
-                Choose where they work. Anyone already placed keeps their placement.
+                {t(
+                  'bulk.bulk-edit.choose_where_they_work_anyone_already',
+                  'Choose where they work. Anyone already placed keeps their placement.',
+                )}
               </Alert>
             )}
             {placing === null ? null : (
@@ -737,10 +803,13 @@ function Hire({
           </Stack>
         </PageSection>
 
-        <PageSection surface title="Preview">
+        <PageSection surface title={t('bulk.bulk-edit.preview', 'Preview')}>
           <Stack gap={4}>
             {problem === null ? null : (
-              <Alert tone="danger" title="That did not go through">
+              <Alert
+                tone="danger"
+                title={t('bulk.bulk-edit.that_did_not_go_through', 'That did not go through')}
+              >
                 {problem}
               </Alert>
             )}
@@ -750,7 +819,7 @@ function Hire({
                   <span aria-hidden className="inline-flex">
                     <Spinner size="sm" />
                   </span>
-                  Updating the preview…
+                  {t('bulk.bulk-edit.updating_the_preview', 'Updating the preview…')}
                 </>
               ) : null}
             </p>
@@ -758,7 +827,10 @@ function Hire({
               <>
                 {shown.committed ? (
                   <Alert tone={skipped === 0 ? 'success' : 'warning'}>
-                    {`Hired ${String(hired)} ${hired === 1 ? 'person' : 'people'}.`}
+                    {t('bulk.bulk-edit.hired', 'Hired {{hired}} {{value}}.', {
+                      hired: String(hired),
+                      value: hired === 1 ? 'person' : 'people',
+                    })}
                     {skipped === 0
                       ? ''
                       : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
@@ -766,15 +838,28 @@ function Hire({
                 ) : null}
                 <Tiles
                   items={[
-                    [shown.committed ? 'Hired' : 'Will be hired', hired],
-                    ['Skipped', skipped],
+                    [
+                      shown.committed
+                        ? t('bulk.bulk-edit.hired_2', 'Hired')
+                        : t('bulk.bulk-edit.will_be_hired', 'Will be hired'),
+                      hired,
+                    ],
+                    [t('bulk.bulk-edit.skipped', 'Skipped'), skipped],
                   ]}
                 />
                 <Results
                   rows={shown.rows}
                   byKey={new Map()}
                   words={HIRE_WORD}
-                  {...(shown.committed ? {} : { edit, editHeader: 'Start date and placement' })}
+                  {...(shown.committed
+                    ? {}
+                    : {
+                        edit,
+                        editHeader: t(
+                          'bulk.bulk-edit.start_date_and_placement',
+                          'Start date and placement',
+                        ),
+                      })}
                 />
                 {shown.committed ? null : (
                   <div className="flex justify-end">
@@ -783,12 +868,15 @@ function Hire({
                       startIcon={<icons.hire aria-hidden />}
                       disabled={hired === 0 || recomputing}
                       loading={busy === 'commit'}
-                      loadingLabel="Hiring"
+                      loadingLabel={t('bulk.bulk-edit.hiring', 'Hiring')}
                       onClick={() => {
                         void run('commit', shown.sent);
                       }}
                     >
-                      {`Hire ${String(hired)} ${hired === 1 ? 'person' : 'people'}`}
+                      {t('bulk.bulk-edit.hire_3', 'Hire {{hired}} {{value}}', {
+                        hired: String(hired),
+                        value: hired === 1 ? 'person' : 'people',
+                      })}
                     </Button>
                   </div>
                 )}
@@ -812,10 +900,10 @@ const NOWHERE: Placed = { entity: '', location: '' };
 const RECOMPUTE_AFTER_MS = 400;
 
 const HIRE_WORD: Record<BulkRow['outcome'], string> = {
-  changed: 'Hired',
-  unchanged: 'Already set',
-  refused: 'Skipped',
-  held: 'Pending approval',
+  changed: t('bulk.bulk-edit.hired_2', 'Hired'),
+  unchanged: t('bulk.bulk-edit.already_set', 'Already set'),
+  refused: t('bulk.bulk-edit.skipped', 'Skipped'),
+  held: t('bulk.bulk-edit.pending_approval', 'Pending approval'),
 };
 
 function Results({
@@ -841,8 +929,11 @@ function Results({
       <ul className="flex flex-col gap-1">
         {held.length === 0 ? null : (
           <li>
-            {held.join(', ')}: waits for HR&apos;s approval; the record keeps what it had until
-            then.
+            {held.join(', ')}
+            {t(
+              'bulk.bulk-edit.waits_for_hrs_approval_the_record',
+              ": waits for HR's approval; the record keeps what it had until then.",
+            )}
           </li>
         )}
         {r.changes.map((c) => {
@@ -851,13 +942,18 @@ function Results({
             <li key={c.key}>
               {c.label}: <DisplayValue field={field} value={c.before} /> →{' '}
               <DisplayValue field={field} value={c.after} />
-              {c.dated ? null : <span className="text-fg-muted"> (today, not dated)</span>}
+              {c.dated ? null : (
+                <span className="text-fg-muted">
+                  {' '}
+                  {t('bulk.bulk-edit.today_not_dated', '(today, not dated)')}
+                </span>
+              )}
             </li>
           );
         })}
         {r.findings.map((f) => (
           <li key={`${f.key}-${f.code}`} className="text-warning-fg">
-            {f.label}: {f.message} HR will review it.
+            {f.label}: {f.message} {t('bulk.bulk-edit.hr_will_review_it', 'HR will review it.')}
           </li>
         ))}
       </ul>
@@ -875,9 +971,14 @@ function Results({
     ...(edit === undefined ? [] : [{ id: 'edit', header: editHeader, cell: edit }]),
   ];
   return wide ? (
-    <DataTable label="Per person" rows={rows} columns={columns} rowId={(r) => r.personId} />
+    <DataTable
+      label={t('bulk.bulk-edit.per_person', 'Per person')}
+      rows={rows}
+      columns={columns}
+      rowId={(r) => r.personId}
+    />
   ) : (
-    <ul className="flex flex-col gap-2" aria-label="Per person">
+    <ul className="flex flex-col gap-2" aria-label={t('bulk.bulk-edit.per_person', 'Per person')}>
       {rows.map((r) => (
         <li key={r.personId}>
           <Card className="flex flex-col gap-2 p-3">

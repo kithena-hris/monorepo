@@ -67,6 +67,7 @@ import type {
   ScreenProps,
   Section,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Form templates (PRD §11, design PF2–PF3 v2): the list with its filters, the
@@ -76,7 +77,8 @@ import type {
  */
 
 const ACTIVITIES = ['self', 'manager', 'peer', 'upward', 'goals', 'feedback'] as const;
-const activityLabel = (a: string): string => (a === 'feedback' ? 'Feedback' : kindLabel(a));
+const activityLabel = (a: string): string =>
+  a === 'feedback' ? tr('templates.feedback', 'Feedback') : kindLabel(a);
 
 /* ------------------------------------------------------------ the list -- */
 
@@ -98,10 +100,10 @@ export interface TemplatesData {
 }
 
 const SHOW = [
-  ['', 'All'],
-  ['scored', 'Has a performance score'],
-  ['feedback', 'Usable for feedback'],
-  ['archived', 'Archived'],
+  ['', tr('templates.all', 'All')],
+  ['scored', tr('templates.has_a_performance_score', 'Has a performance score')],
+  ['feedback', tr('templates.usable_for_feedback', 'Usable for feedback')],
+  ['archived', tr('templates.archived', 'Archived')],
 ] as const;
 
 export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
@@ -116,8 +118,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title="Form templates"
-              description="The forms every review and feedback request is written on. A published version never changes."
+              title={tr('templates.form_templates', 'Form templates')}
+              description={tr(
+                'templates.the_forms_every_review_and_feedback',
+                'The forms every review and feedback request is written on. A published version never changes.',
+              )}
               actions={
                 data.hr ? (
                   <Button
@@ -126,14 +131,14 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                       setCreating(true);
                     }}
                   >
-                    New template
+                    {tr('templates.new_template', 'New template')}
                   </Button>
                 ) : null
               }
             />
             <Refusal error={act.error} />
             <div className="flex flex-wrap items-center gap-3">
-              <ChipRow aria-label="Show">
+              <ChipRow aria-label={tr('templates.show', 'Show')}>
                 {SHOW.map(([v, l]) => (
                   <Chip
                     key={v}
@@ -147,8 +152,8 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                 ))}
               </ChipRow>
               <Search
-                label="Search templates"
-                placeholder="Search by name"
+                label={tr('templates.search_templates', 'Search templates')}
+                placeholder={tr('templates.search_by_name', 'Search by name')}
                 initial={props.search?.['q'] ?? ''}
                 onSearch={(q) => {
                   props.onFilter?.({ q: q === '' ? null : q });
@@ -160,20 +165,23 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                 {rows.length === 0 ? (
                   <EmptyState
                     icon={<icons.document aria-hidden />}
-                    title="No templates here"
-                    description="Start one from scratch, or describe it and let AI draft it."
+                    title={tr('templates.no_templates_here', 'No templates here')}
+                    description={tr(
+                      'templates.start_one_from_scratch_or_describe',
+                      'Start one from scratch, or describe it and let AI draft it.',
+                    )}
                   />
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Template</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Latest</TableHead>
-                        <TableHead>Cycles</TableHead>
-                        <TableHead>Edited</TableHead>
+                        <TableHead>{tr('templates.template', 'Template')}</TableHead>
+                        <TableHead>{tr('templates.status', 'Status')}</TableHead>
+                        <TableHead>{tr('templates.latest', 'Latest')}</TableHead>
+                        <TableHead>{tr('templates.cycles', 'Cycles')}</TableHead>
+                        <TableHead>{tr('templates.edited', 'Edited')}</TableHead>
                         <TableHead>
-                          <span className="sr-only">Actions</span>
+                          <span className="sr-only">{tr('templates.actions', 'Actions')}</span>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -195,7 +203,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                               ))}
                               {r.hasScore ? (
                                 <Badge size="sm" tone="accent">
-                                  Performance score
+                                  {tr('templates.performance_score', 'Performance score')}
                                 </Badge>
                               ) : null}
                             </span>
@@ -212,17 +220,24 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                               }
                             >
                               {r.state === 'published'
-                                ? 'Published'
+                                ? tr('templates.published', 'Published')
                                 : r.state === 'archived'
-                                  ? 'Archived'
+                                  ? tr('templates.archived', 'Archived')
                                   : r.state === 'draft'
-                                    ? 'Draft'
-                                    : 'Draft changes'}
+                                    ? tr('templates.draft', 'Draft')
+                                    : tr('templates.draft_changes', 'Draft changes')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm">{`${r.version} · ${plural(r.questions, 'question')}`}</TableCell>
+                          <TableCell className="text-sm">
+                            {tr('templates.text', '{{version}} · {{questions}}', {
+                              version: r.version,
+                              questions: plural(r.questions, 'question'),
+                            })}
+                          </TableCell>
                           <TableCell className="text-sm text-fg-muted">
-                            {r.inCycles === 0 ? 'None' : plural(r.inCycles, 'cycle')}
+                            {r.inCycles === 0
+                              ? tr('templates.none', 'None')
+                              : plural(r.inCycles, 'cycle')}
                           </TableCell>
                           <TableCell className="text-sm text-fg-muted">
                             {day(r.updatedAt)}
@@ -234,7 +249,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    aria-label={`Actions for ${r.name}`}
+                                    aria-label={tr(
+                                      'templates.actions_for',
+                                      'Actions for {{name}}',
+                                      { name: r.name },
+                                    )}
                                     startIcon={<icons.more aria-hidden />}
                                   />
                                 </DropdownMenuTrigger>
@@ -244,14 +263,14 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                       props.onNavigate?.(`/performance/templates/${r.id}`);
                                     }}
                                   >
-                                    Edit
+                                    {tr('templates.edit', 'Edit')}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onSelect={() => {
                                       props.onNavigate?.(`/performance/templates/${r.id}/preview`);
                                     }}
                                   >
-                                    Preview
+                                    {tr('templates.preview', 'Preview')}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onSelect={() => {
@@ -266,7 +285,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                       );
                                     }}
                                   >
-                                    Duplicate
+                                    {tr('templates.duplicate', 'Duplicate')}
                                   </DropdownMenuItem>
                                   {r.state === 'archived' ? (
                                     <DropdownMenuItem
@@ -277,7 +296,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                         });
                                       }}
                                     >
-                                      Unarchive
+                                      {tr('templates.unarchive', 'Unarchive')}
                                     </DropdownMenuItem>
                                   ) : r.canDelete ? (
                                     <DropdownMenuItem
@@ -285,7 +304,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                         act.run('DeletePerformanceTemplate', { id: r.id });
                                       }}
                                     >
-                                      Delete template
+                                      {tr('templates.delete_template', 'Delete template')}
                                     </DropdownMenuItem>
                                   ) : (
                                     <DropdownMenuItem
@@ -293,7 +312,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                                         setArchiving(r);
                                       }}
                                     >
-                                      Archive
+                                      {tr('templates.archive', 'Archive')}
                                     </DropdownMenuItem>
                                   )}
                                 </DropdownMenuContent>
@@ -322,8 +341,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                 onClose={() => {
                   setArchiving(null);
                 }}
-                title={`Archive ${archiving.name}?`}
-                description="It leaves every picker. Cycles already using it keep their version, and you can unarchive it."
+                title={tr('templates.archive_2', 'Archive {{name}}?', { name: archiving.name })}
+                description={tr(
+                  'templates.it_leaves_every_picker_cycles_already',
+                  'It leaves every picker. Cycles already using it keep their version, and you can unarchive it.',
+                )}
                 footer={
                   <>
                     <Button
@@ -332,7 +354,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                         setArchiving(null);
                       }}
                     >
-                      Cancel
+                      {tr('templates.cancel', 'Cancel')}
                     </Button>
                     <Button
                       loading={act.pending}
@@ -346,14 +368,22 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                         );
                       }}
                     >
-                      Archive
+                      {tr('templates.archive', 'Archive')}
                     </Button>
                   </>
                 }
               >
                 {archiving.inCycles > 0 ? (
-                  <Alert tone="warning" title={`Used by ${plural(archiving.inCycles, 'cycle')}`}>
-                    An automation that names it will need another form before its next cycle.
+                  <Alert
+                    tone="warning"
+                    title={tr('templates.used_by', 'Used by {{inCycles}}', {
+                      inCycles: plural(archiving.inCycles, 'cycle'),
+                    })}
+                  >
+                    {tr(
+                      'templates.an_automation_that_names_it_will',
+                      'An automation that names it will need another form before its next cycle.',
+                    )}
                   </Alert>
                 ) : null}
               </Modal>
@@ -382,7 +412,13 @@ function NewTemplate({
   const [describe, setDescribe] = useState('');
   const [draft, setDraft] = useState<FormDefinition | null>(null);
   const steps =
-    how === 'ai' ? ['Describe', 'Draft', 'Open in builder'] : ['Describe', 'Open in builder'];
+    how === 'ai'
+      ? [
+          tr('templates.describe', 'Describe'),
+          tr('templates.draft', 'Draft'),
+          tr('templates.open_in_builder', 'Open in builder'),
+        ]
+      : [tr('templates.describe', 'Describe'), tr('templates.open_in_builder', 'Open in builder')];
   const create = (): void => {
     act.run('CreatePerformanceTemplate', { input: { name, purpose, definition: draft } }, (d) => {
       onNavigate?.(`/performance/templates/${(d as { id: string }).id}`);
@@ -392,7 +428,7 @@ function NewTemplate({
     <StepDialog
       open
       onClose={onClose}
-      title="New template"
+      title={tr('templates.new_template', 'New template')}
       steps={steps}
       step={step}
       onStep={(s) => {
@@ -417,18 +453,18 @@ function NewTemplate({
       {step === 0 ? (
         <div className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('templates.name', 'Name')}</FieldLabel>
             <Input
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
               }}
-              placeholder="Manager review, H2"
+              placeholder={tr('templates.manager_review_h2', 'Manager review, H2')}
             />
           </Field>
           <Field>
-            <FieldLabel>Used for</FieldLabel>
-            <ChipRow aria-label="Used for">
+            <FieldLabel>{tr('templates.used_for', 'Used for')}</FieldLabel>
+            <ChipRow aria-label={tr('templates.used_for', 'Used for')}>
               {ACTIVITIES.map((a) => (
                 <Chip
                   key={a}
@@ -445,25 +481,32 @@ function NewTemplate({
             </ChipRow>
           </Field>
           <SegmentedControl
-            aria-label="Start from"
+            aria-label={tr('templates.start_from', 'Start from')}
             value={how}
             onValueChange={(v) => {
               setHow(v === 'ai' ? 'ai' : 'blank');
             }}
           >
-            <SegmentedControlItem value="blank">Start blank</SegmentedControlItem>
-            <SegmentedControlItem value="ai">Write with AI</SegmentedControlItem>
+            <SegmentedControlItem value="blank">
+              {tr('templates.start_blank', 'Start blank')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="ai">
+              {tr('templates.write_with_ai', 'Write with AI')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {how === 'ai' ? (
             <Field>
-              <FieldLabel>Describe the form</FieldLabel>
+              <FieldLabel>{tr('templates.describe_the_form', 'Describe the form')}</FieldLabel>
               <Textarea
                 autoResize
                 value={describe}
                 onChange={(e) => {
                   setDescribe(e.target.value);
                 }}
-                placeholder="A half-yearly manager review for engineers: impact, craft, collaboration, and a score."
+                placeholder={tr(
+                  'templates.a_half_yearly_manager_review_for',
+                  'A half-yearly manager review for engineers: impact, craft, collaboration, and a score.',
+                )}
               />
             </Field>
           ) : null}
@@ -471,13 +514,23 @@ function NewTemplate({
       ) : how === 'ai' && step === 1 ? (
         draft === null ? (
           <p className="text-sm text-fg-muted">
-            {act.pending ? 'Drafting…' : 'Drafting the form from your description.'}
+            {act.pending
+              ? tr('templates.drafting', 'Drafting…')
+              : tr(
+                  'templates.drafting_the_form_from_your_description',
+                  'Drafting the form from your description.',
+                )}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            <Alert tone="info" title="A draft for you to edit">
-              Nothing is published until you publish it. Every question can be changed in the
-              builder.
+            <Alert
+              tone="info"
+              title={tr('templates.a_draft_for_you_to_edit', 'A draft for you to edit')}
+            >
+              {tr(
+                'templates.nothing_is_published_until_you_publish',
+                'Nothing is published until you publish it. Every question can be changed in the builder.',
+              )}
             </Alert>
             {draft.sections.map((s) => (
               <p key={s.id} className="text-sm">
@@ -488,7 +541,13 @@ function NewTemplate({
           </div>
         )
       ) : (
-        <p className="text-sm">{`“${name}” opens in the builder as a draft.`}</p>
+        <p className="text-sm">
+          {tr(
+            'templates.opens_in_the_builder_as_a',
+            '“{{name}}” opens in the builder as a draft.',
+            { name },
+          )}
+        </p>
       )}
     </StepDialog>
   );
@@ -535,35 +594,37 @@ const short = (): string => crypto.randomUUID().replaceAll('-', '').slice(0, 10)
 const blank = (type: Question['type'], scale: readonly ScaleOption[]): Question => {
   const base = {
     id: `q${short()}`,
-    prompt: 'New question',
+    prompt: tr('templates.new_question', 'New question'),
     help: null,
     required: true,
     allowComment: false,
     private: false,
   };
   if (type === 'scale') return { ...base, type, options: scale };
-  if (type === 'binary') return { ...base, type, yes: 'Yes', no: 'No' };
+  if (type === 'binary')
+    return { ...base, type, yes: tr('templates.yes', 'Yes'), no: tr('templates.no', 'No') };
   if (type === 'choice')
     return {
       ...base,
       type,
       options: [
-        { id: 'a', label: 'First' },
-        { id: 'b', label: 'Second' },
+        { id: 'a', label: tr('templates.first', 'First') },
+        { id: 'b', label: tr('templates.second', 'Second') },
       ],
       multiple: false,
       min: null,
       max: null,
     };
-  if (type === 'performance_score') return { ...base, type, prompt: 'Performance score' };
+  if (type === 'performance_score')
+    return { ...base, type, prompt: tr('templates.performance_score', 'Performance score') };
   return { ...base, type: 'text', guidance: null };
 };
 
 const TYPES = [
-  ['text', 'Text'],
-  ['scale', 'Scale'],
-  ['binary', 'Yes or no'],
-  ['choice', 'Choice'],
+  ['text', tr('templates.text_2', 'Text')],
+  ['scale', tr('templates.scale', 'Scale')],
+  ['binary', tr('templates.yes_or_no', 'Yes or no')],
+  ['choice', tr('templates.choice', 'Choice')],
 ] as const;
 
 export function Builder(props: ScreenProps<BuilderData>): JSX.Element {
@@ -676,14 +737,14 @@ function Building({
     <div className="flex flex-col gap-4">
       <PageHeader
         title={name}
-        description={`${data.published === null ? 'Not published yet' : `v${String(data.published)} published`}${data.draft === null ? '' : ` · draft v${String(data.draft)}`}${dirty ? ' · unsaved changes' : ''}`}
+        description={`${data.published === null ? tr('templates.not_published_yet', 'Not published yet') : tr('templates.v_published', 'v{{published}} published', { published: String(data.published) })}${data.draft === null ? '' : ` · draft v${String(data.draft)}`}${dirty ? ' · unsaved changes' : ''}`}
         actions={
           data.hr ? (
             <>
               <Tooltip content="Preview the form">
                 <Button
                   variant="secondary"
-                  aria-label="Preview the form"
+                  aria-label={tr('templates.preview_the_form', 'Preview the form')}
                   startIcon={<icons.visible aria-hidden />}
                   onClick={() => {
                     setPreviewing(true);
@@ -691,7 +752,9 @@ function Building({
                 />
               </Tooltip>
               <Button variant="secondary" asChild>
-                <a href={`/performance/templates/${data.id}/history`}>History</a>
+                <a href={`/performance/templates/${data.id}/history`}>
+                  {tr('templates.history', 'History')}
+                </a>
               </Button>
               <Button
                 variant="secondary"
@@ -702,7 +765,7 @@ function Building({
                   });
                 }}
               >
-                Check with AI
+                {tr('templates.check_with_ai', 'Check with AI')}
               </Button>
               <Button
                 variant="secondary"
@@ -712,7 +775,7 @@ function Building({
                   save();
                 }}
               >
-                Save draft
+                {tr('templates.save_draft', 'Save draft')}
               </Button>
               <Button
                 loading={act.pending}
@@ -721,7 +784,7 @@ function Building({
                   else openPublish();
                 }}
               >
-                Publish
+                {tr('templates.publish', 'Publish')}
               </Button>
             </>
           ) : null
@@ -729,7 +792,14 @@ function Building({
       />
       <Refusal error={act.error} />
       {removed === null ? null : (
-        <Alert tone="info" title={`“${removed.section.title}” was empty, so it was removed`}>
+        <Alert
+          tone="info"
+          title={tr(
+            'templates.was_empty_so_it_was_removed',
+            '“{{title}}” was empty, so it was removed',
+            { title: removed.section.title },
+          )}
+        >
           <Button
             size="sm"
             variant="secondary"
@@ -745,7 +815,7 @@ function Building({
               setRemoved(null);
             }}
           >
-            Undo
+            {tr('templates.undo', 'Undo')}
           </Button>
         </Alert>
       )}
@@ -754,8 +824,10 @@ function Building({
           tone={issues.length === 0 ? 'success' : 'warning'}
           title={
             issues.length === 0
-              ? 'Nothing to change'
-              : `${plural(issues.length, 'suggestion')} from the check`
+              ? tr('templates.nothing_to_change', 'Nothing to change')
+              : tr('templates.from_the_check', '{{length}} from the check', {
+                  length: plural(issues.length, 'suggestion'),
+                })
           }
         >
           <ul className="flex flex-col gap-1">
@@ -771,7 +843,7 @@ function Building({
       <div className="mx-auto w-full max-w-3xl">
         <div className="flex flex-col gap-4">
           <Field>
-            <FieldLabel>Template name</FieldLabel>
+            <FieldLabel>{tr('templates.template_name', 'Template name')}</FieldLabel>
             <Input
               value={name}
               onChange={(e) => {
@@ -787,7 +859,7 @@ function Building({
               <Card key={s.id}>
                 <CardHeader className="flex flex-col gap-2">
                   <Input
-                    aria-label="Section title"
+                    aria-label={tr('templates.section_title', 'Section title')}
                     value={s.title}
                     disabled={locked}
                     onChange={(e) => {
@@ -796,14 +868,18 @@ function Building({
                   />
                   {locked ? (
                     <p className="text-sm text-fg-muted">
-                      Computed from the rating answers on the company’s scale; always last and
-                      always required.
+                      {tr(
+                        'templates.computed_from_the_rating_answers_on',
+                        'Computed from the rating answers on the company’s scale; always last and always required.',
+                      )}
                     </p>
                   ) : null}
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                   <SortableList
-                    label={`Questions in ${s.title || 'this section'}`}
+                    label={tr('templates.questions_in', 'Questions in {{value}}', {
+                      value: s.title || 'this section',
+                    })}
                     items={s.questions.map((q) => ({
                       id: q.id,
                       locked: q.type === 'performance_score',
@@ -889,7 +965,7 @@ function Building({
                         setSelected(q.id);
                       }}
                     >
-                      Add question
+                      {tr('templates.add_question', 'Add question')}
                     </Button>
                   )}
                 </CardContent>
@@ -908,7 +984,9 @@ function Building({
                     ...def.sections,
                     {
                       id: `s${short()}`,
-                      title: `Section ${String(def.sections.length + 1)}`,
+                      title: tr('templates.section', 'Section {{value}}', {
+                        value: String(def.sections.length + 1),
+                      }),
                       description: null,
                       questions: [q],
                     },
@@ -917,7 +995,7 @@ function Building({
                 setSelected(q.id);
               }}
             >
-              Add section
+              {tr('templates.add_section', 'Add section')}
             </Button>
             {scored ? null : (
               <Button
@@ -929,7 +1007,7 @@ function Building({
                       ...def.sections,
                       {
                         id: 'score',
-                        title: 'Performance score',
+                        title: tr('templates.performance_score', 'Performance score'),
                         description: null,
                         questions: [blank('performance_score', data.scale)],
                       },
@@ -937,7 +1015,7 @@ function Building({
                   });
                 }}
               >
-                Add a performance score
+                {tr('templates.add_a_performance_score', 'Add a performance score')}
               </Button>
             )}
           </div>
@@ -947,31 +1025,42 @@ function Building({
         {/* Wide enough for a five-point scale's labels, the form at the review screen's width (4xl). */}
         <ModalPageContent size="inset">
           <ModalPageHeader
-            title={`Preview: ${name}`}
-            description="As it will be answered. Nothing here is saved."
+            title={tr('templates.preview_2', 'Preview: {{name}}', { name })}
+            description={tr(
+              'templates.as_it_will_be_answered_nothing',
+              'As it will be answered. Nothing here is saved.',
+            )}
             actions={
               <>
                 <SegmentedControl
                   size="sm"
-                  aria-label="Device"
+                  aria-label={tr('templates.device', 'Device')}
                   value={device}
                   onValueChange={(v) => {
                     setDevice(v === 'phone' ? 'phone' : 'web');
                   }}
                 >
-                  <SegmentedControlItem value="web">Web</SegmentedControlItem>
-                  <SegmentedControlItem value="phone">Phone</SegmentedControlItem>
+                  <SegmentedControlItem value="web">
+                    {tr('templates.web', 'Web')}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem value="phone">
+                    {tr('templates.phone', 'Phone')}
+                  </SegmentedControlItem>
                 </SegmentedControl>
                 <SegmentedControl
                   size="sm"
-                  aria-label="Seen by"
+                  aria-label={tr('templates.seen_by', 'Seen by')}
                   value={as}
                   onValueChange={(v) => {
                     setAs(v === 'subject' ? 'subject' : 'reviewer');
                   }}
                 >
-                  <SegmentedControlItem value="reviewer">Reviewer</SegmentedControlItem>
-                  <SegmentedControlItem value="subject">Subject</SegmentedControlItem>
+                  <SegmentedControlItem value="reviewer">
+                    {tr('templates.reviewer', 'Reviewer')}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem value="subject">
+                    {tr('templates.subject', 'Subject')}
+                  </SegmentedControlItem>
                 </SegmentedControl>
               </>
             }
@@ -979,7 +1068,9 @@ function Building({
           <ModalPageBody className="px-6 py-8 touch:px-4 touch:py-6">
             <div className={cn('mx-auto w-full', device === 'phone' ? 'max-w-sm' : 'max-w-4xl')}>
               {shown.sections.length === 0 ? (
-                <p className="text-sm text-fg-muted">Add a question to see the form.</p>
+                <p className="text-sm text-fg-muted">
+                  {tr('templates.add_a_question_to_see_the', 'Add a question to see the form.')}
+                </p>
               ) : (
                 <FormView
                   definition={shown}
@@ -1003,8 +1094,11 @@ function Building({
           onClose={() => {
             setWarnPrivate(null);
           }}
-          title="Private on a self review?"
-          description="A private question is hidden from the subject. On a self review the subject is the writer, so they would answer a question they can never read back."
+          title={tr('templates.private_on_a_self_review', 'Private on a self review?')}
+          description={tr(
+            'templates.a_private_question_is_hidden_from',
+            'A private question is hidden from the subject. On a self review the subject is the writer, so they would answer a question they can never read back.',
+          )}
           footer={
             <>
               <Button
@@ -1017,19 +1111,24 @@ function Building({
                   setWarnPrivate(null);
                 }}
               >
-                Keep it shared
+                {tr('templates.keep_it_shared', 'Keep it shared')}
               </Button>
               <Button
                 onClick={() => {
                   setWarnPrivate(null);
                 }}
               >
-                Make it private
+                {tr('templates.make_it_private', 'Make it private')}
               </Button>
             </>
           }
         >
-          <p className="text-sm">Managers, HR and calibrators still see the answer.</p>
+          <p className="text-sm">
+            {tr(
+              'templates.managers_hr_and_calibrators_still_see',
+              'Managers, HR and calibrators still see the answer.',
+            )}
+          </p>
         </Modal>
       )}
       {publishing === null ? null : (
@@ -1038,8 +1137,13 @@ function Building({
           onClose={() => {
             setPublishing(null);
           }}
-          title={`Publish v${String(data.draft ?? (data.published ?? 0) + 1)}?`}
-          description="A published version never changes. Reviews already started keep the version they started on."
+          title={tr('templates.publish_v', 'Publish v{{value}}?', {
+            value: String(data.draft ?? (data.published ?? 0) + 1),
+          })}
+          description={tr(
+            'templates.a_published_version_never_changes_reviews',
+            'A published version never changes. Reviews already started keep the version they started on.',
+          )}
           footer={
             <>
               <Button
@@ -1048,7 +1152,7 @@ function Building({
                   setPublishing(null);
                 }}
               >
-                Cancel
+                {tr('templates.cancel', 'Cancel')}
               </Button>
               <Button
                 loading={act.pending}
@@ -1058,20 +1162,27 @@ function Building({
                   });
                 }}
               >
-                Publish
+                {tr('templates.publish', 'Publish')}
               </Button>
             </>
           }
         >
           <p className="text-sm font-semibold">
             {publishing.move.length === 0
-              ? 'No draft or scheduled cycle uses it'
-              : `Moves to the new version: ${publishing.move.map((c) => c.name).join(', ')}`}
+              ? tr(
+                  'templates.no_draft_or_scheduled_cycle_uses',
+                  'No draft or scheduled cycle uses it',
+                )
+              : tr('templates.moves_to_the_new_version', 'Moves to the new version: {{join}}', {
+                  join: publishing.move.map((c) => c.name).join(', '),
+                })}
           </p>
           <p className="text-sm text-fg-muted">
             {publishing.stay.length === 0
-              ? 'No launched cycle uses it.'
-              : `Keep their version: ${publishing.stay.map((c) => c.name).join(', ')}`}
+              ? tr('templates.no_launched_cycle_uses_it', 'No launched cycle uses it.')
+              : tr('templates.keep_their_version', 'Keep their version: {{join}}', {
+                  join: publishing.stay.map((c) => c.name).join(', '),
+                })}
           </p>
         </Modal>
       )}
@@ -1105,7 +1216,7 @@ function QuestionEditor({
     // the fields' own, which left every input and select without an edge.
     <div className="flex flex-col gap-3 p-3">
       <Field required>
-        <FieldLabel>Question</FieldLabel>
+        <FieldLabel>{tr('templates.question', 'Question')}</FieldLabel>
         <Input
           // Opened by focusing the question, so the focus lands here.
           autoFocus
@@ -1116,7 +1227,7 @@ function QuestionEditor({
         />
       </Field>
       <Choose
-        label="Type"
+        label={tr('templates.type', 'Type')}
         value={q.type}
         options={TYPES}
         onChange={(t) => {
@@ -1125,7 +1236,7 @@ function QuestionEditor({
         }}
       />
       <Field>
-        <FieldLabel>Help text</FieldLabel>
+        <FieldLabel>{tr('templates.help_text', 'Help text')}</FieldLabel>
         <Input
           value={q.help ?? ''}
           onChange={(e) => {
@@ -1135,7 +1246,11 @@ function QuestionEditor({
       </Field>
       {q.type === 'scale' ? (
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-semibold">{`Options · ${String(q.options.length)} of 2–10`}</p>
+          <p className="text-sm font-semibold">
+            {tr('templates.options_of_2_10', 'Options · {{length}} of 2–10', {
+              length: String(q.options.length),
+            })}
+          </p>
           {q.options.map((o, i) => (
             <div
               // By position: keyed by its value, the row was rebuilt on every
@@ -1144,7 +1259,7 @@ function QuestionEditor({
               className="grid grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2"
             >
               <NumberField
-                label="Value"
+                label={tr('templates.value', 'Value')}
                 value={o.value}
                 onChange={(v) => {
                   if (v !== null)
@@ -1155,7 +1270,7 @@ function QuestionEditor({
                 }}
               />
               <Field>
-                <FieldLabel>Label</FieldLabel>
+                <FieldLabel>{tr('templates.label', 'Label')}</FieldLabel>
                 <Input
                   value={o.label}
                   onChange={(e) => {
@@ -1169,7 +1284,7 @@ function QuestionEditor({
                 />
               </Field>
               <Field>
-                <FieldLabel>Description</FieldLabel>
+                <FieldLabel>{tr('templates.description', 'Description')}</FieldLabel>
                 <Input
                   value={o.description ?? ''}
                   onChange={(e) => {
@@ -1187,7 +1302,7 @@ function QuestionEditor({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label={`Remove ${o.label}`}
+                aria-label={tr('templates.remove', 'Remove {{label}}', { label: o.label })}
                 disabled={q.options.length <= 2}
                 startIcon={<icons.close aria-hidden />}
                 onClick={() => {
@@ -1207,14 +1322,14 @@ function QuestionEditor({
                   ...q.options,
                   {
                     value: (q.options.at(-1)?.value ?? 0) + 1,
-                    label: 'New option',
+                    label: tr('templates.new_option', 'New option'),
                     description: null,
                   },
                 ],
               });
             }}
           >
-            Add option
+            {tr('templates.add_option', 'Add option')}
           </Button>
         </div>
       ) : null}
@@ -1223,7 +1338,9 @@ function QuestionEditor({
           {q.options.map((o, i) => (
             <div key={o.id} className="flex items-end gap-2">
               <Field className="flex-1">
-                <FieldLabel>{`Option ${String(i + 1)}`}</FieldLabel>
+                <FieldLabel>
+                  {tr('templates.option', 'Option {{value}}', { value: String(i + 1) })}
+                </FieldLabel>
                 <Input
                   value={o.label}
                   onChange={(e) => {
@@ -1239,7 +1356,7 @@ function QuestionEditor({
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label={`Remove ${o.label}`}
+                aria-label={tr('templates.remove', 'Remove {{label}}', { label: o.label })}
                 disabled={q.options.length <= 2}
                 startIcon={<icons.close aria-hidden />}
                 onClick={() => {
@@ -1254,14 +1371,17 @@ function QuestionEditor({
             onClick={() => {
               onChange({
                 ...q,
-                options: [...q.options, { id: `o${short()}`, label: 'New option' }],
+                options: [
+                  ...q.options,
+                  { id: `o${short()}`, label: tr('templates.new_option', 'New option') },
+                ],
               });
             }}
           >
-            Add option
+            {tr('templates.add_option', 'Add option')}
           </Button>
           <SwitchRow
-            label="Several answers"
+            label={tr('templates.several_answers', 'Several answers')}
             checked={q.multiple}
             onChange={(on) => {
               onChange({ ...q, multiple: on });
@@ -1272,7 +1392,7 @@ function QuestionEditor({
       {q.type === 'binary' ? (
         <div className="grid grid-cols-2 gap-2">
           <Field>
-            <FieldLabel>Yes reads</FieldLabel>
+            <FieldLabel>{tr('templates.yes_reads', 'Yes reads')}</FieldLabel>
             <Input
               value={q.yes}
               onChange={(e) => {
@@ -1281,7 +1401,7 @@ function QuestionEditor({
             />
           </Field>
           <Field>
-            <FieldLabel>No reads</FieldLabel>
+            <FieldLabel>{tr('templates.no_reads', 'No reads')}</FieldLabel>
             <Input
               value={q.no}
               onChange={(e) => {
@@ -1293,10 +1413,10 @@ function QuestionEditor({
       ) : null}
       <Separator />
       <div className="flex flex-col">
-        <p className="text-sm font-semibold">Settings</p>
+        <p className="text-sm font-semibold">{tr('templates.settings', 'Settings')}</p>
         <SwitchRow
           dense
-          label="Required"
+          label={tr('templates.required', 'Required')}
           checked={q.required}
           onChange={(on) => {
             onChange({ ...q, required: on });
@@ -1304,7 +1424,7 @@ function QuestionEditor({
         />
         <SwitchRow
           dense
-          label="Allow a comment"
+          label={tr('templates.allow_a_comment', 'Allow a comment')}
           checked={q.allowComment}
           onChange={(on) => {
             onChange({ ...q, allowComment: on });
@@ -1312,8 +1432,11 @@ function QuestionEditor({
         />
         <SwitchRow
           dense
-          label="Private"
-          hint="Hidden from the subject; managers, HR and calibrators see it"
+          label={tr('templates.private', 'Private')}
+          hint={tr(
+            'templates.hidden_from_the_subject_managers_hr',
+            'Hidden from the subject; managers, HR and calibrators see it',
+          )}
           checked={q.private}
           onChange={(on) => {
             onChange({ ...q, private: on });
@@ -1322,10 +1445,10 @@ function QuestionEditor({
       </div>
       <div className="flex justify-between gap-2">
         <Button size="sm" variant="danger" onClick={onRemove}>
-          Remove question
+          {tr('templates.remove_question', 'Remove question')}
         </Button>
         <Button size="sm" onClick={onDone}>
-          Done
+          {tr('templates.done', 'Done')}
         </Button>
       </div>
     </div>
@@ -1360,10 +1483,17 @@ export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={`${data.name} · v${String(data.version)}`}
-            description={`As the ${data.as} sees it, on a ${activityLabel(data.activity).toLowerCase()}, with sample answers.`}
+            title={tr('templates.v', '{{name}} · v{{version}}', {
+              name: data.name,
+              version: String(data.version),
+            })}
+            description={tr(
+              'templates.as_the_sees_it_on_a',
+              'As the {{as}} sees it, on a {{activityLabel}}, with sample answers.',
+              { as: data.as, activityLabel: activityLabel(data.activity).toLowerCase() },
+            )}
           />
-          <ChipRow aria-label="Seen by">
+          <ChipRow aria-label={tr('templates.seen_by', 'Seen by')}>
             {(['reviewer', 'subject', 'calibrator'] as const).map((a) => (
               <Chip
                 key={a}
@@ -1379,7 +1509,12 @@ export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
           {data.removed.length === 0 ? null : (
             <Alert
               tone="info"
-              title={`${plural(data.removed.length, 'private question')} hidden from the subject`}
+              title={tr('templates.hidden_from_the_subject', '{{length}} hidden from the subject', {
+                length: plural(
+                  data.removed.length,
+                  tr('templates.private_question', 'private question'),
+                ),
+              })}
             >
               {data.removed.map((r) => r.prompt).join(' · ')}
             </Alert>
@@ -1415,8 +1550,11 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={`${data.name} · history`}
-            description="Every version, who made it and what changed. A published version is never edited."
+            title={tr('templates.history_2', '{{name}} · history', { name: data.name })}
+            description={tr(
+              'templates.every_version_who_made_it_and',
+              'Every version, who made it and what changed. A published version is never edited.',
+            )}
           />
           <Refusal error={act.error} />
           <Card>
@@ -1428,8 +1566,11 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
                   return (
                     <TimelineItem
                       key={v.version}
-                      title={`v${String(v.version)} · ${v.state === 'draft' ? 'Draft' : v.state === 'published' ? 'Published' : 'Superseded'}`}
-                      timestamp={`${v.by} · ${when(v.at)}`}
+                      title={`v${String(v.version)} · ${v.state === 'draft' ? tr('templates.draft', 'Draft') : v.state === 'published' ? tr('templates.published', 'Published') : tr('templates.superseded', 'Superseded')}`}
+                      timestamp={tr('templates.text_3', '{{by}} · {{at}}', {
+                        by: v.by,
+                        at: when(v.at),
+                      })}
                       tone={
                         v.state === 'published'
                           ? 'success'
@@ -1443,14 +1584,20 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
                       <div className="flex flex-col gap-3">
                         {v.changes.length === 0 ? (
                           <p className="text-sm">
-                            {v.version === 1 ? 'The first version.' : 'No question changed.'}
+                            {v.version === 1
+                              ? tr('templates.the_first_version', 'The first version.')
+                              : tr('templates.no_question_changed', 'No question changed.')}
                           </p>
                         ) : null}
                         {other.length === 0 ? null : (
                           <ul className="flex flex-col gap-1 text-sm">
                             {other.map((c) => (
                               <li key={`${c.kind}-${c.questionId}`}>
-                                {`${c.kind.charAt(0).toUpperCase()}${c.kind.slice(1)}: ${c.prompt}`}
+                                {tr('templates.text_4', '{{charAt}}{{slice}}: {{prompt}}', {
+                                  charAt: c.kind.charAt(0).toUpperCase(),
+                                  slice: c.kind.slice(1),
+                                  prompt: c.prompt,
+                                })}
                               </li>
                             ))}
                           </ul>
@@ -1459,7 +1606,7 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
                           <ChangeDiff
                             items={edited.map((c) => ({
                               id: c.questionId,
-                              label: 'Question',
+                              label: tr('templates.question', 'Question'),
                               before: c.was,
                               after: c.prompt,
                             }))}
@@ -1470,7 +1617,7 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
                             <a
                               href={`/performance/templates/${id}/preview?version=${String(v.version)}`}
                             >
-                              Preview
+                              {tr('templates.preview', 'Preview')}
                             </a>
                           </Button>
                           {v.state === 'draft' ? null : (
@@ -1488,7 +1635,7 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
                                 );
                               }}
                             >
-                              Restore into a new draft
+                              {tr('templates.restore_into_a_new_draft', 'Restore into a new draft')}
                             </Button>
                           )}
                         </span>

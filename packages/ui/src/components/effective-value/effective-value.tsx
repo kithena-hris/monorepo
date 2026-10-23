@@ -2,6 +2,7 @@ import { CalendarClock, Hourglass } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A value, with what happens to it next.
@@ -40,14 +41,21 @@ export function EffectiveValue({
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-info-fg">
           <CalendarClock aria-hidden className="size-3.5 shrink-0" />
           <span>
-            {next.value} from {next.from}
+            {next.value} {t('components.effective-value.effective-value.from', 'from')} {next.from}
           </span>
         </span>
       ) : null}
       {pending === false || pending === null ? null : (
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning-fg">
           <Hourglass aria-hidden className="size-3.5 shrink-0" />
-          <span>{pending === true ? 'Waiting for approval' : pending}</span>
+          <span>
+            {pending === true
+              ? t(
+                  'components.effective-value.effective-value.waiting_for_approval',
+                  'Waiting for approval',
+                )
+              : pending}
+          </span>
         </span>
       )}
     </span>

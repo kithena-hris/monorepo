@@ -15,6 +15,7 @@ import {
   visibleNodes,
   type TreeNode,
 } from './tree-model';
+import { t } from '../../lib/i18n';
 
 /**
  * Nested items: folders, departments, cost centres.
@@ -242,7 +243,12 @@ export function TreeView({
               }}
             >
               {isBusy ? (
-                <Spinner size="xs" label={`Loading ${node.label}`} />
+                <Spinner
+                  size="xs"
+                  label={t('components.tree-view.tree-view.loading', 'Loading {{label}}', {
+                    label: node.label,
+                  })}
+                />
               ) : branch ? (
                 <ChevronRight
                   className={cn(

@@ -13,6 +13,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A compact, tappable value.
@@ -313,7 +314,9 @@ export function ChipRow({
             setExpanded(!expanded);
           }}
         >
-          {expanded ? 'Show fewer' : `+${String(items.length - max)} more`}
+          {expanded
+            ? t('components.chip.chip.show_fewer', 'Show fewer')
+            : `+${String(items.length - max)} more`}
         </Chip>
       ) : null}
       {action === undefined ? null : <span className="shrink-0 whitespace-nowrap">{action}</span>}

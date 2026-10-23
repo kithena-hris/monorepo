@@ -13,6 +13,7 @@ import {
   floatShell,
   floatValue,
 } from '../field/field-styles';
+import { t } from '../../lib/i18n';
 
 /**
  * A number, with steppers.
@@ -192,7 +193,9 @@ export function NumberField({
           aria-valuenow={value ?? undefined}
           aria-valuemin={min}
           aria-valuemax={max}
-          aria-valuetext={value === null ? 'Empty' : undefined}
+          aria-valuetext={
+            value === null ? t('components.number-field.number-field.empty', 'Empty') : undefined
+          }
           aria-describedby={hint ? hintId : undefined}
           aria-invalid={invalid || undefined}
           autoComplete="off"
@@ -232,7 +235,9 @@ export function NumberField({
           // one control rather than two stray glyphs.
           <span className="ms-1.5 flex shrink-0 items-center self-center rounded-lg bg-surface p-0.5 ring-1 ring-border ring-inset">
             <Stepper
-              label={`Decrease ${label}`}
+              label={t('components.number-field.number-field.decrease', 'Decrease {{label}}', {
+                label,
+              })}
               disabled={disabled || readOnly || atMin}
               onPress={() => {
                 stepBy(-1);
@@ -242,7 +247,9 @@ export function NumberField({
             </Stepper>
             <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
             <Stepper
-              label={`Increase ${label}`}
+              label={t('components.number-field.number-field.increase', 'Increase {{label}}', {
+                label,
+              })}
               disabled={disabled || readOnly || atMax}
               onPress={() => {
                 stepBy(1);

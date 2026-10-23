@@ -35,6 +35,7 @@ import { useMemo, useState, type JSX } from 'react';
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, newId, range, useAct, words } from './shared';
 import type { Requisition, ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * R2, R2b, R3, requisitions (design R2–R3): the list with where each
@@ -56,7 +57,7 @@ function requisitionColumns(
   return [
     {
       id: 'title',
-      header: 'Title',
+      header: t('requisitions.title', 'Title'),
       sortBy: (r) => r.title,
       cell: (r) => (
         <To
@@ -73,27 +74,31 @@ function requisitionColumns(
     },
     {
       id: 'manager',
-      header: 'Hiring manager',
+      header: t('requisitions.hiring_manager', 'Hiring manager'),
       sortBy: (r) => r.hiringManager ?? '',
       cell: (r) => r.hiringManager ?? '—',
     },
     {
       id: 'reason',
-      header: 'Reason',
+      header: t('requisitions.reason', 'Reason'),
       hideOnCard: true,
       sortBy: (r) => r.reason,
       cell: (r) => <span className="text-sm text-fg-muted">{words(r.reason)}</span>,
     },
     {
       id: 'openings',
-      header: 'Openings',
+      header: t('requisitions.openings', 'Openings'),
       numeric: true,
       sortBy: (r) => r.openings,
-      cell: (r) => `${String(r.filled)} of ${String(r.openings)}`,
+      cell: (r) =>
+        t('requisitions.of', '{{filled}} of {{openings}}', {
+          filled: String(r.filled),
+          openings: String(r.openings),
+        }),
     },
     {
       id: 'budget',
-      header: 'Budget',
+      header: t('requisitions.budget', 'Budget'),
       hideOnCard: true,
       sortBy: (r) => r.budget?.to.amountMinor ?? 0,
       cell: (r) =>
@@ -103,14 +108,19 @@ function requisitionColumns(
     },
     {
       id: 'state',
-      header: 'State',
+      header: t('requisitions.state', 'State'),
       cardTrailing: true,
       sortBy: (r) => r.state,
       cell: (r) => (
         <span className="flex flex-col gap-1">
           <StateBadge state={r.state} />
           {r.approval == null ? null : (
-            <span className="text-xs text-fg-muted">{`Step ${String(r.approval.step)} of ${String(r.approval.steps)}`}</span>
+            <span className="text-xs text-fg-muted">
+              {t('requisitions.step_of', 'Step {{step}} of {{steps}}', {
+                step: String(r.approval.step),
+                steps: String(r.approval.steps),
+              })}
+            </span>
           )}
         </span>
       ),
@@ -129,33 +139,39 @@ export function Requisitions(props: ScreenProps<readonly Requisition[]>): JSX.El
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title="Requisitions"
-              description="Requests for headcount. An approved requisition opens one or more jobs; one job can fill openings from several."
+              title={t('requisitions.requisitions', 'Requisitions')}
+              description={t(
+                'requisitions.requests_for_headcount_an_approved_requisition',
+                'Requests for headcount. An approved requisition opens one or more jobs; one job can fill openings from several.',
+              )}
               actions={
                 <Button
                   startIcon={<icons.add aria-hidden />}
                   onClick={() => props.onNavigate?.('/recruiting/requisitions/new')}
                 >
-                  New requisition
+                  {t('requisitions.new_requisition', 'New requisition')}
                 </Button>
               }
             />
-            <ChipRow aria-label="State">
+            <ChipRow aria-label={t('requisitions.state', 'State')}>
               {STATES.map((s) => (
                 <Chip
                   key={s}
                   selected={state === s}
                   onClick={() => props.onFilter?.({ state: s === 'all' ? null : s })}
                 >
-                  {s === 'all' ? 'All' : words(s)}
+                  {s === 'all' ? t('requisitions.all', 'All') : words(s)}
                 </Chip>
               ))}
             </ChipRow>
             {rows.length === 0 ? (
-              <EmptyState icon={<icons.work aria-hidden />} title="No requisitions here" />
+              <EmptyState
+                icon={<icons.work aria-hidden />}
+                title={t('requisitions.no_requisitions_here', 'No requisitions here')}
+              />
             ) : (
               <DataTable<RequisitionRow>
-                label="Requisitions"
+                label={t('requisitions.requisitions', 'Requisitions')}
                 rows={rows}
                 rowId={idOf}
                 describeRow={titleOf}
@@ -245,7 +261,7 @@ function Editor({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={isNew ? 'New requisition' : r.title}
+        title={isNew ? t('requisitions.new_requisition', 'New requisition') : r.title}
         meta={<StateBadge state={r.state} />}
         actions={
           <>
@@ -256,7 +272,7 @@ function Editor({
                   act.run('CancelRequisition', { requisitionId: r.id });
                 }}
               >
-                Cancel requisition
+                {t('requisitions.cancel_requisition', 'Cancel requisition')}
               </Button>
             ) : null}
             <Button
@@ -267,7 +283,7 @@ function Editor({
                 save();
               }}
             >
-              Save
+              {t('requisitions.save', 'Save')}
             </Button>
             {r.state === 'draft' && !isNew ? (
               <Button
@@ -278,7 +294,7 @@ function Editor({
                   });
                 }}
               >
-                Send for approval
+                {t('requisitions.send_for_approval', 'Send for approval')}
               </Button>
             ) : null}
           </>
@@ -286,18 +302,21 @@ function Editor({
       />
       <Refusal error={act.error} />
       {r.state === 'approved' ? (
-        <Alert tone="info" title="Approved">
-          Changing the openings or the budget sends it back for approval, with the difference.
+        <Alert tone="info" title={t('requisitions.approved', 'Approved')}>
+          {t(
+            'requisitions.changing_the_openings_or_the_budget',
+            'Changing the openings or the budget sends it back for approval, with the difference.',
+          )}
         </Alert>
       ) : null}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <CardHeader>
-            <CardTitle level={2}>The request</CardTitle>
+            <CardTitle level={2}>{t('requisitions.the_request', 'The request')}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <Field required>
-              <FieldLabel>Title</FieldLabel>
+              <FieldLabel>{t('requisitions.title', 'Title')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={r.title}
@@ -308,7 +327,7 @@ function Editor({
               </FieldControl>
             </Field>
             <NumberField
-              label="Openings"
+              label={t('requisitions.openings', 'Openings')}
               value={r.openings}
               min={1}
               max={500}
@@ -317,7 +336,7 @@ function Editor({
               }}
             />
             <Field>
-              <FieldLabel>Reason</FieldLabel>
+              <FieldLabel>{t('requisitions.reason', 'Reason')}</FieldLabel>
               <Select
                 value={r.reason}
                 onValueChange={(v) => {
@@ -339,10 +358,10 @@ function Editor({
               </Select>
             </Field>
             <Field>
-              <FieldLabel>Target start</FieldLabel>
+              <FieldLabel>{t('requisitions.target_start', 'Target start')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Target start"
+                  label={t('requisitions.target_start', 'Target start')}
                   value={r.targetStart}
                   onChange={(d) => {
                     setR({ ...r, targetStart: d });
@@ -352,7 +371,9 @@ function Editor({
             </Field>
             {r.reason === 'backfill' ? (
               <Field required>
-                <FieldLabel>Replacing (person id)</FieldLabel>
+                <FieldLabel>
+                  {t('requisitions.replacing_person_id', 'Replacing (person id)')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={r.replacesPersonId ?? ''}
@@ -367,7 +388,7 @@ function Editor({
               </Field>
             ) : null}
             <Field>
-              <FieldLabel>Currency</FieldLabel>
+              <FieldLabel>{t('requisitions.currency', 'Currency')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={currency}
@@ -377,12 +398,24 @@ function Editor({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>The legal entity’s currency.</FieldDescription>
+              <FieldDescription>
+                {t('requisitions.the_legal_entitys_currency', 'The legal entity’s currency.')}
+              </FieldDescription>
             </Field>
-            <NumberField label="Budget from (yearly)" value={from} min={0} onChange={setFrom} />
-            <NumberField label="Budget to (yearly)" value={to} min={0} onChange={setTo} />
+            <NumberField
+              label={t('requisitions.budget_from_yearly', 'Budget from (yearly)')}
+              value={from}
+              min={0}
+              onChange={setFrom}
+            />
+            <NumberField
+              label={t('requisitions.budget_to_yearly', 'Budget to (yearly)')}
+              value={to}
+              min={0}
+              onChange={setTo}
+            />
             <Field className="md:col-span-2">
-              <FieldLabel>Justification</FieldLabel>
+              <FieldLabel>{t('requisitions.justification', 'Justification')}</FieldLabel>
               <FieldControl>
                 <Textarea
                   rows={3}
@@ -397,27 +430,33 @@ function Editor({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Approval</CardTitle>
+            <CardTitle level={2}>{t('requisitions.approval', 'Approval')}</CardTitle>
             <CardDescription>
-              The chain is chosen by the company’s rules: budget, reason, entity.
+              {t(
+                'requisitions.the_chain_is_chosen_by_the',
+                'The chain is chosen by the company’s rules: budget, reason, entity.',
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {r.approval == null ? (
               <p className="text-sm text-fg-muted">
                 {r.state === 'draft'
-                  ? 'Nobody is asked until you send it.'
-                  : 'No approval waiting.'}
+                  ? t(
+                      'requisitions.nobody_is_asked_until_you_send',
+                      'Nobody is asked until you send it.',
+                    )
+                  : t('requisitions.no_approval_waiting', 'No approval waiting.')}
               </p>
             ) : (
               <KeyValues
                 items={[
                   {
-                    label: 'Step',
+                    label: t('requisitions.step', 'Step'),
                     value: `${String(r.approval.step)} of ${String(r.approval.steps)}`,
                   },
                   {
-                    label: 'Waiting on',
+                    label: t('requisitions.waiting_on', 'Waiting on'),
                     value: r.approval.waitingOn.filter(Boolean).join(', ') || '—',
                   },
                 ]}
@@ -443,21 +482,37 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
           return (
             <EmptyState
               icon={<icons.approve aria-hidden />}
-              title="Nothing to approve here"
-              description="It may already be decided."
+              title={t('requisitions.nothing_to_approve_here', 'Nothing to approve here')}
+              description={t(
+                'requisitions.it_may_already_be_decided',
+                'It may already be decided.',
+              )}
             />
           );
         }
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={`Approve requisition: ${r.title}`}
-              description={`Asked by ${r.hiringManager ?? 'the hiring manager'} · step ${String(r.approval.step)} of ${String(r.approval.steps)}`}
-              meta={<Badge tone="warning">Waiting</Badge>}
+              title={t('requisitions.approve_requisition', 'Approve requisition: {{title}}', {
+                title: r.title,
+              })}
+              description={t(
+                'requisitions.asked_by_step_of',
+                'Asked by {{value}} · step {{step}} of {{steps}}',
+                {
+                  value: r.hiringManager ?? 'the hiring manager',
+                  step: String(r.approval.step),
+                  steps: String(r.approval.steps),
+                },
+              )}
+              meta={<Badge tone="warning">{t('requisitions.waiting', 'Waiting')}</Badge>}
             />
             <Refusal error={act.error} />
             {r.approval.changes.length > 0 ? (
-              <Alert tone="warning" title="Changed after approval">
+              <Alert
+                tone="warning"
+                title={t('requisitions.changed_after_approval', 'Changed after approval')}
+              >
                 <ChangeDiff
                   items={r.approval.changes.map((c) => ({
                     label: words(c.field),
@@ -472,10 +527,10 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                 <KeyValues
                   layout="aligned"
                   items={[
-                    { label: 'Openings', value: String(r.openings) },
-                    { label: 'Reason', value: words(r.reason) },
+                    { label: t('requisitions.openings', 'Openings'), value: String(r.openings) },
+                    { label: t('requisitions.reason', 'Reason'), value: words(r.reason) },
                     {
-                      label: 'Budget',
+                      label: t('requisitions.budget', 'Budget'),
                       value:
                         r.budget === null
                           ? '—'
@@ -485,8 +540,14 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                               r.budget.to.currency,
                             ),
                     },
-                    { label: 'Target start', value: r.targetStart ?? '—' },
-                    { label: 'Justification', value: r.justification || '—' },
+                    {
+                      label: t('requisitions.target_start', 'Target start'),
+                      value: r.targetStart ?? '—',
+                    },
+                    {
+                      label: t('requisitions.justification', 'Justification'),
+                      value: r.justification || '—',
+                    },
                   ]}
                 />
               </CardContent>
@@ -495,11 +556,14 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
               <Card padded>
                 <div className="flex flex-col gap-3">
                   <Field>
-                    <FieldLabel>Comment</FieldLabel>
+                    <FieldLabel>{t('requisitions.comment', 'Comment')}</FieldLabel>
                     <FieldControl>
                       <Textarea
                         rows={2}
-                        placeholder="Optional. Required to reject."
+                        placeholder={t(
+                          'requisitions.optional_required_to_reject',
+                          'Optional. Required to reject.',
+                        )}
                         value={comment}
                         onChange={(e) => {
                           setComment(e.target.value);
@@ -518,7 +582,7 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                         });
                       }}
                     >
-                      Reject
+                      {t('requisitions.reject', 'Reject')}
                     </Button>
                     <Button
                       loading={act.pending}
@@ -536,14 +600,16 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                         );
                       }}
                     >
-                      Approve
+                      {t('requisitions.approve', 'Approve')}
                     </Button>
                   </div>
                 </div>
               </Card>
             ) : (
-              <Alert tone="neutral" title="Not your step">
-                {`Waiting on ${r.approval.waitingOn.filter(Boolean).join(', ')}.`}
+              <Alert tone="neutral" title={t('requisitions.not_your_step', 'Not your step')}>
+                {t('requisitions.waiting_on_2', 'Waiting on {{join}}.', {
+                  join: r.approval.waitingOn.filter(Boolean).join(', '),
+                })}
               </Alert>
             )}
           </div>

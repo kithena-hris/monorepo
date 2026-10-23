@@ -19,6 +19,7 @@ import { Flag } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '../sheet/sheet';
+import { t } from '../../lib/i18n';
 
 /**
  * Everything that needs the reader's attention, in one list.
@@ -223,7 +224,9 @@ export function NotificationItem({
         <span className="text-xs text-fg-subtle">{time}</span>
         {unread ? (
           <span className="size-2 rounded-full bg-accent-solid">
-            <span className="sr-only">Unread</span>
+            <span className="sr-only">
+              {t('components.notification-center.notification-center.unread', 'Unread')}
+            </span>
           </span>
         ) : null}
       </span>

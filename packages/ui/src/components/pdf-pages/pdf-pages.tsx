@@ -6,6 +6,7 @@ import type * as PdfJsModule from 'pdfjs-dist';
 
 import { cn } from '../../lib/cn';
 import { Alert, Skeleton } from '../feedback/feedback';
+import { t } from '../../lib/i18n';
 
 /**
  * A PDF's pages drawn on the page itself, with something laid over each one:
@@ -114,12 +115,27 @@ export function PdfPages({ src, label, overlay, onLoad, className }: PdfPagesPro
 
   if (failed) {
     return (
-      <Alert tone="danger" title="The document could not be shown">
-        Try again in a moment, or download it to read it.
+      <Alert
+        tone="danger"
+        title={t(
+          'components.pdf-pages.pdf-pages.the_document_could_not_be_shown',
+          'The document could not be shown',
+        )}
+      >
+        {t(
+          'components.pdf-pages.pdf-pages.try_again_in_a_moment_or',
+          'Try again in a moment, or download it to read it.',
+        )}
       </Alert>
     );
   }
-  if (doc === null) return <Skeleton shape="page" label={`Opening ${label}`} />;
+  if (doc === null)
+    return (
+      <Skeleton
+        shape="page"
+        label={t('components.pdf-pages.pdf-pages.opening', 'Opening {{label}}', { label })}
+      />
+    );
   return (
     <div className={cn('flex flex-col items-center gap-4', className)}>
       {pages.map((p) => (
@@ -131,7 +147,11 @@ export function PdfPages({ src, label, overlay, onLoad, className }: PdfPagesPro
           <PageCanvas
             doc={doc}
             page={p}
-            label={`${label}, page ${String(p.number)} of ${String(pages.length)}`}
+            label={t(
+              'components.pdf-pages.pdf-pages.page_of',
+              '{{label}}, page {{number}} of {{length}}',
+              { label, number: String(p.number), length: String(pages.length) },
+            )}
           />
           {overlay === undefined ? null : <div className="absolute inset-0">{overlay(p)}</div>}
         </div>

@@ -42,6 +42,7 @@ import { useHeld } from '../../held';
 import { Loaded, type Loadable, type Outcome } from '../../load';
 import { ChatApps, type ChatAppsProps, type ChatAppsState } from './chat-apps';
 import { Provisioning, type ProvisioningProps, type ScimState } from './provisioning';
+import { t } from '../../i18n';
 
 /** A field in the published schema, and whether an allowlist may name it. */
 export interface AllowableField {
@@ -160,9 +161,17 @@ function fieldOptions(fields: readonly AllowableField[]): ComboboxOption[] {
     label: f.label,
     description:
       f.refused === 'special-category'
-        ? `${f.key} · special-category data, never sent`
+        ? t(
+            'settings.integrations.integrations.special_category_data_never_sent',
+            '{{key}} · special-category data, never sent',
+            { key: f.key },
+          )
         : f.refused === 'encrypted'
-          ? `${f.key} · encrypted, never sent`
+          ? t(
+              'settings.integrations.integrations.encrypted_never_sent',
+              '{{key}} · encrypted, never sent',
+              { key: f.key },
+            )
           : f.key,
     disabled: f.refused !== null,
   }));
@@ -194,9 +203,18 @@ function PickMany({
           label={label}
           options={options}
           value={value}
-          placeholder={value.length === 0 ? 'Choose' : `${String(value.length)} chosen`}
-          searchPlaceholder="Search"
-          emptyMessage="Nothing by that name."
+          placeholder={
+            value.length === 0
+              ? t('settings.integrations.integrations.choose', 'Choose')
+              : t('settings.integrations.integrations.chosen', '{{length}} chosen', {
+                  length: String(value.length),
+                })
+          }
+          searchPlaceholder={t('settings.integrations.integrations.search', 'Search')}
+          emptyMessage={t(
+            'settings.integrations.integrations.nothing_by_that_name',
+            'Nothing by that name.',
+          )}
           onChange={(next) => {
             onChange(Array.isArray(next) ? next : []);
           }}
@@ -248,18 +266,29 @@ function Endpoints({
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Integrations"
-        description="Connect People to the tools your company already uses."
+        title={t('settings.integrations.integrations.integrations', 'Integrations')}
+        description={t(
+          'settings.integrations.integrations.connect_people_to_the_tools_your',
+          'Connect People to the tools your company already uses.',
+        )}
       />
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label="Integrations">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsList aria-label={t('settings.integrations.integrations.integrations', 'Integrations')}>
+          <TabsTrigger value="overview">
+            {t('settings.integrations.integrations.overview', 'Overview')}
+          </TabsTrigger>
           {chat === undefined || state.chat === undefined ? null : (
-            <TabsTrigger value="slack">Slack</TabsTrigger>
+            <TabsTrigger value="slack">
+              {t('settings.integrations.integrations.slack', 'Slack')}
+            </TabsTrigger>
           )}
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="webhooks">
+            {t('settings.integrations.integrations.webhooks', 'Webhooks')}
+          </TabsTrigger>
           {state.scim === undefined || scim === undefined ? null : (
-            <TabsTrigger value="provisioning">Provisioning</TabsTrigger>
+            <TabsTrigger value="provisioning">
+              {t('settings.integrations.integrations.provisioning', 'Provisioning')}
+            </TabsTrigger>
           )}
         </TabsList>
         <TabsContent value="overview" className="pt-6">
@@ -281,8 +310,16 @@ function Endpoints({
         )}
         <TabsContent value="webhooks" className="pt-6">
           <PageSection
-            title="Webhooks"
-            description={`Send People events to other tools, with only the fields you allow. ${String(state.endpoints.length)} ${state.endpoints.length === 1 ? 'endpoint' : 'endpoints'} · ${state.deliveries24h.toLocaleString()} deliveries in the last 24 hours.`}
+            title={t('settings.integrations.integrations.webhooks', 'Webhooks')}
+            description={t(
+              'settings.integrations.integrations.send_people_events_to_other_tools',
+              'Send People events to other tools, with only the fields you allow. {{length}} {{value}} · {{toLocaleString}} deliveries in the last 24 hours.',
+              {
+                length: String(state.endpoints.length),
+                value: state.endpoints.length === 1 ? 'endpoint' : 'endpoints',
+                toLocaleString: state.deliveries24h.toLocaleString(),
+              },
+            )}
             actions={
               <Button
                 variant="primary"
@@ -290,26 +327,47 @@ function Endpoints({
                   setOpen('endpoint');
                 }}
               >
-                Add endpoint
+                {t('settings.integrations.integrations.add_endpoint', 'Add endpoint')}
               </Button>
             }
           >
             <Stack gap={4}>
               {secret === null ? null : (
-                <Alert tone="warning" title="Copy the signing secret now">
+                <Alert
+                  tone="warning"
+                  title={t(
+                    'settings.integrations.integrations.copy_the_signing_secret_now',
+                    'Copy the signing secret now',
+                  )}
+                >
                   <Stack gap={2}>
                     <p>
-                      This is the only time it is shown for {secret.url}. It cannot be retrieved
-                      later; if it is lost, rotate it.
+                      {t(
+                        'settings.integrations.integrations.this_is_the_only_time_it',
+                        'This is the only time it is shown for {{url}}. It cannot be retrieved later; if it is lost, rotate it.',
+                        { url: secret.url },
+                      )}
                     </p>
-                    <CopyField value={secret.value} label="Copy the signing secret" />
+                    <CopyField
+                      value={secret.value}
+                      label={t(
+                        'settings.integrations.integrations.copy_the_signing_secret',
+                        'Copy the signing secret',
+                      )}
+                    />
                   </Stack>
                 </Alert>
               )}
               {state.endpoints.length === 0 ? (
                 <EmptyState
-                  title="No third-party tools connected"
-                  description="Add a webhook address from another tool, such as your payroll provider."
+                  title={t(
+                    'settings.integrations.integrations.no_third_party_tools_connected',
+                    'No third-party tools connected',
+                  )}
+                  description={t(
+                    'settings.integrations.integrations.add_a_webhook_address_from_another',
+                    'Add a webhook address from another tool, such as your payroll provider.',
+                  )}
                 />
               ) : (
                 state.endpoints.map((endpoint) => (
@@ -398,12 +456,18 @@ function Directory({
             id: 'slack',
             name: 'Slack',
             mark: <AppMark app="slack" className="size-7" />,
-            says: 'Answer questions and approve changes in Slack.',
+            says: t(
+              'settings.integrations.integrations.answer_questions_and_approve_changes_in',
+              'Answer questions and approve changes in Slack.',
+            ),
             status:
               slack.connection === null
                 ? { tone: 'neutral' as const, text: 'Not connected' }
                 : { tone: 'success' as const, text: `Connected to ${slack.connection.workspace}` },
-            action: slack.connection === null ? 'Connect' : 'Manage',
+            action:
+              slack.connection === null
+                ? t('settings.integrations.integrations.connect', 'Connect')
+                : t('settings.integrations.integrations.manage', 'Manage'),
           },
         ]
       : []),
@@ -411,14 +475,20 @@ function Directory({
       id: 'webhooks',
       name: 'Webhooks',
       mark: <icons.send aria-hidden className="size-6 text-fg-muted" />,
-      says: 'Notify other tools when people join, move or leave.',
+      says: t(
+        'settings.integrations.integrations.notify_other_tools_when_people_join',
+        'Notify other tools when people join, move or leave.',
+      ),
       status:
         live.length === 0
           ? { tone: 'neutral', text: 'None yet' }
           : retrying > 0
             ? { tone: 'warning', text: `${String(retrying)} retrying` }
             : { tone: 'success', text: `${String(live.length)} active` },
-      action: live.length === 0 ? 'Add one' : 'Manage',
+      action:
+        live.length === 0
+          ? t('settings.integrations.integrations.add_one', 'Add one')
+          : t('settings.integrations.integrations.manage', 'Manage'),
     },
     ...(scimShown && state.scim !== undefined
       ? [
@@ -426,12 +496,18 @@ function Directory({
             id: 'provisioning',
             name: 'Provisioning',
             mark: <icons.people aria-hidden className="size-6 text-fg-muted" />,
-            says: 'Sync people with your identity provider (SCIM).',
+            says: t(
+              'settings.integrations.integrations.sync_people_with_your_identity_provider',
+              'Sync people with your identity provider (SCIM).',
+            ),
             status:
               scimLive.length === 0
                 ? { tone: 'neutral' as const, text: 'Not connected' }
                 : { tone: 'success' as const, text: `From ${scimLive[0]?.system ?? 'one system'}` },
-            action: scimLive.length === 0 ? 'Connect' : 'Manage',
+            action:
+              scimLive.length === 0
+                ? t('settings.integrations.integrations.connect', 'Connect')
+                : t('settings.integrations.integrations.manage', 'Manage'),
           },
         ]
       : []),
@@ -439,7 +515,7 @@ function Directory({
   return (
     <section aria-labelledby="all-integrations">
       <h2 id="all-integrations" className="sr-only">
-        All integrations
+        {t('settings.integrations.integrations.all_integrations', 'All integrations')}
       </h2>
       <AutoGrid minItemWidth="15rem" gap={4}>
         {cards.map((c) => (
@@ -459,7 +535,10 @@ function Directory({
                 <Button
                   size="sm"
                   variant="secondary"
-                  aria-label={`${c.action}: ${c.name}`}
+                  aria-label={t('settings.integrations.integrations.text', '{{action}}: {{name}}', {
+                    action: c.action,
+                    name: c.name,
+                  })}
                   onClick={() => {
                     onOpen(c.id);
                   }}
@@ -468,7 +547,14 @@ function Directory({
                 </Button>
               ) : (
                 <Button size="sm" variant="secondary" asChild>
-                  <a href={`${tabsAt}/${c.id}`} aria-label={`${c.action}: ${c.name}`}>
+                  <a
+                    href={`${tabsAt}/${c.id}`}
+                    aria-label={t(
+                      'settings.integrations.integrations.text',
+                      '{{action}}: {{name}}',
+                      { action: c.action, name: c.name },
+                    )}
+                  >
                     {c.action}
                   </a>
                 </Button>
@@ -499,17 +585,30 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
   return (
     <PageSection
       surface
-      title="Data shared outside Kithena"
-      description="Webhooks send only the fields you allow. Chat apps show only fields shared with the assistant, to people who can already see them. The AI model never sees values."
+      title={t(
+        'settings.integrations.integrations.data_shared_outside_kithena',
+        'Data shared outside Kithena',
+      )}
+      description={t(
+        'settings.integrations.integrations.webhooks_send_only_the_fields_you',
+        'Webhooks send only the fields you allow. Chat apps show only fields shared with the assistant, to people who can already see them. The AI model never sees values.',
+      )}
     >
       <Stack gap={4}>
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-fg">
-            Sent to third-party tools ({String(sent.length)})
+            {t(
+              'settings.integrations.integrations.sent_to_third_party_tools',
+              'Sent to third-party tools (',
+            )}
+            {String(sent.length)})
           </p>
           {sent.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Nothing yet. A field is sent only once you allow it on an enabled endpoint.
+              {t(
+                'settings.integrations.integrations.nothing_yet_a_field_is_sent',
+                'Nothing yet. A field is sent only once you allow it on an enabled endpoint.',
+              )}
             </p>
           ) : (
             <span className="flex flex-wrap gap-1.5">
@@ -526,10 +625,17 @@ function Outgoing({ state }: { readonly state: IntegrationsState }): JSX.Element
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-fg">
-            Never sent, whatever is chosen ({String(never.length)})
+            {t(
+              'settings.integrations.integrations.never_sent_whatever_is_chosen',
+              'Never sent, whatever is chosen (',
+            )}
+            {String(never.length)})
           </p>
           <p className="text-sm text-fg-muted">
-            Special-category and encrypted fields are never sent.
+            {t(
+              'settings.integrations.integrations.special_category_and_encrypted_fields_are',
+              'Special-category and encrypted fields are never sent.',
+            )}
           </p>
           {never.length === 0 ? null : (
             <span className="flex flex-wrap gap-1.5">
@@ -578,10 +684,15 @@ function EndpointCard({
   };
 
   const health: { tone: 'neutral' | 'warning' | 'success'; text: string } = !endpoint.enabled
-    ? { tone: 'neutral', text: 'Disabled' }
+    ? { tone: 'neutral', text: t('settings.integrations.integrations.disabled', 'Disabled') }
     : endpoint.retrying > 0
-      ? { tone: 'warning', text: `${String(endpoint.retrying)} retrying` }
-      : { tone: 'success', text: 'Healthy' };
+      ? {
+          tone: 'warning',
+          text: t('settings.integrations.integrations.retrying', '{{retrying}} retrying', {
+            retrying: String(endpoint.retrying),
+          }),
+        }
+      : { tone: 'success', text: t('settings.integrations.integrations.healthy', 'Healthy') };
 
   return (
     <PageSection
@@ -592,8 +703,18 @@ function EndpointCard({
         [
           endpoint.secretRotated === null
             ? null
-            : `Signing secret rotated ${endpoint.secretRotated}`,
-          endpoint.lastDelivery === null ? null : `last delivery ${endpoint.lastDelivery}`,
+            : t(
+                'settings.integrations.integrations.signing_secret_rotated',
+                'Signing secret rotated {{secretRotated}}',
+                { secretRotated: endpoint.secretRotated },
+              ),
+          endpoint.lastDelivery === null
+            ? null
+            : t(
+                'settings.integrations.integrations.last_delivery',
+                'last delivery {{lastDelivery}}',
+                { lastDelivery: endpoint.lastDelivery },
+              ),
         ]
           .filter((x) => x !== null)
           .join(' · ') || undefined
@@ -602,7 +723,7 @@ function EndpointCard({
         <span className="flex items-center gap-3">
           <Badge tone={health.tone}>{health.text}</Badge>
           <Field orientation="horizontal">
-            <FieldLabel>Enabled</FieldLabel>
+            <FieldLabel>{t('settings.integrations.integrations.enabled', 'Enabled')}</FieldLabel>
             <FieldControl>
               <Switch
                 checked={endpoint.enabled}
@@ -619,24 +740,34 @@ function EndpointCard({
       <Stack gap={4}>
         {endpoint.problem === null ? null : <Alert tone="warning">{endpoint.problem}</Alert>}
         <PickMany
-          label="Events"
+          label={t('settings.integrations.integrations.events', 'Events')}
           options={eventOptions(state.events)}
           value={events.filter((e) => knownEvents.has(e))}
           onChange={setEvents}
         />
         <PickMany
-          label="Fields this endpoint receives"
+          label={t(
+            'settings.integrations.integrations.fields_this_endpoint_receives',
+            'Fields this endpoint receives',
+          )}
           options={fieldOptions(state.fields)}
           value={allowlist}
           hint={
             refusedKeys.length === 0
               ? undefined
-              : `${refusedKeys.join(' and ')} can never be sent to an endpoint.`
+              : t(
+                  'settings.integrations.integrations.can_never_be_sent_to_an',
+                  '{{join}} can never be sent to an endpoint.',
+                  { join: refusedKeys.join(' and ') },
+                )
           }
           onChange={setAllowlist}
         />
         {refused === null ? null : (
-          <Alert tone="danger" title="Not saved">
+          <Alert
+            tone="danger"
+            title={t('settings.integrations.integrations.not_saved', 'Not saved')}
+          >
             {refused}
           </Alert>
         )}
@@ -645,12 +776,12 @@ function EndpointCard({
             variant="primary"
             disabled={!changed || events.length === 0}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('settings.integrations.integrations.saving', 'Saving')}
             onClick={() => {
               void attempt(() => onUpdate(endpoint.id, { events, allowlist }));
             }}
           >
-            Save changes
+            {t('settings.integrations.integrations.save_changes', 'Save changes')}
           </Button>
           <Button
             disabled={busy}
@@ -658,11 +789,18 @@ function EndpointCard({
               void attempt(onRotate);
             }}
           >
-            Rotate signing secret
+            {t('settings.integrations.integrations.rotate_signing_secret', 'Rotate signing secret')}
           </Button>
           {onOpenLog === undefined ? null : (
-            <Button aria-label={`Delivery log for ${endpoint.url}`} onClick={onOpenLog}>
-              Delivery log
+            <Button
+              aria-label={t(
+                'settings.integrations.integrations.delivery_log_for',
+                'Delivery log for {{url}}',
+                { url: endpoint.url },
+              )}
+              onClick={onOpenLog}
+            >
+              {t('settings.integrations.integrations.delivery_log', 'Delivery log')}
             </Button>
           )}
         </div>
@@ -715,16 +853,20 @@ function AddEndpoint({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add an endpoint</DialogTitle>
+          <DialogTitle>
+            {t('settings.integrations.integrations.add_an_endpoint', 'Add an endpoint')}
+          </DialogTitle>
           <DialogDescription>
-            People sends a signed message to this address for each selected event. The signing
-            secret is shown once.
+            {t(
+              'settings.integrations.integrations.people_sends_a_signed_message_to',
+              'People sends a signed message to this address for each selected event. The signing secret is shown once.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <Field required invalid={shown && badUrl}>
-              <FieldLabel>URL</FieldLabel>
+              <FieldLabel>{t('settings.integrations.integrations.url', 'URL')}</FieldLabel>
               <FieldControl>
                 <Input
                   type="url"
@@ -736,12 +878,22 @@ function AddEndpoint({
                 />
               </FieldControl>
               <FieldDescription>
-                The tool’s address for incoming webhooks, from its own settings.
+                {t(
+                  'settings.integrations.integrations.the_tools_address_for_incoming_webhooks',
+                  'The tool’s address for incoming webhooks, from its own settings.',
+                )}
               </FieldDescription>
-              <FieldError>An https address, reachable from the internet.</FieldError>
+              <FieldError>
+                {t(
+                  'settings.integrations.integrations.an_https_address_reachable_from_the',
+                  'An https address, reachable from the internet.',
+                )}
+              </FieldError>
             </Field>
             <Field required invalid={shown && badEmail}>
-              <FieldLabel>Alert email</FieldLabel>
+              <FieldLabel>
+                {t('settings.integrations.integrations.alert_email', 'Alert email')}
+              </FieldLabel>
               <FieldControl>
                 <Input
                   type="email"
@@ -754,31 +906,54 @@ function AddEndpoint({
                 />
               </FieldControl>
               <FieldDescription>
-                Who hears if deliveries keep failing and the endpoint is turned off.
+                {t(
+                  'settings.integrations.integrations.who_hears_if_deliveries_keep_failing',
+                  'Who hears if deliveries keep failing and the endpoint is turned off.',
+                )}
               </FieldDescription>
-              <FieldError>An email address to tell.</FieldError>
+              <FieldError>
+                {t(
+                  'settings.integrations.integrations.an_email_address_to_tell',
+                  'An email address to tell.',
+                )}
+              </FieldError>
             </Field>
             <PickMany
-              label="Events"
+              label={t('settings.integrations.integrations.events', 'Events')}
               options={eventOptions(state.events)}
               value={events}
               invalid={shown && events.length === 0}
               hint={
                 shown && events.length === 0
-                  ? 'Choose at least one event.'
-                  : 'What the tool is told about. A payroll tool usually wants hires, job changes and leavers.'
+                  ? t(
+                      'settings.integrations.integrations.choose_at_least_one_event',
+                      'Choose at least one event.',
+                    )
+                  : t(
+                      'settings.integrations.integrations.what_the_tool_is_told_about',
+                      'What the tool is told about. A payroll tool usually wants hires, job changes and leavers.',
+                    )
               }
               onChange={setEvents}
             />
             <PickMany
-              label="Fields this endpoint receives"
+              label={t(
+                'settings.integrations.integrations.fields_this_endpoint_receives',
+                'Fields this endpoint receives',
+              )}
               options={fieldOptions(state.fields)}
               value={allowlist}
-              hint="Only these details are sent with each event. Choose the fewest the tool needs."
+              hint={t(
+                'settings.integrations.integrations.only_these_details_are_sent_with',
+                'Only these details are sent with each event. Choose the fewest the tool needs.',
+              )}
               onChange={setAllowlist}
             />
             {refused === null ? null : (
-              <Alert tone="danger" title="Not added">
+              <Alert
+                tone="danger"
+                title={t('settings.integrations.integrations.not_added', 'Not added')}
+              >
                 {refused}
               </Alert>
             )}
@@ -790,17 +965,17 @@ function AddEndpoint({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('settings.integrations.integrations.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Adding"
+            loadingLabel={t('settings.integrations.integrations.adding', 'Adding')}
             onClick={() => {
               void create();
             }}
           >
-            Add endpoint
+            {t('settings.integrations.integrations.add_endpoint', 'Add endpoint')}
           </Button>
         </DialogFooter>
       </DialogContent>

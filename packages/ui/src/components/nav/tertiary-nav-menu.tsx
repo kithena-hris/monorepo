@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
 import type { TertiaryNavItem } from './nav';
+import { t } from '../../lib/i18n';
 
 export interface TertiaryNavMenuProps {
   /** Names the menu button. */
@@ -42,7 +43,10 @@ export function TertiaryNavMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`${label}: ${active?.label ?? 'choose a section'}`}
+          aria-label={t('components.nav.tertiary-nav-menu.text', '{{label}}: {{value}}', {
+            label,
+            value: active?.label ?? 'choose a section',
+          })}
           endIcon={<ChevronsUpDown aria-hidden />}
           className={cn('touch:w-full touch:justify-between', className)}
         >

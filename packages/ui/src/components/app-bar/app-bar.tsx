@@ -12,6 +12,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * The bars above and below the content.
@@ -325,7 +326,11 @@ export function TabBarItem({
         </span>
         <span className="max-w-full truncate">
           {label}
-          {count ? <span className="sr-only">, {count} new</span> : null}
+          {count ? (
+            <span className="sr-only">
+              , {count} {t('components.app-bar.app-bar.new', 'new')}
+            </span>
+          ) : null}
         </span>
       </Comp>
     </li>

@@ -11,6 +11,7 @@ import {
   stepSpring,
   type SpringState,
 } from './spring';
+import { t } from './i18n';
 
 /*
  * Drag-to-dismiss for edge-anchored panels.
@@ -229,7 +230,7 @@ export function useDragDismiss({
       // Always a translate on the dismissing axis, and always in px, so the
       // value composes with whatever the stylesheet set as the resting
       // transform without either having to know about the other.
-      const px = `${offset.toFixed(2)}px`;
+      const px = t('lib.use-drag-dismiss.px', '{{value}}px', { value: offset.toFixed(2) });
       node.style.transform = isVertical(axis)
         ? `translate3d(0, ${px}, 0)`
         : `translate3d(${px}, 0, 0)`;

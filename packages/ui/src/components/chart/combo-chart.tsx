@@ -14,6 +14,7 @@ import {
   type ChartTone,
 } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface ComboPoint {
   /** The period: "Mar", "Q2". */
@@ -95,12 +96,32 @@ export function ComboChart({
             {data.map((point, index) => (
               <ChartMark
                 key={point.label}
-                content={`${point.label}: ${barLabel} ${formatBar(point.bar)}, ${lineLabel} ${formatLine(point.line)}`}
+                content={t(
+                  'components.chart.combo-chart.text',
+                  '{{label}}: {{barLabel}} {{formatBar}}, {{lineLabel}} {{formatLine}}',
+                  {
+                    label: point.label,
+                    barLabel,
+                    formatBar: formatBar(point.bar),
+                    lineLabel,
+                    formatLine: formatLine(point.line),
+                  },
+                )}
               >
                 <span
                   role="img"
                   tabIndex={0}
-                  aria-label={`${point.label}: ${barLabel} ${formatBar(point.bar)}, ${lineLabel} ${formatLine(point.line)}`}
+                  aria-label={t(
+                    'components.chart.combo-chart.text',
+                    '{{label}}: {{barLabel}} {{formatBar}}, {{lineLabel}} {{formatLine}}',
+                    {
+                      label: point.label,
+                      barLabel,
+                      formatBar: formatBar(point.bar),
+                      lineLabel,
+                      formatLine: formatLine(point.line),
+                    },
+                  )}
                   className="flex h-full min-w-0 flex-1 items-end rounded-t-[7px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus"
                 >
                   <span
@@ -167,19 +188,31 @@ export function ComboChart({
       <ChartLegend
         className="mt-3.5"
         items={[
-          { label: `${barLabel} (left)`, tone: barTone },
-          { label: `${lineLabel} (right)`, tone: lineTone },
+          {
+            label: t('components.chart.combo-chart.left', '{{barLabel}} (left)', { barLabel }),
+            tone: barTone,
+          },
+          {
+            label: t('components.chart.combo-chart.right', '{{lineLabel}} (right)', { lineLabel }),
+            tone: lineTone,
+          },
         ]}
       />
 
       <ChartDataTable
-        caption={`${label}, ${barLabel}`}
+        caption={t('components.chart.combo-chart.text_2', '{{label}}, {{barLabel}}', {
+          label,
+          barLabel,
+        })}
         valueLabel={barLabel}
         data={data.map((point) => ({ label: point.label, value: point.bar }))}
         format={formatBar}
       />
       <ChartDataTable
-        caption={`${label}, ${lineLabel}`}
+        caption={t('components.chart.combo-chart.text_3', '{{label}}, {{lineLabel}}', {
+          label,
+          lineLabel,
+        })}
         valueLabel={lineLabel}
         data={data.map((point) => ({ label: point.label, value: point.line }))}
         format={formatLine}

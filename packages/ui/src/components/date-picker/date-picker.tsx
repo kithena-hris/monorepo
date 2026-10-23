@@ -18,6 +18,7 @@ import {
   type IsoDate,
 } from '../calendar/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
+import { t } from '../../lib/i18n';
 
 /**
  * A calendar behind a trigger, for a form field.
@@ -104,20 +105,23 @@ export function defaultPresets(today: IsoDate): readonly DatePickerPreset[] {
   const month = now.getUTCMonth();
   const quarter = Math.floor(month / 3);
   return [
-    { label: 'This month', range: { start: formatIsoDate(Date.UTC(year, month, 1)), end: today } },
     {
-      label: 'Last month',
+      label: t('components.date-picker.date-picker.this_month', 'This month'),
+      range: { start: formatIsoDate(Date.UTC(year, month, 1)), end: today },
+    },
+    {
+      label: t('components.date-picker.date-picker.last_month', 'Last month'),
       range: {
         start: formatIsoDate(Date.UTC(year, month - 1, 1)),
         end: endOfMonth(year, month - 1),
       },
     },
     {
-      label: 'This quarter',
+      label: t('components.date-picker.date-picker.this_quarter', 'This quarter'),
       range: { start: formatIsoDate(Date.UTC(year, quarter * 3, 1)), end: today },
     },
     {
-      label: 'Year to date',
+      label: t('components.date-picker.date-picker.year_to_date', 'Year to date'),
       range: { start: formatIsoDate(Date.UTC(year, 0, 1)), end: today },
     },
   ];
@@ -128,7 +132,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
   // them apart is what loses the relationship the union encodes.
   const {
     label,
-    placeholder = 'Pick a date',
+    placeholder = t('components.date-picker.date-picker.pick_a_date', 'Pick a date'),
     disabled = false,
     size = 'md',
     className,
@@ -171,12 +175,20 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     const iso = parseTypedDate(typed, locale);
     if (iso === null) {
       setProblem(
-        `Type a date like ${locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996'}`,
+        t('components.date-picker.date-picker.type_a_date_like', 'Type a date like {{value}}', {
+          value: locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996',
+        }),
       );
       return;
     }
     if (!allowed(iso)) {
-      setProblem(`${format(iso)} can’t be chosen here`);
+      setProblem(
+        t(
+          'components.date-picker.date-picker.cant_be_chosen_here',
+          '{{format}} can’t be chosen here',
+          { format: format(iso) },
+        ),
+      );
       setShown(iso);
       return;
     }
@@ -222,7 +234,10 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     const range = props.value;
     if (!range?.start) return placeholder;
     if (!range.end) return `${format(range.start)} – …`;
-    return `${format(range.start)} – ${format(range.end)}`;
+    return t('components.date-picker.date-picker.text', '{{format}} – {{format2}}', {
+      format: format(range.start),
+      format2: format(range.end),
+    });
   })();
 
   const empty = props.mode === 'range' ? !props.value?.start : !props.value;
@@ -234,7 +249,10 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
         disabled={disabled}
         // The label, then what the trigger shows: a name that holds the visible
         // text is one a voice user can say (WCAG 2.5.3, Label in Name).
-        aria-label={`${label}: ${display}`}
+        aria-label={t('components.date-picker.date-picker.text_2', '{{label}}: {{display}}', {
+          label,
+          display,
+        })}
         aria-describedby={describedBy}
         // The icon trails, as on every field, so under a thumb the label can
         // float inside the trigger where the value starts.
@@ -257,15 +275,23 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
       <PopoverContent aria-label={label} className="w-auto p-3 touch:p-4">
         {/* Typed, a date decades away is one line; the grid follows it. */}
         <Field invalid={problem !== null} className="mb-3">
-          <FieldLabel className="sr-only">{`Type ${label.toLowerCase()}`}</FieldLabel>
+          <FieldLabel className="sr-only">
+            {t('components.date-picker.date-picker.type', 'Type {{label}}', {
+              label: label.toLowerCase(),
+            })}
+          </FieldLabel>
           <FieldControl>
             <Input
               size="sm"
               value={typed}
               placeholder={
                 props.mode === 'range' && props.value?.start && !props.value.end
-                  ? 'Type the end date'
-                  : `Type a date, like ${locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996'}`
+                  ? t('components.date-picker.date-picker.type_the_end_date', 'Type the end date')
+                  : t(
+                      'components.date-picker.date-picker.type_a_date_like_2',
+                      'Type a date, like {{value}}',
+                      { value: locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996' },
+                    )
               }
               inputMode="text"
               autoComplete="off"
@@ -357,7 +383,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
               setShown(today);
             }}
           >
-            Go to today
+            {t('components.date-picker.date-picker.go_to_today', 'Go to today')}
           </Button>
         </div>
       </PopoverContent>

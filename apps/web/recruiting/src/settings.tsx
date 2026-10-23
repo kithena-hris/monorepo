@@ -90,6 +90,7 @@ import type {
   SettingsEntity,
   SettingsLocation,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Recruiting's settings under Settings, one place per address
@@ -115,11 +116,11 @@ type Body = (p: {
 type Act = ReturnType<typeof useAct>;
 
 const COUNTRY: Readonly<Record<string, string>> = {
-  DE: 'Germany',
-  ES: 'Spain',
-  GB: 'United Kingdom',
-  IN: 'India',
-  US: 'United States',
+  DE: tr('settings.germany', 'Germany'),
+  ES: tr('settings.spain', 'Spain'),
+  GB: tr('settings.united_kingdom', 'United Kingdom'),
+  IN: tr('settings.india', 'India'),
+  US: tr('settings.united_states', 'United States'),
 };
 
 /** A page's title, what it is for, and its one main action. */
@@ -154,13 +155,18 @@ function rowActions(
   onSelect: () => void;
 }[] {
   return [
-    { id: 'edit', label: `Edit ${what}`, icon: <icons.edit aria-hidden />, onSelect: onEdit },
+    {
+      id: 'edit',
+      label: tr('settings.edit', 'Edit {{what}}', { what }),
+      icon: <icons.edit aria-hidden />,
+      onSelect: onEdit,
+    },
     ...(onRemove === null
       ? []
       : [
           {
             id: 'remove',
-            label: `Remove ${what}`,
+            label: tr('settings.remove', 'Remove {{what}}', { what }),
             icon: <icons.remove aria-hidden />,
             destructive: true,
             onSelect: onRemove,
@@ -173,7 +179,7 @@ function rowActions(
 function FromPeople(): JSX.Element {
   return (
     <Badge size="xs" variant="outline">
-      Edited in People
+      {tr('settings.edited_in_people', 'Edited in People')}
     </Badge>
   );
 }
@@ -206,11 +212,13 @@ function useRemoval(act: Act): {
         }}
       >
         <AlertDialogContent>
-          <AlertDialogTitle>{`Remove ${pending?.what ?? ''}?`}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {tr('settings.remove_2', 'Remove {{value}}?', { value: pending?.what ?? '' })}
+          </AlertDialogTitle>
           <AlertDialogDescription>{pending?.consequence ?? ''}</AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button>Keep it</Button>
+              <Button>{tr('settings.keep_it', 'Keep it')}</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
@@ -221,7 +229,7 @@ function useRemoval(act: Act): {
                   setPending(null);
                 }}
               >
-                Remove
+                {tr('settings.remove_3', 'Remove')}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -318,7 +326,11 @@ function Things({
   return empty === null ? (
     <List>{children}</List>
   ) : (
-    <EmptyState icon={icon} title="Nothing here yet" description={empty} />
+    <EmptyState
+      icon={icon}
+      title={tr('settings.nothing_here_yet', 'Nothing here yet')}
+      description={empty}
+    />
   );
 }
 
@@ -444,8 +456,14 @@ function LogoField({
   const [problem, setProblem] = useState<string | null>(null);
   return (
     <AvatarUploader
-      label={busy ? 'Logo, uploading' : 'Logo'}
-      hint={problem ?? 'PNG, JPEG or WebP, up to 1 MB. A square one fits best.'}
+      label={busy ? tr('settings.logo_uploading', 'Logo, uploading') : tr('settings.logo', 'Logo')}
+      hint={
+        problem ??
+        tr(
+          'settings.png_jpeg_or_webp_up_to',
+          'PNG, JPEG or WebP, up to 1 MB. A square one fits best.',
+        )
+      }
       shape="rounded"
       fit="contain"
       size="lg"
@@ -457,7 +475,10 @@ function LogoField({
       disabled={busy}
       invalid={problem !== null}
       onReject={(rejections) => {
-        setProblem(rejections[0]?.message ?? 'That image was not accepted.');
+        setProblem(
+          rejections[0]?.message ??
+            tr('settings.that_image_was_not_accepted', 'That image was not accepted.'),
+        );
       }}
       onChange={(next) => {
         const file = next[0]?.file;
@@ -480,7 +501,7 @@ function LogoField({
           })
           .catch(() => {
             setBusy(false);
-            setProblem('That file could not be read.');
+            setProblem(tr('settings.that_file_could_not_be_read', 'That file could not be read.'));
           });
       }}
     />
@@ -521,14 +542,17 @@ function AboutField({
   const hosts = drafted?.sources.map((u) => new URL(u).hostname) ?? [];
   return (
     <Field invalid={problem !== null}>
-      <FieldLabel>About the company</FieldLabel>
+      <FieldLabel>{tr('settings.about_the_company', 'About the company')}</FieldLabel>
       <FieldControl>
         <Textarea
           autoResize
           rows={3}
           value={g.about ?? ''}
           disabled={writing}
-          placeholder="What you do, for whom, and what it is like to work here."
+          placeholder={tr(
+            'settings.what_you_do_for_whom_and',
+            'What you do, for whom, and what it is like to work here.',
+          )}
           onChange={(e) => {
             onChange(e.target.value === '' ? null : e.target.value);
           }}
@@ -537,10 +561,24 @@ function AboutField({
       {drafted === null ? null : (
         <div className="flex animate-arrive flex-wrap items-center gap-2 text-sm text-fg-muted">
           <Badge size="sm" tone="assistant">
-            {fromAi ? 'Written by AI' : 'Started by AI, edited by you'}
+            {fromAi
+              ? tr('settings.written_by_ai', 'Written by AI')
+              : tr('settings.started_by_ai_edited_by_you', 'Started by AI, edited by you')}
           </Badge>
           <span>
-            {`From ${hosts.length === 0 ? `what the AI knows of ${g.companyName}` : [...new Set(hosts)].join(', ')}${drafted.searched ? ' and a web search' : ''}. Check every line before saving.`}
+            {tr(
+              'settings.from_check_every_line_before_saving',
+              'From {{value}}{{value2}}. Check every line before saving.',
+              {
+                value:
+                  hosts.length === 0
+                    ? `what the AI knows of ${g.companyName}`
+                    : [...new Set(hosts)].join(', '),
+                value2: drafted.searched
+                  ? ' ' + tr('settings.and_a_web_search', 'and a web search')
+                  : '',
+              },
+            )}
           </span>
         </div>
       )}
@@ -572,15 +610,18 @@ function AboutField({
           }}
         >
           {writing
-            ? 'Searching the web'
+            ? tr('settings.searching_the_web', 'Searching the web')
             : (g.about ?? '') === ''
-              ? 'Write it with AI'
-              : 'Rewrite it with AI'}
+              ? tr('settings.write_it_with_ai', 'Write it with AI')
+              : tr('settings.rewrite_it_with_ai', 'Rewrite it with AI')}
         </Button>
       </div>
       {aiOn ? null : (
         <FieldDescription>
-          To write it with AI, switch on “Write and translate job ads” under AI.
+          {tr(
+            'settings.to_write_it_with_ai_switch',
+            'To write it with AI, switch on “Write and translate job ads” under AI.',
+          )}
         </FieldDescription>
       )}
     </Field>
@@ -601,26 +642,38 @@ const CareersPage: Body = ({ data, props }) => {
   });
   return (
     <>
-      <Header title="Careers page" description="Your company as candidates see it." />
+      <Header
+        title={tr('settings.careers_page', 'Careers page')}
+        description={tr(
+          'settings.your_company_as_candidates_see_it',
+          'Your company as candidates see it.',
+        )}
+      />
       <Stack>
         <Refusal error={act.error} />
         {fromCompany ? (
           <Alert
             tone="accent"
             icon={<icons.company aria-hidden />}
-            title="Filled in from your company’s profile"
+            title={tr(
+              'settings.filled_in_from_your_companys_profile',
+              'Filled in from your company’s profile',
+            )}
             className="animate-arrive"
           >
-            Check them, then save to use them on your careers page and in every email.
+            {tr(
+              'settings.check_them_then_save_to_use',
+              'Check them, then save to use them on your careers page and in every email.',
+            )}
           </Alert>
         ) : null}
-        <Group title="Your company">
+        <Group title={tr('settings.your_company', 'Your company')}>
           <Field required invalid={checks.invalid('name')}>
-            <FieldLabel>Company name</FieldLabel>
+            <FieldLabel>{tr('settings.company_name', 'Company name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={g.companyName}
-                placeholder="Meridian Freight"
+                placeholder={tr('settings.meridian_freight', 'Meridian Freight')}
                 onChange={(e) => {
                   set({ companyName: e.target.value });
                 }}
@@ -645,9 +698,11 @@ const CareersPage: Body = ({ data, props }) => {
             }}
           />
         </Group>
-        <Group title="Where candidates find you">
+        <Group title={tr('settings.where_candidates_find_you', 'Where candidates find you')}>
           <Field required invalid={checks.invalid('slug')}>
-            <FieldLabel>Address on Kithena Jobs</FieldLabel>
+            <FieldLabel>
+              {tr('settings.address_on_kithena_jobs', 'Address on Kithena Jobs')}
+            </FieldLabel>
             <FieldControl>
               <Input
                 value={g.companySlug}
@@ -663,8 +718,14 @@ const CareersPage: Body = ({ data, props }) => {
           </Field>
           <List>
             <SwitchRow
-              label="Show your jobs in Kithena Jobs search"
-              description="Off: only people with your link find them."
+              label={tr(
+                'settings.show_your_jobs_in_kithena_jobs',
+                'Show your jobs in Kithena Jobs search',
+              )}
+              description={tr(
+                'settings.off_only_people_with_your_link',
+                'Off: only people with your link find them.',
+              )}
               checked={g.searchable}
               onChange={(on) => {
                 set({ searchable: on });
@@ -673,9 +734,9 @@ const CareersPage: Body = ({ data, props }) => {
           </List>
         </Group>
         {data.domainsOn ? <OwnDomain domain={data.careersDomain} props={props} /> : null}
-        <Group title="Replies">
+        <Group title={tr('settings.replies', 'Replies')}>
           <Field invalid={checks.invalid('reply')}>
-            <FieldLabel>Reply-to address</FieldLabel>
+            <FieldLabel>{tr('settings.reply_to_address', 'Reply-to address')}</FieldLabel>
             <FieldControl>
               <Input
                 type="email"
@@ -688,14 +749,17 @@ const CareersPage: Body = ({ data, props }) => {
                 }}
               />
             </FieldControl>
-            <FieldDescription>Optional.</FieldDescription>
+            <FieldDescription>{tr('settings.optional', 'Optional.')}</FieldDescription>
             <FieldError>{checks.error('reply')}</FieldError>
           </Field>
         </Group>
         <FormSaveBar
           open={changed}
           saving={act.pending}
-          message="Your careers page and every email follow these at once."
+          message={tr(
+            'settings.your_careers_page_and_every_email',
+            'Your careers page and every email follow these at once.',
+          )}
           onDiscard={discard}
           onSave={() => {
             if (checks.pass()) save();
@@ -707,19 +771,19 @@ const CareersPage: Body = ({ data, props }) => {
 };
 
 const REVEAL: readonly (readonly [GeneralSettings['revealInternalAt'], string])[] = [
-  ['screening', 'Once they pass screening'],
-  ['interview', 'Once they reach interviews'],
-  ['assessment', 'Once they reach the assessment'],
-  ['offer', 'Only at the offer'],
+  ['screening', tr('settings.once_they_pass_screening', 'Once they pass screening')],
+  ['interview', tr('settings.once_they_reach_interviews', 'Once they reach interviews')],
+  ['assessment', tr('settings.once_they_reach_the_assessment', 'Once they reach the assessment')],
+  ['offer', tr('settings.only_at_the_offer', 'Only at the offer')],
 ];
 
 const AFTER: readonly (readonly [
   NonNullable<GeneralSettings['referralBonus']>['after'],
   string,
 ])[] = [
-  ['probation', 'After probation'],
-  ['three_months', 'After three months'],
-  ['six_months', 'After six months'],
+  ['probation', tr('settings.after_probation', 'After probation')],
+  ['three_months', tr('settings.after_three_months', 'After three months')],
+  ['six_months', tr('settings.after_six_months', 'After six months')],
 ];
 
 // Words joined by underscores; a split rather than a trim of `_+$`, which backtracks on long runs.
@@ -743,13 +807,19 @@ const HiringRules: Body = ({ data, props }) => {
   });
   return (
     <>
-      <Header title="Hiring rules" description="How hiring runs at your company." />
+      <Header
+        title={tr('settings.hiring_rules', 'Hiring rules')}
+        description={tr(
+          'settings.how_hiring_runs_at_your_company',
+          'How hiring runs at your company.',
+        )}
+      />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="Opening a job">
+        <Group title={tr('settings.opening_a_job', 'Opening a job')}>
           <List>
             <SwitchRow
-              label="Approve jobs before they open"
+              label={tr('settings.approve_jobs_before_they_open', 'Approve jobs before they open')}
               description={
                 g.requisitionsOn
                   ? 'A job opens once its request is approved.'
@@ -762,9 +832,11 @@ const HiringRules: Body = ({ data, props }) => {
             />
           </List>
         </Group>
-        <Group title="Internal applicants">
+        <Group title={tr('settings.internal_applicants', 'Internal applicants')}>
           <Field>
-            <FieldLabel>Their manager learns of it</FieldLabel>
+            <FieldLabel>
+              {tr('settings.their_manager_learns_of_it', 'Their manager learns of it')}
+            </FieldLabel>
             <Select
               value={g.revealInternalAt}
               onValueChange={(v) => {
@@ -786,11 +858,14 @@ const HiringRules: Body = ({ data, props }) => {
             </Select>
           </Field>
         </Group>
-        <Group title="Referrals">
+        <Group title={tr('settings.referrals', 'Referrals')}>
           <List>
             <SwitchRow
-              label="Pay a referral bonus"
-              description="To the employee who referred the hire."
+              label={tr('settings.pay_a_referral_bonus', 'Pay a referral bonus')}
+              description={tr(
+                'settings.to_the_employee_who_referred_the',
+                'To the employee who referred the hire.',
+              )}
               checked={bonus !== null}
               onChange={(on) => {
                 set({
@@ -809,7 +884,7 @@ const HiringRules: Body = ({ data, props }) => {
             {bonus === null ? null : (
               <div className="flex flex-col gap-4 pt-2">
                 <Field required invalid={checks.invalid('bonus')}>
-                  <FieldLabel>Amount</FieldLabel>
+                  <FieldLabel>{tr('settings.amount', 'Amount')}</FieldLabel>
                   <FieldControl>
                     <CurrencyField
                       currency={bonus.currency}
@@ -823,7 +898,7 @@ const HiringRules: Body = ({ data, props }) => {
                 </Field>
                 {currencies.length > 1 ? (
                   <Field>
-                    <FieldLabel>Currency</FieldLabel>
+                    <FieldLabel>{tr('settings.currency', 'Currency')}</FieldLabel>
                     <Select
                       value={bonus.currency}
                       onValueChange={(currency) => {
@@ -846,7 +921,7 @@ const HiringRules: Body = ({ data, props }) => {
                   </Field>
                 ) : null}
                 <Field>
-                  <FieldLabel>Paid</FieldLabel>
+                  <FieldLabel>{tr('settings.paid', 'Paid')}</FieldLabel>
                   <Select
                     value={bonus.after}
                     onValueChange={(v) => {
@@ -873,11 +948,17 @@ const HiringRules: Body = ({ data, props }) => {
             )}
           </Reveal>
         </Group>
-        <Group title="Rejection reasons" description="Internal only; candidates never see them.">
+        <Group
+          title={tr('settings.rejection_reasons', 'Rejection reasons')}
+          description={tr(
+            'settings.internal_only_candidates_never_see_them',
+            'Internal only; candidates never see them.',
+          )}
+        >
           <TagsInput
-            label="Reasons"
+            label={tr('settings.reasons', 'Reasons')}
             value={g.rejectionReasons.map(words)}
-            placeholder="Add a reason, then Enter"
+            placeholder={tr('settings.add_a_reason_then_enter', 'Add a reason, then Enter')}
             invalid={checks.invalid('reasons')}
             hint={checks.error('reasons') ?? 'Press Enter after each one.'}
             validate={(text) => {
@@ -890,11 +971,14 @@ const HiringRules: Body = ({ data, props }) => {
             }}
           />
         </Group>
-        <Group title="Equal opportunity">
+        <Group title={tr('settings.equal_opportunity', 'Equal opportunity')}>
           <List>
             <SwitchRow
-              label="US federal contractor"
-              description="Adds the equal-opportunity statement to US jobs."
+              label={tr('settings.us_federal_contractor', 'US federal contractor')}
+              description={tr(
+                'settings.adds_the_equal_opportunity_statement_to',
+                'Adds the equal-opportunity statement to US jobs.',
+              )}
               checked={g.federalContractor}
               onChange={(on) => {
                 set({ federalContractor: on });
@@ -905,7 +989,10 @@ const HiringRules: Body = ({ data, props }) => {
         <FormSaveBar
           open={changed}
           saving={act.pending}
-          message="Jobs and candidates follow these from now on."
+          message={tr(
+            'settings.jobs_and_candidates_follow_these_from',
+            'Jobs and candidates follow these from now on.',
+          )}
           onDiscard={discard}
           onSave={() => {
             if (checks.pass()) save();
@@ -932,7 +1019,7 @@ function OwnDomain({
       : 'Enter a domain such as careers.yourcompany.com, without https://.',
   });
   return (
-    <Group title="Your own domain">
+    <Group title={tr('settings.your_own_domain', 'Your own domain')}>
       <div className="flex flex-col gap-3">
         <Refusal error={act.error} />
         {domain === null ? (
@@ -944,7 +1031,7 @@ function OwnDomain({
             }}
           >
             <Field className="flex-1" invalid={checks.invalid('host')}>
-              <FieldLabel>Domain</FieldLabel>
+              <FieldLabel>{tr('settings.domain', 'Domain')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={host}
@@ -957,7 +1044,7 @@ function OwnDomain({
               <FieldError>{checks.error('host')}</FieldError>
             </Field>
             <Button type="submit" variant="primary" loading={act.pending}>
-              Add domain
+              {tr('settings.add_domain', 'Add domain')}
             </Button>
           </form>
         ) : (
@@ -965,21 +1052,25 @@ function OwnDomain({
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{domain.host}</span>
               <Badge size="sm" tone={domain.status === 'verified' ? 'success' : 'warning'}>
-                {domain.status === 'verified' ? 'Live' : 'Waiting for DNS'}
+                {domain.status === 'verified'
+                  ? tr('settings.live', 'Live')
+                  : tr('settings.waiting_for_dns', 'Waiting for DNS')}
               </Badge>
             </div>
             {domain.status === 'verified' ? null : (
               <>
                 <p className="text-sm text-fg-muted">
-                  Add these records at your DNS provider, then check. DNS can take up to a day to
-                  reach everyone.
+                  {tr(
+                    'settings.add_these_records_at_your_dns',
+                    'Add these records at your DNS provider, then check. DNS can take up to a day to reach everyone.',
+                  )}
                 </p>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Value</TableHead>
+                      <TableHead>{tr('settings.type', 'Type')}</TableHead>
+                      <TableHead>{tr('settings.name', 'Name')}</TableHead>
+                      <TableHead>{tr('settings.value', 'Value')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1002,7 +1093,7 @@ function OwnDomain({
                     act.run('CheckCareersDomain', {});
                   }}
                 >
-                  Check DNS
+                  {tr('settings.check_dns', 'Check DNS')}
                 </Button>
               )}
               <Button
@@ -1012,7 +1103,7 @@ function OwnDomain({
                   act.run('RemoveCareersDomain', {});
                 }}
               >
-                Remove
+                {tr('settings.remove_3', 'Remove')}
               </Button>
             </div>
           </>
@@ -1034,10 +1125,16 @@ const Organisation: Body = ({ data, props }) => {
     data.entities.find((e) => e.id === id)?.name ?? null;
   return (
     <>
-      <Header title="Entities and locations" description="Who employs, and where people work." />
+      <Header
+        title={tr('settings.entities_and_locations', 'Entities and locations')}
+        description={tr(
+          'settings.who_employs_and_where_people_work',
+          'Who employs, and where people work.',
+        )}
+      />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="Legal entities">
+        <Group title={tr('settings.legal_entities', 'Legal entities')}>
           <Things
             empty={
               data.entities.length === 0 ? 'Add the company that employs, such as Acme GmbH.' : null
@@ -1082,13 +1179,13 @@ const Organisation: Body = ({ data, props }) => {
             ))}
           </Things>
           <AddButton
-            label="Add legal entity"
+            label={tr('settings.add_legal_entity', 'Add legal entity')}
             onClick={() => {
               setEntity('new');
             }}
           />
         </Group>
-        <Group title="Locations">
+        <Group title={tr('settings.locations', 'Locations')}>
           <Things
             empty={data.locations.length === 0 ? 'Add an office, a site or a city.' : null}
             icon={<icons.location aria-hidden />}
@@ -1131,13 +1228,13 @@ const Organisation: Body = ({ data, props }) => {
             ))}
           </Things>
           <AddButton
-            label="Add location"
+            label={tr('settings.add_location', 'Add location')}
             onClick={() => {
               setLocation('new');
             }}
           />
         </Group>
-        <Group title="Departments">
+        <Group title={tr('settings.departments', 'Departments')}>
           <Things
             empty={data.orgUnits.length === 0 ? 'Add a department, such as Engineering.' : null}
             icon={<icons.organisation aria-hidden />}
@@ -1181,17 +1278,20 @@ const Organisation: Body = ({ data, props }) => {
             ))}
           </Things>
           <AddButton
-            label="Add department"
+            label={tr('settings.add_department', 'Add department')}
             onClick={() => {
               setUnit('new');
             }}
           />
         </Group>
-        <Group title="Describe a change">
+        <Group title={tr('settings.describe_a_change', 'Describe a change')}>
           <InWords
             data={data}
             props={props}
-            placeholder="Add a Berlin office under Acme GmbH, or a Platform team under Engineering"
+            placeholder={tr(
+              'settings.add_a_berlin_office_under_acme',
+              'Add a Berlin office under Acme GmbH, or a Platform team under Engineering',
+            )}
           />
         </Group>
       </Stack>
@@ -1237,12 +1337,21 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Pipelines and approvals"
-        description="How candidates move, and who approves."
+        title={tr('settings.pipelines_and_approvals', 'Pipelines and approvals')}
+        description={tr(
+          'settings.how_candidates_move_and_who_approves',
+          'How candidates move, and who approves.',
+        )}
       />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="Pipelines" description="Changes apply to new jobs only.">
+        <Group
+          title={tr('settings.pipelines', 'Pipelines')}
+          description={tr(
+            'settings.changes_apply_to_new_jobs_only',
+            'Changes apply to new jobs only.',
+          )}
+        >
           <Things
             empty={data.pipelines.length === 0 ? 'Add the steps candidates move through.' : null}
             icon={<icons.hierarchy aria-hidden />}
@@ -1261,7 +1370,7 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
                   ? {
                       meta: (
                         <Badge size="xs" tone="accent" variant="soft">
-                          Default
+                          {tr('settings.default', 'Default')}
                         </Badge>
                       ),
                     }
@@ -1287,25 +1396,37 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
             ))}
           </Things>
           <AddButton
-            label="Add pipeline"
+            label={tr('settings.add_pipeline', 'Add pipeline')}
             onClick={() => {
               setPipeline('new');
             }}
           />
         </Group>
-        <Group title="Approvals">
-          <Alert tone="info" icon={<icons.approve aria-hidden />} title="How approvals work">
+        <Group title={tr('settings.approvals', 'Approvals')}>
+          <Alert
+            tone="info"
+            icon={<icons.approve aria-hidden />}
+            title={tr('settings.how_approvals_work', 'How approvals work')}
+          >
             <div className="flex flex-col gap-2">
               <p>
-                Two things can need a yes before they happen: opening a new job, and sending an
-                offer. A rule below says when, and who says yes, one after another. Each of them
-                gets a task in their Inbox; once the last says yes, it goes ahead.
+                {tr(
+                  'settings.two_things_can_need_a_yes',
+                  'Two things can need a yes before they happen: opening a new job, and sending an offer. A rule below says when, and who says yes, one after another. Each of them gets a task in their Inbox; once the last says yes, it goes ahead.',
+                )}
               </p>
               <p>
-                For example: when a new job’s budget is over €100,000, ask the hiring manager’s
-                manager, then Finance. A €60,000 job fits no rule, so it opens at once.
+                {tr(
+                  'settings.for_example_when_a_new_jobs',
+                  'For example: when a new job’s budget is over €100,000, ask the hiring manager’s manager, then Finance. A €60,000 job fits no rule, so it opens at once.',
+                )}
               </p>
-              <p>No rule fits: no approval needed. More than one fits: the narrowest is used.</p>
+              <p>
+                {tr(
+                  'settings.no_rule_fits_no_approval_needed',
+                  'No rule fits: no approval needed. More than one fits: the narrowest is used.',
+                )}
+              </p>
             </div>
           </Alert>
           <Things
@@ -1347,17 +1468,20 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
               ))}
           </Things>
           <AddButton
-            label="Add approval rule"
+            label={tr('settings.add_approval_rule', 'Add approval rule')}
             onClick={() => {
               setChain('new');
             }}
           />
         </Group>
-        <Group title="Describe a change">
+        <Group title={tr('settings.describe_a_change', 'Describe a change')}>
           <InWords
             data={data}
             props={props}
-            placeholder="A pipeline for interns with no assessment, or Finance approves jobs over 100k"
+            placeholder={tr(
+              'settings.a_pipeline_for_interns_with_no',
+              'A pipeline for interns with no assessment, or Finance approves jobs over 100k',
+            )}
           />
         </Group>
       </Stack>
@@ -1392,8 +1516,11 @@ const Questionnaires: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Questionnaires"
-        description="Questions candidates answer when they apply."
+        title={tr('settings.questionnaires', 'Questionnaires')}
+        description={tr(
+          'settings.questions_candidates_answer_when_they_apply',
+          'Questions candidates answer when they apply.',
+        )}
         actions={
           <Button
             variant="primary"
@@ -1402,7 +1529,7 @@ const Questionnaires: Body = ({ data, props }) => {
               setQuestionnaire('new');
             }}
           >
-            Add questionnaire
+            {tr('settings.add_questionnaire', 'Add questionnaire')}
           </Button>
         }
       />
@@ -1425,12 +1552,16 @@ const Questionnaires: Body = ({ data, props }) => {
                 setQuestionnaire(q);
               }}
               icon={<icons.document aria-hidden />}
-              description={`${String(q.questions.length)} ${q.questions.length === 1 ? 'question' : 'questions'} · version ${String(q.version)}`}
+              description={tr('settings.version', '{{length}} {{value}} · version {{version}}', {
+                length: String(q.questions.length),
+                value: q.questions.length === 1 ? 'question' : 'questions',
+                version: String(q.version),
+              })}
               {...(q.worksCouncilConsentVersion === q.version
                 ? {
                     meta: (
                       <Badge size="xs" tone="success" variant="soft">
-                        Works council agreed
+                        {tr('settings.works_council_agreed', 'Works council agreed')}
                       </Badge>
                     ),
                   }
@@ -1509,8 +1640,11 @@ const EmailsAndLetters: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Emails and letters"
-        description="What candidates receive, and when. Open one to read or change it."
+        title={tr('settings.emails_and_letters', 'Emails and letters')}
+        description={tr(
+          'settings.what_candidates_receive_and_when_open',
+          'What candidates receive, and when. Open one to read or change it.',
+        )}
         actions={
           <Button
             variant="primary"
@@ -1519,13 +1653,13 @@ const EmailsAndLetters: Body = ({ data, props }) => {
               setTemplate('new');
             }}
           >
-            Add template
+            {tr('settings.add_template', 'Add template')}
           </Button>
         }
       />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="Emails">
+        <Group title={tr('settings.emails', 'Emails')}>
           <Things
             empty={emails.length + builtIn.length === 0 ? 'No email yet.' : null}
             icon={<icons.email aria-hidden />}
@@ -1550,16 +1684,18 @@ const EmailsAndLetters: Body = ({ data, props }) => {
                 icon={<icons.email aria-hidden />}
                 meta={
                   <Badge size="xs" variant="outline">
-                    Built in
+                    {tr('settings.built_in', 'Built in')}
                   </Badge>
                 }
-                description={`${purposeLabel(b.purpose)} · EN`}
+                description={tr('settings.en', '{{purposeLabel}} · EN', {
+                  purposeLabel: purposeLabel(b.purpose),
+                })}
                 supporting={firstWords(b)}
               />
             ))}
           </Things>
         </Group>
-        <Group title="Letters">
+        <Group title={tr('settings.letters', 'Letters')}>
           <Things
             empty={letters.length === 0 ? 'No letter yet.' : null}
             icon={<icons.document aria-hidden />}
@@ -1605,7 +1741,9 @@ interface DraftCompetency {
   readonly questions: string;
 }
 
-const draftOf = (c: Template['competencies'][number] | SettingsData['scorecards'][number]['competencies'][number]): DraftCompetency => ({
+const draftOf = (
+  c: Template['competencies'][number] | SettingsData['scorecards'][number]['competencies'][number],
+): DraftCompetency => ({
   id: newId(),
   key: c.key,
   name: c.name,
@@ -1658,11 +1796,17 @@ function ScorecardEditor({
         : taken.some((t) => t.toLowerCase() === name.trim().toLowerCase() && t !== held?.name)
           ? 'A scorecard by that name is already here.'
           : null,
-    competencies: named.length === 0 ? 'Add at least one competency to rate.' : null,
+    competencies:
+      named.length === 0
+        ? tr('settings.add_at_least_one_competency_to', 'Add at least one competency to rate.')
+        : null,
     twice:
       new Set(named.map((c) => c.name.trim().toLowerCase())).size === named.length
         ? null
-        : 'Two competencies have the same name.',
+        : tr(
+            'settings.two_competencies_have_the_same_name',
+            'Two competencies have the same name.',
+          ),
   });
   return (
     <Dialog
@@ -1673,24 +1817,33 @@ function ScorecardEditor({
     >
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{held === null ? 'New scorecard' : held.name}</DialogTitle>
+          <DialogTitle>
+            {held === null ? tr('settings.new_scorecard', 'New scorecard') : held.name}
+          </DialogTitle>
           <DialogDescription>
-            What interviewers rate after an interview, each competency on the four-point scale.
+            {tr(
+              'settings.what_interviewers_rate_after_an_interview',
+              'What interviewers rate after an interview, each competency on the four-point scale.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={act.error} />
           {checks.tried && (checks.error('competencies') ?? checks.error('twice')) !== null ? (
-            <Alert tone="danger" title="Before saving" className="animate-arrive">
+            <Alert
+              tone="danger"
+              title={tr('settings.before_saving', 'Before saving')}
+              className="animate-arrive"
+            >
               {checks.error('competencies') ?? checks.error('twice')}
             </Alert>
           ) : null}
           <Field required invalid={checks.invalid('name')}>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('settings.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={name}
-                placeholder="Backend engineering"
+                placeholder={tr('settings.backend_engineering', 'Backend engineering')}
                 onChange={(e) => {
                   setName(e.target.value);
                 }}
@@ -1700,7 +1853,9 @@ function ScorecardEditor({
           </Field>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-semibold">Competencies</span>
+              <span className="text-sm font-semibold">
+                {tr('settings.competencies', 'Competencies')}
+              </span>
               {held === null ? null : (
                 <Button
                   size="sm"
@@ -1741,22 +1896,30 @@ function ScorecardEditor({
                     });
                   }}
                 >
-                  Suggest questions with AI
+                  {tr('settings.suggest_questions_with_ai', 'Suggest questions with AI')}
                 </Button>
               )}
             </div>
             {aiProblem === null ? null : <Refusal error={aiProblem} />}
             {held !== null && !aiOn ? (
               <p className="text-sm text-fg-muted">
-                To suggest questions with AI, switch on “Write and translate job ads” under AI.
+                {tr(
+                  'settings.to_suggest_questions_with_ai_switch',
+                  'To suggest questions with AI, switch on “Write and translate job ads” under AI.',
+                )}
               </p>
             ) : null}
             {suggested ? (
               <div className="flex animate-arrive items-center gap-2 text-sm text-fg-muted">
                 <Badge size="sm" tone="assistant">
-                  Suggested by AI
+                  {tr('settings.suggested_by_ai', 'Suggested by AI')}
                 </Badge>
-                <span>Questions added below. Read them, change any, then save.</span>
+                <span>
+                  {tr(
+                    'settings.questions_added_below_read_them_change',
+                    'Questions added below. Read them, change any, then save.',
+                  )}
+                </span>
               </div>
             ) : null}
             {competencies.map((c, i) => (
@@ -1766,11 +1929,13 @@ function ScorecardEditor({
               >
                 <div className="flex items-start gap-2">
                   <Field required className="flex-1">
-                    <FieldLabel>{`Competency ${String(i + 1)}`}</FieldLabel>
+                    <FieldLabel>
+                      {tr('settings.competency', 'Competency {{value}}', { value: String(i + 1) })}
+                    </FieldLabel>
                     <FieldControl>
                       <Input
                         value={c.name}
-                        placeholder="System design"
+                        placeholder={tr('settings.system_design', 'System design')}
                         onChange={(e) => {
                           update(c.id, { name: e.target.value });
                         }}
@@ -1781,7 +1946,9 @@ function ScorecardEditor({
                     size="xs"
                     variant="ghost"
                     className="mt-6"
-                    aria-label={`Remove ${c.name === '' ? `competency ${String(i + 1)}` : c.name}`}
+                    aria-label={tr('settings.remove_4', 'Remove {{value}}', {
+                      value: c.name === '' ? `competency ${String(i + 1)}` : c.name,
+                    })}
                     startIcon={<icons.remove aria-hidden />}
                     onClick={() => {
                       setCompetencies(competencies.filter((x) => x.id !== c.id));
@@ -1789,13 +1956,18 @@ function ScorecardEditor({
                   />
                 </div>
                 <Field>
-                  <FieldLabel>Notes for interviewers</FieldLabel>
+                  <FieldLabel>
+                    {tr('settings.notes_for_interviewers', 'Notes for interviewers')}
+                  </FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
                       rows={2}
                       value={c.description}
-                      placeholder="What good looks like, and what to listen for."
+                      placeholder={tr(
+                        'settings.what_good_looks_like_and_what',
+                        'What good looks like, and what to listen for.',
+                      )}
                       onChange={(e) => {
                         update(c.id, { description: e.target.value });
                       }}
@@ -1803,19 +1975,24 @@ function ScorecardEditor({
                   </FieldControl>
                 </Field>
                 <Field>
-                  <FieldLabel>Questions to ask</FieldLabel>
+                  <FieldLabel>{tr('settings.questions_to_ask', 'Questions to ask')}</FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
                       rows={2}
                       value={c.questions}
-                      placeholder="One question a line"
+                      placeholder={tr('settings.one_question_a_line', 'One question a line')}
                       onChange={(e) => {
                         update(c.id, { questions: e.target.value });
                       }}
                     />
                   </FieldControl>
-                  <FieldDescription>One a line. Interviewers see them in their kit.</FieldDescription>
+                  <FieldDescription>
+                    {tr(
+                      'settings.one_a_line_interviewers_see_them',
+                      'One a line. Interviewers see them in their kit.',
+                    )}
+                  </FieldDescription>
                 </Field>
               </div>
             ))}
@@ -1828,14 +2005,14 @@ function ScorecardEditor({
                   setCompetencies([...competencies, blank()]);
                 }}
               >
-                Add competency
+                {tr('settings.add_competency', 'Add competency')}
               </Button>
             </div>
           </div>
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {tr('settings.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -1863,7 +2040,9 @@ function ScorecardEditor({
               );
             }}
           >
-            {held === null ? 'Add scorecard' : 'Save'}
+            {held === null
+              ? tr('settings.add_scorecard', 'Add scorecard')
+              : tr('settings.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1872,10 +2051,18 @@ function ScorecardEditor({
 }
 
 const SCALE = [
-  ['1', 'Strong no', 'Clear evidence against.'],
-  ['2', 'No', 'More against than for.'],
-  ['3', 'Yes', 'More for than against.'],
-  ['4', 'Strong yes', 'Clear, repeated evidence for.'],
+  [
+    '1',
+    tr('settings.strong_no', 'Strong no'),
+    tr('settings.clear_evidence_against', 'Clear evidence against.'),
+  ],
+  ['2', tr('settings.no', 'No'), tr('settings.more_against_than_for', 'More against than for.')],
+  ['3', tr('settings.yes', 'Yes'), tr('settings.more_for_than_against', 'More for than against.')],
+  [
+    '4',
+    tr('settings.strong_yes', 'Strong yes'),
+    tr('settings.clear_repeated_evidence_for', 'Clear, repeated evidence for.'),
+  ],
 ] as const;
 
 const Scorecards: Body = ({ data, props }) => {
@@ -1885,8 +2072,11 @@ const Scorecards: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Scorecards"
-        description="What interviewers rate after each interview. Open one to change it."
+        title={tr('settings.scorecards', 'Scorecards')}
+        description={tr(
+          'settings.what_interviewers_rate_after_each_interview',
+          'What interviewers rate after each interview. Open one to change it.',
+        )}
         actions={
           <Button
             variant="primary"
@@ -1895,13 +2085,13 @@ const Scorecards: Body = ({ data, props }) => {
               setEditing('new');
             }}
           >
-            Add scorecard
+            {tr('settings.add_scorecard', 'Add scorecard')}
           </Button>
         }
       />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="Scorecards">
+        <Group title={tr('settings.scorecards', 'Scorecards')}>
           <Things
             empty={
               data.scorecards.length === 0
@@ -1943,7 +2133,7 @@ const Scorecards: Body = ({ data, props }) => {
             })}
           </Things>
         </Group>
-        <Group title="The scale">
+        <Group title={tr('settings.the_scale', 'The scale')}>
           <List>
             {SCALE.map(([n, label, line]) => (
               <ListItem
@@ -2002,22 +2192,28 @@ function PayBandEditor({
   const checks = useChecks({
     grade:
       grade.trim() === ''
-        ? 'Name the grade, such as Senior or E3.'
+        ? tr('settings.name_the_grade_such_as_senior', 'Name the grade, such as Senior or E3.')
         : data.payBands.some(
               (b) =>
                 b.id !== held?.id &&
                 b.currency === currency &&
                 b.grade.toLowerCase() === grade.trim().toLowerCase(),
             )
-          ? 'That grade already has a band in this currency.'
+          ? tr(
+              'settings.that_grade_already_has_a_band',
+              'That grade already has a band in this currency.',
+            )
           : null,
-    entity: entity === '' ? 'Choose who pays it.' : null,
-    min: min === '' || Number(min) <= 0 ? 'Enter the lowest yearly salary.' : null,
+    entity: entity === '' ? tr('settings.choose_who_pays_it', 'Choose who pays it.') : null,
+    min:
+      min === '' || Number(min) <= 0
+        ? tr('settings.enter_the_lowest_yearly_salary', 'Enter the lowest yearly salary.')
+        : null,
     max:
       max === ''
-        ? 'Enter the highest yearly salary.'
+        ? tr('settings.enter_the_highest_yearly_salary', 'Enter the highest yearly salary.')
         : min !== '' && Number(max) <= Number(min)
-          ? 'The highest is above the lowest.'
+          ? tr('settings.the_highest_is_above_the_lowest', 'The highest is above the lowest.')
           : null,
   });
   const complete = grade.trim() !== '' && min !== '' && max !== '' && Number(max) > Number(min);
@@ -2030,40 +2226,57 @@ function PayBandEditor({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{held === null ? 'New pay band' : `Pay band: ${held.grade}`}</DialogTitle>
+          <DialogTitle>
+            {held === null
+              ? tr('settings.new_pay_band', 'New pay band')
+              : tr('settings.pay_band', 'Pay band: {{grade}}', { grade: held.grade })}
+          </DialogTitle>
           <DialogDescription>
-            The yearly salary a grade pays, from lowest to highest.
+            {tr(
+              'settings.the_yearly_salary_a_grade_pays',
+              'The yearly salary a grade pays, from lowest to highest.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={act.error} />
           <Field required invalid={checks.invalid('grade')}>
-            <FieldLabel>Grade</FieldLabel>
+            <FieldLabel>{tr('settings.grade', 'Grade')}</FieldLabel>
             <FieldControl>
               <Input
                 value={grade}
-                placeholder="Senior"
+                placeholder={tr('settings.senior', 'Senior')}
                 onChange={(e) => {
                   setGrade(e.target.value);
                 }}
               />
             </FieldControl>
-            <FieldDescription>The level a job is hired at, as your offers name it.</FieldDescription>
+            <FieldDescription>
+              {tr(
+                'settings.the_level_a_job_is_hired',
+                'The level a job is hired at, as your offers name it.',
+              )}
+            </FieldDescription>
             <FieldError>{checks.error('grade')}</FieldError>
           </Field>
           {data.entities.length < 2 ? null : (
             <Field required invalid={checks.invalid('entity')}>
-              <FieldLabel>Paid by</FieldLabel>
+              <FieldLabel>{tr('settings.paid_by', 'Paid by')}</FieldLabel>
               <Select value={entity} onValueChange={setEntity}>
                 <FieldControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose an entity" />
+                    <SelectValue
+                      placeholder={tr('settings.choose_an_entity', 'Choose an entity')}
+                    />
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
                   {data.entities.map((e) => (
                     <SelectItem key={e.id} value={e.id}>
-                      {`${e.name}, in ${e.currency}`}
+                      {tr('settings.in', '{{name}}, in {{currency}}', {
+                        name: e.name,
+                        currency: e.currency,
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -2073,14 +2286,14 @@ function PayBandEditor({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field required invalid={checks.invalid('min')}>
-              <FieldLabel>Lowest, a year</FieldLabel>
+              <FieldLabel>{tr('settings.lowest_a_year', 'Lowest, a year')}</FieldLabel>
               <FieldControl>
                 <CurrencyField currency={currency} value={min} onValueChange={setMin} />
               </FieldControl>
               <FieldError>{checks.error('min')}</FieldError>
             </Field>
             <Field required invalid={checks.invalid('max')}>
-              <FieldLabel>Highest, a year</FieldLabel>
+              <FieldLabel>{tr('settings.highest_a_year', 'Highest, a year')}</FieldLabel>
               <FieldControl>
                 <CurrencyField currency={currency} value={max} onValueChange={setMax} />
               </FieldControl>
@@ -2089,13 +2302,21 @@ function PayBandEditor({
           </div>
           {complete ? (
             <Alert tone="accent" icon={<icons.payment aria-hidden />} className="animate-arrive">
-              {`An offer for ${grade.trim()} pays between ${money(Number(min), currency)} and ${money(Number(max), currency)} a year. Outside that, whoever makes it gives a reason.`}
+              {tr(
+                'settings.an_offer_for_pays_between_and',
+                'An offer for {{grade}} pays between {{min}} and {{max}} a year. Outside that, whoever makes it gives a reason.',
+                {
+                  grade: grade.trim(),
+                  min: money(Number(min), currency),
+                  max: money(Number(max), currency),
+                },
+              )}
             </Alert>
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {tr('settings.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -2118,7 +2339,9 @@ function PayBandEditor({
               );
             }}
           >
-            {held === null ? 'Add pay band' : 'Save'}
+            {held === null
+              ? tr('settings.add_pay_band', 'Add pay band')
+              : tr('settings.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -2141,8 +2364,11 @@ const PayBands: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Pay bands"
-        description="The yearly salary each grade pays. Open one to change it."
+        title={tr('settings.pay_bands', 'Pay bands')}
+        description={tr(
+          'settings.the_yearly_salary_each_grade_pays',
+          'The yearly salary each grade pays. Open one to change it.',
+        )}
         actions={
           data.entities.length === 0 ? undefined : (
             <Button
@@ -2152,24 +2378,32 @@ const PayBands: Body = ({ data, props }) => {
                 setBand('new');
               }}
             >
-              Add pay band
+              {tr('settings.add_pay_band', 'Add pay band')}
             </Button>
           )
         }
       />
       <Stack>
         <Refusal error={act.error} />
-        <Alert tone="info" icon={<icons.payment aria-hidden />} title="How pay bands work">
-          A job is hired at a grade, such as Junior, Senior or E3. Its band is the range an offer
-          for that grade should fall in. An offer outside it asks for a reason, and goes to
-          whoever an approval rule names.
+        <Alert
+          tone="info"
+          icon={<icons.payment aria-hidden />}
+          title={tr('settings.how_pay_bands_work', 'How pay bands work')}
+        >
+          {tr(
+            'settings.a_job_is_hired_at_a',
+            'A job is hired at a grade, such as Junior, Senior or E3. Its band is the range an offer for that grade should fall in. An offer outside it asks for a reason, and goes to whoever an approval rule names.',
+          )}
         </Alert>
         {data.entities.length === 0 ? (
-          <Alert tone="warning" title="Add a legal entity first">
-            A band is paid in its entity’s currency.
+          <Alert
+            tone="warning"
+            title={tr('settings.add_a_legal_entity_first', 'Add a legal entity first')}
+          >
+            {tr('settings.a_band_is_paid_in_its', 'A band is paid in its entity’s currency.')}
           </Alert>
         ) : (
-          <Group title="Bands">
+          <Group title={tr('settings.bands', 'Bands')}>
             <Things
               empty={bands.length === 0 ? 'Add the range for each grade you hire at.' : null}
               icon={<icons.payment aria-hidden />}
@@ -2185,7 +2419,15 @@ const PayBands: Body = ({ data, props }) => {
                     else setBand(b);
                   }}
                   icon={<icons.payment aria-hidden />}
-                  description={`${money(b.minMinor, b.currency)} to ${money(b.maxMinor, b.currency)} a year${payers(b.currency) === '' ? '' : ` · ${payers(b.currency)}`}`}
+                  description={tr(
+                    'settings.to_a_year',
+                    '{{minMinor}} to {{maxMinor}} a year{{value}}',
+                    {
+                      minMinor: money(b.minMinor, b.currency),
+                      maxMinor: money(b.maxMinor, b.currency),
+                      value: payers(b.currency) === '' ? '' : ` · ${payers(b.currency)}`,
+                    },
+                  )}
                   {...(b.source === 'people'
                     ? { meta: <FromPeople /> }
                     : {
@@ -2229,11 +2471,15 @@ const PayBands: Body = ({ data, props }) => {
 const worth = (b: Benefit): string | null => {
   switch (b.value.kind) {
     case 'money':
-      return `${money(b.value.yearlyMinor, b.value.currency)} a year`;
+      return tr('settings.a_year', '{{yearlyMinor}} a year', {
+        yearlyMinor: money(b.value.yearlyMinor, b.value.currency),
+      });
     case 'percent':
-      return `${String(b.value.basisPoints / 100)}% of pay`;
+      return tr('settings.of_pay', '{{value}}% of pay', {
+        value: String(b.value.basisPoints / 100),
+      });
     case 'days':
-      return `${String(b.value.days)} days`;
+      return tr('settings.days', '{{days}} days', { days: String(b.value.days) });
     default:
       return null;
   }
@@ -2256,8 +2502,8 @@ const Benefits: Body = ({ data, props }) => {
   return (
     <>
       <Header
-        title="Benefits"
-        description="What each entity offers."
+        title={tr('settings.benefits', 'Benefits')}
+        description={tr('settings.what_each_entity_offers', 'What each entity offers.')}
         {...(data.entities.length === 0
           ? {}
           : {
@@ -2269,7 +2515,7 @@ const Benefits: Body = ({ data, props }) => {
                     setCategory('new');
                   }}
                 >
-                  Add category
+                  {tr('settings.add_category', 'Add category')}
                 </Button>
               ),
             })}
@@ -2277,15 +2523,21 @@ const Benefits: Body = ({ data, props }) => {
       <Stack>
         <Refusal error={act.error} />
         {data.entities.length === 0 ? (
-          <Alert tone="info" title="Add a legal entity first">
-            A benefit belongs to the entity that offers it.
+          <Alert
+            tone="info"
+            title={tr('settings.add_a_legal_entity_first', 'Add a legal entity first')}
+          >
+            {tr(
+              'settings.a_benefit_belongs_to_the_entity',
+              'A benefit belongs to the entity that offers it.',
+            )}
           </Alert>
         ) : (
           <>
-            <Group title="Catalogue">
+            <Group title={tr('settings.catalogue', 'Catalogue')}>
               {data.entities.length === 1 ? null : (
                 <Field>
-                  <FieldLabel>Benefits of</FieldLabel>
+                  <FieldLabel>{tr('settings.benefits_of', 'Benefits of')}</FieldLabel>
                   <Select value={entityId} onValueChange={setEntityId}>
                     <FieldControl>
                       <SelectTrigger>
@@ -2324,13 +2576,17 @@ const Benefits: Body = ({ data, props }) => {
                                 setBenefit({ held: null, category: c.key });
                               }}
                             >
-                              Add benefit
+                              {tr('settings.add_benefit', 'Add benefit')}
                             </Button>
                             {c.custom ? (
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                aria-label={`Edit the category ${c.name}`}
+                                aria-label={tr(
+                                  'settings.edit_the_category',
+                                  'Edit the category {{name}}',
+                                  { name: c.name },
+                                )}
                                 startIcon={<icons.edit aria-hidden />}
                                 onClick={() => {
                                   setCategory(c);
@@ -2341,7 +2597,9 @@ const Benefits: Body = ({ data, props }) => {
                         }
                       />
                       {list.length === 0 ? (
-                        <p className="ps-13 text-sm text-fg-muted">Nothing offered here yet.</p>
+                        <p className="ps-13 text-sm text-fg-muted">
+                          {tr('settings.nothing_offered_here_yet', 'Nothing offered here yet.')}
+                        </p>
                       ) : (
                         <List className="ms-13">
                           {list.map((b, i) =>
@@ -2353,7 +2611,7 @@ const Benefits: Body = ({ data, props }) => {
                                 description={[b.description, worth(b)].filter(Boolean).join(' · ')}
                                 meta={
                                   <Badge size="xs" variant="soft" tone="info">
-                                    By law
+                                    {tr('settings.by_law', 'By law')}
                                   </Badge>
                                 }
                               >
@@ -2393,7 +2651,7 @@ const Benefits: Body = ({ data, props }) => {
                 })}
               </div>
             </Group>
-            <Group title="Standard benefits">
+            <Group title={tr('settings.standard_benefits', 'Standard benefits')}>
               <div>
                 <Button
                   variant="secondary"
@@ -2403,15 +2661,18 @@ const Benefits: Body = ({ data, props }) => {
                     act.run('RestoreBenefitLibrary', {});
                   }}
                 >
-                  Put back the standard benefits
+                  {tr('settings.put_back_the_standard_benefits', 'Put back the standard benefits')}
                 </Button>
               </div>
             </Group>
-            <Group title="Describe a change">
+            <Group title={tr('settings.describe_a_change', 'Describe a change')}>
               <InWords
                 data={data}
                 props={props}
-                placeholder="A €50 a month meal allowance for Acme GmbH, after probation"
+                placeholder={tr(
+                  'settings.a_50_a_month_meal_allowance',
+                  'A €50 a month meal allowance for Acme GmbH, after probation',
+                )}
               />
             </Group>
           </>
@@ -2468,10 +2729,16 @@ const Ai: Body = ({ data, props }) => {
   );
   return (
     <>
-      <Header title="AI" description="What AI helps with, and what it never sees." />
+      <Header
+        title={tr('settings.ai', 'AI')}
+        description={tr(
+          'settings.what_ai_helps_with_and_what',
+          'What AI helps with, and what it never sees.',
+        )}
+      />
       <Stack>
         <Refusal error={act.error} />
-        <Group title="What it helps with">
+        <Group title={tr('settings.what_it_helps_with', 'What it helps with')}>
           <List>
             {feature(
               'writer',
@@ -2493,13 +2760,19 @@ const Ai: Body = ({ data, props }) => {
           </List>
         </Group>
         <Group
-          title="What it never sees"
-          description="Name, photo, age, gender, nationality and other personal details are always hidden."
+          title={tr('settings.what_it_never_sees', 'What it never sees')}
+          description={tr(
+            'settings.name_photo_age_gender_nationality_and',
+            'Name, photo, age, gender, nationality and other personal details are always hidden.',
+          )}
         >
           <List>
             <SwitchRow
-              label="Mask schools too"
-              description="Hides the names of universities and schools, against prestige bias."
+              label={tr('settings.mask_schools_too', 'Mask schools too')}
+              description={tr(
+                'settings.hides_the_names_of_universities_and',
+                'Hides the names of universities and schools, against prestige bias.',
+              )}
               checked={ai.maskSchools ?? false}
               onChange={(on) => {
                 setAi({ ...ai, maskSchools: on });
@@ -2508,21 +2781,30 @@ const Ai: Body = ({ data, props }) => {
           </List>
         </Group>
         <Group
-          title="Voluntary self-identification"
-          description="Optional, private, and only counted in groups."
+          title={tr('settings.voluntary_self_identification', 'Voluntary self-identification')}
+          description={tr(
+            'settings.optional_private_and_only_counted_in',
+            'Optional, private, and only counted in groups.',
+          )}
         >
           <List>
             <SwitchRow
-              label="Gender"
-              description="Where it is lawful to ask in the countries you hire in."
+              label={tr('settings.gender', 'Gender')}
+              description={tr(
+                'settings.where_it_is_lawful_to_ask',
+                'Where it is lawful to ask in the countries you hire in.',
+              )}
               checked={selfId.gender}
               onChange={(on) => {
                 setSelfId({ ...selfId, gender: on });
               }}
             />
             <SwitchRow
-              label="Race or ethnicity (US EEO-1)"
-              description="For an employer in the United States."
+              label={tr('settings.race_or_ethnicity_us_eeo_1', 'Race or ethnicity (US EEO-1)')}
+              description={tr(
+                'settings.for_an_employer_in_the_united',
+                'For an employer in the United States.',
+              )}
               checked={selfId.ethnicity}
               onChange={(on) => {
                 setSelfId({ ...selfId, ethnicity: on });
@@ -2530,25 +2812,38 @@ const Ai: Body = ({ data, props }) => {
             />
           </List>
         </Group>
-        <Group title="New York City" description="Needed before AI evidence is used on NYC jobs.">
+        <Group
+          title={tr('settings.new_york_city', 'New York City')}
+          description={tr(
+            'settings.needed_before_ai_evidence_is_used',
+            'Needed before AI evidence is used on NYC jobs.',
+          )}
+        >
           <Field>
-            <FieldLabel>Last independent bias audit</FieldLabel>
+            <FieldLabel>
+              {tr('settings.last_independent_bias_audit', 'Last independent bias audit')}
+            </FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Last independent bias audit"
+                label={tr('settings.last_independent_bias_audit', 'Last independent bias audit')}
                 value={ai.nycAuditOn}
                 onChange={(d) => {
                   setAi({ ...ai, nycAuditOn: d });
                 }}
               />
             </FieldControl>
-            <FieldDescription>Empty: no audit yet.</FieldDescription>
+            <FieldDescription>
+              {tr('settings.empty_no_audit_yet', 'Empty: no audit yet.')}
+            </FieldDescription>
           </Field>
         </Group>
         <FormSaveBar
           open={JSON.stringify({ ai, selfId }) !== JSON.stringify(saved)}
           saving={act.pending}
-          message="Applications read from now on follow these."
+          message={tr(
+            'settings.applications_read_from_now_on_follow',
+            'Applications read from now on follow these.',
+          )}
           onDiscard={() => {
             setAi(saved.ai);
             setSelfId(saved.selfId);
@@ -2606,7 +2901,13 @@ const Integrations: Body = ({ data }) => {
   } as const;
   return (
     <>
-      <Header title="Integrations" description="Where your jobs go, and what connects." />
+      <Header
+        title={tr('settings.integrations', 'Integrations')}
+        description={tr(
+          'settings.where_your_jobs_go_and_what',
+          'Where your jobs go, and what connects.',
+        )}
+      />
       <Stack>
         {groups.map(([title, description, rows]) => (
           <Group key={title} title={title} description={description}>
@@ -2654,14 +2955,20 @@ export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
     <Loaded load={props.load} what="Recruiting’s settings">
       {(data) =>
         !data.admin ? (
-          <Alert tone="warning" title="Administrators only">
-            Ask an administrator to change Recruiting’s settings.
+          <Alert tone="warning" title={tr('settings.administrators_only', 'Administrators only')}>
+            {tr(
+              'settings.ask_an_administrator_to_change_recruitings',
+              'Ask an administrator to change Recruiting’s settings.',
+            )}
           </Alert>
         ) : Section === undefined ? (
           <EmptyState
             icon={<icons.settings aria-hidden />}
-            title="No such setting"
-            description="It may have moved; Settings lists every one."
+            title={tr('settings.no_such_setting', 'No such setting')}
+            description={tr(
+              'settings.it_may_have_moved_settings_lists',
+              'It may have moved; Settings lists every one.',
+            )}
           />
         ) : (
           // The page's title and its cards in one column, centred in the space beside the menu.

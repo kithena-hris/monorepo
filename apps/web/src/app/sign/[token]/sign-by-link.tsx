@@ -38,6 +38,7 @@ import {
 } from '@kithena/web-documents/sign';
 
 import { declineLink, requestCode, signLink, verifyCode } from './actions';
+import { t } from '../../../lib/t';
 
 /** What a link's request looks like to its signer: Documents' `EnvelopeView`. */
 export type LinkEnvelope = EnvelopeData;
@@ -72,14 +73,27 @@ export function SignByLink({
         {problem == null || /does not open|another company/u.test(problem) ? (
           <EmptyState
             icon={<icons.locked />}
-            title="This link does not open anything"
-            description="It may have been replaced by a newer email, cancelled or signed already."
+            title={t(
+              'app.sign.[token].sign-by-link.this_link_does_not_open_anything',
+              'This link does not open anything',
+            )}
+            description={t(
+              'app.sign.[token].sign-by-link.it_may_have_been_replaced_by',
+              'It may have been replaced by a newer email, cancelled or signed already.',
+            )}
           />
         ) : (
           <EmptyState
             icon={<icons.warning />}
-            title="Kithena could not open this just now"
-            description={`${problem} Reload the page in a moment.`}
+            title={t(
+              'app.sign.[token].sign-by-link.kithena_could_not_open_this_just',
+              'Kithena could not open this just now',
+            )}
+            description={t(
+              'app.sign.[token].sign-by-link.reload_the_page_in_a_moment',
+              '{{problem}} Reload the page in a moment.',
+              { problem },
+            )}
           />
         )}
       </main>
@@ -91,23 +105,40 @@ export function SignByLink({
     const signedNow = done !== null || envelope.me?.status === 'signed';
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-6">
-        <PageHeader title={envelope.title} description={`From ${envelope.sender} at ${company}`} />
+        <PageHeader
+          title={envelope.title}
+          description={t(
+            'app.sign.[token].sign-by-link.from_at',
+            'From {{sender}} at {{company}}',
+            { sender: envelope.sender, company },
+          )}
+        />
         <Alert
           tone={signedNow || envelope.status === 'completed' ? 'success' : 'info'}
           title={
             signedNow
-              ? 'Signed'
+              ? t('app.sign.[token].sign-by-link.signed', 'Signed')
               : envelope.status === 'completed'
-                ? 'Everybody has signed'
+                ? t('app.sign.[token].sign-by-link.everybody_has_signed', 'Everybody has signed')
                 : envelope.status === 'sent'
-                  ? 'Not your turn yet'
-                  : `This request was ${envelope.status}`
+                  ? t('app.sign.[token].sign-by-link.not_your_turn_yet', 'Not your turn yet')
+                  : t(
+                      'app.sign.[token].sign-by-link.this_request_was',
+                      'This request was {{status}}',
+                      { status: envelope.status },
+                    )
           }
         >
           {done ??
             (envelope.status === 'sent' && !signedNow
-              ? 'You get an email when it is your turn to sign.'
-              : 'You can close this page.')}
+              ? t(
+                  'app.sign.[token].sign-by-link.you_get_an_email_when_it',
+                  'You get an email when it is your turn to sign.',
+                )
+              : t(
+                  'app.sign.[token].sign-by-link.you_can_close_this_page',
+                  'You can close this page.',
+                ))}
         </Alert>
         {fileUrl === null ? null : (
           <DocumentToSign env={envelope} url={fileUrl} signing={null} name="" stamped={stamped} />
@@ -202,9 +233,20 @@ function SignNow({
 
   return (
     <main className="mx-auto flex max-w-6xl flex-col gap-6 p-4 sm:p-8">
-      <PageHeader title={envelope.title} description={`From ${envelope.sender} at ${company}`} />
+      <PageHeader
+        title={envelope.title}
+        description={t('app.sign.[token].sign-by-link.from_at', 'From {{sender}} at {{company}}', {
+          sender: envelope.sender,
+          company,
+        })}
+      />
       {envelope.message === '' ? null : (
-        <Alert tone="info" title={`${envelope.sender} says`}>
+        <Alert
+          tone="info"
+          title={t('app.sign.[token].sign-by-link.says', '{{sender}} says', {
+            sender: envelope.sender,
+          })}
+        >
           {envelope.message}
         </Alert>
       )}
@@ -212,17 +254,30 @@ function SignNow({
       <div className="flex flex-col gap-6">
         <Card variant="assistant">
           <CardHeader>
-            <CardTitle level={2}>Your part</CardTitle>
+            <CardTitle level={2}>
+              {t('app.sign.[token].sign-by-link.your_part', 'Your part')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <p className="text-sm">
               {signing.ready
-                ? 'Everything is filled in. Finish, under the document, signs it.'
-                : 'Start, under the document, takes you to each place to sign.'}
+                ? t(
+                    'app.sign.[token].sign-by-link.everything_is_filled_in_finish_under',
+                    'Everything is filled in. Finish, under the document, signs it.',
+                  )
+                : t(
+                    'app.sign.[token].sign-by-link.start_under_the_document_takes_you',
+                    'Start, under the document, takes you to each place to sign.',
+                  )}
             </p>
             {signing.mark === null ? null : (
               <div className="h-16 rounded-md bg-surface-sunken">
-                <Signature value={signing.mark} label={`${name}’s signature`} />
+                <Signature
+                  value={signing.mark}
+                  label={t('app.sign.[token].sign-by-link.s_signature', '{{name}}’s signature', {
+                    name,
+                  })}
+                />
               </div>
             )}
             {needsMark ? (
@@ -233,19 +288,32 @@ function SignNow({
                   signing.setAdopting(true);
                 }}
               >
-                {signing.mark === null ? 'Adopt your signature' : 'Change your signature'}
+                {signing.mark === null
+                  ? t('app.sign.[token].sign-by-link.adopt_your_signature', 'Adopt your signature')
+                  : t(
+                      'app.sign.[token].sign-by-link.change_your_signature',
+                      'Change your signature',
+                    )}
               </Button>
             ) : null}
             {problem === null || checking ? null : <Alert tone="danger">{problem}</Alert>}
             <p className="text-xs text-fg-muted">
               {verified
-                ? 'Adopting a signature, you agree it is the legal equivalent of your handwritten one.'
-                : 'Adopting a signature, you agree it is the legal equivalent of your handwritten one. At Finish we email you a code to confirm it is you.'}
+                ? t(
+                    'app.sign.[token].sign-by-link.adopting_a_signature_you_agree_it',
+                    'Adopting a signature, you agree it is the legal equivalent of your handwritten one.',
+                  )
+                : t(
+                    'app.sign.[token].sign-by-link.adopting_a_signature_you_agree_it_2',
+                    'Adopting a signature, you agree it is the legal equivalent of your handwritten one. At Finish we email you a code to confirm it is you.',
+                  )}
             </p>
             {declining ? (
               <>
                 <Field required>
-                  <FieldLabel>Why you decline</FieldLabel>
+                  <FieldLabel>
+                    {t('app.sign.[token].sign-by-link.why_you_decline', 'Why you decline')}
+                  </FieldLabel>
                   <FieldControl>
                     <Input
                       value={reason}
@@ -267,7 +335,7 @@ function SignNow({
                     });
                   }}
                 >
-                  Decline to sign
+                  {t('app.sign.[token].sign-by-link.decline_to_sign', 'Decline to sign')}
                 </Button>
               </>
             ) : (
@@ -279,14 +347,19 @@ function SignNow({
                   setDeclining(true);
                 }}
               >
-                Decline
+                {t('app.sign.[token].sign-by-link.decline', 'Decline')}
               </Button>
             )}
           </CardContent>
         </Card>
         <Card variant="fill" padded>
           {fileUrl === null ? (
-            <Alert tone="danger">The document could not be opened.</Alert>
+            <Alert tone="danger">
+              {t(
+                'app.sign.[token].sign-by-link.the_document_could_not_be_opened',
+                'The document could not be opened.',
+              )}
+            </Alert>
           ) : (
             <DocumentToSign
               env={envelope}
@@ -313,16 +386,25 @@ function SignNow({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm it’s you</DialogTitle>
+            <DialogTitle>
+              {t('app.sign.[token].sign-by-link.confirm_its_you', 'Confirm it’s you')}
+            </DialogTitle>
             <DialogDescription>
               {sentTo === null
-                ? 'We are emailing you a six-digit code.'
-                : `We emailed a six-digit code to ${sentTo}. It works for ten minutes.`}
+                ? t(
+                    'app.sign.[token].sign-by-link.we_are_emailing_you_a_six',
+                    'We are emailing you a six-digit code.',
+                  )
+                : t(
+                    'app.sign.[token].sign-by-link.we_emailed_a_six_digit_code',
+                    'We emailed a six-digit code to {{sentTo}}. It works for ten minutes.',
+                    { sentTo },
+                  )}
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-4">
             <PinInput
-              label="Your code"
+              label={t('app.sign.[token].sign-by-link.your_code', 'Your code')}
               value={code}
               onChange={setCode}
               length={6}
@@ -360,7 +442,7 @@ function SignNow({
                 });
               }}
             >
-              Send a new code
+              {t('app.sign.[token].sign-by-link.send_a_new_code', 'Send a new code')}
             </Button>
           </DialogFooter>
         </DialogContent>

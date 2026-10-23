@@ -19,6 +19,7 @@ import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
 import { Kbd, KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
+import { t } from '../../lib/i18n';
 
 /**
  * Search everything and run actions from one field.
@@ -256,7 +257,11 @@ export function Command({
             onClick={() => {
               go(path.slice(0, -1));
             }}
-            aria-label={`Back from ${page.label}`}
+            aria-label={t(
+              'components.command-palette.command-palette.back_from',
+              'Back from {{label}}',
+              { label: page.label },
+            )}
             className={cn(
               'tap-target relative inline-flex h-6.5 shrink-0 items-center gap-1 rounded-xs bg-surface-sunken px-2.5',
               'text-xs font-semibold whitespace-nowrap text-fg',
@@ -288,8 +293,15 @@ export function Command({
           onKeyDown={onKeyDown}
           className="h-full min-w-0 flex-1 bg-transparent text-md text-fg outline-none placeholder:text-fg-subtle"
         />
-        {loading ? <Spinner size="sm" label="Searching" /> : null}
-        <Kbd className="touch:hidden">Esc</Kbd>
+        {loading ? (
+          <Spinner
+            size="sm"
+            label={t('components.command-palette.command-palette.searching', 'Searching')}
+          />
+        ) : null}
+        <Kbd className="touch:hidden">
+          {t('components.command-palette.command-palette.esc', 'Esc')}
+        </Kbd>
         {onClose ? (
           <button
             type="button"
@@ -299,7 +311,7 @@ export function Command({
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
             )}
           >
-            Cancel
+            {t('components.command-palette.command-palette.cancel', 'Cancel')}
           </button>
         ) : null}
       </div>
@@ -393,7 +405,11 @@ export function Command({
 
       {showEmpty ? (
         <div className="px-4 py-6">
-          {empty ?? <p className="text-center text-sm text-fg-muted">No results</p>}
+          {empty ?? (
+            <p className="text-center text-sm text-fg-muted">
+              {t('components.command-palette.command-palette.no_results', 'No results')}
+            </p>
+          )}
         </div>
       ) : null}
 
@@ -402,7 +418,10 @@ export function Command({
           ? ''
           : query === ''
             ? ''
-            : `${String(flat.length)} ${flat.length === 1 ? 'result' : 'results'}`}
+            : t('components.command-palette.command-palette.text', '{{length}} {{value}}', {
+                length: String(flat.length),
+                value: flat.length === 1 ? 'result' : 'results',
+              })}
       </p>
 
       <div
@@ -411,13 +430,13 @@ export function Command({
       >
         <span className="flex items-center gap-1.5">
           <Kbd>↑</Kbd>
-          <Kbd>↓</Kbd> move
+          <Kbd>↓</Kbd> {t('components.command-palette.command-palette.move', 'move')}
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>↵</Kbd> open
+          <Kbd>↵</Kbd> {t('components.command-palette.command-palette.open', 'open')}
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>⌫</Kbd> back
+          <Kbd>⌫</Kbd> {t('components.command-palette.command-palette.back', 'back')}
         </span>
       </div>
     </div>
@@ -509,7 +528,8 @@ export function CommandPalette({
           )}
         >
           <DialogPrimitive.Title className="sr-only">
-            {props.label ?? 'Command palette'}
+            {props.label ??
+              t('components.command-palette.command-palette.command_palette', 'Command palette')}
           </DialogPrimitive.Title>
           <Command
             {...props}

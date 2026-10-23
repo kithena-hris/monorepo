@@ -14,6 +14,7 @@ import {
   type StackedSeries,
 } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface StackedAreaChartProps {
   /** The periods along the x axis, in order. */
@@ -137,8 +138,19 @@ export function StackedAreaChart({
                 .map((entry) => {
                   const value = entry.values[index] ?? 0;
                   return normalise
-                    ? `${entry.label} ${format(value)} (${String(Math.round(share(value, index)))}%)`
-                    : `${entry.label} ${format(value)}`;
+                    ? t(
+                        'components.chart.stacked-area-chart.text',
+                        '{{label}} {{format}} ({{round}}%)',
+                        {
+                          label: entry.label,
+                          format: format(value),
+                          round: String(Math.round(share(value, index))),
+                        },
+                      )
+                    : t('components.chart.stacked-area-chart.text_2', '{{label}} {{format}}', {
+                        label: entry.label,
+                        format: format(value),
+                      });
                 })
                 .join(', ')}; total ${format(totals[index] ?? 0)}`;
               return (
@@ -179,7 +191,10 @@ export function StackedAreaChart({
       {series.map((entry) => (
         <ChartDataTable
           key={entry.label}
-          caption={`${label}, ${entry.label}`}
+          caption={t('components.chart.stacked-area-chart.text_3', '{{label}}, {{label2}}', {
+            label,
+            label2: entry.label,
+          })}
           valueLabel={entry.label}
           data={categories.map((category, index) => ({
             label: category,

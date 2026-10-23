@@ -9,6 +9,7 @@ import { Checkbox } from '../checkbox/checkbox';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { SortableList } from '../sortable/sortable';
 import { SearchField } from '../typed-fields/typed-fields';
+import { t } from '../../lib/i18n';
 
 /**
  * Which columns a table shows, and in what order.
@@ -155,8 +156,8 @@ export function ColumnChooser({
     <>
       {ordered.length >= SEARCH_FROM ? (
         <SearchField
-          label="Find a column"
-          placeholder="Find a column"
+          label={t('components.table.column-chooser.find_a_column', 'Find a column')}
+          placeholder={t('components.table.column-chooser.find_a_column', 'Find a column')}
           value={query}
           onValueChange={setQuery}
           className="mb-1"
@@ -165,20 +166,26 @@ export function ColumnChooser({
 
       <div className="max-h-[min(24rem,60vh)] overflow-y-auto overscroll-contain">
         {needle ? (
-          <ul aria-label="Columns" className="flex flex-col gap-0.5">
+          <ul
+            aria-label={t('components.table.column-chooser.columns', 'Columns')}
+            className="flex flex-col gap-0.5"
+          >
             {matching.map((column) => (
               <li key={column.id} className="flex items-center gap-3 px-1">
                 {row(column)}
               </li>
             ))}
             {matching.length === 0 ? (
-              <li className="px-1 py-2 text-sm text-fg-muted">No column called “{query}”.</li>
+              <li className="px-1 py-2 text-sm text-fg-muted">
+                {t('components.table.column-chooser.no_column_called', 'No column called “')}
+                {query}”.
+              </li>
             ) : null}
           </ul>
         ) : (
           <SortableList
             appearance="plain"
-            label="Columns"
+            label={t('components.table.column-chooser.columns', 'Columns')}
             items={ordered}
             itemLabel={(c) => c.label}
             moveButtons="on-focus"
@@ -212,7 +219,7 @@ export function ColumnChooser({
           {label}
           <span className="sr-only">
             {' '}
-            ({count} of {ordered.length})
+            ({count} {t('components.table.column-chooser.of', 'of')} {ordered.length})
           </span>
           <span
             aria-hidden
@@ -229,10 +236,10 @@ export function ColumnChooser({
       >
         <div className="flex items-center gap-2 pb-1">
           <p id={headingId} className="text-base font-semibold text-fg">
-            Show and order columns
+            {t('components.table.column-chooser.show_and_order_columns', 'Show and order columns')}
           </p>
           <p className="ms-auto text-xs font-medium text-fg-muted tabular-nums">
-            {count} of {ordered.length}
+            {count} {t('components.table.column-chooser.of', 'of')} {ordered.length}
           </p>
         </div>
 
@@ -243,12 +250,12 @@ export function ColumnChooser({
             <span />
           ) : (
             <Button size="sm" variant="ghost" onClick={onReset}>
-              Reset
+              {t('components.table.column-chooser.reset', 'Reset')}
             </Button>
           )}
           <PopoverClose asChild>
             <Button size="sm" variant="primary">
-              Done
+              {t('components.table.column-chooser.done', 'Done')}
             </Button>
           </PopoverClose>
         </div>

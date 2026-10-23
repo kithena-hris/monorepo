@@ -23,6 +23,7 @@ import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { duration, shortDate, weekdayName } from './time';
+import { t } from '../i18n';
 
 /**
  * The attendance Requests tab (TOF-099; T22's "Needs you", PRD §11.5,
@@ -68,10 +69,10 @@ const STATUS: Record<
   'waiting' | Outcome3,
   { label: string; tone: 'warning' | 'success' | 'neutral' }
 > = {
-  waiting: { label: 'Waiting', tone: 'warning' },
-  comp: { label: 'Comp time', tone: 'success' },
-  paid: { label: 'Paid', tone: 'success' },
-  declined: { label: 'Declined', tone: 'neutral' },
+  waiting: { label: t('attendance.requests.waiting', 'Waiting'), tone: 'warning' },
+  comp: { label: t('attendance.requests.comp_time', 'Comp time'), tone: 'success' },
+  paid: { label: t('attendance.requests.paid', 'Paid'), tone: 'success' },
+  declined: { label: t('attendance.requests.declined', 'Declined'), tone: 'neutral' },
 };
 
 export function AttendanceRequests(props: AttendanceRequestsProps): JSX.Element {
@@ -79,7 +80,9 @@ export function AttendanceRequests(props: AttendanceRequestsProps): JSX.Element 
   if (load.status === 'loading') return <AttendanceRequestsSkeleton />;
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Attendance" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('attendance.requests.attendance', 'Attendance')} />
+      ) : null}
       <Loaded load={load} what="your attendance requests">
         {(data) => <Ready data={data} onDecide={props.onDecide} />}
       </Loaded>
@@ -103,37 +106,59 @@ function Ready({
   return (
     <>
       <PageHeader
-        title="Attendance"
+        title={t('attendance.requests.attendance', 'Attendance')}
         description={
           manages
-            ? `${String(overtime.length)} overtime to decide, ${String(corrections.length)} late ${corrections.length === 1 ? 'correction' : 'corrections'}`
-            : 'Your overtime and where it stands'
+            ? t(
+                'attendance.requests.overtime_to_decide_late',
+                '{{length}} overtime to decide, {{length2}} late {{value}}',
+                {
+                  length: String(overtime.length),
+                  length2: String(corrections.length),
+                  value: corrections.length === 1 ? 'correction' : 'corrections',
+                },
+              )
+            : t(
+                'attendance.requests.your_overtime_and_where_it_stands',
+                'Your overtime and where it stands',
+              )
         }
       />
       {manages ? (
-        <PageSection title="Needs you">
-          <List aria-label="Needs you">
+        <PageSection title={t('attendance.requests.needs_you', 'Needs you')}>
+          <List aria-label={t('attendance.requests.needs_you', 'Needs you')}>
             {overtime.map((n) => (
               <ListItem
                 key={`${n.personId} ${n.date}`}
                 leading={<Avatar name={n.displayName} />}
-                description={`${shortDate(n.date)} · ${duration(n.minutes ?? 0)} over the plan`}
+                description={t(
+                  'attendance.requests.over_the_plan',
+                  '{{date}} · {{duration}} over the plan',
+                  { date: shortDate(n.date), duration: duration(n.minutes ?? 0) },
+                )}
                 trailing={
                   onDecide === undefined ? undefined : (
                     <Button
                       size="sm"
                       variant="secondary"
-                      aria-label={`Decide ${n.displayName}’s overtime on ${shortDate(n.date)}`}
+                      aria-label={t(
+                        'attendance.requests.decide_s_overtime_on',
+                        'Decide {{displayName}}’s overtime on {{date}}',
+                        { displayName: n.displayName, date: shortDate(n.date) },
+                      )}
                       onClick={() => {
                         setDeciding(n);
                       }}
                     >
-                      Decide
+                      {t('attendance.requests.decide', 'Decide')}
                     </Button>
                   )
                 }
               >
-                {`${n.displayName} · ${duration(n.minutes ?? 0)} overtime`}
+                {t('attendance.requests.overtime', '{{displayName}} · {{duration}} overtime', {
+                  displayName: n.displayName,
+                  duration: duration(n.minutes ?? 0),
+                })}
               </ListItem>
             ))}
             {corrections.map((n) => (
@@ -141,38 +166,60 @@ function Ready({
                 key={`${n.personId} ${n.date} correction`}
                 icon={<icons.history aria-hidden />}
                 iconTone="danger"
-                description={`${shortDate(n.date)} · added more than a day afterwards`}
+                description={t(
+                  'attendance.requests.added_more_than_a_day_afterwards',
+                  '{{date}} · added more than a day afterwards',
+                  { date: shortDate(n.date) },
+                )}
                 trailing={
                   <Button asChild size="sm" variant="ghost">
                     <a
                       href={`/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`}
-                      aria-label={`See ${n.displayName}’s ${weekdayName(n.date)} beside the original`}
+                      aria-label={t(
+                        'attendance.requests.see_s_beside_the_original',
+                        'See {{displayName}}’s {{weekdayName}} beside the original',
+                        { displayName: n.displayName, weekdayName: weekdayName(n.date) },
+                      )}
                     >
-                      See
+                      {t('attendance.requests.see', 'See')}
                     </a>
                   </Button>
                 }
               >
-                {`${n.displayName} · ${weekdayName(n.date)} ${n.punch?.kind === 'in' ? 'clock-in' : 'clock-out'}`}
+                {t('attendance.requests.text', '{{displayName}} · {{weekdayName}} {{value}}', {
+                  displayName: n.displayName,
+                  weekdayName: weekdayName(n.date),
+                  value: n.punch?.kind === 'in' ? 'clock-in' : 'clock-out',
+                })}
               </ListItem>
             ))}
           </List>
         </PageSection>
       ) : null}
       <PageSection
-        title="Your overtime"
-        description="The last month. Your manager decides each day as comp time or pay."
+        title={t('attendance.requests.your_overtime', 'Your overtime')}
+        description={t(
+          'attendance.requests.the_last_month_your_manager_decides',
+          'The last month. Your manager decides each day as comp time or pay.',
+        )}
       >
         {data.mine.length === 0 ? (
-          <p className="text-sm text-fg-muted">No overtime in the last month.</p>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'attendance.requests.no_overtime_in_the_last_month',
+              'No overtime in the last month.',
+            )}
+          </p>
         ) : (
-          <List aria-label="Your overtime">
+          <List aria-label={t('attendance.requests.your_overtime', 'Your overtime')}>
             {data.mine.map((m) => (
               <ListItem
                 key={m.date}
                 icon={<icons.overtime aria-hidden />}
                 iconTone="info"
-                description={`${duration(m.minutes)} over the plan`}
+                description={t('attendance.requests.over_the_plan_2', '{{minutes}} over the plan', {
+                  minutes: duration(m.minutes),
+                })}
                 trailing={
                   <Badge size="sm" tone={STATUS[m.status].tone} dot={m.status === 'waiting'}>
                     {STATUS[m.status].label}
@@ -219,14 +266,28 @@ function Decide({
   const minutes = item.minutes ?? 0;
   const text: Record<Outcome3, { label: string; description: string }> = {
     comp: {
-      label: 'Comp time',
-      description: `${duration(minutes)} banked, hour for hour, to take as time off.`,
+      label: t('attendance.requests.comp_time', 'Comp time'),
+      description: t(
+        'attendance.requests.banked_hour_for_hour_to_take',
+        '{{minutes}} banked, hour for hour, to take as time off.',
+        { minutes: duration(minutes) },
+      ),
     },
     paid: {
-      label: 'Pay it',
-      description: `${duration(minutes)} at ${overtime.multiplier}×, sent to Payroll with the month.`,
+      label: t('attendance.requests.pay_it', 'Pay it'),
+      description: t(
+        'attendance.requests.at_sent_to_payroll_with_the',
+        '{{minutes}} at {{multiplier}}×, sent to Payroll with the month.',
+        { minutes: duration(minutes), multiplier: overtime.multiplier },
+      ),
     },
-    declined: { label: 'Decline', description: 'Not counted as overtime. They can ask you why.' },
+    declined: {
+      label: t('attendance.requests.decline', 'Decline'),
+      description: t(
+        'attendance.requests.not_counted_as_overtime_they_can',
+        'Not counted as overtime. They can ask you why.',
+      ),
+    },
   };
   const save = (): void => {
     setBusy(true);
@@ -251,14 +312,23 @@ function Decide({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`${item.displayName}’s overtime on ${weekdayName(item.date)}`}</DialogTitle>
+          <DialogTitle>
+            {t(
+              'attendance.requests.s_overtime_on',
+              '{{displayName}}’s overtime on {{weekdayName}}',
+              { displayName: item.displayName, weekdayName: weekdayName(item.date) },
+            )}
+          </DialogTitle>
           <DialogDescription>
-            {`${duration(minutes)} over the plan on ${shortDate(item.date)}.`}
+            {t('attendance.requests.over_the_plan_on', '{{minutes}} over the plan on {{date}}.', {
+              minutes: duration(minutes),
+              date: shortDate(item.date),
+            })}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <RadioGroup
-            aria-label="What it becomes"
+            aria-label={t('attendance.requests.what_it_becomes', 'What it becomes')}
             value={choice}
             onValueChange={(v) => {
               setChoice(v as Outcome3);
@@ -271,21 +341,23 @@ function Decide({
             ))}
           </RadioGroup>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not decided">
+            <Alert tone="danger" title={t('attendance.requests.not_decided', 'Not decided')}>
               {refused}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('attendance.requests.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.confirm aria-hidden />}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('attendance.requests.saving', 'Saving')}
             onClick={save}
           >
-            {choice === 'declined' ? 'Decline' : 'Approve'}
+            {choice === 'declined'
+              ? t('attendance.requests.decline', 'Decline')
+              : t('attendance.requests.approve', 'Approve')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -297,9 +369,14 @@ function Decide({
 export function AttendanceRequestsSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Attendance" description={' '} />
+      <PageHeader title={t('attendance.requests.attendance', 'Attendance')} description={' '} />
       <div role="status" className="flex flex-col gap-6">
-        <span className="sr-only">Loading your attendance requests</span>
+        <span className="sr-only">
+          {t(
+            'attendance.requests.loading_your_attendance_requests',
+            'Loading your attendance requests',
+          )}
+        </span>
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((n) => (
             <Skeleton key={n} className="h-16 rounded-sm" />

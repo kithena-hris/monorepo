@@ -4,6 +4,7 @@ import { lazy, Suspense, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { RichTextFrame, type RichTextEditorProps } from './rich-text-frame';
+import { t } from '../../lib/i18n';
 
 export type { RichTextEditorProps, RichTextGroup } from './rich-text-frame';
 
@@ -119,8 +120,15 @@ export function RichTextContent({
   if (OBVIOUSLY_UNSANITISED.test(sanitisedHtml)) {
     console.error(
       'RichTextContent: `sanitisedHtml` contains markup a sanitiser would have removed ' +
-        '(a script tag, an inline event handler, a javascript: URL or an embedded frame). ' +
-        'This prop is inserted verbatim. Sanitise it on the server.',
+        t(
+          'components.rich-text.rich-text.a_script_tag_an_inline_event',
+          '(a script tag, an inline event handler, a javascript: URL or an embedded frame).',
+        ) +
+        ' ' +
+        t(
+          'components.rich-text.rich-text.this_prop_is_inserted_verbatim_sanitise',
+          'This prop is inserted verbatim. Sanitise it on the server.',
+        ),
     );
   }
 

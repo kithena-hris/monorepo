@@ -27,6 +27,7 @@ import { useState, useTransition, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { HolidayCalendar, type Layer } from './holiday-calendar';
 import { PackNotice, Toggle, placeName, shortDate, type Pack } from './shared';
+import { t } from '../i18n';
 
 /**
  * Holiday calendars (T36, TOF-083, TOF-112): each work location and the
@@ -108,9 +109,9 @@ export interface HolidaySettingsProps {
 
 const LEVELS: Record<Layer['level'], number> = { national: 0, regional: 1, city: 2 };
 const LEVEL_NAME: Record<Layer['level'], string> = {
-  national: 'National',
-  regional: 'Regional',
-  city: 'City',
+  national: t('settings.holiday-settings.national', 'National'),
+  regional: t('settings.holiday-settings.regional', 'Regional'),
+  city: t('settings.holiday-settings.city', 'City'),
 };
 
 /** The calendars a location keeps, ticked, saved with their own button (TOF-099a). */
@@ -129,7 +130,12 @@ function Keeps({
   const ordered = layers.toSorted((a, b) => LEVELS[a.level] - LEVELS[b.level]);
   const changed = keys.toSorted().join() !== location.layerKeys.toSorted().join();
   return (
-    <PageSection title={`Calendars ${placeName(location.locationKey)} keeps`} surface>
+    <PageSection
+      title={t('settings.holiday-settings.calendars_keeps', 'Calendars {{placeName}} keeps', {
+        placeName: placeName(location.locationKey),
+      })}
+      surface
+    >
       <div className="flex flex-col gap-3">
         {ordered.map((l) => (
           <Toggle
@@ -144,7 +150,7 @@ function Keeps({
           />
         ))}
         {refused === null ? null : (
-          <Alert tone="danger" title="Not saved">
+          <Alert tone="danger" title={t('settings.holiday-settings.not_saved', 'Not saved')}>
             {refused}
           </Alert>
         )}
@@ -154,7 +160,7 @@ function Keeps({
             variant="primary"
             disabled={!changed}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('settings.holiday-settings.saving', 'Saving')}
             onClick={() => {
               setBusy(true);
               setRefused(null);
@@ -166,7 +172,7 @@ function Keeps({
               });
             }}
           >
-            Save calendars
+            {t('settings.holiday-settings.save_calendars', 'Save calendars')}
           </Button>
         </div>
       </div>
@@ -174,7 +180,7 @@ function Keeps({
   );
 }
 
-const TITLE = 'Holidays';
+const TITLE = t('settings.holiday-settings.holidays', 'Holidays');
 const DESCRIPTION =
   'Each person gets the holidays for the place they work. A holiday on a weekend follows the regional rules.';
 const page = '@container/holidays flex flex-col gap-6';
@@ -222,7 +228,7 @@ function Ready({
         actions={
           <>
             <SegmentedControl
-              aria-label="Year"
+              aria-label={t('settings.holiday-settings.year', 'Year')}
               size="sm"
               value={String(data.year)}
               onValueChange={(year) => {
@@ -237,7 +243,9 @@ function Ready({
             </SegmentedControl>
             {onSaveCalendar === undefined ? null : (
               <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
-                <a href={here('new')}>Add calendar</a>
+                <a href={here('new')}>
+                  {t('settings.holiday-settings.add_calendar', 'Add calendar')}
+                </a>
               </Button>
             )}
           </>
@@ -261,12 +269,18 @@ function Ready({
       )}
       {chosen === undefined ? (
         <p className="text-sm text-fg-muted">
-          Nobody has a work location yet, so no calendar applies to anyone.
+          {t(
+            'settings.holiday-settings.nobody_has_a_work_location_yet',
+            'Nobody has a work location yet, so no calendar applies to anyone.',
+          )}
         </p>
       ) : (
         <div className={columns}>
           <div className="flex min-w-0 flex-col gap-6">
-            <List navigable aria-label="Work locations">
+            <List
+              navigable
+              aria-label={t('settings.holiday-settings.work_locations', 'Work locations')}
+            >
               {data.locations.map((l) => {
                 const current = l.locationKey === chosen.locationKey;
                 return (
@@ -275,7 +289,9 @@ function Ready({
                     asChild
                     selected={current}
                     description={layersOf(l.layerKeys)}
-                    meta={`${String(l.holidays.length)} days`}
+                    meta={t('settings.holiday-settings.days', '{{length}} days', {
+                      length: String(l.holidays.length),
+                    })}
                   >
                     <a
                       href={`/settings/time-off/holidays/${String(data.year)}?location=${encodeURIComponent(l.locationKey)}`}
@@ -296,14 +312,22 @@ function Ready({
               />
             )}
             {onSaveCalendar === undefined ? null : (
-              <List navigable aria-label="Calendars">
+              <List navigable aria-label={t('settings.holiday-settings.calendars', 'Calendars')}>
                 {data.layers.map((l) => (
                   <ListItem
                     key={l.key}
                     asChild
-                    description={`${LEVEL_NAME[l.level]} · ${String(
-                      l.holidays.filter((h) => h.date.startsWith(String(data.year))).length,
-                    )} days in ${String(data.year)}`}
+                    description={t(
+                      'settings.holiday-settings.days_in',
+                      '{{LEVEL_NAME}} · {{length}} days in {{year}}',
+                      {
+                        LEVEL_NAME: LEVEL_NAME[l.level],
+                        length: String(
+                          l.holidays.filter((h) => h.date.startsWith(String(data.year))).length,
+                        ),
+                        year: String(data.year),
+                      },
+                    )}
                     chevron
                   >
                     <a href={here(l.key)}>{l.name}</a>
@@ -313,22 +337,39 @@ function Ready({
             )}
           </div>
           <PageSection
-            title={`${placeName(chosen.locationKey)} in ${String(data.year)}`}
+            title={t('settings.holiday-settings.in', '{{placeName}} in {{year}}', {
+              placeName: placeName(chosen.locationKey),
+              year: String(data.year),
+            })}
             description={layersOf(chosen.layerKeys)}
           >
             {chosen.holidays.length === 0 ? (
               <p className="text-sm text-fg-muted">
-                {`No holidays for ${String(data.year)} yet. Each year’s calendars are published in the autumn before it.`}
+                {t(
+                  'settings.holiday-settings.no_holidays_for_yet_each_years',
+                  'No holidays for {{year}} yet. Each year’s calendars are published in the autumn before it.',
+                  { year: String(data.year) },
+                )}
               </p>
             ) : (
-              <List aria-label={`Holidays in ${placeName(chosen.locationKey)}`}>
+              <List
+                aria-label={t(
+                  'settings.holiday-settings.holidays_in',
+                  'Holidays in {{placeName}}',
+                  { placeName: placeName(chosen.locationKey) },
+                )}
+              >
                 {chosen.holidays.map((h) => (
                   <ListItem
                     key={`${h.date} ${h.name}`}
                     description={
                       h.movedFrom === null
                         ? shortDate(h.date)
-                        : `${shortDate(h.date)}, moved from ${shortDate(h.movedFrom)}`
+                        : t(
+                            'settings.holiday-settings.moved_from',
+                            '{{date}}, moved from {{movedFrom}}',
+                            { date: shortDate(h.date), movedFrom: shortDate(h.movedFrom) },
+                          )
                     }
                     trailing={
                       <Badge size="sm" variant="outline">
@@ -372,8 +413,13 @@ function DraftCard({
     return (
       <AssistantCard
         level={2}
-        title={`Draft ${year} from a list`}
-        note="Nothing is saved until you save it. Days not confirmed yet stay with you."
+        title={t('settings.holiday-settings.draft_from_a_list', 'Draft {{year}} from a list', {
+          year,
+        })}
+        note={t(
+          'settings.holiday-settings.nothing_is_saved_until_you_save',
+          'Nothing is saved until you save it. Days not confirmed yet stay with you.',
+        )}
       >
         <form
           className="flex flex-col gap-3"
@@ -383,7 +429,7 @@ function DraftCard({
           }}
         >
           <Field>
-            <FieldLabel>Calendar</FieldLabel>
+            <FieldLabel>{t('settings.holiday-settings.calendar', 'Calendar')}</FieldLabel>
             <Select value={layerKey} onValueChange={setLayerKey}>
               <FieldControl>
                 <SelectTrigger>
@@ -400,24 +446,32 @@ function DraftCard({
             </Select>
           </Field>
           <Field>
-            <FieldLabel>The official list</FieldLabel>
+            <FieldLabel>
+              {t('settings.holiday-settings.the_official_list', 'The official list')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 rows={4}
                 maxLength={4000}
                 value={source}
-                placeholder="Paste the bulletin or a list, one holiday per line."
+                placeholder={t(
+                  'settings.holiday-settings.paste_the_bulletin_or_a_list',
+                  'Paste the bulletin or a list, one holiday per line.',
+                )}
                 onChange={(event) => {
                   setSource(event.target.value);
                 }}
               />
             </FieldControl>
             <FieldDescription>
-              From the bulletin or a dataset you are licensed to use.
+              {t(
+                'settings.holiday-settings.from_the_bulletin_or_a_dataset',
+                'From the bulletin or a dataset you are licensed to use.',
+              )}
             </FieldDescription>
           </Field>
           {data.draftProblem == null ? null : (
-            <Alert tone="danger" title="No draft">
+            <Alert tone="danger" title={t('settings.holiday-settings.no_draft', 'No draft')}>
               {data.draftProblem}
             </Alert>
           )}
@@ -427,7 +481,7 @@ function DraftCard({
             startIcon={<icons.assistant aria-hidden />}
             disabled={source.trim() === '' || layerKey === ''}
           >
-            {`Draft ${year}`}
+            {t('settings.holiday-settings.draft', 'Draft {{year}}', { year })}
           </Button>
         </form>
       </AssistantCard>
@@ -451,7 +505,12 @@ function DraftCard({
       });
       setSaid(
         outcome.ok
-          ? { ok: true, text: `Saved to ${layer.name}` }
+          ? {
+              ok: true,
+              text: t('settings.holiday-settings.saved_to', 'Saved to {{name}}', {
+                name: layer.name,
+              }),
+            }
           : { ok: false, text: outcome.message },
       );
     });
@@ -461,18 +520,31 @@ function DraftCard({
   return (
     <AssistantCard
       level={2}
-      title={`${draft.layerName} for ${String(draft.year)} is ready to review`}
+      title={t(
+        'settings.holiday-settings.for_is_ready_to_review',
+        '{{layerName}} for {{year}} is ready to review',
+        { layerName: draft.layerName, year: String(draft.year) },
+      )}
       action={
         draft.ai || draft.summary.ai ? (
           <Badge tone="assistant" size="sm">
-            AI
+            {t('settings.holiday-settings.ai', 'AI')}
           </Badge>
         ) : undefined
       }
-      note="Drafted from the list you supplied. It is never published by itself."
+      note={t(
+        'settings.holiday-settings.drafted_from_the_list_you_supplied',
+        'Drafted from the list you supplied. It is never published by itself.',
+      )}
     >
       <p className="text-sm text-fg-muted">{draft.summary.text}</p>
-      <List aria-label={`${draft.layerName} in ${String(draft.year)}, drafted`}>
+      <List
+        aria-label={t(
+          'settings.holiday-settings.in_drafted',
+          '{{layerName}} in {{year}}, drafted',
+          { layerName: draft.layerName, year: String(draft.year) },
+        )}
+      >
         {draft.days.map((d) => (
           <ListItem
             key={d.date}
@@ -480,11 +552,14 @@ function DraftCard({
             trailing={
               d.known ? (
                 <Badge size="sm" variant="outline">
-                  Already on the calendar
+                  {t(
+                    'settings.holiday-settings.already_on_the_calendar',
+                    'Already on the calendar',
+                  )}
                 </Badge>
               ) : d.confirmed ? undefined : (
                 <Badge size="sm" tone="warning">
-                  To confirm
+                  {t('settings.holiday-settings.to_confirm', 'To confirm')}
                 </Badge>
               )
             }
@@ -494,10 +569,19 @@ function DraftCard({
         ))}
       </List>
       {draft.skipped.length === 0 ? null : (
-        <p className="text-xs text-fg-subtle">{`Not read: ${draft.skipped.join(' · ')}`}</p>
+        <p className="text-xs text-fg-subtle">
+          {t('settings.holiday-settings.not_read', 'Not read: {{join}}', {
+            join: draft.skipped.join(' · '),
+          })}
+        </p>
       )}
       {said === null ? null : (
-        <Alert tone={said.ok ? 'success' : 'danger'} title={said.ok ? said.text : 'Nothing saved'}>
+        <Alert
+          tone={said.ok ? 'success' : 'danger'}
+          title={
+            said.ok ? said.text : t('settings.holiday-settings.nothing_saved', 'Nothing saved')
+          }
+        >
           {said.ok ? undefined : said.text}
         </Alert>
       )}
@@ -510,19 +594,26 @@ function DraftCard({
           loading={pending}
           onClick={save}
         >
-          {`Save ${String(confirmed.length)} confirmed ${confirmed.length === 1 ? 'day' : 'days'}`}
+          {t('settings.holiday-settings.save_confirmed', 'Save {{length}} confirmed {{value}}', {
+            length: String(confirmed.length),
+            value: confirmed.length === 1 ? 'day' : 'days',
+          })}
         </Button>
         <Button
           onClick={() => {
             onDraft?.(null);
           }}
         >
-          Start again
+          {t('settings.holiday-settings.start_again', 'Start again')}
         </Button>
       </div>
       {toConfirm === 0 ? null : (
         <p className="text-sm text-fg-muted">
-          {`${String(toConfirm)} ${toConfirm === 1 ? 'day is' : 'days are'} left for you to confirm and add.`}
+          {t(
+            'settings.holiday-settings.left_for_you_to_confirm_and',
+            '{{toConfirm}} {{value}} left for you to confirm and add.',
+            { toConfirm: String(toConfirm), value: toConfirm === 1 ? 'day is' : 'days are' },
+          )}
         </p>
       )}
     </AssistantCard>
@@ -539,7 +630,9 @@ export function HolidaySettingsSkeleton(): JSX.Element {
         actions={<Skeleton className="h-8 w-28 rounded-full" />}
       />
       <div role="status" className={columns}>
-        <span className="sr-only">Loading holidays</span>
+        <span className="sr-only">
+          {t('settings.holiday-settings.loading_holidays', 'Loading holidays')}
+        </span>
         <div className="flex min-w-0 flex-col gap-6">
           <Skeleton className="h-60 rounded-lg" />
           <Skeleton className="h-72 rounded-lg" />

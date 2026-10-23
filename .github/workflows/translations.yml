@@ -1,0 +1,48 @@
+name: translations
+
+# Every language's words, translated by the assistant's model from the English
+# the screens say (`apps/web/scripts/i18n-translate.mjs`), committed back to the
+# pull request that changed the English. Only what is new or changed is sent.
+#
+# In `production` for the model's key, the one the services use. A pull
+# request from a fork never gets it, so never runs this.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/locales/source/**'
+      - 'apps/web/scripts/i18n-translate.mjs'
+  workflow_dispatch:
+
+concurrency:
+  group: translations-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  translate:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 24 }
+      # No install: the script is plain Node and `fetch`.
+      - name: translate what is new or changed
+        run: node apps/web/scripts/i18n-translate.mjs --minutes 320
+        env:
+          ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
+      - name: commit the translations
+        run: |
+          git add apps/web/src/locales
+          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Translations: what the screens say, in every language"
+          git push

@@ -35,6 +35,7 @@ import { useState, type JSX } from 'react';
 import { Loaded } from './load';
 import { Refusal, StateBadge, day, money, newId, useAct, words } from './shared';
 import type { Agency, BoardData, ScreenProps, SettingsData } from './types';
+import { t } from './i18n';
 
 /** R8: the internal job board, with refer and apply, and my referrals. */
 export function Board(props: ScreenProps<BoardData>): JSX.Element {
@@ -54,16 +55,29 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Open jobs"
+            title={t('board.open_jobs', 'Open jobs')}
             description={
               data.bonus === null
-                ? 'Refer someone you know, or apply yourself.'
-                : `Refer someone you know: ${money(data.bonus.amountMinor, data.bonus.currency)} when they pass ${words(data.bonus.after).toLowerCase()}.`
+                ? t(
+                    'board.refer_someone_you_know_or_apply',
+                    'Refer someone you know, or apply yourself.',
+                  )
+                : t(
+                    'board.refer_someone_you_know_when_they',
+                    'Refer someone you know: {{amountMinor}} when they pass {{after}}.',
+                    {
+                      amountMinor: money(data.bonus.amountMinor, data.bonus.currency),
+                      after: words(data.bonus.after).toLowerCase(),
+                    },
+                  )
             }
           />
           <Refusal error={act.error} />
           {data.jobs.length === 0 ? (
-            <EmptyState icon={<icons.work aria-hidden />} title="No open jobs right now" />
+            <EmptyState
+              icon={<icons.work aria-hidden />}
+              title={t('board.no_open_jobs_right_now', 'No open jobs right now')}
+            />
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {data.jobs.map((j) => (
@@ -82,7 +96,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                           setReferring({ id: j.id, title: j.title });
                         }}
                       >
-                        Refer someone
+                        {t('board.refer_someone', 'Refer someone')}
                       </Button>
                       <Button
                         size="sm"
@@ -92,7 +106,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                           act.run('ApplyInternally', { jobId: j.id, input: {} });
                         }}
                       >
-                        Apply
+                        {t('board.apply', 'Apply')}
                       </Button>
                     </div>
                   </CardContent>
@@ -102,19 +116,19 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
           )}
           <Card>
             <CardHeader>
-              <CardTitle level={2}>My referrals</CardTitle>
+              <CardTitle level={2}>{t('board.my_referrals', 'My referrals')}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.referrals.length === 0 ? (
-                <p className="text-sm text-fg-muted">Nobody yet.</p>
+                <p className="text-sm text-fg-muted">{t('board.nobody_yet', 'Nobody yet.')}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Person</TableHead>
-                      <TableHead>Job</TableHead>
-                      <TableHead>Referred</TableHead>
-                      <TableHead>Where it stands</TableHead>
+                      <TableHead>{t('board.person', 'Person')}</TableHead>
+                      <TableHead>{t('board.job', 'Job')}</TableHead>
+                      <TableHead>{t('board.referred', 'Referred')}</TableHead>
+                      <TableHead>{t('board.where_it_stands', 'Where it stands')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -141,14 +155,21 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{`Refer someone: ${referring?.title ?? ''}`}</DialogTitle>
+                <DialogTitle>
+                  {t('board.refer_someone_2', 'Refer someone: {{value}}', {
+                    value: referring?.title ?? '',
+                  })}
+                </DialogTitle>
                 <DialogDescription>
-                  They get an email inviting them to apply; nothing is shared until they do.
+                  {t(
+                    'board.they_get_an_email_inviting_them',
+                    'They get an email inviting them to apply; nothing is shared until they do.',
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-3">
                 <Field required>
-                  <FieldLabel>Name</FieldLabel>
+                  <FieldLabel>{t('board.name', 'Name')}</FieldLabel>
                   <FieldControl>
                     <Input
                       value={name}
@@ -159,7 +180,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                   </FieldControl>
                 </Field>
                 <Field required>
-                  <FieldLabel>Email</FieldLabel>
+                  <FieldLabel>{t('board.email', 'Email')}</FieldLabel>
                   <FieldControl>
                     <Input
                       type="email"
@@ -171,7 +192,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                   </FieldControl>
                 </Field>
                 <Field>
-                  <FieldLabel>Why they’d be good</FieldLabel>
+                  <FieldLabel>{t('board.why_theyd_be_good', 'Why they’d be good')}</FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
@@ -185,7 +206,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
               </div>
               <DialogFooter>
                 <Button variant="secondary" onClick={close}>
-                  Cancel
+                  {t('board.cancel', 'Cancel')}
                 </Button>
                 <Button
                   disabled={name.trim() === '' || !email.includes('@')}
@@ -201,7 +222,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
                     );
                   }}
                 >
-                  Send invitation
+                  {t('board.send_invitation', 'Send invitation')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -232,8 +253,11 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Agencies"
-            description="An agency submits through its own portal to the jobs you open to it. A candidate belongs to the first agency that submits them, for the ownership period."
+            title={t('board.agencies', 'Agencies')}
+            description={t(
+              'board.an_agency_submits_through_its_own',
+              'An agency submits through its own portal to the jobs you open to it. A candidate belongs to the first agency that submits them, for the ownership period.',
+            )}
             actions={
               data.admin ? (
                 <Button
@@ -242,7 +266,7 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
                     setEditing(blank());
                   }}
                 >
-                  Add agency
+                  {t('board.add_agency', 'Add agency')}
                 </Button>
               ) : null
             }
@@ -251,16 +275,19 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
           <Card>
             <CardContent>
               {data.agencies.length === 0 ? (
-                <EmptyState icon={<icons.company aria-hidden />} title="No agencies" />
+                <EmptyState
+                  icon={<icons.company aria-hidden />}
+                  title={t('board.no_agencies', 'No agencies')}
+                />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Agency</TableHead>
-                      <TableHead>Fee</TableHead>
-                      <TableHead>Guarantee</TableHead>
-                      <TableHead>Jobs</TableHead>
-                      <TableHead>State</TableHead>
+                      <TableHead>{t('board.agency', 'Agency')}</TableHead>
+                      <TableHead>{t('board.fee', 'Fee')}</TableHead>
+                      <TableHead>{t('board.guarantee', 'Guarantee')}</TableHead>
+                      <TableHead>{t('board.jobs', 'Jobs')}</TableHead>
+                      <TableHead>{t('board.state', 'State')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -284,14 +311,20 @@ export function Agencies(props: ScreenProps<SettingsData>): JSX.Element {
                         </TableCell>
                         <TableCell>
                           {a.fee.kind === 'percent'
-                            ? `${String(a.fee.basisPoints / 100)}% of first-year base`
+                            ? t('board.of_first_year_base', '{{value}}% of first-year base', {
+                                value: String(a.fee.basisPoints / 100),
+                              })
                             : money(a.fee.amountMinor, 'EUR')}
                         </TableCell>
-                        <TableCell>{`${String(a.guaranteeDays)} days`}</TableCell>
+                        <TableCell>
+                          {t('board.days', '{{guaranteeDays}} days', {
+                            guaranteeDays: String(a.guaranteeDays),
+                          })}
+                        </TableCell>
                         <TableCell>{String(a.jobIds.length)}</TableCell>
                         <TableCell>
                           <Badge size="sm" tone={a.active ? 'success' : 'neutral'}>
-                            {a.active ? 'Active' : 'Paused'}
+                            {a.active ? t('board.active', 'Active') : t('board.paused', 'Paused')}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -346,11 +379,13 @@ function AgencyDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{agency.name === '' ? 'Add agency' : agency.name}</DialogTitle>
+          <DialogTitle>
+            {agency.name === '' ? t('board.add_agency', 'Add agency') : agency.name}
+          </DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('board.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={a.name}
@@ -361,7 +396,7 @@ function AgencyDialog({
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>Contact email</FieldLabel>
+            <FieldLabel>{t('board.contact_email', 'Contact email')}</FieldLabel>
             <FieldControl>
               <Input
                 type="email"
@@ -373,7 +408,7 @@ function AgencyDialog({
             </FieldControl>
           </Field>
           <SegmentedControl
-            aria-label="Fee"
+            aria-label={t('board.fee', 'Fee')}
             value={a.fee.kind}
             onValueChange={(k) => {
               setA({
@@ -385,12 +420,14 @@ function AgencyDialog({
               });
             }}
           >
-            <SegmentedControlItem value="percent">Percent</SegmentedControlItem>
-            <SegmentedControlItem value="fixed">Fixed</SegmentedControlItem>
+            <SegmentedControlItem value="percent">
+              {t('board.percent', 'Percent')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="fixed">{t('board.fixed', 'Fixed')}</SegmentedControlItem>
           </SegmentedControl>
           {a.fee.kind === 'percent' ? (
             <NumberField
-              label="Fee, % of first-year base"
+              label={t('board.fee_of_first_year_base', 'Fee, % of first-year base')}
               value={a.fee.basisPoints / 100}
               min={0}
               max={100}
@@ -400,7 +437,7 @@ function AgencyDialog({
             />
           ) : (
             <NumberField
-              label="Fee"
+              label={t('board.fee', 'Fee')}
               value={a.fee.amountMinor / 100}
               min={0}
               onChange={(n) => {
@@ -410,7 +447,7 @@ function AgencyDialog({
           )}
           <div className="grid gap-3 md:grid-cols-2">
             <NumberField
-              label="Guarantee, days"
+              label={t('board.guarantee_days', 'Guarantee, days')}
               value={a.guaranteeDays}
               min={0}
               max={365}
@@ -419,7 +456,7 @@ function AgencyDialog({
               }}
             />
             <NumberField
-              label="Ownership, months"
+              label={t('board.ownership_months', 'Ownership, months')}
               value={a.ownershipMonths}
               min={1}
               max={24}
@@ -429,7 +466,9 @@ function AgencyDialog({
             />
           </div>
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Jobs it may submit to</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t('board.jobs_it_may_submit_to', 'Jobs it may submit to')}
+            </legend>
             {jobs.map((j) => (
               <div key={j.id} className="flex items-center gap-3">
                 <Switch
@@ -454,12 +493,12 @@ function AgencyDialog({
                 setA({ ...a, active: on });
               }}
             />
-            <label htmlFor="agency-active">Active</label>
+            <label htmlFor="agency-active">{t('board.active', 'Active')}</label>
           </div>
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('board.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={a.name.trim() === '' || !a.contactEmail.includes('@')}
@@ -468,7 +507,7 @@ function AgencyDialog({
               onSave(a);
             }}
           >
-            Save
+            {t('board.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>

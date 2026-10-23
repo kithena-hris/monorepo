@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX } from 'react';
 import { Fragment, useSyncExternalStore } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A keyboard key.
@@ -175,7 +176,9 @@ export function KbdShortcut({ keys, className, ...props }: KbdShortcutProps): JS
     <span className={cn('inline-flex items-center gap-1', className)} {...props}>
       {keys.map((chord, index) => (
         <Fragment key={`${String(index)}:${chord}`}>
-          {index === 0 ? null : <span className="sr-only"> then </span>}
+          {index === 0 ? null : (
+            <span className="sr-only"> {t('components.kbd.kbd.then', 'then')} </span>
+          )}
           {keysOfChord(chord).map((name, n) => (
             <Key key={`${String(n)}:${name}`} name={name} />
           ))}

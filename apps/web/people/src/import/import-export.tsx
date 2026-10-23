@@ -31,6 +31,7 @@ import {
   useZone,
   type ImportRunStatus,
 } from './import-run';
+import { t } from '../i18n';
 
 /**
  * Import & export (V6, MV5): two ways in and out of People, and one history
@@ -117,11 +118,18 @@ export type HistoryKind = 'all' | 'import' | 'export';
 /** The template, as a file: the shell's download route. */
 export const TEMPLATE_URL = '/people/downloads/import-template';
 
-const FORMAT: Readonly<Record<string, string>> = { csv: 'CSV', xlsx: 'Excel', pdf: 'PDF' };
+const FORMAT: Readonly<Record<string, string>> = {
+  csv: 'CSV',
+  xlsx: t('import.import-export.excel', 'Excel'),
+  pdf: 'PDF',
+};
 
 /** What it was: the file, the reason, or what kind it is when People kept neither. */
 export const titleOf = (e: TransferEntry): string =>
-  e.title ?? (e.kind === 'import' ? 'An imported file' : 'An export');
+  e.title ??
+  (e.kind === 'import'
+    ? t('import.import-export.an_imported_file', 'An imported file')
+    : t('import.import-export.an_export', 'An export'));
 
 /** What came of it, in words, and how loudly: skipped rows are a warning. */
 export function resultOf(e: TransferEntry): {
@@ -129,31 +137,58 @@ export function resultOf(e: TransferEntry): {
   readonly tone: 'success' | 'warning' | 'danger' | 'neutral';
 } {
   if (e.run?.status === 'importing') {
-    return { text: `Importing… ${peopleLine(e.run.people)}`, tone: 'neutral' };
+    return {
+      text: t('import.import-export.importing', 'Importing… {{peopleLine}}', {
+        peopleLine: peopleLine(e.run.people),
+      }),
+      tone: 'neutral',
+    };
   }
-  if (e.run?.status === 'failed') return { text: 'Import failed', tone: 'danger' };
+  if (e.run?.status === 'failed')
+    return { text: t('import.import-export.import_failed', 'Import failed'), tone: 'danger' };
   if (e.imported !== null) {
     const { created, updated, blocked } = e.imported;
     // Imported: the word every import is said with once it is over.
-    const lead = e.run == null ? '' : 'Imported · ';
+    const lead = e.run == null ? '' : t('import.import-export.imported', 'Imported ·') + ' ';
     const n = (count: number): string => count.toLocaleString('en-GB');
     if (blocked === 0) {
-      return { text: `${lead}${n(created + updated)} created or updated`, tone: 'success' };
+      return {
+        text: t('import.import-export.created_or_updated', '{{lead}}{{n}} created or updated', {
+          lead,
+          n: n(created + updated),
+        }),
+        tone: 'success',
+      };
     }
     const parts = [
-      created > 0 ? `${n(created)} created` : null,
-      updated > 0 ? `${n(updated)} updated` : null,
-      `${n(blocked)} skipped`,
+      created > 0 ? t('import.import-export.created', '{{n}} created', { n: n(created) }) : null,
+      updated > 0 ? t('import.import-export.updated', '{{n}} updated', { n: n(updated) }) : null,
+      t('import.import-export.skipped', '{{n}} skipped', { n: n(blocked) }),
     ].filter((p) => p !== null);
     return { text: `${lead}${parts.join(' · ')}`, tone: 'warning' };
   }
   if (e.exported !== null) {
     const { rows } = e.exported;
-    const people = `${rows.toLocaleString('en-GB')} ${rows === 1 ? 'person' : 'people'}`;
+    const people = t('import.import-export.text', '{{toLocaleString}} {{value}}', {
+      toLocaleString: rows.toLocaleString('en-GB'),
+      value: rows === 1 ? 'person' : 'people',
+    });
     const format = e.exported.format === null ? undefined : FORMAT[e.exported.format];
-    return { text: format === undefined ? people : `${people} · ${format}`, tone: 'neutral' };
+    return {
+      text:
+        format === undefined
+          ? people
+          : t('import.import-export.text_2', '{{people}} · {{format}}', { people, format }),
+      tone: 'neutral',
+    };
   }
-  return { text: e.kind === 'import' ? 'Importing' : 'Being prepared', tone: 'neutral' };
+  return {
+    text:
+      e.kind === 'import'
+        ? t('import.import-export.importing_2', 'Importing')
+        : t('import.import-export.being_prepared', 'Being prepared'),
+    tone: 'neutral',
+  };
 }
 
 /**
@@ -181,13 +216,13 @@ export function whenOf(at: string, now: string, zone: string | undefined): strin
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(at));
-  if (day(at) === day(now)) return `Today ${time}`;
+  if (day(at) === day(now)) return t('import.import-export.today', 'Today {{time}}', { time });
   const days = (Date.parse(day(now)) - Date.parse(day(at))) / 86_400_000;
   if (days > 0 && days < 7) {
     const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'short' }).format(
       new Date(at),
     );
-    return `${weekday} ${time}`;
+    return t('import.import-export.text_3', '{{weekday}} {{time}}', { weekday, time });
   }
   // "15 Sep": en-GB now abbreviates September as "Sept", so the parts are put together here.
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -197,7 +232,10 @@ export function whenOf(at: string, now: string, zone: string | undefined): strin
   }).formatToParts(new Date(at));
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? '';
-  return `${part('day')} ${part('month')}`;
+  return t('import.import-export.text_4', '{{part}} {{part2}}', {
+    part: part('day'),
+    part2: part('month'),
+  });
 }
 
 /** The history under its switch and its search: a file, a person or a reason. */
@@ -227,8 +265,11 @@ export function ImportExport({
   return (
     <Stack gap={5}>
       <PageHeader
-        title="Import & export"
-        description="Bring people in from a spreadsheet, or take data out with a recorded reason."
+        title={t('import.import-export.import_export', 'Import & export')}
+        description={t(
+          'import.import-export.bring_people_in_from_a_spreadsheet',
+          'Bring people in from a spreadsheet, or take data out with a recorded reason.',
+        )}
       />
       <Loaded load={load} what="imports and exports">
         {(state) => (
@@ -237,11 +278,17 @@ export function ImportExport({
               {state.canImport ? (
                 <Action
                   icon={<icons.upload aria-hidden />}
-                  title="Import people"
+                  title={t('import.import-export.import_people', 'Import people')}
                   short="Import"
-                  description="Create or update people in bulk. Nothing is written until you accept a dry run."
+                  description={t(
+                    'import.import-export.create_or_update_people_in_bulk',
+                    'Create or update people in bulk. Nothing is written until you accept a dry run.',
+                  )}
                   shortDescription="From a spreadsheet"
-                  facts={['CSV or Excel', 'Up to 50,000 rows']}
+                  facts={[
+                    t('import.import-export.csv_or_excel', 'CSV or Excel'),
+                    t('import.import-export.up_to_50_000_rows', 'Up to 50,000 rows'),
+                  ]}
                   href={going === null ? '/people/import' : runHref(going.id)}
                   start="Start import"
                   startIcon={<icons.upload aria-hidden />}
@@ -253,14 +300,18 @@ export function ImportExport({
                           reason: <ImportBusy id={busyId} run={going} />,
                           progress: (
                             <Progress
-                              label={`Importing… ${going.step}`}
+                              label={t('import.import-export.importing_3', 'Importing… {{step}}', {
+                                step: going.step,
+                              })}
                               showValue
                               value={going.people.total === null ? null : going.people.done}
                               max={Math.max(1, going.people.total ?? 1)}
                               valueLabel={peopleLine(going.people)}
                             />
                           ),
-                          short: `Importing… ${peopleLine(going.people)}`,
+                          short: t('import.import-export.importing', 'Importing… {{peopleLine}}', {
+                            peopleLine: peopleLine(going.people),
+                          }),
                         }
                   }
                   more={
@@ -272,7 +323,7 @@ export function ImportExport({
                         startIcon={<icons.spreadsheet aria-hidden />}
                       >
                         <a href={TEMPLATE_URL} download>
-                          Template
+                          {t('import.import-export.template', 'Template')}
                         </a>
                       </Button>
                     )
@@ -281,11 +332,17 @@ export function ImportExport({
               ) : null}
               <Action
                 icon={<icons.download aria-hidden />}
-                title="Export people"
+                title={t('import.import-export.export_people', 'Export people')}
                 short="Export"
-                description="Download people data. Field permissions apply, and each export records why."
+                description={t(
+                  'import.import-export.download_people_data_field_permissions_apply',
+                  'Download people data. Field permissions apply, and each export records why.',
+                )}
                 shortDescription="With a reason"
-                facts={['CSV, Excel or PDF', 'As of any date']}
+                facts={[
+                  t('import.import-export.csv_excel_or_pdf', 'CSV, Excel or PDF'),
+                  t('import.import-export.as_of_any_date', 'As of any date'),
+                ]}
                 href="/people/export"
                 start="New export"
                 startIcon={<icons.add aria-hidden />}
@@ -321,8 +378,11 @@ function DescribeExport({
       <SearchField
         variant="prompt"
         size="sm"
-        label="Describe an export"
-        placeholder="Describe it, like “salaries in Madrid as of 30 June, for Finance”"
+        label={t('import.import-export.describe_an_export', 'Describe an export')}
+        placeholder={t(
+          'import.import-export.describe_it_like_salaries_in_madrid',
+          'Describe it, like “salaries in Madrid as of 30 June, for Finance”',
+        )}
         enterKeyHint="go"
         maxLength={300}
         loading={busy}
@@ -339,7 +399,10 @@ function DescribeExport({
         }}
       />
       {refused === null ? null : (
-        <Alert tone="danger" title="Nothing was built">
+        <Alert
+          tone="danger"
+          title={t('import.import-export.nothing_was_built', 'Nothing was built')}
+        >
           {refused}
         </Alert>
       )}
@@ -444,8 +507,16 @@ function Action({
 }
 
 const KIND = {
-  import: { label: 'Import', tone: 'info', icon: <icons.upload aria-hidden /> },
-  export: { label: 'Export', tone: 'accent', icon: <icons.download aria-hidden /> },
+  import: {
+    label: t('import.import-export.import', 'Import'),
+    tone: 'info',
+    icon: <icons.upload aria-hidden />,
+  },
+  export: {
+    label: t('import.import-export.export', 'Export'),
+    tone: 'accent',
+    icon: <icons.download aria-hidden />,
+  },
 } as const;
 
 /** One history for both, newest first: every import and export, whoever ran it. */
@@ -497,7 +568,7 @@ function History({
     () => [
       {
         id: 'type',
-        header: 'Type',
+        header: t('import.import-export.type', 'Type'),
         width: '7.5rem',
         hideOnCard: true,
         cell: (e) => (
@@ -509,7 +580,7 @@ function History({
       },
       {
         id: 'title',
-        header: 'File or reason',
+        header: t('import.import-export.file_or_reason', 'File or reason'),
         cell: (e) => {
           const href = hrefOf(e);
           const title = titleOf(e);
@@ -520,10 +591,12 @@ function History({
               href={href}
               aria-label={
                 e.kind === 'export'
-                  ? `Download ${title}`
+                  ? t('import.import-export.download', 'Download {{title}}', { title })
                   : href === e.reportUrl
-                    ? `Report of ${title}`
-                    : `Open the import of ${title}`
+                    ? t('import.import-export.report_of', 'Report of {{title}}', { title })
+                    : t('import.import-export.open_the_import_of', 'Open the import of {{title}}', {
+                        title,
+                      })
               }
             >
               {title}
@@ -533,7 +606,7 @@ function History({
       },
       {
         id: 'by',
-        header: 'By',
+        header: t('import.import-export.by', 'By'),
         cell: (e) => (
           <span className="flex items-center gap-2">
             <Avatar size="sm" name={e.by.name} src={e.by.avatarUrl ?? undefined} />
@@ -541,10 +614,15 @@ function History({
           </span>
         ),
       },
-      { id: 'when', header: 'When', width: '7.5rem', cell: (e) => when(e) },
+      {
+        id: 'when',
+        header: t('import.import-export.when', 'When'),
+        width: '7.5rem',
+        cell: (e) => when(e),
+      },
       {
         id: 'result',
-        header: 'Result',
+        header: t('import.import-export.result', 'Result'),
         cardTrailing: true,
         cell: (e) => {
           const result = resultOf(e);
@@ -576,7 +654,10 @@ function History({
               fallback={KIND[e.kind].icon}
             />
           }
-          description={`${resultOf(e).text} · ${when(e)}`}
+          description={t('import.import-export.text_5', '{{text}} · {{e}}', {
+            text: resultOf(e).text,
+            e: when(e),
+          })}
           {...(href === null ? {} : { asChild: true, chevron: true })}
         >
           {href === null ? titleOf(e) : <a href={href}>{titleOf(e)}</a>}
@@ -589,10 +670,10 @@ function History({
     <section aria-labelledby="history" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 id="history" className="text-md font-semibold">
-          History
+          {t('import.import-export.history', 'History')}
         </h2>
         <SegmentedControl
-          aria-label="Show"
+          aria-label={t('import.import-export.show', 'Show')}
           size="sm"
           value={kind}
           onValueChange={(next) => {
@@ -600,13 +681,22 @@ function History({
           }}
           className="touch:hidden"
         >
-          <SegmentedControlItem value="all">All</SegmentedControlItem>
-          <SegmentedControlItem value="import">Imports</SegmentedControlItem>
-          <SegmentedControlItem value="export">Exports</SegmentedControlItem>
+          <SegmentedControlItem value="all">
+            {t('import.import-export.all', 'All')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="import">
+            {t('import.import-export.imports', 'Imports')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="export">
+            {t('import.import-export.exports', 'Exports')}
+          </SegmentedControlItem>
         </SegmentedControl>
         <SearchField
-          label="Search the history"
-          placeholder="Search by file, person or reason"
+          label={t('import.import-export.search_the_history', 'Search the history')}
+          placeholder={t(
+            'import.import-export.search_by_file_person_or_reason',
+            'Search by file, person or reason',
+          )}
           size="sm"
           value={search}
           onValueChange={setSearch}
@@ -614,18 +704,27 @@ function History({
         />
         {/* The company's activity log, narrowed to these (`docs/audit.md`). */}
         <Button asChild size="sm" variant="ghost" startIcon={<icons.history aria-hidden />}>
-          <a href="/settings/activity?area=imports_exports">See all activity</a>
+          <a href="/settings/activity?area=imports_exports">
+            {t('import.import-export.see_all_activity', 'See all activity')}
+          </a>
         </Button>
       </div>
       {shown.length === 0 ? (
         <EmptyState
-          title={items.length === 0 ? 'Nothing imported or exported yet' : 'Nothing matches'}
+          title={
+            items.length === 0
+              ? t(
+                  'import.import-export.nothing_imported_or_exported_yet',
+                  'Nothing imported or exported yet',
+                )
+              : t('import.import-export.nothing_matches', 'Nothing matches')
+          }
         />
       ) : (
         <>
           {/* At a desk, a virtualized table that is the page's one scroll. */}
           <DataTable<TransferEntry>
-            label="Imports and exports"
+            label={t('import.import-export.imports_and_exports', 'Imports and exports')}
             rows={shown}
             rowId={(e) => e.id}
             describeRow={titleOf}
@@ -636,7 +735,7 @@ function History({
           />
           {/* Under a finger, a list that scrolls with the page, drawn near the view. */}
           <VirtualList
-            label="Imports and exports"
+            label={t('import.import-export.imports_and_exports', 'Imports and exports')}
             items={shown}
             itemKey={(e) => e.id}
             scroll="page"

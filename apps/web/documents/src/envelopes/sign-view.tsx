@@ -27,6 +27,7 @@ import type { EnvelopeData, FieldKind, Mark } from '../types';
 
 export type { EnvelopeData, Mark };
 import { KIND_LABEL, toneOf } from './prepare';
+import { t } from '../i18n';
 
 /**
  * K4–K6 as DocuSign does it: the signer's own boxes on the document itself,
@@ -46,16 +47,29 @@ export const SIGNED: ReadonlySet<FieldKind> = new Set(['signature', 'initials', 
 const andList = (names: readonly string[]): string =>
   names.length <= 1
     ? (names[0] ?? '')
-    : `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`;
+    : t('envelopes.sign-view.and', '{{join}} and {{value}}', {
+        join: names.slice(0, -1).join(', '),
+        value: names.at(-1) ?? '',
+      });
 
 /** What a signer is told at Finish (K7): where it went next, and that their copy is on its way. */
 export function doneMessage(completed: boolean, next: readonly string[]): string {
   if (completed) {
-    return 'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.';
+    return t(
+      'envelopes.sign-view.everybody_has_signed_the_sealed_copy',
+      'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.',
+    );
   }
   return next.length === 0
-    ? 'Your signature is in. Your copy is on its way to your email.'
-    : `Sent to ${andList(next)} for their signature. Your copy, as signed so far, is on its way to your email.`;
+    ? t(
+        'envelopes.sign-view.your_signature_is_in_your_copy',
+        'Your signature is in. Your copy is on its way to your email.',
+      )
+    : t(
+        'envelopes.sign-view.sent_to_for_their_signature_your',
+        'Sent to {{andList}} for their signature. Your copy, as signed so far, is on its way to your email.',
+        { andList: andList(next) },
+      );
 }
 
 export interface Signing {
@@ -122,7 +136,20 @@ function fitToScreen(): void {
   });
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = [
+  t('envelopes.sign-view.jan', 'Jan'),
+  t('envelopes.sign-view.feb', 'Feb'),
+  t('envelopes.sign-view.mar', 'Mar'),
+  t('envelopes.sign-view.apr', 'Apr'),
+  t('envelopes.sign-view.may', 'May'),
+  t('envelopes.sign-view.jun', 'Jun'),
+  t('envelopes.sign-view.jul', 'Jul'),
+  t('envelopes.sign-view.aug', 'Aug'),
+  t('envelopes.sign-view.sep', 'Sep'),
+  t('envelopes.sign-view.oct', 'Oct'),
+  t('envelopes.sign-view.nov', 'Nov'),
+  t('envelopes.sign-view.dec', 'Dec'),
+];
 
 /**
  * The print under a signed box, worded and timed as the sealed file prints
@@ -131,7 +158,17 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  */
 export function traceCaption(traceId: string, at: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  const when = `${String(at.getUTCDate())} ${MONTHS.at(at.getUTCMonth()) ?? ''} ${String(at.getUTCFullYear())}, ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
+  const when = t(
+    'envelopes.sign-view.utc',
+    '{{getUTCDate}} {{value}} {{getUTCFullYear}}, {{pad}}:{{pad2}} UTC',
+    {
+      getUTCDate: String(at.getUTCDate()),
+      value: MONTHS.at(at.getUTCMonth()) ?? '',
+      getUTCFullYear: String(at.getUTCFullYear()),
+      pad: pad(at.getUTCHours()),
+      pad2: pad(at.getUTCMinutes()),
+    },
+  );
   return `Electronically signed via Kithena on ${when}\nSignature ID: ${traceId}`;
 }
 
@@ -251,13 +288,13 @@ export function useSigning(
 
 /** What pressing the focused box does, said on the bar's main button. */
 const ACT: Readonly<Record<FieldKind, string>> = {
-  signature: 'Sign',
-  initials: 'Initial',
-  date: 'Sign and date',
+  signature: t('envelopes.sign-view.sign', 'Sign'),
+  initials: t('envelopes.sign-view.initial', 'Initial'),
+  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
   name: 'Add your name',
-  title: 'Type it',
-  text: 'Type it',
-  checkbox: 'Tick',
+  title: t('envelopes.sign-view.type_it', 'Type it'),
+  text: t('envelopes.sign-view.type_it', 'Type it'),
+  checkbox: t('envelopes.sign-view.tick', 'Tick'),
 };
 
 export function DocumentToSign({
@@ -363,8 +400,10 @@ export function DocumentToSign({
                   h: f.h,
                   tone: toneOf(order.get(f.signerId) ?? 0),
                   label: done
-                    ? `${KIND_LABEL[f.kind]}, filled`
-                    : `${f.label ?? KIND_LABEL[f.kind]}${f.required ? '' : ', optional'}`,
+                    ? t('envelopes.sign-view.filled', '{{KIND_LABEL}}, filled', {
+                        KIND_LABEL: KIND_LABEL[f.kind],
+                      })
+                    : `${f.label ?? KIND_LABEL[f.kind]}${f.required ? '' : t('envelopes.sign-view.optional', ', optional')}`,
                   hint:
                     signing === null
                       ? (env.signers.find((s) => s.id === f.signerId)?.name ?? '')
@@ -388,7 +427,10 @@ export function DocumentToSign({
                   <Signature
                     value={live.mark}
                     initials={f.kind === 'initials'}
-                    label={`${name}’s ${f.kind === 'initials' ? 'initials' : 'signature'}`}
+                    label={t('envelopes.sign-view.s', '{{name}}’s {{value}}', {
+                      name,
+                      value: f.kind === 'initials' ? 'initials' : 'signature',
+                    })}
                   />
                 );
                 // Framed as the sealed file stamps it: a thin rule, "Signed by"
@@ -400,7 +442,7 @@ export function DocumentToSign({
                       className="truncate px-0.5 text-left text-[max(6px,0.75cqw)] leading-none text-[var(--reach-neutral-600)]"
                       aria-hidden
                     >
-                      Signed by {name}
+                      {t('envelopes.sign-view.signed_by', 'Signed by')} {name}
                     </span>
                     {mark}
                     {f.kind === 'date' ? (
@@ -459,7 +501,7 @@ export function DocumentToSign({
                 setText('');
               }}
             >
-              Apply
+              {t('envelopes.sign-view.apply', 'Apply')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -486,14 +528,27 @@ function StepBar({
   const at = steps.findIndex((f) => f.id === focus);
   const focused = at === -1 ? undefined : steps[at];
   const total = steps.length;
-  const place = `${String(total)} ${total === 1 ? 'place' : 'places'}`;
+  const place = t('envelopes.sign-view.text', '{{total}} {{value}}', {
+    total: String(total),
+    value: total === 1 ? 'place' : 'places',
+  });
   // How far through they are, said and drawn on the bar: "1 of 4 done".
   const doneCount = steps.filter((f) => isFilled(filled[f.id])).length;
   const progress = { value: doneCount, max: total };
-  const count = `${String(doneCount)} of ${String(total)} done`;
+  const count = t('envelopes.sign-view.of_done', '{{doneCount}} of {{total}} done', {
+    doneCount: String(doneCount),
+    total: String(total),
+  });
   if (ready && onFinish !== undefined) {
     return (
-      <PinnedBar message={`All ${String(total)} done. Finish to sign.`} progress={progress}>
+      <PinnedBar
+        message={t(
+          'envelopes.sign-view.all_done_finish_to_sign',
+          'All {{total}} done. Finish to sign.',
+          { total: String(total) },
+        )}
+        progress={progress}
+      >
         <Button
           size="sm"
           variant="primary"
@@ -501,7 +556,7 @@ function StepBar({
           endIcon={<icons.success aria-hidden />}
           onClick={onFinish}
         >
-          Finish
+          {t('envelopes.sign-view.finish', 'Finish')}
         </Button>
       </PinnedBar>
     );
@@ -509,7 +564,11 @@ function StepBar({
   if (focused === undefined) {
     return (
       <PinnedBar
-        message={`${place} for you to fill in. Start takes you to each one.`}
+        message={t(
+          'envelopes.sign-view.for_you_to_fill_in_start',
+          '{{place}} for you to fill in. Start takes you to each one.',
+          { place },
+        )}
         progress={progress}
       >
         <Button
@@ -518,18 +577,25 @@ function StepBar({
           endIcon={<icons.forward aria-hidden />}
           onClick={signing.goNext}
         >
-          Start
+          {t('envelopes.sign-view.start', 'Start')}
         </Button>
       </PinnedBar>
     );
   }
-  const step = `Step ${String(at + 1)} of ${String(total)} · ${focused.label ?? KIND_LABEL[focused.kind]}`;
+  const step = t('envelopes.sign-view.step_of', 'Step {{value}} of {{total}} · {{value2}}', {
+    value: String(at + 1),
+    total: String(total),
+    value2: focused.label ?? KIND_LABEL[focused.kind],
+  });
   if (!isFilled(filled[focused.id])) {
     return (
-      <PinnedBar message={`${step} · ${count}`} progress={progress}>
+      <PinnedBar
+        message={t('envelopes.sign-view.text_2', '{{step}} · {{count}}', { step, count })}
+        progress={progress}
+      >
         {focused.required ? null : (
           <Button size="sm" variant="on-invert" onClick={signing.goNext}>
-            Skip
+            {t('envelopes.sign-view.skip', 'Skip')}
           </Button>
         )}
         <Button
@@ -540,32 +606,37 @@ function StepBar({
             signing.apply(focused.id);
           }}
         >
-          {SIGNED.has(focused.kind) && mark === null ? 'Adopt and sign' : ACT[focused.kind]}
+          {SIGNED.has(focused.kind) && mark === null
+            ? t('envelopes.sign-view.adopt_and_sign', 'Adopt and sign')
+            : ACT[focused.kind]}
         </Button>
       </PinnedBar>
     );
   }
   return (
-    <PinnedBar message={`${step} · ${count}`} progress={progress}>
+    <PinnedBar
+      message={t('envelopes.sign-view.text_2', '{{step}} · {{count}}', { step, count })}
+      progress={progress}
+    >
       <Button
         size="sm"
         variant="primary"
         endIcon={<icons.forward aria-hidden />}
         onClick={signing.goNext}
       >
-        Next
+        {t('envelopes.sign-view.next', 'Next')}
       </Button>
     </PinnedBar>
   );
 }
 
 const HINT: Readonly<Record<FieldKind, string>> = {
-  signature: 'Sign',
-  initials: 'Initial',
-  date: 'Sign and date',
+  signature: t('envelopes.sign-view.sign', 'Sign'),
+  initials: t('envelopes.sign-view.initial', 'Initial'),
+  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
   name: 'Name',
-  title: 'Title',
-  text: 'Text',
+  title: t('envelopes.sign-view.title', 'Title'),
+  text: t('envelopes.sign-view.text_3', 'Text'),
   checkbox: '',
 };
 

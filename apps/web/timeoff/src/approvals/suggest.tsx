@@ -23,6 +23,7 @@ import { useState, useTransition, type JSX } from 'react';
 import type { Outcome } from '../load';
 import { AiTag, swapWords, type Alternative, type DecisionData } from './decision';
 import { daysLabel, firstName, listOf, spanLabel, type CoverageDay, type Range } from './words';
+import { t } from '../i18n';
 
 /**
  * Suggesting other dates (T18, §9.5): instead of declining, the approver
@@ -75,11 +76,15 @@ export function SuggestDates({
     >
       <DialogContent sheetOnTouch className="max-w-190">
         <DialogHeader>
-          <DialogTitle>{`Suggest other dates to ${who}`}</DialogTitle>
+          <DialogTitle>
+            {t('approvals.suggest.suggest_other_dates_to', 'Suggest other dates to {{who}}', {
+              who,
+            })}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <RadioGroup
-            aria-label="Dates to suggest"
+            aria-label={t('approvals.suggest.dates_to_suggest', 'Dates to suggest')}
             value={choice}
             onValueChange={(value) => {
               setChoice(value);
@@ -97,7 +102,7 @@ export function SuggestDates({
                   ? {
                       badge: (
                         <Badge tone="assistant" size="sm">
-                          Suggested
+                          {t('approvals.suggest.suggested', 'Suggested')}
                         </Badge>
                       ),
                     }
@@ -108,14 +113,20 @@ export function SuggestDates({
                   : spanLabel(option.dates[0] ?? '', option.dates.at(-1) ?? '')}
               </RadioCard>
             ))}
-            <RadioCard value="own" description="Choose them on the calendar.">
-              Pick other dates
+            <RadioCard
+              value="own"
+              description={t(
+                'approvals.suggest.choose_them_on_the_calendar',
+                'Choose them on the calendar.',
+              )}
+            >
+              {t('approvals.suggest.pick_other_dates', 'Pick other dates')}
             </RadioCard>
           </RadioGroup>
           {choice === 'own' ? (
             <DatePicker
               mode="range"
-              label="Other dates"
+              label={t('approvals.suggest.other_dates', 'Other dates')}
               value={own === null ? null : { start: own.from, end: own.to }}
               onChange={(range) => {
                 setOwn(
@@ -128,7 +139,7 @@ export function SuggestDates({
             />
           ) : null}
           <Field>
-            <FieldLabel>Message</FieldLabel>
+            <FieldLabel>{t('approvals.suggest.message', 'Message')}</FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
@@ -149,18 +160,31 @@ export function SuggestDates({
               <AiTag />
             </div>
           ) : null}
-          <Alert tone="info" title={`${who} can accept in one tap`}>
-            If they accept, it is approved with no second step. If not, the original request comes
-            back to you.
+          <Alert
+            tone="info"
+            title={t('approvals.suggest.can_accept_in_one_tap', '{{who}} can accept in one tap', {
+              who,
+            })}
+          >
+            {t(
+              'approvals.suggest.if_they_accept_it_is_approved',
+              'If they accept, it is approved with no second step. If not, the original request comes back to you.',
+            )}
           </Alert>
           {failed === null ? null : (
-            <Alert tone="danger" title="The suggestion was not sent">
+            <Alert
+              tone="danger"
+              title={t(
+                'approvals.suggest.the_suggestion_was_not_sent',
+                'The suggestion was not sent',
+              )}
+            >
               {failed}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('approvals.suggest.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.send aria-hidden />}
@@ -168,7 +192,7 @@ export function SuggestDates({
             loading={pending}
             onClick={send}
           >
-            Send suggestion
+            {t('approvals.suggest.send_suggestion', 'Send suggestion')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -179,20 +203,36 @@ export function SuggestDates({
 function describe(option: Alternative): string {
   if (option.kind === 'swap_days' && option.swapped !== null) {
     const n = option.dates.length;
-    return `The same ${String(n)} ${n === 1 ? 'day' : 'days'}, swapping ${swapWords(option.swapped)}.`;
+    return t(
+      'approvals.suggest.the_same_swapping',
+      'The same {{n}} {{value}}, swapping {{swapWords}}.',
+      { n: String(n), value: n === 1 ? 'day' : 'days', swapWords: swapWords(option.swapped) },
+    );
   }
-  return 'A clean week, with nobody else short.';
+  return t(
+    'approvals.suggest.a_clean_week_with_nobody_else',
+    'A clean week, with nobody else short.',
+  );
 }
 
 /** "Keeps 5 of 7 in every day", from the coverage the domain worked out. */
 export function impactOf(coverage: readonly CoverageDay[]): string {
   const counted = coverage.filter((c) => c.checked);
   const worst = counted.toSorted((a, b) => a.in - b.in)[0];
-  if (worst === undefined) return 'No team minimum on these days';
+  if (worst === undefined)
+    return t('approvals.suggest.no_team_minimum_on_these_days', 'No team minimum on these days');
   const short = counted.filter((c) => c.below).length;
   return short === 0
-    ? `Keeps ${String(worst.in)} of ${String(worst.of)} in every day`
-    : `${String(worst.in)} of ${String(worst.of)} in on ${String(short)} ${short === 1 ? 'day' : 'days'}`;
+    ? t('approvals.suggest.keeps_of_in_every_day', 'Keeps {{in}} of {{of}} in every day', {
+        in: String(worst.in),
+        of: String(worst.of),
+      })
+    : t('approvals.suggest.of_in_on', '{{in}} of {{of}} in on {{short}} {{value}}', {
+        in: String(worst.in),
+        of: String(worst.of),
+        short: String(short),
+        value: short === 1 ? 'day' : 'days',
+      });
 }
 
 /** The message for dates Time Off sent none for: what changes, and why. */
@@ -212,16 +252,37 @@ function draft(
   const why =
     off.length === 0
       ? ''
-      : ` ${listOf(off)} ${off.length === 1 ? 'is' : 'are'} out on the day you asked.`;
+      : ' ' +
+        t(
+          'approvals.suggest.out_on_the_day_you_asked',
+          '{{listOf}} {{value}} out on the day you asked.',
+          { listOf: listOf(off), value: off.length === 1 ? 'is' : 'are' },
+        );
   if (picked?.swapped != null) {
-    return `Hi ${who}, could you swap ${swapWords(picked.swapped)}?${why} Happy to approve straight away if that works.`;
+    return t(
+      'approvals.suggest.hi_could_you_swap_happy_to',
+      'Hi {{who}}, could you swap {{swapWords}}?{{why}} Happy to approve straight away if that works.',
+      { who, swapWords: swapWords(picked.swapped), why },
+    );
   }
   if (picked !== null) {
     const first = picked.dates[0] ?? '';
     const last = picked.dates.at(-1) ?? first;
-    return `Hi ${who}, could you take ${spanLabel(first, last)} instead?${why} Happy to approve straight away if that works.`;
+    return t(
+      'approvals.suggest.hi_could_you_take_instead_happy',
+      'Hi {{who}}, could you take {{spanLabel}} instead?{{why}} Happy to approve straight away if that works.',
+      { who, spanLabel: spanLabel(first, last), why },
+    );
   }
   return own === null
-    ? `Hi ${who}, could you pick other dates?${why}`
-    : `Hi ${who}, could you take ${spanLabel(own.from, own.to)} instead?${why} Happy to approve straight away if that works.`;
+    ? t(
+        'approvals.suggest.hi_could_you_pick_other_dates',
+        'Hi {{who}}, could you pick other dates?{{why}}',
+        { who, why },
+      )
+    : t(
+        'approvals.suggest.hi_could_you_take_instead_happy',
+        'Hi {{who}}, could you take {{spanLabel}} instead?{{why}} Happy to approve straight away if that works.',
+        { who, spanLabel: spanLabel(own.from, own.to), why },
+      );
 }

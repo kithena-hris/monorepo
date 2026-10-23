@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { useId, type ComponentPropsWithRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A value edited in the grid it is shown in.
@@ -67,7 +68,12 @@ export function InlineCell({
       <input
         aria-invalid={status === 'invalid' || undefined}
         aria-describedby={said ? describedBy : undefined}
-        placeholder={placeholder ?? (status === 'missing' ? 'Missing' : undefined)}
+        placeholder={
+          placeholder ??
+          (status === 'missing'
+            ? t('components.inline-cell.inline-cell.missing', 'Missing')
+            : undefined)
+        }
         className={cn(
           'h-full w-full min-w-0 bg-transparent text-sm font-medium text-fg outline-none touch:text-base',
           'placeholder:font-normal',

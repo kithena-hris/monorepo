@@ -8,6 +8,7 @@ import { askAssistant } from '../app/assistant/actions';
 import { askInbox } from '../app/(app)/inbox/actions';
 import { aboutInbox } from '../lib/inbox/ask';
 import type { Turn } from './assistant-panel';
+import { t as tr } from '../lib/t';
 
 /**
  * Ask Kithena (design B4, MA A4): a small window grown out of the launcher in
@@ -82,7 +83,10 @@ export function Assistant(): JSX.Element {
     if (onInbox || aboutInbox(question)) {
       void askInbox(question)
         .catch(() => ({
-          text: 'Sorry, I couldn’t read your Inbox just now.',
+          text: tr(
+            'components.assistant.sorry_i_couldnt_read_your_inbox',
+            'Sorry, I couldn’t read your Inbox just now.',
+          ),
           items: [],
           nudge: null,
         }))
@@ -98,7 +102,10 @@ export function Assistant(): JSX.Element {
     }
     void askAssistant(question, earlier)
       .catch(() => ({
-        text: 'Sorry, I couldn’t reach Kithena just now. Could you try again in a moment?',
+        text: tr(
+          'components.assistant.sorry_i_couldnt_reach_kithena_just',
+          'Sorry, I couldn’t reach Kithena just now. Could you try again in a moment?',
+        ),
         people: [],
         from: [],
       }))
@@ -115,7 +122,7 @@ export function Assistant(): JSX.Element {
   if (!open) {
     return (
       <AssistantLauncher
-        label="Ask Kithena"
+        label={tr('components.assistant.ask_kithena', 'Ask Kithena')}
         shortcut="assistant"
         onOpen={() => {
           setOpen(true);

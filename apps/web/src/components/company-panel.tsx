@@ -2,6 +2,7 @@ import { Avatar } from '@reach/ui';
 import type { JSX } from 'react';
 
 import type { Branding } from '../lib/branding';
+import { t } from '../lib/t';
 
 /**
  * Whose sign-in page this is.
@@ -85,7 +86,9 @@ export function CompanyPanel({ branding }: { branding: Branding }): JSX.Element 
           */}
           <div aria-hidden className="bg-accent-solid mb-3 h-[3px] w-10 rounded-full" />
           <p className="text-2xl font-semibold">{branding.displayName}</p>
-          <p className="text-fg-muted mt-1 text-sm">Sign in to your account.</p>
+          <p className="text-fg-muted mt-1 text-sm">
+            {t('components.company-panel.sign_in_to_your_account', 'Sign in to your account.')}
+          </p>
         </div>
       )}
     </aside>

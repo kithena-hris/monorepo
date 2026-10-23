@@ -16,7 +16,11 @@ import { people } from './people';
 export interface AssistantReply {
   readonly text: string;
   /** People the answer names, to link to. */
-  readonly people: readonly { readonly id: string; readonly name: string; readonly title: string | null }[];
+  readonly people: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly title: string | null;
+  }[];
   /** Which modules answered: "People". */
   readonly from: readonly string[];
 }
@@ -53,7 +57,10 @@ export async function askAcross(
 ): Promise<AssistantReply> {
   const mine = MODULES.filter((m) => entitlements.includes(m.entitlement));
   const answers = await Promise.all(
-    mine.map(async (m) => ({ module: m.name, answer: await m.ask(question, earlier).catch(() => null) })),
+    mine.map(async (m) => ({
+      module: m.name,
+      answer: await m.ask(question, earlier).catch(() => null),
+    })),
   );
   const answered = answers.filter((a) => a.answer?.answered === true);
   if (answered.length === 0) {

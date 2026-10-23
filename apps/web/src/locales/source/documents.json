@@ -1,0 +1,2470 @@
+{
+  "answers.hr_asked": {
+    "text": "HR asked",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the trailing of <Badge>."
+  },
+  "answers.hr_is_waiting_for_detail_from": {
+    "text": "HR is waiting for {{asked}} detail{{value}} from you",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the title of <AssistantCard>. Filled in: {{asked}}, {{value}}."
+  },
+  "answers.kithena_is_reading_your_documents": {
+    "text": "Kithena is reading your documents",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the label of <Spinner>."
+  },
+  "answers.look_in_this_document": {
+    "text": "Look in this document",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>."
+  },
+  "answers.look_in_your_documents": {
+    "text": "Look in your documents",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>."
+  },
+  "answers.p": {
+    "text": "{{value}} · {{value2}}, p. {{page}}",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the description of <ListItem>. Filled in: {{value}}, {{value2}}, {{page}}."
+  },
+  "answers.read_for_you_alone_nothing_is": {
+    "text": "Read for you alone. Nothing is sent until you save it.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the note of <AssistantCard>."
+  },
+  "answers.save": {
+    "text": "Save {{label}}",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the aria-label of <Checkbox>. Filled in: {{label}}."
+  },
+  "answers.save_to_your_record": {
+    "text": "Save {{size}} to your record",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <Button>. Filled in: {{size}}."
+  },
+  "answers.saved_to_your_record": {
+    "text": "Saved to your record.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the onClick of <Button>."
+  },
+  "answers.saved_wait_for_hr_to_approve": {
+    "text": "Saved. {{held}} wait for HR to approve.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the onClick of <Button>. Filled in: {{held}}."
+  },
+  "answers.this_document": {
+    "text": "this document",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the description of <ListItem>."
+  },
+  "answers.this_document_does_not_say_any": {
+    "text": "This document does not say any of them.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>."
+  },
+  "answers.what_kithena_found": {
+    "text": "What Kithena found",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the aria-label of <List>."
+  },
+  "answers.your_documents_do_not_say_any": {
+    "text": "Your documents do not say any of them.",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: text inside <p>."
+  },
+  "answers.your_record_is_missing_detail": {
+    "text": "Your record is missing {{length}} detail{{value}}",
+    "context": "Documents: files, e-signatures, letters. answers.tsx, Answers: the title of <AssistantCard>. Filled in: {{length}}, {{value}}."
+  },
+  "document.certificate.it_does_not_say_what_it": {
+    "text": "It does not say what it records.",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: text inside <p>."
+  },
+  "document.certificate.kithena_is_reading_the_certificate": {
+    "text": "Kithena is reading the certificate",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: the label of <Spinner>."
+  },
+  "document.certificate.leave_this_certificate_entitles_you_to": {
+    "text": "Leave this certificate entitles you to",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: text inside <Button>."
+  },
+  "document.certificate.none_of_your_leave_types_is": {
+    "text": "None of your leave types is for it.",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: text inside <p>."
+  },
+  "document.certificate.p": {
+    "text": "p. {{page}}",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: text inside <Badge>. Filled in: {{page}}."
+  },
+  "document.certificate.read_for_you_alone": {
+    "text": "Read for you alone.",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: the note of <AssistantCard>."
+  },
+  "document.certificate.request": {
+    "text": "Request {{name}}{{value}}",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: text inside <a>. Filled in: {{name}}, {{value}}."
+  },
+  "document.certificate.what_this_certificate_unlocks": {
+    "text": "What this certificate unlocks",
+    "context": "Documents: files, e-signatures, letters. document/certificate.tsx, Certificate: the title of <AssistantCard>."
+  },
+  "document.document.a_watermark_no_download_or_print": {
+    "text": "A watermark, no download or print, and every open logged.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, ProtectSwitch: text inside <p>."
+  },
+  "document.document.acknowledged_by_of": {
+    "text": "Acknowledged by {{done}} of {{of}}",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>. Filled in: {{done}}, {{of}}."
+  },
+  "document.document.activity": {
+    "text": "Activity",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <CardTitle>."
+  },
+  "document.document.add_version": {
+    "text": "Add version",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, NewVersion: text inside <Button>."
+  },
+  "document.document.ask_everyone_to_acknowledge_it": {
+    "text": "Ask everyone to acknowledge it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, SendAsPolicy: text inside <Button>."
+  },
+  "document.document.ask_for_access": {
+    "text": "Ask for access",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: text inside <Button>."
+  },
+  "document.document.asked": {
+    "text": "Asked",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: the title of <Alert>."
+  },
+  "document.document.asked_to_open_it": {
+    "text": "Asked to open it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <CardTitle>."
+  },
+  "document.document.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, SendAsPolicy: text inside <Button>."
+  },
+  "document.document.confidential": {
+    "text": "Confidential",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the title of <Alert>."
+  },
+  "document.document.could_not_open_it": {
+    "text": "Could not open it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the title of <Alert>."
+  },
+  "document.document.delete": {
+    "text": "Delete",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Button>."
+  },
+  "document.document.document": {
+    "text": "Document",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, DocumentView: the title of <PageHeader>."
+  },
+  "document.document.download": {
+    "text": "Download",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the actions of <Button>."
+  },
+  "document.document.drop_the_new_file_or_choose": {
+    "text": "Drop the new file, or choose it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, NewVersion: the label of <Dropzone>."
+  },
+  "document.document.everyone_at_the_company_gets_a": {
+    "text": "Everyone at the company gets a task to read it and say so. New joiners are asked too.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, SendAsPolicy: text inside <DialogDescription>."
+  },
+  "document.document.everyone_who_can_open_it_sees": {
+    "text": "Everyone who can open it sees the new version; the old ones stay.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, NewVersion: text inside <DialogDescription>."
+  },
+  "document.document.expires": {
+    "text": "Expires",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the items of <KeyValues>."
+  },
+  "document.document.grant": {
+    "text": "Grant",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Decide: text inside <Button>."
+  },
+  "document.document.in_deleted": {
+    "text": "In Deleted",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the title of <EmptyState>."
+  },
+  "document.document.its_owner": {
+    "text": "Its owner",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, DocumentView: the owner of <Closed>."
+  },
+  "document.document.ive_read_it": {
+    "text": "I’ve read it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Acknowledge: text inside <Button>."
+  },
+  "document.document.legal_hold": {
+    "text": "Legal hold",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Badge>."
+  },
+  "document.document.loading_the_document": {
+    "text": "Loading the document",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, DocumentView: the label of <Skeleton>."
+  },
+  "document.document.new_version": {
+    "text": "New version",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Button>."
+  },
+  "document.document.open": {
+    "text": "Open",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the action of <a>."
+  },
+  "document.document.open_the_request": {
+    "text": "Open the request",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <a>."
+  },
+  "document.document.opening_the_document": {
+    "text": "Opening the document",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the label of <Spinner>."
+  },
+  "document.document.out_for_signature_of_signed": {
+    "text": "Out for signature · {{signed}} of {{of}} signed",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>. Filled in: {{signed}}, {{of}}."
+  },
+  "document.document.owner": {
+    "text": "Owner",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the items of <KeyValues>."
+  },
+  "document.document.owns_it_theyll_get_a_task": {
+    "text": "{{owner}} owns it. They’ll get a task in their Inbox, and you’ll hear back as an update.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: the description of <EmptyState>. Filled in: {{owner}}."
+  },
+  "document.document.read_it_then_acknowledge_it": {
+    "text": "Read it, then acknowledge it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>."
+  },
+  "document.document.refuse": {
+    "text": "Refuse",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Decide: text inside <Button>."
+  },
+  "document.document.request_signature": {
+    "text": "Request signature",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the actions of <a>."
+  },
+  "document.document.restore": {
+    "text": "Restore",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the actions of <Button>."
+  },
+  "document.document.restore_it_to_open_it": {
+    "text": "Restore it to open it.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the description of <EmptyState>."
+  },
+  "document.document.review_and_sign": {
+    "text": "Review and sign",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <a>."
+  },
+  "document.document.see_who_is_left": {
+    "text": "See who is left",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <a>."
+  },
+  "document.document.send": {
+    "text": "Send",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, SendAsPolicy: text inside <Button>."
+  },
+  "document.document.send_for_acknowledgement": {
+    "text": "Send for acknowledgement",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, SendAsPolicy: text inside <DialogTitle>."
+  },
+  "document.document.set_by_hr_only_hr_can": {
+    "text": "Set by HR: only HR can lower it.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, ProtectSwitch: text inside <p>."
+  },
+  "document.document.share": {
+    "text": "Share",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the actions of <Button>."
+  },
+  "document.document.signature_request": {
+    "text": "Signature request {{status}}",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>. Filled in: {{status}}."
+  },
+  "document.document.signed_and_sealed": {
+    "text": "Signed and sealed",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <span>."
+  },
+  "document.document.this_kind_of_file_opens_in": {
+    "text": "This kind of file opens in its own app.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Preview: the description of <EmptyState>."
+  },
+  "document.document.version": {
+    "text": "Version",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the items of <KeyValues>."
+  },
+  "document.document.versions": {
+    "text": "Versions",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <CardTitle>."
+  },
+  "document.document.what_changed": {
+    "text": "What changed",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, NewVersion: text inside <FieldLabel>."
+  },
+  "document.document.who_can_see_it": {
+    "text": "Who can see it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the items of <KeyValues>."
+  },
+  "document.document.why_you_need_it": {
+    "text": "Why you need it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: text inside <FieldLabel>."
+  },
+  "document.document.will_decide": {
+    "text": "will decide.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: text inside <Alert>."
+  },
+  "document.document.you_acknowledged_it": {
+    "text": "You acknowledged it",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Badge>."
+  },
+  "document.document.you_cant_open_this_yet": {
+    "text": "You can’t open this yet",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Closed: the title of <EmptyState>."
+  },
+  "document.document.your_document": {
+    "text": "Your document",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: the description of <PageHeader>."
+  },
+  "document.document.your_name_is_on_every_page": {
+    "text": "Your name is on every page. It cannot be downloaded or printed, and every open is logged.",
+    "context": "Documents: files, e-signatures, letters. document/document.tsx, Open: text inside <Alert>."
+  },
+  "document.letter.act_on_this_letter": {
+    "text": "Act on this letter",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, ActOnLetter: text inside <Button>."
+  },
+  "document.letter.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <Button>."
+  },
+  "document.letter.close": {
+    "text": "Close",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <Button>."
+  },
+  "document.letter.each_is_a_tick_nothing_changes": {
+    "text": "Each is a tick. Nothing changes until you save.",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <DialogDescription>."
+  },
+  "document.letter.give_notice_last_working_day": {
+    "text": "Give notice: last working day {{value}}",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <FieldLabel>. Filled in: {{value}}."
+  },
+  "document.letter.kithena_is_reading_the_letter": {
+    "text": "Kithena is reading the letter",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: the label of <Spinner>."
+  },
+  "document.letter.p": {
+    "text": "p. {{page}}",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <Badge>. Filled in: {{page}}."
+  },
+  "document.letter.save": {
+    "text": "Save",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <Button>."
+  },
+  "document.letter.saved": {
+    "text": "Saved",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: the title of <Alert>."
+  },
+  "document.letter.the_letter_states_no_last_working": {
+    "text": "The letter states no last working day.",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <p>."
+  },
+  "document.letter.their_leave_balance_is_settled_on": {
+    "text": "Their leave balance is settled on that day, as it is for anybody leaving.",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <p>."
+  },
+  "document.letter.their_notice_is_in_their_record": {
+    "text": "Their notice is in their record.",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <Alert>."
+  },
+  "document.letter.their_record_shows_them_leaving_and": {
+    "text": "Their record shows them leaving, and offboarding starts from it.",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <FieldDescription>."
+  },
+  "document.letter.what_this_letter_changes_for": {
+    "text": "What this letter changes for {{name}}",
+    "context": "Documents: files, e-signatures, letters. document/letter.tsx, LetterDialog: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "document.reading.ask_about_this_document": {
+    "text": "Ask about this document",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the aria-label of <AssistantComposer>."
+  },
+  "document.reading.ask_about_this_document_2": {
+    "text": "Ask about this document…",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the placeholder of <AssistantComposer>."
+  },
+  "document.reading.changes_from_version": {
+    "text": "Changes from version {{value}}",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Compare: the aria-label of <section>. Filled in: {{value}}."
+  },
+  "document.reading.comparing_the_versions": {
+    "text": "Comparing the versions",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Compare: the label of <Spinner>."
+  },
+  "document.reading.dates_in_this_document": {
+    "text": "Dates in this document",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the title of <AssistantCard>."
+  },
+  "document.reading.from_version_answers_can_be_wrong": {
+    "text": "From version {{current}}. Answers can be wrong; check the page.",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the note of <AssistantCard>. Filled in: {{current}}."
+  },
+  "document.reading.kithena_is_answering": {
+    "text": "Kithena is answering",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the label of <Spinner>."
+  },
+  "document.reading.kithena_is_reading_the_document": {
+    "text": "Kithena is reading the document",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the label of <Spinner>."
+  },
+  "document.reading.nothing_you_can_open_says": {
+    "text": "Nothing you can open says.",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, AcrossAnswer: text inside <p>."
+  },
+  "document.reading.only_from_documents_you_can_open": {
+    "text": "Only from documents you can open.",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, AcrossAnswer: the note of <AssistantCard>."
+  },
+  "document.reading.p": {
+    "text": "p. {{pages}}",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx: text built in code. Filled in: {{pages}}."
+  },
+  "document.reading.pp": {
+    "text": "pp. {{join}}",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx: text built in code. Filled in: {{join}}."
+  },
+  "document.reading.reading_it": {
+    "text": "Reading it",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the title of <AssistantCard>."
+  },
+  "document.reading.summary": {
+    "text": "Summary",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the title of <AssistantCard>."
+  },
+  "document.reading.text": {
+    "text": "{{title}} · {{pagesWord}}",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, AcrossAnswer: text inside <AssistantSource>. Filled in: {{title}}, {{pagesWord}}."
+  },
+  "document.reading.the_document_does_not_say": {
+    "text": "The document does not say.",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: text inside <p>."
+  },
+  "document.reading.the_words_did_not_change": {
+    "text": "The words did not change.",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Compare: text inside <p>."
+  },
+  "document.reading.what_changed_from_version": {
+    "text": "What changed from version {{value}}",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Compare: text inside <Button>. Filled in: {{value}}."
+  },
+  "document.reading.worth_knowing": {
+    "text": "Worth knowing",
+    "context": "Documents: files, e-signatures, letters. document/reading.tsx, Reading: the title of <Alert>."
+  },
+  "document.record.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Button>."
+  },
+  "document.record.close": {
+    "text": "Close",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Button>."
+  },
+  "document.record.field": {
+    "text": "Field",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <TableHead>."
+  },
+  "document.record.fill_s_record": {
+    "text": "Fill {{name}}’s record",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "document.record.fill_the_record": {
+    "text": "Fill the record",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <DialogTitle>."
+  },
+  "document.record.fill_the_record_from_it": {
+    "text": "Fill the record from it",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, FillRecord: text inside <Button>."
+  },
+  "document.record.in_the_document": {
+    "text": "In the document",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <TableHead>."
+  },
+  "document.record.kithena_is_reading_the_document": {
+    "text": "Kithena is reading the document",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: the label of <Spinner>."
+  },
+  "document.record.kithena_read_the_document_nothing_is": {
+    "text": "Kithena read the document. Nothing is saved until you tick it.",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <DialogDescription>."
+  },
+  "document.record.now": {
+    "text": "Now",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <TableHead>."
+  },
+  "document.record.p": {
+    "text": "p. {{value}}",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Badge>. Filled in: {{value}}."
+  },
+  "document.record.save": {
+    "text": "Save",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <span>."
+  },
+  "document.record.save_2": {
+    "text": "Save {{label}}",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: the aria-label of <Checkbox>. Filled in: {{label}}."
+  },
+  "document.record.save_3": {
+    "text": "Save {{size}}",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Button>. Filled in: {{size}}."
+  },
+  "document.record.saved": {
+    "text": "Saved",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: the title of <Alert>."
+  },
+  "document.record.the_document_states_none_of_the": {
+    "text": "The document states none of the record’s fields.",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <p>."
+  },
+  "document.record.the_record_has_the_ticked_values": {
+    "text": "The record has the ticked values.",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Alert>."
+  },
+  "document.record.wait_for_approval_before_they_show": {
+    "text": "{{waiting}} wait for approval before they show.",
+    "context": "Documents: files, e-signatures, letters. document/record.tsx, RecordDialog: text inside <Alert>. Filled in: {{waiting}}."
+  },
+  "envelopes.campaign.acknowledgements": {
+    "text": "Acknowledgements",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: the title of <PageHeader>."
+  },
+  "envelopes.campaign.everybody_has_read_it": {
+    "text": "Everybody has read it.",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: text inside <p>."
+  },
+  "envelopes.campaign.loading_the_policy": {
+    "text": "Loading the policy",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: the label of <Skeleton>."
+  },
+  "envelopes.campaign.of_acknowledged": {
+    "text": "{{done}} of {{of}} acknowledged",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: the label of <Progress>. Filled in: {{done}}, {{of}}."
+  },
+  "envelopes.campaign.of_done": {
+    "text": "{{done}} of {{of}} done",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: text inside <span>. Filled in: {{done}}, {{of}}."
+  },
+  "envelopes.campaign.still_to_go": {
+    "text": "Still to go",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: text inside <h2>."
+  },
+  "envelopes.campaign.version_sent": {
+    "text": "Version {{version}} · sent {{sentAt}}{{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/campaign.tsx, Campaign: the description of <PageHeader>. Filled in: {{version}}, {{sentAt}}, {{value}}."
+  },
+  "envelopes.envelopes.add": {
+    "text": "Add",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
+  },
+  "envelopes.envelopes.add_a_colleague": {
+    "text": "Add a colleague",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.add_the_document_as_a_pdf": {
+    "text": "Add the document as a PDF, then send it for signature.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: text inside <Alert>."
+  },
+  "envelopes.envelopes.adopt_your_signature": {
+    "text": "Adopt your signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Button>."
+  },
+  "envelopes.envelopes.ask_a_question": {
+    "text": "Ask a question",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Button>."
+  },
+  "envelopes.envelopes.ask_a_question_2": {
+    "text": "Ask {{sender}} a question",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <DialogTitle>. Filled in: {{sender}}."
+  },
+  "envelopes.envelopes.back": {
+    "text": "Back",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
+  },
+  "envelopes.envelopes.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Button>."
+  },
+  "envelopes.envelopes.cancel_the_request": {
+    "text": "Cancel the request",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <DropdownMenuItem>."
+  },
+  "envelopes.envelopes.cancel_this_request": {
+    "text": "Cancel this request",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <DialogTitle>."
+  },
+  "envelopes.envelopes.cancelled": {
+    "text": "Cancelled",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, ENVELOPE: a \"voided\" value."
+  },
+  "envelopes.envelopes.change_it_in_settings": {
+    "text": "Change it in Settings",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <a>."
+  },
+  "envelopes.envelopes.change_your_signature": {
+    "text": "Change your signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Button>."
+  },
+  "envelopes.envelopes.code_by_email": {
+    "text": "Code by email{{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the description of <ListItem>. Filled in: {{value}}."
+  },
+  "envelopes.envelopes.confirms_with_a_code_by_email": {
+    "text": "{{email}} · confirms with a code by email",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the description of <ListItem>. Filled in: {{email}}."
+  },
+  "envelopes.envelopes.decline": {
+    "text": "Decline",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Button>."
+  },
+  "envelopes.envelopes.decline_to_sign": {
+    "text": "Decline to sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <DialogTitle>."
+  },
+  "envelopes.envelopes.declined": {
+    "text": "Declined",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"declined\" value."
+  },
+  "envelopes.envelopes.due": {
+    "text": "Due",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.every_request_you_sign_or_follow": {
+    "text": "Every request you sign or follow.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <PageHeader>."
+  },
+  "envelopes.envelopes.everybody_has_signed_sealing_the_file": {
+    "text": "Everybody has signed; sealing the file did not finish.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <Alert>."
+  },
+  "envelopes.envelopes.everything_is_filled_in_finish_under": {
+    "text": "Everything is filled in. Finish, under the document, signs it.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>."
+  },
+  "envelopes.envelopes.filed_as_version_with_a_certificate": {
+    "text": "Filed as version {{signedVersion}}, with a certificate of completion as its last page.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <Alert>. Filled in: {{signedVersion}}."
+  },
+  "envelopes.envelopes.find_a_colleague": {
+    "text": "Find a colleague",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <Combobox>."
+  },
+  "envelopes.envelopes.find_someone": {
+    "text": "Find someone",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the searchPlaceholder of <Combobox>."
+  },
+  "envelopes.envelopes.from": {
+    "text": "From {{sender}} · {{createdAt}}{{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the description of <PageHeader>. Filled in: {{sender}}, {{createdAt}}, {{value}}."
+  },
+  "envelopes.envelopes.keep_it": {
+    "text": "Keep it",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <Button>."
+  },
+  "envelopes.envelopes.kithena_login": {
+    "text": "Kithena login",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the description of <ListItem>."
+  },
+  "envelopes.envelopes.loading_signature_requests": {
+    "text": "Loading signature requests",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the label of <Skeleton>."
+  },
+  "envelopes.envelopes.loading_the_document": {
+    "text": "Loading the document",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: the label of <Skeleton>."
+  },
+  "envelopes.envelopes.loading_the_request": {
+    "text": "Loading the request",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelope: the label of <Skeleton>."
+  },
+  "envelopes.envelopes.may_pass_it_to_a_colleague": {
+    "text": "{{name}} may pass it to a colleague",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>. Filled in: {{name}}."
+  },
+  "envelopes.envelopes.message": {
+    "text": "Message",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.more": {
+    "text": "More",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: the aria-label of <Button>."
+  },
+  "envelopes.envelopes.next": {
+    "text": "Next",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
+  },
+  "envelopes.envelopes.no_date": {
+    "text": "No date",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <DatePicker>."
+  },
+  "envelopes.envelopes.no_signature_requests": {
+    "text": "No signature requests",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the title of <EmptyState>."
+  },
+  "envelopes.envelopes.nobody_by_that_name": {
+    "text": "Nobody by that name",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the emptyMessage of <Combobox>."
+  },
+  "envelopes.envelopes.nobody_yet": {
+    "text": "Nobody yet.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <p>."
+  },
+  "envelopes.envelopes.not_sent": {
+    "text": "Not sent",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the title of <Alert>."
+  },
+  "envelopes.envelopes.not_signed": {
+    "text": "Not signed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: the title of <Alert>."
+  },
+  "envelopes.envelopes.of_signed": {
+    "text": "{{signed}} of {{of}} signed{{value}}{{value2}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <ListItem>. Filled in: {{signed}}, {{of}}, {{value}}, {{value2}}."
+  },
+  "envelopes.envelopes.only_a_pdf_can_be_signed": {
+    "text": "Only a PDF can be signed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: the title of <Alert>."
+  },
+  "envelopes.envelopes.open_the_signed_document": {
+    "text": "Open the signed document",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <a>."
+  },
+  "envelopes.envelopes.opened": {
+    "text": "Opened",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"opened\" value."
+  },
+  "envelopes.envelopes.opening_the_document": {
+    "text": "Opening the document",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the label of <Spinner>."
+  },
+  "envelopes.envelopes.pass_to": {
+    "text": "Pass to",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Reassign: the label of <Combobox>."
+  },
+  "envelopes.envelopes.pass_to_2": {
+    "text": "Pass to…",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Reassign: the placeholder of <Combobox>."
+  },
+  "envelopes.envelopes.people_outside_confirm_it_is_them": {
+    "text": "People outside confirm it is them with a code we email them.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <p>."
+  },
+  "envelopes.envelopes.please_sign_by_friday": {
+    "text": "Please sign by Friday",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <Input>."
+  },
+  "envelopes.envelopes.remind": {
+    "text": "Remind",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <Button>."
+  },
+  "envelopes.envelopes.reminded": {
+    "text": "Reminded",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <Button>."
+  },
+  "envelopes.envelopes.remove": {
+    "text": "Remove {{name}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the aria-label of <Button>. Filled in: {{name}}."
+  },
+  "envelopes.envelopes.review_and_send": {
+    "text": "Review and send",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the steps of <Stepper>."
+  },
+  "envelopes.envelopes.s_signature": {
+    "text": "{{name}}’s signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: the label of <Signature>. Filled in: {{name}}."
+  },
+  "envelopes.envelopes.says": {
+    "text": "{{sender}} says",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the title of <Alert>. Filled in: {{sender}}."
+  },
+  "envelopes.envelopes.seal_it_now": {
+    "text": "Seal it now",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SealAgain: text inside <Button>."
+  },
+  "envelopes.envelopes.send": {
+    "text": "Send",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <Button>."
+  },
+  "envelopes.envelopes.send_for_signature": {
+    "text": "Send for signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: the title of <PageHeader>."
+  },
+  "envelopes.envelopes.send_for_signature_2": {
+    "text": "Send {{title}} for signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the title of <PageHeader>. Filled in: {{title}}."
+  },
+  "envelopes.envelopes.send_one_from_a_document": {
+    "text": "Send one from a document.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the description of <EmptyState>."
+  },
+  "envelopes.envelopes.sending_for_signature": {
+    "text": "Sending for signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the label of <Stepper>."
+  },
+  "envelopes.envelopes.sent": {
+    "text": "Sent",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"sent\" value."
+  },
+  "envelopes.envelopes.signature_request": {
+    "text": "Signature request",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelope: the title of <PageHeader>."
+  },
+  "envelopes.envelopes.signatures": {
+    "text": "Signatures",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the title of <PageHeader>."
+  },
+  "envelopes.envelopes.signed": {
+    "text": "Signed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"signed\" value."
+  },
+  "envelopes.envelopes.signed_and_sealed": {
+    "text": "Signed and sealed",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, ENVELOPE: a \"completed\" value."
+  },
+  "envelopes.envelopes.signed_not_sealed_yet": {
+    "text": "Signed, not sealed yet",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: the title of <Alert>."
+  },
+  "envelopes.envelopes.signed_with_your_kithena_login_the": {
+    "text": "Signed with your Kithena login. The time and your device are recorded.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>."
+  },
+  "envelopes.envelopes.signers": {
+    "text": "Signers",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <CardTitle>."
+  },
+  "envelopes.envelopes.signers_can_no_longer_sign_it": {
+    "text": "Signers can no longer sign it. Say why.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SenderMenu: text inside <DialogDescription>."
+  },
+  "envelopes.envelopes.signs": {
+    "text": "Signs {{value}}{{value2}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the meta of <Badge>. Filled in: {{value}}, {{value2}}."
+  },
+  "envelopes.envelopes.signs_of_boxes": {
+    "text": "Signs {{value}} of {{length}} · {{length2}} boxes",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the description of <ListItem>. Filled in: {{value}}, {{length}}, {{length2}}."
+  },
+  "envelopes.envelopes.signs_with_their_kithena_login": {
+    "text": "Signs with their Kithena login",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the description of <ListItem>."
+  },
+  "envelopes.envelopes.somebody_outside": {
+    "text": "Somebody outside",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.text": {
+    "text": "{{who}} · {{replaceAll}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <ListItem>. Filled in: {{who}}, {{replaceAll}}."
+  },
+  "envelopes.envelopes.the_one_you_adopt_is_kept": {
+    "text": "The one you adopt is kept for next time; change it later in Settings.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>."
+  },
+  "envelopes.envelopes.the_request_waits_for_you": {
+    "text": "The request waits for you.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <DialogDescription>."
+  },
+  "envelopes.envelopes.their_email": {
+    "text": "Their email",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the placeholder of <Input>."
+  },
+  "envelopes.envelopes.their_name": {
+    "text": "Their name",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.to_fill_in_start_under_the": {
+    "text": "{{length}} {{value}} to fill in. Start, under the document, takes you to each one.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>. Filled in: {{length}}, {{value}}."
+  },
+  "envelopes.envelopes.version_pages": {
+    "text": "Version {{n}} · {{pages}} pages",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the description of <PageHeader>. Filled in: {{n}}, {{pages}}."
+  },
+  "envelopes.envelopes.waiting": {
+    "text": "Waiting",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, STATUS: a \"waiting\" value."
+  },
+  "envelopes.envelopes.waiting_for_a_signature": {
+    "text": "Waiting for a signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, ENVELOPE: a \"sent\" value."
+  },
+  "envelopes.envelopes.what_happened": {
+    "text": "What happened",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, EnvelopePage: text inside <CardTitle>."
+  },
+  "envelopes.envelopes.where_they_sign": {
+    "text": "Where they sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the steps of <Stepper>."
+  },
+  "envelopes.envelopes.who_signs": {
+    "text": "Who signs",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: the steps of <Stepper>."
+  },
+  "envelopes.envelopes.who_signs_in_order": {
+    "text": "Who signs, in order",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendSteps: text inside <CardTitle>."
+  },
+  "envelopes.envelopes.why": {
+    "text": "Why",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.you_cannot_open_this_document": {
+    "text": "You cannot open this document.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SendForSignature: text inside <Alert>."
+  },
+  "envelopes.envelopes.your_part": {
+    "text": "Your part",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <CardTitle>."
+  },
+  "envelopes.envelopes.your_question": {
+    "text": "Your question",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <FieldLabel>."
+  },
+  "envelopes.envelopes.your_question_was_sent_the_request": {
+    "text": "Your question was sent. The request waits for you.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <Alert>."
+  },
+  "envelopes.envelopes.your_signature": {
+    "text": "Your signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, Envelopes: the meta of <Badge>."
+  },
+  "envelopes.envelopes.your_signature_on_file": {
+    "text": "Your signature on file.",
+    "context": "Documents: files, e-signatures, letters. envelopes/envelopes.tsx, SignPanel: text inside <p>."
+  },
+  "envelopes.prepare.a_signature_box": {
+    "text": "{{join}} {{value}} a signature box.",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <Alert>. Filled in: {{join}}, {{value}}."
+  },
+  "envelopes.prepare.add_a_box": {
+    "text": "Add a box",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <CardTitle>."
+  },
+  "envelopes.prepare.dated_signature": {
+    "text": "Dated signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"date\" value."
+  },
+  "envelopes.prepare.for": {
+    "text": "For",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
+  },
+  "envelopes.prepare.initials": {
+    "text": "Initials",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"initials\" value."
+  },
+  "envelopes.prepare.job_title": {
+    "text": "Job title",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"title\" value."
+  },
+  "envelopes.prepare.kind_of_box": {
+    "text": "Kind of box",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the aria-label of <ToggleGroup>."
+  },
+  "envelopes.prepare.nobody": {
+    "text": "Nobody",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text built in code."
+  },
+  "envelopes.prepare.nowhere_to_sign_yet": {
+    "text": "Nowhere to sign yet",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the title of <Alert>."
+  },
+  "envelopes.prepare.opening_the_document": {
+    "text": "Opening the document",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <div>."
+  },
+  "envelopes.prepare.page": {
+    "text": "{{KIND_LABEL}}, page {{page}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <CardTitle>. Filled in: {{KIND_LABEL}}, {{page}}."
+  },
+  "envelopes.prepare.press_the_page_where_it_goes": {
+    "text": "Press the page where it goes. Drag a box to move it, its corner to resize it; Delete removes it.",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <p>."
+  },
+  "envelopes.prepare.remove_the_box": {
+    "text": "Remove the box",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <Button>."
+  },
+  "envelopes.prepare.signature": {
+    "text": "Signature",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"signature\" value."
+  },
+  "envelopes.prepare.text": {
+    "text": "Text",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"text\" value."
+  },
+  "envelopes.prepare.text_2": {
+    "text": "{{name}} · {{length}} {{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the items of <ChartLegend>. Filled in: {{name}}, {{length}}, {{value}}."
+  },
+  "envelopes.prepare.text_3": {
+    "text": "{{KIND_LABEL}}, {{nameOf}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the boxes of <PlacementLayer>. Filled in: {{KIND_LABEL}}, {{nameOf}}."
+  },
+  "envelopes.prepare.text_4": {
+    "text": "{{KIND_LABEL}} · {{nameOf}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the boxes of <PlacementLayer>. Filled in: {{KIND_LABEL}}, {{nameOf}}."
+  },
+  "envelopes.prepare.the_document_could_not_be_opened": {
+    "text": "The document could not be opened",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: the title of <Alert>."
+  },
+  "envelopes.prepare.they_must_fill_it_in": {
+    "text": "They must fill it in",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
+  },
+  "envelopes.prepare.tick_box": {
+    "text": "Tick box",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"checkbox\" value."
+  },
+  "envelopes.prepare.who_signs": {
+    "text": "Who signs",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <CardTitle>."
+  },
+  "envelopes.prepare.whose_box": {
+    "text": "Whose box",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
+  },
+  "envelopes.sign-view.adopt_and_sign": {
+    "text": "Adopt and sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
+  },
+  "envelopes.sign-view.all_done_finish_to_sign": {
+    "text": "All {{total}} done. Finish to sign.",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: the message of <PinnedBar>. Filled in: {{total}}."
+  },
+  "envelopes.sign-view.and": {
+    "text": "{{join}} and {{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code. Filled in: {{join}}, {{value}}."
+  },
+  "envelopes.sign-view.apply": {
+    "text": "Apply",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: text inside <Button>."
+  },
+  "envelopes.sign-view.apr": {
+    "text": "Apr",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.aug": {
+    "text": "Aug",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.dec": {
+    "text": "Dec",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.everybody_has_signed_the_sealed_copy": {
+    "text": "Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code."
+  },
+  "envelopes.sign-view.feb": {
+    "text": "Feb",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.filled": {
+    "text": "{{KIND_LABEL}}, filled",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: the boxes of <PlacementLayer>. Filled in: {{KIND_LABEL}}."
+  },
+  "envelopes.sign-view.finish": {
+    "text": "Finish",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
+  },
+  "envelopes.sign-view.for_you_to_fill_in_start": {
+    "text": "{{place}} for you to fill in. Start takes you to each one.",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: the message of <PinnedBar>. Filled in: {{place}}."
+  },
+  "envelopes.sign-view.initial": {
+    "text": "Initial",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"initials\" value."
+  },
+  "envelopes.sign-view.jan": {
+    "text": "Jan",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.jul": {
+    "text": "Jul",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.jun": {
+    "text": "Jun",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.mar": {
+    "text": "Mar",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.may": {
+    "text": "May",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.next": {
+    "text": "Next",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
+  },
+  "envelopes.sign-view.nov": {
+    "text": "Nov",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.oct": {
+    "text": "Oct",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.of_done": {
+    "text": "{{doneCount}} of {{total}} done",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text built in code. Filled in: {{doneCount}}, {{total}}."
+  },
+  "envelopes.sign-view.optional": {
+    "text": ", optional",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: the boxes of <PlacementLayer>."
+  },
+  "envelopes.sign-view.s": {
+    "text": "{{name}}’s {{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: the label of <Signature>. Filled in: {{name}}, {{value}}."
+  },
+  "envelopes.sign-view.sent_to_for_their_signature_your": {
+    "text": "Sent to {{andList}} for their signature. Your copy, as signed so far, is on its way to your email.",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code. Filled in: {{andList}}."
+  },
+  "envelopes.sign-view.sep": {
+    "text": "Sep",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.sign": {
+    "text": "Sign",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"signature\" value."
+  },
+  "envelopes.sign-view.sign_and_date": {
+    "text": "Sign and date",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"date\" value."
+  },
+  "envelopes.sign-view.signed_by": {
+    "text": "Signed by",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, DocumentToSign: the render of <span>."
+  },
+  "envelopes.sign-view.skip": {
+    "text": "Skip",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
+  },
+  "envelopes.sign-view.start": {
+    "text": "Start",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
+  },
+  "envelopes.sign-view.step_of": {
+    "text": "Step {{value}} of {{total}} · {{value2}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text built in code. Filled in: {{value}}, {{total}}, {{value2}}."
+  },
+  "envelopes.sign-view.text": {
+    "text": "{{total}} {{value}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text built in code. Filled in: {{total}}, {{value}}."
+  },
+  "envelopes.sign-view.text_2": {
+    "text": "{{step}} · {{count}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: the message of <PinnedBar>. Filled in: {{step}}, {{count}}."
+  },
+  "envelopes.sign-view.text_3": {
+    "text": "Text",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"text\" value."
+  },
+  "envelopes.sign-view.tick": {
+    "text": "Tick",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"checkbox\" value."
+  },
+  "envelopes.sign-view.title": {
+    "text": "Title",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"title\" value."
+  },
+  "envelopes.sign-view.type_it": {
+    "text": "Type it",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"title\" value."
+  },
+  "envelopes.sign-view.utc": {
+    "text": "{{getUTCDate}} {{value}} {{getUTCFullYear}}, {{pad}}:{{pad2}} UTC",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code. Filled in: {{getUTCDate}}, {{value}}, {{getUTCFullYear}}, {{pad}}, {{pad2}}."
+  },
+  "envelopes.sign-view.your_signature_is_in_your_copy": {
+    "text": "Your signature is in. Your copy is on its way to your email.",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code."
+  },
+  "frame.back": {
+    "text": "Back",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the aria-label of <nav>."
+  },
+  "frame.documents": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. frame.tsx: a \"label\" value."
+  },
+  "frame.framed": {
+    "text": "Framed({{value}})",
+    "context": "Documents: files, e-signatures, letters. frame.tsx: text built in code. Filled in: {{value}}."
+  },
+  "frame.in": {
+    "text": "In {{section}}",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the groups of <BreadcrumbMenu>. Filled in: {{section}}."
+  },
+  "frame.sections": {
+    "text": "Sections",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: text built in code."
+  },
+  "frame.showing_the_page_without_it": {
+    "text": "Showing the page without it.",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: text inside <Alert>."
+  },
+  "frame.switch": {
+    "text": "{{siblingsLabel}}, switch",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the menuLabel of <BreadcrumbMenu>. Filled in: {{siblingsLabel}}."
+  },
+  "frame.tabs": {
+    "text": "{{value}} tabs",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the label of <TertiaryNav>. Filled in: {{value}}."
+  },
+  "frame.tabs_2": {
+    "text": "{{section}} tabs",
+    "context": "Documents: files, e-signatures, letters. frame.tsx, ScreenFrame: the menuLabel of <BreadcrumbMenu>. Filled in: {{section}}."
+  },
+  "frame.waiting": {
+    "text": "waiting",
+    "context": "Documents: files, e-signatures, letters. frame.tsx: text inside <span>."
+  },
+  "library.draft.about": {
+    "text": "About",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <p>."
+  },
+  "library.draft.add_a_confidentiality_clause": {
+    "text": "Add a confidentiality clause",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, SUGGESTIONS: text built in code."
+  },
+  "library.draft.add_a_probation_period": {
+    "text": "Add a probation period",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, SUGGESTIONS: text built in code."
+  },
+  "library.draft.an_offer_letter_for_omar_lewis": {
+    "text": "An offer letter for Omar Lewis, 85,000 a year from 1 November. He signs, then me.",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the placeholder of <ChatComposer>."
+  },
+  "library.draft.ask_for_a_change": {
+    "text": "Ask for a change",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the aria-label of <ChipRow>."
+  },
+  "library.draft.check_nobody_gave_kithena": {
+    "text": "Check {{join}}: nobody gave Kithena",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Alert>. Filled in: {{join}}."
+  },
+  "library.draft.conversation_with_kithena": {
+    "text": "Conversation with Kithena",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the label of <ChatLog>."
+  },
+  "library.draft.draft_with_kithena": {
+    "text": "Draft with Kithena",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <DialogTitle>."
+  },
+  "library.draft.file_it": {
+    "text": "File it",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Button>."
+  },
+  "library.draft.file_without_sending": {
+    "text": "File without sending",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Button>."
+  },
+  "library.draft.kithena": {
+    "text": "Kithena",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the author of <ChatMessage>."
+  },
+  "library.draft.make_it_shorter": {
+    "text": "Make it shorter",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, SUGGESTIONS: text built in code."
+  },
+  "library.draft.make_it_warmer": {
+    "text": "Make it warmer",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, SUGGESTIONS: text built in code."
+  },
+  "library.draft.message_kithena": {
+    "text": "Message Kithena",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the label of <ChatComposer>."
+  },
+  "library.draft.not_found": {
+    "text": "Not found",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Badge>."
+  },
+  "library.draft.outside": {
+    "text": "Outside",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Badge>."
+  },
+  "library.draft.preview_again": {
+    "text": "Preview again",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Button>."
+  },
+  "library.draft.preview_the_pdf": {
+    "text": "Preview the PDF",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Button>."
+  },
+  "library.draft.say_what_you_need_kithena_asks": {
+    "text": "Say what you need. Kithena asks for anything missing, writes it, and places a box for each signer in the order you give. Say “send it” when it is right.",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <DialogDescription>."
+  },
+  "library.draft.send_for_signature": {
+    "text": "Send for signature",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Button>."
+  },
+  "library.draft.the_draft_appears_here_as_kithena": {
+    "text": "The draft appears here as Kithena writes it.",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Card>."
+  },
+  "library.draft.these_figures": {
+    "text": "these figures",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Alert>."
+  },
+  "library.draft.this_figure": {
+    "text": "this figure",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: text inside <Alert>."
+  },
+  "library.draft.use_plainer_words": {
+    "text": "Use plainer words",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, SUGGESTIONS: text built in code."
+  },
+  "library.draft.what_do_you_need_tell_me": {
+    "text": "What do you need? Tell me what the document is, whom it is for and who signs it, in which order.",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, OPENING: text built in code."
+  },
+  "library.draft.who_signs_in_order": {
+    "text": "Who signs, in order",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the aria-label of <List>."
+  },
+  "library.draft.you": {
+    "text": "You",
+    "context": "Documents: files, e-signatures, letters. library/draft.tsx, DraftDialog: the author of <ChatMessage>."
+  },
+  "library.letters.add_a_document_of_the_template": {
+    "text": "Add a document of the Template type first: its text with fields in double braces, such as {{Preferred name}}",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <Alert>."
+  },
+  "library.letters.each_is_filled_from_the_persons": {
+    "text": "Each is filled from the person’s record and filed to their documents.",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <DialogDescription>."
+  },
+  "library.letters.each_letters_name": {
+    "text": "Each letter’s name",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <FieldLabel>."
+  },
+  "library.letters.find_someone": {
+    "text": "Find someone",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: the placeholder of <Input>."
+  },
+  "library.letters.generate": {
+    "text": "Generate {{size}}",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <Button>. Filled in: {{size}}."
+  },
+  "library.letters.generate_letters": {
+    "text": "Generate letters",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <DialogTitle>."
+  },
+  "library.letters.not_every_record_fills_the_letter": {
+    "text": "Not every record fills the letter",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: the title of <Alert>."
+  },
+  "library.letters.people": {
+    "text": "People",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: the aria-label of <List>."
+  },
+  "library.letters.people_chosen": {
+    "text": "People · {{size}} chosen",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <FieldLabel>. Filled in: {{size}}."
+  },
+  "library.letters.preview": {
+    "text": "Preview",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <Button>."
+  },
+  "library.letters.send_each_to_its_person_to": {
+    "text": "Send each to its person to sign",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <FieldLabel>."
+  },
+  "library.letters.template": {
+    "text": "Template",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <FieldLabel>."
+  },
+  "library.letters.text": {
+    "text": "{{name}}: {{join}}",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: text inside <Alert>. Filled in: {{name}}, {{join}}."
+  },
+  "library.letters.write_to": {
+    "text": "Write to {{name}}",
+    "context": "Documents: files, e-signatures, letters. library/letters.tsx, LettersDialog: the aria-label of <Checkbox>. Filled in: {{name}}."
+  },
+  "library.library.about_me": {
+    "text": "About me",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.access": {
+    "text": "Access",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
+  },
+  "library.library.actions": {
+    "text": "Actions",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: text inside <span>."
+  },
+  "library.library.add": {
+    "text": "Add",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <Button>."
+  },
+  "library.library.add_a_document_or_choose_another": {
+    "text": "Add a document, or choose another section.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <EmptyState>."
+  },
+  "library.library.add_it": {
+    "text": "Add it",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <Button>."
+  },
+  "library.library.add_to": {
+    "text": "Add to {{name}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{name}}."
+  },
+  "library.library.all_documents": {
+    "text": "All documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.all_signed": {
+    "text": "All {{of}} signed",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, SigningBadge: text inside <Badge>. Filled in: {{of}}."
+  },
+  "library.library.ask": {
+    "text": "Ask",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <Button>."
+  },
+  "library.library.ask_for_a_document": {
+    "text": "Ask {{first}} for a document",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <DialogTitle>. Filled in: {{first}}."
+  },
+  "library.library.ask_kithena": {
+    "text": "Ask Kithena",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <Button>."
+  },
+  "library.library.back_to_documents": {
+    "text": "Back to documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  },
+  "library.library.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <Button>."
+  },
+  "library.library.company": {
+    "text": "Company",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.company_set_up_by_hr": {
+    "text": "Company · set up by HR",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectLabel>."
+  },
+  "library.library.create": {
+    "text": "Create",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <Button>."
+  },
+  "library.library.delete": {
+    "text": "Delete",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: text inside <Button>."
+  },
+  "library.library.deleted": {
+    "text": "Deleted",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <PageHeader>."
+  },
+  "library.library.deleted_documents_wait_30_days_then": {
+    "text": "Deleted documents wait 30 days, then are gone. A legal hold keeps them.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>."
+  },
+  "library.library.document": {
+    "text": "Document",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <FieldLabel>."
+  },
+  "library.library.document_you_can_open": {
+    "text": "{{total}} document{{value}} you can open",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <PageHeader>. Filled in: {{total}}, {{value}}."
+  },
+  "library.library.documents": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Library: the title of <PageHeader>."
+  },
+  "library.library.draft_with_kithena": {
+    "text": "Draft with Kithena",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <Button>."
+  },
+  "library.library.due": {
+    "text": "Due {{dueOn}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <ListItem>. Filled in: {{dueOn}}."
+  },
+  "library.library.due_2": {
+    "text": "Due",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <Badge>."
+  },
+  "library.library.every_document": {
+    "text": "Every document",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <section>."
+  },
+  "library.library.everyone_sees_it_with_only_the": {
+    "text": "Everyone sees it, with only the documents each of them can open.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <DialogDescription>."
+  },
+  "library.library.expiring_in_60_days": {
+    "text": "Expiring in 60 days",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"expiring\" value."
+  },
+  "library.library.for": {
+    "text": "For",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <FieldLabel>."
+  },
+  "library.library.generate_letters": {
+    "text": "Generate letters",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  },
+  "library.library.gets_a_task_in_their_inbox": {
+    "text": "gets a task in their Inbox; their upload is filed and ticked off here.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <DialogDescription>."
+  },
+  "library.library.grant": {
+    "text": "Grant",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AccessDecision: text inside <Button>."
+  },
+  "library.library.kithena_is_reading_your_documents": {
+    "text": "Kithena is reading your documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the label of <Spinner>."
+  },
+  "library.library.loading_your_documents": {
+    "text": "Loading your documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Library: the label of <Skeleton>."
+  },
+  "library.library.message": {
+    "text": "Message",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <FieldLabel>."
+  },
+  "library.library.missing_from_peoples_files": {
+    "text": "Missing from people’s files",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"missing\" value."
+  },
+  "library.library.more": {
+    "text": "More",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <Button>."
+  },
+  "library.library.more_for": {
+    "text": "More for {{title}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: the aria-label of <Button>. Filled in: {{title}}."
+  },
+  "library.library.my_own": {
+    "text": "My own",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
+  },
+  "library.library.needs_you": {
+    "text": "Needs you",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: text inside <h2>."
+  },
+  "library.library.new_section": {
+    "text": "New section",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  },
+  "library.library.new_section_2": {
+    "text": "New section…",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.not_created": {
+    "text": "Not created",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: the title of <Alert>."
+  },
+  "library.library.not_deleted": {
+    "text": "Not deleted",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the title of <Alert>."
+  },
+  "library.library.not_sent": {
+    "text": "Not sent",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: the title of <Alert>."
+  },
+  "library.library.nothing_has_been_deleted_in_the": {
+    "text": "Nothing has been deleted in the last 30 days.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the description of <EmptyState>."
+  },
+  "library.library.nothing_here_yet": {
+    "text": "Nothing here yet",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <EmptyState>."
+  },
+  "library.library.nothing_in_this_queue": {
+    "text": "Nothing in this queue",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the title of <EmptyState>."
+  },
+  "library.library.nothing_matches": {
+    "text": "Nothing matches “{{q}}”",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the title of <EmptyState>. Filled in: {{q}}."
+  },
+  "library.library.of_signed_pending": {
+    "text": "{{signed}} of {{of}} signed · {{pending}} pending",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, SigningBadge: text inside <Badge>. Filled in: {{signed}}, {{of}}, {{pending}}."
+  },
+  "library.library.only_me": {
+    "text": "Only me",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <SelectItem>."
+  },
+  "library.library.only_you_see_it_documents_keep": {
+    "text": "Only you see it. Documents keep their own access.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <DialogDescription>."
+  },
+  "library.library.open": {
+    "text": "Open",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <a>."
+  },
+  "library.library.people_files": {
+    "text": "People files",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.queues": {
+    "text": "Queues",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Tiles: the aria-label of <div>."
+  },
+  "library.library.read_it": {
+    "text": "Read it",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <a>."
+  },
+  "library.library.refuse": {
+    "text": "Refuse",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AccessDecision: text inside <Button>."
+  },
+  "library.library.remind": {
+    "text": "Remind",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Remind: text inside <Button>."
+  },
+  "library.library.reminded": {
+    "text": "Reminded",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Remind: text inside <Button>."
+  },
+  "library.library.reminder_sent_to": {
+    "text": "Reminder sent to {{join}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{join}}."
+  },
+  "library.library.remove_from": {
+    "text": "Remove from {{name}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{name}}."
+  },
+  "library.library.restore": {
+    "text": "Restore",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <Button>."
+  },
+  "library.library.retention_ended": {
+    "text": "Retention ended",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"to_delete\" value."
+  },
+  "library.library.review_and_sign": {
+    "text": "Review and sign",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the trailing of <a>."
+  },
+  "library.library.search_documents": {
+    "text": "Search documents",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the aria-label of <Input>."
+  },
+  "library.library.send": {
+    "text": "Send",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text inside <Button>."
+  },
+  "library.library.send_reminder_email_to": {
+    "text": "Send reminder email to {{value}}",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>. Filled in: {{value}}."
+  },
+  "library.library.share": {
+    "text": "Share…",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, RowActions: text inside <DropdownMenuItem>."
+  },
+  "library.library.shared_with_me": {
+    "text": "Shared with me",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectItem>."
+  },
+  "library.library.show": {
+    "text": "Show",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: the aria-label of <SelectTrigger>."
+  },
+  "library.library.show_every_document": {
+    "text": "Show every document",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the removeLabel of <Badge>."
+  },
+  "library.library.sign": {
+    "text": "Sign",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QueueList: the trailing of <a>."
+  },
+  "library.library.signing_cancelled": {
+    "text": "Signing cancelled",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, SigningBadge: text inside <Badge>."
+  },
+  "library.library.signing_declined": {
+    "text": "Signing declined",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, SigningBadge: text inside <Badge>."
+  },
+  "library.library.split_a_scan": {
+    "text": "Split a scan",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the actions of <DropdownMenuItem>."
+  },
+  "library.library.status": {
+    "text": "Status",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
+  },
+  "library.library.the_company": {
+    "text": "The company",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, NewSection: text inside <SelectItem>."
+  },
+  "library.library.updated": {
+    "text": "Updated",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
+  },
+  "library.library.waiting_for_a_signature": {
+    "text": "Waiting for a signature",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"to_sign\" value."
+  },
+  "library.library.who_can_see_it": {
+    "text": "Who can see it",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx: a \"header\" value."
+  },
+  "library.library.yours_only_you_see_these": {
+    "text": "Yours · only you see these",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, ShowPicker: text inside <SelectLabel>."
+  },
+  "library.split.about": {
+    "text": "About",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <TableHead>."
+  },
+  "library.split.add_the_pages_left": {
+    "text": "Add the pages left",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <Button>."
+  },
+  "library.split.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <Button>."
+  },
+  "library.split.document": {
+    "text": "Document",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the onClick of <Button>."
+  },
+  "library.split.document_ends_on_page": {
+    "text": "Document {{value}} ends on page",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the label of <NumberField>. Filled in: {{value}}."
+  },
+  "library.split.document_is_about": {
+    "text": "Document {{value}} is about",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the label of <Combobox>. Filled in: {{value}}."
+  },
+  "library.split.document_name": {
+    "text": "Document {{value}} name",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the aria-label of <Input>. Filled in: {{value}}."
+  },
+  "library.split.document_type": {
+    "text": "Document {{value}} type",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the aria-label of <SelectTrigger>. Filled in: {{value}}."
+  },
+  "library.split.drop_the_scanned_pdf_or_choose": {
+    "text": "Drop the scanned PDF, or choose it",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the label of <Dropzone>."
+  },
+  "library.split.file_documents": {
+    "text": "File {{length}} documents",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <Button>. Filled in: {{length}}."
+  },
+  "library.split.find_someone": {
+    "text": "Find someone",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the searchPlaceholder of <Combobox>."
+  },
+  "library.split.kithena_could_not_tell_the_documents": {
+    "text": "Kithena could not tell the documents apart. Set where each ends.",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <Alert>."
+  },
+  "library.split.kithena_is_reading_the_pages": {
+    "text": "Kithena is reading the pages",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the label of <Spinner>."
+  },
+  "library.split.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <TableHead>."
+  },
+  "library.split.no_type": {
+    "text": "No type",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <SelectItem>."
+  },
+  "library.split.nobody": {
+    "text": "Nobody",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the placeholder of <Combobox>."
+  },
+  "library.split.nobody_by_that_name": {
+    "text": "Nobody by that name",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: the emptyMessage of <Combobox>."
+  },
+  "library.split.one_pdf_of_several_documents_kithena": {
+    "text": "One PDF of several documents. Kithena suggests where each starts; you check it.",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <DialogDescription>."
+  },
+  "library.split.pages": {
+    "text": "Pages",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <TableHead>."
+  },
+  "library.split.split_a_scan": {
+    "text": "Split a scan",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <DialogTitle>."
+  },
+  "library.split.type": {
+    "text": "Type",
+    "context": "Documents: files, e-signatures, letters. library/split.tsx, SplitDialog: text inside <TableHead>."
+  },
+  "load.could_not_load": {
+    "text": "Could not load {{what}}",
+    "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
+  },
+  "load.loading": {
+    "text": "Loading {{what}}",
+    "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the label of <Spinner>. Filled in: {{what}}."
+  },
+  "load.try_again": {
+    "text": "Try again",
+    "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the action of <Button>."
+  },
+  "people.person-file.a_persons_file": {
+    "text": "A person’s file",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, PersonFile: the title of <PageHeader>."
+  },
+  "people.person-file.add_it": {
+    "text": "Add it",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the trailing of <Button>."
+  },
+  "people.person-file.ask": {
+    "text": "Ask",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the trailing of <Button>."
+  },
+  "people.person-file.asked": {
+    "text": "Asked",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+  },
+  "people.person-file.before_day_one": {
+    "text": "before day one",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <CardTitle>."
+  },
+  "people.person-file.expired": {
+    "text": "Expired",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+  },
+  "people.person-file.file_a_document": {
+    "text": "File a document",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the actions of <Button>."
+  },
+  "people.person-file.filed_to": {
+    "text": "Filed to {{first}}",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <h2>. Filled in: {{first}}."
+  },
+  "people.person-file.filed_to_you": {
+    "text": "Filed to you",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <h2>."
+  },
+  "people.person-file.in_the_file": {
+    "text": "In the file",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+  },
+  "people.person-file.loading_the_file": {
+    "text": "Loading the file",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, PersonFile: the label of <Skeleton>."
+  },
+  "people.person-file.missing": {
+    "text": "Missing",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+  },
+  "people.person-file.needed_by": {
+    "text": "Needed by {{dueOn}}",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the description of <ListItem>. Filled in: {{dueOn}}."
+  },
+  "people.person-file.nothing_filed_yet": {
+    "text": "Nothing filed yet.",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <p>."
+  },
+  "people.person-file.of": {
+    "text": "of",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <CardTitle>."
+  },
+  "people.person-file.of_required_documents": {
+    "text": "{{have}} of {{of}} required documents",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the label of <Progress>. Filled in: {{have}}, {{of}}."
+  },
+  "people.person-file.open": {
+    "text": "Open",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the trailing of <a>."
+  },
+  "people.person-file.required": {
+    "text": "Required",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: text inside <CardTitle>."
+  },
+  "people.person-file.text": {
+    "text": "{{meta}} · {{updatedAt}}",
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, Ready: the description of <ListItem>. Filled in: {{meta}}, {{updatedAt}}."
+  },
+  "settings.settings.a_company_document": {
+    "text": "A company document",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code."
+  },
+  "settings.settings.a_type_can_also_be_kept": {
+    "text": "A type can also be kept from Kithena entirely, in its settings. Every answer cites the pages it came from, and only somebody who may open a document is ever told about it.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AiSettings: text inside <p>."
+  },
+  "settings.settings.access_and_sharing": {
+    "text": "Access and sharing",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessSettings: the title of <Page>."
+  },
+  "settings.settings.always_reviewed_before_anything_is_saved": {
+    "text": "Always reviewed before anything is saved",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.answered_from_its_pages_citing_them": {
+    "text": "Answered from its pages, citing them",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.anyone": {
+    "text": "Anyone",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <SelectItem>."
+  },
+  "settings.settings.archive": {
+    "text": "Archive",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <Button>."
+  },
+  "settings.settings.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <Button>."
+  },
+  "settings.settings.confidential": {
+    "text": "Confidential",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <FieldLabel>."
+  },
+  "settings.settings.confidential_suffix": {
+    "text": ", Confidential",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: a \"value2\" value."
+  },
+  "settings.settings.days": {
+    "text": "Days",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <NumberField>."
+  },
+  "settings.settings.days_from_filing": {
+    "text": "Days from filing",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.deleted_documents_are_kept_for_30": {
+    "text": "Deleted documents are kept for 30 days, then gone.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: text inside <p>."
+  },
+  "settings.settings.document": {
+    "text": "document",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>."
+  },
+  "settings.settings.document_2": {
+    "text": "{{setBy}} · {{setAt}} · {{count}} document{{value}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: the description of <ListItem>. Filled in: {{setBy}}, {{setAt}}, {{count}}, {{value}}."
+  },
+  "settings.settings.document_types": {
+    "text": "Document types",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the title of <Page>."
+  },
+  "settings.settings.draft_it": {
+    "text": "Draft it",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Describe: text inside <Button>."
+  },
+  "settings.settings.drafted_by_kithena": {
+    "text": "Drafted by Kithena",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the title of <Alert>."
+  },
+  "settings.settings.each_person": {
+    "text": "Each person",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.edit": {
+    "text": "Edit",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the trailing of <Button>."
+  },
+  "settings.settings.every_new_document_starts_private": {
+    "text": "Every new document starts Private.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <p>."
+  },
+  "settings.settings.everyone": {
+    "text": "Everyone",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.everyone_acknowledges_each_version": {
+    "text": "Everyone acknowledges each version",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code."
+  },
+  "settings.settings.expires": {
+    "text": "Expires",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>."
+  },
+  "settings.settings.expires_remind_60_days_before": {
+    "text": "Expires: remind 60 days before",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <FieldLabel>."
+  },
+  "settings.settings.filed_to": {
+    "text": "Filed to",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <Choice>."
+  },
+  "settings.settings.filed_to_each_person": {
+    "text": "Filed to each person",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code."
+  },
+  "settings.settings.for_everyone": {
+    "text": "For everyone",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.for_new_starters_before_day_one": {
+    "text": "For new starters, before day one",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.forever": {
+    "text": "Forever",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.from_the_search_box_only_from": {
+    "text": "From the search box, only from documents the person can open",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.hr_only": {
+    "text": "HR only",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: a \"hr\" value."
+  },
+  "settings.settings.hr_the_documents_type_or_its": {
+    "text": "HR, the document’s type, or its owner can mark a document Confidential. Only HR lowers what HR or the type set.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <p>."
+  },
+  "settings.settings.it": {
+    "text": "{{AUDIENCE}} {{value}} it{{value2}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code. Filled in: {{AUDIENCE}}, {{value}}, {{value2}}."
+  },
+  "settings.settings.kept": {
+    "text": "Kept {{charAt}}{{slice}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code. Filled in: {{charAt}}, {{slice}}."
+  },
+  "settings.settings.kept_2": {
+    "text": "Kept",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <Choice>."
+  },
+  "settings.settings.kithena_reading": {
+    "text": "Kithena reading",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AiSettings: the title of <Page>."
+  },
+  "settings.settings.legal_holds": {
+    "text": "Legal holds",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: text inside <CardTitle>."
+  },
+  "settings.settings.lift": {
+    "text": "Lift",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Lift: text inside <Button>."
+  },
+  "settings.settings.loading": {
+    "text": "Loading {{title}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Page: the label of <Skeleton>. Filled in: {{title}}."
+  },
+  "settings.settings.looks_like": {
+    "text": "Looks like",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <Choice>."
+  },
+  "settings.settings.medical_hr_only_dates_read_only": {
+    "text": "Medical: HR only, dates read only",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <FieldLabel>."
+  },
+  "settings.settings.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <FieldLabel>."
+  },
+  "settings.settings.new_document_type": {
+    "text": "New document type",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: text inside <Button>."
+  },
+  "settings.settings.new_documents": {
+    "text": "New documents",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <CardTitle>."
+  },
+  "settings.settings.no_holds_place_one_from_a": {
+    "text": "No holds. Place one from a document while a case is open.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: text inside <p>."
+  },
+  "settings.settings.nobody": {
+    "text": "Nobody",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.nobody_else": {
+    "text": "Nobody else",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.not_required": {
+    "text": "Not required",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.not_saved": {
+    "text": "Not saved",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the title of <Alert>."
+  },
+  "settings.settings.nothing_is_deleted_without_hr_confirming": {
+    "text": "Nothing is deleted without HR confirming first.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <FieldDescription>."
+  },
+  "settings.settings.off_by_default_a_picture_is": {
+    "text": "Off by default: a picture is sent as it is, since names in it cannot be hidden first",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.on_every_document_a_person_opens": {
+    "text": "On every document a person opens",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.one_rule_per_kind_of_document": {
+    "text": "One rule per kind of document. Legal holds override them; nothing is deleted without HR confirming.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: the description of <Page>."
+  },
+  "settings.settings.only_hr_can_change_these": {
+    "text": "Only HR can change these.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Page: text inside <Alert>."
+  },
+  "settings.settings.or_describe_it_and_kithena_drafts": {
+    "text": "Or describe it, and Kithena drafts the settings",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Describe: text inside <FieldLabel>."
+  },
+  "settings.settings.personal_sections": {
+    "text": "Personal sections",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <CardTitle>."
+  },
+  "settings.settings.questions_about_a_document": {
+    "text": "Questions about a document",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.questions_across_documents": {
+    "text": "Questions across documents",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.read_fields_into_people": {
+    "text": "Read fields into People",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.read_photos_and_scans": {
+    "text": "Read photos and scans",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.reminders_days_before_it_expires": {
+    "text": "Reminders {{join}} days before it expires",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code. Filled in: {{join}}."
+  },
+  "settings.settings.required": {
+    "text": "Required",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>."
+  },
+  "settings.settings.required_for": {
+    "text": "Required for {{value}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code. Filled in: {{value}}."
+  },
+  "settings.settings.retention_and_legal_holds": {
+    "text": "Retention and legal holds",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: the title of <Page>."
+  },
+  "settings.settings.rules": {
+    "text": "Rules",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: text inside <CardTitle>."
+  },
+  "settings.settings.save": {
+    "text": "Save",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <Button>."
+  },
+  "settings.settings.share_with_everyone_at_the_company": {
+    "text": "Share with everyone at the company",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <FieldLabel>."
+  },
+  "settings.settings.sharing": {
+    "text": "Sharing",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessForm: text inside <CardTitle>."
+  },
+  "settings.settings.signature": {
+    "text": "Signature",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>."
+  },
+  "settings.settings.signed_by": {
+    "text": "Signed by {{join}}",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx: text built in code. Filled in: {{join}}."
+  },
+  "settings.settings.signed_by_2": {
+    "text": "Signed by",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <Choice>."
+  },
+  "settings.settings.sort_uploads": {
+    "text": "Sort uploads",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.summaries": {
+    "text": "Summaries",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+  },
+  "settings.settings.the_company": {
+    "text": "The company",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.the_person_and_hr": {
+    "text": "the person and HR",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: a \"subject\" value."
+  },
+  "settings.settings.the_person_it_is_about": {
+    "text": "The person it is about",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.the_whole_type_is_one_sentence": {
+    "text": "The whole type is one sentence; each part is a choice.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: text inside <DialogDescription>."
+  },
+  "settings.settings.them": {
+    "text": "Them",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.them_then_hr": {
+    "text": "Them, then HR",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.type_person_and_dates_for_hr": {
+    "text": "Type, person and dates, for HR to confirm",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+  },
+  "settings.settings.until_they_leave_plus_years": {
+    "text": "Until they leave, plus years",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.visa_letters_filed_to_the_person": {
+    "text": "Visa letters: filed to the person, HR only, kept a year after they leave",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Describe: the placeholder of <Input>."
+  },
+  "settings.settings.what_kithena_does": {
+    "text": "What Kithena does",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AiSettings: text inside <CardTitle>."
+  },
+  "settings.settings.what_kithena_may_do_with_your": {
+    "text": "What Kithena may do with your documents. Medical documents are only ever read for their dates.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AiSettings: the description of <Page>."
+  },
+  "settings.settings.what_new_documents_start_as_how": {
+    "text": "What new documents start as, how far people can share, and what Confidential enforces.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AccessSettings: the description of <Page>."
+  },
+  "settings.settings.where_each_kind_of_document_is": {
+    "text": "Where each kind of document is filed, who sees it, what it needs and how long it is kept.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the description of <Page>."
+  },
+  "settings.settings.who_sees_it_besides_hr": {
+    "text": "Who sees it besides HR",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <Choice>."
+  },
+  "settings.settings.years": {
+    "text": "Years",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the label of <NumberField>."
+  },
+  "settings.settings.years_after_they_leave": {
+    "text": "Years after they leave",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.years_from_filing": {
+    "text": "Years from filing",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, TypeDialog: the options of <Choice>."
+  },
+  "settings.settings.you_check_every_choice_before_it": {
+    "text": "You check every choice before it is saved.",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, Describe: text inside <FieldDescription>."
+  },
+  "share.access_ends": {
+    "text": "Access ends",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <FieldLabel>."
+  },
+  "share.add_people": {
+    "text": "Add people",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <FieldLabel>."
+  },
+  "share.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <Button>."
+  },
+  "share.done": {
+    "text": "Done",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <Button>."
+  },
+  "share.edit": {
+    "text": "Edit",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the trailing of <SelectItem>."
+  },
+  "share.everyone": {
+    "text": "Everyone",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the onClick of <Button>."
+  },
+  "share.find_someone": {
+    "text": "Find someone",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the searchPlaceholder of <Combobox>."
+  },
+  "share.never": {
+    "text": "Never",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the placeholder of <DatePicker>."
+  },
+  "share.nobody_by_that_name": {
+    "text": "Nobody by that name",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the emptyMessage of <Combobox>."
+  },
+  "share.nobody_yet_add_the_people_who": {
+    "text": "Nobody yet. Add the people who should open it.",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <p>."
+  },
+  "share.not_shared": {
+    "text": "Not shared",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the title of <Alert>."
+  },
+  "share.private": {
+    "text": "Private",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <SegmentedControlItem>."
+  },
+  "share.private_ends_everyones_access_at_once": {
+    "text": "Private ends everyone’s access at once. Sections never change who can open it.",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <DialogDescription>."
+  },
+  "share.remove": {
+    "text": "Remove {{label}}",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the aria-label of <Button>. Filled in: {{label}}."
+  },
+  "share.share": {
+    "text": "Share",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <DialogTitle>."
+  },
+  "share.share_with_everyone": {
+    "text": "Share with everyone",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <Button>."
+  },
+  "share.shared": {
+    "text": "Shared",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: text inside <SegmentedControlItem>."
+  },
+  "share.view": {
+    "text": "View",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the trailing of <SelectItem>."
+  },
+  "share.what_can_do": {
+    "text": "What {{label}} can do",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the aria-label of <SelectTrigger>. Filled in: {{label}}."
+  },
+  "share.who_can_open_it": {
+    "text": "Who can open it",
+    "context": "Documents: files, e-signatures, letters. share.tsx, ShareDialog: the aria-label of <SegmentedControl>."
+  },
+  "shared.confidential": {
+    "text": "Confidential",
+    "context": "Documents: files, e-signatures, letters. shared.tsx, AccessBadge: text inside <Badge>."
+  },
+  "shared.everyone": {
+    "text": "Everyone",
+    "context": "Documents: files, e-signatures, letters. shared.tsx, AccessBadge: text inside <Badge>."
+  },
+  "shared.page": {
+    "text": "{{n}} page{{value}}",
+    "context": "Documents: files, e-signatures, letters. shared.tsx: text built in code. Filled in: {{n}}, {{value}}."
+  },
+  "shared.private": {
+    "text": "Private",
+    "context": "Documents: files, e-signatures, letters. shared.tsx, AccessBadge: text inside <Badge>."
+  },
+  "shared.shared": {
+    "text": "Shared",
+    "context": "Documents: files, e-signatures, letters. shared.tsx, AccessBadge: text inside <Badge>."
+  },
+  "shared.the_file_could_not_be_uploaded": {
+    "text": "The file could not be uploaded. Try again.",
+    "context": "Documents: files, e-signatures, letters. shared.tsx: a \"message\" value."
+  },
+  "shared.the_file_could_not_be_uploaded_2": {
+    "text": "The file could not be uploaded. Check your connection.",
+    "context": "Documents: files, e-signatures, letters. shared.tsx: a \"message\" value."
+  },
+  "shared.your_document": {
+    "text": "Your document",
+    "context": "Documents: files, e-signatures, letters. shared.tsx: text built in code."
+  },
+  "split.split": {
+    "text": "Split({{name}})",
+    "context": "Documents: files, e-signatures, letters. split.tsx: text built in code. Filled in: {{name}}."
+  },
+  "upload.about": {
+    "text": "About",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldLabel>."
+  },
+  "upload.add": {
+    "text": "Add",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <Button>."
+  },
+  "upload.add_a_document": {
+    "text": "Add a document",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <DialogTitle>."
+  },
+  "upload.cancel": {
+    "text": "Cancel",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <Button>."
+  },
+  "upload.confidential_as_its_type_says": {
+    "text": "Confidential, as its type says.",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldDescription>."
+  },
+  "upload.dont_ask_me_after_uploads": {
+    "text": "Don’t ask me after uploads",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, ShareQuestion: text inside <FieldLabel>."
+  },
+  "upload.drop_a_file_or_choose_one": {
+    "text": "Drop a file, or choose one",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the label of <Dropzone>."
+  },
+  "upload.expires": {
+    "text": "Expires",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldLabel>."
+  },
+  "upload.find_someone": {
+    "text": "Find someone",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the searchPlaceholder of <Combobox>."
+  },
+  "upload.it_starts_private_pdfs_images_office": {
+    "text": "It starts Private. PDFs, images, Office files and CSV, up to 100 MB.",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <DialogDescription>."
+  },
+  "upload.its_private": {
+    "text": "It’s private",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, ShareQuestion: text inside <DialogTitle>."
+  },
+  "upload.keep_it_private": {
+    "text": "Keep it private",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, ShareQuestion: text inside <Button>."
+  },
+  "upload.kithena_filled_in_what_it_read": {
+    "text": "Kithena filled in what it read. Check each before adding.",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <Alert>."
+  },
+  "upload.kithena_is_reading_the_file": {
+    "text": "Kithena is reading the file",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the label of <Spinner>."
+  },
+  "upload.kithena_reminds_before_it_does": {
+    "text": "Kithena reminds before it does.",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldDescription>."
+  },
+  "upload.my_own_document": {
+    "text": "My own document",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <SelectItem>."
+  },
+  "upload.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldLabel>."
+  },
+  "upload.never": {
+    "text": "Never",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the placeholder of <DatePicker>."
+  },
+  "upload.nobody_by_that_name": {
+    "text": "Nobody by that name",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the emptyMessage of <Combobox>."
+  },
+  "upload.not_added": {
+    "text": "Not added",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the title of <Alert>."
+  },
+  "upload.only_you_can_see_do_you": {
+    "text": "Only you can see {{title}}. Do you want to share it?",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, ShareQuestion: text inside <DialogDescription>. Filled in: {{title}}."
+  },
+  "upload.share": {
+    "text": "Share",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, ShareQuestion: text inside <Button>."
+  },
+  "upload.type": {
+    "text": "Type",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: text inside <FieldLabel>."
+  },
+  "upload.who_it_is_about": {
+    "text": "Who it is about",
+    "context": "Documents: files, e-signatures, letters. upload.tsx, UploadDialog: the placeholder of <Combobox>."
+  }
+}

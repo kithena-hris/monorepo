@@ -17,6 +17,7 @@ import {
 import { cn } from '../../lib/cn';
 import { usePrefersReducedMotion } from '../../lib/use-media-query';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * A few equal items side by side, scrolled or swiped to see more.
@@ -186,7 +187,7 @@ export function Carousel({
         <Button
           size="sm"
           startIcon={<ChevronLeft aria-hidden />}
-          aria-label="Previous slide"
+          aria-label={t('components.carousel.carousel.previous_slide', 'Previous slide')}
           aria-controls={trackId}
           disabled={edges.atStart}
           onClick={() => {
@@ -197,7 +198,7 @@ export function Carousel({
         <Button
           size="sm"
           startIcon={<ChevronRight aria-hidden />}
-          aria-label="Next slide"
+          aria-label={t('components.carousel.carousel.next_slide', 'Next slide')}
           aria-controls={trackId}
           disabled={edges.atEnd}
           onClick={() => {
@@ -247,7 +248,10 @@ export function Carousel({
             key={position}
             role="group"
             aria-roledescription="slide"
-            aria-label={`${String(position + 1)} of ${String(slides.length)}`}
+            aria-label={t('components.carousel.carousel.of', '{{value}} of {{length}}', {
+              value: String(position + 1),
+              length: String(slides.length),
+            })}
             className={cn('shrink-0 snap-start', itemClassName)}
           >
             {slide}
@@ -261,7 +265,9 @@ export function Carousel({
             <button
               key={position}
               type="button"
-              aria-label={`Slide ${String(position + 1)}`}
+              aria-label={t('components.carousel.carousel.slide', 'Slide {{value}}', {
+                value: String(position + 1),
+              })}
               aria-controls={trackId}
               aria-current={position === index || undefined}
               onClick={() => {

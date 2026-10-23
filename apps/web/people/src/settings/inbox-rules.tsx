@@ -18,6 +18,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * Settings › People › Organisation › Inbox rules (P2): company-wide defaults
@@ -36,16 +37,22 @@ export interface InboxRules {
 }
 
 const REMIND: readonly { readonly value: InboxRules['remind']; readonly label: string }[] = [
-  { value: 'day_before_then_every_2_days', label: 'Day before, then every 2 days' },
-  { value: 'day_before', label: 'The day before only' },
-  { value: 'off', label: 'Don’t remind' },
+  {
+    value: 'day_before_then_every_2_days',
+    label: t('settings.inbox-rules.day_before_then_every_2_days', 'Day before, then every 2 days'),
+  },
+  {
+    value: 'day_before',
+    label: t('settings.inbox-rules.the_day_before_only', 'The day before only'),
+  },
+  { value: 'off', label: t('settings.inbox-rules.dont_remind', 'Don’t remind') },
 ];
 
 const OVERDUE = [
   { value: '3', label: '3 days' },
   { value: '7', label: '7 days' },
   { value: '14', label: '14 days' },
-  { value: '0', label: 'Never' },
+  { value: '0', label: t('settings.inbox-rules.never', 'Never') },
 ] as const;
 
 export function InboxRulesTab({
@@ -68,7 +75,7 @@ export function InboxRulesTab({
       min={1}
       max={90}
       step={1}
-      suffix="days"
+      suffix={t('settings.inbox-rules.days', 'days')}
       disabled={!canManage}
       onChange={(v) => {
         if (v !== null) setR({ ...r, [key]: v });
@@ -78,7 +85,7 @@ export function InboxRulesTab({
   );
   return (
     <form
-      aria-label="Inbox rules"
+      aria-label={t('settings.inbox-rules.inbox_rules', 'Inbox rules')}
       onSubmit={(event) => {
         event.preventDefault();
         setBusy(true);
@@ -90,10 +97,15 @@ export function InboxRulesTab({
       }}
     >
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 @4xl/page:grid-cols-2">
-        <PageSection surface title="Reminders and escalation">
+        <PageSection
+          surface
+          title={t('settings.inbox-rules.reminders_and_escalation', 'Reminders and escalation')}
+        >
           <Stack gap={4}>
             <Field>
-              <FieldLabel>Remind people about a task</FieldLabel>
+              <FieldLabel>
+                {t('settings.inbox-rules.remind_people_about_a_task', 'Remind people about a task')}
+              </FieldLabel>
               <Select
                 value={r.remind}
                 disabled={!canManage}
@@ -117,7 +129,9 @@ export function InboxRulesTab({
               </Select>
             </Field>
             <Field>
-              <FieldLabel>When a task is overdue for</FieldLabel>
+              <FieldLabel>
+                {t('settings.inbox-rules.when_a_task_is_overdue_for', 'When a task is overdue for')}
+              </FieldLabel>
               <Select
                 value={String(r.overdueDays)}
                 disabled={!canManage}
@@ -138,47 +152,70 @@ export function InboxRulesTab({
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription>The person’s manager gets an update.</FieldDescription>
+              <FieldDescription>
+                {t(
+                  'settings.inbox-rules.the_persons_manager_gets_an_update',
+                  'The person’s manager gets an update.',
+                )}
+              </FieldDescription>
             </Field>
             <KeyValues
               layout="stacked"
               items={[
                 {
-                  label: 'Approvals that wait for 7 days',
+                  label: t(
+                    'settings.inbox-rules.approvals_that_wait_for_7_days',
+                    'Approvals that wait for 7 days',
+                  ),
                   value: 'They lapse and the requester is told, as in Review',
                 },
                 {
-                  label: 'Hand over automatically',
+                  label: t(
+                    'settings.inbox-rules.hand_over_automatically',
+                    'Hand over automatically',
+                  ),
                   value: 'Each approver turns it on in Time off › Approvals › Cover',
                 },
               ]}
             />
           </Stack>
         </PageSection>
-        <PageSection surface title="Default due dates">
+        <PageSection
+          surface
+          title={t('settings.inbox-rules.default_due_dates', 'Default due dates')}
+        >
           <Stack gap={4}>
-            {days('askDueDays', 'Ask for details')}
-            {days('signDueDays', 'Sign a document')}
-            {days('acknowledgeDueDays', 'Read and acknowledge')}
+            {days('askDueDays', t('settings.inbox-rules.ask_for_details', 'Ask for details'))}
+            {days('signDueDays', t('settings.inbox-rules.sign_a_document', 'Sign a document'))}
+            {days(
+              'acknowledgeDueDays',
+              t('settings.inbox-rules.read_and_acknowledge', 'Read and acknowledge'),
+            )}
             <KeyValues
               layout="stacked"
               items={[
-                { label: 'Approve time off', value: 'Set in Time off › Settings › Approval rules' },
+                {
+                  label: t('settings.inbox-rules.approve_time_off', 'Approve time off'),
+                  value: 'Set in Time off › Settings › Approval rules',
+                },
               ]}
             />
           </Stack>
         </PageSection>
-        <PageSection surface title="Team tasks">
+        <PageSection surface title={t('settings.inbox-rules.team_tasks', 'Team tasks')}>
           <Stack gap={4}>
             <NumberField
-              label="Integration failures"
+              label={t('settings.inbox-rules.integration_failures', 'Integration failures')}
               value={r.failuresForATask}
               min={1}
               max={20}
               step={1}
-              suffix="in a row"
+              suffix={t('settings.inbox-rules.in_a_row', 'in a row')}
               disabled={!canManage}
-              hint="Then it is a task for all People administrators."
+              hint={t(
+                'settings.inbox-rules.then_it_is_a_task_for',
+                'Then it is a task for all People administrators.',
+              )}
               onChange={(v) => {
                 if (v !== null) setR({ ...r, failuresForATask: v });
               }}
@@ -186,25 +223,44 @@ export function InboxRulesTab({
             />
             <KeyValues
               layout="stacked"
-              items={[{ label: 'Import rows to check', value: 'Whoever ran the import' }]}
+              items={[
+                {
+                  label: t('settings.inbox-rules.import_rows_to_check', 'Import rows to check'),
+                  value: 'Whoever ran the import',
+                },
+              ]}
             />
           </Stack>
         </PageSection>
-        <PageSection surface title="Who can send">
+        <PageSection surface title={t('settings.inbox-rules.who_can_send', 'Who can send')}>
           <KeyValues
             layout="stacked"
             items={[
-              { label: 'Documents that need signing', value: 'HR' },
-              { label: 'Requests for details', value: 'HR and managers' },
+              {
+                label: t(
+                  'settings.inbox-rules.documents_that_need_signing',
+                  'Documents that need signing',
+                ),
+                value: 'HR',
+              },
+              {
+                label: t('settings.inbox-rules.requests_for_details', 'Requests for details'),
+                value: 'HR and managers',
+              },
             ]}
           />
         </PageSection>
       </div>
       <Stack gap={3} className="mt-4">
         {outcome === null ? null : outcome.ok ? (
-          <Alert tone="success">Saved. The new rules apply from now on.</Alert>
+          <Alert tone="success">
+            {t(
+              'settings.inbox-rules.saved_the_new_rules_apply_from',
+              'Saved. The new rules apply from now on.',
+            )}
+          </Alert>
         ) : (
-          <Alert tone="danger" title="Not saved">
+          <Alert tone="danger" title={t('settings.inbox-rules.not_saved', 'Not saved')}>
             {outcome.message}
           </Alert>
         )}
@@ -216,9 +272,9 @@ export function InboxRulesTab({
               size="sm"
               disabled={!changed}
               loading={busy}
-              loadingLabel="Saving"
+              loadingLabel={t('settings.inbox-rules.saving', 'Saving')}
             >
-              Save
+              {t('settings.inbox-rules.save', 'Save')}
             </Button>
           </div>
         ) : null}

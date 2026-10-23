@@ -46,6 +46,7 @@ import {
   type Found,
 } from './shared';
 import type { Answers, FormDefinition, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Feedback and notes (PRD §12, §13; design PF14, PF21 v2): what reached me,
@@ -125,12 +126,12 @@ const plain = (html: string): string => paragraphs(html).join(' ');
 
 const audienceWords = (a: Audience, name: string): string =>
   a === 'recipient'
-    ? `Only ${name}`
+    ? tr('feedback.only', 'Only {{name}}', { name })
     : a === 'recipient_manager'
-      ? `${name} and their manager`
+      ? tr('feedback.and_their_manager', '{{name}} and their manager', { name })
       : a === 'manager_only'
-        ? `Only ${name}’s manager`
-        : 'Everyone at the company';
+        ? tr('feedback.only_s_manager', 'Only {{name}}’s manager', { name })
+        : tr('feedback.everyone_at_the_company', 'Everyone at the company');
 
 export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
   const act = useAct(props);
@@ -150,8 +151,11 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Feedback"
-            description="Given whenever it is useful, outside any cycle. Praise can be seen by everyone; the rest only by who the writer chose."
+            title={tr('feedback.feedback', 'Feedback')}
+            description={tr(
+              'feedback.given_whenever_it_is_useful_outside',
+              'Given whenever it is useful, outside any cycle. Praise can be seen by everyone; the rest only by who the writer chose.',
+            )}
             actions={
               data.settings.on ? (
                 <>
@@ -161,14 +165,14 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                       setAsking(true);
                     }}
                   >
-                    Request feedback
+                    {tr('feedback.request_feedback', 'Request feedback')}
                   </Button>
                   <Button
                     onClick={() => {
                       setGiving({ to: null, requestId: null, templateId: null });
                     }}
                   >
-                    Give feedback
+                    {tr('feedback.give_feedback', 'Give feedback')}
                   </Button>
                 </>
               ) : null
@@ -176,17 +180,33 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
           />
           <Refusal error={act.error} />
           {data.settings.on ? null : (
-            <Alert tone="info" title="Feedback is off at this company">
-              An administrator turns it on in Settings › Performance › Feedback.
+            <Alert
+              tone="info"
+              title={tr(
+                'feedback.feedback_is_off_at_this_company',
+                'Feedback is off at this company',
+              )}
+            >
+              {tr(
+                'feedback.an_administrator_turns_it_on_in',
+                'An administrator turns it on in Settings › Performance › Feedback.',
+              )}
             </Alert>
           )}
           {data.tab === 'received' ? (
             <Posts
-              empty="Feedback you receive shows here."
+              empty={tr(
+                'feedback.feedback_you_receive_shows_here',
+                'Feedback you receive shows here.',
+              )}
               rows={data.received.map((f) => ({
                 id: f.id,
-                who: f.from ?? 'Someone at the company',
-                sub: `${f.kind === 'praise' ? 'Praise' : (f.template ?? 'Feedback')}${f.value === null ? '' : ` · ${f.value}`} · ${day(f.at)}`,
+                who: f.from ?? tr('feedback.someone_at_the_company', 'Someone at the company'),
+                sub: tr('feedback.text', '{{value}}{{value2}} · {{at}}', {
+                  value: f.kind === 'praise' ? 'Praise' : (f.template ?? 'Feedback'),
+                  value2: f.value === null ? '' : ` · ${f.value}`,
+                  at: day(f.at),
+                }),
                 body: f.body,
               }))}
             />
@@ -197,8 +217,11 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                 {data.sent.length === 0 ? (
                   <EmptyState
                     icon={<icons.message aria-hidden />}
-                    title="Nothing sent yet"
-                    description="Feedback you give shows here; you can take it back for ten minutes."
+                    title={tr('feedback.nothing_sent_yet', 'Nothing sent yet')}
+                    description={tr(
+                      'feedback.feedback_you_give_shows_here_you',
+                      'Feedback you give shows here; you can take it back for ten minutes.',
+                    )}
                   />
                 ) : (
                   data.sent.map((f) => (
@@ -206,10 +229,14 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                       <span className="flex flex-wrap items-center gap-2">
                         <Person
                           name={f.to}
-                          sub={`${f.kind === 'praise' ? 'Praise' : 'Feedback'} · ${audienceWords(f.audience, f.to)} · ${day(f.at)}`}
+                          sub={tr('feedback.text_2', '{{value}} · {{audienceWords}} · {{at}}', {
+                            value: f.kind === 'praise' ? 'Praise' : 'Feedback',
+                            audienceWords: audienceWords(f.audience, f.to),
+                            at: day(f.at),
+                          })}
                         />
                         {f.undone ? (
-                          <Badge size="sm">Taken back</Badge>
+                          <Badge size="sm">{tr('feedback.taken_back', 'Taken back')}</Badge>
                         ) : f.undoUntil !== null && Date.parse(f.undoUntil) > Date.now() ? (
                           <Button
                             size="sm"
@@ -220,7 +247,9 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                               act.run('UndoPerformanceFeedback', { id: f.id });
                             }}
                           >
-                            {`Delete until ${when(f.undoUntil).split(', ').at(-1) ?? ''}`}
+                            {tr('feedback.delete_until', 'Delete until {{value}}', {
+                              value: when(f.undoUntil).split(', ').at(-1) ?? '',
+                            })}
                           </Button>
                         ) : null}
                       </span>
@@ -235,17 +264,22 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>Asked of you</CardTitle>
+                  <CardTitle level={2}>{tr('feedback.asked_of_you', 'Asked of you')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col divide-y divide-[var(--reach-line)]">
                   {data.open.length === 0 ? (
-                    <p className="text-sm text-fg-muted">Nobody is waiting on you.</p>
+                    <p className="text-sm text-fg-muted">
+                      {tr('feedback.nobody_is_waiting_on_you', 'Nobody is waiting on you.')}
+                    </p>
                   ) : (
                     data.open.map((r) => (
                       <div key={r.id} className="flex flex-col gap-2 py-3">
                         <Person
                           name={r.from}
-                          sub={`About ${r.about}${r.due === null ? '' : ` · by ${day(r.due)}`}`}
+                          sub={tr('feedback.about', 'About {{about}}{{value}}', {
+                            about: r.about,
+                            value: r.due === null ? '' : ` · by ${day(r.due)}`,
+                          })}
                         />
                         {r.question === null ? null : <p className="text-sm">{r.question}</p>}
                         <span className="flex gap-2">
@@ -259,7 +293,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                               });
                             }}
                           >
-                            Answer
+                            {tr('feedback.answer', 'Answer')}
                           </Button>
                           <Button
                             size="sm"
@@ -269,7 +303,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                               act.run('DeclinePerformanceRequest', { id: r.id });
                             }}
                           >
-                            Decline
+                            {tr('feedback.decline', 'Decline')}
                           </Button>
                         </span>
                       </div>
@@ -279,12 +313,15 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>You asked</CardTitle>
+                  <CardTitle level={2}>{tr('feedback.you_asked', 'You asked')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {data.asked.length === 0 ? (
                     <p className="text-sm text-fg-muted">
-                      Ask people you work with how something went.
+                      {tr(
+                        'feedback.ask_people_you_work_with_how',
+                        'Ask people you work with how something went.',
+                      )}
                     </p>
                   ) : (
                     <List>
@@ -294,11 +331,14 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                           description={r.to.join(', ')}
                           trailing={
                             <Badge size="sm" tone={r.answered === r.of ? 'success' : 'neutral'}>
-                              {`${String(r.answered)} of ${String(r.of)}`}
+                              {tr('feedback.of', '{{answered}} of {{of}}', {
+                                answered: String(r.answered),
+                                of: String(r.of),
+                              })}
                             </Badge>
                           }
                         >
-                          {r.topic ?? `About ${r.about}`}
+                          {r.topic ?? tr('feedback.about_2', 'About {{about}}', { about: r.about })}
                         </ListItem>
                       ))}
                     </List>
@@ -309,11 +349,17 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
           ) : null}
           {data.tab === 'praise' ? (
             <Posts
-              empty="Praise given in public shows here, for everyone."
+              empty={tr(
+                'feedback.praise_given_in_public_shows_here',
+                'Praise given in public shows here, for everyone.',
+              )}
               rows={data.praise.map((p) => ({
                 id: p.id,
-                who: `${p.from} → ${p.to}`,
-                sub: `${p.value ?? 'Praise'} · ${day(p.at)}`,
+                who: tr('feedback.text_3', '{{from}} → {{to}}', { from: p.from, to: p.to }),
+                sub: tr('feedback.text_4', '{{value}} · {{at}}', {
+                  value: p.value ?? 'Praise',
+                  at: day(p.at),
+                }),
                 body: p.body,
               }))}
             />
@@ -358,7 +404,7 @@ function Posts({
         {rows.length === 0 ? (
           <EmptyState
             icon={<icons.message aria-hidden />}
-            title="Nothing yet"
+            title={tr('feedback.nothing_yet', 'Nothing yet')}
             description={empty}
           />
         ) : (
@@ -432,8 +478,16 @@ function Give({
       open
       wide
       onClose={onClose}
-      title={start.requestId === null ? 'Give feedback' : 'Answer a request'}
-      steps={['To', 'Write', 'Who sees it']}
+      title={
+        start.requestId === null
+          ? tr('feedback.give_feedback', 'Give feedback')
+          : tr('feedback.answer_a_request', 'Answer a request')
+      }
+      steps={[
+        tr('feedback.to', 'To'),
+        tr('feedback.write', 'Write'),
+        tr('feedback.who_sees_it', 'Who sees it'),
+      ]}
       step={step}
       onStep={setStep}
       finish={send}
@@ -453,7 +507,7 @@ function Give({
       {step === 0 ? (
         <PersonPicker
           act={act}
-          label="Who is it for?"
+          label={tr('feedback.who_is_it_for', 'Who is it for?')}
           value={to}
           onChange={(ids, people: readonly Found[]) => {
             setTo(ids);
@@ -464,22 +518,26 @@ function Give({
       {step === 1 ? (
         <div className="flex flex-col gap-3">
           <SegmentedControl
-            aria-label="How"
+            aria-label={tr('feedback.how', 'How')}
             value={how}
             onValueChange={(v) => {
               setHow(v === 'template' ? 'template' : v === 'praise' ? 'praise' : 'write');
             }}
           >
-            <SegmentedControlItem value="write">Write</SegmentedControlItem>
-            <SegmentedControlItem value="template" disabled={data.templates.length === 0}>
-              Use a template
+            <SegmentedControlItem value="write">
+              {tr('feedback.write', 'Write')}
             </SegmentedControlItem>
-            <SegmentedControlItem value="praise">Praise</SegmentedControlItem>
+            <SegmentedControlItem value="template" disabled={data.templates.length === 0}>
+              {tr('feedback.use_a_template', 'Use a template')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="praise">
+              {tr('feedback.praise', 'Praise')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {how === 'template' ? (
             <>
               <Choose
-                label="Template"
+                label={tr('feedback.template', 'Template')}
                 value={templateId}
                 options={data.templates.map((t) => [t.id, t.name] as const)}
                 onChange={setTemplateId}
@@ -499,7 +557,7 @@ function Give({
           ) : (
             <>
               {praise && data.settings.values.length > 0 ? (
-                <ChipRow aria-label="Company value">
+                <ChipRow aria-label={tr('feedback.company_value', 'Company value')}>
                   {data.settings.values.map((v) => (
                     <Chip
                       key={v}
@@ -514,7 +572,7 @@ function Give({
                 </ChipRow>
               ) : null}
               <RichTextEditor
-                aria-label="Your feedback"
+                aria-label={tr('feedback.your_feedback', 'Your feedback')}
                 value={body}
                 onChange={setBody}
                 toolbar={['inline', 'lists']}
@@ -534,7 +592,7 @@ function Give({
                       });
                     }}
                   >
-                    Check the tone
+                    {tr('feedback.check_the_tone', 'Check the tone')}
                   </Button>
                   {tone === null ? null : (
                     <Alert
@@ -542,9 +600,13 @@ function Give({
                       title={tone.verdict}
                     >
                       {tone.flags.map((f) => (
-                        <p
-                          key={f.sentence}
-                        >{`“${f.sentence}”: ${f.title}.${f.advice === null ? '' : ` ${f.advice}`}`}</p>
+                        <p key={f.sentence}>
+                          {tr('feedback.text_5', '“{{sentence}}”: {{title}}.{{value}}', {
+                            sentence: f.sentence,
+                            title: f.title,
+                            value: f.advice === null ? '' : ` ${f.advice}`,
+                          })}
+                        </p>
                       ))}
                     </Alert>
                   )}
@@ -558,10 +620,10 @@ function Give({
         <div className="flex flex-col gap-3">
           {data.settings.names === 'writer' && !praise ? (
             <SwitchRow
-              label="Show my name"
+              label={tr('feedback.show_my_name', 'Show my name')}
               hint={
                 showName
-                  ? `${toName} sees it is from you`
+                  ? tr('feedback.sees_it_is_from_you', '{{toName}} sees it is from you', { toName })
                   : `${toName} reads “Someone at the company”; their manager and HR still see your name`
               }
               checked={showName}
@@ -570,12 +632,12 @@ function Give({
           ) : (
             <p className="text-sm text-fg-muted">
               {praise || data.settings.names === 'always'
-                ? 'Your name is shown.'
+                ? tr('feedback.your_name_is_shown', 'Your name is shown.')
                 : 'Your name is hidden from the person; their manager and HR see it.'}
             </p>
           )}
           <RadioGroup
-            aria-label="Who sees it"
+            aria-label={tr('feedback.who_sees_it', 'Who sees it')}
             value={audience}
             onValueChange={(v) => {
               setAudience(v as Audience);
@@ -614,12 +676,15 @@ function Ask({
     <Modal
       open
       onClose={onClose}
-      title="Request feedback"
-      description="Each person gets it in their Inbox; answers come back to you."
+      title={tr('feedback.request_feedback', 'Request feedback')}
+      description={tr(
+        'feedback.each_person_gets_it_in_their',
+        'Each person gets it in their Inbox; answers come back to you.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {tr('feedback.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={to.length === 0 || (about === 'report' && report.length === 0)}
@@ -641,28 +706,37 @@ function Ask({
               );
             }}
           >
-            Send requests
+            {tr('feedback.send_requests', 'Send requests')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <SegmentedControl
-        aria-label="About"
+        aria-label={tr('feedback.about_3', 'About')}
         value={about}
         onValueChange={(v) => {
           setAbout(v === 'report' ? 'report' : 'me');
         }}
       >
-        <SegmentedControlItem value="me">About me</SegmentedControlItem>
-        <SegmentedControlItem value="report">About a report</SegmentedControlItem>
+        <SegmentedControlItem value="me">
+          {tr('feedback.about_me', 'About me')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="report">
+          {tr('feedback.about_a_report', 'About a report')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {about === 'report' ? (
-        <PersonPicker act={act} label="Which report?" value={report} onChange={setReport} />
+        <PersonPicker
+          act={act}
+          label={tr('feedback.which_report', 'Which report?')}
+          value={report}
+          onChange={setReport}
+        />
       ) : null}
       <PersonPicker
         act={act}
-        label="Who to ask (up to 10)"
+        label={tr('feedback.who_to_ask_up_to_10', 'Who to ask (up to 10)')}
         value={to}
         onChange={(ids) => {
           setTo(ids.slice(0, 10));
@@ -670,17 +744,17 @@ function Ask({
         many
       />
       <Field>
-        <FieldLabel>Topic</FieldLabel>
+        <FieldLabel>{tr('feedback.topic', 'Topic')}</FieldLabel>
         <Input
           value={topic}
           onChange={(e) => {
             setTopic(e.target.value);
           }}
-          placeholder="The ledger migration"
+          placeholder={tr('feedback.the_ledger_migration', 'The ledger migration')}
         />
       </Field>
       <Field>
-        <FieldLabel>Your question</FieldLabel>
+        <FieldLabel>{tr('feedback.your_question', 'Your question')}</FieldLabel>
         <Textarea
           autoResize
           value={question}
@@ -691,19 +765,22 @@ function Ask({
       </Field>
       {data.templates.length === 0 ? null : (
         <Choose
-          label="Or a template"
+          label={tr('feedback.or_a_template', 'Or a template')}
           value={templateId === '' ? 'none' : templateId}
-          options={[['none', 'No template'], ...data.templates.map((t) => [t.id, t.name] as const)]}
+          options={[
+            ['none', tr('feedback.no_template', 'No template')],
+            ...data.templates.map((t) => [t.id, t.name] as const),
+          ]}
           onChange={(v) => {
             setTemplateId(v === 'none' ? '' : v);
           }}
         />
       )}
       <Field>
-        <FieldLabel>Answer by</FieldLabel>
+        <FieldLabel>{tr('feedback.answer_by', 'Answer by')}</FieldLabel>
         <FieldControl>
           <DatePicker
-            label="Answer by"
+            label={tr('feedback.answer_by', 'Answer by')}
             value={due === '' ? null : due}
             onChange={(date) => {
               setDue(date ?? '');
@@ -749,8 +826,11 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Notes"
-            description="Only you see your notes, until you share one. They are evidence when you write a review."
+            title={tr('feedback.notes', 'Notes')}
+            description={tr(
+              'feedback.only_you_see_your_notes_until',
+              'Only you see your notes, until you share one. They are evidence when you write a review.',
+            )}
             actions={
               data.about === null ? null : (
                 <Button
@@ -759,7 +839,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                     setEditing('new');
                   }}
                 >
-                  New note
+                  {tr('feedback.new_note', 'New note')}
                 </Button>
               )
             }
@@ -770,7 +850,10 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
               <CardContent className="flex flex-col gap-1">
                 {data.people.length === 0 ? (
                   <p className="text-sm text-fg-muted">
-                    Notes about your reports, and anyone you note, are listed here.
+                    {tr(
+                      'feedback.notes_about_your_reports_and_anyone',
+                      'Notes about your reports, and anyone you note, are listed here.',
+                    )}
                   </p>
                 ) : (
                   data.people.map((p) => (
@@ -780,7 +863,10 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                       onNavigate={props.onNavigate}
                       className={`rounded-md px-2 py-1.5 ${p.personId === data.about ? 'bg-surface-sunken font-semibold' : ''}`}
                     >
-                      {`${p.name} · ${String(p.notes)}`}
+                      {tr('feedback.text_6', '{{name}} · {{notes}}', {
+                        name: p.name,
+                        notes: String(p.notes),
+                      })}
                     </To>
                   ))
                 )}
@@ -791,9 +877,16 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                 <EmptyState
                   icon={<icons.edit aria-hidden />}
                   title={
-                    data.aboutName === null ? 'No notes yet' : `No notes about ${data.aboutName}`
+                    data.aboutName === null
+                      ? tr('feedback.no_notes_yet', 'No notes yet')
+                      : tr('feedback.no_notes_about', 'No notes about {{aboutName}}', {
+                          aboutName: data.aboutName,
+                        })
                   }
-                  description="Write down what happened while you remember it."
+                  description={tr(
+                    'feedback.write_down_what_happened_while_you',
+                    'Write down what happened while you remember it.',
+                  )}
                 />
               ) : (
                 data.notes.map((n) => (
@@ -802,9 +895,15 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                       <CardTitle level={2}>{n.title === '' ? day(n.at) : n.title}</CardTitle>
                       <span className="flex flex-wrap gap-2">
                         <Badge size="sm" tone={n.shared ? 'accent' : 'neutral'}>
-                          {n.shared ? 'Shared' : 'Only you'}
+                          {n.shared
+                            ? tr('feedback.shared', 'Shared')
+                            : tr('feedback.only_you', 'Only you')}
                         </Badge>
-                        {n.source === 'slack' ? <Badge size="sm">Saved from Slack</Badge> : null}
+                        {n.source === 'slack' ? (
+                          <Badge size="sm">
+                            {tr('feedback.saved_from_slack', 'Saved from Slack')}
+                          </Badge>
+                        ) : null}
                       </span>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3">
@@ -817,7 +916,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                             setEditing(n);
                           }}
                         >
-                          Edit
+                          {tr('feedback.edit', 'Edit')}
                         </Button>
                         <Button
                           size="sm"
@@ -826,7 +925,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                             props.onNavigate?.(`/performance/feedback/sent?give=1`);
                           }}
                         >
-                          Turn into feedback
+                          {tr('feedback.turn_into_feedback', 'Turn into feedback')}
                         </Button>
                         <Button
                           size="sm"
@@ -836,7 +935,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
                             act.run('DeletePerformanceNote', { id: n.id });
                           }}
                         >
-                          Delete
+                          {tr('feedback.delete', 'Delete')}
                         </Button>
                       </span>
                     </CardContent>
@@ -846,12 +945,20 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
               {data.sharedWithMe.length === 0 ? null : (
                 <Card>
                   <CardHeader>
-                    <CardTitle level={2}>Shared with you</CardTitle>
+                    <CardTitle level={2}>
+                      {tr('feedback.shared_with_you', 'Shared with you')}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3">
                     {data.sharedWithMe.map((n) => (
                       <div key={n.id} className="flex flex-col gap-1">
-                        <Person name={n.authorName} sub={`${n.title} · ${day(n.at)}`} />
+                        <Person
+                          name={n.authorName}
+                          sub={tr('feedback.text_7', '{{title}} · {{at}}', {
+                            title: n.title,
+                            at: day(n.at),
+                          })}
+                        />
                         <Paragraphs html={n.body} />
                       </div>
                     ))}
@@ -894,11 +1001,13 @@ function NoteDialog({
     <Modal
       open
       onClose={onClose}
-      title={note === null ? 'New note' : 'Edit note'}
+      title={
+        note === null ? tr('feedback.new_note', 'New note') : tr('feedback.edit_note', 'Edit note')
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {tr('feedback.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={plain(body) === ''}
@@ -911,14 +1020,14 @@ function NoteDialog({
               );
             }}
           >
-            Save
+            {tr('feedback.save', 'Save')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field>
-        <FieldLabel>Title</FieldLabel>
+        <FieldLabel>{tr('feedback.title', 'Title')}</FieldLabel>
         <Input
           value={title}
           onChange={(e) => {
@@ -927,15 +1036,19 @@ function NoteDialog({
         />
       </Field>
       <RichTextEditor
-        aria-label="Note"
+        aria-label={tr('feedback.note', 'Note')}
         value={body}
         onChange={setBody}
         toolbar={['inline', 'lists']}
         minHeight="8rem"
       />
       <SwitchRow
-        label="Share with the person"
-        hint={shared ? 'They see this note' : 'Only you'}
+        label={tr('feedback.share_with_the_person', 'Share with the person')}
+        hint={
+          shared
+            ? tr('feedback.they_see_this_note', 'They see this note')
+            : tr('feedback.only_you', 'Only you')
+        }
         checked={shared}
         onChange={setShared}
       />

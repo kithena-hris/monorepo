@@ -25,6 +25,7 @@ import {
   type AddressPatch,
   type ExportChoice,
 } from './words';
+import { t } from '../i18n';
 
 /** Whom the export would go to, what they could not read, and who would approve it. */
 export interface SendPreview {
@@ -103,11 +104,11 @@ export function SendPanel({
 
   return (
     <Stack gap={4} className={className}>
-      <PageSection surface title="Send">
+      <PageSection surface title={t('export.send-panel.send', 'Send')}>
         <Stack gap={3}>
           {canShare || canSchedule ? (
             <SegmentedControl
-              aria-label="How it goes"
+              aria-label={t('export.send-panel.how_it_goes', 'How it goes')}
               fullWidth
               size="sm"
               value={mode}
@@ -115,14 +116,20 @@ export function SendPanel({
                 onAddress({ send: next === 'download' ? null : next });
               }}
             >
-              <SegmentedControlItem value="download">Download</SegmentedControlItem>
+              <SegmentedControlItem value="download">
+                {t('export.send-panel.download', 'Download')}
+              </SegmentedControlItem>
               {canShare ? (
                 <SegmentedControlItem value="send">
-                  {them === null ? 'Send' : `Send to ${them}`}
+                  {them === null
+                    ? t('export.send-panel.send', 'Send')
+                    : t('export.send-panel.send_to', 'Send to {{them}}', { them })}
                 </SegmentedControlItem>
               ) : null}
               {canSchedule ? (
-                <SegmentedControlItem value="schedule">Schedule</SegmentedControlItem>
+                <SegmentedControlItem value="schedule">
+                  {t('export.send-panel.schedule', 'Schedule')}
+                </SegmentedControlItem>
               ) : null}
             </SegmentedControl>
           ) : null}
@@ -131,7 +138,11 @@ export function SendPanel({
             <Recipient
               candidates={preview.candidates}
               value={recipient}
-              label={mode === 'schedule' ? 'Every month to' : 'Send to'}
+              label={
+                mode === 'schedule'
+                  ? t('export.send-panel.every_month_to', 'Every month to')
+                  : t('export.send-panel.send_to_2', 'Send to')
+              }
               {...(mode === 'schedule' ? { self: preview.self } : {})}
               onChange={(next) => {
                 onAddress({ to: next }, 'replace');
@@ -142,7 +153,10 @@ export function SendPanel({
           {mode === 'download' || !canShare ? (
             <>
               <p className="text-sm text-fg-muted">
-                Only what you can see in People. Its link expires in 24 hours.
+                {t(
+                  'export.send-panel.only_what_you_can_see_in',
+                  'Only what you can see in People. Its link expires in 24 hours.',
+                )}
               </p>
               <Button
                 variant="primary"
@@ -150,12 +164,12 @@ export function SendPanel({
                 startIcon={<icons.download aria-hidden />}
                 disabled={choice.fields.length === 0 || !reasoned}
                 loading={busy === 'download'}
-                loadingLabel="Exporting"
+                loadingLabel={t('export.send-panel.exporting', 'Exporting')}
                 onClick={() => {
                   void act('download', () => onExport(choice));
                 }}
               >
-                Download {FORMAT_LABEL[choice.format]}
+                {t('export.send-panel.download', 'Download')} {FORMAT_LABEL[choice.format]}
               </Button>
               {keep === undefined || onKeep === undefined ? null : (
                 <>
@@ -178,18 +192,32 @@ export function SendPanel({
           ) : mode === 'send' ? (
             them === null ? (
               <p className="text-sm text-fg-muted">
-                Pick who it is for. It goes as a link that opens only for them, for 7 days.
+                {t(
+                  'export.send-panel.pick_who_it_is_for_it',
+                  'Pick who it is for. It goes as a link that opens only for them, for 7 days.',
+                )}
               </p>
             ) : (
               <>
                 <p className="text-sm text-fg-muted">
                   {preview.emailed
-                    ? `${them} gets a link that expires in 7 days and only opens for ${them}.`
-                    : `Email isn’t set up here, so ${them} isn’t told: the link opens only for ${them}, for 7 days, from the address of the page it goes to.`}
+                    ? t(
+                        'export.send-panel.gets_a_link_that_expires_in',
+                        '{{them}} gets a link that expires in 7 days and only opens for {{them2}}.',
+                        { them, them2: them },
+                      )
+                    : t(
+                        'export.send-panel.email_isnt_set_up_here_so',
+                        'Email isn’t set up here, so {{them}} isn’t told: the link opens only for {{them2}}, for 7 days, from the address of the page it goes to.',
+                        { them, them2: them },
+                      )}
                 </p>
                 {preview.tooLarge ? (
                   <Alert tone="info">
-                    A file is sent for up to 2,000 people. Download this one instead.
+                    {t(
+                      'export.send-panel.a_file_is_sent_for_up',
+                      'A file is sent for up to 2,000 people. Download this one instead.',
+                    )}
                   </Alert>
                 ) : null}
                 <Button
@@ -200,16 +228,20 @@ export function SendPanel({
                     !reasoned || preview.tooLarge || (gap !== null && approvers.length === 0)
                   }
                   loading={busy === 'send'}
-                  loadingLabel="Sending"
+                  loadingLabel={t('export.send-panel.sending', 'Sending')}
                   onClick={() => {
                     if (recipient !== null) void act('send', () => onShare(choice, recipient));
                   }}
                 >
                   {gap === null
-                    ? `Send to ${them}`
+                    ? t('export.send-panel.send_to', 'Send to {{them}}', { them })
                     : approver === null
-                      ? 'Send when approved'
-                      : `Send when ${approver} approves`}
+                      ? t('export.send-panel.send_when_approved', 'Send when approved')
+                      : t(
+                          'export.send-panel.send_when_approves',
+                          'Send when {{approver}} approves',
+                          { approver },
+                        )}
                 </Button>
                 {gap === null || without.length === 0 ? null : (
                   <Button
@@ -217,7 +249,7 @@ export function SendPanel({
                     fullWidth
                     disabled={!reasoned || without.length === choice.fields.length}
                     loading={busy === 'without'}
-                    loadingLabel="Exporting"
+                    loadingLabel={t('export.send-panel.exporting', 'Exporting')}
                     onClick={() => {
                       void act('without', () =>
                         onExport({
@@ -228,10 +260,12 @@ export function SendPanel({
                     }}
                   >
                     {/* Short enough for one line: the alert above names each field. */}
-                    Download now (without{' '}
+                    {t('export.send-panel.download_now_without', 'Download now (without')}{' '}
                     {gap.fields.length === 1
                       ? (gap.fields[0]?.label.toLowerCase() ?? 'it')
-                      : `${String(gap.fields.length)} fields`}
+                      : t('export.send-panel.fields', '{{length}} fields', {
+                          length: String(gap.fields.length),
+                        })}
                     )
                   </Button>
                 )}
@@ -253,24 +287,37 @@ export function SendPanel({
 
           {!reasoned ? (
             <p className="text-xs text-fg-subtle">
-              Give a reason first: it is kept with the export.
+              {t(
+                'export.send-panel.give_a_reason_first_it_is',
+                'Give a reason first: it is kept with the export.',
+              )}
             </p>
           ) : null}
           {outcome === null ? null : outcome.ok ? (
             busy === null && mode === 'schedule' ? (
-              <Alert tone="success" title="Scheduled">
-                It goes on the 1st of every month at 07:00. Change or stop it under Scheduled
-                reports.
+              <Alert tone="success" title={t('export.send-panel.scheduled', 'Scheduled')}>
+                {t(
+                  'export.send-panel.it_goes_on_the_1st_of',
+                  'It goes on the 1st of every month at 07:00. Change or stop it under Scheduled reports.',
+                )}
               </Alert>
             ) : null
           ) : (
-            <Alert tone="danger" title="Nothing was sent">
+            <Alert
+              tone="danger"
+              title={t('export.send-panel.nothing_was_sent', 'Nothing was sent')}
+            >
               {outcome.message}
             </Alert>
           )}
         </Stack>
       </PageSection>
-      <Rule>The same field permissions as the builder</Rule>
+      <Rule>
+        {t(
+          'export.send-panel.the_same_field_permissions_as_the',
+          'The same field permissions as the builder',
+        )}
+      </Rule>
     </Stack>
   );
 }
@@ -300,10 +347,12 @@ function Recipient({
         }}
       >
         <SelectTrigger aria-label={label}>
-          <SelectValue placeholder="Choose somebody" />
+          <SelectValue placeholder={t('export.send-panel.choose_somebody', 'Choose somebody')} />
         </SelectTrigger>
         <SelectContent>
-          {self === undefined ? null : <SelectItem value={SELF}>Me</SelectItem>}
+          {self === undefined ? null : (
+            <SelectItem value={SELF}>{t('export.send-panel.me', 'Me')}</SelectItem>
+          )}
           {candidates.map((c) => (
             <SelectItem key={c.accountId} value={c.accountId}>
               {c.name}
@@ -333,12 +382,23 @@ function Schedule({
     <>
       <p className="text-sm text-fg-muted">
         {to === null
-          ? 'Pick who gets it.'
-          : `On the 1st of every month, ${to === 'you' ? 'you get' : `${to} gets`} this export as ${to === 'you' ? 'you' : to} can see it that morning: that day’s values, not ${spokenDate(choice.asOf)}’s.`}
+          ? t('export.send-panel.pick_who_gets_it', 'Pick who gets it.')
+          : t(
+              'export.send-panel.on_the_1st_of_every_month',
+              'On the 1st of every month, {{value}} this export as {{value2}} can see it that morning: that day’s values, not {{spokenDate}}’s.',
+              {
+                value: to === 'you' ? 'you get' : `${to} gets`,
+                value2: to === 'you' ? 'you' : to,
+                spokenDate: spokenDate(choice.asOf),
+              },
+            )}
       </p>
       {csv ? (
         <Alert tone="info">
-          A schedule sends Excel or a PDF roster. Choose one of those first.
+          {t(
+            'export.send-panel.a_schedule_sends_excel_or_a',
+            'A schedule sends Excel or a PDF roster. Choose one of those first.',
+          )}
         </Alert>
       ) : null}
       <Button
@@ -347,10 +407,10 @@ function Schedule({
         startIcon={<icons.scheduled aria-hidden />}
         disabled={disabled || csv}
         loading={busy}
-        loadingLabel="Scheduling"
+        loadingLabel={t('export.send-panel.scheduling', 'Scheduling')}
         onClick={onSchedule}
       >
-        Make this a monthly schedule
+        {t('export.send-panel.make_this_a_monthly_schedule', 'Make this a monthly schedule')}
       </Button>
     </>
   );

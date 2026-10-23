@@ -1,5 +1,6 @@
 import { Avatar, AvatarGroup, PageSection, PersonCard, Tooltip } from '@reach/ui';
 import type { JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * Who somebody reports to, from the top of the organisation down to them,
@@ -37,10 +38,15 @@ export function ReportingLine({
   if (line.chain.length === 0 && line.peers.length === 0) return null;
   const firstName = person.name.split(' ')[0] ?? person.name;
   return (
-    <PageSection surface title="Reporting line">
+    <PageSection surface title={t('profile.reporting-line.reporting_line', 'Reporting line')}>
       <div className="flex flex-col gap-5">
         {/* The chain as the org chart draws it: a card each, joined by a rule. */}
-        <ol aria-label={`${person.name}’s reporting line`} className="flex flex-col">
+        <ol
+          aria-label={t('profile.reporting-line.s_reporting_line', '{{name}}’s reporting line', {
+            name: person.name,
+          })}
+          className="flex flex-col"
+        >
           {line.chain.map((p) => (
             <li key={p.id} className="flex flex-col">
               <PersonCard
@@ -66,17 +72,30 @@ export function ReportingLine({
         {line.peers.length === 0 ? null : (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             <p className="text-sm text-fg-muted">
-              {line.morePeers ? 'More than ' : ''}
-              {String(line.peers.length)} {line.peers.length === 1 ? 'peer' : 'peers'} with the same
-              manager as {firstName}
+              {line.morePeers ? t('profile.reporting-line.more_than', 'More than') + ' ' : ''}
+              {String(line.peers.length)} {line.peers.length === 1 ? 'peer' : 'peers'}{' '}
+              {t('profile.reporting-line.with_the_same_manager_as', 'with the same manager as')}{' '}
+              {firstName}
             </p>
             <AvatarGroup
               max={8}
               total={line.peers.length}
-              aria-label={`Peers: ${line.peers.map((p) => p.name).join(', ')}`}
+              aria-label={t('profile.reporting-line.peers', 'Peers: {{join}}', {
+                join: line.peers.map((p) => p.name).join(', '),
+              })}
             >
               {line.peers.map((p) => (
-                <Tooltip key={p.id} content={p.title === null ? p.name : `${p.name}, ${p.title}`}>
+                <Tooltip
+                  key={p.id}
+                  content={
+                    p.title === null
+                      ? p.name
+                      : t('profile.reporting-line.text', '{{name}}, {{title}}', {
+                          name: p.name,
+                          title: p.title,
+                        })
+                  }
+                >
                   <a href={profileOf(p.id)} aria-label={p.name} className="rounded-full">
                     <Avatar size="md" name={p.name} src={p.avatarUrl ?? undefined} />
                   </a>

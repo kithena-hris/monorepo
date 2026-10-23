@@ -17,6 +17,7 @@ import type { JSX } from 'react';
 import { Loaded } from './load';
 import { StateBadge, To, day, words } from './shared';
 import type { BoardData, ScreenProps, TasksData } from './types';
+import { t } from './i18n';
 
 /**
  * O1 and O6: who is arriving and how far along each plan is; O4: the tasks
@@ -32,32 +33,47 @@ export function Home(props: ScreenProps<BoardData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Onboarding"
-            description="From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system."
+            title={t('home.onboarding', 'Onboarding')}
+            description={t(
+              'home.from_a_signed_contract_to_the',
+              'From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system.',
+            )}
           />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Plans in flight" value={String(data.rows.length)} />
             <Stat
-              label="Starting this month"
+              label={t('home.plans_in_flight', 'Plans in flight')}
+              value={String(data.rows.length)}
+            />
+            <Stat
+              label={t('home.starting_this_month', 'Starting this month')}
               value={String(data.rows.filter((r) => thisMonth(r.startDate)).length)}
             />
-            <Stat label="Tasks late" value={String(data.rows.reduce((n, r) => n + r.late, 0))} />
-            <Stat label="On track" value={String(data.rows.filter((r) => r.late === 0).length)} />
+            <Stat
+              label={t('home.tasks_late', 'Tasks late')}
+              value={String(data.rows.reduce((n, r) => n + r.late, 0))}
+            />
+            <Stat
+              label={t('home.on_track', 'On track')}
+              value={String(data.rows.filter((r) => r.late === 0).length)}
+            />
           </div>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Arriving</CardTitle>
+              <CardTitle level={2}>{t('home.arriving', 'Arriving')}</CardTitle>
             </CardHeader>
             <CardContent>
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.hire aria-hidden />}
-                  title="Nobody is arriving"
-                  description="A plan starts when a hire arrives from Recruiting, People or another system."
+                  title={t('home.nobody_is_arriving', 'Nobody is arriving')}
+                  description={t(
+                    'home.a_plan_starts_when_a_hire',
+                    'A plan starts when a hire arrives from Recruiting, People or another system.',
+                  )}
                 />
               ) : (
                 <DataTable<PlanRow>
-                  label="Arriving"
+                  label={t('home.arriving', 'Arriving')}
                   rows={data.rows}
                   rowId={planId}
                   describeRow={planName}
@@ -84,7 +100,7 @@ function planColumns(
   return [
     {
       id: 'person',
-      header: 'Person',
+      header: t('home.person', 'Person'),
       sortBy: (r) => r.name,
       cell: (r) => (
         <>
@@ -92,37 +108,56 @@ function planColumns(
             {r.name}
           </To>
           <span className="block text-sm text-fg-muted">
-            {[r.department, r.manager === null ? null : `with ${r.manager}`]
+            {[
+              r.department,
+              r.manager === null
+                ? null
+                : t('home.with', 'with {{manager}}', { manager: r.manager }),
+            ]
               .filter(Boolean)
               .join(' · ') || r.country}
           </span>
         </>
       ),
     },
-    { id: 'starts', header: 'Starts', sortBy: (r) => r.startDate, cell: (r) => day(r.startDate) },
+    {
+      id: 'starts',
+      header: t('home.starts', 'Starts'),
+      sortBy: (r) => r.startDate,
+      cell: (r) => day(r.startDate),
+    },
     {
       id: 'progress',
-      header: 'Progress',
+      header: t('home.progress', 'Progress'),
       width: '11rem',
       sortBy: (r) => (r.total === 0 ? 0 : r.done / r.total),
       cell: (r) => (
         <Progress
           value={r.total === 0 ? 0 : Math.round((r.done / r.total) * 100)}
-          label={`${String(r.done)} of ${String(r.total)} tasks`}
+          label={t('home.of_tasks', '{{done}} of {{total}} tasks', {
+            done: String(r.done),
+            total: String(r.total),
+          })}
         />
       ),
     },
     {
       id: 'late',
-      header: 'Late',
+      header: t('home.late', 'Late'),
       numeric: true,
       sortBy: (r) => r.late,
       cell: (r) =>
-        r.late === 0 ? '—' : <Badge size="sm" tone="danger">{`${String(r.late)} late`}</Badge>,
+        r.late === 0 ? (
+          '—'
+        ) : (
+          <Badge size="sm" tone="danger">
+            {t('home.late_2', '{{late}} late', { late: String(r.late) })}
+          </Badge>
+        ),
     },
     {
       id: 'state',
-      header: 'State',
+      header: t('home.state', 'State'),
       cardTrailing: true,
       sortBy: (r) => r.state,
       cell: (r) => <StateBadge state={r.state} />,
@@ -140,7 +175,7 @@ function taskColumns(
   return [
     {
       id: 'task',
-      header: 'Task',
+      header: t('home.task', 'Task'),
       sortBy: (r) => r.title,
       cell: (r) => (
         <To href={`/onboarding/plans/${r.planId}`} onNavigate={onNavigate}>
@@ -148,10 +183,10 @@ function taskColumns(
         </To>
       ),
     },
-    { id: 'for', header: 'For', sortBy: (r) => r.name, cell: (r) => r.name },
+    { id: 'for', header: t('home.for', 'For'), sortBy: (r) => r.name, cell: (r) => r.name },
     {
       id: 'as',
-      header: 'As',
+      header: t('home.as', 'As'),
       hideOnCard: true,
       sortBy: (r) => r.ownerRole,
       cell: (r) => (
@@ -162,11 +197,17 @@ function taskColumns(
     },
     {
       id: 'due',
-      header: 'Due',
+      header: t('home.due', 'Due'),
       cardTrailing: true,
       sortBy: (r) => r.dueOn,
       cell: (r) =>
-        r.late ? <Badge size="sm" tone="danger">{`Late · ${day(r.dueOn)}`}</Badge> : day(r.dueOn),
+        r.late ? (
+          <Badge size="sm" tone="danger">
+            {t('home.late_3', 'Late · {{dueOn}}', { dueOn: day(r.dueOn) })}
+          </Badge>
+        ) : (
+          day(r.dueOn)
+        ),
     },
   ];
 }
@@ -178,16 +219,22 @@ export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="My onboarding tasks"
-            description="As a manager, a buddy, IT or HR. They are in your Inbox too."
+            title={t('home.my_onboarding_tasks', 'My onboarding tasks')}
+            description={t(
+              'home.as_a_manager_a_buddy_it',
+              'As a manager, a buddy, IT or HR. They are in your Inbox too.',
+            )}
           />
           <Card>
             <CardContent>
               {data.rows.length === 0 ? (
-                <EmptyState icon={<icons.success aria-hidden />} title="Nothing to do" />
+                <EmptyState
+                  icon={<icons.success aria-hidden />}
+                  title={t('home.nothing_to_do', 'Nothing to do')}
+                />
               ) : (
                 <DataTable<TaskRow>
-                  label="My onboarding tasks"
+                  label={t('home.my_onboarding_tasks', 'My onboarding tasks')}
                   rows={data.rows}
                   rowId={taskId}
                   describeRow={taskTitle}

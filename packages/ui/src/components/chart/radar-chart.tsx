@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn';
 import { ChartLegend, fillTone, seriesTone, strokeTone, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
 import { radarPoints } from './geometry';
+import { t } from '../../lib/i18n';
 
 export interface RadarSeries {
   label: string;
@@ -85,7 +86,10 @@ export function RadarChart({
       label={label}
       rows={series.flatMap((entry) =>
         axes.map((axis, index) => ({
-          label: `${entry.label} · ${axis}`,
+          label: t('components.chart.radar-chart.text', '{{label}} · {{axis}}', {
+            label: entry.label,
+            axis,
+          }),
           value: entry.values[index] ?? 0,
         })),
       )}
@@ -170,7 +174,7 @@ export function RadarChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Quality</th>
+              <th scope="col">{t('components.chart.radar-chart.quality', 'Quality')}</th>
               {series.map((entry) => (
                 <th key={entry.label} scope="col">
                   {entry.label}
@@ -184,7 +188,8 @@ export function RadarChart({
                 <th scope="row">{axis}</th>
                 {series.map((entry) => (
                   <td key={entry.label}>
-                    {format(entry.values[index] ?? 0)} of {format(max)}
+                    {format(entry.values[index] ?? 0)} {t('components.chart.radar-chart.of', 'of')}{' '}
+                    {format(max)}
                   </td>
                 ))}
               </tr>

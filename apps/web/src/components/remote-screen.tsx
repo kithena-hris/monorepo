@@ -22,7 +22,10 @@ import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import * as jsxRuntime from 'react/jsx-runtime';
 
 import { WAITING, chosenFiles, handFilesOver, releaseEarlyPresses } from '../lib/early-presses';
+import { ensureNamespace, useLanguage } from '../lib/i18n';
+import { NAMESPACES, type Namespace } from '../lib/languages';
 import { MF_RUNTIME_URL } from '../lib/mf-runtime';
+import { t } from '../lib/t';
 
 /*
  * The shell's React and the shell's Reach, offered to every remote.
@@ -103,7 +106,11 @@ function pick(
 
 /** In the browser: federation, from `remoteEntry.js`. */
 async function browserModule(name: string, entry: string): Promise<Record<string, unknown>> {
-  const mf = await runtime();
+  // Its words before its code: a remote works some of them out once, as it loads.
+  const [mf] = await Promise.all([
+    runtime(),
+    isNamespace(name) ? ensureNamespace(name) : Promise.resolve(),
+  ]);
   // On this host (`REMOTE_PATH`): absolute, as federation keys a remote by it.
   mf.registerRemotes([{ name, entry: new URL(entry, window.location.href).href, type: 'module' }]);
   return (await mf.loadRemote<Record<string, unknown>>(name)) ?? {};
@@ -217,7 +224,18 @@ export function warmRemotes(): void {
  * once it resolves, finds the same one rather than rendering again.
  */
 const FN = '\u0000fn';
-type Render = (url: string, component: string, props: string, prefix: string) => Promise<string>;
+type Render = (
+  url: string,
+  component: string,
+  props: string,
+  prefix: string,
+  /** In whose language, and whose words: the remote's own and Reach's. */
+  language: string,
+  namespace: string | null,
+) => Promise<string>;
+
+const isNamespace = (name: string): name is Namespace =>
+  (NAMESPACES as readonly string[]).includes(name);
 const rendering = new Map<string, Promise<string>>();
 
 /** The identifiers of a remote's own React root, on the server and in the browser. */
@@ -228,6 +246,7 @@ function serverHtml(
   stage: string,
   route: RemoteRoute,
   props: object,
+  language: string,
 ): Promise<string> {
   if (route.ssr === undefined) throw new Error('server rendering is off; drawn in the browser');
   const render = (globalThis as unknown as Record<symbol, Render | undefined>)[
@@ -237,10 +256,17 @@ function serverHtml(
   const json = JSON.stringify(props, (_key, value: unknown) =>
     typeof value === 'function' ? { [FN]: true } : value,
   );
-  const key = `${route.ssr}\n${route.component}\n${json}`;
+  const key = `${language}\n${route.ssr}\n${route.component}\n${json}`;
   let html = rendering.get(key);
   if (html === undefined) {
-    html = render(route.ssr, route.component, json, idPrefix(stage));
+    html = render(
+      route.ssr,
+      route.component,
+      json,
+      idPrefix(stage),
+      language,
+      isNamespace(name) ? name : null,
+    );
     rendering.set(key, html);
     const forget = (): void => {
       const timer = setTimeout(() => rendering.delete(key), 10_000) as unknown as {
@@ -473,8 +499,14 @@ const subscribeNever = (): (() => void) => () => undefined;
 
 function Unavailable({ area }: { readonly area: string }): JSX.Element {
   return (
-    <Alert tone="danger" title={`${area} is unavailable`}>
-      This part of the app could not be loaded. The rest still works; try again in a minute.
+    <Alert
+      tone="danger"
+      title={t('components.remote-screen.is_unavailable', '{{area}} is unavailable', { area })}
+    >
+      {t(
+        'components.remote-screen.this_part_of_the_app_could',
+        'This part of the app could not be loaded. The rest still works; try again in a minute.',
+      )}
     </Alert>
   );
 }
@@ -567,8 +599,9 @@ function Drawn({
     () => true,
   );
   const [fromServer] = useState(hydrating);
+  const language = useLanguage();
   if (typeof window === 'undefined') {
-    const html = use(serverHtml(name, stage, route, props));
+    const html = use(serverHtml(name, stage, route, props, language));
     // Waiting for the remote's code: a press here is held until it hydrates.
     return (
       <div data-remote={name} {...{ [WAITING]: '' }} dangerouslySetInnerHTML={{ __html: html }} />
@@ -653,7 +686,7 @@ export function RemoteScreen({
     <Suspense
       fallback={
         fallback === undefined && slot === undefined ? (
-          <Spinner label={`Loading ${area}`} />
+          <Spinner label={t('components.remote-screen.loading', 'Loading {{area}}', { area })} />
         ) : (
           fallback
         )

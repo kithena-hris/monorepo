@@ -37,6 +37,7 @@ import { useState, type JSX } from 'react';
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, useAct, words } from './shared';
 import type { Phase, PlanData, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * O3: a plan, its tasks by phase; O4: moving the start; O7: check-ins; O8:
@@ -45,11 +46,11 @@ import type { Phase, PlanData, ScreenProps } from './types';
  */
 
 const PHASES: readonly [Phase, string][] = [
-  ['before_start', 'Before day one'],
-  ['day_one', 'Day one'],
-  ['first_week', 'First week'],
-  ['first_month', 'First month'],
-  ['probation', 'Until probation ends'],
+  ['before_start', tr('plan.before_day_one', 'Before day one')],
+  ['day_one', tr('plan.day_one', 'Day one')],
+  ['first_week', tr('plan.first_week', 'First week')],
+  ['first_month', tr('plan.first_month', 'First month')],
+  ['probation', tr('plan.until_probation_ends', 'Until probation ends')],
 ];
 
 const owner = (role: string) => (role === 'it' ? 'IT' : role === 'hr' ? 'HR' : words(role));
@@ -82,9 +83,13 @@ function PlanBody({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={`${p.name}’s plan`}
+        title={tr('plan.s_plan', '{{name}}’s plan', { name: p.name })}
         meta={<StateBadge state={p.state} />}
-        description={[`Starts ${day(p.startDate)}`, p.department, p.location]
+        description={[
+          tr('plan.starts', 'Starts {{startDate}}', { startDate: day(p.startDate) }),
+          p.department,
+          p.location,
+        ]
           .filter(Boolean)
           .join(' · ')}
         actions={
@@ -96,7 +101,7 @@ function PlanBody({
                 setMoving(true);
               }}
             >
-              Move start date
+              {tr('plan.move_start_date', 'Move start date')}
             </Button>
           ) : null
         }
@@ -144,10 +149,10 @@ function PlanBody({
                       <span className="w-24 text-sm text-fg-muted">{day(t.dueOn)}</span>
                       {t.late ? (
                         <Badge size="sm" tone="danger">
-                          Late
+                          {tr('plan.late', 'Late')}
                         </Badge>
                       ) : t.locked ? (
-                        <Badge size="sm">Country</Badge>
+                        <Badge size="sm">{tr('plan.country', 'Country')}</Badge>
                       ) : null}
                     </div>
                   ))}
@@ -164,14 +169,17 @@ function PlanBody({
                   ? 0
                   : Math.round((data.progress.done / data.progress.total) * 100)
               }
-              label={`${String(data.progress.done)} of ${String(data.progress.total)} tasks`}
+              label={tr('plan.of_tasks', '{{done}} of {{total}} tasks', {
+                done: String(data.progress.done),
+                total: String(data.progress.total),
+              })}
             />
             <KeyValues
               items={[
-                { label: 'Manager', value: data.manager ?? '—' },
-                { label: 'Buddy', value: data.buddy ?? 'Not chosen' },
+                { label: tr('plan.manager', 'Manager'), value: data.manager ?? '—' },
+                { label: tr('plan.buddy', 'Buddy'), value: data.buddy ?? 'Not chosen' },
                 {
-                  label: 'Probation',
+                  label: tr('plan.probation', 'Probation'),
                   value: p.probationEnd === null ? 'None' : `Ends ${day(p.probationEnd)}`,
                 },
               ]}
@@ -179,7 +187,7 @@ function PlanBody({
             {data.may.setBuddy && open ? (
               <div className="flex items-end gap-2">
                 <Field className="flex-1">
-                  <FieldLabel>Buddy</FieldLabel>
+                  <FieldLabel>{tr('plan.buddy', 'Buddy')}</FieldLabel>
                   <Select value={buddy} onValueChange={setBuddy}>
                     <FieldControl>
                       <SelectTrigger>
@@ -187,7 +195,7 @@ function PlanBody({
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      <SelectItem value="none">Nobody yet</SelectItem>
+                      <SelectItem value="none">{tr('plan.nobody_yet', 'Nobody yet')}</SelectItem>
                       {data.members.map((m) => (
                         <SelectItem key={m.personId} value={m.personId}>
                           {m.name}
@@ -206,7 +214,7 @@ function PlanBody({
                     });
                   }}
                 >
-                  Save
+                  {tr('plan.save', 'Save')}
                 </Button>
               </div>
             ) : null}
@@ -214,9 +222,12 @@ function PlanBody({
           {data.may.checkIn ? (
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Check-in</CardTitle>
+                <CardTitle level={2}>{tr('plan.check_in', 'Check-in')}</CardTitle>
                 <CardDescription>
-                  At day 30, 60 and 90, for the new hire and the manager
+                  {tr(
+                    'plan.at_day_30_60_and_90',
+                    'At day 30, 60 and 90, for the new hire and the manager',
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
@@ -226,17 +237,19 @@ function PlanBody({
                     setCheckDay(v as typeof checkDay);
                   }}
                 >
-                  <SelectTrigger aria-label="Which check-in">
+                  <SelectTrigger aria-label={tr('plan.which_check_in', 'Which check-in')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {(['30', '60', '90'] as const).map((d) => (
-                      <SelectItem key={d} value={d}>{`Day ${d}`}</SelectItem>
+                      <SelectItem key={d} value={d}>
+                        {tr('plan.day', 'Day {{d}}', { d })}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Field>
-                  <FieldLabel>How is it going?</FieldLabel>
+                  <FieldLabel>{tr('plan.how_is_it_going', 'How is it going?')}</FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
@@ -260,7 +273,7 @@ function PlanBody({
                     );
                   }}
                 >
-                  Submit
+                  {tr('plan.submit', 'Submit')}
                 </Button>
               </CardContent>
             </Card>
@@ -269,7 +282,7 @@ function PlanBody({
             <Card padded>
               <KeyValues
                 items={data.checkIns.map((c) => ({
-                  label: `Day ${String(c.day)}`,
+                  label: tr('plan.day_2', 'Day {{day}}', { day: String(c.day) }),
                   value: c.notes,
                 }))}
               />
@@ -280,44 +293,67 @@ function PlanBody({
       {data.may.review && open ? (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Probation review</CardTitle>
+            <CardTitle level={2}>{tr('plan.probation_review', 'Probation review')}</CardTitle>
             <CardDescription>
-              {`Ends ${day(p.probationEnd)}${p.allowedExtensionMonths === null || p.allowedExtensionMonths === 0 ? ' · no extension allowed' : ` · may be extended by up to ${String(p.allowedExtensionMonths)} months`}`}
+              {tr('plan.ends', 'Ends {{probationEnd}}{{value}}', {
+                probationEnd: day(p.probationEnd),
+                value:
+                  p.allowedExtensionMonths === null || p.allowedExtensionMonths === 0
+                    ? ' · no extension allowed'
+                    : ` · may be extended by up to ${String(p.allowedExtensionMonths)} months`,
+              })}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {data.reviews.length === 0 ? null : (
-              <Alert tone="info" title={`Recorded: ${words(data.reviews.at(-1)?.outcome ?? '')}`}>
+              <Alert
+                tone="info"
+                title={tr('plan.recorded', 'Recorded: {{words}}', {
+                  words: words(data.reviews.at(-1)?.outcome ?? ''),
+                })}
+              >
                 {day(data.reviews.at(-1)?.at ?? null)}
               </Alert>
             )}
             <RadioGroup
-              aria-label="Outcome"
+              aria-label={tr('plan.outcome', 'Outcome')}
               value={outcome}
               onValueChange={(v) => {
                 setOutcome(v as typeof outcome);
               }}
             >
-              <RadioCard value="passed" description="People records the probation as passed.">
-                Passed
+              <RadioCard
+                value="passed"
+                description={tr(
+                  'plan.people_records_the_probation_as_passed',
+                  'People records the probation as passed.',
+                )}
+              >
+                {tr('plan.passed', 'Passed')}
               </RadioCard>
               <RadioCard
                 value="extended"
-                description="Within what the contract’s country allows."
+                description={tr(
+                  'plan.within_what_the_contracts_country_allows',
+                  'Within what the contract’s country allows.',
+                )}
                 disabled={(p.allowedExtensionMonths ?? 0) === 0}
               >
-                Extend
+                {tr('plan.extend', 'Extend')}
               </RadioCard>
               <RadioCard
                 value="failed"
-                description="HR is told; ending the employment is People’s flow."
+                description={tr(
+                  'plan.hr_is_told_ending_the_employment',
+                  'HR is told; ending the employment is People’s flow.',
+                )}
               >
-                Not passed
+                {tr('plan.not_passed', 'Not passed')}
               </RadioCard>
             </RadioGroup>
             {outcome === 'extended' ? (
               <NumberField
-                label="Extend by, months"
+                label={tr('plan.extend_by_months', 'Extend by, months')}
                 value={months}
                 min={1}
                 max={p.allowedExtensionMonths ?? 1}
@@ -334,7 +370,7 @@ function PlanBody({
                 });
               }}
             >
-              Record review
+              {tr('plan.record_review', 'Record review')}
             </Button>
           </CardContent>
         </Card>
@@ -342,17 +378,21 @@ function PlanBody({
       <Dialog open={moving} onOpenChange={setMoving}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{`Move ${p.name}’s start date?`}</DialogTitle>
+            <DialogTitle>
+              {tr('plan.move_s_start_date', 'Move {{name}}’s start date?', { name: p.name })}
+            </DialogTitle>
             <DialogDescription>
-              Every open task that hangs off the start moves with it, and probation’s end by as
-              much.
+              {tr(
+                'plan.every_open_task_that_hangs_off',
+                'Every open task that hangs off the start moves with it, and probation’s end by as much.',
+              )}
             </DialogDescription>
           </DialogHeader>
           <Field>
-            <FieldLabel>New start date</FieldLabel>
+            <FieldLabel>{tr('plan.new_start_date', 'New start date')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="New start date"
+                label={tr('plan.new_start_date', 'New start date')}
                 value={start === '' ? null : start}
                 onChange={(d) => {
                   setStart(d ?? '');
@@ -367,7 +407,7 @@ function PlanBody({
                 setMoving(false);
               }}
             >
-              Cancel
+              {tr('plan.cancel', 'Cancel')}
             </Button>
             <Button
               disabled={start === p.startDate || start === ''}
@@ -382,7 +422,7 @@ function PlanBody({
                 );
               }}
             >
-              Move the tasks
+              {tr('plan.move_the_tasks', 'Move the tasks')}
             </Button>
           </DialogFooter>
         </DialogContent>

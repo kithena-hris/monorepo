@@ -9,6 +9,7 @@ import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
 import { Input, type InputProps } from '../input/input';
 import { Kbd, KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
+import { t } from '../../lib/i18n';
 
 /**
  * The fields whose *behaviour* differs by type, not just their attributes.
@@ -96,7 +97,9 @@ export function SearchField({
   const clear = (
     <button
       type="button"
-      aria-label={`Clear ${label.toLowerCase()}`}
+      aria-label={t('components.typed-fields.typed-fields.clear', 'Clear {{label}}', {
+        label: label.toLowerCase(),
+      })}
       onClick={() => {
         onValueChange('');
         onSearch?.('');
@@ -112,7 +115,10 @@ export function SearchField({
   );
 
   const end = loading ? (
-    <Spinner size="sm" label="Working it out" />
+    <Spinner
+      size="sm"
+      label={t('components.typed-fields.typed-fields.working_it_out', 'Working it out')}
+    />
   ) : value === '' ? (
     keys.length === 0 ? null : (
       <KbdShortcut keys={keys} className="touch:hidden" />
@@ -398,7 +404,12 @@ export function PhoneField({
   const setCode = (next: string): void => {
     if (dialCode === undefined) setOwnCode(next);
     onDialCodeChange?.(next);
-    onValueChange(`${next} ${national}`.trim());
+    onValueChange(
+      t('components.typed-fields.typed-fields.text', '{{next}} {{national}}', {
+        next,
+        national,
+      }).trim(),
+    );
   };
 
   return (
@@ -408,14 +419,22 @@ export function PhoneField({
       size={size}
       value={national}
       onChange={(event) => {
-        onValueChange(`${active} ${event.target.value}`.trim());
+        onValueChange(
+          t('components.typed-fields.typed-fields.text_2', '{{active}} {{value}}', {
+            active,
+            value: event.target.value,
+          }).trim(),
+        );
       }}
       {...(containerClassName === undefined ? {} : { containerClassName })}
       className={cn('tabular-nums', className)}
       startAdornment={
         <>
           <label htmlFor={selectId} className="sr-only">
-            Country dialling code
+            {t(
+              'components.typed-fields.typed-fields.country_dialling_code',
+              'Country dialling code',
+            )}
           </label>
           <select
             id={selectId}

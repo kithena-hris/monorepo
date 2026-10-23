@@ -1,3 +1,4 @@
+import { t as tr } from '../i18n';
 /**
  * The clock's words and arithmetic, shared by the top bar's clock, the
  * timesheet and the team's board: times of day in the person's zone, calendar
@@ -47,7 +48,11 @@ export const clockTime = (minutes: number): string =>
 export function duration(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
-  return m === 0 ? `${String(h)}h` : h === 0 ? `${String(m)}m` : `${String(h)}h ${pad(m)}m`;
+  return m === 0
+    ? tr('attendance.time.h', '{{h}}h', { h: String(h) })
+    : h === 0
+      ? tr('attendance.time.m', '{{m}}m', { m: String(m) })
+      : tr('attendance.time.h_m', '{{h}}h {{pad}}m', { h: String(h), pad: pad(m) });
 }
 
 /** Seconds as the pill shows them: "3:41:08". */
@@ -165,21 +170,21 @@ export function workedSeconds(
 }
 
 export const WHERE: Record<WorkModel, string> = {
-  office: 'Office',
-  remote: 'Remote',
-  client: 'At a client',
+  office: tr('attendance.time.office', 'Office'),
+  remote: tr('attendance.time.remote', 'Remote'),
+  client: tr('attendance.time.at_a_client', 'At a client'),
 };
 
 export const SOURCE: Record<string, string> = {
-  badge: 'Badge reader',
-  kiosk: 'Kiosk',
-  web: 'Web',
-  mobile: 'Phone',
+  badge: tr('attendance.time.badge_reader', 'Badge reader'),
+  kiosk: tr('attendance.time.kiosk', 'Kiosk'),
+  web: tr('attendance.time.web', 'Web'),
+  mobile: tr('attendance.time.phone', 'Phone'),
 };
 
 export const PUNCHED: Record<PunchKind, string> = {
-  in: 'Clocked in',
-  out: 'Clocked out',
-  break_start: 'Started a break',
-  break_end: 'Back from a break',
+  in: tr('attendance.time.clocked_in', 'Clocked in'),
+  out: tr('attendance.time.clocked_out', 'Clocked out'),
+  break_start: tr('attendance.time.started_a_break', 'Started a break'),
+  break_end: tr('attendance.time.back_from_a_break', 'Back from a break'),
 };

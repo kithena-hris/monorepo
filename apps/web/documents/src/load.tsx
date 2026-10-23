@@ -1,5 +1,6 @@
 import { Alert, Button, Spinner } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
+import { t } from './i18n';
 
 /**
  * What the shell hands a screen: the data, or why there is none yet.
@@ -31,16 +32,17 @@ export function Loaded<T>({
   readonly what: string;
   readonly children: (data: T) => ReactNode;
 }): JSX.Element {
-  if (load.status === 'loading') return <Spinner label={`Loading ${what}`} />;
+  if (load.status === 'loading')
+    return <Spinner label={t('load.loading', 'Loading {{what}}', { what })} />;
   if (load.status === 'error') {
     return (
       <Alert
         tone="danger"
-        title={`Could not load ${what}`}
+        title={t('load.could_not_load', 'Could not load {{what}}', { what })}
         action={
           load.retry === undefined ? undefined : (
             <Button size="sm" onClick={load.retry}>
-              Try again
+              {t('load.try_again', 'Try again')}
             </Button>
           )
         }

@@ -13,6 +13,7 @@ import {
   floatShell,
   floatValue,
 } from '../field/field-styles';
+import { t } from '../../lib/i18n';
 
 /**
  * A password field.
@@ -205,7 +206,11 @@ export function PasswordField({
           // `aria-pressed`, so the state is announced. A button whose only
           // signal is which of two similar glyphs it shows is not a state.
           aria-pressed={revealed}
-          aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
+          aria-label={
+            revealed
+              ? t('components.password-field.password-field.hide', 'Hide {{label}}', { label })
+              : t('components.password-field.password-field.show', 'Show {{label}}', { label })
+          }
           disabled={disabled}
           onClick={() => {
             setRevealed((current) => !current);
@@ -229,11 +234,17 @@ export function PasswordField({
         <div
           id={strengthId}
           role="progressbar"
-          aria-label={`${label} strength`}
+          aria-label={t('components.password-field.password-field.strength', '{{label}} strength', {
+            label,
+          })}
           aria-valuemin={0}
           aria-valuemax={4}
           aria-valuenow={strength}
-          aria-valuetext={value === '' ? 'Empty' : strengthLabel[strength]}
+          aria-valuetext={
+            value === ''
+              ? t('components.password-field.password-field.empty', 'Empty')
+              : strengthLabel[strength]
+          }
           className="flex items-center gap-2"
         >
           <div aria-hidden className="flex h-1.5 flex-1 gap-1">
@@ -265,7 +276,11 @@ export function PasswordField({
               <span className={rule.met ? 'text-fg-muted' : 'text-fg-subtle'}>{rule.label}</span>
               {/* The state in words as well as in a glyph, for the same reason
                   every other status in this system carries a label. */}
-              <span className="sr-only">{rule.met ? ',  met' : ',  not met'}</span>
+              <span className="sr-only">
+                {rule.met
+                  ? t('components.password-field.password-field.met', ',  met')
+                  : t('components.password-field.password-field.not_met', ',  not met')}
+              </span>
             </li>
           ))}
         </ul>

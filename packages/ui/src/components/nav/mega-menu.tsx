@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX, KeyboardEvent, ReactNode } from 're
 
 import { cn } from '../../lib/cn';
 import { CompactMenu } from './nav';
+import { t } from '../../lib/i18n';
 
 /**
  * An area's whole menu, hung off its sidebar item.
@@ -116,7 +117,9 @@ export function MegaMenu({
           {search ? <div className="min-w-48 flex-1">{search}</div> : null}
           {recent ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-fg-subtle">Recent</span>
+              <span className="text-xs font-medium text-fg-subtle">
+                {t('components.nav.mega-menu.recent', 'Recent')}
+              </span>
               {recent}
             </div>
           ) : null}

@@ -32,6 +32,7 @@ import { createElement, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { SettingsSkeleton, placeName } from './shared';
+import { t } from '../i18n';
 
 /**
  * Integrations (T35, TOF-109): where time off and attendance show up
@@ -101,7 +102,7 @@ export interface IntegrationsProps {
   readonly onLeave?: (url: string) => void;
 }
 
-const TITLE = 'Integrations';
+const TITLE = t('settings.integrations.integrations', 'Integrations');
 const DESCRIPTION = 'Where time off and attendance show up outside this module.';
 const page = '@container/integrations flex flex-col gap-6';
 const columns =
@@ -111,10 +112,10 @@ const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-h
 
 /** A vendor's name, on its own row only. */
 const PRODUCT: Record<Provider, string> = {
-  google: 'Google Calendar',
-  microsoft: 'Microsoft Outlook',
-  slack: 'Slack',
-  teams: 'Microsoft Teams',
+  google: t('settings.integrations.google_calendar', 'Google Calendar'),
+  microsoft: t('settings.integrations.microsoft_outlook', 'Microsoft Outlook'),
+  slack: t('settings.integrations.slack', 'Slack'),
+  teams: t('settings.integrations.microsoft_teams', 'Microsoft Teams'),
 };
 
 /** A provider named in the address, which anyone can type. */
@@ -125,17 +126,26 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
   payroll: {
     name: 'Payroll',
     icon: 'payroll',
-    does: 'Overtime, unpaid leave, negative balances and parental pay changes each month.',
+    does: t(
+      'settings.integrations.overtime_unpaid_leave_negative_balances_and',
+      'Overtime, unpaid leave, negative balances and parental pay changes each month.',
+    ),
   },
   benefits: {
     name: 'Benefits',
     icon: 'health',
-    does: 'Adds dependents after a birth and pauses benefits during unpaid leave.',
+    does: t(
+      'settings.integrations.adds_dependents_after_a_birth_and',
+      'Adds dependents after a birth and pauses benefits during unpaid leave.',
+    ),
   },
   projects: {
     name: 'Projects',
     icon: 'cards',
-    does: 'Deadlines and owners for clash checks and handover suggestions.',
+    does: t(
+      'settings.integrations.deadlines_and_owners_for_clash_checks',
+      'Deadlines and owners for clash checks and handover suggestions.',
+    ),
   },
 };
 
@@ -188,12 +198,21 @@ function Ready({
 
   const providerRow = (row: IntegrationsData['integrations'][number]): JSX.Element => {
     const status = row.connected
-      ? { tone: 'success' as const, label: 'Connected' }
+      ? { tone: 'success' as const, label: t('settings.integrations.connected', 'Connected') }
       : !row.available
-        ? { tone: 'neutral' as const, label: 'Not available yet' }
+        ? {
+            tone: 'neutral' as const,
+            label: t('settings.integrations.not_available_yet', 'Not available yet'),
+          }
         : !row.configured
-          ? { tone: 'warning' as const, label: 'Needs credentials' }
-          : { tone: 'neutral' as const, label: 'Not connected' };
+          ? {
+              tone: 'warning' as const,
+              label: t('settings.integrations.needs_credentials', 'Needs credentials'),
+            }
+          : {
+              tone: 'neutral' as const,
+              label: t('settings.integrations.not_connected', 'Not connected'),
+            };
     const action = row.connected ? (
       <Button
         size="sm"
@@ -205,7 +224,7 @@ function Ready({
           );
         }}
       >
-        Disconnect
+        {t('settings.integrations.disconnect', 'Disconnect')}
       </Button>
     ) : row.available && row.configured ? (
       <Button
@@ -221,7 +240,7 @@ function Ready({
           });
         }}
       >
-        Connect
+        {t('settings.integrations.connect', 'Connect')}
       </Button>
     ) : null;
     return (
@@ -229,15 +248,25 @@ function Ready({
         key={row.provider}
         description={
           row.connected
-            ? [row.account, row.connectedAt === null ? null : `Since ${shortDay(row.connectedAt)}`]
+            ? [
+                row.account,
+                row.connectedAt === null
+                  ? null
+                  : t('settings.integrations.since', 'Since {{shortDay}}', {
+                      shortDay: shortDay(row.connectedAt),
+                    }),
+              ]
                 .filter(Boolean)
                 .join(' · ')
             : !row.available
               ? row.provider === 'teams'
-                ? 'Follows Slack'
+                ? t('settings.integrations.follows_slack', 'Follows Slack')
                 : undefined
               : !row.configured
-                ? 'Kithena’s app for it has not been set up yet'
+                ? t(
+                    'settings.integrations.kithenas_app_for_it_has_not',
+                    'Kithena’s app for it has not been set up yet',
+                  )
                 : undefined
         }
         trailing={
@@ -260,39 +289,70 @@ function Ready({
   return (
     <>
       {connected === undefined ? null : (
-        <Alert tone="success" title={`${productOf(connected)} is connected`} />
+        <Alert
+          tone="success"
+          title={t('settings.integrations.is_connected', '{{productOf}} is connected', {
+            productOf: productOf(connected),
+          })}
+        />
       )}
       {refused === undefined ? null : (
-        <Alert tone="warning" title={`${productOf(refused)} was not connected`}>
-          Access was not granted on its page. Try again, or ask whoever administers it.
+        <Alert
+          tone="warning"
+          title={t('settings.integrations.was_not_connected', '{{productOf}} was not connected', {
+            productOf: productOf(refused),
+          })}
+        >
+          {t(
+            'settings.integrations.access_was_not_granted_on_its',
+            'Access was not granted on its page. Try again, or ask whoever administers it.',
+          )}
         </Alert>
       )}
       {problem === null ? null : (
-        <Alert tone="danger" title="That did not work">
+        <Alert
+          tone="danger"
+          title={t('settings.integrations.that_did_not_work', 'That did not work')}
+        >
           {problem}
         </Alert>
       )}
       <div className={columns}>
         <div className="flex min-w-0 flex-col gap-6">
           <PageSection
-            title="Calendar"
-            description="Approved time off appears as out of office. Holidays appear for each location."
+            title={t('settings.integrations.calendar', 'Calendar')}
+            description={t(
+              'settings.integrations.approved_time_off_appears_as_out',
+              'Approved time off appears as out of office. Holidays appear for each location.',
+            )}
           >
-            <List aria-label="Calendars">{calendars.map(providerRow)}</List>
+            <List aria-label={t('settings.integrations.calendars', 'Calendars')}>
+              {calendars.map(providerRow)}
+            </List>
           </PageSection>
           <PageSection
-            title="Chat apps"
-            description="A status while someone is away, and approving a request from the message that asks."
+            title={t('settings.integrations.chat_apps', 'Chat apps')}
+            description={t(
+              'settings.integrations.a_status_while_someone_is_away',
+              'A status while someone is away, and approving a request from the message that asks.',
+            )}
           >
-            <List aria-label="Chat apps">{chats.map(providerRow)}</List>
+            <List aria-label={t('settings.integrations.chat_apps', 'Chat apps')}>
+              {chats.map(providerRow)}
+            </List>
             <Field orientation="horizontal" className="items-start justify-between gap-4">
               <div>
-                <FieldLabel>Name people on private leave in chat answers</FieldLabel>
+                <FieldLabel>
+                  {t(
+                    'settings.integrations.name_people_on_private_leave_in',
+                    'Name people on private leave in chat answers',
+                  )}
+                </FieldLabel>
                 <FieldDescription>
-                  Off, a chat answer about sick or parental leave gives a count and a link to the
-                  calendar. On, it names the people, and so health data is stored by your chat
-                  provider under your company’s own retention, not Kithena’s. Nobody sees more than
-                  the calendar already shows them.
+                  {t(
+                    'settings.integrations.off_a_chat_answer_about_sick',
+                    'Off, a chat answer about sick or parental leave gives a count and a link to the calendar. On, it names the people, and so health data is stored by your chat provider under your company’s own retention, not Kithena’s. Nobody sees more than the calendar already shows them.',
+                  )}
                 </FieldDescription>
               </div>
               <FieldControl>
@@ -323,18 +383,26 @@ function Ready({
         </div>
         <div className="flex min-w-0 flex-col gap-6">
           <PageSection
-            title="Official holiday calendars"
-            description="National and regional holidays, from each country’s official sources. A country is used only once a lawyer has reviewed it."
+            title={t(
+              'settings.integrations.official_holiday_calendars',
+              'Official holiday calendars',
+            )}
+            description={t(
+              'settings.integrations.national_and_regional_holidays_from_each',
+              'National and regional holidays, from each country’s official sources. A country is used only once a lawyer has reviewed it.',
+            )}
           >
-            <List aria-label="Countries">
+            <List aria-label={t('settings.integrations.countries', 'Countries')}>
               {data.packs.map((p) => (
                 <ListItem
                   key={p.country}
                   icon={icon('calendar')}
-                  description={p.inUse ? 'In use' : undefined}
+                  description={p.inUse ? t('settings.integrations.in_use', 'In use') : undefined}
                   trailing={
                     <Badge size="sm" tone={p.reviewed ? 'success' : 'warning'}>
-                      {p.reviewed ? 'Reviewed' : 'Not reviewed yet'}
+                      {p.reviewed
+                        ? t('settings.integrations.reviewed', 'Reviewed')
+                        : t('settings.integrations.not_reviewed_yet', 'Not reviewed yet')}
                     </Badge>
                   }
                 >
@@ -344,10 +412,13 @@ function Ready({
             </List>
           </PageSection>
           <PageSection
-            title="Other Kithena modules"
-            description="What they would read from Time Off once they exist."
+            title={t('settings.integrations.other_kithena_modules', 'Other Kithena modules')}
+            description={t(
+              'settings.integrations.what_they_would_read_from_time',
+              'What they would read from Time Off once they exist.',
+            )}
           >
-            <List aria-label="Kithena modules">
+            <List aria-label={t('settings.integrations.kithena_modules', 'Kithena modules')}>
               {data.modules.map((m) => {
                 const known = MODULE[m.key];
                 return (
@@ -357,7 +428,7 @@ function Ready({
                     description={known?.does}
                     trailing={
                       <Badge size="sm" tone="accent">
-                        Kithena module
+                        {t('settings.integrations.kithena_module', 'Kithena module')}
                       </Badge>
                     }
                   >
@@ -398,8 +469,11 @@ function Kiosks({
 
   return (
     <PageSection
-      title="Kiosks"
-      description="Tablets at the door. People clock in with a badge, a PIN or the code on their phone; a kiosk shows a first name and nothing else."
+      title={t('settings.integrations.kiosks', 'Kiosks')}
+      description={t(
+        'settings.integrations.tablets_at_the_door_people_clock',
+        'Tablets at the door. People clock in with a badge, a PIN or the code on their phone; a kiosk shows a first name and nothing else.',
+      )}
       actions={
         <Button
           size="sm"
@@ -412,21 +486,27 @@ function Kiosks({
             setOpen(true);
           }}
         >
-          Add a kiosk
+          {t('settings.integrations.add_a_kiosk', 'Add a kiosk')}
         </Button>
       }
     >
       {live.length === 0 ? (
-        <p className="text-sm text-fg-muted">No kiosks yet.</p>
+        <p className="text-sm text-fg-muted">
+          {t('settings.integrations.no_kiosks_yet', 'No kiosks yet.')}
+        </p>
       ) : (
-        <List aria-label="Kiosks">
+        <List aria-label={t('settings.integrations.kiosks', 'Kiosks')}>
           {live.map((k) => (
             <ListItem
               key={k.id}
               icon={icon('tap')}
               description={[
                 placeName(k.locationKey),
-                k.lastSeenAt === null ? 'Not used yet' : `Last seen ${shortDay(k.lastSeenAt)}`,
+                k.lastSeenAt === null
+                  ? t('settings.integrations.not_used_yet', 'Not used yet')
+                  : t('settings.integrations.last_seen', 'Last seen {{shortDay}}', {
+                      shortDay: shortDay(k.lastSeenAt),
+                    }),
               ].join(' · ')}
               trailing={
                 <Button
@@ -436,7 +516,7 @@ function Kiosks({
                     onRevoke(k.id);
                   }}
                 >
-                  Revoke
+                  {t('settings.integrations.revoke', 'Revoke')}
                 </Button>
               }
             >
@@ -461,18 +541,21 @@ function Kiosks({
               }}
             >
               <DialogHeader>
-                <DialogTitle>Add a kiosk</DialogTitle>
+                <DialogTitle>{t('settings.integrations.add_a_kiosk', 'Add a kiosk')}</DialogTitle>
                 <DialogDescription>
-                  Its link is shown once. Open it on the tablet and it remembers itself.
+                  {t(
+                    'settings.integrations.its_link_is_shown_once_open',
+                    'Its link is shown once. Open it on the tablet and it remembers itself.',
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <DialogBody className="flex flex-col gap-4">
                 <Field>
-                  <FieldLabel>Name</FieldLabel>
+                  <FieldLabel>{t('settings.integrations.name', 'Name')}</FieldLabel>
                   <FieldControl>
                     <Input
                       value={name}
-                      placeholder="Main entrance"
+                      placeholder={t('settings.integrations.main_entrance', 'Main entrance')}
                       onChange={(event) => {
                         setName(event.target.value);
                       }}
@@ -480,7 +563,7 @@ function Kiosks({
                   </FieldControl>
                 </Field>
                 <Field>
-                  <FieldLabel>Location</FieldLabel>
+                  <FieldLabel>{t('settings.integrations.location', 'Location')}</FieldLabel>
                   <Select value={locationKey} onValueChange={setLocationKey}>
                     <FieldControl>
                       <SelectTrigger>
@@ -497,28 +580,42 @@ function Kiosks({
                   </Select>
                 </Field>
                 {error === null ? null : (
-                  <Alert tone="danger" title="The kiosk was not added">
+                  <Alert
+                    tone="danger"
+                    title={t(
+                      'settings.integrations.the_kiosk_was_not_added',
+                      'The kiosk was not added',
+                    )}
+                  >
                     {error}
                   </Alert>
                 )}
               </DialogBody>
               <DialogFooter>
                 <Button type="submit" variant="primary" loading={saving}>
-                  Add kiosk
+                  {t('settings.integrations.add_kiosk', 'Add kiosk')}
                 </Button>
               </DialogFooter>
             </form>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Open this on the tablet</DialogTitle>
+                <DialogTitle>
+                  {t('settings.integrations.open_this_on_the_tablet', 'Open this on the tablet')}
+                </DialogTitle>
                 <DialogDescription>
-                  This link holds the kiosk’s key and is not shown again. Revoke the kiosk if it
-                  leaks.
+                  {t(
+                    'settings.integrations.this_link_holds_the_kiosks_key',
+                    'This link holds the kiosk’s key and is not shown again. Revoke the kiosk if it leaks.',
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <DialogBody>
-                <CopyField label="Kiosk link" value={link} mono />
+                <CopyField
+                  label={t('settings.integrations.kiosk_link', 'Kiosk link')}
+                  value={link}
+                  mono
+                />
               </DialogBody>
               <DialogFooter>
                 <Button
@@ -527,7 +624,7 @@ function Kiosks({
                     setOpen(false);
                   }}
                 >
-                  Done
+                  {t('settings.integrations.done', 'Done')}
                 </Button>
               </DialogFooter>
             </>

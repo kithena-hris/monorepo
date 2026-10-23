@@ -5,6 +5,7 @@ import { ChevronsRight } from 'lucide-react';
 import { useState, type ComponentPropsWithoutRef, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A range input, including two-thumb ranges.
@@ -329,7 +330,12 @@ export function Slider({
               key={index}
               aria-label={
                 thumbLabels?.[index] ??
-                (values.length > 1 ? `${label} ${String(index + 1)}` : label)
+                (values.length > 1
+                  ? t('components.slider.slider.text', '{{label}} {{value}}', {
+                      label,
+                      value: String(index + 1),
+                    })
+                  : label)
               }
               aria-valuetext={typeof shown === 'string' ? shown : undefined}
               className={cn(

@@ -24,6 +24,7 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { useAct } from './shared';
+import { t as tr } from './i18n';
 
 /**
  * The email behind a status change (PRD §12.7): rejecting, moving on,
@@ -38,25 +39,31 @@ export type EmailPurpose =
   'rejection' | 'selection' | 'interview_confirmation' | 'offer' | 'stage_expectations';
 
 export const PURPOSE_LABEL: Readonly<Record<EmailPurpose, string>> = {
-  rejection: 'Application not taken forward',
-  selection: 'Moving to the next step',
-  interview_confirmation: 'Interview confirmed',
-  offer: 'Offer sent',
-  stage_expectations: 'What to expect at this stage',
+  rejection: tr('composer.application_not_taken_forward', 'Application not taken forward'),
+  selection: tr('composer.moving_to_the_next_step', 'Moving to the next step'),
+  interview_confirmation: tr('composer.interview_confirmed', 'Interview confirmed'),
+  offer: tr('composer.offer_sent', 'Offer sent'),
+  stage_expectations: tr('composer.what_to_expect_at_this_stage', 'What to expect at this stage'),
 };
 
 /** Every placeholder, as Recruiting fills it (`emails.ts`). */
 export const PLACEHOLDERS = [
-  { key: 'candidate', label: 'Candidate’s full name' },
-  { key: 'first_name', label: 'Candidate’s first name' },
-  { key: 'job', label: 'Job title' },
-  { key: 'company', label: 'Company name' },
-  { key: 'stage', label: 'Current stage' },
-  { key: 'expectations', label: 'What happens at the current stage' },
-  { key: 'interview', label: 'Next interview, date and time' },
-  { key: 'where', label: 'Where the interview is' },
-  { key: 'sender', label: 'Your name' },
-  { key: 'link', label: 'The candidate’s page' },
+  { key: 'candidate', label: tr('composer.candidates_full_name', 'Candidate’s full name') },
+  { key: 'first_name', label: tr('composer.candidates_first_name', 'Candidate’s first name') },
+  { key: 'job', label: tr('composer.job_title', 'Job title') },
+  { key: 'company', label: tr('composer.company_name', 'Company name') },
+  { key: 'stage', label: tr('composer.current_stage', 'Current stage') },
+  {
+    key: 'expectations',
+    label: tr('composer.what_happens_at_the_current_stage', 'What happens at the current stage'),
+  },
+  {
+    key: 'interview',
+    label: tr('composer.next_interview_date_and_time', 'Next interview, date and time'),
+  },
+  { key: 'where', label: tr('composer.where_the_interview_is', 'Where the interview is') },
+  { key: 'sender', label: tr('composer.your_name', 'Your name') },
+  { key: 'link', label: tr('composer.the_candidates_page', 'The candidate’s page') },
 ] as const;
 
 export interface ComposedEmail {
@@ -76,11 +83,13 @@ export function InsertPlaceholder({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" startIcon={<icons.add aria-hidden />}>
-          Insert placeholder
+          {tr('composer.insert_placeholder', 'Insert placeholder')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72">
-        <DropdownMenuLabel>Filled in when the email is sent</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {tr('composer.filled_in_when_the_email_is', 'Filled in when the email is sent')}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {PLACEHOLDERS.map((p) => (
           <DropdownMenuItem
@@ -129,7 +138,7 @@ export function EmailFields({
     <>
       <Field required>
         <span className="flex items-center justify-between gap-2">
-          <FieldLabel>Subject</FieldLabel>
+          <FieldLabel>{tr('composer.subject', 'Subject')}</FieldLabel>
           <InsertPlaceholder
             target={subjectRef}
             onInsert={(subject) => {
@@ -150,7 +159,7 @@ export function EmailFields({
       </Field>
       <Field required>
         <span className="flex items-center justify-between gap-2">
-          <FieldLabel>Message</FieldLabel>
+          <FieldLabel>{tr('composer.message', 'Message')}</FieldLabel>
           <InsertPlaceholder
             target={bodyRef}
             onInsert={(body) => {
@@ -171,8 +180,10 @@ export function EmailFields({
           />
         </FieldControl>
         <FieldDescription>
-          Plain text. A placeholder such as {'{{first_name}}'} is filled in for each candidate when
-          the email goes; {'{{link}}'} becomes their own page.
+          {tr(
+            'composer.plain_text_a_placeholder_such_as',
+            'Plain text. A placeholder such as {{first_name}} is filled in for each candidate when the email goes; {{link}} becomes their own page.',
+          )}
         </FieldDescription>
       </Field>
     </>
@@ -240,11 +251,15 @@ export function EmailComposer({
       {optional ? (
         <Field orientation="horizontal">
           <span className="flex min-w-0 flex-col">
-            <FieldLabel>Email the candidate</FieldLabel>
+            <FieldLabel>{tr('composer.email_the_candidate', 'Email the candidate')}</FieldLabel>
             <FieldDescription>
               {enabled
-                ? `${PURPOSE_LABEL[purpose]}: read it, change what you like, and it goes with the decision.`
-                : 'No email goes with this.'}
+                ? tr(
+                    'composer.read_it_change_what_you_like',
+                    '{{PURPOSE_LABEL}}: read it, change what you like, and it goes with the decision.',
+                    { PURPOSE_LABEL: PURPOSE_LABEL[purpose] },
+                  )
+                : tr('composer.no_email_goes_with_this', 'No email goes with this.')}
             </FieldDescription>
           </span>
           <FieldControl>
@@ -256,7 +271,7 @@ export function EmailComposer({
         <>
           {mine.length + others.length === 0 ? null : (
             <Field>
-              <FieldLabel>Start from</FieldLabel>
+              <FieldLabel>{tr('composer.start_from', 'Start from')}</FieldLabel>
               <Select value={templateId} onValueChange={setTemplateId}>
                 <FieldControl>
                   <SelectTrigger>
@@ -265,7 +280,11 @@ export function EmailComposer({
                 </FieldControl>
                 <SelectContent>
                   {mine.length === 0 ? (
-                    <SelectItem value="default">{`${PURPOSE_LABEL[purpose]} (built in)`}</SelectItem>
+                    <SelectItem value="default">
+                      {tr('composer.built_in', '{{PURPOSE_LABEL}} (built in)', {
+                        PURPOSE_LABEL: PURPOSE_LABEL[purpose],
+                      })}
+                    </SelectItem>
                   ) : null}
                   {mine.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -274,7 +293,10 @@ export function EmailComposer({
                   ))}
                   {others.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {`${t.name} (${t.purpose.replaceAll('_', ' ')})`}
+                      {tr('composer.text', '{{name}} ({{replaceAll}})', {
+                        name: t.name,
+                        replaceAll: t.purpose.replaceAll('_', ' '),
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -282,13 +304,18 @@ export function EmailComposer({
             </Field>
           )}
           {value === null ? (
-            <p className="text-sm text-fg-muted">{loading ? 'Filling it in…' : ''}</p>
+            <p className="text-sm text-fg-muted">
+              {loading ? tr('composer.filling_it_in', 'Filling it in…') : ''}
+            </p>
           ) : (
             <EmailFields value={value} onChange={onChange} disabled={loading} />
           )}
           {many ? (
             <Badge size="sm" tone="info">
-              Each candidate gets their own name and link
+              {tr(
+                'composer.each_candidate_gets_their_own_name',
+                'Each candidate gets their own name and link',
+              )}
             </Badge>
           ) : null}
         </>

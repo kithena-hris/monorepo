@@ -11,6 +11,7 @@ import type {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Tabular data.
@@ -80,7 +81,7 @@ export function Table({
       // these, the region is focusable and the arrow keys scroll it.
       tabIndex={0}
       role="region"
-      aria-label={props['aria-label'] ?? 'Table'}
+      aria-label={props['aria-label'] ?? t('components.table.table.table', 'Table')}
       // Contained sideways only, and not `data-scroll-lock`, which contains
       // both axes. This box is `overflow: auto` in both, so it is a scroll
       // container even at its content's full height, and Chromium honours a
@@ -301,7 +302,7 @@ export function TableHead({
                 {sortPriority}
               </span>
               <span className="sr-only">
-                , sort {sortPriority}, {sortDirection}
+                {t('components.table.table.sort', ', sort')} {sortPriority}, {sortDirection}
               </span>
             </>
           )}

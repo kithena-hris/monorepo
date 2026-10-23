@@ -46,6 +46,7 @@ import type {
   TemplateTask,
   TemplatesData,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * O2 templates, O7 settings and O9 analytics, for administrators and HR.
@@ -128,16 +129,21 @@ function Editor({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>{t.name === '' ? 'New template' : t.name}</CardTitle>
+        <CardTitle level={2}>
+          {t.name === '' ? tr('templates.new_template', 'New template') : t.name}
+        </CardTitle>
         <CardDescription>
-          Due rules: days from the start (-14d, 0, +30d) or from probation’s end (probation-14d).
+          {tr(
+            'templates.due_rules_days_from_the_start',
+            'Due rules: days from the start (-14d, 0, +30d) or from probation’s end (probation-14d).',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <Refusal error={act.error} />
         <div className="grid gap-3 md:grid-cols-2">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('templates.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={t.name}
@@ -148,7 +154,7 @@ function Editor({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>Only for departments</FieldLabel>
+            <FieldLabel>{tr('templates.only_for_departments', 'Only for departments')}</FieldLabel>
             <FieldControl>
               <Input
                 value={(t.conditions.departments ?? []).join(', ')}
@@ -164,14 +170,21 @@ function Editor({
                     },
                   });
                 }}
-                placeholder="Every department"
+                placeholder={tr('templates.every_department', 'Every department')}
               />
             </FieldControl>
-            <FieldDescription>Comma-separated; empty means any.</FieldDescription>
+            <FieldDescription>
+              {tr('templates.comma_separated_empty_means_any', 'Comma-separated; empty means any.')}
+            </FieldDescription>
           </Field>
         </div>
         <fieldset className="flex flex-wrap gap-4">
-          <legend className="mb-1 text-sm font-medium">Only for countries (none means any)</legend>
+          <legend className="mb-1 text-sm font-medium">
+            {tr(
+              'templates.only_for_countries_none_means_any',
+              'Only for countries (none means any)',
+            )}
+          </legend>
           {COUNTRIES.map((c) => (
             <div key={c} className="flex items-center gap-2">
               <Switch
@@ -194,13 +207,13 @@ function Editor({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Phase</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Kind</TableHead>
-              <TableHead>Due</TableHead>
+              <TableHead>{tr('templates.task', 'Task')}</TableHead>
+              <TableHead>{tr('templates.phase', 'Phase')}</TableHead>
+              <TableHead>{tr('templates.owner', 'Owner')}</TableHead>
+              <TableHead>{tr('templates.kind', 'Kind')}</TableHead>
+              <TableHead>{tr('templates.due', 'Due')}</TableHead>
               <TableHead>
-                <span className="sr-only">Remove</span>
+                <span className="sr-only">{tr('templates.remove', 'Remove')}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -209,7 +222,7 @@ function Editor({
               <TableRow key={x.key}>
                 <TableCell>
                   <Input
-                    aria-label="Title"
+                    aria-label={tr('templates.title', 'Title')}
                     value={x.title}
                     onChange={(e) => {
                       set(i, { title: e.target.value });
@@ -248,7 +261,7 @@ function Editor({
                 </TableCell>
                 <TableCell>
                   <Input
-                    aria-label="Due"
+                    aria-label={tr('templates.due', 'Due')}
                     className="w-28"
                     value={x.due}
                     onChange={(e) => {
@@ -260,7 +273,7 @@ function Editor({
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`Remove ${x.title}`}
+                    aria-label={tr('templates.remove_2', 'Remove {{title}}', { title: x.title })}
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       setT({ ...t, tasks: t.tasks.filter((_, j) => j !== i) });
@@ -302,15 +315,15 @@ function Editor({
           }}
         >
           <Input
-            aria-label="A new task"
-            placeholder="Set first 30-day goals"
+            aria-label={tr('templates.a_new_task', 'A new task')}
+            placeholder={tr('templates.set_first_30_day_goals', 'Set first 30-day goals')}
             value={title}
             onChange={(e) => {
               setTitle(e.target.value);
             }}
           />
           <Button type="submit" variant="secondary" disabled={title.trim() === ''}>
-            Add task
+            {tr('templates.add_task', 'Add task')}
           </Button>
         </form>
         <div className="flex items-center justify-between gap-2">
@@ -322,11 +335,11 @@ function Editor({
                 setT({ ...t, active: on });
               }}
             />
-            <label htmlFor="active">In use</label>
+            <label htmlFor="active">{tr('templates.in_use', 'In use')}</label>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onDone}>
-              Close
+              {tr('templates.close', 'Close')}
             </Button>
             <Button
               disabled={t.name.trim() === ''}
@@ -336,7 +349,7 @@ function Editor({
                 act.run('SaveOnboardingTemplate', { id, input }, onDone);
               }}
             >
-              Save template
+              {tr('templates.save_template', 'Save template')}
             </Button>
           </div>
         </div>
@@ -352,8 +365,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Templates"
-            description="Every template whose conditions match a hire is merged into the plan. Country tasks are added on top and cannot be removed."
+            title={tr('templates.templates', 'Templates')}
+            description={tr(
+              'templates.every_template_whose_conditions_match_a',
+              'Every template whose conditions match a hire is merged into the plan. Country tasks are added on top and cannot be removed.',
+            )}
             actions={
               <Button
                 startIcon={<icons.add aria-hidden />}
@@ -361,7 +377,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                   setEditing({ id: newId(), name: '', active: true, conditions: {}, tasks: [] });
                 }}
               >
-                New template
+                {tr('templates.new_template', 'New template')}
               </Button>
             }
           />
@@ -378,16 +394,27 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
           {data.templates.length === 0 ? (
             <EmptyState
               icon={<icons.list aria-hidden />}
-              title="No templates yet"
-              description="The first hire gets the default template."
+              title={tr('templates.no_templates_yet', 'No templates yet')}
+              description={tr(
+                'templates.the_first_hire_gets_the_default',
+                'The first hire gets the default template.',
+              )}
             />
           ) : (
             data.templates.map((t) => (
               <Card key={t.id} padded className="flex flex-wrap items-center gap-3">
                 <span className="flex-1 font-semibold">{t.name}</span>
-                <span className="text-sm text-fg-muted">{`${String(t.tasks.length)} tasks${(t.conditions.countries ?? []).length > 0 ? ` · ${(t.conditions.countries ?? []).join(', ')}` : ''}`}</span>
+                <span className="text-sm text-fg-muted">
+                  {tr('templates.tasks', '{{length}} tasks{{value}}', {
+                    length: String(t.tasks.length),
+                    value:
+                      (t.conditions.countries ?? []).length > 0
+                        ? ` · ${(t.conditions.countries ?? []).join(', ')}`
+                        : '',
+                  })}
+                </span>
                 <Badge size="sm" tone={t.active ? 'success' : 'neutral'}>
-                  {t.active ? 'In use' : 'Off'}
+                  {t.active ? tr('templates.in_use', 'In use') : tr('templates.off', 'Off')}
                 </Badge>
                 <Button
                   size="sm"
@@ -396,7 +423,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                     setEditing(t);
                   }}
                 >
-                  Edit
+                  {tr('templates.edit', 'Edit')}
                 </Button>
               </Card>
             ))
@@ -429,7 +456,7 @@ function SettingsBody({
   const [country, setCountry] = useState(data.defaultCountry);
   const [holidays, setHolidays] = useState(
     Object.entries(data.holidays)
-      .map(([c, days]) => `${c}: ${days.join(', ')}`)
+      .map(([c, days]) => tr('templates.text', '{{c}}: {{join}}', { c, join: days.join(', ') }))
       .join('\n'),
   );
   const toggle = (list: readonly string[], id: string, on: boolean) =>
@@ -450,20 +477,30 @@ function SettingsBody({
   };
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Onboarding" description="Settings" />
+      <PageHeader
+        title={tr('templates.onboarding', 'Onboarding')}
+        description={tr('templates.settings', 'Settings')}
+      />
       <Refusal error={act.error} />
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Who does HR’s and IT’s tasks</CardTitle>
-          <CardDescription>Administrators of Onboarding are HR as well</CardDescription>
+          <CardTitle level={2}>
+            {tr('templates.who_does_hrs_and_its_tasks', 'Who does HR’s and IT’s tasks')}
+          </CardTitle>
+          <CardDescription>
+            {tr(
+              'templates.administrators_of_onboarding_are_hr_as',
+              'Administrators of Onboarding are HR as well',
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>HR</TableHead>
-                <TableHead>IT</TableHead>
+                <TableHead>{tr('templates.person', 'Person')}</TableHead>
+                <TableHead>{tr('templates.hr', 'HR')}</TableHead>
+                <TableHead>{tr('templates.it', 'IT')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -472,7 +509,7 @@ function SettingsBody({
                   <TableCell>{m.name}</TableCell>
                   <TableCell>
                     <Switch
-                      aria-label={`${m.name} is HR`}
+                      aria-label={tr('templates.is_hr', '{{name}} is HR', { name: m.name })}
                       checked={hr.includes(m.personId)}
                       onCheckedChange={(on) => {
                         setHr(toggle(hr, m.personId, on));
@@ -481,7 +518,7 @@ function SettingsBody({
                   </TableCell>
                   <TableCell>
                     <Switch
-                      aria-label={`${m.name} is IT`}
+                      aria-label={tr('templates.is_it', '{{name}} is IT', { name: m.name })}
                       checked={it.includes(m.personId)}
                       onCheckedChange={(on) => {
                         setIt(toggle(it, m.personId, on));
@@ -496,11 +533,13 @@ function SettingsBody({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Dates</CardTitle>
+          <CardTitle level={2}>{tr('templates.dates', 'Dates')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Field>
-            <FieldLabel>Country of a hire People sends</FieldLabel>
+            <FieldLabel>
+              {tr('templates.country_of_a_hire_people_sends', 'Country of a hire People sends')}
+            </FieldLabel>
             <Select value={country} onValueChange={setCountry}>
               <FieldControl>
                 <SelectTrigger>
@@ -515,10 +554,17 @@ function SettingsBody({
                 ))}
               </SelectContent>
             </Select>
-            <FieldDescription>People’s hire names no country; Recruiting’s does.</FieldDescription>
+            <FieldDescription>
+              {tr(
+                'templates.peoples_hire_names_no_country_recruitings',
+                'People’s hire names no country; Recruiting’s does.',
+              )}
+            </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Holidays a due date skips</FieldLabel>
+            <FieldLabel>
+              {tr('templates.holidays_a_due_date_skips', 'Holidays a due date skips')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
@@ -526,18 +572,21 @@ function SettingsBody({
                 onChange={(e) => {
                   setHolidays(e.target.value);
                 }}
-                placeholder="DE: 2026-12-25, 2026-12-26"
+                placeholder={tr('templates.de_2026_12_25_2026_12', 'DE: 2026-12-25, 2026-12-26')}
               />
             </FieldControl>
             <FieldDescription>
-              One line per country. With Time Off, its calendars are used too.
+              {tr(
+                'templates.one_line_per_country_with_time',
+                'One line per country. With Time Off, its calendars are used too.',
+              )}
             </FieldDescription>
           </Field>
         </CardContent>
       </Card>
       <div className="flex justify-end">
         <Button loading={act.pending} onClick={save}>
-          Save
+          {tr('templates.save', 'Save')}
         </Button>
       </div>
     </div>
@@ -550,29 +599,32 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
     <Loaded load={props.load} what="onboarding analytics">
       {(data) => (
         <div className="flex flex-col gap-4">
-          <PageHeader title="Onboarding analytics" />
-          <h2 className="sr-only">Figures</h2>
+          <PageHeader title={tr('templates.onboarding_analytics', 'Onboarding analytics')} />
+          <h2 className="sr-only">{tr('templates.figures', 'Figures')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <Stat label="Plans in flight" value={String(data.inFlight)} />
-            <Stat label="On track" value={String(data.onTrack)} />
-            <Stat label="Completed" value={String(data.completed)} />
+            <Stat
+              label={tr('templates.plans_in_flight', 'Plans in flight')}
+              value={String(data.inFlight)}
+            />
+            <Stat label={tr('templates.on_track', 'On track')} value={String(data.onTrack)} />
+            <Stat label={tr('templates.completed', 'Completed')} value={String(data.completed)} />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Late tasks by owner">
+            <ChartCard title={tr('templates.late_tasks_by_owner', 'Late tasks by owner')}>
               {data.lateByRole.length === 0 ? (
-                <Alert tone="success" title="Nothing late" />
+                <Alert tone="success" title={tr('templates.nothing_late', 'Nothing late')} />
               ) : (
                 <HorizontalBarChart
-                  label="Late tasks by owner"
+                  label={tr('templates.late_tasks_by_owner', 'Late tasks by owner')}
                   data={data.lateByRole.map((r) => ({ label: label(r.role), value: r.count }))}
                   showValues
                   sorted
                 />
               )}
             </ChartCard>
-            <ChartCard title="Probation outcomes">
+            <ChartCard title={tr('templates.probation_outcomes', 'Probation outcomes')}>
               <HorizontalBarChart
-                label="Probation outcomes"
+                label={tr('templates.probation_outcomes', 'Probation outcomes')}
                 data={data.probation.map((r) => ({ label: words(r.outcome), value: r.count }))}
                 showValues
               />

@@ -57,6 +57,7 @@ import {
   when,
 } from './shared';
 import type { ScaleOption, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Settings › Performance (PRD §21; design S1–S13 v2): one page per part, each
@@ -96,34 +97,51 @@ const PAGES: Readonly<
   >
 > = {
   general: {
-    title: 'General',
-    description: 'The company’s rating scale and the parts of Performance it uses.',
+    title: tr('settings.general', 'General'),
+    description: tr(
+      'settings.the_companys_rating_scale_and_the',
+      'The company’s rating scale and the parts of Performance it uses.',
+    ),
     section: 'general',
   },
   release: {
-    title: 'Release',
-    description:
+    title: tr('settings.release', 'Release'),
+    description: tr(
+      'settings.the_defaults_a_new_cycle_starts',
       'The defaults a new cycle starts from: who releases, the response minimum, acknowledgement.',
+    ),
     section: 'reviews',
   },
   feedback: {
-    title: 'Feedback',
-    description: 'Who may give feedback, whether names are shown, praise and its company values.',
+    title: tr('settings.feedback', 'Feedback'),
+    description: tr(
+      'settings.who_may_give_feedback_whether_names',
+      'Who may give feedback, whether names are shown, praise and its company values.',
+    ),
     section: 'feedback',
   },
   goals: {
-    title: 'Goals',
-    description: 'Goal periods, their check-in cadence, and whether goals are weighted.',
+    title: tr('settings.goals', 'Goals'),
+    description: tr(
+      'settings.goal_periods_their_check_in_cadence',
+      'Goal periods, their check-in cadence, and whether goals are weighted.',
+    ),
     section: 'goals',
   },
   learning: {
-    title: 'Learning',
-    description: 'Learning platforms and the attendance share that completes a session.',
+    title: tr('settings.learning', 'Learning'),
+    description: tr(
+      'settings.learning_platforms_and_the_attendance_share',
+      'Learning platforms and the attendance share that completes a session.',
+    ),
     section: 'learning',
   },
   calibration: {
-    title: 'Calibration',
-    description: 'The nine-box guide and who sees what in a session.',
+    title: tr('settings.calibration', 'Calibration'),
+    description: tr(
+      'settings.the_nine_box_guide_and_who',
+      'The nine-box guide and who sees what in a session.',
+    ),
     section: 'calibration',
   },
   ai: {
@@ -133,32 +151,47 @@ const PAGES: Readonly<
     section: 'ai',
   },
   connections: {
-    title: 'Connections',
-    description: 'Calendars, chat and the tools people may let Kithena read for their reviews.',
+    title: tr('settings.connections', 'Connections'),
+    description: tr(
+      'settings.calendars_chat_and_the_tools_people',
+      'Calendars, chat and the tools people may let Kithena read for their reviews.',
+    ),
     section: 'integrations',
   },
   retention: {
-    title: 'Retention',
-    description: 'How long each kind of record is kept after someone leaves, and legal holds.',
+    title: tr('settings.retention', 'Retention'),
+    description: tr(
+      'settings.how_long_each_kind_of_record',
+      'How long each kind of record is kept after someone leaves, and legal holds.',
+    ),
     section: 'privacy',
     only: ['retention', 'holds'],
   },
   'works-councils': {
-    title: 'Works councils',
-    description: 'Where a works council has agreed to Performance, and to which parts.',
+    title: tr('settings.works_councils', 'Works councils'),
+    description: tr(
+      'settings.where_a_works_council_has_agreed',
+      'Where a works council has agreed to Performance, and to which parts.',
+    ),
     section: 'privacy',
     only: ['worksCouncil'],
   },
   access: {
-    title: 'Access',
-    description: 'Who is HR to Performance, beyond the company’s administrators.',
+    title: tr('settings.access', 'Access'),
+    description: tr(
+      'settings.who_is_hr_to_performance_beyond',
+      'Who is HR to Performance, beyond the company’s administrators.',
+    ),
     section: 'roles',
   },
 };
 
 const GENERAL = {
-  title: 'General',
-  description: 'The company’s rating scale, its scores, and the parts of Performance it uses.',
+  title: tr('settings.general', 'General'),
+  description: tr(
+    'settings.the_companys_rating_scale_its_scores',
+    'The company’s rating scale, its scores, and the parts of Performance it uses.',
+  ),
   section: 'general',
 };
 
@@ -210,13 +243,19 @@ function SettingsPage({
       <PageHeader title={meta.title} description={meta.description} />
       <Refusal error={act.error} />
       {data.admin ? null : (
-        <Alert tone="info" title="Read only">
-          Only an administrator changes Performance’s settings.
+        <Alert tone="info" title={tr('settings.read_only', 'Read only')}>
+          {tr(
+            'settings.only_an_administrator_changes_performances_settings',
+            'Only an administrator changes Performance’s settings.',
+          )}
         </Alert>
       )}
       {meta.section === 'ai' && !data.model ? (
-        <Alert tone="warning" title="No model is connected">
-          Every AI feature is unavailable until one is, whatever these say.
+        <Alert tone="warning" title={tr('settings.no_model_is_connected', 'No model is connected')}>
+          {tr(
+            'settings.every_ai_feature_is_unavailable_until',
+            'Every AI feature is unavailable until one is, whatever these say.',
+          )}
         </Alert>
       ) : null}
       <FormSections>
@@ -225,7 +264,10 @@ function SettingsPage({
       <FormSaveBar
         open={dirty && data.admin}
         saving={act.pending}
-        message="New cycles, feedback and goals follow these once saved."
+        message={tr(
+          'settings.new_cycles_feedback_and_goals_follow',
+          'New cycles, feedback and goals follow these once saved.',
+        )}
         onDiscard={() => {
           setValue(saved);
         }}
@@ -371,61 +413,190 @@ const ZONES = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].map((
 }));
 
 const KINDS_WITH_FORMS = [
-  ['self', 'Self reviews'],
-  ['manager', 'Manager reviews'],
-  ['peer', 'Peer reviews'],
-  ['upward', 'Upward reviews'],
-  ['skip', 'Skip-level reviews'],
+  ['self', tr('settings.self_reviews', 'Self reviews')],
+  ['manager', tr('settings.manager_reviews', 'Manager reviews')],
+  ['peer', tr('settings.peer_reviews', 'Peer reviews')],
+  ['upward', tr('settings.upward_reviews', 'Upward reviews')],
+  ['skip', tr('settings.skip_level_reviews', 'Skip-level reviews')],
 ] as const;
 
 const CADENCE = [
-  ['weekly', 'Weekly'],
-  ['fortnightly', 'Every two weeks'],
-  ['monthly', 'Monthly'],
-  ['none', 'No check-ins'],
+  ['weekly', tr('settings.weekly', 'Weekly')],
+  ['fortnightly', tr('settings.every_two_weeks', 'Every two weeks')],
+  ['monthly', tr('settings.monthly', 'Monthly')],
+  ['none', tr('settings.no_check_ins', 'No check-ins')],
 ] as const;
 
 const NINE_BOX = [
-  ['star', 'Star', 'High performance, high potential'],
-  ['high', 'High performer', 'High performance, moderate potential'],
-  ['trusted', 'Trusted professional', 'High performance, low potential'],
-  ['corePotential', 'Rising talent', 'Moderate performance, high potential'],
-  ['core', 'Core player', 'Moderate performance, moderate potential'],
-  ['effective', 'Effective', 'Moderate performance, low potential'],
-  ['inconsistent', 'Inconsistent', 'Low performance, high potential'],
-  ['lowPotential', 'Dilemma', 'Low performance, moderate potential'],
-  ['under', 'Underperformer', 'Low performance, low potential'],
+  [
+    'star',
+    tr('settings.star', 'Star'),
+    tr('settings.high_performance_high_potential', 'High performance, high potential'),
+  ],
+  [
+    'high',
+    tr('settings.high_performer', 'High performer'),
+    tr('settings.high_performance_moderate_potential', 'High performance, moderate potential'),
+  ],
+  [
+    'trusted',
+    tr('settings.trusted_professional', 'Trusted professional'),
+    tr('settings.high_performance_low_potential', 'High performance, low potential'),
+  ],
+  [
+    'corePotential',
+    tr('settings.rising_talent', 'Rising talent'),
+    tr('settings.moderate_performance_high_potential', 'Moderate performance, high potential'),
+  ],
+  [
+    'core',
+    tr('settings.core_player', 'Core player'),
+    tr(
+      'settings.moderate_performance_moderate_potential',
+      'Moderate performance, moderate potential',
+    ),
+  ],
+  [
+    'effective',
+    tr('settings.effective', 'Effective'),
+    tr('settings.moderate_performance_low_potential', 'Moderate performance, low potential'),
+  ],
+  [
+    'inconsistent',
+    tr('settings.inconsistent', 'Inconsistent'),
+    tr('settings.low_performance_high_potential', 'Low performance, high potential'),
+  ],
+  [
+    'lowPotential',
+    tr('settings.dilemma', 'Dilemma'),
+    tr('settings.low_performance_moderate_potential', 'Low performance, moderate potential'),
+  ],
+  [
+    'under',
+    tr('settings.underperformer', 'Underperformer'),
+    tr('settings.low_performance_low_potential', 'Low performance, low potential'),
+  ],
 ] as const;
 
 const AI_FEATURES = [
-  ['builder', 'Form builder', 'Drafts a form’s questions from a description.'],
-  ['summaries', 'Summaries', 'Summarises what was written about a person, for their manager.'],
+  [
+    'builder',
+    tr('settings.form_builder', 'Form builder'),
+    tr('settings.drafts_a_forms_questions_from_a', 'Drafts a form’s questions from a description.'),
+  ],
+  [
+    'summaries',
+    tr('settings.summaries', 'Summaries'),
+    tr(
+      'settings.summarises_what_was_written_about_a',
+      'Summarises what was written about a person, for their manager.',
+    ),
+  ],
   [
     'sentiment',
-    'Sentiment',
-    'Reads the tone of feedback for analytics, in groups of five or more.',
+    tr('settings.sentiment', 'Sentiment'),
+    tr(
+      'settings.reads_the_tone_of_feedback_for',
+      'Reads the tone of feedback for analytics, in groups of five or more.',
+    ),
   ],
-  ['prefill', 'Prefill', 'Suggests a first draft of a review from the year’s evidence.'],
-  ['writingChecks', 'Writing checks', 'Flags vague or biased wording while someone writes.'],
-  ['toneCheck', 'Tone check', 'Flags feedback that may land badly before it is sent.'],
-  ['setupByChat', 'Set up in words', 'Builds a cycle’s setup from a description.'],
-  ['automationsInWords', 'Automations in words', 'Turns a sentence into an automation.'],
-  ['charts', 'Charts in words', 'Draws the analytics chart someone asks for.'],
-  ['learningSuggestions', 'Learning suggestions', 'Suggests courses from a review’s outcome.'],
+  [
+    'prefill',
+    tr('settings.prefill', 'Prefill'),
+    tr(
+      'settings.suggests_a_first_draft_of_a',
+      'Suggests a first draft of a review from the year’s evidence.',
+    ),
+  ],
+  [
+    'writingChecks',
+    tr('settings.writing_checks', 'Writing checks'),
+    tr(
+      'settings.flags_vague_or_biased_wording_while',
+      'Flags vague or biased wording while someone writes.',
+    ),
+  ],
+  [
+    'toneCheck',
+    tr('settings.tone_check', 'Tone check'),
+    tr(
+      'settings.flags_feedback_that_may_land_badly',
+      'Flags feedback that may land badly before it is sent.',
+    ),
+  ],
+  [
+    'setupByChat',
+    tr('settings.set_up_in_words', 'Set up in words'),
+    tr('settings.builds_a_cycles_setup_from_a', 'Builds a cycle’s setup from a description.'),
+  ],
+  [
+    'automationsInWords',
+    tr('settings.automations_in_words', 'Automations in words'),
+    tr('settings.turns_a_sentence_into_an_automation', 'Turns a sentence into an automation.'),
+  ],
+  [
+    'charts',
+    tr('settings.charts_in_words', 'Charts in words'),
+    tr(
+      'settings.draws_the_analytics_chart_someone_asks',
+      'Draws the analytics chart someone asks for.',
+    ),
+  ],
+  [
+    'learningSuggestions',
+    tr('settings.learning_suggestions', 'Learning suggestions'),
+    tr(
+      'settings.suggests_courses_from_a_reviews_outcome',
+      'Suggests courses from a review’s outcome.',
+    ),
+  ],
   [
     'calibrationSuggestions',
-    'Calibration suggestions',
-    'Proposes moves in a session, each for a person to accept.',
+    tr('settings.calibration_suggestions', 'Calibration suggestions'),
+    tr(
+      'settings.proposes_moves_in_a_session_each',
+      'Proposes moves in a session, each for a person to accept.',
+    ),
   ],
-  ['panel', 'Ask Kithena', 'The assistant panel on every Performance screen.'],
+  [
+    'panel',
+    tr('settings.ask_kithena', 'Ask Kithena'),
+    tr(
+      'settings.the_assistant_panel_on_every_performance',
+      'The assistant panel on every Performance screen.',
+    ),
+  ],
 ] as const;
 
 const CONNECTIONS = [
-  ['google', 'Google Workspace', 'Calendar invitations for sessions and 1:1s.'],
-  ['microsoft', 'Microsoft 365', 'Calendar invitations for sessions and 1:1s.'],
-  ['slack', 'Slack', 'Reminders, praise and asking Kithena in the chat app.'],
-  ['teams', 'Microsoft Teams', 'Reminders and praise in Teams.'],
-  ['gchat', 'Google Chat', 'Reminders and praise in Google Chat.'],
+  [
+    'google',
+    tr('settings.google_workspace', 'Google Workspace'),
+    'Calendar invitations for sessions and 1:1s.',
+  ],
+  [
+    'microsoft',
+    tr('settings.microsoft_365', 'Microsoft 365'),
+    'Calendar invitations for sessions and 1:1s.',
+  ],
+  [
+    'slack',
+    tr('settings.slack', 'Slack'),
+    tr(
+      'settings.reminders_praise_and_asking_kithena_in',
+      'Reminders, praise and asking Kithena in the chat app.',
+    ),
+  ],
+  [
+    'teams',
+    tr('settings.microsoft_teams', 'Microsoft Teams'),
+    tr('settings.reminders_and_praise_in_teams', 'Reminders and praise in Teams.'),
+  ],
+  [
+    'gchat',
+    tr('settings.google_chat', 'Google Chat'),
+    tr('settings.reminders_and_praise_in_google_chat', 'Reminders and praise in Google Chat.'),
+  ],
 ] as const;
 
 /** What each settings page holds, laid out as sections of one form. */
@@ -445,77 +616,130 @@ function Body({
       return (
         <>
           <FormSection
-            title="When people see their reviews"
-            description="Where a new cycle starts; each cycle can change it."
+            title={tr('settings.when_people_see_their_reviews', 'When people see their reviews')}
+            description={tr(
+              'settings.where_a_new_cycle_starts_each',
+              'Where a new cycle starts; each cycle can change it.',
+            )}
           >
             <Choice
               ui={ui}
               path={['release']}
-              label="Release"
+              label={tr('settings.release', 'Release')}
               options={[
                 [
                   'manager',
-                  'As each is submitted',
-                  'The manager releases each review once it is in.',
+                  tr('settings.as_each_is_submitted', 'As each is submitted'),
+                  tr(
+                    'settings.the_manager_releases_each_review_once',
+                    'The manager releases each review once it is in.',
+                  ),
                 ],
-                ['hr_date', 'On a date', 'HR sets one day, and everyone sees theirs then.'],
-                ['close', 'When the cycle closes', 'After calibration, if the cycle has one.'],
+                [
+                  'hr_date',
+                  tr('settings.on_a_date', 'On a date'),
+                  tr(
+                    'settings.hr_sets_one_day_and_everyone',
+                    'HR sets one day, and everyone sees theirs then.',
+                  ),
+                ],
+                [
+                  'close',
+                  tr('settings.when_the_cycle_closes', 'When the cycle closes'),
+                  tr(
+                    'settings.after_calibration_if_the_cycle_has',
+                    'After calibration, if the cycle has one.',
+                  ),
+                ],
               ]}
             />
           </FormSection>
           <FormSection
-            title="Confidentiality"
-            description="Peer and upward answers stay unread until enough are in."
+            title={tr('settings.confidentiality', 'Confidentiality')}
+            description={tr(
+              'settings.peer_and_upward_answers_stay_unread',
+              'Peer and upward answers stay unread until enough are in.',
+            )}
           >
             <Count
               ui={ui}
               path={['minimum']}
-              label="Response minimum"
-              hint="Confidential answers show only once this many are in."
+              label={tr('settings.response_minimum', 'Response minimum')}
+              hint={tr(
+                'settings.confidential_answers_show_only_once_this',
+                'Confidential answers show only once this many are in.',
+              )}
               min={1}
               max={20}
-              suffix="responses"
+              suffix={tr('settings.responses', 'responses')}
             />
           </FormSection>
-          <FormSection title="Workload" description="What a cycle’s launch checks warn about.">
+          <FormSection
+            title={tr('settings.workload', 'Workload')}
+            description={tr(
+              'settings.what_a_cycles_launch_checks_warn',
+              'What a cycle’s launch checks warn about.',
+            )}
+          >
             <Count
               ui={ui}
               path={['perReviewer']}
-              label="Peer reviews one person writes, at most"
+              label={tr(
+                'settings.peer_reviews_one_person_writes_at',
+                'Peer reviews one person writes, at most',
+              )}
               min={1}
               max={50}
-              suffix="reviews"
+              suffix={tr('settings.reviews', 'reviews')}
             />
             <Count
               ui={ui}
               path={['workload']}
-              label="Warn when someone has more than"
-              hint="Listed by name before launch."
+              label={tr(
+                'settings.warn_when_someone_has_more_than',
+                'Warn when someone has more than',
+              )}
+              hint={tr('settings.listed_by_name_before_launch', 'Listed by name before launch.')}
               min={1}
               max={100}
-              suffix="reviews"
+              suffix={tr('settings.reviews', 'reviews')}
             />
           </FormSection>
-          <FormSection title="After release" description="What the person reviewed can do.">
+          <FormSection
+            title={tr('settings.after_release', 'After release')}
+            description={tr(
+              'settings.what_the_person_reviewed_can_do',
+              'What the person reviewed can do.',
+            )}
+          >
             <Switches
               ui={ui}
               items={[
                 {
                   path: ['acknowledge'],
-                  label: 'Ask for an acknowledgement',
-                  hint: '“I’ve read this” is not agreement.',
+                  label: tr('settings.ask_for_an_acknowledgement', 'Ask for an acknowledgement'),
+                  hint: tr(
+                    'settings.ive_read_this_is_not_agreement',
+                    '“I’ve read this” is not agreement.',
+                  ),
                 },
                 {
                   path: ['subjectComment'],
-                  label: 'Let them comment',
-                  hint: 'Shown to their manager and HR.',
+                  label: tr('settings.let_them_comment', 'Let them comment'),
+                  hint: tr(
+                    'settings.shown_to_their_manager_and_hr',
+                    'Shown to their manager and HR.',
+                  ),
                 },
               ]}
             />
           </FormSection>
           <FormSection
-            title="Default forms"
-            description="The form each kind of review starts with in a new cycle."
+            title={tr('settings.default_forms', 'Default forms')}
+            description={tr(
+              'settings.the_form_each_kind_of_review',
+              'The form each kind of review starts with in a new cycle.',
+            )}
           >
             {KINDS_WITH_FORMS.map(([kind, label]) => (
               <Choose
@@ -523,7 +747,7 @@ function Body({
                 label={label}
                 value={str(ui.get('templates', kind)) || 'default'}
                 options={[
-                  ['default', 'Kithena’s default'],
+                  ['default', tr('settings.kithenas_default', 'Kithena’s default')],
                   ...data.templates
                     .filter((t) => t.purpose.length === 0 || t.purpose.includes(kind))
                     .map((t) => [t.id, t.name] as const),
@@ -539,61 +763,96 @@ function Body({
     case 'feedback':
       return (
         <>
-          <FormSection title="Who gives feedback">
+          <FormSection title={tr('settings.who_gives_feedback', 'Who gives feedback')}>
             <Choice
               ui={ui}
               path={['who']}
-              label="Who gives feedback"
+              label={tr('settings.who_gives_feedback', 'Who gives feedback')}
               options={[
-                ['anyone', 'Anyone, to anyone'],
-                ['team', 'Within their team'],
-                ['nobody', 'Nobody', 'Feedback is off; praise and reviews are not.'],
+                ['anyone', tr('settings.anyone_to_anyone', 'Anyone, to anyone')],
+                ['team', tr('settings.within_their_team', 'Within their team')],
+                [
+                  'nobody',
+                  tr('settings.nobody', 'Nobody'),
+                  'Feedback is off; praise and reviews are not.',
+                ],
               ]}
             />
           </FormSection>
-          <FormSection title="Who sees it" description="Unless the writer narrows it.">
+          <FormSection
+            title={tr('settings.who_sees_it', 'Who sees it')}
+            description={tr(
+              'settings.unless_the_writer_narrows_it',
+              'Unless the writer narrows it.',
+            )}
+          >
             <Choice
               ui={ui}
               path={['sees']}
-              label="Who sees it"
+              label={tr('settings.who_sees_it', 'Who sees it')}
               options={[
-                ['recipient', 'Only the receiver'],
-                ['recipient_manager', 'The receiver and their manager'],
-                ['recipient_manager_hr', 'The receiver, their manager and HR'],
+                ['recipient', tr('settings.only_the_receiver', 'Only the receiver')],
+                [
+                  'recipient_manager',
+                  tr('settings.the_receiver_and_their_manager', 'The receiver and their manager'),
+                ],
+                [
+                  'recipient_manager_hr',
+                  tr(
+                    'settings.the_receiver_their_manager_and_hr',
+                    'The receiver, their manager and HR',
+                  ),
+                ],
               ]}
             />
           </FormSection>
-          <FormSection title="Writers’ names">
+          <FormSection title={tr('settings.writers_names', 'Writers’ names')}>
             <Choice
               ui={ui}
               path={['names']}
-              label="Writers’ names"
+              label={tr('settings.writers_names', 'Writers’ names')}
               options={[
-                ['never', 'Always hidden', 'Shown as “Someone at the company”.'],
-                ['always', 'Always shown'],
-                ['writer', 'The writer chooses'],
+                [
+                  'never',
+                  tr('settings.always_hidden', 'Always hidden'),
+                  tr(
+                    'settings.shown_as_someone_at_the_company',
+                    'Shown as “Someone at the company”.',
+                  ),
+                ],
+                ['always', tr('settings.always_shown', 'Always shown')],
+                ['writer', tr('settings.the_writer_chooses', 'The writer chooses')],
               ]}
             />
           </FormSection>
-          <FormSection title="Praise" description="Thanks in public, tagged with a company value.">
+          <FormSection
+            title={tr('settings.praise', 'Praise')}
+            description={tr(
+              'settings.thanks_in_public_tagged_with_a',
+              'Thanks in public, tagged with a company value.',
+            )}
+          >
             <Switches
               ui={ui}
               items={[
                 {
                   path: ['praise', 'public'],
-                  label: 'Praise is public',
-                  hint: 'On the company’s praise wall.',
+                  label: tr('settings.praise_is_public', 'Praise is public'),
+                  hint: tr('settings.on_the_companys_praise_wall', 'On the company’s praise wall.'),
                 },
                 {
                   path: ['praise', 'chat'],
-                  label: 'Post praise to the chat app',
-                  hint: 'When the chat app is connected.',
+                  label: tr('settings.post_praise_to_the_chat_app', 'Post praise to the chat app'),
+                  hint: tr(
+                    'settings.when_the_chat_app_is_connected',
+                    'When the chat app is connected.',
+                  ),
                 },
               ]}
             />
             <TagsInput
-              label="Company values"
-              hint="Enter or a comma adds one."
+              label={tr('settings.company_values', 'Company values')}
+              hint={tr('settings.enter_or_a_comma_adds_one', 'Enter or a comma adds one.')}
               max={20}
               disabled={ui.off}
               value={list(ui.get('praise', 'values')) as readonly string[]}
@@ -602,16 +861,22 @@ function Body({
               }}
             />
           </FormSection>
-          <FormSection title="Writing help">
+          <FormSection title={tr('settings.writing_help', 'Writing help')}>
             <Switches
               ui={ui}
               items={[
                 {
                   path: ['toneCheck'],
-                  label: 'Check the tone before sending',
+                  label: tr(
+                    'settings.check_the_tone_before_sending',
+                    'Check the tone before sending',
+                  ),
                   hint: 'The writer decides; nothing is changed for them.',
                 },
-                { path: ['templates'], label: 'Offer feedback templates' },
+                {
+                  path: ['templates'],
+                  label: tr('settings.offer_feedback_templates', 'Offer feedback templates'),
+                },
               ]}
             />
           </FormSection>
@@ -629,17 +894,26 @@ function Body({
       return (
         <>
           <FormSection
-            title="Learning platforms"
-            description="Completions arrive on their own from a connected platform."
+            title={tr('settings.learning_platforms', 'Learning platforms')}
+            description={tr(
+              'settings.completions_arrive_on_their_own_from',
+              'Completions arrive on their own from a connected platform.',
+            )}
           >
             <List>
               {providers.map((p) => (
                 <ListItem
                   key={p.name}
-                  description={p.connected ? plural(p.items, 'course') : 'Not connected yet'}
+                  description={
+                    p.connected
+                      ? plural(p.items, 'course')
+                      : tr('settings.not_connected_yet', 'Not connected yet')
+                  }
                   trailing={
                     <Badge size="sm" tone={p.connected ? 'success' : 'neutral'}>
-                      {p.connected ? 'Connected' : 'Off'}
+                      {p.connected
+                        ? tr('settings.connected', 'Connected')
+                        : tr('settings.off', 'Off')}
                     </Badge>
                   }
                 >
@@ -648,9 +922,12 @@ function Body({
               ))}
             </List>
           </FormSection>
-          <FormSection title="Completion">
+          <FormSection title={tr('settings.completion', 'Completion')}>
             <Slider
-              label="Attendance that completes a live session"
+              label={tr(
+                'settings.attendance_that_completes_a_live_session',
+                'Attendance that completes a live session',
+              )}
               valueDisplay={`${String(share)}%`}
               min={5}
               max={100}
@@ -664,11 +941,11 @@ function Body({
             <Count
               ui={ui}
               path={['certificatesYears']}
-              label="Certificates stay valid for"
-              hint="0: they never expire."
+              label={tr('settings.certificates_stay_valid_for', 'Certificates stay valid for')}
+              hint={tr('settings.0_they_never_expire', '0: they never expire.')}
               min={0}
               max={20}
-              suffix="years"
+              suffix={tr('settings.years', 'years')}
             />
           </FormSection>
         </>
@@ -679,8 +956,11 @@ function Body({
       return (
         <>
           <FormSection
-            title="Nine-box guide"
-            description="The share of people expected in each box: a guide for the session, never a quota."
+            title={tr('settings.nine_box_guide', 'Nine-box guide')}
+            description={tr(
+              'settings.the_share_of_people_expected_in',
+              'The share of people expected in each box: a guide for the session, never a quota.',
+            )}
           >
             {NINE_BOX.map(([k, label, hint]) => (
               <Count
@@ -698,21 +978,32 @@ function Body({
               <Badge size="sm" tone={total === 100 ? 'success' : 'warning'}>
                 {`${String(total)}%`}
               </Badge>
-              {total === 100 ? 'Adds up to the whole company.' : 'Should add up to 100%.'}
+              {total === 100
+                ? tr('settings.adds_up_to_the_whole_company', 'Adds up to the whole company.')
+                : tr('settings.should_add_up_to_100', 'Should add up to 100%.')}
             </p>
           </FormSection>
-          <FormSection title="In a session" description="What calibrators see.">
+          <FormSection
+            title={tr('settings.in_a_session', 'In a session')}
+            description={tr('settings.what_calibrators_see', 'What calibrators see.')}
+          >
             <Switches
               ui={ui}
               items={[
                 {
                   path: ['managersOwnOnly'],
-                  label: 'Managers see only their own people',
-                  hint: 'HR and the session’s owner see everyone in it.',
+                  label: tr(
+                    'settings.managers_see_only_their_own_people',
+                    'Managers see only their own people',
+                  ),
+                  hint: tr(
+                    'settings.hr_and_the_sessions_owner_see',
+                    'HR and the session’s owner see everyone in it.',
+                  ),
                 },
                 {
                   path: ['peerNames'],
-                  label: 'Show peer reviewers’ names',
+                  label: tr('settings.show_peer_reviewers_names', 'Show peer reviewers’ names'),
                 },
               ]}
             />
@@ -723,8 +1014,11 @@ function Body({
     case 'ai':
       return (
         <FormSection
-          title="Features"
-          description="Each on or off for the whole company. Every output is logged, and a person confirms every number."
+          title={tr('settings.features', 'Features')}
+          description={tr(
+            'settings.each_on_or_off_for_the',
+            'Each on or off for the whole company. Every output is logged, and a person confirms every number.',
+          )}
         >
           <Switches
             ui={ui}
@@ -739,7 +1033,7 @@ function Body({
     case 'connections':
       return (
         <>
-          <FormSection title="Calendars and chat">
+          <FormSection title={tr('settings.calendars_and_chat', 'Calendars and chat')}>
             <Switches
               ui={ui}
               items={CONNECTIONS.map(([k, label, hint]) => ({
@@ -750,8 +1044,11 @@ function Body({
             />
           </FormSection>
           <FormSection
-            title="Tools people may connect"
-            description="Each person still decides for their own work, in My connected tools; off here, nobody can."
+            title={tr('settings.tools_people_may_connect', 'Tools people may connect')}
+            description={tr(
+              'settings.each_person_still_decides_for_their',
+              'Each person still decides for their own work, in My connected tools; off here, nobody can.',
+            )}
           >
             <Switches
               ui={ui}
@@ -766,12 +1063,18 @@ function Body({
     case 'works-councils':
       return (
         <FormSection
-          title="Legal entities"
-          description="Until a works council agrees, people in that entity are left out of cycles, and AI and connected tools are off for them."
+          title={tr('settings.legal_entities', 'Legal entities')}
+          description={tr(
+            'settings.until_a_works_council_agrees_people',
+            'Until a works council agrees, people in that entity are left out of cycles, and AI and connected tools are off for them.',
+          )}
         >
           {data.legalEntities.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              The company has no legal entities in People yet.
+              {tr(
+                'settings.the_company_has_no_legal_entities',
+                'The company has no legal entities in People yet.',
+              )}
             </p>
           ) : (
             data.legalEntities.map((entity) => {
@@ -781,15 +1084,19 @@ function Body({
                   <Switches
                     ui={ui}
                     items={[
-                      { path: ['worksCouncil', entity, 'on'], label: entity, hint: 'Agreed' },
+                      {
+                        path: ['worksCouncil', entity, 'on'],
+                        label: entity,
+                        hint: tr('settings.agreed', 'Agreed'),
+                      },
                     ]}
                   />
                   {ui.get('worksCouncil', entity, 'on') === true ? (
                     <Field>
-                      <FieldLabel>Agreed on</FieldLabel>
+                      <FieldLabel>{tr('settings.agreed_on', 'Agreed on')}</FieldLabel>
                       <FieldControl>
                         <DatePicker
-                          label={`${entity} agreed on`}
+                          label={tr('settings.agreed_on_2', '{{entity}} agreed on', { entity })}
                           value={typeof agreed === 'string' ? agreed : null}
                           onChange={(d) => {
                             ui.set(['worksCouncil', entity, 'agreed'], d);
@@ -815,8 +1122,11 @@ function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
   return (
     <>
       <FormSection
-        title="Rating scale"
-        description="Every performance score is computed on it. Changing it changes no score already submitted."
+        title={tr('settings.rating_scale', 'Rating scale')}
+        description={tr(
+          'settings.every_performance_score_is_computed_on',
+          'Every performance score is computed on it. Changing it changes no score already submitted.',
+        )}
       >
         <Scale
           value={list(ui.get('scale')) as readonly ScaleOption[]}
@@ -826,9 +1136,9 @@ function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
           }}
         />
       </FormSection>
-      <FormSection title="Scores">
+      <FormSection title={tr('settings.scores', 'Scores')}>
         <Field>
-          <FieldLabel>Decimal places</FieldLabel>
+          <FieldLabel>{tr('settings.decimal_places', 'Decimal places')}</FieldLabel>
           <SegmentedControl
             value={String(num(ui.get('decimals')) ?? 1)}
             onValueChange={(v) => {
@@ -840,42 +1150,61 @@ function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
           </SegmentedControl>
         </Field>
         <Field>
-          <FieldLabel>Company time zone</FieldLabel>
+          <FieldLabel>{tr('settings.company_time_zone', 'Company time zone')}</FieldLabel>
           <FieldControl>
             <Combobox
-              label="Company time zone"
+              label={tr('settings.company_time_zone', 'Company time zone')}
               options={ZONES}
               value={str(ui.get('zone'))}
-              searchPlaceholder="Find a zone"
+              searchPlaceholder={tr('settings.find_a_zone', 'Find a zone')}
               onChange={(v) => {
                 if (!ui.off && typeof v === 'string') ui.set(['zone'], v);
               }}
             />
           </FieldControl>
           <FieldDescription>
-            Cycles start and fall due in it unless one says otherwise.
+            {tr(
+              'settings.cycles_start_and_fall_due_in',
+              'Cycles start and fall due in it unless one says otherwise.',
+            )}
           </FieldDescription>
         </Field>
       </FormSection>
-      <FormSection title="Parts of Performance" description="Off hides the part for everyone.">
+      <FormSection
+        title={tr('settings.parts_of_performance', 'Parts of Performance')}
+        description={tr(
+          'settings.off_hides_the_part_for_everyone',
+          'Off hides the part for everyone.',
+        )}
+      >
         <Switches
           ui={ui}
           items={[
-            { path: ['parts', 'goals'], label: 'Goals', hint: 'Goals, key results and check-ins.' },
+            {
+              path: ['parts', 'goals'],
+              label: tr('settings.goals', 'Goals'),
+              hint: 'Goals, key results and check-ins.',
+            },
             {
               path: ['parts', 'learning'],
-              label: 'Learning',
-              hint: 'Courses, sessions and attendance.',
+              label: tr('settings.learning', 'Learning'),
+              hint: tr(
+                'settings.courses_sessions_and_attendance',
+                'Courses, sessions and attendance.',
+              ),
             },
             {
               path: ['parts', 'calibration'],
-              label: 'Calibration',
+              label: tr('settings.calibration', 'Calibration'),
               hint: 'Sessions over a cycle’s scores, and the nine-box.',
             },
             {
               path: ['parts', 'automations'],
-              label: 'Automations',
-              hint: 'Cycles made on a calendar or after an event.',
+              label: tr('settings.automations', 'Automations'),
+              hint: tr(
+                'settings.cycles_made_on_a_calendar_or',
+                'Cycles made on a calendar or after an event.',
+              ),
             },
           ]}
         />
@@ -906,20 +1235,27 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
   return (
     <>
       <FormSection
-        title="Periods"
-        description="What a goal is set for, and how often its owner checks in."
+        title={tr('settings.periods', 'Periods')}
+        description={tr(
+          'settings.what_a_goal_is_set_for',
+          'What a goal is set for, and how often its owner checks in.',
+        )}
       >
         <List>
           {periods.map((p) => (
             <ListItem
               key={p.id}
-              description={`${day(p.from)} to ${day(p.to)} · check-ins ${cadence(p.cadence)}`}
+              description={tr(
+                'settings.to_check_ins',
+                '{{from}} to {{to}} · check-ins {{cadence}}',
+                { from: day(p.from), to: day(p.to), cadence: cadence(p.cadence) },
+              )}
               trailing={
                 ui.off ? undefined : (
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={`Remove ${p.name}`}
+                    aria-label={tr('settings.remove', 'Remove {{name}}', { name: p.name })}
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       ui.set(['periods'], periods.filter((x) => x.id !== p.id) as unknown as Json);
@@ -942,28 +1278,43 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
               setAdding(true);
             }}
           >
-            Add a period
+            {tr('settings.add_a_period', 'Add a period')}
           </Button>
         )}
       </FormSection>
-      <FormSection title="Goals">
+      <FormSection title={tr('settings.goals', 'Goals')}>
         <Switches
           ui={ui}
           items={[
             {
               path: ['weighted'],
-              label: 'Weighted goals',
-              hint: 'A person’s goals for a period add up to 100%.',
+              label: tr('settings.weighted_goals', 'Weighted goals'),
+              hint: tr(
+                'settings.a_persons_goals_for_a_period',
+                'A person’s goals for a period add up to 100%.',
+              ),
             },
             {
               path: ['rollUp'],
-              label: 'Parent goals take their children’s progress',
-              hint: 'Off: the parent’s owner updates it.',
+              label: tr(
+                'settings.parent_goals_take_their_childrens_progress',
+                'Parent goals take their children’s progress',
+              ),
+              hint: tr(
+                'settings.off_the_parents_owner_updates_it',
+                'Off: the parent’s owner updates it.',
+              ),
             },
             {
               path: ['follow'],
-              label: 'Key results can follow a Linear project or Jira epic',
-              hint: 'Once those tools are connected.',
+              label: tr(
+                'settings.key_results_can_follow_a_linear',
+                'Key results can follow a Linear project or Jira epic',
+              ),
+              hint: tr(
+                'settings.once_those_tools_are_connected',
+                'Once those tools are connected.',
+              ),
             },
           ]}
         />
@@ -973,7 +1324,7 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
         onClose={() => {
           setAdding(false);
         }}
-        title="Add a period"
+        title={tr('settings.add_a_period', 'Add a period')}
         footer={
           <>
             <Button
@@ -982,7 +1333,7 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
                 setAdding(false);
               }}
             >
-              Cancel
+              {tr('settings.cancel', 'Cancel')}
             </Button>
             <Button
               disabled={
@@ -1004,13 +1355,13 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
                 setDraft({ id: '', name: '', from: '', to: '', cadence: 'fortnightly' });
               }}
             >
-              Add
+              {tr('settings.add', 'Add')}
             </Button>
           </>
         }
       >
         <Field required>
-          <FieldLabel>Name</FieldLabel>
+          <FieldLabel>{tr('settings.name', 'Name')}</FieldLabel>
           <Input
             value={draft.name}
             placeholder="Q1 2027"
@@ -1020,10 +1371,10 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
           />
         </Field>
         <Field required>
-          <FieldLabel>From</FieldLabel>
+          <FieldLabel>{tr('settings.from', 'From')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="From"
+              label={tr('settings.from', 'From')}
               value={draft.from === '' ? null : draft.from}
               onChange={(d) => {
                 setDraft({ ...draft, from: d ?? '' });
@@ -1032,10 +1383,10 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
           </FieldControl>
         </Field>
         <Field required>
-          <FieldLabel>To</FieldLabel>
+          <FieldLabel>{tr('settings.to', 'To')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="To"
+              label={tr('settings.to', 'To')}
               value={draft.to === '' ? null : draft.to}
               onChange={(d) => {
                 setDraft({ ...draft, to: d ?? '' });
@@ -1044,7 +1395,7 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
           </FieldControl>
         </Field>
         <Choose
-          label="Check-ins"
+          label={tr('settings.check_ins', 'Check-ins')}
           value={draft.cadence}
           options={CADENCE}
           onChange={(v) => {
@@ -1071,11 +1422,16 @@ function AccessSettings({
   );
   return (
     <FormSection
-      title="HR to Performance"
-      description="They run cycles and calibration and read every review, beyond the company’s administrators, who always can."
+      title={tr('settings.hr_to_performance', 'HR to Performance')}
+      description={tr(
+        'settings.they_run_cycles_and_calibration_and',
+        'They run cycles and calibration and read every review, beyond the company’s administrators, who always can.',
+      )}
     >
       {ids.length === 0 ? (
-        <p className="text-sm text-fg-muted">Only the company’s administrators.</p>
+        <p className="text-sm text-fg-muted">
+          {tr('settings.only_the_companys_administrators', 'Only the company’s administrators.')}
+        </p>
       ) : (
         <List>
           {ids.map((id) => (
@@ -1086,7 +1442,9 @@ function AccessSettings({
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={`Remove ${named[id] ?? 'this person'}`}
+                    aria-label={tr('settings.remove_2', 'Remove {{value}}', {
+                      value: named[id] ?? 'this person',
+                    })}
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       ui.set(
@@ -1098,7 +1456,7 @@ function AccessSettings({
                 )
               }
             >
-              {named[id] ?? 'Someone who left'}
+              {named[id] ?? tr('settings.someone_who_left', 'Someone who left')}
             </ListItem>
           ))}
         </List>
@@ -1106,7 +1464,7 @@ function AccessSettings({
       {ui.off ? null : (
         <PersonPicker
           act={act}
-          label="Add someone"
+          label={tr('settings.add_someone', 'Add someone')}
           value={[]}
           onChange={(picked, people) => {
             const id = picked[0];
@@ -1142,7 +1500,7 @@ function Scale({
         >
           <NumberField
             hideSteppers
-            label="Value"
+            label={tr('settings.value', 'Value')}
             value={o.value}
             disabled={disabled}
             onChange={(v) => {
@@ -1150,7 +1508,7 @@ function Scale({
             }}
           />
           <Field>
-            <FieldLabel>Label</FieldLabel>
+            <FieldLabel>{tr('settings.label', 'Label')}</FieldLabel>
             <Input
               value={o.label}
               disabled={disabled}
@@ -1160,10 +1518,10 @@ function Scale({
             />
           </Field>
           <Field>
-            <FieldLabel>What it means</FieldLabel>
+            <FieldLabel>{tr('settings.what_it_means', 'What it means')}</FieldLabel>
             <Input
               value={o.description ?? ''}
-              placeholder="Optional"
+              placeholder={tr('settings.optional', 'Optional')}
               disabled={disabled}
               onChange={(e) => {
                 change(i, { description: e.target.value === '' ? null : e.target.value });
@@ -1172,7 +1530,9 @@ function Scale({
           </Field>
           <Button
             variant="ghost"
-            aria-label={`Remove ${o.label || 'this level'}`}
+            aria-label={tr('settings.remove_2', 'Remove {{value}}', {
+              value: o.label || 'this level',
+            })}
             startIcon={<icons.delete aria-hidden />}
             disabled={disabled || value.length <= 2}
             onClick={() => {
@@ -1192,7 +1552,7 @@ function Scale({
             onChange([...value, { value: top + 1, label: '', description: null }]);
           }}
         >
-          Add a level
+          {tr('settings.add_a_level', 'Add a level')}
         </Button>
       )}
     </div>
@@ -1219,27 +1579,33 @@ export function AiLog(props: ScreenProps<AiLogData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="AI log"
-            description="Each time AI wrote, suggested or checked something: the feature, for whom, the prompt version and what became of it."
+            title={tr('settings.ai_log', 'AI log')}
+            description={tr(
+              'settings.each_time_ai_wrote_suggested_or',
+              'Each time AI wrote, suggested or checked something: the feature, for whom, the prompt version and what became of it.',
+            )}
           />
           <Card>
             <CardContent className="overflow-x-auto">
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.assistant aria-hidden />}
-                  title="No AI output yet"
-                  description="Summaries, suggestions and checks are logged here."
+                  title={tr('settings.no_ai_output_yet', 'No AI output yet')}
+                  description={tr(
+                    'settings.summaries_suggestions_and_checks_are_logged',
+                    'Summaries, suggestions and checks are logged here.',
+                  )}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>When</TableHead>
-                      <TableHead>Feature</TableHead>
-                      <TableHead>For</TableHead>
-                      <TableHead>On</TableHead>
-                      <TableHead>Prompt</TableHead>
-                      <TableHead>Outcome</TableHead>
+                      <TableHead>{tr('settings.when', 'When')}</TableHead>
+                      <TableHead>{tr('settings.feature', 'Feature')}</TableHead>
+                      <TableHead>{tr('settings.for', 'For')}</TableHead>
+                      <TableHead>{tr('settings.on', 'On')}</TableHead>
+                      <TableHead>{tr('settings.prompt', 'Prompt')}</TableHead>
+                      <TableHead>{tr('settings.outcome', 'Outcome')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1284,15 +1650,15 @@ export interface ConnectedToolsData {
 }
 
 const SOURCE: Readonly<Record<string, string>> = {
-  slack: 'Slack',
-  teams: 'Microsoft Teams',
-  gchat: 'Google Chat',
-  meet: 'Google Meet',
+  slack: tr('settings.slack', 'Slack'),
+  teams: tr('settings.microsoft_teams', 'Microsoft Teams'),
+  gchat: tr('settings.google_chat', 'Google Chat'),
+  meet: tr('settings.google_meet', 'Google Meet'),
   github: 'GitHub',
   gitlab: 'GitLab',
-  linear: 'Linear',
-  jira: 'Jira',
-  confluence: 'Confluence',
+  linear: tr('settings.linear', 'Linear'),
+  jira: tr('settings.jira', 'Jira'),
+  confluence: tr('settings.confluence', 'Confluence'),
 };
 
 /** S12: what I let Kithena read of my own work, each on or off, and every read. */
@@ -1328,21 +1694,33 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="My connected tools"
-            description="What Kithena may read of your own work to suggest evidence for reviews about you and by you. Off stops it at once and drops what was read."
+            title={tr('settings.my_connected_tools', 'My connected tools')}
+            description={tr(
+              'settings.what_kithena_may_read_of_your',
+              'What Kithena may read of your own work to suggest evidence for reviews about you and by you. Off stops it at once and drops what was read.',
+            )}
           />
           <Refusal error={refused ?? act.error} />
           {linked === undefined ? null : (
             <Alert
               tone="success"
-              title={`${linked} is linked`}
-            >{`Kithena's AI may now read what you can see in ${linked} when it drafts a review with you.`}</Alert>
+              title={tr('settings.is_linked', '{{linked}} is linked', { linked })}
+            >
+              {tr(
+                'settings.kithenas_ai_may_now_read_what',
+                "Kithena's AI may now read what you can see in {{linked}} when it drafts a review with you.",
+                { linked },
+              )}
+            </Alert>
           )}
           {notLinked === undefined ? null : <Alert tone="warning" title={notLinked} />}
           <FormSections>
             <FormSection
-              title="Tools"
-              description="Each is read only for reviews about you or by you, only for the review's period, and nothing read is kept."
+              title={tr('settings.tools', 'Tools')}
+              description={tr(
+                'settings.each_is_read_only_for_reviews',
+                "Each is read only for reviews about you or by you, only for the review's period, and nothing read is kept.",
+              )}
             >
               <List>
                 {data.sources.map((s) => {
@@ -1353,14 +1731,24 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
                       key={s.source}
                       description={
                         !available
-                          ? 'Not available yet'
+                          ? tr('settings.not_available_yet', 'Not available yet')
                           : [
                               s.account === null || s.account === undefined
                                 ? s.on
                                   ? null
-                                  : 'Turning it on asks you to approve it there'
-                                : `Linked as ${s.account}`,
-                              s.at === null ? null : `${s.on ? 'On' : 'Off'} since ${when(s.at)}`,
+                                  : tr(
+                                      'settings.turning_it_on_asks_you_to',
+                                      'Turning it on asks you to approve it there',
+                                    )
+                                : tr('settings.linked_as', 'Linked as {{account}}', {
+                                    account: s.account,
+                                  }),
+                              s.at === null
+                                ? null
+                                : tr('settings.since', '{{value}} since {{at}}', {
+                                    value: s.on ? 'On' : 'Off',
+                                    at: when(s.at),
+                                  }),
                             ]
                               .filter((x) => x !== null)
                               .join(' · ')
@@ -1370,7 +1758,10 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
                           {s.install === null || s.install === undefined || s.on ? null : (
                             <Button asChild size="sm" variant="ghost">
                               <a href={s.install} target="_blank" rel="noreferrer">
-                                Install for your company
+                                {tr(
+                                  'settings.install_for_your_company',
+                                  'Install for your company',
+                                )}
                               </a>
                             </Button>
                           )}
@@ -1391,9 +1782,17 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
                 })}
               </List>
             </FormSection>
-            <FormSection title="Recent reads" description="Every time Kithena read something.">
+            <FormSection
+              title={tr('settings.recent_reads', 'Recent reads')}
+              description={tr(
+                'settings.every_time_kithena_read_something',
+                'Every time Kithena read something.',
+              )}
+            >
               {data.reads.length === 0 ? (
-                <p className="text-sm text-fg-muted">Nothing has been read.</p>
+                <p className="text-sm text-fg-muted">
+                  {tr('settings.nothing_has_been_read', 'Nothing has been read.')}
+                </p>
               ) : (
                 <List>
                   {data.reads.map((r) => (
@@ -1484,13 +1883,18 @@ function RetentionPage({
   return (
     <div className="flex flex-col gap-4 pb-16">
       <PageHeader
-        title="Retention"
-        description="How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names."
+        title={tr('settings.retention', 'Retention')}
+        description={tr(
+          'settings.how_long_each_kind_of_record_2',
+          'How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names.',
+        )}
       />
       <Refusal error={act.error} />
       <Card>
         <CardHeader>
-          <CardTitle level={2}>After someone leaves</CardTitle>
+          <CardTitle level={2}>
+            {tr('settings.after_someone_leaves', 'After someone leaves')}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-col gap-4">
@@ -1500,7 +1904,7 @@ function RetentionPage({
                 <NumberField
                   key={k.kind}
                   label={k.label}
-                  suffix="years"
+                  suffix={tr('settings.years', 'years')}
                   min={1}
                   max={30}
                   value={rule[key] ?? null}
@@ -1513,7 +1917,10 @@ function RetentionPage({
             })}
           </div>
           <p className="text-sm text-fg-muted">
-            A leaver’s own notes go 30 days after their last day, whatever is set here.
+            {tr(
+              'settings.a_leavers_own_notes_go_30',
+              'A leaver’s own notes go 30 days after their last day, whatever is set here.',
+            )}
           </p>
           <FormSaveBar
             open={changed && data.admin}
@@ -1533,14 +1940,17 @@ function RetentionPage({
 
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Due to go</CardTitle>
+          <CardTitle level={2}>{tr('settings.due_to_go', 'Due to go')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 overflow-x-auto">
           {data.due.length === 0 ? (
             <EmptyState
               icon={<icons.archive aria-hidden />}
-              title="Nothing is due"
-              description="Records appear here once their time after someone leaves has passed."
+              title={tr('settings.nothing_is_due', 'Nothing is due')}
+              description={tr(
+                'settings.records_appear_here_once_their_time',
+                'Records appear here once their time after someone leaves has passed.',
+              )}
             />
           ) : (
             <>
@@ -1548,11 +1958,11 @@ function RetentionPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>
-                      <span className="sr-only">Choose</span>
+                      <span className="sr-only">{tr('settings.choose', 'Choose')}</span>
                     </TableHead>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Left</TableHead>
-                    <TableHead>What goes</TableHead>
+                    <TableHead>{tr('settings.person', 'Person')}</TableHead>
+                    <TableHead>{tr('settings.left', 'Left')}</TableHead>
+                    <TableHead>{tr('settings.what_goes', 'What goes')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1560,7 +1970,11 @@ function RetentionPage({
                     <TableRow key={d.personId}>
                       <TableCell>
                         <Checkbox
-                          aria-label={`Delete ${d.name}’s due records`}
+                          aria-label={tr(
+                            'settings.delete_s_due_records',
+                            'Delete {{name}}’s due records',
+                            { name: d.name },
+                          )}
                           checked={chosen.includes(d.personId)}
                           onCheckedChange={(on) => {
                             setChosen(
@@ -1574,7 +1988,14 @@ function RetentionPage({
                       <TableCell>{d.name}</TableCell>
                       <TableCell>{day(d.leftOn)}</TableCell>
                       <TableCell className="text-sm">
-                        {d.what.map((w) => `${w.label}: ${String(w.count)}`).join(' · ')}
+                        {d.what
+                          .map((w) =>
+                            tr('settings.text', '{{label}}: {{count}}', {
+                              label: w.label,
+                              count: String(w.count),
+                            }),
+                          )
+                          .join(' · ')}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1589,8 +2010,10 @@ function RetentionPage({
                 }}
               >
                 {chosen.length === 0
-                  ? 'Delete'
-                  : `Delete ${plural(chosen.length, 'person’s', 'people’s')} records`}
+                  ? tr('settings.delete', 'Delete')
+                  : tr('settings.delete_records', 'Delete {{length}} records', {
+                      length: plural(chosen.length, 'person’s', 'people’s'),
+                    })}
               </Button>
             </>
           )}
@@ -1599,20 +2022,22 @@ function RetentionPage({
 
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Legal holds</CardTitle>
+          <CardTitle level={2}>{tr('settings.legal_holds', 'Legal holds')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {data.holds.length === 0 ? (
-            <p className="text-sm text-fg-muted">No one’s records are held.</p>
+            <p className="text-sm text-fg-muted">
+              {tr('settings.no_ones_records_are_held', 'No one’s records are held.')}
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Person</TableHead>
-                  <TableHead>Why</TableHead>
-                  <TableHead>Since</TableHead>
+                  <TableHead>{tr('settings.person', 'Person')}</TableHead>
+                  <TableHead>{tr('settings.why', 'Why')}</TableHead>
+                  <TableHead>{tr('settings.since_2', 'Since')}</TableHead>
                   <TableHead>
-                    <span className="sr-only">Lift</span>
+                    <span className="sr-only">{tr('settings.lift', 'Lift')}</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -1634,7 +2059,7 @@ function RetentionPage({
                           });
                         }}
                       >
-                        Lift
+                        {tr('settings.lift', 'Lift')}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -1650,7 +2075,7 @@ function RetentionPage({
               setHolding(true);
             }}
           >
-            Place a hold
+            {tr('settings.place_a_hold', 'Place a hold')}
           </Button>
         </CardContent>
       </Card>
@@ -1658,15 +2083,15 @@ function RetentionPage({
       {data.upcoming.length === 0 ? null : (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Coming up</CardTitle>
+            <CardTitle level={2}>{tr('settings.coming_up', 'Coming up')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Person</TableHead>
-                  <TableHead>Left</TableHead>
-                  <TableHead>Next due</TableHead>
+                  <TableHead>{tr('settings.person', 'Person')}</TableHead>
+                  <TableHead>{tr('settings.left', 'Left')}</TableHead>
+                  <TableHead>{tr('settings.next_due', 'Next due')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1685,14 +2110,21 @@ function RetentionPage({
 
       <Card>
         <CardHeader>
-          <CardTitle level={2}>A person’s data</CardTitle>
+          <CardTitle level={2}>{tr('settings.a_persons_data', 'A person’s data')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm text-fg-muted">
-            For a request to see or take their data: everything about them in Performance, without
-            the private questions about them or the names of anyone who wrote in confidence.
+            {tr(
+              'settings.for_a_request_to_see_or',
+              'For a request to see or take their data: everything about them in Performance, without the private questions about them or the names of anyone who wrote in confidence.',
+            )}
           </p>
-          <PersonPicker act={act} label="Whose data" value={whose} onChange={setWhose} />
+          <PersonPicker
+            act={act}
+            label={tr('settings.whose_data', 'Whose data')}
+            value={whose}
+            onChange={setWhose}
+          />
           <Button
             className="self-start"
             variant="secondary"
@@ -1705,7 +2137,7 @@ function RetentionPage({
               });
             }}
           >
-            Export their data
+            {tr('settings.export_their_data', 'Export their data')}
           </Button>
         </CardContent>
       </Card>
@@ -1715,8 +2147,11 @@ function RetentionPage({
         onClose={() => {
           setConfirming(false);
         }}
-        title="Delete these records?"
-        description="They are gone for good: reviews, feedback, notes, learning and AI output whose time has passed. The activity log keeps that you did it."
+        title={tr('settings.delete_these_records', 'Delete these records?')}
+        description={tr(
+          'settings.they_are_gone_for_good_reviews',
+          'They are gone for good: reviews, feedback, notes, learning and AI output whose time has passed. The activity log keeps that you did it.',
+        )}
         footer={
           <>
             <Button
@@ -1725,7 +2160,7 @@ function RetentionPage({
                 setConfirming(false);
               }}
             >
-              Cancel
+              {tr('settings.cancel', 'Cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -1737,7 +2172,7 @@ function RetentionPage({
                 });
               }}
             >
-              Delete
+              {tr('settings.delete', 'Delete')}
             </Button>
           </>
         }
@@ -1755,8 +2190,11 @@ function RetentionPage({
         onClose={() => {
           setHolding(false);
         }}
-        title="Place a legal hold"
-        description="Nothing of this person’s is deleted until the hold is lifted, whatever the retention periods say."
+        title={tr('settings.place_a_legal_hold', 'Place a legal hold')}
+        description={tr(
+          'settings.nothing_of_this_persons_is_deleted',
+          'Nothing of this person’s is deleted until the hold is lifted, whatever the retention periods say.',
+        )}
         footer={
           <>
             <Button
@@ -1765,7 +2203,7 @@ function RetentionPage({
                 setHolding(false);
               }}
             >
-              Cancel
+              {tr('settings.cancel', 'Cancel')}
             </Button>
             <Button
               disabled={holdFor.length === 0 || reason.trim() === ''}
@@ -1782,20 +2220,28 @@ function RetentionPage({
                 );
               }}
             >
-              Place the hold
+              {tr('settings.place_the_hold', 'Place the hold')}
             </Button>
           </>
         }
       >
-        <PersonPicker act={act} label="Whose records" value={holdFor} onChange={setHoldFor} />
+        <PersonPicker
+          act={act}
+          label={tr('settings.whose_records', 'Whose records')}
+          value={holdFor}
+          onChange={setHoldFor}
+        />
         <Field required>
-          <FieldLabel>Why</FieldLabel>
+          <FieldLabel>{tr('settings.why', 'Why')}</FieldLabel>
           <Input
             value={reason}
             onChange={(e) => {
               setReason(e.target.value);
             }}
-            placeholder="A tribunal claim, an investigation"
+            placeholder={tr(
+              'settings.a_tribunal_claim_an_investigation',
+              'A tribunal claim, an investigation',
+            )}
           />
         </Field>
       </Modal>
@@ -1841,8 +2287,11 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Webhooks"
-            description="Performance’s events sent to your own systems as they happen, in the order they happened, each signed so you can check it came from Kithena."
+            title={tr('settings.webhooks', 'Webhooks')}
+            description={tr(
+              'settings.performances_events_sent_to_your_own',
+              'Performance’s events sent to your own systems as they happen, in the order they happened, each signed so you can check it came from Kithena.',
+            )}
             actions={
               data.available ? (
                 <Button
@@ -1851,32 +2300,39 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                     setAdding(true);
                   }}
                 >
-                  Add an endpoint
+                  {tr('settings.add_an_endpoint', 'Add an endpoint')}
                 </Button>
               ) : null
             }
           />
           <Refusal error={act.error} />
-          {data.available ? null : <Alert tone="info">Webhooks aren’t set up here yet.</Alert>}
+          {data.available ? null : (
+            <Alert tone="info">
+              {tr('settings.webhooks_arent_set_up_here_yet', 'Webhooks aren’t set up here yet.')}
+            </Alert>
+          )}
           {tested === null ? null : <Alert tone="info">{tested}</Alert>}
           <Card>
             <CardContent className="overflow-x-auto">
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.link aria-hidden />}
-                  title="No endpoints"
-                  description="Add one to receive reviews released, cycles launched, ratings finalised and the rest."
+                  title={tr('settings.no_endpoints', 'No endpoints')}
+                  description={tr(
+                    'settings.add_one_to_receive_reviews_released',
+                    'Add one to receive reviews released, cycles launched, ratings finalised and the rest.',
+                  )}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Endpoint</TableHead>
-                      <TableHead>Events</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last delivery</TableHead>
+                      <TableHead>{tr('settings.endpoint', 'Endpoint')}</TableHead>
+                      <TableHead>{tr('settings.events', 'Events')}</TableHead>
+                      <TableHead>{tr('settings.status', 'Status')}</TableHead>
+                      <TableHead>{tr('settings.last_delivery', 'Last delivery')}</TableHead>
                       <TableHead>
-                        <span className="sr-only">Actions</span>
+                        <span className="sr-only">{tr('settings.actions', 'Actions')}</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1886,31 +2342,36 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                         <TableCell className="font-mono text-sm">{r.url}</TableCell>
                         <TableCell className="text-sm">
                           {r.events.includes('*')
-                            ? 'Every event'
+                            ? tr('settings.every_event', 'Every event')
                             : r.events.map(eventWords).join(', ')}
                         </TableCell>
                         <TableCell>
                           {r.disabled !== null ? (
                             <span className="flex flex-col gap-0.5">
                               <Badge size="sm" tone="danger">
-                                Off
+                                {tr('settings.off', 'Off')}
                               </Badge>
                               <span className="text-xs text-fg-muted">{r.disabled.why}</span>
                             </span>
                           ) : r.failing !== null ? (
                             <Badge size="sm" tone="warning">
-                              {`Failing since ${when(r.failing.since)}`}
+                              {tr('settings.failing_since', 'Failing since {{since}}', {
+                                since: when(r.failing.since),
+                              })}
                             </Badge>
                           ) : (
                             <Badge size="sm" tone="success">
-                              On
+                              {tr('settings.on', 'On')}
                             </Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-fg-muted">
                           {r.last === null
-                            ? 'None yet'
-                            : `${when(r.last.at)} · ${r.last.status === 0 ? 'no answer' : String(r.last.status)}`}
+                            ? tr('settings.none_yet', 'None yet')
+                            : tr('settings.text_2', '{{at}} · {{value}}', {
+                                at: when(r.last.at),
+                                value: r.last.status === 0 ? 'no answer' : String(r.last.status),
+                              })}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -1918,7 +2379,9 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                aria-label={`Actions for ${r.url}`}
+                                aria-label={tr('settings.actions_for', 'Actions for {{url}}', {
+                                  url: r.url,
+                                })}
                                 startIcon={<icons.more aria-hidden />}
                               />
                             </DropdownMenuTrigger>
@@ -1939,7 +2402,7 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                                   );
                                 }}
                               >
-                                Send a test
+                                {tr('settings.send_a_test', 'Send a test')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => {
@@ -1952,7 +2415,7 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                                   );
                                 }}
                               >
-                                New secret
+                                {tr('settings.new_secret', 'New secret')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => {
@@ -1962,14 +2425,16 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                                   });
                                 }}
                               >
-                                {r.disabled === null ? 'Turn off' : 'Turn on'}
+                                {r.disabled === null
+                                  ? tr('settings.turn_off', 'Turn off')
+                                  : tr('settings.turn_on', 'Turn on')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onSelect={() => {
                                   act.run('RemovePerformanceWebhook', { id: r.id });
                                 }}
                               >
-                                Remove
+                                {tr('settings.remove_3', 'Remove')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1986,8 +2451,11 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
             onClose={() => {
               setAdding(false);
             }}
-            title="Add an endpoint"
-            description="An https address on the public internet. It is sent only what is written from now on."
+            title={tr('settings.add_an_endpoint', 'Add an endpoint')}
+            description={tr(
+              'settings.an_https_address_on_the_public',
+              'An https address on the public internet. It is sent only what is written from now on.',
+            )}
             footer={
               <>
                 <Button
@@ -1996,7 +2464,7 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                     setAdding(false);
                   }}
                 >
-                  Cancel
+                  {tr('settings.cancel', 'Cancel')}
                 </Button>
                 <Button
                   disabled={url.trim() === '' || (which === 'choose' && chosen.length === 0)}
@@ -2014,14 +2482,14 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                     );
                   }}
                 >
-                  Add
+                  {tr('settings.add', 'Add')}
                 </Button>
               </>
             }
           >
             <Refusal error={act.error} />
             <Field required>
-              <FieldLabel>Address</FieldLabel>
+              <FieldLabel>{tr('settings.address', 'Address')}</FieldLabel>
               <Input
                 type="url"
                 value={url}
@@ -2031,9 +2499,13 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                 placeholder="https://hooks.example.com/kithena"
               />
             </Field>
-            <RadioGroup aria-label="Which events" value={which} onValueChange={setWhich}>
-              <RadioCard value="every">Every event</RadioCard>
-              <RadioCard value="choose">Only these</RadioCard>
+            <RadioGroup
+              aria-label={tr('settings.which_events', 'Which events')}
+              value={which}
+              onValueChange={setWhich}
+            >
+              <RadioCard value="every">{tr('settings.every_event', 'Every event')}</RadioCard>
+              <RadioCard value="choose">{tr('settings.only_these', 'Only these')}</RadioCard>
             </RadioGroup>
             {which === 'choose' ? (
               <div className="flex flex-col gap-1.5">
@@ -2056,19 +2528,25 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
             onClose={() => {
               setSecret(null);
             }}
-            title="The endpoint’s secret"
-            description="Shown this once. Every delivery carries kithena-signature: v1=<hex>, the HMAC-SHA256 of the body with this secret. After a new secret, the old one also signs for a day."
+            title={tr('settings.the_endpoints_secret', 'The endpoint’s secret')}
+            description={tr(
+              'settings.shown_this_once_every_delivery_carries',
+              'Shown this once. Every delivery carries kithena-signature: v1=<hex>, the HMAC-SHA256 of the body with this secret. After a new secret, the old one also signs for a day.',
+            )}
             footer={
               <Button
                 onClick={() => {
                   setSecret(null);
                 }}
               >
-                Done
+                {tr('settings.done', 'Done')}
               </Button>
             }
           >
-            <CopyField value={secret ?? ''} label="Copy the secret" />
+            <CopyField
+              value={secret ?? ''}
+              label={tr('settings.copy_the_secret', 'Copy the secret')}
+            />
           </Modal>
         </div>
       )}

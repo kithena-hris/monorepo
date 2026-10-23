@@ -23,6 +23,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import type { Outcome } from '../../load';
+import { t } from '../../i18n';
 
 /**
  * People in the company's chat apps (Slack today, others later): connect one,
@@ -89,16 +90,28 @@ export function ChatApps({
   const connected = state.apps.filter((a) => a.connection !== null);
   return (
     <PageSection
-      title="Chat apps"
-      description="Ask questions, approve changes and fill in details from your chat app, with the same access as in Kithena."
+      title={t('settings.integrations.chat-apps.chat_apps', 'Chat apps')}
+      description={t(
+        'settings.integrations.chat-apps.ask_questions_approve_changes_and_fill',
+        'Ask questions, approve changes and fill in details from your chat app, with the same access as in Kithena.',
+      )}
     >
       <Stack gap={4}>
         {returned === undefined || returned === null ? null : (
           <Alert tone={returned.ok ? 'success' : 'danger'} title={returned.message} />
         )}
         {state.apps.length === 0 ? (
-          <Alert tone="info" title="No chat app is set up in this deployment">
-            Ask whoever runs Kithena for you to add one.
+          <Alert
+            tone="info"
+            title={t(
+              'settings.integrations.chat-apps.no_chat_app_is_set_up',
+              'No chat app is set up in this deployment',
+            )}
+          >
+            {t(
+              'settings.integrations.chat-apps.ask_whoever_runs_kithena_for_you',
+              'Ask whoever runs Kithena for you to add one.',
+            )}
           </Alert>
         ) : (
           state.apps.map((app) => (
@@ -162,45 +175,69 @@ function AppRow({
       description={
         app.connection === null
           ? app.canConnect
-            ? `Connect your ${app.name} workspace. You approve it in ${app.name}, then come straight back here.`
-            : `${app.name} is not set up in this deployment yet.`
-          : `Connected to ${app.connection.workspace} since ${since ?? ''}. People can mention Kithena or message it directly to ask a question.`
+            ? t(
+                'settings.integrations.chat-apps.connect_your_workspace_you_approve_it',
+                'Connect your {{name}} workspace. You approve it in {{name2}}, then come straight back here.',
+                { name: app.name, name2: app.name },
+              )
+            : t(
+                'settings.integrations.chat-apps.is_not_set_up_in_this',
+                '{{name}} is not set up in this deployment yet.',
+                { name: app.name },
+              )
+          : t(
+              'settings.integrations.chat-apps.connected_to_since_people_can_mention',
+              'Connected to {{workspace}} since {{value}}. People can mention Kithena or message it directly to ask a question.',
+              { workspace: app.connection.workspace, value: since ?? '' },
+            )
       }
       actions={
         <span className="flex items-center gap-3">
           <Badge tone={app.connection === null ? 'neutral' : 'success'}>
-            {app.connection === null ? 'Not connected' : 'Connected'}
+            {app.connection === null
+              ? t('settings.integrations.chat-apps.not_connected', 'Not connected')
+              : t('settings.integrations.chat-apps.connected', 'Connected')}
           </Badge>
           {app.connection === null ? (
             <Button
               variant="primary"
               disabled={!app.canConnect}
               loading={busy}
-              loadingLabel="Opening"
+              loadingLabel={t('settings.integrations.chat-apps.opening', 'Opening')}
               startIcon={mark === null ? undefined : <AppMark app={mark} tone="mono" />}
               onClick={() => {
                 void connect();
               }}
             >
-              Add to {app.name}
+              {t('settings.integrations.chat-apps.add_to', 'Add to')} {app.name}
             </Button>
           ) : (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button size="sm" loading={busy} loadingLabel="Disconnecting">
-                  Disconnect
+                <Button
+                  size="sm"
+                  loading={busy}
+                  loadingLabel={t('settings.integrations.chat-apps.disconnecting', 'Disconnecting')}
+                >
+                  {t('settings.integrations.chat-apps.disconnect', 'Disconnect')}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <AlertDialogTitle>Disconnect {app.name}?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t('settings.integrations.chat-apps.disconnect', 'Disconnect')} {app.name}?
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Kithena leaves {app.connection.workspace}. Nobody can ask it questions there, and
-                  notices go by email only. Buttons on messages already sent stop working. You can
-                  connect it again at any time.
+                  {t(
+                    'settings.integrations.chat-apps.kithena_leaves_nobody_can_ask_it',
+                    'Kithena leaves {{workspace}}. Nobody can ask it questions there, and notices go by email only. Buttons on messages already sent stop working. You can connect it again at any time.',
+                    { workspace: app.connection.workspace },
+                  )}
                 </AlertDialogDescription>
                 <AlertDialogFooter>
                   <AlertDialogCancel asChild>
-                    <Button>Keep it connected</Button>
+                    <Button>
+                      {t('settings.integrations.chat-apps.keep_it_connected', 'Keep it connected')}
+                    </Button>
                   </AlertDialogCancel>
                   <AlertDialogAction asChild>
                     <Button
@@ -214,7 +251,7 @@ function AppRow({
                         });
                       }}
                     >
-                      Disconnect
+                      {t('settings.integrations.chat-apps.disconnect', 'Disconnect')}
                     </Button>
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -264,8 +301,19 @@ function Notices({
           <FieldLabel>{n.label}</FieldLabel>
           <FieldDescription>
             {n.action === null
-              ? `To ${n.to.toLowerCase()}. ${n.description}`
-              : `To ${n.to.toLowerCase()}, who can ${n.action.toLowerCase()} from the message itself. ${n.description}`}
+              ? t('settings.integrations.chat-apps.to', 'To {{to}}. {{description}}', {
+                  to: n.to.toLowerCase(),
+                  description: n.description,
+                })
+              : t(
+                  'settings.integrations.chat-apps.to_who_can_from_the_message',
+                  'To {{to}}, who can {{action}} from the message itself. {{description}}',
+                  {
+                    to: n.to.toLowerCase(),
+                    action: n.action.toLowerCase(),
+                    description: n.description,
+                  },
+                )}
           </FieldDescription>
         </div>
         <FieldControl>
@@ -286,11 +334,22 @@ function Notices({
   return (
     <PageSection
       surface
-      title="What Kithena sends in chat"
+      title={t(
+        'settings.integrations.chat-apps.what_kithena_sends_in_chat',
+        'What Kithena sends in chat',
+      )}
       description={
         connected.length === 0
           ? 'Choose what goes to chat. Nothing is sent until a chat app is connected; email carries on as it does now.'
-          : `${String(count)} of ${String(notices.length)} on, sent to ${connected.join(' and ')} as a direct message to the person it is for, as well as by email.`
+          : t(
+              'settings.integrations.chat-apps.of_on_sent_to_as_a',
+              '{{count}} of {{length}} on, sent to {{join}} as a direct message to the person it is for, as well as by email.',
+              {
+                count: String(count),
+                length: String(notices.length),
+                join: connected.join(' and '),
+              },
+            )
       }
     >
       <Stack gap={6}>
@@ -298,10 +357,13 @@ function Notices({
         <section aria-labelledby="chat-actions" className="flex flex-col gap-3">
           <div>
             <h3 id="chat-actions" className="text-sm font-semibold text-fg">
-              Things to do
+              {t('settings.integrations.chat-apps.things_to_do', 'Things to do')}
             </h3>
             <p className="text-sm text-fg-muted">
-              Each arrives with buttons, so it is done in the chat without opening Kithena.
+              {t(
+                'settings.integrations.chat-apps.each_arrives_with_buttons_so_it',
+                'Each arrives with buttons, so it is done in the chat without opening Kithena.',
+              )}
             </p>
           </div>
           <ul className="flex flex-col divide-y divide-border">{actions.map(row)}</ul>
@@ -309,10 +371,13 @@ function Notices({
         <section aria-labelledby="chat-updates" className="flex flex-col gap-3">
           <div>
             <h3 id="chat-updates" className="text-sm font-semibold text-fg">
-              Updates
+              {t('settings.integrations.chat-apps.updates', 'Updates')}
             </h3>
             <p className="text-sm text-fg-muted">
-              To let somebody know how something turned out. Nothing to do.
+              {t(
+                'settings.integrations.chat-apps.to_let_somebody_know_how_something',
+                'To let somebody know how something turned out. Nothing to do.',
+              )}
             </p>
           </div>
           <ul className="flex flex-col divide-y divide-border">{updates.map(row)}</ul>
@@ -334,18 +399,29 @@ function Answers({
   return (
     <PageSection
       surface
-      title="What the assistant and chat can use"
-      description={`${String(fields.on.length)} of ${String(fields.shareable)} fields that may be shared are. The assistant can answer questions about them, and a chat message may show their values to somebody who can see them in Kithena. The model itself learns a field’s name and options, never anybody’s value.`}
+      title={t(
+        'settings.integrations.chat-apps.what_the_assistant_and_chat_can',
+        'What the assistant and chat can use',
+      )}
+      description={t(
+        'settings.integrations.chat-apps.of_fields_that_may_be_shared',
+        '{{length}} of {{shareable}} fields that may be shared are. The assistant can answer questions about them, and a chat message may show their values to somebody who can see them in Kithena. The model itself learns a field’s name and options, never anybody’s value.',
+        { length: String(fields.on.length), shareable: String(fields.shareable) },
+      )}
       actions={
         <Button asChild variant="secondary">
-          <a href={fieldsHref}>Choose fields</a>
+          <a href={fieldsHref}>
+            {t('settings.integrations.chat-apps.choose_fields', 'Choose fields')}
+          </a>
         </Button>
       }
     >
       {fields.on.length === 0 ? (
         <p className="text-sm text-fg-muted">
-          No field is shared yet, so the assistant can only say who is who. Choose fields in
-          Employee fields, under Assistant.
+          {t(
+            'settings.integrations.chat-apps.no_field_is_shared_yet_so',
+            'No field is shared yet, so the assistant can only say who is who. Choose fields in Employee fields, under Assistant.',
+          )}
         </p>
       ) : (
         <span className="flex flex-wrap gap-1.5">
@@ -354,7 +430,13 @@ function Answers({
               {f.label}
             </Badge>
           ))}
-          {more > 0 ? <Badge tone="neutral">and {String(more)} more</Badge> : null}
+          {more > 0 ? (
+            <Badge tone="neutral">
+              {t('settings.integrations.chat-apps.and_more', 'and {{more}} more', {
+                more: String(more),
+              })}
+            </Badge>
+          ) : null}
         </span>
       )}
     </PageSection>

@@ -20,6 +20,7 @@ import { Loaded, type Loadable } from '../load';
 import { AccessBadge, DocIcon, meta, shortDate } from '../shared';
 import type { Created, Outcome, PersonFileData, StartUpload } from '../types';
 import { UploadDialog, type UploadInput, type UploadPreset } from '../upload';
+import { t as tr } from '../i18n';
 
 /**
  * A person's file (B3, MH2): what their document types require, in order,
@@ -43,10 +44,18 @@ export interface PersonFileProps {
 }
 
 export function PersonFile(props: PersonFileProps): JSX.Element {
-  if (props.load.status === 'loading') return <Skeleton shape="page" label="Loading the file" />;
+  if (props.load.status === 'loading')
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('people.person-file.loading_the_file', 'Loading the file')}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
-      {props.load.status === 'error' ? <PageHeader title="A person’s file" /> : null}
+      {props.load.status === 'error' ? (
+        <PageHeader title={tr('people.person-file.a_persons_file', 'A person’s file')} />
+      ) : null}
       <Loaded load={props.load} what="the file">
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -55,10 +64,10 @@ export function PersonFile(props: PersonFileProps): JSX.Element {
 }
 
 const STATE = {
-  have: { label: 'In the file', tone: 'success' },
-  asked: { label: 'Asked', tone: 'info' },
-  expired: { label: 'Expired', tone: 'danger' },
-  missing: { label: 'Missing', tone: 'warning' },
+  have: { label: tr('people.person-file.in_the_file', 'In the file'), tone: 'success' },
+  asked: { label: tr('people.person-file.asked', 'Asked'), tone: 'info' },
+  expired: { label: tr('people.person-file.expired', 'Expired'), tone: 'danger' },
+  missing: { label: tr('people.person-file.missing', 'Missing'), tone: 'warning' },
 } as const;
 
 function Ready({
@@ -88,7 +97,7 @@ function Ready({
                 });
               }}
             >
-              File a document
+              {tr('people.person-file.file_a_document', 'File a document')}
             </Button>
           ) : undefined
         }
@@ -97,13 +106,21 @@ function Ready({
         <Card>
           <CardHeader>
             <CardTitle level={2}>
-              Required{data.hireDate === null ? '' : ' before day one'} · {data.have} of {data.of}
+              {tr('people.person-file.required', 'Required')}
+              {data.hireDate === null
+                ? ''
+                : ' ' + tr('people.person-file.before_day_one', 'before day one')}{' '}
+              · {data.have} {tr('people.person-file.of', 'of')} {data.of}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Progress
               value={(data.have / data.of) * 100}
-              label={`${String(data.have)} of ${String(data.of)} required documents`}
+              label={tr(
+                'people.person-file.of_required_documents',
+                '{{have}} of {{of}} required documents',
+                { have: String(data.have), of: String(data.of) },
+              )}
             />
             <List>
               {data.checklist.map((r) => (
@@ -114,7 +131,9 @@ function Ready({
                     r.detail,
                     r.dueOn === null || r.state === 'have'
                       ? null
-                      : `Needed by ${shortDate(r.dueOn)}`,
+                      : tr('people.person-file.needed_by', 'Needed by {{dueOn}}', {
+                          dueOn: shortDate(r.dueOn),
+                        }),
                   ]
                     .filter(Boolean)
                     .join(' · ')}
@@ -126,7 +145,9 @@ function Ready({
                   trailing={
                     r.action === 'view' && r.documentId !== null ? (
                       <Button size="sm" variant="secondary" asChild>
-                        <a href={`/documents/d/${r.documentId}`}>Open</a>
+                        <a href={`/documents/d/${r.documentId}`}>
+                          {tr('people.person-file.open', 'Open')}
+                        </a>
                       </Button>
                     ) : !data.hr ? (
                       <Button
@@ -141,7 +162,7 @@ function Ready({
                           });
                         }}
                       >
-                        Add it
+                        {tr('people.person-file.add_it', 'Add it')}
                       </Button>
                     ) : r.action === 'remind' && r.requestId !== null ? (
                       <Remind id={r.requestId} onRemind={props.onRemind} />
@@ -153,7 +174,7 @@ function Ready({
                           setAsking(r.typeKey);
                         }}
                       >
-                        Ask
+                        {tr('people.person-file.ask', 'Ask')}
                       </Button>
                     )
                   }
@@ -167,17 +188,24 @@ function Ready({
       )}
       <section className="flex flex-col gap-3" aria-labelledby="filed">
         <h2 id="filed" className="text-md font-semibold">
-          {data.hr ? `Filed to ${first}` : 'Filed to you'}
+          {data.hr
+            ? tr('people.person-file.filed_to', 'Filed to {{first}}', { first })
+            : tr('people.person-file.filed_to_you', 'Filed to you')}
         </h2>
         {data.rows.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nothing filed yet.</p>
+          <p className="text-sm text-fg-muted">
+            {tr('people.person-file.nothing_filed_yet', 'Nothing filed yet.')}
+          </p>
         ) : (
           <List>
             {data.rows.map((row) => (
               <ListItem
                 key={row.id}
                 leading={<DocIcon kind={row.kind} />}
-                description={`${meta(row)} · ${shortDate(row.updatedAt)}`}
+                description={tr('people.person-file.text', '{{meta}} · {{updatedAt}}', {
+                  meta: meta(row),
+                  updatedAt: shortDate(row.updatedAt),
+                })}
                 meta={<AccessBadge row={row} />}
                 chevron
                 asChild

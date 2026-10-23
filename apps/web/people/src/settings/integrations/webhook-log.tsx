@@ -11,6 +11,7 @@ import {
 import { useCallback, useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../../load';
+import { t } from '../../i18n';
 
 /**
  * One endpoint's delivery log, and replaying a delivery (PEO-121; PRD §13.3).
@@ -57,14 +58,17 @@ const TONE: Partial<Record<string, 'success' | 'danger' | 'warning' | 'neutral'>
 };
 
 const WORD: Record<string, string> = {
-  delivered: 'Delivered',
-  failed: 'Failed',
-  pending: 'Pending',
-  skipped: 'Skipped',
+  delivered: t('settings.integrations.webhook-log.delivered', 'Delivered'),
+  failed: t('settings.integrations.webhook-log.failed', 'Failed'),
+  pending: t('settings.integrations.webhook-log.pending', 'Pending'),
+  skipped: t('settings.integrations.webhook-log.skipped', 'Skipped'),
 };
 
 /** An instant as the log shows it: to the minute, in UTC, the same on every screen. */
-const when = (iso: string): string => `${iso.slice(0, 16).replace('T', ' ')} UTC`;
+const when = (iso: string): string =>
+  t('settings.integrations.webhook-log.utc', '{{replace}} UTC', {
+    replace: iso.slice(0, 16).replace('T', ' '),
+  });
 
 export function WebhookLog(props: WebhookLogProps): JSX.Element {
   return (
@@ -96,33 +100,58 @@ function Log({
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Delivery log"
+        title={t('settings.integrations.webhook-log.delivery_log', 'Delivery log')}
         description={`${state.endpoint.url}${state.endpoint.enabled ? '' : ' · turned off'}`}
-        actions={onBack === undefined ? undefined : <Button onClick={onBack}>All endpoints</Button>}
+        actions={
+          onBack === undefined ? undefined : (
+            <Button onClick={onBack}>
+              {t('settings.integrations.webhook-log.all_endpoints', 'All endpoints')}
+            </Button>
+          )
+        }
       />
       {failed === 0 ? null : (
         <Alert tone="warning">
-          {failed === 1 ? 'One delivery' : `${String(failed)} deliveries`} shown here failed.
-          Replaying sends the same event again, with the fields the endpoint may receive now.
+          {failed === 1
+            ? t('settings.integrations.webhook-log.one_delivery', 'One delivery')
+            : t('settings.integrations.webhook-log.deliveries', '{{failed}} deliveries', {
+                failed: String(failed),
+              })}{' '}
+          {t(
+            'settings.integrations.webhook-log.shown_here_failed_replaying_sends_the',
+            'shown here failed. Replaying sends the same event again, with the fields the endpoint may receive now.',
+          )}
         </Alert>
       )}
       {outcome === null ? null : outcome.result.ok ? (
         <Alert tone="success">
-          Replayed. It is sent shortly, and listed here as its own delivery.
+          {t(
+            'settings.integrations.webhook-log.replayed_it_is_sent_shortly_and',
+            'Replayed. It is sent shortly, and listed here as its own delivery.',
+          )}
         </Alert>
       ) : (
-        <Alert tone="danger" title="Not replayed">
+        <Alert
+          tone="danger"
+          title={t('settings.integrations.webhook-log.not_replayed', 'Not replayed')}
+        >
           {outcome.result.message}
         </Alert>
       )}
       {deliveries.length === 0 ? (
         <EmptyState
-          title="Nothing delivered yet"
-          description="A delivery appears here once an event this endpoint subscribes to happens."
+          title={t(
+            'settings.integrations.webhook-log.nothing_delivered_yet',
+            'Nothing delivered yet',
+          )}
+          description={t(
+            'settings.integrations.webhook-log.a_delivery_appears_here_once_an',
+            'A delivery appears here once an event this endpoint subscribes to happens.',
+          )}
         />
       ) : (
         <DataTable<Delivery>
-          label="Deliveries"
+          label={t('settings.integrations.webhook-log.deliveries_2', 'Deliveries')}
           rows={deliveries}
           rowId={(d) => d.id}
           describeRow={(d) => d.eventName}
@@ -134,50 +163,58 @@ function Log({
           columns={[
             {
               id: 'event',
-              header: 'Event',
+              header: t('settings.integrations.webhook-log.event', 'Event'),
               cell: (d) => (
                 <>
                   <span className="font-medium">{d.eventName}</span>
                   {d.replayOf === null ? null : (
-                    <span className="block text-fg-muted text-sm">A replay</span>
+                    <span className="block text-fg-muted text-sm">
+                      {t('settings.integrations.webhook-log.a_replay', 'A replay')}
+                    </span>
                   )}
                 </>
               ),
             },
             {
               id: 'status',
-              header: 'Status',
+              header: t('settings.integrations.webhook-log.status', 'Status'),
               cardTrailing: true,
               cell: (d) => (
                 <>
                   <Badge tone={TONE[d.status] ?? 'neutral'}>{WORD[d.status] ?? d.status}</Badge>
                   {d.lastResponse === null ? null : (
-                    <span className="block text-fg-muted text-sm">HTTP {d.lastResponse}</span>
+                    <span className="block text-fg-muted text-sm">
+                      {t('settings.integrations.webhook-log.http', 'HTTP')} {d.lastResponse}
+                    </span>
                   )}
                 </>
               ),
             },
             {
               id: 'attempts',
-              header: 'Attempts',
-              shortHeader: 'Attempts',
+              header: t('settings.integrations.webhook-log.attempts', 'Attempts'),
+              shortHeader: t('settings.integrations.webhook-log.attempts', 'Attempts'),
               numeric: true,
               cell: (d) => d.attempts,
             },
             {
               id: 'sent',
-              header: 'Sent',
+              header: t('settings.integrations.webhook-log.sent', 'Sent'),
               cell: (d) => when(d.deliveredAt ?? d.createdAt),
             },
             {
               id: 'replay',
-              header: 'Replay',
+              header: t('settings.integrations.webhook-log.replay', 'Replay'),
               cell: (d) => (
                 <Button
                   size="sm"
                   loading={busy === d.id}
-                  loadingLabel="Replaying"
-                  aria-label={`Replay ${d.eventName} from ${when(d.createdAt)}`}
+                  loadingLabel={t('settings.integrations.webhook-log.replaying', 'Replaying')}
+                  aria-label={t(
+                    'settings.integrations.webhook-log.replay_from',
+                    'Replay {{eventName}} from {{createdAt}}',
+                    { eventName: d.eventName, createdAt: when(d.createdAt) },
+                  )}
                   onClick={() => {
                     setBusy(d.id);
                     setOutcome(null);
@@ -187,7 +224,7 @@ function Log({
                     });
                   }}
                 >
-                  Replay
+                  {t('settings.integrations.webhook-log.replay', 'Replay')}
                 </Button>
               ),
             },

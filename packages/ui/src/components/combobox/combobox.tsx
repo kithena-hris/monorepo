@@ -17,6 +17,7 @@ import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
 import { fieldShell, floatShell, floatValue } from '../field/field-styles';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
+import { t } from '../../lib/i18n';
 
 /**
  * A select you can type into.
@@ -247,7 +248,9 @@ export function Combobox({
     selectedOptions.length === 0
       ? placeholder
       : multiple
-        ? `${String(selectedOptions.length)} selected`
+        ? t('components.combobox.combobox.selected', '{{length}} selected', {
+            length: String(selectedOptions.length),
+          })
         : (selectedOptions[0]?.label ?? placeholder);
 
   /*
@@ -257,7 +260,9 @@ export function Combobox({
    */
   const removeChip = (option: ComboboxOption, index: number): void => {
     onChange(selected.filter((v) => v !== option.value));
-    setRemoved(`${option.label} removed`);
+    setRemoved(
+      t('components.combobox.combobox.removed', '{{label}} removed', { label: option.label }),
+    );
     requestAnimationFrame(() => {
       const buttons = chipsRef.current?.querySelectorAll('button');
       const next = buttons?.[Math.min(index, buttons.length - 1)];
@@ -278,7 +283,11 @@ export function Combobox({
         {selectedOptions.length > 0 ? (
           <ul
             ref={chipsRef}
-            aria-label={`${label}, ${String(selectedOptions.length)} selected`}
+            aria-label={t(
+              'components.combobox.combobox.selected_2',
+              '{{label}}, {{length}} selected',
+              { label, length: String(selectedOptions.length) },
+            )}
             className="flex flex-wrap gap-1.5"
           >
             {selectedOptions.map((option, index) => (
@@ -288,7 +297,9 @@ export function Combobox({
                   <button
                     type="button"
                     disabled={disabled}
-                    aria-label={`Remove ${option.label}`}
+                    aria-label={t('components.combobox.combobox.remove', 'Remove {{label}}', {
+                      label: option.label,
+                    })}
                     onClick={() => {
                       removeChip(option, index);
                     }}
@@ -335,7 +346,10 @@ export function Combobox({
           disabled={disabled}
           // The label, then what the trigger shows: a name that holds the
           // visible text is one a voice user can say (WCAG 2.5.3).
-          aria-label={`${label}: ${triggerLabel}`}
+          aria-label={t('components.combobox.combobox.text', '{{label}}: {{triggerLabel}}', {
+            label,
+            triggerLabel,
+          })}
           aria-describedby={describedBy}
           // Under a thumb the label of a 56px trigger floats inside it, as it
           // does on an `Input`.
@@ -362,7 +376,7 @@ export function Combobox({
         {canClear ? (
           <button
             type="button"
-            aria-label={`Clear ${label}`}
+            aria-label={t('components.combobox.combobox.clear', 'Clear {{label}}', { label })}
             onClick={() => {
               onChange(multiple ? [] : null);
               triggerRef.current?.focus();
@@ -399,7 +413,7 @@ export function Combobox({
             aria-expanded
             aria-controls={listId}
             aria-autocomplete="list"
-            aria-label={`${label} search`}
+            aria-label={t('components.combobox.combobox.search', '{{label}} search', { label })}
             aria-activedescendant={
               flat[activeIndex] ? `${optionIdPrefix}-${String(activeIndex)}` : undefined
             }
@@ -441,7 +455,9 @@ export function Combobox({
           className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,16rem)-7rem))] min-h-24 overflow-y-auto overscroll-contain touch:max-h-[min(50vh,calc(var(--radix-popover-content-available-height,50vh)-7rem))]"
         >
           {loading ? (
-            <li className="px-3 py-6 text-center text-sm text-fg-muted">Searching…</li>
+            <li className="px-3 py-6 text-center text-sm text-fg-muted">
+              {t('components.combobox.combobox.searching', 'Searching…')}
+            </li>
           ) : flat.length === 0 ? (
             <li className="px-3 py-6 text-center text-sm text-fg-muted">{emptyMessage}</li>
           ) : (
@@ -506,7 +522,8 @@ export function Combobox({
         </ul>
 
         <p aria-live="polite" className="sr-only">
-          {flat.length} {flat.length === 1 ? 'option' : 'options'} available
+          {flat.length} {flat.length === 1 ? 'option' : 'options'}{' '}
+          {t('components.combobox.combobox.available', 'available')}
         </p>
       </PopoverContent>
     </Popover>

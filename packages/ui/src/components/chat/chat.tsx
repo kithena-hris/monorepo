@@ -15,6 +15,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Avatar } from '../avatar/avatar';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * A conversation: a log of messages and the box to write the next one. A
@@ -121,7 +122,7 @@ export function ChatMessage({
   ...props
 }: ChatMessageProps): JSX.Element {
   const self = from === 'self';
-  const speaker = author ?? (self ? 'You' : undefined);
+  const speaker = author ?? (self ? t('components.chat.chat.you', 'You') : undefined);
 
   return (
     <div
@@ -195,7 +196,7 @@ function Dots(): JSX.Element {
 function Writing(): JSX.Element {
   return (
     <span className="inline-flex h-5 items-center gap-1" role="status">
-      <span className="sr-only">Writing</span>
+      <span className="sr-only">{t('components.chat.chat.writing', 'Writing')}</span>
       <Dots />
     </span>
   );
@@ -228,7 +229,9 @@ export function ChatTyping({
       />
       <div className="flex h-10 items-center gap-1 rounded-[1.25rem] rounded-es-md bg-surface-sunken px-4">
         <Dots />
-        <span className="sr-only">{label ?? `${author} is typing`}</span>
+        <span className="sr-only">
+          {label ?? t('components.chat.chat.is_typing', '{{author}} is typing', { author })}
+        </span>
       </div>
     </div>
   );
@@ -329,7 +332,7 @@ export function ChatComposer({
         className="mb-1"
         disabled={!ready}
         loading={busy}
-        loadingLabel="Waiting for the reply"
+        loadingLabel={t('components.chat.chat.waiting_for_the_reply', 'Waiting for the reply')}
         aria-label={sendLabel}
         startIcon={<ArrowUp aria-hidden />}
       />

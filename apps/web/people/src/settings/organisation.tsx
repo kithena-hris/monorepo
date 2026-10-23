@@ -54,6 +54,7 @@ import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { CountryPacks, type CountryPackRow } from './country-packs';
 import { InboxRulesTab, type InboxRules } from './inbox-rules';
+import { t as tr } from '../i18n';
 
 /**
  * Legal entities, locations, employee numbering and the company's settings
@@ -201,9 +202,15 @@ export const ORGANISATION_TABS = [
 export type PhotoAtSignup = 'off' | 'optional' | 'required';
 
 const PHOTO_AT_SIGNUP: readonly { readonly value: PhotoAtSignup; readonly label: string }[] = [
-  { value: 'off', label: 'Don’t ask' },
-  { value: 'optional', label: 'Ask, and let them skip it' },
-  { value: 'required', label: 'Ask before anything else' },
+  { value: 'off', label: tr('settings.organisation.dont_ask', 'Don’t ask') },
+  {
+    value: 'optional',
+    label: tr('settings.organisation.ask_and_let_them_skip_it', 'Ask, and let them skip it'),
+  },
+  {
+    value: 'required',
+    label: tr('settings.organisation.ask_before_anything_else', 'Ask before anything else'),
+  },
 ];
 
 export interface OrganisationProps {
@@ -338,26 +345,54 @@ function Settings(props: OrganisationProps & { readonly state: OrganisationState
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Organisation"
-        description="Legal entities, locations, org units, numbering, country packs, reminders, Inbox rules and pay bands."
+        title={tr('settings.organisation.organisation', 'Organisation')}
+        description={tr(
+          'settings.organisation.legal_entities_locations_org_units_numbering',
+          'Legal entities, locations, org units, numbering, country packs, reminders, Inbox rules and pay bands.',
+        )}
       />
       {state.canManage ? null : (
-        <Alert tone="info">Only a People administrator can change these.</Alert>
+        <Alert tone="info">
+          {tr(
+            'settings.organisation.only_a_people_administrator_can_change',
+            'Only a People administrator can change these.',
+          )}
+        </Alert>
       )}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label="Organisation settings">
-          <TabsTrigger value="entities">Legal entities</TabsTrigger>
-          <TabsTrigger value="locations">Locations</TabsTrigger>
-          <TabsTrigger value="org-units">Org units</TabsTrigger>
-          <TabsTrigger value="numbering">Employee numbering</TabsTrigger>
+        <TabsList
+          aria-label={tr('settings.organisation.organisation_settings', 'Organisation settings')}
+        >
+          <TabsTrigger value="entities">
+            {tr('settings.organisation.legal_entities', 'Legal entities')}
+          </TabsTrigger>
+          <TabsTrigger value="locations">
+            {tr('settings.organisation.locations', 'Locations')}
+          </TabsTrigger>
+          <TabsTrigger value="org-units">
+            {tr('settings.organisation.org_units', 'Org units')}
+          </TabsTrigger>
+          <TabsTrigger value="numbering">
+            {tr('settings.organisation.employee_numbering', 'Employee numbering')}
+          </TabsTrigger>
           {state.packs == null ? null : (
-            <TabsTrigger value="country-packs">Country packs</TabsTrigger>
+            <TabsTrigger value="country-packs">
+              {tr('settings.organisation.country_packs', 'Country packs')}
+            </TabsTrigger>
           )}
-          <TabsTrigger value="reminders">Reminders and privacy</TabsTrigger>
+          <TabsTrigger value="reminders">
+            {tr('settings.organisation.reminders_and_privacy', 'Reminders and privacy')}
+          </TabsTrigger>
           {state.settings.inboxRules == null ? null : (
-            <TabsTrigger value="inbox-rules">Inbox rules</TabsTrigger>
+            <TabsTrigger value="inbox-rules">
+              {tr('settings.organisation.inbox_rules', 'Inbox rules')}
+            </TabsTrigger>
           )}
-          {state.payBands == null ? null : <TabsTrigger value="pay-bands">Pay bands</TabsTrigger>}
+          {state.payBands == null ? null : (
+            <TabsTrigger value="pay-bands">
+              {tr('settings.organisation.pay_bands', 'Pay bands')}
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="entities">
           <Entities state={state} onEdit={setEditing} onUpdate={props.onUpdateEntity} />
@@ -436,7 +471,9 @@ function ArchiveConfirm({
 }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  const verb = archiving.archived ? 'Restore' : 'Archive';
+  const verb = archiving.archived
+    ? tr('settings.organisation.restore', 'Restore')
+    : tr('settings.organisation.archive', 'Archive');
   return (
     <AlertDialog
       open
@@ -445,25 +482,40 @@ function ArchiveConfirm({
       }}
     >
       <AlertDialogContent>
-        <AlertDialogTitle>{`${verb} ${archiving.name}?`}</AlertDialogTitle>
+        <AlertDialogTitle>
+          {tr('settings.organisation.text', '{{verb}} {{name}}?', { verb, name: archiving.name })}
+        </AlertDialogTitle>
         <AlertDialogDescription>
           {archiving.archived
-            ? 'It can be chosen again for new records.'
-            : 'It can no longer be chosen for new records. Nothing is lost: restore it any time.'}
+            ? tr(
+                'settings.organisation.it_can_be_chosen_again_for',
+                'It can be chosen again for new records.',
+              )
+            : tr(
+                'settings.organisation.it_can_no_longer_be_chosen',
+                'It can no longer be chosen for new records. Nothing is lost: restore it any time.',
+              )}
         </AlertDialogDescription>
         {refused === null ? null : (
-          <Alert tone="danger" title={archiving.archived ? 'Not restored' : 'Not archived'}>
+          <Alert
+            tone="danger"
+            title={
+              archiving.archived
+                ? tr('settings.organisation.not_restored', 'Not restored')
+                : tr('settings.organisation.not_archived', 'Not archived')
+            }
+          >
             {refused}
           </Alert>
         )}
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
-            <Button>Cancel</Button>
+            <Button>{tr('settings.organisation.cancel', 'Cancel')}</Button>
           </AlertDialogCancel>
           <Button
             variant={archiving.archived ? 'primary' : 'destructive'}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('settings.organisation.saving', 'Saving')}
             onClick={() => {
               setBusy(true);
               setRefused(null);
@@ -503,42 +555,55 @@ function Entities({
               onEdit({ kind: 'entity', entity: null });
             }}
           >
-            Add legal entity
+            {tr('settings.organisation.add_legal_entity', 'Add legal entity')}
           </Button>
         </div>
       ) : null}
       <DataTable<LegalEntity>
-        label="Legal entities"
+        label={tr('settings.organisation.legal_entities', 'Legal entities')}
         rows={state.legalEntities}
         rowId={(e) => e.id}
         describeRow={(e) => e.name}
         rowMenuOnCard
         empty={
           <EmptyState
-            title="No legal entities yet"
-            description="The company’s first one comes from the back office; add others here."
+            title={tr('settings.organisation.no_legal_entities_yet', 'No legal entities yet')}
+            description={tr(
+              'settings.organisation.the_companys_first_one_comes_from',
+              'The company’s first one comes from the back office; add others here.',
+            )}
           />
         }
         columns={[
           {
             id: 'name',
-            header: 'Name',
+            header: tr('settings.organisation.name', 'Name'),
             cell: (e) => (
               <span className="inline-flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{e.name}</span>
-                {e.archived ? <Badge size="sm">Archived</Badge> : null}
+                {e.archived ? (
+                  <Badge size="sm">{tr('settings.organisation.archived', 'Archived')}</Badge>
+                ) : null}
               </span>
             ),
           },
-          { id: 'country', header: 'Country', cell: (e) => countryName(state, e.country) },
-          { id: 'zone', header: 'Time zone', cell: (e) => e.timeZone },
+          {
+            id: 'country',
+            header: tr('settings.organisation.country', 'Country'),
+            cell: (e) => countryName(state, e.country),
+          },
+          {
+            id: 'zone',
+            header: tr('settings.organisation.time_zone', 'Time zone'),
+            cell: (e) => e.timeZone,
+          },
         ]}
         {...(state.canManage
           ? {
               rowActions: (entity: LegalEntity) => [
                 {
                   id: 'edit',
-                  label: 'Edit',
+                  label: tr('settings.organisation.edit', 'Edit'),
                   icon: <icons.edit aria-hidden />,
                   onSelect: () => {
                     onEdit({ kind: 'entity', entity });
@@ -546,7 +611,9 @@ function Entities({
                 },
                 {
                   id: 'archive',
-                  label: entity.archived ? 'Restore' : 'Archive',
+                  label: entity.archived
+                    ? tr('settings.organisation.restore', 'Restore')
+                    : tr('settings.organisation.archive', 'Archive'),
                   icon: entity.archived ? (
                     <icons.undo aria-hidden />
                   ) : (
@@ -601,40 +668,49 @@ function Locations({
               onEdit({ kind: 'location', location: null });
             }}
           >
-            Add location
+            {tr('settings.organisation.add_location', 'Add location')}
           </Button>
         </div>
       ) : null}
       <DataTable<Place>
-        label="Locations"
+        label={tr('settings.organisation.locations', 'Locations')}
         rows={state.locations}
         rowId={(p) => p.id}
         describeRow={(p) => p.name}
         rowMenuOnCard
         empty={
           <EmptyState
-            title="No locations yet"
-            description="A location’s time zone decides the day of everybody who works there."
+            title={tr('settings.organisation.no_locations_yet', 'No locations yet')}
+            description={tr(
+              'settings.organisation.a_locations_time_zone_decides_the',
+              'A location’s time zone decides the day of everybody who works there.',
+            )}
           />
         }
         columns={[
           {
             id: 'name',
-            header: 'Name',
+            header: tr('settings.organisation.name', 'Name'),
             cell: (place) => (
               <span className="flex flex-col">
                 <span className="inline-flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{place.name}</span>
-                  {place.archived ? <Badge size="sm">Archived</Badge> : null}
+                  {place.archived ? (
+                    <Badge size="sm">{tr('settings.organisation.archived', 'Archived')}</Badge>
+                  ) : null}
                 </span>
                 <span className="text-sm text-fg-muted">{countryName(state, place.country)}</span>
               </span>
             ),
           },
-          { id: 'entity', header: 'Legal entity', cell: (p) => entityName(p.legalEntityId) },
+          {
+            id: 'entity',
+            header: tr('settings.organisation.legal_entity', 'Legal entity'),
+            cell: (p) => entityName(p.legalEntityId),
+          },
           {
             id: 'zone',
-            header: 'Time zone',
+            header: tr('settings.organisation.time_zone', 'Time zone'),
             cell: (place) => {
               // A change still to come is said beside the zone in force.
               const later = place.zones.filter(
@@ -658,7 +734,7 @@ function Locations({
               rowActions: (place: Place) => [
                 {
                   id: 'rename',
-                  label: 'Rename',
+                  label: tr('settings.organisation.rename', 'Rename'),
                   icon: <icons.edit aria-hidden />,
                   onSelect: () => {
                     onEdit({ kind: 'location', location: place });
@@ -666,7 +742,7 @@ function Locations({
                 },
                 {
                   id: 'zone',
-                  label: 'Change time zone',
+                  label: tr('settings.organisation.change_time_zone', 'Change time zone'),
                   icon: <icons.scheduled aria-hidden />,
                   onSelect: () => {
                     onEdit({ kind: 'zone', location: place });
@@ -674,7 +750,9 @@ function Locations({
                 },
                 {
                   id: 'archive',
-                  label: place.archived ? 'Restore' : 'Archive',
+                  label: place.archived
+                    ? tr('settings.organisation.restore', 'Restore')
+                    : tr('settings.organisation.archive', 'Archive'),
                   icon: place.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
                   onSelect: () => {
                     setArchiving({
@@ -798,44 +876,54 @@ function OrgUnits({
               onOpenChange('unit:new');
             }}
           >
-            Add org unit
+            {tr('settings.organisation.add_org_unit', 'Add org unit')}
           </Button>
         </div>
       ) : null}
       <DataTable<OrgUnitRow>
-        label="Org units"
+        label={tr('settings.organisation.org_units', 'Org units')}
         rows={units}
         rowId={(u) => u.id}
         describeRow={(u) => u.name}
         rowMenuOnCard
         empty={
           <EmptyState
-            title="No org units yet"
-            description="Departments and teams, each at the top or under another. A field of the org unit type picks from these."
+            title={tr('settings.organisation.no_org_units_yet', 'No org units yet')}
+            description={tr(
+              'settings.organisation.departments_and_teams_each_at_the',
+              'Departments and teams, each at the top or under another. A field of the org unit type picks from these.',
+            )}
           />
         }
         columns={[
           {
             id: 'name',
-            header: 'Name',
+            header: tr('settings.organisation.name', 'Name'),
             cell: (u) => (
               <span
                 className="inline-flex flex-wrap items-center gap-2"
                 style={{ paddingInlineStart: `${String(depthOf(units, u) * 1.25)}rem` }}
               >
                 <span className="font-semibold">{u.name}</span>
-                {u.archived ? <Badge size="sm">Archived</Badge> : null}
+                {u.archived ? (
+                  <Badge size="sm">{tr('settings.organisation.archived', 'Archived')}</Badge>
+                ) : null}
               </span>
             ),
           },
-          { id: 'parent', header: 'Part of', shortHeader: 'Part of', cell: parentPath },
+          {
+            id: 'parent',
+            header: tr('settings.organisation.part_of', 'Part of'),
+            shortHeader: tr('settings.organisation.part_of', 'Part of'),
+            cell: parentPath,
+          },
         ]}
         {...(state.canManage
           ? {
               rowActions: (u: OrgUnitRow) => [
                 {
                   id: 'rename',
-                  label: 'Rename',
+                  label: tr('settings.organisation.rename', 'Rename'),
                   icon: <icons.edit aria-hidden />,
                   onSelect: () => {
                     onOpenChange(`unit:${u.id}`);
@@ -843,7 +931,7 @@ function OrgUnits({
                 },
                 {
                   id: 'move',
-                  label: 'Move under',
+                  label: tr('settings.organisation.move_under', 'Move under'),
                   icon: <icons.move aria-hidden />,
                   onSelect: () => {
                     onOpenChange(`unit-move:${u.id}`);
@@ -851,7 +939,9 @@ function OrgUnits({
                 },
                 {
                   id: 'archive',
-                  label: u.archived ? 'Restore' : 'Archive',
+                  label: u.archived
+                    ? tr('settings.organisation.restore', 'Restore')
+                    : tr('settings.organisation.archive', 'Archive'),
                   icon: u.archived ? <icons.undo aria-hidden /> : <icons.archive aria-hidden />,
                   onSelect: () => {
                     onOpenChange(`unit-archive:${u.id}`);
@@ -889,7 +979,7 @@ function OrgUnitDialog({
   // Never under itself or anything beneath it, nor under an archived unit.
   const excluded = unit === null ? new Set<string>() : subtreeOf(units, unit.id);
   const parents = [
-    { value: TOP, label: 'Top level' },
+    { value: TOP, label: tr('settings.organisation.top_level', 'Top level') },
     ...units
       .filter((u) => !u.archived && !excluded.has(u.id))
       .map((u) => ({ value: u.id, label: u.path })),
@@ -897,10 +987,10 @@ function OrgUnitDialog({
   const parentId = parent === TOP ? null : parent;
   const title =
     unit === null
-      ? 'Add an org unit'
+      ? tr('settings.organisation.add_an_org_unit', 'Add an org unit')
       : mode === 'rename'
-        ? `Rename ${unit.name}`
-        : `Move ${unit.name}`;
+        ? tr('settings.organisation.rename_2', 'Rename {{name}}', { name: unit.name })
+        : tr('settings.organisation.move', 'Move {{name}}', { name: unit.name });
   const submit = (): Promise<Outcome> =>
     unit === null
       ? props.onCreateOrgUnit({ name: name.trim(), parentId })
@@ -917,13 +1007,18 @@ function OrgUnitDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Kept with who changed it and when.</DialogDescription>
+          <DialogDescription>
+            {tr(
+              'settings.organisation.kept_with_who_changed_it_and',
+              'Kept with who changed it and when.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             {mode === 'move' ? null : (
               <Field required invalid={shown && invalid}>
-                <FieldLabel>Name</FieldLabel>
+                <FieldLabel>{tr('settings.organisation.name', 'Name')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={name}
@@ -933,17 +1028,22 @@ function OrgUnitDialog({
                     }}
                   />
                 </FieldControl>
-                <FieldError>A name is needed.</FieldError>
+                <FieldError>
+                  {tr('settings.organisation.a_name_is_needed', 'A name is needed.')}
+                </FieldError>
               </Field>
             )}
             {mode === 'rename' ? null : (
               <Field>
-                <FieldLabel>Under</FieldLabel>
+                <FieldLabel>{tr('settings.organisation.under', 'Under')}</FieldLabel>
                 <FieldControl>
                   <Combobox
-                    label="Under"
-                    placeholder="Top level"
-                    searchPlaceholder="Search org units"
+                    label={tr('settings.organisation.under', 'Under')}
+                    placeholder={tr('settings.organisation.top_level', 'Top level')}
+                    searchPlaceholder={tr(
+                      'settings.organisation.search_org_units',
+                      'Search org units',
+                    )}
                     options={parents}
                     value={parent}
                     onChange={(next) => {
@@ -953,24 +1053,30 @@ function OrgUnitDialog({
                 </FieldControl>
                 <FieldDescription>
                   {mode === 'move'
-                    ? 'Everything under it moves with it.'
-                    : 'Leave it at the top level for a department of its own.'}
+                    ? tr(
+                        'settings.organisation.everything_under_it_moves_with_it',
+                        'Everything under it moves with it.',
+                      )
+                    : tr(
+                        'settings.organisation.leave_it_at_the_top_level',
+                        'Leave it at the top level for a department of its own.',
+                      )}
                 </FieldDescription>
               </Field>
             )}
             {refused === null ? null : (
-              <Alert tone="danger" title="Not saved">
+              <Alert tone="danger" title={tr('settings.organisation.not_saved', 'Not saved')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('settings.organisation.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('settings.organisation.saving', 'Saving')}
             onClick={() => {
               setShown(true);
               if (invalid) return;
@@ -983,7 +1089,7 @@ function OrgUnitDialog({
               });
             }}
           >
-            Save
+            {tr('settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1002,18 +1108,26 @@ function Numberings({
   if (entities.length === 0) {
     return (
       <EmptyState
-        title="No legal entities to number"
-        description="Employee numbers are per legal entity."
+        title={tr(
+          'settings.organisation.no_legal_entities_to_number',
+          'No legal entities to number',
+        )}
+        description={tr(
+          'settings.organisation.employee_numbers_are_per_legal_entity',
+          'Employee numbers are per legal entity.',
+        )}
       />
     );
   }
   return (
-    <Table aria-label="Employee numbering">
+    <Table aria-label={tr('settings.organisation.employee_numbering', 'Employee numbering')}>
       <TableHeader>
         <TableRow>
-          <TableHead>Legal entity</TableHead>
-          <TableHead>Next number</TableHead>
-          {state.canManage ? <TableHead>Change</TableHead> : null}
+          <TableHead>{tr('settings.organisation.legal_entity', 'Legal entity')}</TableHead>
+          <TableHead>{tr('settings.organisation.next_number', 'Next number')}</TableHead>
+          {state.canManage ? (
+            <TableHead>{tr('settings.organisation.change', 'Change')}</TableHead>
+          ) : null}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -1024,19 +1138,28 @@ function Numberings({
               <TableCell>{entity.name}</TableCell>
               <TableCell>
                 {scheme === undefined
-                  ? 'Does not number its people'
+                  ? tr(
+                      'settings.organisation.does_not_number_its_people',
+                      'Does not number its people',
+                    )
                   : numberOf(scheme.prefix, scheme.digits, scheme.nextValue)}
               </TableCell>
               {state.canManage ? (
                 <TableCell>
                   <Button
                     size="sm"
-                    aria-label={`Set the numbering of ${entity.name}`}
+                    aria-label={tr(
+                      'settings.organisation.set_the_numbering_of',
+                      'Set the numbering of {{name}}',
+                      { name: entity.name },
+                    )}
                     onClick={() => {
                       onEdit({ kind: 'numbering', entity });
                     }}
                   >
-                    {scheme === undefined ? 'Start numbering' : 'Change'}
+                    {scheme === undefined
+                      ? tr('settings.organisation.start_numbering', 'Start numbering')
+                      : tr('settings.organisation.change', 'Change')}
                   </Button>
                 </TableCell>
               ) : null}
@@ -1072,8 +1195,8 @@ function ZonePicker({
       <FieldControl>
         <Combobox
           label={label}
-          placeholder="Choose a time zone"
-          searchPlaceholder="Search time zones"
+          placeholder={tr('settings.organisation.choose_a_time_zone', 'Choose a time zone')}
+          searchPlaceholder={tr('settings.organisation.search_time_zones', 'Search time zones')}
           options={state.timeZones.map((z) => ({ value: z, label: z }))}
           value={value === '' ? null : value}
           disabled={disabled}
@@ -1083,7 +1206,9 @@ function ZonePicker({
         />
       </FieldControl>
       {description === undefined ? null : <FieldDescription>{description}</FieldDescription>}
-      <FieldError>Choose a time zone.</FieldError>
+      <FieldError>
+        {tr('settings.organisation.choose_a_time_zone_2', 'Choose a time zone.')}
+      </FieldError>
     </Field>
   );
 }
@@ -1101,11 +1226,13 @@ function CountryPicker({
 }): JSX.Element {
   return (
     <Field required invalid={invalid}>
-      <FieldLabel>Country</FieldLabel>
+      <FieldLabel>{tr('settings.organisation.country', 'Country')}</FieldLabel>
       <Select value={value} onValueChange={onChange}>
         <FieldControl>
           <SelectTrigger>
-            <SelectValue placeholder="Choose a country" />
+            <SelectValue
+              placeholder={tr('settings.organisation.choose_a_country', 'Choose a country')}
+            />
           </SelectTrigger>
         </FieldControl>
         <SelectContent>
@@ -1116,7 +1243,7 @@ function CountryPicker({
           ))}
         </SelectContent>
       </Select>
-      <FieldError>Choose a country.</FieldError>
+      <FieldError>{tr('settings.organisation.choose_a_country_2', 'Choose a country.')}</FieldError>
     </Field>
   );
 }
@@ -1177,15 +1304,21 @@ function EditDialog({
   const title =
     editing.kind === 'entity'
       ? entity === null
-        ? 'Add a legal entity'
-        : `Edit ${entity.name}`
+        ? tr('settings.organisation.add_a_legal_entity', 'Add a legal entity')
+        : tr('settings.organisation.edit_2', 'Edit {{name}}', { name: entity.name })
       : editing.kind === 'location'
         ? place === null
-          ? 'Add a location'
-          : `Rename ${place.name}`
+          ? tr('settings.organisation.add_a_location', 'Add a location')
+          : tr('settings.organisation.rename_2', 'Rename {{name}}', { name: place.name })
         : editing.kind === 'zone'
-          ? `Change the time zone of ${editing.location.name}`
-          : `Employee numbers in ${editing.entity.name}`;
+          ? tr(
+              'settings.organisation.change_the_time_zone_of',
+              'Change the time zone of {{name}}',
+              { name: editing.location.name },
+            )
+          : tr('settings.organisation.employee_numbers_in', 'Employee numbers in {{name}}', {
+              name: editing.entity.name,
+            });
 
   const submit = (): Promise<Outcome> => {
     switch (editing.kind) {
@@ -1221,7 +1354,7 @@ function EditDialog({
   if (editing.kind === 'location' && place === null) {
     body.push(
       <Field key="entity" required>
-        <FieldLabel>Legal entity</FieldLabel>
+        <FieldLabel>{tr('settings.organisation.legal_entity', 'Legal entity')}</FieldLabel>
         <Select value={legalEntityId} onValueChange={setLegalEntityId}>
           <FieldControl>
             <SelectTrigger>
@@ -1244,7 +1377,7 @@ function EditDialog({
   if (needsName) {
     body.push(
       <Field key="name" required invalid={shown && problems.name}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings.organisation.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
@@ -1254,7 +1387,7 @@ function EditDialog({
             }}
           />
         </FieldControl>
-        <FieldError>A name is needed.</FieldError>
+        <FieldError>{tr('settings.organisation.a_name_is_needed', 'A name is needed.')}</FieldError>
       </Field>,
     );
   }
@@ -1285,7 +1418,7 @@ function EditDialog({
     body.push(
       <div key="from" className="flex flex-col gap-1.5">
         <DatePicker
-          label="From"
+          label={tr('settings.organisation.from', 'From')}
           value={editing.kind === 'zone' ? effectiveFrom : from}
           onChange={setFrom}
         />
@@ -1300,7 +1433,7 @@ function EditDialog({
   if (editing.kind === 'numbering') {
     body.push(
       <Field key="prefix" invalid={shown && problems.prefix}>
-        <FieldLabel>Prefix</FieldLabel>
+        <FieldLabel>{tr('settings.organisation.prefix', 'Prefix')}</FieldLabel>
         <FieldControl>
           <Input
             value={prefix}
@@ -1310,30 +1443,46 @@ function EditDialog({
             }}
           />
         </FieldControl>
-        <FieldDescription>Up to ten letters, digits or hyphens. May be empty.</FieldDescription>
-        <FieldError>Letters, digits and hyphens only.</FieldError>
+        <FieldDescription>
+          {tr(
+            'settings.organisation.up_to_ten_letters_digits_or',
+            'Up to ten letters, digits or hyphens. May be empty.',
+          )}
+        </FieldDescription>
+        <FieldError>
+          {tr(
+            'settings.organisation.letters_digits_and_hyphens_only',
+            'Letters, digits and hyphens only.',
+          )}
+        </FieldError>
       </Field>,
       <NumberField
         key="digits"
-        label="Digits"
+        label={tr('settings.organisation.digits', 'Digits')}
         value={digits}
         min={1}
         max={12}
         invalid={shown && problems.digits}
-        hint="Numbers are zero-padded to this width, and grow past it rather than wrap."
+        hint={tr(
+          'settings.organisation.numbers_are_zero_padded_to_this',
+          'Numbers are zero-padded to this width, and grow past it rather than wrap.',
+        )}
         onChange={setDigits}
       />,
       <NumberField
         key="start"
-        label="Next number"
+        label={tr('settings.organisation.next_number', 'Next number')}
         value={start}
         min={scheme?.nextValue ?? 1}
         invalid={shown && problems.start}
-        hint="Never moves back below a number already handed out."
+        hint={tr(
+          'settings.organisation.never_moves_back_below_a_number',
+          'Never moves back below a number already handed out.',
+        )}
         onChange={setStart}
       />,
       <p key="preview" className="text-sm">
-        The next person hired here is{' '}
+        {tr('settings.organisation.the_next_person_hired_here_is', 'The next person hired here is')}{' '}
         <span className="font-medium">{numberOf(prefix, digits ?? 1, start ?? 1)}</span>.
       </p>,
     );
@@ -1349,24 +1498,29 @@ function EditDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Kept with who changed it and when.</DialogDescription>
+          <DialogDescription>
+            {tr(
+              'settings.organisation.kept_with_who_changed_it_and',
+              'Kept with who changed it and when.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             {body}
             {refused === null ? null : (
-              <Alert tone="danger" title="Not saved">
+              <Alert tone="danger" title={tr('settings.organisation.not_saved', 'Not saved')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('settings.organisation.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('settings.organisation.saving', 'Saving')}
             onClick={() => {
               setShown(true);
               if (invalid) return;
@@ -1379,7 +1533,7 @@ function EditDialog({
               });
             }}
           >
-            Save
+            {tr('settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1417,7 +1571,11 @@ function bandAmount(minor: string, currency: string): string {
   const padded = minor.padStart(places + 1, '0');
   const whole = places === 0 ? padded : padded.slice(0, -places);
   const fraction = places === 0 ? '' : `.${padded.slice(-places)}`;
-  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${fraction} ${currency}`;
+  return tr('settings.organisation.text_2', '{{replace}}{{fraction}} {{currency}}', {
+    replace: whole.replace(/\B(?=(\d{3})+(?!\d))/g, ','),
+    fraction,
+    currency,
+  });
 }
 
 /**
@@ -1445,7 +1603,10 @@ function PayBands({
   return (
     <Stack gap={4}>
       <p className="text-sm text-fg-muted">
-        Compa-ratio is salary divided by the band midpoint for the grade and currency.
+        {tr(
+          'settings.organisation.compa_ratio_is_salary_divided_by',
+          'Compa-ratio is salary divided by the band midpoint for the grade and currency.',
+        )}
       </p>
       {onSet === undefined ? null : (
         <div>
@@ -1455,25 +1616,30 @@ function PayBands({
               setEditing('new');
             }}
           >
-            Add pay band
+            {tr('settings.organisation.add_pay_band', 'Add pay band')}
           </Button>
         </div>
       )}
       {bands.length === 0 ? (
         <EmptyState
-          title="No pay bands yet"
-          description="Add one per grade and currency to see compa-ratio."
+          title={tr('settings.organisation.no_pay_bands_yet', 'No pay bands yet')}
+          description={tr(
+            'settings.organisation.add_one_per_grade_and_currency',
+            'Add one per grade and currency to see compa-ratio.',
+          )}
         />
       ) : (
-        <Table aria-label="Pay bands">
+        <Table aria-label={tr('settings.organisation.pay_bands', 'Pay bands')}>
           <TableHeader>
             <TableRow>
-              <TableHead>Grade</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead numeric>Minimum</TableHead>
-              <TableHead numeric>Midpoint</TableHead>
-              <TableHead numeric>Maximum</TableHead>
-              {onSet === undefined ? null : <TableHead>Change</TableHead>}
+              <TableHead>{tr('settings.organisation.grade', 'Grade')}</TableHead>
+              <TableHead>{tr('settings.organisation.from', 'From')}</TableHead>
+              <TableHead numeric>{tr('settings.organisation.minimum', 'Minimum')}</TableHead>
+              <TableHead numeric>{tr('settings.organisation.midpoint', 'Midpoint')}</TableHead>
+              <TableHead numeric>{tr('settings.organisation.maximum', 'Maximum')}</TableHead>
+              {onSet === undefined ? null : (
+                <TableHead>{tr('settings.organisation.change', 'Change')}</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1481,7 +1647,11 @@ function PayBands({
               <TableRow key={band.id}>
                 <TableCell>
                   <span className="font-medium">{band.grade}</span>{' '}
-                  {band.supersedes === null ? null : <Badge tone="neutral">Corrected</Badge>}
+                  {band.supersedes === null ? null : (
+                    <Badge tone="neutral">
+                      {tr('settings.organisation.corrected', 'Corrected')}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>{band.effectiveFrom}</TableCell>
                 <TableCell numeric>{bandAmount(band.minimumMinor, band.currency)}</TableCell>
@@ -1491,12 +1661,20 @@ function PayBands({
                   <TableCell>
                     <Button
                       size="sm"
-                      aria-label={`Correct ${band.grade} ${band.currency} from ${band.effectiveFrom}`}
+                      aria-label={tr(
+                        'settings.organisation.correct_from',
+                        'Correct {{grade}} {{currency}} from {{effectiveFrom}}',
+                        {
+                          grade: band.grade,
+                          currency: band.currency,
+                          effectiveFrom: band.effectiveFrom,
+                        },
+                      )}
                       onClick={() => {
                         setEditing(band);
                       }}
                     >
-                      Correct
+                      {tr('settings.organisation.correct', 'Correct')}
                     </Button>
                   </TableCell>
                 )}
@@ -1571,7 +1749,9 @@ function PayBandDialog({
         />
       </FieldControl>
       <FieldError>
-        An amount in {currency === '' ? 'the currency' : currency}, above zero.
+        {tr('settings.organisation.an_amount_in', 'An amount in')}{' '}
+        {currency === '' ? tr('settings.organisation.the_currency', 'the currency') : currency}
+        {tr('settings.organisation.above_zero', ', above zero.')}
       </FieldError>
     </Field>
   );
@@ -1586,16 +1766,24 @@ function PayBandDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {band === null ? 'Add a pay band' : `Correct ${band.grade}, ${band.currency}`}
+            {band === null
+              ? tr('settings.organisation.add_a_pay_band', 'Add a pay band')
+              : tr('settings.organisation.correct_2', 'Correct {{grade}}, {{currency}}', {
+                  grade: band.grade,
+                  currency: band.currency,
+                })}
           </DialogTitle>
           <DialogDescription>
-            Kept with who changed it and when. The same grade, currency and day again corrects it.
+            {tr(
+              'settings.organisation.kept_with_who_changed_it_and_2',
+              'Kept with who changed it and when. The same grade, currency and day again corrects it.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <Field required invalid={shown && problems.grade}>
-              <FieldLabel>Grade</FieldLabel>
+              <FieldLabel>{tr('settings.organisation.grade', 'Grade')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={grade}
@@ -1606,11 +1794,18 @@ function PayBandDialog({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>As the grade field stores it on a profile.</FieldDescription>
-              <FieldError>A grade is needed.</FieldError>
+              <FieldDescription>
+                {tr(
+                  'settings.organisation.as_the_grade_field_stores_it',
+                  'As the grade field stores it on a profile.',
+                )}
+              </FieldDescription>
+              <FieldError>
+                {tr('settings.organisation.a_grade_is_needed', 'A grade is needed.')}
+              </FieldError>
             </Field>
             <Field required invalid={shown && problems.currency}>
-              <FieldLabel>Currency</FieldLabel>
+              <FieldLabel>{tr('settings.organisation.currency', 'Currency')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={currency}
@@ -1621,25 +1816,34 @@ function PayBandDialog({
                   }}
                 />
               </FieldControl>
-              <FieldError>A three-letter currency code, such as EUR.</FieldError>
+              <FieldError>
+                {tr(
+                  'settings.organisation.a_three_letter_currency_code_such',
+                  'A three-letter currency code, such as EUR.',
+                )}
+              </FieldError>
             </Field>
-            {amountField('minimum', 'Minimum')}
-            {amountField('midpoint', 'Midpoint')}
-            {amountField('maximum', 'Maximum')}
-            <DatePicker label="From" value={from} onChange={setFrom} />
+            {amountField('minimum', tr('settings.organisation.minimum', 'Minimum'))}
+            {amountField('midpoint', tr('settings.organisation.midpoint', 'Midpoint'))}
+            {amountField('maximum', tr('settings.organisation.maximum', 'Maximum'))}
+            <DatePicker
+              label={tr('settings.organisation.from', 'From')}
+              value={from}
+              onChange={setFrom}
+            />
             {refused === null ? null : (
-              <Alert tone="danger" title="Not saved">
+              <Alert tone="danger" title={tr('settings.organisation.not_saved', 'Not saved')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('settings.organisation.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('settings.organisation.saving', 'Saving')}
             onClick={() => {
               setShown(true);
               if (invalid || from === null) return;
@@ -1659,7 +1863,7 @@ function PayBandDialog({
               });
             }}
           >
-            Save
+            {tr('settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1682,9 +1886,9 @@ function SaveRow({
   return (
     <>
       {outcome === null ? null : outcome.ok ? (
-        <Alert tone="success">Saved.</Alert>
+        <Alert tone="success">{tr('settings.organisation.saved', 'Saved.')}</Alert>
       ) : (
-        <Alert tone="danger" title="Not saved">
+        <Alert tone="danger" title={tr('settings.organisation.not_saved', 'Not saved')}>
           {outcome.message}
         </Alert>
       )}
@@ -1696,9 +1900,9 @@ function SaveRow({
             size="sm"
             disabled={disabled}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('settings.organisation.saving', 'Saving')}
           >
-            Save
+            {tr('settings.organisation.save', 'Save')}
           </Button>
         </div>
       ) : null}
@@ -1723,9 +1927,9 @@ function Company({
   const changed = zone !== settings.defaultTimeZone || photo !== photoWas;
 
   return (
-    <PageSection surface title="Company">
+    <PageSection surface title={tr('settings.organisation.company', 'Company')}>
       <form
-        aria-label="Company settings"
+        aria-label={tr('settings.organisation.company_settings', 'Company settings')}
         onSubmit={(event) => {
           event.preventDefault();
           if (!changed) return;
@@ -1742,26 +1946,38 @@ function Company({
       >
         <Stack gap={4}>
           <Field>
-            <FieldLabel>Company</FieldLabel>
+            <FieldLabel>{tr('settings.organisation.company', 'Company')}</FieldLabel>
             <FieldControl>
               <Input readOnly value={settings.displayName ?? 'Not known yet'} />
             </FieldControl>
             <FieldDescription>
               {settings.slug === null
-                ? 'Named by the back office.'
-                : `Signs in at ${settings.slug}. Named by the back office, and changed there.`}
+                ? tr('settings.organisation.named_by_the_back_office', 'Named by the back office.')
+                : tr(
+                    'settings.organisation.signs_in_at_named_by_the',
+                    'Signs in at {{slug}}. Named by the back office, and changed there.',
+                    { slug: settings.slug },
+                  )}
             </FieldDescription>
           </Field>
           <ZonePicker
             state={state}
-            label="Default time zone"
+            label={tr('settings.organisation.default_time_zone', 'Default time zone')}
             value={zone}
             onChange={setZone}
             disabled={!state.canManage}
-            description="The day of anybody with no location or legal entity, and of every figure about the whole company."
+            description={tr(
+              'settings.organisation.the_day_of_anybody_with_no',
+              'The day of anybody with no location or legal entity, and of every figure about the whole company.',
+            )}
           />
           <Field>
-            <FieldLabel>A photo when someone signs up</FieldLabel>
+            <FieldLabel>
+              {tr(
+                'settings.organisation.a_photo_when_someone_signs_up',
+                'A photo when someone signs up',
+              )}
+            </FieldLabel>
             <Select
               value={photo}
               disabled={!state.canManage}
@@ -1783,8 +1999,10 @@ function Company({
               </SelectContent>
             </Select>
             <FieldDescription>
-              Asked on the first screen after they set up their account, beside any image or
-              document field you collect at sign-up.
+              {tr(
+                'settings.organisation.asked_on_the_first_screen_after',
+                'Asked on the first screen after they set up their account, beside any image or document field you collect at sign-up.',
+              )}
             </FieldDescription>
           </Field>
           <SaveRow canManage={state.canManage} busy={busy} disabled={!changed} outcome={outcome} />
@@ -1813,9 +2031,12 @@ function RemindersAndPrivacy({
   const lowered = minimum === null || minimum < floor;
   const { reminders } = state;
   return (
-    <PageSection surface title="Reminders and privacy">
+    <PageSection
+      surface
+      title={tr('settings.organisation.reminders_and_privacy', 'Reminders and privacy')}
+    >
       <form
-        aria-label="Reminders and privacy"
+        aria-label={tr('settings.organisation.reminders_and_privacy', 'Reminders and privacy')}
         onSubmit={(event) => {
           event.preventDefault();
           if (lowered || minimum === floor) return;
@@ -1830,30 +2051,42 @@ function RemindersAndPrivacy({
         <Stack gap={4}>
           {reminders == null ? null : (
             <KeyValues
-              aria-label="How reminders are sent"
+              aria-label={tr(
+                'settings.organisation.how_reminders_are_sent',
+                'How reminders are sent',
+              )}
               layout="stacked"
               items={[
                 {
-                  label: 'Reminders to employees',
+                  label: tr(
+                    'settings.organisation.reminders_to_employees',
+                    'Reminders to employees',
+                  ),
                   value: 'By email, at most once a week, until their profile is complete',
                 },
-                { label: 'When', value: reminders.cadence },
-                { label: 'At', value: reminders.window },
+                { label: tr('settings.organisation.when', 'When'), value: reminders.cadence },
+                { label: tr('settings.organisation.at', 'At'), value: reminders.window },
                 {
-                  label: 'In chat',
+                  label: tr('settings.organisation.in_chat', 'In chat'),
                   value: reminders.inChat ? 'Also, when connected' : 'Email only',
                 },
               ]}
             />
           )}
           <NumberField
-            label="Smallest group shown in reports"
+            label={tr(
+              'settings.organisation.smallest_group_shown_in_reports',
+              'Smallest group shown in reports',
+            )}
             value={minimum}
             min={floor}
             step={1}
             disabled={!state.canManage}
             invalid={lowered}
-            hint="Can be raised, never lowered. In a smaller group, people can be picked out from an average."
+            hint={tr(
+              'settings.organisation.can_be_raised_never_lowered_in',
+              'Can be raised, never lowered. In a smaller group, people can be picked out from an average.',
+            )}
             onChange={setMinimum}
             className="max-w-40"
           />
@@ -1870,9 +2103,12 @@ function RemindersAndPrivacy({
 }
 
 const FLOOR_NAMES: Readonly<Record<string, string>> = {
-  'es-labour': 'Spain, labour records',
-  'de-labour': 'Germany, labour records',
-  'eu-payroll': 'EU, payroll and tax records',
+  'es-labour': tr('settings.organisation.spain_labour_records', 'Spain, labour records'),
+  'de-labour': tr('settings.organisation.germany_labour_records', 'Germany, labour records'),
+  'eu-payroll': tr(
+    'settings.organisation.eu_payroll_and_tax_records',
+    'EU, payroll and tax records',
+  ),
 };
 
 /**
@@ -1885,36 +2121,66 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
   return (
     <PageSection
       surface
-      title="Statutory retention"
-      description="The minimum time a leaver’s records are kept by law."
+      title={tr('settings.organisation.statutory_retention', 'Statutory retention')}
+      description={tr(
+        'settings.organisation.the_minimum_time_a_leavers_records',
+        'The minimum time a leaver’s records are kept by law.',
+      )}
     >
       <Stack gap={4}>
         {pending ? (
-          <Alert tone="warning" title="Pending legal review">
-            These periods await legal review. Nothing is erased automatically until they’re
-            confirmed.
+          <Alert
+            tone="warning"
+            title={tr('settings.organisation.pending_legal_review', 'Pending legal review')}
+          >
+            {tr(
+              'settings.organisation.these_periods_await_legal_review_nothing',
+              'These periods await legal review. Nothing is erased automatically until they’re confirmed.',
+            )}
           </Alert>
         ) : null}
-        <Table aria-label="Statutory retention floors">
+        <Table
+          aria-label={tr(
+            'settings.organisation.statutory_retention_floors',
+            'Statutory retention floors',
+          )}
+        >
           <TableHeader>
             <TableRow>
-              <TableHead>Records</TableHead>
-              <TableHead>Kept after leaving</TableHead>
-              <TableHead>Legal review</TableHead>
+              <TableHead>{tr('settings.organisation.records', 'Records')}</TableHead>
+              <TableHead>
+                {tr('settings.organisation.kept_after_leaving', 'Kept after leaving')}
+              </TableHead>
+              <TableHead>{tr('settings.organisation.legal_review', 'Legal review')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {floors.map((f) => (
               <TableRow key={f.floor}>
                 <TableCell>{FLOOR_NAMES[f.floor] ?? f.floor}</TableCell>
-                <TableCell>{`${String(f.months)} months`}</TableCell>
+                <TableCell>
+                  {tr('settings.organisation.months', '{{months}} months', {
+                    months: String(f.months),
+                  })}
+                </TableCell>
                 <TableCell>
                   {f.status === 'reviewed' ? (
                     <Badge tone="success">
-                      {`Reviewed by ${f.reviewedBy ?? 'counsel'}${f.reviewedOn === null ? '' : ` on ${f.reviewedOn}`}`}
+                      {tr('settings.organisation.reviewed_by', 'Reviewed by {{value}}{{value2}}', {
+                        value: f.reviewedBy ?? 'counsel',
+                        value2:
+                          f.reviewedOn === null
+                            ? ''
+                            : ' ' +
+                              tr('settings.organisation.on', 'on {{reviewedOn}}', {
+                                reviewedOn: f.reviewedOn,
+                              }),
+                      })}
                     </Badge>
                   ) : (
-                    <Badge tone="warning">Pending legal review</Badge>
+                    <Badge tone="warning">
+                      {tr('settings.organisation.pending_legal_review', 'Pending legal review')}
+                    </Badge>
                   )}
                 </TableCell>
               </TableRow>
@@ -1939,40 +2205,60 @@ function UpcomingErasures({
   return (
     <PageSection
       surface
-      title="Automated erasure"
-      description="Leavers whose data will be erased in the next three months."
-      actions={<Badge size="sm">HR only</Badge>}
+      title={tr('settings.organisation.automated_erasure', 'Automated erasure')}
+      description={tr(
+        'settings.organisation.leavers_whose_data_will_be_erased',
+        'Leavers whose data will be erased in the next three months.',
+      )}
+      actions={<Badge size="sm">{tr('settings.organisation.hr_only', 'HR only')}</Badge>}
     >
       {erasures.length === 0 ? (
         <EmptyState
-          title="Nobody is due"
-          description="No leaver’s records fall due for erasure in the next three months."
+          title={tr('settings.organisation.nobody_is_due', 'Nobody is due')}
+          description={tr(
+            'settings.organisation.no_leavers_records_fall_due_for',
+            'No leaver’s records fall due for erasure in the next three months.',
+          )}
         />
       ) : (
-        <Table aria-label="Upcoming automated erasures">
+        <Table
+          aria-label={tr(
+            'settings.organisation.upcoming_automated_erasures',
+            'Upcoming automated erasures',
+          )}
+        >
           <TableHeader>
             <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Kept under</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{tr('settings.organisation.person', 'Person')}</TableHead>
+              <TableHead>{tr('settings.organisation.due', 'Due')}</TableHead>
+              <TableHead>{tr('settings.organisation.kept_under', 'Kept under')}</TableHead>
+              <TableHead>{tr('settings.organisation.status', 'Status')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {erasures.map((e) => (
               <TableRow key={e.personId}>
-                <TableCell>{e.name ?? 'Name already erased'}</TableCell>
+                <TableCell>
+                  {e.name ?? tr('settings.organisation.name_already_erased', 'Name already erased')}
+                </TableCell>
                 <TableCell>{e.dueOn}</TableCell>
                 <TableCell>
                   {e.floors.length === 0
-                    ? 'The company’s policy'
+                    ? tr('settings.organisation.the_companys_policy', 'The company’s policy')
                     : e.floors.map((f) => FLOOR_NAMES[f] ?? f).join('; ')}
                 </TableCell>
                 <TableCell>
                   {e.waitingForReview.length > 0 ? (
-                    <Badge tone="warning">Waiting for legal review</Badge>
+                    <Badge tone="warning">
+                      {tr(
+                        'settings.organisation.waiting_for_legal_review',
+                        'Waiting for legal review',
+                      )}
+                    </Badge>
                   ) : (
-                    <Badge tone="neutral">Scheduled</Badge>
+                    <Badge tone="neutral">
+                      {tr('settings.organisation.scheduled', 'Scheduled')}
+                    </Badge>
                   )}
                 </TableCell>
               </TableRow>

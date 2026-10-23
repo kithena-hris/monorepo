@@ -32,6 +32,7 @@ import {
   type LeaveTypeRow,
   type Pack,
 } from './shared';
+import { t as tr } from '../i18n';
 
 /**
  * Leave types (T29, TOF-078): every kind of time off people can ask for, one
@@ -73,7 +74,7 @@ export interface LeaveTypesProps {
   readonly onSaveParentalCompany?: (weeks: ParentalCompany) => Promise<Outcome>;
 }
 
-const TITLE = 'Leave types';
+const TITLE = tr('settings.leave-types.leave_types', 'Leave types');
 const DESCRIPTION =
   'The kinds of time off people can request, and how each one is paid and approved.';
 
@@ -88,11 +89,18 @@ export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
         actions={
           <>
             <Button variant="secondary" startIcon={<icons.assistant aria-hidden />} asChild>
-              <a href="/settings/time-off/leave-types/new/describe">Write a policy in plain words</a>
+              <a href="/settings/time-off/leave-types/new/describe">
+                {tr(
+                  'settings.leave-types.write_a_policy_in_plain_words',
+                  'Write a policy in plain words',
+                )}
+              </a>
             </Button>
             {onAdd === undefined ? null : (
               <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
-                <a href="/settings/time-off/leave-types?add=1">Add leave type</a>
+                <a href="/settings/time-off/leave-types?add=1">
+                  {tr('settings.leave-types.add_leave_type', 'Add leave type')}
+                </a>
               </Button>
             )}
           </>
@@ -143,16 +151,19 @@ function CompanyWeeks({
   const w = form.draft;
   return (
     <PageSection
-      title="Your own parental weeks"
-      description="Weeks the company adds to what the law gives, after some years of service."
+      title={tr('settings.leave-types.your_own_parental_weeks', 'Your own parental weeks')}
+      description={tr(
+        'settings.leave-types.weeks_the_company_adds_to_what',
+        'Weeks the company adds to what the law gives, after some years of service.',
+      )}
       surface
     >
       <div className="flex flex-col gap-4">
         {form.refusal}
         <div className="grid grid-cols-1 gap-3 @min-[36rem]/types:grid-cols-2">
           <NumberField
-            label="Extra weeks"
-            hint="0 for none"
+            label={tr('settings.leave-types.extra_weeks', 'Extra weeks')}
+            hint={tr('settings.leave-types.0_for_none', '0 for none')}
             value={w.extraWeeks}
             min={0}
             max={52}
@@ -162,7 +173,7 @@ function CompanyWeeks({
             }}
           />
           <NumberField
-            label="After (years of service)"
+            label={tr('settings.leave-types.after_years_of_service', 'After (years of service)')}
             value={w.afterServiceYears}
             min={0}
             max={50}
@@ -173,7 +184,7 @@ function CompanyWeeks({
           />
         </div>
         <Field>
-          <FieldLabel>Booked as</FieldLabel>
+          <FieldLabel>{tr('settings.leave-types.booked_as', 'Booked as')}</FieldLabel>
           <Select
             value={w.leaveTypeKey}
             onValueChange={(leaveTypeKey) => {
@@ -201,17 +212,25 @@ function CompanyWeeks({
 }
 
 const PAID: Record<LeaveTypeRow['definition']['paid'], string> = {
-  paid: 'Paid',
-  unpaid: 'Not paid',
-  statutory: 'Paid by Social Security',
+  paid: tr('settings.leave-types.paid', 'Paid'),
+  unpaid: tr('settings.leave-types.not_paid', 'Not paid'),
+  statutory: tr('settings.leave-types.paid_by_social_security', 'Paid by Social Security'),
 };
 
 /** "Paid · tracked balance · note after 3 days". */
 function terms(t: LeaveTypeRow['definition']): string {
   return [
     PAID[t.paid],
-    t.tracked ? `tracked in ${t.unit === 'hour' ? 'hours' : 'days'}` : 'no balance',
-    t.requiresNote === null ? null : `note after ${String(t.requiresNote.afterDays)} days`,
+    t.tracked
+      ? tr('settings.leave-types.tracked_in', 'tracked in {{value}}', {
+          value: t.unit === 'hour' ? 'hours' : 'days',
+        })
+      : tr('settings.leave-types.no_balance', 'no balance'),
+    t.requiresNote === null
+      ? null
+      : tr('settings.leave-types.note_after_days', 'note after {{afterDays}} days', {
+          afterDays: String(t.requiresNote.afterDays),
+        }),
     t.visibility === 'off_only' ? 'teammates see “Off”' : null,
   ]
     .filter(Boolean)
@@ -222,7 +241,7 @@ function Ready({ data }: { readonly data: LeaveTypesData }): JSX.Element {
   return (
     <>
       <PackNotice packs={data.packs} />
-      <List navigable aria-label="Leave types">
+      <List navigable aria-label={tr('settings.leave-types.leave_types', 'Leave types')}>
         {data.leaveTypes.map(({ definition: t, hidden }) => {
           const rule = ruleFor(data.rules, t.key);
           return (
@@ -232,18 +251,20 @@ function Ready({ data }: { readonly data: LeaveTypesData }): JSX.Element {
               icon={leaveIcon(t.icon)}
               iconTone={chartTone(t.colorToken)}
               description={terms(t)}
-              supporting={`${appliesToLabel(t.appliesTo)} · ${
-                rule === undefined
-                  ? 'No approval rule'
-                  : `${approversLabel(rule.approvers)} approves`
-              }`}
+              supporting={tr('settings.leave-types.text', '{{appliesToLabel}} · {{value}}', {
+                appliesToLabel: appliesToLabel(t.appliesTo),
+                value:
+                  rule === undefined
+                    ? 'No approval rule'
+                    : `${approversLabel(rule.approvers)} approves`,
+              })}
               trailing={
                 hidden ? (
                   <Badge size="sm" variant="outline">
-                    Hidden
+                    {tr('settings.leave-types.hidden', 'Hidden')}
                   </Badge>
                 ) : t.statutory ? (
-                  <Badge size="sm">Statutory</Badge>
+                  <Badge size="sm">{tr('settings.leave-types.statutory', 'Statutory')}</Badge>
                 ) : undefined
               }
               chevron
@@ -263,7 +284,9 @@ export function LeaveTypesSkeleton(): JSX.Element {
     <div className="flex flex-col gap-6">
       <PageHeader title={TITLE} description={DESCRIPTION} />
       <div role="status" className="flex flex-col gap-px overflow-hidden rounded-[1.125rem]">
-        <span className="sr-only">Loading the leave types</span>
+        <span className="sr-only">
+          {tr('settings.leave-types.loading_the_leave_types', 'Loading the leave types')}
+        </span>
         {Array.from({ length: 8 }, (_, i) => (
           <Skeleton key={i} className="h-[5.25rem] rounded-none" />
         ))}

@@ -2,6 +2,7 @@ import { Badge, Button, CheckboxCard, IconTile, icons } from '@reach/ui';
 import type { ComponentType, JSX, ReactNode, SVGProps } from 'react';
 
 import type { BenefitCategory, CatalogueBenefit } from './types';
+import { t } from './i18n';
 
 /**
  * Benefits by category: the tiles a job picks from, and the list its ad
@@ -100,7 +101,10 @@ export function BenefitPicker({
               meta={
                 on === 0 ? null : (
                   <Badge size="sm" variant="soft" tone="accent" className="tabular-nums">
-                    {`${String(on)} of ${String(list.length)}`}
+                    {t('benefits.of', '{{on}} of {{length}}', {
+                      on: String(on),
+                      length: String(list.length),
+                    })}
                   </Badge>
                 )
               }
@@ -119,7 +123,9 @@ export function BenefitPicker({
                       );
                     }}
                   >
-                    {all ? 'Clear these' : 'Choose all'}
+                    {all
+                      ? t('benefits.clear_these', 'Clear these')
+                      : t('benefits.choose_all', 'Choose all')}
                   </Button>
                 )
               }
@@ -134,7 +140,7 @@ export function BenefitPicker({
                   badge={
                     b.statutory ? (
                       <Badge size="xs" variant="soft" tone="info">
-                        By law
+                        {t('benefits.by_law', 'By law')}
                       </Badge>
                     ) : undefined
                   }

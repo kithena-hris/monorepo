@@ -13,6 +13,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Chip } from '../chip/chip';
 import { fieldErrorClass, fieldHintClass, fieldLabelClass } from '../field/field-styles';
+import { t } from '../../lib/i18n';
 
 /**
  * Several short values in one field: email addresses, skills, cost centres.
@@ -123,11 +124,21 @@ export function TagsInput({
     // Narrowed on `max` rather than on the derived `full`, so the message can
     // name the limit without a fallback that could never be reached.
     if (max !== undefined && value.length >= max) {
-      setError(`At most ${String(max)} allowed.`);
+      setError(
+        t('components.tags-input.tags-input.at_most_allowed', 'At most {{max}} allowed.', {
+          max: String(max),
+        }),
+      );
       return false;
     }
     if (value.includes(candidate)) {
-      setError(`${candidate} is already in the list.`);
+      setError(
+        t(
+          'components.tags-input.tags-input.is_already_in_the_list',
+          '{{candidate}} is already in the list.',
+          { candidate },
+        ),
+      );
       setDuplicate(candidate);
       return false;
     }
@@ -139,14 +150,26 @@ export function TagsInput({
 
     setError(null);
     onChange([...value, candidate]);
-    setAnnouncement(`${candidate} added. ${String(value.length + 1)} in total.`);
+    setAnnouncement(
+      t(
+        'components.tags-input.tags-input.added_in_total',
+        '{{candidate}} added. {{value}} in total.',
+        { candidate, value: String(value.length + 1) },
+      ),
+    );
     return true;
   };
 
   const remove = (index: number): void => {
-    const removed = value[index] ?? 'Tag';
+    const removed = value[index] ?? t('components.tags-input.tags-input.tag', 'Tag');
     onChange(value.filter((_, position) => position !== index));
-    setAnnouncement(`${removed} removed. ${String(value.length - 1)} remaining.`);
+    setAnnouncement(
+      t(
+        'components.tags-input.tags-input.removed_remaining',
+        '{{removed}} removed. {{value}} remaining.',
+        { removed, value: String(value.length - 1) },
+      ),
+    );
     setFocusedTag(null);
     inputRef.current?.focus();
   };
@@ -237,7 +260,14 @@ export function TagsInput({
           disabled && 'pointer-events-none opacity-50',
         )}
       >
-        <ul aria-label={`${label}, ${String(value.length)} entries`} className="contents">
+        <ul
+          aria-label={t(
+            'components.tags-input.tags-input.entries',
+            '{{label}}, {{length}} entries',
+            { label, length: String(value.length) },
+          )}
+          className="contents"
+        >
           {value.map((tag, index) => {
             // A value handed in that `validate` would refuse stays, marked, so
             // an imported list shows what needs fixing rather than hiding it.
@@ -252,7 +282,9 @@ export function TagsInput({
                   // or when it is the one a duplicate just ran into.
                   selected={focusedTag === index || duplicate === tag}
                   invalid={failure !== null}
-                  removeLabel={`Remove ${tag}`}
+                  removeLabel={t('components.tags-input.tags-input.remove', 'Remove {{tag}}', {
+                    tag,
+                  })}
                   onRemove={() => {
                     remove(index);
                   }}
@@ -285,7 +317,13 @@ export function TagsInput({
           aria-describedby={cn(hint && hintId, error && errorId, statusId) || undefined}
           aria-invalid={invalid || Boolean(error) || undefined}
           value={draft}
-          placeholder={value.length === 0 ? placeholder : full ? 'Limit reached' : ''}
+          placeholder={
+            value.length === 0
+              ? placeholder
+              : full
+                ? t('components.tags-input.tags-input.limit_reached', 'Limit reached')
+                : ''
+          }
           disabled={disabled || full}
           onChange={(event) => {
             setDraft(event.target.value);

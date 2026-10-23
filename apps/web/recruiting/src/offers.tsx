@@ -51,6 +51,7 @@ import type {
   TermLength,
   TermsAnswers,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R19–R22: offers, the editor with its checks and the terms composer, the
@@ -66,27 +67,33 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Offers"
-            description="Drafts, those waiting on an approver, those sent and those accepted."
+            title={tr('offers.offers', 'Offers')}
+            description={tr(
+              'offers.drafts_those_waiting_on_an_approver',
+              'Drafts, those waiting on an approver, those sent and those accepted.',
+            )}
           />
           <Card>
             <CardContent>
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.agreement aria-hidden />}
-                  title="No offers yet"
-                  description="An offer starts from a candidate’s application."
+                  title={tr('offers.no_offers_yet', 'No offers yet')}
+                  description={tr(
+                    'offers.an_offer_starts_from_a_candidates',
+                    'An offer starts from a candidate’s application.',
+                  )}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Candidate</TableHead>
-                      <TableHead>Job</TableHead>
-                      <TableHead>Base</TableHead>
-                      <TableHead>Start</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead>State</TableHead>
+                      <TableHead>{tr('offers.candidate', 'Candidate')}</TableHead>
+                      <TableHead>{tr('offers.job', 'Job')}</TableHead>
+                      <TableHead>{tr('offers.base', 'Base')}</TableHead>
+                      <TableHead>{tr('offers.start', 'Start')}</TableHead>
+                      <TableHead>{tr('offers.expires', 'Expires')}</TableHead>
+                      <TableHead>{tr('offers.state', 'State')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -113,7 +120,7 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
                             <StateBadge state={r.state} />
                             {r.needsMe ? (
                               <Badge size="sm" tone="warning">
-                                Needs you
+                                {tr('offers.needs_you', 'Needs you')}
                               </Badge>
                             ) : null}
                           </span>
@@ -164,20 +171,34 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="New offer"
-        description="Start with the pay and the dates; the terms composer comes next."
+        title={tr('offers.new_offer', 'New offer')}
+        description={tr(
+          'offers.start_with_the_pay_and_the',
+          'Start with the pay and the dates; the terms composer comes next.',
+        )}
       />
       <Refusal error={act.error} />
       {application === '' ? (
-        <Alert tone="warning" title="Start from an application">
-          Open the candidate and make the offer from their application.
+        <Alert
+          tone="warning"
+          title={tr('offers.start_from_an_application', 'Start from an application')}
+        >
+          {tr(
+            'offers.open_the_candidate_and_make_the',
+            'Open the candidate and make the offer from their application.',
+          )}
         </Alert>
       ) : null}
       <Card padded>
         <div className="grid gap-4 md:grid-cols-2">
-          <NumberField label="Base pay (yearly)" value={base} min={0} onChange={setBase} />
+          <NumberField
+            label={tr('offers.base_pay_yearly', 'Base pay (yearly)')}
+            value={base}
+            min={0}
+            onChange={setBase}
+          />
           <Field>
-            <FieldLabel>Currency</FieldLabel>
+            <FieldLabel>{tr('offers.currency', 'Currency')}</FieldLabel>
             <Select value={currency} onValueChange={setCurrency}>
               <FieldControl>
                 <SelectTrigger>
@@ -194,10 +215,10 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
             </Select>
           </Field>
           <Field required>
-            <FieldLabel>Start date</FieldLabel>
+            <FieldLabel>{tr('offers.start_date', 'Start date')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Start date"
+                label={tr('offers.start_date', 'Start date')}
                 value={start === '' ? null : start}
                 onChange={(d) => {
                   setStart(d ?? '');
@@ -206,10 +227,10 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>Offer expires</FieldLabel>
+            <FieldLabel>{tr('offers.offer_expires', 'Offer expires')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Offer expires"
+                label={tr('offers.offer_expires', 'Offer expires')}
                 value={expires === '' ? null : expires}
                 onChange={(d) => {
                   setExpires(d ?? '');
@@ -253,7 +274,7 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
               );
             }}
           >
-            Create draft
+            {tr('offers.create_draft', 'Create draft')}
           </Button>
         </div>
       </Card>
@@ -272,20 +293,32 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Checks</CardTitle>
+          <CardTitle level={2}>{tr('offers.checks', 'Checks')}</CardTitle>
           <CardDescription>
-            Run on every change, again before approval and before sending
+            {tr(
+              'offers.run_on_every_change_again_before',
+              'Run on every change, again before approval and before sending',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {c === null ? (
-            <Alert tone="warning" title="Choose the job’s legal entity first">
-              Checks need the country.
+            <Alert
+              tone="warning"
+              title={tr(
+                'offers.choose_the_jobs_legal_entity_first',
+                'Choose the job’s legal entity first',
+              )}
+            >
+              {tr('offers.checks_need_the_country', 'Checks need the country.')}
             </Alert>
           ) : null}
           {c !== null && c.terms !== null && c.checks.length === 0 && c.termsIssues.length === 0 ? (
-            <Alert tone="success" title="Every check passes">
-              Terms, pay band, pay equity and budget.
+            <Alert tone="success" title={tr('offers.every_check_passes', 'Every check passes')}>
+              {tr(
+                'offers.terms_pay_band_pay_equity_and',
+                'Terms, pay band, pay equity and budget.',
+              )}
             </Alert>
           ) : null}
           {c?.termsIssues.map((i) => (
@@ -294,21 +327,31 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
               tone={i.severity === 'error' ? 'danger' : 'warning'}
               title={words(i.step)}
             >
-              {`${i.message} (${i.source})`}
+              {tr('offers.text', '{{message}} ({{source}})', {
+                message: i.message,
+                source: i.source,
+              })}
             </Alert>
           ))}
           {c?.checks.map((k) => (
             <Alert
               key={k.code}
               tone={k.severity === 'error' ? 'danger' : 'warning'}
-              title={k.severity === 'error' ? 'Blocks the offer' : 'Adds an approval step'}
+              title={
+                k.severity === 'error'
+                  ? tr('offers.blocks_the_offer', 'Blocks the offer')
+                  : tr('offers.adds_an_approval_step', 'Adds an approval step')
+              }
             >
               {k.message}
             </Alert>
           ))}
           {c !== null && !c.packReviewed ? (
             <p className="text-xs text-fg-muted">
-              This country pack is awaiting a country reviewer.
+              {tr(
+                'offers.this_country_pack_is_awaiting_a',
+                'This country pack is awaiting a country reviewer.',
+              )}
             </p>
           ) : null}
         </CardContent>
@@ -316,21 +359,29 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
       {r === undefined ? null : (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Total rewards</CardTitle>
-            <CardDescription>Added up by Kithena</CardDescription>
+            <CardTitle level={2}>{tr('offers.total_rewards', 'Total rewards')}</CardTitle>
+            <CardDescription>
+              {tr('offers.added_up_by_kithena', 'Added up by Kithena')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <KeyValues
               items={[
-                { label: 'Base', value: money(r.baseMinor, currency) },
-                { label: 'Variable at target', value: money(r.variableMinor, currency) },
-                { label: 'Benefits with a value', value: money(r.benefitsMinor, currency) },
-                { label: 'Total', value: money(r.totalMinor, currency) },
+                { label: tr('offers.base', 'Base'), value: money(r.baseMinor, currency) },
+                {
+                  label: tr('offers.variable_at_target', 'Variable at target'),
+                  value: money(r.variableMinor, currency),
+                },
+                {
+                  label: tr('offers.benefits_with_a_value', 'Benefits with a value'),
+                  value: money(r.benefitsMinor, currency),
+                },
+                { label: tr('offers.total', 'Total'), value: money(r.totalMinor, currency) },
                 ...(r.descriptive.length === 0 && r.equityUnits === null
                   ? []
                   : [
                       {
-                        label: 'Also',
+                        label: tr('offers.also', 'Also'),
                         value: [
                           ...(r.equityUnits === null
                             ? []
@@ -349,21 +400,21 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
 }
 
 const STEP_LABEL: Readonly<Record<string, string>> = {
-  entity: 'Legal entity',
-  location: 'Work location',
-  relationship: 'Relationship',
-  contract_type: 'Contract type',
-  fixed_term_reason: 'Fixed-term reason',
-  duration: 'Duration',
-  hours: 'Hours',
-  probation: 'Probation',
-  notice: 'Notice',
-  work_mode: 'Work mode',
-  agreement: 'Collective agreement',
-  pay: 'Pay',
-  benefits: 'Benefits',
-  clauses: 'Clauses',
-  summary: 'Summary',
+  entity: tr('offers.legal_entity', 'Legal entity'),
+  location: tr('offers.work_location', 'Work location'),
+  relationship: tr('offers.relationship', 'Relationship'),
+  contract_type: tr('offers.contract_type', 'Contract type'),
+  fixed_term_reason: tr('offers.fixed_term_reason', 'Fixed-term reason'),
+  duration: tr('offers.duration', 'Duration'),
+  hours: tr('offers.hours', 'Hours'),
+  probation: tr('offers.probation', 'Probation'),
+  notice: tr('offers.notice', 'Notice'),
+  work_mode: tr('offers.work_mode', 'Work mode'),
+  agreement: tr('offers.collective_agreement', 'Collective agreement'),
+  pay: tr('offers.pay', 'Pay'),
+  benefits: tr('offers.benefits', 'Benefits'),
+  clauses: tr('offers.clauses', 'Clauses'),
+  summary: tr('offers.summary', 'Summary'),
 };
 
 function Length({
@@ -392,7 +443,10 @@ function Length({
           onChange({ ...v, unit: u as TermLength['unit'] });
         }}
       >
-        <SelectTrigger aria-label={`${label}, unit`} className="w-32">
+        <SelectTrigger
+          aria-label={tr('offers.unit', '{{label}}, unit', { label })}
+          className="w-32"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -429,13 +483,18 @@ function Pick({
       <Select value={value ?? ''} onValueChange={onChange}>
         <FieldControl>
           <SelectTrigger>
-            <SelectValue placeholder="Choose…" />
+            <SelectValue placeholder={tr('offers.choose', 'Choose…')} />
           </SelectTrigger>
         </FieldControl>
         <SelectContent>
           {choices.map((c) => (
             <SelectItem key={c.key} value={c.key} disabled={c.unavailable !== undefined}>
-              {c.unavailable === undefined ? c.label : `${c.label} — ${c.unavailable}`}
+              {c.unavailable === undefined
+                ? c.label
+                : tr('offers.text_2', '{{label}} — {{unavailable}}', {
+                    label: c.label,
+                    unavailable: c.unavailable,
+                  })}
             </SelectItem>
           ))}
         </SelectContent>
@@ -461,8 +520,11 @@ function Composer({
   const c = data.composer;
   if (c === null || version === undefined)
     return (
-      <Alert tone="warning" title="No country pack yet">
-        Choose the job’s legal entity; its country decides what the composer offers.
+      <Alert tone="warning" title={tr('offers.no_country_pack_yet', 'No country pack yet')}>
+        {tr(
+          'offers.choose_the_jobs_legal_entity_its',
+          'Choose the job’s legal entity; its country decides what the composer offers.',
+        )}
       </Alert>
     );
   const steps = c.steps.filter((s) => s.state !== 'skipped');
@@ -492,7 +554,7 @@ function Composer({
   const step = current?.step ?? 'summary';
   return (
     <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_18rem]">
-      <nav aria-label="Steps" className="flex flex-col gap-1">
+      <nav aria-label={tr('offers.steps', 'Steps')} className="flex flex-col gap-1">
         {steps.map((s, i) => (
           <a
             key={s.step}
@@ -518,7 +580,13 @@ function Composer({
       <Card>
         <CardHeader>
           <CardTitle level={2}>{STEP_LABEL[step] ?? words(step)}</CardTitle>
-          <CardDescription>{`${c.country} pack ${c.version}${c.reviewed ? '' : ' · awaiting a country reviewer'}`}</CardDescription>
+          <CardDescription>
+            {tr('offers.pack', '{{country}} pack {{version}}{{value}}', {
+              country: c.country,
+              version: c.version,
+              value: c.reviewed ? '' : ' · awaiting a country reviewer',
+            })}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Refusal error={act.error} />
@@ -526,17 +594,30 @@ function Composer({
             <Alert
               key={i.code}
               tone={i.severity === 'error' ? 'danger' : 'warning'}
-              title={i.severity === 'error' ? 'Not lawful' : 'Read and confirm'}
+              title={
+                i.severity === 'error'
+                  ? tr('offers.not_lawful', 'Not lawful')
+                  : tr('offers.read_and_confirm', 'Read and confirm')
+              }
             >
-              {`${i.message} (${i.source})`}
+              {tr('offers.text', '{{message}} ({{source}})', {
+                message: i.message,
+                source: i.source,
+              })}
             </Alert>
           ))}
           {step === 'entity' ? (
-            <p>{`${data.job.title} is hired through the job’s legal entity, in ${c.country}. Change it on the job.`}</p>
+            <p>
+              {tr(
+                'offers.is_hired_through_the_jobs_legal',
+                '{{title}} is hired through the job’s legal entity, in {{country}}. Change it on the job.',
+                { title: data.job.title, country: c.country },
+              )}
+            </p>
           ) : null}
           {step === 'location' ? (
             <Pick
-              label="Region"
+              label={tr('offers.region', 'Region')}
               value={answers.region}
               choices={c.regions}
               onChange={(v) => {
@@ -546,7 +627,7 @@ function Composer({
           ) : null}
           {step === 'relationship' ? (
             <Pick
-              label="Relationship"
+              label={tr('offers.relationship', 'Relationship')}
               value={answers.relationship}
               choices={c.relationships}
               onChange={(v) => {
@@ -556,7 +637,7 @@ function Composer({
           ) : null}
           {step === 'contract_type' ? (
             <Pick
-              label="Contract type"
+              label={tr('offers.contract_type', 'Contract type')}
               value={answers.contractType}
               choices={c.contractTypes}
               onChange={(v) => {
@@ -567,7 +648,7 @@ function Composer({
           {step === 'fixed_term_reason' ? (
             <>
               <Pick
-                label="Reason"
+                label={tr('offers.reason', 'Reason')}
                 value={answers.fixedTermReason}
                 choices={c.reasons}
                 onChange={(v) => {
@@ -576,16 +657,24 @@ function Composer({
               />
               {c.asksPreviousEmployment ? (
                 <Field>
-                  <FieldLabel>{`Has ${data.candidate.name} worked for this employer before?`}</FieldLabel>
+                  <FieldLabel>
+                    {tr(
+                      'offers.has_worked_for_this_employer_before',
+                      'Has {{name}} worked for this employer before?',
+                      { name: data.candidate.name },
+                    )}
+                  </FieldLabel>
                   <SegmentedControl
-                    aria-label="Worked here before"
+                    aria-label={tr('offers.worked_here_before', 'Worked here before')}
                     value={answers.previouslyEmployed === true ? 'yes' : 'no'}
                     onValueChange={(v) => {
                       set({ previouslyEmployed: v === 'yes' });
                     }}
                   >
-                    <SegmentedControlItem value="no">No</SegmentedControlItem>
-                    <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
+                    <SegmentedControlItem value="no">{tr('offers.no', 'No')}</SegmentedControlItem>
+                    <SegmentedControlItem value="yes">
+                      {tr('offers.yes', 'Yes')}
+                    </SegmentedControlItem>
                   </SegmentedControl>
                 </Field>
               ) : null}
@@ -593,22 +682,28 @@ function Composer({
           ) : null}
           {step === 'duration' ? (
             <Field>
-              <FieldLabel>Ends on</FieldLabel>
+              <FieldLabel>{tr('offers.ends_on', 'Ends on')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Ends on"
+                  label={tr('offers.ends_on', 'Ends on')}
                   value={answers.contractEnd ?? null}
                   onChange={(d) => {
                     set({ contractEnd: d });
                   }}
                 />
               </FieldControl>
-              <FieldDescription>{`Starts ${day(version.startDate)}, from the offer’s dates. Leave empty for no end.`}</FieldDescription>
+              <FieldDescription>
+                {tr(
+                  'offers.starts_from_the_offers_dates_leave',
+                  'Starts {{startDate}}, from the offer’s dates. Leave empty for no end.',
+                  { startDate: day(version.startDate) },
+                )}
+              </FieldDescription>
             </Field>
           ) : null}
           {step === 'hours' ? (
             <NumberField
-              label="Hours a week"
+              label={tr('offers.hours_a_week', 'Hours a week')}
               value={hours}
               min={1}
               max={60}
@@ -628,11 +723,11 @@ function Composer({
                     set({ probation: on ? null : { count: 6, unit: 'months' } });
                   }}
                 />
-                <label htmlFor="no-probation">No probation</label>
+                <label htmlFor="no-probation">{tr('offers.no_probation', 'No probation')}</label>
               </div>
               {answers.probation === null ? null : (
                 <Length
-                  label="Probation"
+                  label={tr('offers.probation', 'Probation')}
                   value={answers.probation}
                   onChange={(v) => {
                     set({ probation: v });
@@ -644,14 +739,14 @@ function Composer({
           {step === 'notice' ? (
             <>
               <Length
-                label="Notice from the employee"
+                label={tr('offers.notice_from_the_employee', 'Notice from the employee')}
                 value={answers.noticeEmployee}
                 onChange={(v) => {
                   set({ noticeEmployee: v });
                 }}
               />
               <Length
-                label="Notice from the employer"
+                label={tr('offers.notice_from_the_employer', 'Notice from the employer')}
                 value={answers.noticeEmployer}
                 onChange={(v) => {
                   set({ noticeEmployer: v });
@@ -662,19 +757,25 @@ function Composer({
           {step === 'work_mode' ? (
             <>
               <SegmentedControl
-                aria-label="Work mode"
+                aria-label={tr('offers.work_mode', 'Work mode')}
                 value={answers.workMode ?? ''}
                 onValueChange={(v) => {
                   set({ workMode: v as NonNullable<TermsAnswers['workMode']> });
                 }}
               >
-                <SegmentedControlItem value="onsite">On site</SegmentedControlItem>
-                <SegmentedControlItem value="hybrid">Hybrid</SegmentedControlItem>
-                <SegmentedControlItem value="remote">Remote</SegmentedControlItem>
+                <SegmentedControlItem value="onsite">
+                  {tr('offers.on_site', 'On site')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="hybrid">
+                  {tr('offers.hybrid', 'Hybrid')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="remote">
+                  {tr('offers.remote', 'Remote')}
+                </SegmentedControlItem>
               </SegmentedControl>
               {answers.workMode === 'hybrid' ? (
                 <NumberField
-                  label="Days on site a week"
+                  label={tr('offers.days_on_site_a_week', 'Days on site a week')}
                   value={answers.hybridDaysOnsite ?? null}
                   min={1}
                   max={5}
@@ -685,7 +786,9 @@ function Composer({
               ) : null}
               {answers.workMode === 'remote' ? (
                 <Field>
-                  <FieldLabel>Working from (country code)</FieldLabel>
+                  <FieldLabel>
+                    {tr('offers.working_from_country_code', 'Working from (country code)')}
+                  </FieldLabel>
                   <FieldControl>
                     <Input
                       maxLength={2}
@@ -705,7 +808,7 @@ function Composer({
           {step === 'agreement' ? (
             <div className="grid gap-4 md:grid-cols-2">
               <Field>
-                <FieldLabel>Agreement</FieldLabel>
+                <FieldLabel>{tr('offers.agreement', 'Agreement')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={answers.agreement?.key ?? ''}
@@ -721,7 +824,7 @@ function Composer({
                 </FieldControl>
               </Field>
               <Field>
-                <FieldLabel>Group</FieldLabel>
+                <FieldLabel>{tr('offers.group', 'Group')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={answers.agreement?.group ?? ''}
@@ -742,7 +845,9 @@ function Composer({
           {step === 'pay' ? (
             <>
               <NumberField
-                label={`Yearly pay (${version.pay.currency})`}
+                label={tr('offers.yearly_pay', 'Yearly pay ({{currency}})', {
+                  currency: version.pay.currency,
+                })}
                 value={answers.annualPayMinor === undefined ? null : answers.annualPayMinor / 100}
                 min={0}
                 onChange={(n) => {
@@ -751,7 +856,7 @@ function Composer({
               />
               {c.paymentsPerYear.length > 1 ? (
                 <Pick
-                  label="Payments a year"
+                  label={tr('offers.payments_a_year', 'Payments a year')}
                   value={String(answers.paymentsPerYear ?? c.paymentsPerYear[0])}
                   choices={c.paymentsPerYear.map((n) => ({ key: String(n), label: String(n) }))}
                   onChange={(v) => {
@@ -763,13 +868,16 @@ function Composer({
           ) : null}
           {step === 'benefits' ? (
             <p className="text-sm">
-              Chosen on the Benefits tab; statutory ones are included and locked.
+              {tr(
+                'offers.chosen_on_the_benefits_tab_statutory',
+                'Chosen on the Benefits tab; statutory ones are included and locked.',
+              )}
             </p>
           ) : null}
           {step === 'clauses' ? (
             <>
               <NumberField
-                label="Non-compete, months"
+                label={tr('offers.non_compete_months', 'Non-compete, months')}
                 value={answers.nonCompeteMonths ?? 0}
                 min={0}
                 max={36}
@@ -779,7 +887,10 @@ function Composer({
               />
               {(answers.nonCompeteMonths ?? 0) > 0 ? (
                 <NumberField
-                  label="Compensation during it, % of last pay"
+                  label={tr(
+                    'offers.compensation_during_it_of_last_pay',
+                    'Compensation during it, % of last pay',
+                  )}
                   value={answers.nonCompeteCompensationPercent ?? null}
                   min={0}
                   max={100}
@@ -796,39 +907,42 @@ function Composer({
                     set({ mobilityClause: on });
                   }}
                 />
-                <label htmlFor="mobility">Mobility clause</label>
+                <label htmlFor="mobility">{tr('offers.mobility_clause', 'Mobility clause')}</label>
               </div>
             </>
           ) : null}
           {step === 'summary' ? (
             data.checked?.terms == null ? (
-              <Alert tone="danger" title="Not ready">
-                Every error above blocks the offer; fix the steps marked “!”.
+              <Alert tone="danger" title={tr('offers.not_ready', 'Not ready')}>
+                {tr(
+                  'offers.every_error_above_blocks_the_offer',
+                  'Every error above blocks the offer; fix the steps marked “!”.',
+                )}
               </Alert>
             ) : (
               <KeyValues
                 items={[
                   {
-                    label: 'Contract',
+                    label: tr('offers.contract', 'Contract'),
                     value: `${words(data.checked.terms.contractType)} · ${words(data.checked.terms.employmentType)}`,
                   },
                   {
-                    label: 'Hours',
+                    label: tr('offers.hours', 'Hours'),
                     value: `${String(data.checked.terms.weeklyMinutes / 60)} h · FTE ${data.checked.terms.fte}`,
                   },
                   {
-                    label: 'Signature',
+                    label: tr('offers.signature', 'Signature'),
                     value:
                       data.checked.terms.signature === 'wet_ink'
                         ? 'Wet ink: printed and signed by hand'
                         : 'Electronic',
                   },
                   {
-                    label: 'Documents',
+                    label: tr('offers.documents', 'Documents'),
                     value: ['contract', ...data.checked.terms.documents].map(words).join(', '),
                   },
                   {
-                    label: 'Before the start',
+                    label: tr('offers.before_the_start', 'Before the start'),
                     value: data.checked.terms.conditions.map(words).join(', ') || '—',
                   },
                 ]}
@@ -839,23 +953,30 @@ function Composer({
             <div className="flex justify-end gap-2">
               <Button disabled={!editable} loading={act.pending} onClick={save}>
                 {next === undefined
-                  ? 'Save'
-                  : `Save, then ${STEP_LABEL[next.step] ?? words(next.step)}`}
+                  ? tr('offers.save', 'Save')
+                  : tr('offers.save_then', 'Save, then {{value}}', {
+                      value: STEP_LABEL[next.step] ?? words(next.step),
+                    })}
               </Button>
             </div>
           )}
           <p className="text-xs text-fg-muted">
-            Changing an earlier answer re-checks every step after it.
+            {tr(
+              'offers.changing_an_earlier_answer_re_checks',
+              'Changing an earlier answer re-checks every step after it.',
+            )}
           </p>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Rules that applied</CardTitle>
+          <CardTitle level={2}>{tr('offers.rules_that_applied', 'Rules that applied')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {c.rules.filter((r) => r.step === step).length === 0 ? (
-            <p className="text-sm text-fg-muted">None for this step.</p>
+            <p className="text-sm text-fg-muted">
+              {tr('offers.none_for_this_step', 'None for this step.')}
+            </p>
           ) : null}
           {c.rules
             .filter((r) => r.step === step)
@@ -894,13 +1015,13 @@ function PayTab({
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Compensation</CardTitle>
+          <CardTitle level={2}>{tr('offers.compensation', 'Compensation')}</CardTitle>
           <CardDescription>{pay.currency}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Refusal error={act.error} />
           <NumberField
-            label="Base pay"
+            label={tr('offers.base_pay', 'Base pay')}
             value={major(pay.baseMinor)}
             min={0}
             onChange={(n) => {
@@ -908,7 +1029,7 @@ function PayTab({
             }}
           />
           <Pick
-            label="Per"
+            label={tr('offers.per', 'Per')}
             value={pay.frequency}
             choices={['year', 'month', 'hour'].map((k) => ({ key: k, label: words(k) }))}
             onChange={(f) => {
@@ -916,7 +1037,7 @@ function PayTab({
             }}
           />
           <NumberField
-            label="Variable at target"
+            label={tr('offers.variable_at_target', 'Variable at target')}
             value={major(pay.variableTargetMinor)}
             min={0}
             onChange={(n) => {
@@ -924,7 +1045,7 @@ function PayTab({
             }}
           />
           <NumberField
-            label="Sign-on bonus"
+            label={tr('offers.sign_on_bonus', 'Sign-on bonus')}
             value={major(pay.signOnMinor)}
             min={0}
             onChange={(n) => {
@@ -932,7 +1053,7 @@ function PayTab({
             }}
           />
           <NumberField
-            label="Relocation"
+            label={tr('offers.relocation', 'Relocation')}
             value={major(pay.relocationMinor)}
             min={0}
             onChange={(n) => {
@@ -940,7 +1061,7 @@ function PayTab({
             }}
           />
           <NumberField
-            label="Equity, units"
+            label={tr('offers.equity_units', 'Equity, units')}
             value={pay.equity?.units ?? 0}
             min={0}
             onChange={(n) => {
@@ -949,12 +1070,15 @@ function PayTab({
                 equity:
                   (n ?? 0) === 0
                     ? null
-                    : { description: pay.equity?.description ?? 'Options', units: n ?? 0 },
+                    : {
+                        description: pay.equity?.description ?? tr('offers.options', 'Options'),
+                        units: n ?? 0,
+                      },
               });
             }}
           />
           <Field>
-            <FieldLabel>Grade</FieldLabel>
+            <FieldLabel>{tr('offers.grade', 'Grade')}</FieldLabel>
             <Select value={grade} onValueChange={setGrade}>
               <FieldControl>
                 <SelectTrigger>
@@ -962,7 +1086,7 @@ function PayTab({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="none">No grade</SelectItem>
+                <SelectItem value="none">{tr('offers.no_grade', 'No grade')}</SelectItem>
                 {[...new Set(data.bands.map((b) => b.grade))].map((g) => (
                   <SelectItem key={g} value={g}>
                     {g}
@@ -973,7 +1097,7 @@ function PayTab({
           </Field>
           {outside || reason !== '' ? (
             <Field className="md:col-span-2">
-              <FieldLabel>Why outside the band</FieldLabel>
+              <FieldLabel>{tr('offers.why_outside_the_band', 'Why outside the band')}</FieldLabel>
               <FieldControl>
                 <Textarea
                   autoResize
@@ -999,7 +1123,7 @@ function PayTab({
                 });
               }}
             >
-              Save pay
+              {tr('offers.save_pay', 'Save pay')}
             </Button>
           </div>
         </CardContent>
@@ -1023,9 +1147,14 @@ function BenefitsTab({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Benefits in this offer</CardTitle>
+        <CardTitle level={2}>
+          {tr('offers.benefits_in_this_offer', 'Benefits in this offer')}
+        </CardTitle>
         <CardDescription>
-          From the entity’s catalogue; statutory ones are included and locked
+          {tr(
+            'offers.from_the_entitys_catalogue_statutory_ones',
+            'From the entity’s catalogue; statutory ones are included and locked',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -1034,10 +1163,10 @@ function BenefitsTab({
           <TableHeader>
             <TableRow>
               <TableHead>
-                <span className="sr-only">Included</span>
+                <span className="sr-only">{tr('offers.included', 'Included')}</span>
               </TableHead>
-              <TableHead>Benefit</TableHead>
-              <TableHead>Category</TableHead>
+              <TableHead>{tr('offers.benefit', 'Benefit')}</TableHead>
+              <TableHead>{tr('offers.category', 'Category')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1047,7 +1176,7 @@ function BenefitsTab({
                 <TableRow key={b.id}>
                   <TableCell>
                     {b.statutory ? (
-                      <icons.locked aria-label="Statutory" />
+                      <icons.locked aria-label={tr('offers.statutory', 'Statutory')} />
                     ) : (
                       <Checkbox
                         aria-label={name}
@@ -1077,7 +1206,7 @@ function BenefitsTab({
               });
             }}
           >
-            Save benefits
+            {tr('offers.save_benefits', 'Save benefits')}
           </Button>
         </div>
       </CardContent>
@@ -1102,10 +1231,10 @@ function DatesTab({
       <Refusal error={act.error} />
       <div className="grid gap-4 md:grid-cols-2">
         <Field required>
-          <FieldLabel>Start date</FieldLabel>
+          <FieldLabel>{tr('offers.start_date', 'Start date')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="Start date"
+              label={tr('offers.start_date', 'Start date')}
               value={start === '' ? null : start}
               onChange={(d) => {
                 setStart(d ?? '');
@@ -1114,10 +1243,10 @@ function DatesTab({
           </FieldControl>
         </Field>
         <Field required>
-          <FieldLabel>Offer expires</FieldLabel>
+          <FieldLabel>{tr('offers.offer_expires', 'Offer expires')}</FieldLabel>
           <FieldControl>
             <DatePicker
-              label="Offer expires"
+              label={tr('offers.offer_expires', 'Offer expires')}
               value={expires === '' ? null : expires}
               onChange={(d) => {
                 setExpires(d ?? '');
@@ -1136,7 +1265,7 @@ function DatesTab({
             });
           }}
         >
-          Save dates
+          {tr('offers.save_dates', 'Save dates')}
         </Button>
       </div>
     </Card>
@@ -1156,9 +1285,15 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={`Offer: ${data.candidate.name}`}
+              title={tr('offers.offer', 'Offer: {{name}}', { name: data.candidate.name })}
               meta={
-                <StateBadge state={s} label={`Version ${String(v?.version ?? 1)} · ${words(s)}`} />
+                <StateBadge
+                  state={s}
+                  label={tr('offers.version', 'Version {{value}} · {{s}}', {
+                    value: String(v?.version ?? 1),
+                    s: words(s),
+                  })}
+                />
               }
               description={`${data.job.title}${data.offer.versions.length > 1 ? ` · ${String(data.offer.versions.length - 1)} earlier version${data.offer.versions.length > 2 ? 's' : ''} kept` : ''}`}
               actions={
@@ -1170,7 +1305,7 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                         act.run('SubmitOffer', { offerId: data.offer.id });
                       }}
                     >
-                      Send for approval
+                      {tr('offers.send_for_approval', 'Send for approval')}
                     </Button>
                   ) : null}
                   {s === 'approved' ? (
@@ -1181,7 +1316,7 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                         act.run('SendOffer', { offerId: data.offer.id });
                       }}
                     >
-                      Send to the candidate
+                      {tr('offers.send_to_the_candidate', 'Send to the candidate')}
                     </Button>
                   ) : null}
                   {s === 'accepted' ? (
@@ -1190,7 +1325,7 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                         props.onNavigate?.(`/recruiting/offers/${data.offer.id}/contract`)
                       }
                     >
-                      Contract
+                      {tr('offers.contract', 'Contract')}
                     </Button>
                   ) : null}
                   {s === 'draft' || s === 'pending_approval' || s === 'approved' || s === 'sent' ? (
@@ -1201,7 +1336,7 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                         act.run('WithdrawOffer', { offerId: data.offer.id });
                       }}
                     >
-                      Withdraw
+                      {tr('offers.withdraw', 'Withdraw')}
                     </Button>
                   ) : null}
                 </>
@@ -1211,7 +1346,10 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
             {data.approval === null || s !== 'pending_approval' ? null : (
               <Alert
                 tone="info"
-                title={`Waiting on step ${String(data.approval.state.step + 1)} of ${String(data.approval.steps.length)}`}
+                title={tr('offers.waiting_on_step_of', 'Waiting on step {{value}} of {{length}}', {
+                  value: String(data.approval.state.step + 1),
+                  length: String(data.approval.steps.length),
+                })}
               >
                 {data.offer.approvalReasons.map(words).join(', ')}
               </Alert>
@@ -1269,7 +1407,9 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={`Approve offer: ${data.candidate.name}`}
+              title={tr('offers.approve_offer', 'Approve offer: {{name}}', {
+                name: data.candidate.name,
+              })}
               description={data.job.title}
               meta={<StateBadge state={data.offer.state} />}
             />
@@ -1277,38 +1417,41 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
             <Card padded>
               <KeyValues
                 items={[
-                  { label: 'Job', value: data.job.title },
+                  { label: tr('offers.job', 'Job'), value: data.job.title },
                   {
-                    label: 'Terms',
+                    label: tr('offers.terms', 'Terms'),
                     value:
                       t == null
                         ? 'Not complete'
                         : `${words(t.contractType)} · ${String(t.weeklyMinutes / 60)} h a week`,
                   },
                   {
-                    label: 'Base',
+                    label: tr('offers.base', 'Base'),
                     value:
                       v === undefined
                         ? '—'
                         : `${money(v.pay.baseMinor, v.pay.currency)} a ${v.pay.frequency}`,
                   },
-                  { label: 'Start', value: day(v?.startDate ?? null) },
+                  { label: tr('offers.start', 'Start'), value: day(v?.startDate ?? null) },
                 ]}
               />
             </Card>
             {data.meta.outsideBandReason === null ? null : (
-              <Alert tone="warning" title="Outside the band">
+              <Alert tone="warning" title={tr('offers.outside_the_band', 'Outside the band')}>
                 {data.meta.outsideBandReason}
               </Alert>
             )}
             <Checks data={data} />
             <p className="text-xs text-fg-muted">
-              You see the offer and its checks; nothing else about the candidate.
+              {tr(
+                'offers.you_see_the_offer_and_its',
+                'You see the offer and its checks; nothing else about the candidate.',
+              )}
             </p>
             {data.approval?.mine === true ? (
               <Card padded>
                 <Field>
-                  <FieldLabel>Comment</FieldLabel>
+                  <FieldLabel>{tr('offers.comment', 'Comment')}</FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
@@ -1316,7 +1459,10 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                       onChange={(e) => {
                         setComment(e.target.value);
                       }}
-                      placeholder="Optional. Required to reject."
+                      placeholder={tr(
+                        'offers.optional_required_to_reject',
+                        'Optional. Required to reject.',
+                      )}
                     />
                   </FieldControl>
                 </Field>
@@ -1329,7 +1475,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                       decide('rejected');
                     }}
                   >
-                    Reject
+                    {tr('offers.reject', 'Reject')}
                   </Button>
                   <Button
                     loading={act.pending}
@@ -1337,13 +1483,13 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                       decide('approved');
                     }}
                   >
-                    Approve
+                    {tr('offers.approve', 'Approve')}
                   </Button>
                 </div>
               </Card>
             ) : (
-              <Alert tone="info" title="Not waiting on you">
-                Another approver holds this step.
+              <Alert tone="info" title={tr('offers.not_waiting_on_you', 'Not waiting on you')}>
+                {tr('offers.another_approver_holds_this_step', 'Another approver holds this step.')}
               </Alert>
             )}
           </div>
@@ -1366,11 +1512,20 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={`Contract: ${data.candidate.name}`}
+              title={tr('offers.contract_2', 'Contract: {{name}}', { name: data.candidate.name })}
               description={
                 data.offer.acceptance === null
                   ? data.job.title
-                  : `${data.job.title} · offer v${String(data.offer.acceptance.version)} accepted ${day(data.offer.acceptance.at)} · version hash ${data.offer.acceptance.versionHash.slice(0, 8)}…`
+                  : tr(
+                      'offers.offer_v_accepted_version_hash',
+                      '{{title}} · offer v{{version}} accepted {{at}} · version hash {{slice}}…',
+                      {
+                        title: data.job.title,
+                        version: String(data.offer.acceptance.version),
+                        at: day(data.offer.acceptance.at),
+                        slice: data.offer.acceptance.versionHash.slice(0, 8),
+                      },
+                    )
               }
             />
             <Refusal error={act.error} />
@@ -1378,22 +1533,30 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
               <div className="flex flex-col gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle level={2}>Contract</CardTitle>
+                    <CardTitle level={2}>{tr('offers.contract', 'Contract')}</CardTitle>
                     <CardDescription>
                       {k === null
-                        ? 'Generated when the offer is accepted'
-                        : `Pack ${k.packVersion}`}
+                        ? tr(
+                            'offers.generated_when_the_offer_is_accepted',
+                            'Generated when the offer is accepted',
+                          )
+                        : tr('offers.pack_2', 'Pack {{packVersion}}', {
+                            packVersion: k.packVersion,
+                          })}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {k === null ? (
-                      <EmptyState icon={<icons.document aria-hidden />} title="No contract yet" />
+                      <EmptyState
+                        icon={<icons.document aria-hidden />}
+                        title={tr('offers.no_contract_yet', 'No contract yet')}
+                      />
                     ) : (
                       <KeyValues
                         items={[
-                          { label: 'State', value: words(k.state) },
+                          { label: tr('offers.state', 'State'), value: words(k.state) },
                           {
-                            label: 'Signing',
+                            label: tr('offers.signing', 'Signing'),
                             value:
                               k.route === 'wet_ink'
                                 ? 'Wet ink: printed, signed by hand by both, scan uploaded'
@@ -1401,9 +1564,12 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                                   ? 'Through Documents'
                                   : 'Signed contract uploaded',
                           },
-                          { label: 'Documents', value: k.documents.map(words).join(', ') },
                           {
-                            label: 'Signed',
+                            label: tr('offers.documents', 'Documents'),
+                            value: k.documents.map(words).join(', '),
+                          },
+                          {
+                            label: tr('offers.signed', 'Signed'),
                             value: k.signedOn === null ? 'Not yet' : day(k.signedOn),
                           },
                         ]}
@@ -1412,8 +1578,11 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                     {k !== null && k.route === 'documents' && k.state === 'generated' ? (
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-fg-muted">
-                          Drawn from the accepted terms; {data.candidate.name} signs first with an
-                          emailed code, then you for the company.
+                          {tr(
+                            'offers.drawn_from_the_accepted_terms_signs',
+                            'Drawn from the accepted terms; {{name}} signs first with an emailed code, then you for the company.',
+                            { name: data.candidate.name },
+                          )}
                         </p>
                         <Button
                           loading={act.pending}
@@ -1424,14 +1593,16 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                             });
                           }}
                         >
-                          Send to sign
+                          {tr('offers.send_to_sign', 'Send to sign')}
                         </Button>
                       </div>
                     ) : null}
                     {k !== null && k.route === 'documents' && k.state === 'out_for_signature' ? (
                       <p className="mt-4 text-sm text-fg-muted">
-                        Out for signature in Documents. It is signed here the moment the last
-                        signature lands.
+                        {tr(
+                          'offers.out_for_signature_in_documents_it',
+                          'Out for signature in Documents. It is signed here the moment the last signature lands.',
+                        )}
                       </p>
                     ) : null}
                   </CardContent>
@@ -1439,14 +1610,19 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                 {k !== null && k.state !== 'signed' && k.route !== 'documents' ? (
                   <Card>
                     <CardHeader>
-                      <CardTitle level={2}>Record the signed contract</CardTitle>
+                      <CardTitle level={2}>
+                        {tr('offers.record_the_signed_contract', 'Record the signed contract')}
+                      </CardTitle>
                       <CardDescription>
-                        Upload the scan to Documents or the candidate’s files, then record it here.
+                        {tr(
+                          'offers.upload_the_scan_to_documents_or',
+                          'Upload the scan to Documents or the candidate’s files, then record it here.',
+                        )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 md:grid-cols-2">
                       <Field required>
-                        <FieldLabel>File reference</FieldLabel>
+                        <FieldLabel>{tr('offers.file_reference', 'File reference')}</FieldLabel>
                         <FieldControl>
                           <Input
                             value={fileId}
@@ -1457,17 +1633,30 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                         </FieldControl>
                       </Field>
                       <Field required>
-                        <FieldLabel>Date of the second signature</FieldLabel>
+                        <FieldLabel>
+                          {tr(
+                            'offers.date_of_the_second_signature',
+                            'Date of the second signature',
+                          )}
+                        </FieldLabel>
                         <FieldControl>
                           <DatePicker
-                            label="Date of the second signature"
+                            label={tr(
+                              'offers.date_of_the_second_signature',
+                              'Date of the second signature',
+                            )}
                             value={signedOn === '' ? null : signedOn}
                             onChange={(d) => {
                               setSignedOn(d ?? '');
                             }}
                           />
                         </FieldControl>
-                        <FieldDescription>Must be before the start date.</FieldDescription>
+                        <FieldDescription>
+                          {tr(
+                            'offers.must_be_before_the_start_date',
+                            'Must be before the start date.',
+                          )}
+                        </FieldDescription>
                       </Field>
                       <div className="flex justify-end md:col-span-2">
                         <Button
@@ -1480,7 +1669,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                             });
                           }}
                         >
-                          Record as signed
+                          {tr('offers.record_as_signed', 'Record as signed')}
                         </Button>
                       </div>
                     </CardContent>
@@ -1488,22 +1677,27 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                 ) : null}
                 <Card>
                   <CardHeader>
-                    <CardTitle level={2}>Pre-start conditions</CardTitle>
+                    <CardTitle level={2}>
+                      {tr('offers.pre_start_conditions', 'Pre-start conditions')}
+                    </CardTitle>
                     <CardDescription>
-                      An open condition on the start date blocks the start
+                      {tr(
+                        'offers.an_open_condition_on_the_start',
+                        'An open condition on the start date blocks the start',
+                      )}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {p === null || p.conditions.length === 0 ? (
-                      <p className="text-sm text-fg-muted">None.</p>
+                      <p className="text-sm text-fg-muted">{tr('offers.none', 'None.')}</p>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Condition</TableHead>
-                            <TableHead>State</TableHead>
+                            <TableHead>{tr('offers.condition', 'Condition')}</TableHead>
+                            <TableHead>{tr('offers.state', 'State')}</TableHead>
                             <TableHead>
-                              <span className="sr-only">Decide</span>
+                              <span className="sr-only">{tr('offers.decide', 'Decide')}</span>
                             </TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1547,25 +1741,49 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
               </div>
               <div className="flex flex-col gap-4">
                 <Card padded>
-                  <h2 className="mb-2 font-semibold">When it’s signed</h2>
+                  <h2 className="mb-2 font-semibold">
+                    {tr('offers.when_its_signed', 'When it’s signed')}
+                  </h2>
                   <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
                     {props.with?.people === false ? (
-                      <li>The hired webhook carries the hire to any HRIS</li>
+                      <li>
+                        {tr(
+                          'offers.the_hired_webhook_carries_the_hire',
+                          'The hired webhook carries the hire to any HRIS',
+                        )}
+                      </li>
                     ) : (
-                      <li>People creates the pre-hire with the terms, pay and start date</li>
+                      <li>
+                        {tr(
+                          'offers.people_creates_the_pre_hire_with',
+                          'People creates the pre-hire with the terms, pay and start date',
+                        )}
+                      </li>
                     )}
-                    <li>Onboarding starts the plan</li>
+                    <li>{tr('offers.onboarding_starts_the_plan', 'Onboarding starts the plan')}</li>
                     {props.with?.documents === false ? null : (
-                      <li>Documents files the contract once they are a member</li>
+                      <li>
+                        {tr(
+                          'offers.documents_files_the_contract_once_they',
+                          'Documents files the contract once they are a member',
+                        )}
+                      </li>
                     )}
                     {props.with?.timeoff === false ? null : (
-                      <li>Time Off gives the entitlement from the hire</li>
+                      <li>
+                        {tr(
+                          'offers.time_off_gives_the_entitlement_from',
+                          'Time Off gives the entitlement from the hire',
+                        )}
+                      </li>
                     )}
                   </ul>
                 </Card>
                 {p !== null && p.state !== 'cancelled' && p.state !== 'started' ? (
                   <Card padded>
-                    <h2 className="mb-2 font-semibold">Hire fell through?</h2>
+                    <h2 className="mb-2 font-semibold">
+                      {tr('offers.hire_fell_through', 'Hire fell through?')}
+                    </h2>
                     <div className="flex flex-wrap gap-2">
                       {(['reneged', 'no_show', 'failed_condition'] as const).map((reason) => (
                         <Button

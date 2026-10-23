@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { bgTone, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 /**
  * Spans laid along one fixed axis: a working day from 07:00 to 19:00, a
@@ -140,9 +141,9 @@ export function RangeBar({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Segment</th>
-              <th scope="col">From</th>
-              <th scope="col">To</th>
+              <th scope="col">{t('components.chart.range-bar.segment', 'Segment')}</th>
+              <th scope="col">{t('components.chart.range-bar.from', 'From')}</th>
+              <th scope="col">{t('components.chart.range-bar.to', 'To')}</th>
             </tr>
           </thead>
           <tbody>

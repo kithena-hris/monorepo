@@ -20,6 +20,7 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import { amount } from '../words';
 import { MonthNav } from './month-nav';
 import { duration, monthName, shortDate } from './time';
+import { t as tr } from '../i18n';
 
 /**
  * Closing the month for Payroll (T24, PRD §11.8): one step at month end. Per
@@ -74,21 +75,29 @@ export interface PayPeriodProps {
 }
 
 const PAID_AS: Record<'comp' | 'paid' | 'mixed', string> = {
-  comp: 'Comp time',
-  paid: 'Paid',
-  mixed: 'Paid and comp time',
+  comp: tr('attendance.pay-period.comp_time', 'Comp time'),
+  paid: tr('attendance.pay-period.paid', 'Paid'),
+  mixed: tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time'),
 };
-const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
-const daysOf = (d: string): string => `${amount(d)} ${amount(d) === '1' ? 'day' : 'days'}`;
+const people = (n: number): string =>
+  n === 1 ? '1 person' : tr('attendance.pay-period.people', '{{n}} people', { n: String(n) });
+const daysOf = (d: string): string =>
+  tr('attendance.pay-period.text', '{{d}} {{value}}', {
+    d: amount(d),
+    value: amount(d) === '1' ? 'day' : 'days',
+  });
 const hoursOf = (minutes: number): string => (minutes === 0 ? '0h' : duration(minutes));
-const teamOf = (name: string | null): string => name ?? 'No team';
+const teamOf = (name: string | null): string =>
+  name ?? tr('attendance.pay-period.no_team', 'No team');
 
 export function PayPeriod(props: PayPeriodProps): JSX.Element {
   const { load } = props;
   if (load.status === 'loading') return <PayPeriodSkeleton />;
   return (
     <div className="@container/period flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Attendance" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} />
+      ) : null}
       <Loaded load={load} what="the pay period">
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
@@ -126,31 +135,39 @@ function Ready({
   return (
     <>
       <PageHeader
-        title="Attendance"
-        description={`${monthName(data.from)} · ${
-          data.closedAt === null
-            ? over
-              ? 'ready to send to Payroll'
-              : `closes for Payroll after ${shortDate(data.to)}`
-            : `sent to Payroll on ${shortDate(data.closedAt.slice(0, 10))}`
-        }`}
+        title={tr('attendance.pay-period.attendance', 'Attendance')}
+        description={tr('attendance.pay-period.text_2', '{{monthName}} · {{value}}', {
+          monthName: monthName(data.from),
+          value:
+            data.closedAt === null
+              ? over
+                ? 'ready to send to Payroll'
+                : `closes for Payroll after ${shortDate(data.to)}`
+              : `sent to Payroll on ${shortDate(data.closedAt.slice(0, 10))}`,
+        })}
       />
       <MonthNav month={data.month} path="/time-off/attendance/pay-period" />
       {refused === null ? null : (
-        <Alert tone="danger" title="Not done">
+        <Alert tone="danger" title={tr('attendance.pay-period.not_done', 'Not done')}>
           {refused}
         </Alert>
       )}
       {told === null ? null : <Alert tone="success" title={told} />}
       <div className={body}>
-        <Table aria-label="Teams">
+        <Table aria-label={tr('attendance.pay-period.teams', 'Teams')}>
           <TableHeader>
             <TableRow>
-              <TableHead>Team</TableHead>
-              <TableHead className={`${deskOnly} text-end`}>People</TableHead>
-              <TableHead>Timesheets</TableHead>
-              <TableHead className="text-end">Overtime</TableHead>
-              <TableHead className={deskOnly}>Paid as</TableHead>
+              <TableHead>{tr('attendance.pay-period.team', 'Team')}</TableHead>
+              <TableHead className={`${deskOnly} text-end`}>
+                {tr('attendance.pay-period.people_2', 'People')}
+              </TableHead>
+              <TableHead>{tr('attendance.pay-period.timesheets', 'Timesheets')}</TableHead>
+              <TableHead className="text-end">
+                {tr('attendance.pay-period.overtime', 'Overtime')}
+              </TableHead>
+              <TableHead className={deskOnly}>
+                {tr('attendance.pay-period.paid_as', 'Paid as')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -161,11 +178,13 @@ function Ready({
                 <TableCell>
                   {team.waiting === 0 ? (
                     <Badge size="sm" tone="success">
-                      Ready
+                      {tr('attendance.pay-period.ready', 'Ready')}
                     </Badge>
                   ) : (
                     <Badge size="sm" tone="warning" dot>
-                      {`${String(team.waiting)} waiting`}
+                      {tr('attendance.pay-period.waiting', '{{waiting}} waiting', {
+                        waiting: String(team.waiting),
+                      })}
                     </Badge>
                   )}
                 </TableCell>
@@ -180,10 +199,10 @@ function Ready({
           </TableBody>
         </Table>
         <PageSection
-          title="Send to Payroll"
+          title={tr('attendance.pay-period.send_to_payroll', 'Send to Payroll')}
           actions={
             <Badge size="sm" variant="outline">
-              Payroll module
+              {tr('attendance.pay-period.payroll_module', 'Payroll module')}
             </Badge>
           }
           surface
@@ -192,17 +211,23 @@ function Ready({
             <KeyValues
               layout="split"
               items={[
-                { label: 'Overtime paid', value: hoursOf(t.paidMinutes) },
-                { label: 'Comp time banked', value: hoursOf(t.compMinutes) },
                 {
-                  label: 'Unpaid leave',
+                  label: tr('attendance.pay-period.overtime_paid', 'Overtime paid'),
+                  value: hoursOf(t.paidMinutes),
+                },
+                {
+                  label: tr('attendance.pay-period.comp_time_banked', 'Comp time banked'),
+                  value: hoursOf(t.compMinutes),
+                },
+                {
+                  label: tr('attendance.pay-period.unpaid_leave', 'Unpaid leave'),
                   value:
                     t.unpaidPeople === 0
                       ? 'None'
                       : `${daysOf(t.unpaidDays)}, ${people(t.unpaidPeople)}`,
                 },
                 {
-                  label: 'Negative balances',
+                  label: tr('attendance.pay-period.negative_balances', 'Negative balances'),
                   value:
                     t.negativePeople === 0
                       ? 'None'
@@ -213,16 +238,22 @@ function Ready({
             {data.closedAt === null && lateTeams.length > 0 ? (
               <Alert
                 tone="warning"
-                title={`${lateTeams.map((team) => teamOf(team.teamName)).join(', ')} ${
-                  lateTeams.length === 1 ? 'has' : 'have'
-                } ${people(data.late.length)} waiting`}
+                title={tr(
+                  'attendance.pay-period.waiting_2',
+                  '{{join}} {{value}} {{people}} waiting',
+                  {
+                    join: lateTeams.map((team) => teamOf(team.teamName)).join(', '),
+                    value: lateTeams.length === 1 ? 'has' : 'have',
+                    people: people(data.late.length),
+                  },
+                )}
                 action={
                   onRemind === undefined ? undefined : (
                     <Button
                       size="xs"
                       variant="secondary"
                       loading={busy === 'remind'}
-                      loadingLabel="Reminding"
+                      loadingLabel={tr('attendance.pay-period.reminding', 'Reminding')}
                       onClick={() => {
                         run(
                           'remind',
@@ -231,31 +262,48 @@ function Ready({
                         );
                       }}
                     >
-                      Remind them
+                      {tr('attendance.pay-period.remind_them', 'Remind them')}
                     </Button>
                   )
                 }
               >
-                {`${data.late
-                  .map(
-                    (l) =>
-                      `${l.displayName}: ${[
-                        l.openDays === 0
-                          ? null
-                          : `${String(l.openDays)} missing ${l.openDays === 1 ? 'clock-out' : 'clock-outs'}`,
-                        l.overtimeWaitingMinutes === 0
-                          ? null
-                          : `${duration(l.overtimeWaitingMinutes)} overtime to decide`,
-                      ]
-                        .filter(Boolean)
-                        .join(', ')}`,
-                  )
-                  .join('. ')}. Send now and what they fix goes in next month’s payroll instead.`}
+                {tr(
+                  'attendance.pay-period.send_now_and_what_they_fix',
+                  '{{join}}. Send now and what they fix goes in next month’s payroll instead.',
+                  {
+                    join: data.late
+                      .map((l) =>
+                        tr('attendance.pay-period.text_named', '{{displayName}}: {{join}}', {
+                          displayName: l.displayName,
+                          join: [
+                            l.openDays === 0
+                              ? null
+                              : `${String(l.openDays)} missing ${l.openDays === 1 ? 'clock-out' : 'clock-outs'}`,
+                            l.overtimeWaitingMinutes === 0
+                              ? null
+                              : `${duration(l.overtimeWaitingMinutes)} overtime to decide`,
+                          ]
+                            .filter(Boolean)
+                            .join(', '),
+                        }),
+                      )
+                      .join('. '),
+                  },
+                )}
               </Alert>
             ) : null}
             {data.closedAt !== null ? (
-              <Alert tone="success" title={`${name} is with Payroll`}>
-                {`Sent on ${shortDate(data.closedAt.slice(0, 10))}. A later fix goes to the next open month, beside what it corrects.`}
+              <Alert
+                tone="success"
+                title={tr('attendance.pay-period.is_with_payroll', '{{name}} is with Payroll', {
+                  name,
+                })}
+              >
+                {tr(
+                  'attendance.pay-period.sent_on_a_later_fix_goes',
+                  'Sent on {{slice}}. A later fix goes to the next open month, beside what it corrects.',
+                  { slice: shortDate(data.closedAt.slice(0, 10)) },
+                )}
               </Alert>
             ) : onClose === undefined ? null : (
               <Button
@@ -264,19 +312,26 @@ function Ready({
                 startIcon={<icons.send aria-hidden />}
                 disabled={!over}
                 loading={busy === 'close'}
-                loadingLabel="Sending"
+                loadingLabel={tr('attendance.pay-period.sending', 'Sending')}
                 onClick={() => {
                   run('close', () => onClose(data.month), null);
                 }}
               >
-                {`Send ${name} to Payroll`}
+                {tr('attendance.pay-period.send_to_payroll_2', 'Send {{name}} to Payroll', {
+                  name,
+                })}
               </Button>
             )}
             <p className="flex gap-2 text-xs text-fg-muted [&_svg]:size-3.5 [&_svg]:shrink-0">
               <icons.hidden aria-hidden />
-              {`Payroll gets hours, and amounts once pay rates are known, never punch times or locations.${
-                over || data.closedAt !== null ? '' : ` It can be sent once ${name} is over.`
-              }`}
+              {tr(
+                'attendance.pay-period.payroll_gets_hours_and_amounts_once',
+                'Payroll gets hours, and amounts once pay rates are known, never punch times or locations.{{value}}',
+                {
+                  value:
+                    over || data.closedAt !== null ? '' : ` It can be sent once ${name} is over.`,
+                },
+              )}
             </p>
           </div>
         </PageSection>
@@ -289,9 +344,11 @@ function Ready({
 export function PayPeriodSkeleton(): JSX.Element {
   return (
     <div className="@container/period flex flex-col gap-6">
-      <PageHeader title="Attendance" description={' '} />
+      <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} description={' '} />
       <div role="status" className="flex flex-col gap-6">
-        <span className="sr-only">Loading the pay period</span>
+        <span className="sr-only">
+          {tr('attendance.pay-period.loading_the_pay_period', 'Loading the pay period')}
+        </span>
         <Skeleton className="h-9 w-80 rounded-sm" />
         <div className={body}>
           <Skeleton className="h-80 rounded-lg" />

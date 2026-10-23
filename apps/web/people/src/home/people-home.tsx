@@ -30,6 +30,7 @@ import { Loaded, type Loadable } from '../load';
 import { FieldFiles, FileInput, type UploadOutcome } from '../record/files';
 import { localTime } from '../record/display';
 import { MissingMark } from '../record/missing';
+import { t as tr } from '../i18n';
 
 /**
  * Home (design B1, B2; MA B1, B2): People's overview, folded into the app's
@@ -213,8 +214,11 @@ export function waited(since: string, now: string): string {
   const days = Math.max(0, Math.floor((Date.parse(now) - Date.parse(since)) / DAY));
   if (days === 0) return 'today';
   if (days === 1) return 'yesterday';
-  if (days < 60) return `${String(days)} days ago`;
-  return `${String(Math.floor(days / 30))} months ago`;
+  if (days < 60)
+    return tr('home.people-home.days_ago', '{{days}} days ago', { days: String(days) });
+  return tr('home.people-home.months_ago', '{{floor}} months ago', {
+    floor: String(Math.floor(days / 30)),
+  });
 }
 
 /** "2 years, 3 months": whole months from a start date to today, both calendar dates. */
@@ -225,10 +229,15 @@ export function tenure(startedOn: string, today: string): string | null {
   const months =
     ((y2 ?? 0) - (y1 ?? 0)) * 12 + ((m2 ?? 0) - (m1 ?? 0)) - ((d2 ?? 0) < (d1 ?? 0) ? 1 : 0);
   if (months < 0) return null;
-  if (months === 0) return 'less than a month';
+  if (months === 0) return tr('home.people-home.less_than_a_month', 'less than a month');
   const years = Math.floor(months / 12);
   const rest = months % 12;
-  const plural = (n: number, word: string) => `${String(n)} ${word}${n === 1 ? '' : 's'}`;
+  const plural = (n: number, word: string) =>
+    tr('home.people-home.text', '{{n}} {{word}}{{value}}', {
+      n: String(n),
+      word,
+      value: n === 1 ? '' : 's',
+    });
   return [years > 0 ? plural(years, 'year') : null, rest > 0 ? plural(rest, 'month') : null]
     .filter((x) => x !== null)
     .join(', ');
@@ -258,11 +267,11 @@ const weekday = (now: string, timeZone: string): string => {
 const STATUS: Readonly<
   Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>
 > = {
-  active: { label: 'Active', tone: 'success' },
-  pre_hire: { label: 'Starting soon', tone: 'info' },
-  provisional: { label: 'Not hired yet', tone: 'neutral' },
-  on_leave: { label: 'On leave', tone: 'info' },
-  notice: { label: 'On notice', tone: 'warning' },
+  active: { label: tr('home.people-home.active', 'Active'), tone: 'success' },
+  pre_hire: { label: tr('home.people-home.starting_soon', 'Starting soon'), tone: 'info' },
+  provisional: { label: tr('home.people-home.not_hired_yet', 'Not hired yet'), tone: 'neutral' },
+  on_leave: { label: tr('home.people-home.on_leave', 'On leave'), tone: 'info' },
+  notice: { label: tr('home.people-home.on_notice', 'On notice'), tone: 'warning' },
 };
 
 /** "Ada" from "Ada Lovelace": what Home calls them. */
@@ -273,7 +282,10 @@ const review = (kind: string, item?: string): string =>
   `/people/review/waiting?kind=${kind}${item === undefined ? '' : `&item=${encodeURIComponent(item)}`}`;
 
 const counted = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+  tr('home.people-home.text_2', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? one : many,
+  });
 
 /* -------------------------------------------------------------- parts -- */
 
@@ -406,7 +418,10 @@ function Todo({
       trailing={
         <Onward
           href={href}
-          label={`${word ?? 'Open'}: ${title}`}
+          label={tr('home.people-home.text_3', '{{value}}: {{title}}', {
+            value: word ?? 'Open',
+            title,
+          })}
           word={word}
           {...(primary === undefined ? {} : { primary })}
         />
@@ -442,18 +457,26 @@ function HostList({ toDo }: { readonly toDo: HostToDo }): JSX.Element {
   );
   return (
     <>
-      <Section title="To do" action={<SeeAll href={toDo.href}>Open Inbox</SeeAll>}>
+      <Section
+        title={tr('home.people-home.to_do', 'To do')}
+        action={<SeeAll href={toDo.href}>{tr('home.people-home.open_inbox', 'Open Inbox')}</SeeAll>}
+      >
         {toDo.tasks.length === 0 ? (
           <Done
-            title="Nothing needs you"
-            detail="New tasks from every part of the app show up here."
+            title={tr('home.people-home.nothing_needs_you', 'Nothing needs you')}
+            detail={tr(
+              'home.people-home.new_tasks_from_every_part_of',
+              'New tasks from every part of the app show up here.',
+            )}
           />
         ) : (
-          rows(toDo.tasks, 'To do')
+          rows(toDo.tasks, tr('home.people-home.to_do', 'To do'))
         )}
       </Section>
       {toDo.waiting.length === 0 ? null : (
-        <Section title="Waiting on others">{rows(toDo.waiting, 'Waiting on others')}</Section>
+        <Section title={tr('home.people-home.waiting_on_others', 'Waiting on others')}>
+          {rows(toDo.waiting, tr('home.people-home.waiting_on_others', 'Waiting on others'))}
+        </Section>
       )}
     </>
   );
@@ -499,40 +522,68 @@ function ToDo({
   const rows = corrections.length + yours.length + changes.length;
   return (
     <Section
-      title="To do"
+      title={tr('home.people-home.to_do', 'To do')}
       action={
         <div className="flex items-center gap-2">
           <CircularProgress
             value={percent}
             size={40}
             showValue={false}
-            label={`${String(state.missing.length)} of ${String(me.required)} required ${me.required === 1 ? 'detail' : 'details'} missing`}
+            label={tr(
+              'home.people-home.of_required_missing',
+              '{{length}} of {{required}} required {{value}} missing',
+              {
+                length: String(state.missing.length),
+                required: String(me.required),
+                value: me.required === 1 ? 'detail' : 'details',
+              },
+            )}
             tone={percent >= 100 ? 'success' : 'accent'}
           />
           <span className="text-sm text-fg-muted">
-            <b className="text-fg">{percent}%</b> of your record
+            <b className="text-fg">{percent}%</b>{' '}
+            {tr('home.people-home.of_your_record', 'of your record')}
           </span>
         </div>
       }
     >
       {rows === 0 ? (
         <Done
-          title={state.missing.length === 0 ? 'Your record is complete' : 'Nothing for you to do'}
+          title={
+            state.missing.length === 0
+              ? tr('home.people-home.your_record_is_complete', 'Your record is complete')
+              : tr('home.people-home.nothing_for_you_to_do', 'Nothing for you to do')
+          }
           detail={
             state.missing.length === 0
-              ? 'Everything People asks of you is filled in. If a new detail is needed, it shows up here.'
-              : 'What is left is for somebody else to fill in.'
+              ? tr(
+                  'home.people-home.everything_people_asks_of_you_is',
+                  'Everything People asks of you is filled in. If a new detail is needed, it shows up here.',
+                )
+              : tr(
+                  'home.people-home.what_is_left_is_for_somebody',
+                  'What is left is for somebody else to fill in.',
+                )
           }
         />
       ) : (
-        <List aria-label="To do" className="-mx-2 bg-transparent shadow-none">
+        <List
+          aria-label={tr('home.people-home.to_do', 'To do')}
+          className="-mx-2 bg-transparent shadow-none"
+        >
           {corrections.map((c) => (
             <Todo
               key={`correct-${c.key}`}
               icon={<icons.warning aria-hidden />}
               tone="danger"
-              title={`Correct your ${c.label}`}
-              description={`HR could not accept it: ${c.reason.charAt(0).toLowerCase()}${c.reason.slice(1)}`}
+              title={tr('home.people-home.correct_your', 'Correct your {{label}}', {
+                label: c.label,
+              })}
+              description={tr(
+                'home.people-home.hr_could_not_accept_it',
+                'HR could not accept it: {{charAt}}{{slice}}',
+                { charAt: c.reason.charAt(0).toLowerCase(), slice: c.reason.slice(1) },
+              )}
               href={`/people/me?field=${encodeURIComponent(c.key)}`}
               word="Correct it"
               primary
@@ -542,7 +593,9 @@ function ToDo({
             <Todo
               key={m.key}
               icon={<icons.missing aria-hidden />}
-              title={`Add your ${m.label.toLowerCase()}`}
+              title={tr('home.people-home.add_your', 'Add your {{label}}', {
+                label: m.label.toLowerCase(),
+              })}
               description={m.section}
               href={`/people/me?field=${encodeURIComponent(m.key)}`}
               word="Add"
@@ -552,8 +605,14 @@ function ToDo({
             <Todo
               key={c.id}
               icon={<icons.scheduled aria-hidden />}
-              title={`Your new ${c.label.toLowerCase()} is with HR`}
-              description={`Sent ${waited(c.requestedAt, state.now)} · nothing changes until HR approves`}
+              title={tr('home.people-home.your_new_is_with_hr', 'Your new {{label}} is with HR', {
+                label: c.label.toLowerCase(),
+              })}
+              description={tr(
+                'home.people-home.sent_nothing_changes_until_hr_approves',
+                'Sent {{waited}} · nothing changes until HR approves',
+                { waited: waited(c.requestedAt, state.now) },
+              )}
               href={review('changes', `change-${c.id}`)}
               word={null}
             />
@@ -563,10 +622,14 @@ function ToDo({
       {theirs.length === 0 ? null : (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-sm text-fg-muted">
-            Waiting on {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}, nothing for you
-            to do:
+            {tr('home.people-home.waiting_on', 'Waiting on')}{' '}
+            {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}
+            {tr('home.people-home.nothing_for_you_to_do_2', ', nothing for you to do:')}
           </span>
-          <ul aria-label="Waiting on somebody else" className="contents">
+          <ul
+            aria-label={tr('home.people-home.waiting_on_somebody_else', 'Waiting on somebody else')}
+            className="contents"
+          >
             {theirs.map((m) => (
               <li key={m.key}>
                 <Badge size="sm">{m.label}</Badge>
@@ -615,14 +678,16 @@ function Identity({
       </div>
       <KeyValues
         layout="stacked"
-        aria-label="Your details"
+        aria-label={tr('home.people-home.your_details', 'Your details')}
         items={[
-          ...(time === '' ? [] : [{ label: 'Local time', value: time }]),
+          ...(time === ''
+            ? []
+            : [{ label: tr('home.people-home.local_time', 'Local time'), value: time }]),
           ...(me.startedOn === null
             ? []
             : [
                 {
-                  label: 'Joined',
+                  label: tr('home.people-home.joined', 'Joined'),
                   value: `${longDate(me.startedOn)}${since === null ? '' : ` · ${since}`}`,
                 },
               ]),
@@ -630,7 +695,7 @@ function Identity({
             ? []
             : [
                 {
-                  label: 'Email',
+                  label: tr('home.people-home.email', 'Email'),
                   value: (
                     <a
                       className="relative tap-target text-accent-fg underline-offset-4 hover:underline"
@@ -644,7 +709,7 @@ function Identity({
         ]}
       />
       <Button asChild fullWidth size="sm">
-        <a href="/people/me">View your profile</a>
+        <a href="/people/me">{tr('home.people-home.view_your_profile', 'View your profile')}</a>
       </Button>
     </Card>
   );
@@ -669,15 +734,25 @@ function ReportingLine({
   const joint = <span aria-hidden className="ms-6 h-3 w-0.5 bg-border-strong" />;
   return (
     <Section
-      title="Your reporting line"
-      action={<SeeAll href="/people/directory/org-chart">Org chart</SeeAll>}
+      title={tr('home.people-home.your_reporting_line', 'Your reporting line')}
+      action={
+        <SeeAll href="/people/directory/org-chart">
+          {tr('home.people-home.org_chart', 'Org chart')}
+        </SeeAll>
+      }
     >
       <Stack gap={3}>
-        <ol aria-label="Your managers, from the top" className="flex flex-col">
+        <ol
+          aria-label={tr(
+            'home.people-home.your_managers_from_the_top',
+            'Your managers, from the top',
+          )}
+          className="flex flex-col"
+        >
           {line.moreAbove && top !== undefined ? (
             <li className="pb-2 text-xs text-fg-muted">
               <a className="underline underline-offset-4" href={`/people/${top.id}`}>
-                The line goes on above {top.name}
+                {tr('home.people-home.the_line_goes_on_above', 'The line goes on above')} {top.name}
               </a>
             </li>
           ) : null}
@@ -714,8 +789,14 @@ function ReportingLine({
         {line.peers === null || manager === undefined ? null : (
           <p className="text-sm text-fg-muted">
             {line.peers === 0
-              ? `Nobody else reports to ${manager.name}.`
-              : `${String(line.peers)} ${line.peers === 1 ? 'other reports' : 'others report'} to ${first(manager.name)}.`}
+              ? tr('home.people-home.nobody_else_reports_to', 'Nobody else reports to {{name}}.', {
+                  name: manager.name,
+                })
+              : tr('home.people-home.to', '{{peers}} {{value}} to {{first}}.', {
+                  peers: String(line.peers),
+                  value: line.peers === 1 ? 'other reports' : 'others report',
+                  first: first(manager.name),
+                })}
           </p>
         )}
       </Stack>
@@ -733,7 +814,7 @@ function Team({
     <Section
       title={
         <>
-          Your direct reports{' '}
+          {tr('home.people-home.your_direct_reports', 'Your direct reports')}{' '}
           <span className="font-normal text-fg-muted tabular-nums">{line.reportsTotal}</span>
         </>
       }
@@ -741,13 +822,18 @@ function Team({
         line.reportsFilter === null ? undefined : (
           <SeeAll href={`/people/directory/list?filter=${encodeURIComponent(line.reportsFilter)}`}>
             {line.reportsTotal > line.reports.length
-              ? `Show all ${String(line.reportsTotal)}`
-              : 'In the directory'}
+              ? tr('home.people-home.show_all', 'Show all {{reportsTotal}}', {
+                  reportsTotal: String(line.reportsTotal),
+                })
+              : tr('home.people-home.in_the_directory', 'In the directory')}
           </SeeAll>
         )
       }
     >
-      <List aria-label="Your direct reports" className="-mx-2 bg-transparent shadow-none">
+      <List
+        aria-label={tr('home.people-home.your_direct_reports', 'Your direct reports')}
+        className="-mx-2 bg-transparent shadow-none"
+      >
         {line.reports.map((r) => (
           <ListItem
             key={r.id}
@@ -808,10 +894,17 @@ export function unusual(approvals: PeopleHomeState['approvals']): string | null 
   const n = approvals?.flagged ?? 0;
   if (n === 0) return null;
   const reason = approvals?.flagReason ?? null;
-  const what = `${String(n)} ${n === 1 ? 'looks' : 'look'} unusual`;
+  const what = tr('home.people-home.unusual', '{{n}} {{value}} unusual', {
+    n: String(n),
+    value: n === 1 ? 'looks' : 'look',
+  });
   return reason === null || reason === ''
     ? what
-    : `${what}: ${reason.charAt(0).toLowerCase()}${reason.slice(1)}`;
+    : tr('home.people-home.text_4', '{{what}}: {{charAt}}{{slice}}', {
+        what,
+        charAt: reason.charAt(0).toLowerCase(),
+        slice: reason.slice(1),
+      });
 }
 
 /**
@@ -904,7 +997,11 @@ function HrHome({
           'request for full values',
           'requests for full values',
         )}
-        description={`${whoOf(hr.accessRequestsBy ?? []) ?? 'Somebody'} asked to see unmasked values`}
+        description={tr(
+          'home.people-home.asked_to_see_unmasked_values',
+          '{{value}} asked to see unmasked values',
+          { value: whoOf(hr.accessRequestsBy ?? []) ?? 'Somebody' },
+        )}
         href={review('access')}
         word="Decide"
       />,
@@ -916,7 +1013,10 @@ function HrHome({
         key="fill"
         icon={<icons.missing aria-hidden />}
         title={counted(team.toFill, 'detail for HR to fill in', 'details for HR to fill in')}
-        description="Missing details only HR keeps"
+        description={tr(
+          'home.people-home.missing_details_only_hr_keeps',
+          'Missing details only HR keeps',
+        )}
         href={review('missing')}
         word="Fill in"
       />,
@@ -927,8 +1027,21 @@ function HrHome({
       <Todo
         key="remind"
         icon={<icons.notifications aria-hidden />}
-        title={`${counted(team.waiting, 'person has', 'people have')} details of their own to add`}
-        description="Reminded by email once a week"
+        title={tr(
+          'home.people-home.details_of_their_own_to_add',
+          '{{counted}} details of their own to add',
+          {
+            counted: counted(
+              team.waiting,
+              tr('home.people-home.person_has', 'person has'),
+              tr('home.people-home.people_have', 'people have'),
+            ),
+          },
+        )}
+        description={tr(
+          'home.people-home.reminded_by_email_once_a_week',
+          'Reminded by email once a week',
+        )}
         href={review('missing')}
         word="Remind"
       />,
@@ -943,36 +1056,50 @@ function HrHome({
         {headcount === null ? null : (
           <Figure
             href="/people/insights/headcount"
-            label="Headcount"
+            label={tr('home.people-home.headcount', 'Headcount')}
             value={headcount.value.toLocaleString('en-GB')}
             description={
               headcount.change === null
                 ? 'today'
-                : `${headcount.change >= 0 ? '+' : ''}${String(headcount.change)} in 12 months`
+                : tr('home.people-home.in_12_months', '{{value}}{{change}} in 12 months', {
+                    value: headcount.change >= 0 ? '+' : '',
+                    change: String(headcount.change),
+                  })
             }
             {...(headcount.trend.length < 2
               ? {}
-              : { chart: <Sparkline data={headcount.trend} label="Headcount by month" /> })}
+              : {
+                  chart: (
+                    <Sparkline
+                      data={headcount.trend}
+                      label={tr('home.people-home.headcount_by_month', 'Headcount by month')}
+                    />
+                  ),
+                })}
           />
         )}
         {hr.complete === null ? null : (
           <Figure
             href={review('missing')}
-            label="Complete records"
+            label={tr('home.people-home.complete_records', 'Complete records')}
             value={hr.complete.percent}
             unit="%"
-            description={`${hr.complete.incomplete.toLocaleString('en-GB')} incomplete`}
+            description={tr('home.people-home.incomplete', '{{toLocaleString}} incomplete', {
+              toLocaleString: hr.complete.incomplete.toLocaleString('en-GB'),
+            })}
           />
         )}
         {approvals === null ? null : (
           <Figure
             href={review('changes')}
-            label="Waiting for a decision"
+            label={tr('home.people-home.waiting_for_a_decision', 'Waiting for a decision')}
             value={approvals.total}
             description={
               oldest === undefined
-                ? 'nothing waiting'
-                : `Oldest asked ${waited(oldest.requestedAt, state.now)}`
+                ? tr('home.people-home.nothing_waiting', 'nothing waiting')
+                : tr('home.people-home.oldest_asked', 'Oldest asked {{waited}}', {
+                    waited: waited(oldest.requestedAt, state.now),
+                  })
             }
             className="touch:hidden"
           />
@@ -980,22 +1107,38 @@ function HrHome({
         {hr.expiring === null ? null : (
           <Figure
             href="/people/insights/data-quality"
-            label="Expiring in 90 days"
+            label={tr('home.people-home.expiring_in_90_days', 'Expiring in 90 days')}
             value={hr.expiring}
-            description="Permits, contracts, probations"
+            description={tr(
+              'home.people-home.permits_contracts_probations',
+              'Permits, contracts, probations',
+            )}
             className="touch:hidden"
           />
         )}
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @5xl/page:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
         <Section
-          title="Needs HR"
-          action={<SeeAll href="/people/review/waiting">Open Review</SeeAll>}
+          title={tr('home.people-home.needs_hr', 'Needs HR')}
+          action={
+            <SeeAll href="/people/review/waiting">
+              {tr('home.people-home.open_review', 'Open Review')}
+            </SeeAll>
+          }
         >
           {needs.length === 0 ? (
-            <Done title="Nothing needs HR" detail="Records are complete and nothing is flagged." />
+            <Done
+              title={tr('home.people-home.nothing_needs_hr', 'Nothing needs HR')}
+              detail={tr(
+                'home.people-home.records_are_complete_and_nothing_is',
+                'Records are complete and nothing is flagged.',
+              )}
+            />
           ) : (
-            <List aria-label="Needs HR" className="-mx-2 bg-transparent shadow-none">
+            <List
+              aria-label={tr('home.people-home.needs_hr', 'Needs HR')}
+              className="-mx-2 bg-transparent shadow-none"
+            >
               {needs}
             </List>
           )}
@@ -1003,10 +1146,17 @@ function HrHome({
         <Stack gap={4}>
           {hr.starting.length === 0 ? null : (
             <Section
-              title="Starting soon"
-              action={<SeeAll href="/people/directory/list">Directory</SeeAll>}
+              title={tr('home.people-home.starting_soon', 'Starting soon')}
+              action={
+                <SeeAll href="/people/directory/list">
+                  {tr('home.people-home.directory', 'Directory')}
+                </SeeAll>
+              }
             >
-              <List aria-label="Starting soon" className="-mx-2 bg-transparent shadow-none">
+              <List
+                aria-label={tr('home.people-home.starting_soon', 'Starting soon')}
+                className="-mx-2 bg-transparent shadow-none"
+              >
                 {hr.starting.map((p) => (
                   <ListItem
                     key={p.id}
@@ -1016,7 +1166,7 @@ function HrHome({
                     trailing={
                       p.missing === null || p.missing === 0 ? (
                         <Badge size="sm" tone="success">
-                          Ready
+                          {tr('home.people-home.ready', 'Ready')}
                         </Badge>
                       ) : (
                         <MissingMark count={p.missing} />
@@ -1030,10 +1180,16 @@ function HrHome({
             </Section>
           )}
           {hr.joiners.length === 0 ? null : (
-            <Section title="Joiners by month" className="touch:hidden">
+            <Section
+              title={tr('home.people-home.joiners_by_month', 'Joiners by month')}
+              className="touch:hidden"
+            >
               <BarChart
                 data={hr.joiners}
-                label="People who joined, by month"
+                label={tr(
+                  'home.people-home.people_who_joined_by_month',
+                  'People who joined, by month',
+                )}
                 height={120}
                 showValues
               />
@@ -1044,14 +1200,16 @@ function HrHome({
             <Card variant="outlined" padded className="flex items-center gap-2.5 touch:hidden">
               <Avatar size="sm" name={me.name} src={me.avatarUrl ?? undefined} />
               <p className="min-w-0 flex-1 text-sm text-fg-muted">
-                Your own record is{' '}
+                {tr('home.people-home.your_own_record_is', 'Your own record is')}{' '}
                 <b className="text-fg">
                   {me.missing === null || me.missing === 0
                     ? 'complete'
-                    : `missing ${counted(me.missing, 'detail', 'details')}`}
+                    : tr('home.people-home.missing', 'missing {{counted}}', {
+                        counted: counted(me.missing, 'detail', 'details'),
+                      })}
                 </b>
               </p>
-              <SeeAll href="/people/me">My profile</SeeAll>
+              <SeeAll href="/people/me">{tr('home.people-home.my_profile', 'My profile')}</SeeAll>
             </Card>
           )}
         </Stack>
@@ -1094,7 +1252,9 @@ function Setup({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Finish setting up your account</CardTitle>
+        <CardTitle level={2}>
+          {tr('home.people-home.finish_setting_up_your_account', 'Finish setting up your account')}
+        </CardTitle>
         {required ? null : (
           <Button
             variant="ghost"
@@ -1103,24 +1263,38 @@ function Setup({
               setLater(true);
             }}
           >
-            Later
+            {tr('home.people-home.later', 'Later')}
           </Button>
         )}
         <CardDescription>
           {required
-            ? 'Your company asks for these before anything else. Each is saved as soon as you choose it.'
-            : 'Your company would like these. Each is saved as soon as you choose it.'}
+            ? tr(
+                'home.people-home.your_company_asks_for_these_before',
+                'Your company asks for these before anything else. Each is saved as soon as you choose it.',
+              )
+            : tr(
+                'home.people-home.your_company_would_like_these_each',
+                'Your company would like these. Each is saved as soon as you choose it.',
+              )}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Stack gap={5}>
           {setup.photo === null || onPhoto === undefined ? null : (
             <AvatarUploader
-              label={setup.photo === 'required' ? 'Your photo (required)' : 'Your photo'}
+              label={
+                setup.photo === 'required'
+                  ? tr('home.people-home.your_photo_required', 'Your photo (required)')
+                  : tr('home.people-home.your_photo', 'Your photo')
+              }
               hint={
                 busy
-                  ? 'Uploading…'
-                  : (photoProblem ?? 'A clear photo of your face, so colleagues know who you are.')
+                  ? tr('home.people-home.uploading', 'Uploading…')
+                  : (photoProblem ??
+                    tr(
+                      'home.people-home.a_clear_photo_of_your_face',
+                      'A clear photo of your face, so colleagues know who you are.',
+                    ))
               }
               value={picked}
               src={photo}
@@ -1130,7 +1304,13 @@ function Setup({
               disabled={busy}
               invalid={photoProblem !== null}
               onReject={(rejections) => {
-                setPhotoProblem(rejections[0]?.message ?? 'That image was not accepted.');
+                setPhotoProblem(
+                  rejections[0]?.message ??
+                    tr(
+                      'home.people-home.that_image_was_not_accepted',
+                      'That image was not accepted.',
+                    ),
+                );
               }}
               onChange={(next) => {
                 const file = next[0]?.file;
@@ -1156,7 +1336,10 @@ function Setup({
                 upload: (key, file) => {
                   const field = byKey.get(key);
                   if (field === undefined) {
-                    return Promise.resolve({ ok: false, message: 'No such field' });
+                    return Promise.resolve({
+                      ok: false,
+                      message: tr('home.people-home.no_such_field', 'No such field'),
+                    });
                   }
                   return onSetupFile(field, file).then((outcome) => {
                     if (outcome.ok) setDone((d) => new Set([...d, key]));
@@ -1206,7 +1389,7 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
         const where = me?.location ?? null;
         const when = [
           today,
-          [time, where === null ? null : `in ${where}`]
+          [time, where === null ? null : tr('home.people-home.in', 'in {{where}}', { where })]
             .filter((x) => x !== null && x !== '')
             .join(' '),
         ]
@@ -1216,12 +1399,23 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
           <Stack gap={5}>
             <PageHeader
               className="@3xl/page:pe-64"
-              title={me === null ? 'Home' : `Hi ${first(me.name)}`}
+              title={
+                me === null
+                  ? tr('home.people-home.home', 'Home')
+                  : tr('home.people-home.hi', 'Hi {{first}}', { first: first(me.name) })
+              }
               description={
                 me === null
-                  ? 'Your account is not linked to anybody’s record, so there is no profile to show.'
+                  ? tr(
+                      'home.people-home.your_account_is_not_linked_to',
+                      'Your account is not linked to anybody’s record, so there is no profile to show.',
+                    )
                   : hrFigures !== null
-                    ? `${when}. Here’s what needs HR today.`
+                    ? tr(
+                        'home.people-home.heres_what_needs_hr_today',
+                        '{{when}}. Here’s what needs HR today.',
+                        { when },
+                      )
                     : when
               }
               actions={
@@ -1232,7 +1426,9 @@ export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps
                     startIcon={<icons.hire aria-hidden />}
                     shortcut="create"
                   >
-                    <a href="/people/directory/list?add=person">Add person</a>
+                    <a href="/people/directory/list?add=person">
+                      {tr('home.people-home.add_person', 'Add person')}
+                    </a>
                   </Button>
                 )
               }

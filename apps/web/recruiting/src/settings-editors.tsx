@@ -56,6 +56,7 @@ import type {
   SettingsLocation,
   Stage,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * The editors behind Recruiting's settings (S1–S6): one dialog per thing,
@@ -120,10 +121,10 @@ const QUESTION_KINDS: readonly QuestionKind[] = [
   'file',
 ];
 const LANGUAGES = [
-  ['en', 'English'],
-  ['es', 'Spanish'],
-  ['de', 'German'],
-  ['hi', 'Hindi'],
+  ['en', tr('settings-editors.english', 'English')],
+  ['es', tr('settings-editors.spanish', 'Spanish')],
+  ['de', tr('settings-editors.german', 'German')],
+  ['hi', tr('settings-editors.hindi', 'Hindi')],
 ] as const;
 
 /** A name's key: lower case, words joined, starting with a letter. */
@@ -203,7 +204,7 @@ function Editor({
   pending,
   error,
   onSave,
-  saveLabel = 'Save',
+  saveLabel = tr('settings-editors.save', 'Save'),
 }: {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -234,7 +235,11 @@ function Editor({
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={error} />
           {checks.tried && whole.length > 0 ? (
-            <Alert tone="danger" title="Before saving" className="animate-arrive">
+            <Alert
+              tone="danger"
+              title={tr('settings-editors.before_saving', 'Before saving')}
+              className="animate-arrive"
+            >
               {whole.join(' ')}
             </Alert>
           ) : null}
@@ -242,7 +247,7 @@ function Editor({
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {tr('settings-editors.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -284,16 +289,34 @@ export function EntityEditor({
     name: name.trim() === '' ? 'Give the entity its legal name.' : null,
     hours:
       hours === null || hours < 10 || hours > 60
-        ? 'A full-time week is between 10 and 60 hours.'
+        ? tr(
+            'settings-editors.a_full_time_week_is_between',
+            'A full-time week is between 10 and 60 hours.',
+          )
         : null,
-    headcount: headcount === null || headcount < 0 ? 'Enter how many people it employs.' : null,
+    headcount:
+      headcount === null || headcount < 0
+        ? tr(
+            'settings-editors.enter_how_many_people_it_employs',
+            'Enter how many people it employs.',
+          )
+        : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New legal entity' : held.name}
-      {...(theirs ? { description: 'From People: its name and country are changed there.' } : {})}
+      title={
+        held === null ? tr('settings-editors.new_legal_entity', 'New legal entity') : held.name
+      }
+      {...(theirs
+        ? {
+            description: tr(
+              'settings-editors.from_people_its_name_and_country',
+              'From People: its name and country are changed there.',
+            ),
+          }
+        : {})}
       checks={checks}
       pending={act.pending}
       error={act.error}
@@ -318,12 +341,12 @@ export function EntityEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
             disabled={theirs}
-            placeholder="Acme GmbH"
+            placeholder={tr('settings-editors.acme_gmbh', 'Acme GmbH')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -332,7 +355,7 @@ export function EntityEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Country</FieldLabel>
+        <FieldLabel>{tr('settings-editors.country', 'Country')}</FieldLabel>
         <Select
           value={country}
           disabled={theirs}
@@ -348,10 +371,15 @@ export function EntityEditor({
           </FieldControl>
           <Options items={COUNTRIES.map((c) => [c, c] as const)} />
         </Select>
-        <FieldDescription>Its country pack decides the terms it can offer.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'settings-editors.its_country_pack_decides_the_terms',
+            'Its country pack decides the terms it can offer.',
+          )}
+        </FieldDescription>
       </Field>
       <Field>
-        <FieldLabel>Currency</FieldLabel>
+        <FieldLabel>{tr('settings-editors.currency', 'Currency')}</FieldLabel>
         <Select value={currency} onValueChange={setCurrency}>
           <FieldControl>
             <SelectTrigger>
@@ -362,18 +390,24 @@ export function EntityEditor({
         </Select>
       </Field>
       <NumberField
-        label="Full-time week"
+        label={tr('settings-editors.full_time_week', 'Full-time week')}
         hint={checks.error('hours') ?? 'Hours; what a full FTE works here.'}
         invalid={checks.invalid('hours')}
         value={hours}
         min={10}
         max={60}
-        suffix="hours"
+        suffix={tr('settings-editors.hours', 'hours')}
         onChange={setHours}
       />
       <NumberField
-        label="Headcount"
-        hint={checks.error('headcount') ?? 'Some statutory thresholds depend on it.'}
+        label={tr('settings-editors.headcount', 'Headcount')}
+        hint={
+          checks.error('headcount') ??
+          tr(
+            'settings-editors.some_statutory_thresholds_depend_on_it',
+            'Some statutory thresholds depend on it.',
+          )
+        }
         invalid={checks.invalid('headcount')}
         value={headcount}
         min={0}
@@ -381,8 +415,13 @@ export function EntityEditor({
       />
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
-          <FieldLabel>Works council</FieldLabel>
-          <FieldDescription>A DE entity with one presents hires to it first.</FieldDescription>
+          <FieldLabel>{tr('settings-editors.works_council', 'Works council')}</FieldLabel>
+          <FieldDescription>
+            {tr(
+              'settings-editors.a_de_entity_with_one_presents',
+              'A DE entity with one presents hires to it first.',
+            )}
+          </FieldDescription>
         </span>
         <FieldControl>
           <Switch checked={worksCouncil} onCheckedChange={setWorksCouncil} />
@@ -416,7 +455,7 @@ export function LocationEditor({
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New location' : held.name}
+      title={held === null ? tr('settings-editors.new_location', 'New location') : held.name}
       checks={checks}
       pending={act.pending}
       error={act.error}
@@ -439,11 +478,11 @@ export function LocationEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Berlin office"
+            placeholder={tr('settings-editors.berlin_office', 'Berlin office')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -452,7 +491,7 @@ export function LocationEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Legal entity</FieldLabel>
+        <FieldLabel>{tr('settings-editors.legal_entity', 'Legal entity')}</FieldLabel>
         <Select
           value={entityId === '' ? 'none' : entityId}
           onValueChange={(v) => {
@@ -472,15 +511,29 @@ export function LocationEditor({
           </FieldControl>
           <Options
             items={[
-              ['none', 'None'] as const,
-              ...entities.map((e) => [e.id, `${e.name} (${e.country})`] as const),
+              ['none', tr('settings-editors.none', 'None')] as const,
+              ...entities.map(
+                (e) =>
+                  [
+                    e.id,
+                    tr('settings-editors.text', '{{name}} ({{country}})', {
+                      name: e.name,
+                      country: e.country,
+                    }),
+                  ] as const,
+              ),
             ]}
           />
         </Select>
-        <FieldDescription>Who hires here; the country follows it.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'settings-editors.who_hires_here_the_country_follows',
+            'Who hires here; the country follows it.',
+          )}
+        </FieldDescription>
       </Field>
       <Field>
-        <FieldLabel>Country</FieldLabel>
+        <FieldLabel>{tr('settings-editors.country', 'Country')}</FieldLabel>
         <Select
           value={country}
           disabled={entity !== null}
@@ -498,11 +551,11 @@ export function LocationEditor({
         </Select>
       </Field>
       <Field>
-        <FieldLabel>City</FieldLabel>
+        <FieldLabel>{tr('settings-editors.city', 'City')}</FieldLabel>
         <FieldControl>
           <Input
             value={city}
-            placeholder="Berlin"
+            placeholder={tr('settings-editors.berlin', 'Berlin')}
             onChange={(e) => {
               setCity(e.target.value);
             }}
@@ -510,7 +563,7 @@ export function LocationEditor({
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Time zone</FieldLabel>
+        <FieldLabel>{tr('settings-editors.time_zone', 'Time zone')}</FieldLabel>
         <Select value={timeZone} onValueChange={setTimeZone}>
           <FieldControl>
             <SelectTrigger>
@@ -549,7 +602,7 @@ export function DepartmentEditor({
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New department' : held.name}
+      title={held === null ? tr('settings-editors.new_department', 'New department') : held.name}
       checks={checks}
       pending={act.pending}
       error={act.error}
@@ -565,11 +618,11 @@ export function DepartmentEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Engineering"
+            placeholder={tr('settings-editors.engineering', 'Engineering')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -578,7 +631,7 @@ export function DepartmentEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Under</FieldLabel>
+        <FieldLabel>{tr('settings-editors.under', 'Under')}</FieldLabel>
         <Select
           value={parentId === '' ? 'none' : parentId}
           onValueChange={(v) => {
@@ -592,7 +645,7 @@ export function DepartmentEditor({
           </FieldControl>
           <Options
             items={[
-              ['none', 'The top'] as const,
+              ['none', tr('settings-editors.the_top', 'The top')] as const,
               ...units.filter((u) => u.id !== held?.id).map((u) => [u.id, u.name] as const),
             ]}
           />
@@ -629,11 +682,11 @@ export function PipelineEditor({
   const [isDefault, setDefault] = useState(held?.isDefault ?? false);
   const [stages, setStages] = useState<readonly DraftStage[]>(
     held?.stages ?? [
-      stage('Applied', 'applied'),
-      stage('Screening', 'screening'),
-      stage('Interview', 'interview'),
-      stage('Offer', 'offer'),
-      stage('Hired', 'hired'),
+      stage(tr('settings-editors.applied', 'Applied'), 'applied'),
+      stage(tr('settings-editors.screening', 'Screening'), 'screening'),
+      stage(tr('settings-editors.interview', 'Interview'), 'interview'),
+      stage(tr('settings-editors.offer', 'Offer'), 'offer'),
+      stage(tr('settings-editors.hired', 'Hired'), 'hired'),
     ],
   );
   const update = (id: string, patch: Partial<Stage>): void => {
@@ -644,27 +697,43 @@ export function PipelineEditor({
     (s, i) => i > 0 && rank(s.category) < rank(stages[i - 1]?.category ?? 'applied'),
   );
   const shape = [
-    stages.length < 2 ? 'A pipeline has at least two steps.' : null,
-    stages.some((s) => s.name.trim() === '') ? 'Every step needs a name.' : null,
-    stages[0]?.category === 'applied' ? null : 'The first step is of the type Applied.',
+    stages.length < 2
+      ? tr('settings-editors.a_pipeline_has_at_least_two', 'A pipeline has at least two steps.')
+      : null,
+    stages.some((s) => s.name.trim() === '')
+      ? tr('settings-editors.every_step_needs_a_name', 'Every step needs a name.')
+      : null,
+    stages[0]?.category === 'applied'
+      ? null
+      : tr('settings-editors.the_first_step_is_of_the', 'The first step is of the type Applied.'),
     stages.at(-1)?.category === 'hired' && stages.filter((s) => s.category === 'hired').length === 1
       ? null
-      : 'The last step, and only the last, is of the type Hired.',
-    stages.some((s) => s.category === 'offer') ? null : 'One step is of the type Offer.',
+      : tr(
+          'settings-editors.the_last_step_and_only_the',
+          'The last step, and only the last, is of the type Hired.',
+        ),
+    stages.some((s) => s.category === 'offer')
+      ? null
+      : tr('settings-editors.one_step_is_of_the_type', 'One step is of the type Offer.'),
     backwards === undefined
       ? null
       : `“${backwards.name}” comes after a later type of step; move it up or change its type.`,
   ];
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the pipeline, as recruiters will pick it.' : null,
-    steps: shape.some((p) => p !== null) ? 'Steps are incomplete.' : null,
+    steps: shape.some((p) => p !== null)
+      ? tr('settings-editors.steps_are_incomplete', 'Steps are incomplete.')
+      : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New pipeline' : held.name}
-      description="The steps a candidate moves through, from applying to being hired. A new job copies them; jobs already open keep theirs."
+      title={held === null ? tr('settings-editors.new_pipeline', 'New pipeline') : held.name}
+      description={tr(
+        'settings-editors.the_steps_a_candidate_moves_through',
+        'The steps a candidate moves through, from applying to being hired. A new job copies them; jobs already open keep theirs.',
+      )}
       checks={checks}
       problems={shape}
       pending={act.pending}
@@ -692,11 +761,11 @@ export function PipelineEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Standard"
+            placeholder={tr('settings-editors.standard', 'Standard')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -706,31 +775,42 @@ export function PipelineEditor({
       </Field>
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
-          <FieldLabel>Use for new jobs</FieldLabel>
-          <FieldDescription>A new job starts with this pipeline; it can pick another.</FieldDescription>
+          <FieldLabel>{tr('settings-editors.use_for_new_jobs', 'Use for new jobs')}</FieldLabel>
+          <FieldDescription>
+            {tr(
+              'settings-editors.a_new_job_starts_with_this',
+              'A new job starts with this pipeline; it can pick another.',
+            )}
+          </FieldDescription>
         </span>
         <FieldControl>
           <Switch checked={isDefault} onCheckedChange={setDefault} />
         </FieldControl>
       </Field>
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold">Steps, in order</span>
+        <span className="text-sm font-semibold">
+          {tr('settings-editors.steps_in_order', 'Steps, in order')}
+        </span>
         <span className="text-sm text-fg-muted">
-          Drag to reorder. The type tells Kithena what happens at a step: an interview step
-          books interviews, an offer step sends offers.
+          {tr(
+            'settings-editors.drag_to_reorder_the_type_tells',
+            'Drag to reorder. The type tells Kithena what happens at a step: an interview step books interviews, an offer step sends offers.',
+          )}
         </span>
         {/* What each column is, once, rather than a label on every row. */}
         <div
           aria-hidden
           className="flex items-center gap-2 ps-10 pe-9 text-xs font-medium text-fg-subtle"
         >
-          <span className="min-w-32 flex-1">Step</span>
-          <span className="w-36">Type</span>
-          <span className="w-24 text-end">Candidates see it</span>
+          <span className="min-w-32 flex-1">{tr('settings-editors.step', 'Step')}</span>
+          <span className="w-36">{tr('settings-editors.type', 'Type')}</span>
+          <span className="w-24 text-end">
+            {tr('settings-editors.candidates_see_it', 'Candidates see it')}
+          </span>
         </div>
         <SortableList
           items={stages}
-          label="Steps"
+          label={tr('settings-editors.steps', 'Steps')}
           activator="handle"
           appearance="plain"
           itemLabel={(s) => s.name}
@@ -742,7 +822,7 @@ export function PipelineEditor({
           {(s) => (
             <div className="flex min-w-0 flex-1 items-center gap-2 py-1">
               <Input
-                aria-label="Step name"
+                aria-label={tr('settings-editors.step_name', 'Step name')}
                 className="min-w-32 flex-1"
                 size="sm"
                 value={s.name}
@@ -760,14 +840,20 @@ export function PipelineEditor({
                   update(s.id, { category: c as Stage['category'] });
                 }}
               >
-                <SelectTrigger aria-label={`Type of ${s.name}`} size="sm" className="w-36">
+                <SelectTrigger
+                  aria-label={tr('settings-editors.type_of', 'Type of {{name}}', { name: s.name })}
+                  size="sm"
+                  className="w-36"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <Options items={CATEGORIES.map((c) => [c, words(c)] as const)} />
               </Select>
               <span className="flex w-24 justify-end">
                 <Switch
-                  aria-label={`Candidates see ${s.name}`}
+                  aria-label={tr('settings-editors.candidates_see', 'Candidates see {{name}}', {
+                    name: s.name,
+                  })}
                   checked={s.candidateName !== null}
                   onCheckedChange={(on) => {
                     update(s.id, { candidateName: on ? s.name : null });
@@ -777,7 +863,7 @@ export function PipelineEditor({
               <Button
                 size="xs"
                 variant="ghost"
-                aria-label={`Remove ${s.name}`}
+                aria-label={tr('settings-editors.remove', 'Remove {{name}}', { name: s.name })}
                 startIcon={<icons.remove aria-hidden />}
                 onClick={() => {
                   setStages(stages.filter((x) => x.id !== s.id));
@@ -793,7 +879,7 @@ export function PipelineEditor({
             startIcon={<icons.add aria-hidden />}
             onClick={() => {
               const before = stages.findIndex((s) => s.category === 'offer');
-              const next = stage('New step', 'interview');
+              const next = stage(tr('settings-editors.new_step', 'New step'), 'interview');
               setStages(
                 before < 0
                   ? [...stages, next]
@@ -801,7 +887,7 @@ export function PipelineEditor({
               );
             }}
           >
-            Add step
+            {tr('settings-editors.add_step', 'Add step')}
           </Button>
         </div>
       </div>
@@ -818,12 +904,12 @@ export const approverLabel = (a: Approver, members: SettingsData['members']): st
   a.kind === 'person'
     ? (members.find((m) => m.personId === a.personId)?.name ?? 'someone')
     : a.kind === 'managers_manager'
-      ? 'the hiring manager’s manager'
+      ? tr('settings-editors.the_hiring_managers_manager', 'the hiring manager’s manager')
       : a.role === 'recruiting_admin'
-        ? 'a Recruiting administrator'
+        ? tr('settings-editors.a_recruiting_administrator', 'a Recruiting administrator')
         : a.role === 'hr'
           ? 'HR'
-          : 'Finance';
+          : tr('settings-editors.finance', 'Finance');
 
 /** A rule as one sentence: "New jobs over €100,000: the hiring manager's manager, then Finance." */
 export const chainSentence = (
@@ -834,23 +920,37 @@ export const chainSentence = (
   const when = [
     c.when.budgetAboveMinor === undefined
       ? null
-      : `with a budget over ${amount(c.when.budgetAboveMinor, currency)}`,
-    c.when.outsideBand === true ? 'outside the pay band' : null,
-    c.when.aboveBudget === true ? 'above the job’s budget' : null,
+      : tr('settings-editors.with_a_budget_over', 'with a budget over {{budgetAboveMinor}}', {
+          budgetAboveMinor: amount(c.when.budgetAboveMinor, currency),
+        }),
+    c.when.outsideBand === true
+      ? tr('settings-editors.outside_the_pay_band', 'outside the pay band')
+      : null,
+    c.when.aboveBudget === true
+      ? tr('settings-editors.above_the_jobs_budget', 'above the job’s budget')
+      : null,
     c.when.legalEntityIds === undefined || c.when.legalEntityIds.length === 0
       ? null
-      : `at ${c.when.legalEntityIds.map((id) => data.entities.find((e) => e.id === id)?.name ?? '—').join(' or ')}`,
+      : tr('settings-editors.at', 'at {{join}}', {
+          join: c.when.legalEntityIds
+            .map((id) => data.entities.find((e) => e.id === id)?.name ?? '—')
+            .join(' or '),
+        }),
   ].filter(Boolean);
   const what =
     c.appliesTo === 'requisition'
       ? when.length === 0
-        ? 'Every new job'
-        : 'New jobs'
+        ? tr('settings-editors.every_new_job', 'Every new job')
+        : tr('settings-editors.new_jobs', 'New jobs')
       : when.length === 0
-        ? 'Every offer'
-        : 'Offers';
+        ? tr('settings-editors.every_offer', 'Every offer')
+        : tr('settings-editors.offers', 'Offers');
   const who = c.steps.map((a) => approverLabel(a, data.members)).join(', then ');
-  return `${what}${when.length === 0 ? '' : ` ${when.join(', ')}`}: ${who === '' ? 'nobody yet' : who}`;
+  return tr('settings-editors.text_2', '{{what}}{{value}}: {{value2}}', {
+    what,
+    value: when.length === 0 ? '' : ` ${when.join(', ')}`,
+    value2: who === '' ? tr('settings-editors.nobody_yet', 'nobody yet') : who,
+  });
 };
 
 /**
@@ -902,20 +1002,30 @@ export function ChainEditor({
   const draft = { appliesTo, when, steps: steps.map((s) => s.approver) };
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the rule, such as “Large budgets”.' : null,
-    steps: steps.length === 0 ? 'Add who says yes.' : null,
+    steps: steps.length === 0 ? tr('settings-editors.add_who_says_yes', 'Add who says yes.') : null,
     person: steps.some((s) => s.approver.kind === 'person' && s.approver.personId === '')
-      ? 'Pick the person.'
+      ? tr('settings-editors.pick_the_person', 'Pick the person.')
       : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New approval rule' : held.name}
-      description="When something fits this rule, each person below gets a task in their Inbox, one after another. It goes ahead once the last says yes; anyone can say no."
+      title={
+        held === null ? tr('settings-editors.new_approval_rule', 'New approval rule') : held.name
+      }
+      description={tr(
+        'settings-editors.when_something_fits_this_rule_each',
+        'When something fits this rule, each person below gets a task in their Inbox, one after another. It goes ahead once the last says yes; anyone can say no.',
+      )}
       checks={checks}
       problems={[
-        steps.length === 0 ? 'Add at least one person who says yes.' : null,
+        steps.length === 0
+          ? tr(
+              'settings-editors.add_at_least_one_person_who',
+              'Add at least one person who says yes.',
+            )
+          : null,
         checks.error('person'),
       ]}
       pending={act.pending}
@@ -939,9 +1049,9 @@ export function ChainEditor({
       }}
     >
       <Field>
-        <FieldLabel>What needs a yes</FieldLabel>
+        <FieldLabel>{tr('settings-editors.what_needs_a_yes', 'What needs a yes')}</FieldLabel>
         <RadioGroup
-          aria-label="What needs a yes"
+          aria-label={tr('settings-editors.what_needs_a_yes', 'What needs a yes')}
           className="grid gap-2 sm:grid-cols-2"
           value={appliesTo}
           onValueChange={(v) => {
@@ -951,33 +1061,56 @@ export function ChainEditor({
           <RadioCard
             value="requisition"
             icon={<icons.work />}
-            description="A hiring manager asks to open a job (a requisition)."
+            description={tr(
+              'settings-editors.a_hiring_manager_asks_to_open',
+              'A hiring manager asks to open a job (a requisition).',
+            )}
           >
-            Opening a new job
+            {tr('settings-editors.opening_a_new_job', 'Opening a new job')}
           </RadioCard>
           <RadioCard
             value="offer"
             icon={<icons.document />}
-            description="An offer, before it goes to the candidate."
+            description={tr(
+              'settings-editors.an_offer_before_it_goes_to',
+              'An offer, before it goes to the candidate.',
+            )}
           >
-            Sending an offer
+            {tr('settings-editors.sending_an_offer', 'Sending an offer')}
           </RadioCard>
         </RadioGroup>
       </Field>
       {job ? (
         <Field>
-          <FieldLabel>Only when the budget is over</FieldLabel>
+          <FieldLabel>
+            {tr('settings-editors.only_when_the_budget_is_over', 'Only when the budget is over')}
+          </FieldLabel>
           <FieldControl>
             <CurrencyField currency={currency} value={budget} onValueChange={setBudget} />
           </FieldControl>
-          <FieldDescription>Leave it empty to ask for every new job.</FieldDescription>
+          <FieldDescription>
+            {tr(
+              'settings-editors.leave_it_empty_to_ask_for',
+              'Leave it empty to ask for every new job.',
+            )}
+          </FieldDescription>
         </Field>
       ) : (
         <div className="flex flex-col gap-3">
           <Field orientation="horizontal">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>Only when the pay is outside the pay band</FieldLabel>
-              <FieldDescription>The grade’s band, under Pay bands.</FieldDescription>
+              <FieldLabel>
+                {tr(
+                  'settings-editors.only_when_the_pay_is_outside',
+                  'Only when the pay is outside the pay band',
+                )}
+              </FieldLabel>
+              <FieldDescription>
+                {tr(
+                  'settings-editors.the_grades_band_under_pay_bands',
+                  'The grade’s band, under Pay bands.',
+                )}
+              </FieldDescription>
             </span>
             <FieldControl>
               <Switch checked={outsideBand} onCheckedChange={setOutsideBand} />
@@ -985,8 +1118,15 @@ export function ChainEditor({
           </Field>
           <Field orientation="horizontal">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>Only when the pay is above the job’s budget</FieldLabel>
-              <FieldDescription>Both off: every offer asks.</FieldDescription>
+              <FieldLabel>
+                {tr(
+                  'settings-editors.only_when_the_pay_is_above',
+                  'Only when the pay is above the job’s budget',
+                )}
+              </FieldLabel>
+              <FieldDescription>
+                {tr('settings-editors.both_off_every_offer_asks', 'Both off: every offer asks.')}
+              </FieldDescription>
             </span>
             <FieldControl>
               <Switch checked={aboveBudget} onCheckedChange={setAboveBudget} />
@@ -996,14 +1136,16 @@ export function ChainEditor({
       )}
       {data.entities.length < 2 ? null : (
         <Field>
-          <FieldLabel>Only at these entities</FieldLabel>
+          <FieldLabel>
+            {tr('settings-editors.only_at_these_entities', 'Only at these entities')}
+          </FieldLabel>
           <FieldControl>
             <Combobox
-              label="Legal entities"
+              label={tr('settings-editors.legal_entities', 'Legal entities')}
               multiple
               chips
               clearable
-              placeholder="Any entity"
+              placeholder={tr('settings-editors.any_entity', 'Any entity')}
               options={data.entities.map((e) => ({ value: e.id, label: e.name }))}
               value={entityIds}
               onChange={(v) => {
@@ -1014,10 +1156,12 @@ export function ChainEditor({
         </Field>
       )}
       <div className="flex flex-col gap-2">
-        <span className="text-sm font-semibold">Who says yes, in this order</span>
+        <span className="text-sm font-semibold">
+          {tr('settings-editors.who_says_yes_in_this_order', 'Who says yes, in this order')}
+        </span>
         <SortableList
           items={steps}
-          label="Who says yes"
+          label={tr('settings-editors.who_says_yes', 'Who says yes')}
           activator="handle"
           appearance="plain"
           itemLabel={(s) => approverLabel(s.approver, data.members)}
@@ -1040,25 +1184,41 @@ export function ChainEditor({
                     });
                 }}
               >
-                <SelectTrigger aria-label="Who says yes" size="sm" className="w-60">
+                <SelectTrigger
+                  aria-label={tr('settings-editors.who_says_yes', 'Who says yes')}
+                  size="sm"
+                  className="w-60"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <Options
                   items={[
-                    ['managers_manager', 'The hiring manager’s manager'],
-                    ['role:hr', 'Anyone in HR'],
-                    ['role:finance', 'Anyone in Finance'],
-                    ['role:recruiting_admin', 'A Recruiting administrator'],
-                    ['person', 'A person I choose'],
+                    [
+                      'managers_manager',
+                      tr(
+                        'settings-editors.the_hiring_managers_manager_2',
+                        'The hiring manager’s manager',
+                      ),
+                    ],
+                    ['role:hr', tr('settings-editors.anyone_in_hr', 'Anyone in HR')],
+                    ['role:finance', tr('settings-editors.anyone_in_finance', 'Anyone in Finance')],
+                    [
+                      'role:recruiting_admin',
+                      tr(
+                        'settings-editors.a_recruiting_administrator_2',
+                        'A Recruiting administrator',
+                      ),
+                    ],
+                    ['person', tr('settings-editors.a_person_i_choose', 'A person I choose')],
                   ]}
                 />
               </Select>
               {s.approver.kind === 'person' ? (
                 <Combobox
-                  label="Person"
+                  label={tr('settings-editors.person', 'Person')}
                   size="sm"
                   className="min-w-48 flex-1"
-                  placeholder="Pick a person"
+                  placeholder={tr('settings-editors.pick_a_person', 'Pick a person')}
                   aria-invalid={checks.invalid('person') && s.approver.personId === ''}
                   options={data.members.map((m) => ({ value: m.personId, label: m.name }))}
                   value={s.approver.personId === '' ? null : s.approver.personId}
@@ -1070,7 +1230,7 @@ export function ChainEditor({
               <Button
                 size="xs"
                 variant="ghost"
-                aria-label="Remove"
+                aria-label={tr('settings-editors.remove_2', 'Remove')}
                 startIcon={<icons.remove aria-hidden />}
                 onClick={() => {
                   setSteps(steps.filter((x) => x.id !== s.id));
@@ -1088,19 +1248,27 @@ export function ChainEditor({
               setSteps([...steps, { id: newId(), approver: { kind: 'role', role: 'finance' } }]);
             }}
           >
-            Add someone
+            {tr('settings-editors.add_someone', 'Add someone')}
           </Button>
         </div>
       </div>
-      <Alert tone="accent" icon={<icons.approve aria-hidden />} title="This rule reads">
+      <Alert
+        tone="accent"
+        icon={<icons.approve aria-hidden />}
+        title={tr('settings-editors.this_rule_reads', 'This rule reads')}
+      >
         {chainSentence(draft, data)}
       </Alert>
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder={job ? 'Large budgets' : 'Offers outside the band'}
+            placeholder={
+              job
+                ? tr('settings-editors.large_budgets', 'Large budgets')
+                : tr('settings-editors.offers_outside_the_band', 'Offers outside the band')
+            }
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -1148,11 +1316,17 @@ function KnockoutEditor({
     <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
       <Field orientation="horizontal" className="gap-2">
         <span className="flex min-w-0 flex-col">
-          <FieldLabel>Knockout</FieldLabel>
+          <FieldLabel>{tr('settings-editors.knockout', 'Knockout')}</FieldLabel>
           <FieldDescription>
             {q.kind === 'number'
-              ? 'An answer below a number flags the application, or rejects it.'
-              : 'Certain answers flag the application, or reject it.'}
+              ? tr(
+                  'settings-editors.an_answer_below_a_number_flags',
+                  'An answer below a number flags the application, or rejects it.',
+                )
+              : tr(
+                  'settings-editors.certain_answers_flag_the_application_or',
+                  'Certain answers flag the application, or reject it.',
+                )}
           </FieldDescription>
         </span>
         <FieldControl>
@@ -1168,7 +1342,7 @@ function KnockoutEditor({
         <>
           {q.kind === 'number' ? (
             <NumberField
-              label="Knocks out below"
+              label={tr('settings-editors.knocks_out_below', 'Knocks out below')}
               value={held.below ?? null}
               onChange={(below) => {
                 const { below: _was, ...rest } = held;
@@ -1177,10 +1351,15 @@ function KnockoutEditor({
             />
           ) : choices.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Add the options first, then pick which knock out.
+              {tr(
+                'settings-editors.add_the_options_first_then_pick',
+                'Add the options first, then pick which knock out.',
+              )}
             </p>
           ) : (
-            <ChipRow aria-label="Answers that knock out">
+            <ChipRow
+              aria-label={tr('settings-editors.answers_that_knock_out', 'Answers that knock out')}
+            >
               {choices.map((c) => (
                 <Chip
                   key={c}
@@ -1193,16 +1372,25 @@ function KnockoutEditor({
                     });
                   }}
                 >
-                  {c === 'yes' ? 'Yes' : c === 'no' ? 'No' : c}
+                  {c === 'yes'
+                    ? tr('settings-editors.yes', 'Yes')
+                    : c === 'no'
+                      ? tr('settings-editors.no', 'No')
+                      : c}
                 </Chip>
               ))}
             </ChipRow>
           )}
           <Field orientation="horizontal" className="gap-2">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>A legal requirement</FieldLabel>
+              <FieldLabel>
+                {tr('settings-editors.a_legal_requirement', 'A legal requirement')}
+              </FieldLabel>
               <FieldDescription>
-                A licence, the right to work: what the law needs for this job.
+                {tr(
+                  'settings-editors.a_licence_the_right_to_work',
+                  'A licence, the right to work: what the law needs for this job.',
+                )}
               </FieldDescription>
             </span>
             <FieldControl>
@@ -1216,12 +1404,14 @@ function KnockoutEditor({
           </Field>
           <Field orientation="horizontal" className="gap-2">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>Reject on its own</FieldLabel>
+              <FieldLabel>
+                {tr('settings-editors.reject_on_its_own', 'Reject on its own')}
+              </FieldLabel>
               <FieldDescription>
-                Off: a knockout flags the application for a person to review. On: it is rejected and
-                the rejection email sent the next working day at 09:00 in the candidate’s time zone,
-                never the moment they apply; until then the team can move it on instead. A German or
-                Spanish job allows this only for a legal requirement.
+                {tr(
+                  'settings-editors.off_a_knockout_flags_the_application',
+                  'Off: a knockout flags the application for a person to review. On: it is rejected and the rejection email sent the next working day at 09:00 in the candidate’s time zone, never the moment they apply; until then the team can move it on instead. A German or Spanish job allows this only for a legal requirement.',
+                )}
               </FieldDescription>
             </span>
             <FieldControl>
@@ -1257,23 +1447,32 @@ export function QuestionnaireEditor({
     name: name.trim() === '' ? 'Name the questionnaire.' : null,
     questions:
       questions.length === 0 || questions.some((q) => q.text.trim() === '')
-        ? 'Questions are incomplete.'
+        ? tr('settings-editors.questions_are_incomplete', 'Questions are incomplete.')
         : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New questionnaire' : held.name}
+      title={
+        held === null ? tr('settings-editors.new_questionnaire', 'New questionnaire') : held.name
+      }
       description={
         held === null
-          ? 'Asked on the apply form, or sent at a stage. Changing it later makes a new version.'
+          ? tr(
+              'settings-editors.asked_on_the_apply_form_or',
+              'Asked on the apply form, or sent at a stage. Changing it later makes a new version.',
+            )
           : `Version ${String(held.version)}; saving makes version ${String(held.version + 1)}.`
       }
       checks={checks}
       problems={[
-        questions.length === 0 ? 'Add at least one question.' : null,
-        questions.some((q) => q.text.trim() === '') ? 'Every question needs its words.' : null,
+        questions.length === 0
+          ? tr('settings-editors.add_at_least_one_question', 'Add at least one question.')
+          : null,
+        questions.some((q) => q.text.trim() === '')
+          ? tr('settings-editors.every_question_needs_its_words', 'Every question needs its words.')
+          : null,
       ]}
       pending={act.pending}
       error={act.error}
@@ -1296,11 +1495,11 @@ export function QuestionnaireEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Right to work"
+            placeholder={tr('settings-editors.right_to_work', 'Right to work')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -1309,12 +1508,16 @@ export function QuestionnaireEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <div className="flex flex-col gap-3">
-        <span className="text-sm font-semibold">Questions</span>
+        <span className="text-sm font-semibold">
+          {tr('settings-editors.questions', 'Questions')}
+        </span>
         {questions.map((q, i) => (
           <div key={q.id} className="flex flex-col gap-2 rounded-lg bg-surface-sunken p-3">
             <div className="flex items-start gap-2">
               <Field required className="flex-1">
-                <FieldLabel>{`Question ${String(i + 1)}`}</FieldLabel>
+                <FieldLabel>
+                  {tr('settings-editors.question', 'Question {{value}}', { value: String(i + 1) })}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={q.text}
@@ -1328,7 +1531,9 @@ export function QuestionnaireEditor({
                 size="xs"
                 variant="ghost"
                 className="mt-6"
-                aria-label={`Remove question ${String(i + 1)}`}
+                aria-label={tr('settings-editors.remove_question', 'Remove question {{value}}', {
+                  value: String(i + 1),
+                })}
                 startIcon={<icons.remove aria-hidden />}
                 onClick={() => {
                   setQuestions(questions.filter((x) => x.id !== q.id));
@@ -1337,7 +1542,7 @@ export function QuestionnaireEditor({
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <Field>
-                <FieldLabel>Answer</FieldLabel>
+                <FieldLabel>{tr('settings-editors.answer', 'Answer')}</FieldLabel>
                 <Select
                   value={q.kind}
                   onValueChange={(k) => {
@@ -1353,7 +1558,7 @@ export function QuestionnaireEditor({
                 </Select>
               </Field>
               <Field orientation="horizontal" className="gap-2">
-                <FieldLabel>Required</FieldLabel>
+                <FieldLabel>{tr('settings-editors.required', 'Required')}</FieldLabel>
                 <FieldControl>
                   <Switch
                     checked={q.required}
@@ -1374,13 +1579,16 @@ export function QuestionnaireEditor({
             ) : null}
             {q.kind === 'single' || q.kind === 'multiple' ? (
               <TagsInput
-                label="Answers to choose from"
+                label={tr('settings-editors.answers_to_choose_from', 'Answers to choose from')}
                 value={q.options}
-                placeholder="Type one, then Enter"
-                hint="Press Enter after each one."
+                placeholder={tr('settings-editors.type_one_then_enter', 'Type one, then Enter')}
+                hint={tr(
+                  'settings-editors.press_enter_after_each_one',
+                  'Press Enter after each one.',
+                )}
                 validate={(o) =>
                   q.options.some((x) => x.toLowerCase() === o.trim().toLowerCase())
-                    ? 'Already there.'
+                    ? tr('settings-editors.already_there', 'Already there.')
                     : null
                 }
                 onChange={(options) => {
@@ -1399,7 +1607,7 @@ export function QuestionnaireEditor({
               setQuestions([...questions, question()]);
             }}
           >
-            Add question
+            {tr('settings-editors.add_question', 'Add question')}
           </Button>
         </div>
       </div>
@@ -1412,7 +1620,10 @@ export function QuestionnaireEditor({
 /** What a template can be for: the composer's moments, and the invitation to choose interview times. */
 export const TEMPLATE_PURPOSES: Readonly<Record<string, string>> = {
   ...PURPOSE_LABEL,
-  interview_invitation: 'Invitation to choose interview times',
+  interview_invitation: tr(
+    'settings-editors.invitation_to_choose_interview_times',
+    'Invitation to choose interview times',
+  ),
 };
 
 export function TemplateEditor({
@@ -1435,16 +1646,24 @@ export function TemplateEditor({
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the template.' : null,
     purpose: purpose.trim() === '' ? 'Choose what it is used for.' : null,
-    body: body.trim() === '' ? 'Write what it says.' : null,
+    body:
+      body.trim() === '' ? tr('settings-editors.write_what_it_says', 'Write what it says.') : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New template' : held.name}
-      description="What a stage, a decision or an offer sends. Placeholders are filled in for each candidate."
+      title={held === null ? tr('settings-editors.new_template', 'New template') : held.name}
+      description={tr(
+        'settings-editors.what_a_stage_a_decision_or',
+        'What a stage, a decision or an offer sends. Placeholders are filled in for each candidate.',
+      )}
       checks={checks}
-      problems={[kind === 'email' && body.trim() === '' ? 'Write the email’s words.' : null]}
+      problems={[
+        kind === 'email' && body.trim() === ''
+          ? tr('settings-editors.write_the_emails_words', 'Write the email’s words.')
+          : null,
+      ]}
       pending={act.pending}
       error={act.error}
       onSave={() => {
@@ -1466,11 +1685,11 @@ export function TemplateEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Interview invitation"
+            placeholder={tr('settings-editors.interview_invitation', 'Interview invitation')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -1479,7 +1698,7 @@ export function TemplateEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Kind</FieldLabel>
+        <FieldLabel>{tr('settings-editors.kind', 'Kind')}</FieldLabel>
         <Select
           value={kind}
           onValueChange={(k) => {
@@ -1493,15 +1712,15 @@ export function TemplateEditor({
           </FieldControl>
           <Options
             items={[
-              ['email', 'Email'],
-              ['offer_letter', 'Offer letter'],
-              ['contract', 'Contract'],
+              ['email', tr('settings-editors.email', 'Email')],
+              ['offer_letter', tr('settings-editors.offer_letter', 'Offer letter')],
+              ['contract', tr('settings-editors.contract', 'Contract')],
             ]}
           />
         </Select>
       </Field>
       <Field required invalid={checks.invalid('purpose')}>
-        <FieldLabel>Used for</FieldLabel>
+        <FieldLabel>{tr('settings-editors.used_for', 'Used for')}</FieldLabel>
         <Select
           value={customPurpose ? 'custom' : purpose === '' ? 'rejection' : purpose}
           onValueChange={(v) => {
@@ -1522,7 +1741,13 @@ export function TemplateEditor({
           <Options
             items={[
               ...Object.entries(TEMPLATE_PURPOSES),
-              ['custom', 'Something else, for a stage’s automation'],
+              [
+                'custom',
+                tr(
+                  'settings-editors.something_else_for_a_stages_automation',
+                  'Something else, for a stage’s automation',
+                ),
+              ],
             ]}
           />
         </Select>
@@ -1539,13 +1764,19 @@ export function TemplateEditor({
         ) : null}
         <FieldDescription>
           {customPurpose
-            ? 'A short key a stage’s automation picks it by.'
-            : 'The composer opens with this template at that moment.'}
+            ? tr(
+                'settings-editors.a_short_key_a_stages_automation',
+                'A short key a stage’s automation picks it by.',
+              )
+            : tr(
+                'settings-editors.the_composer_opens_with_this_template',
+                'The composer opens with this template at that moment.',
+              )}
         </FieldDescription>
         <FieldError>{checks.error('purpose')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Language</FieldLabel>
+        <FieldLabel>{tr('settings-editors.language', 'Language')}</FieldLabel>
         <Select value={language} onValueChange={setLanguage}>
           <FieldControl>
             <SelectTrigger>
@@ -1565,7 +1796,7 @@ export function TemplateEditor({
         />
       ) : (
         <Field required invalid={checks.invalid('body')}>
-          <FieldLabel>Body</FieldLabel>
+          <FieldLabel>{tr('settings-editors.body', 'Body')}</FieldLabel>
           <FieldControl>
             <Textarea
               autoResize
@@ -1649,14 +1880,23 @@ export function BenefitEditor({
   };
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the benefit, as a candidate reads it.' : null,
-    entity: entityId === '' ? 'Choose the entity that offers it.' : null,
+    entity:
+      entityId === ''
+        ? tr(
+            'settings-editors.choose_the_entity_that_offers_it',
+            'Choose the entity that offers it.',
+          )
+        : null,
   });
   return (
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New benefit' : name}
-      description="Shown on ads, the careers page, the composer and offers. A tax note describes, never calculates."
+      title={held === null ? tr('settings-editors.new_benefit', 'New benefit') : name}
+      description={tr(
+        'settings-editors.shown_on_ads_the_careers_page',
+        'Shown on ads, the careers page, the composer and offers. A tax note describes, never calculates.',
+      )}
       checks={checks}
       pending={act.pending}
       error={act.error}
@@ -1691,11 +1931,14 @@ export function BenefitEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Private health insurance"
+            placeholder={tr(
+              'settings-editors.private_health_insurance',
+              'Private health insurance',
+            )}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -1704,13 +1947,21 @@ export function BenefitEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Description</FieldLabel>
-        <FieldDescription>One line a candidate reads under the name, on the ad.</FieldDescription>
+        <FieldLabel>{tr('settings-editors.description', 'Description')}</FieldLabel>
+        <FieldDescription>
+          {tr(
+            'settings-editors.one_line_a_candidate_reads_under',
+            'One line a candidate reads under the name, on the ad.',
+          )}
+        </FieldDescription>
         <FieldControl>
           <Textarea
             autoResize
             value={description}
-            placeholder="A yearly budget for courses, books and conferences."
+            placeholder={tr(
+              'settings-editors.a_yearly_budget_for_courses_books',
+              'A yearly budget for courses, books and conferences.',
+            )}
             onChange={(e) => {
               setDescription(e.target.value);
             }}
@@ -1718,20 +1969,38 @@ export function BenefitEditor({
         </FieldControl>
       </Field>
       <Field required invalid={checks.invalid('entity')}>
-        <FieldLabel>Legal entity</FieldLabel>
+        <FieldLabel>{tr('settings-editors.legal_entity', 'Legal entity')}</FieldLabel>
         <Select value={entityId} disabled={held !== null} onValueChange={setEntityId}>
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose an entity" />
+              <SelectValue
+                placeholder={tr('settings-editors.choose_an_entity', 'Choose an entity')}
+              />
             </SelectTrigger>
           </FieldControl>
-          <Options items={data.entities.map((e) => [e.id, `${e.name} (${e.country})`] as const)} />
+          <Options
+            items={data.entities.map(
+              (e) =>
+                [
+                  e.id,
+                  tr('settings-editors.text', '{{name}} ({{country}})', {
+                    name: e.name,
+                    country: e.country,
+                  }),
+                ] as const,
+            )}
+          />
         </Select>
-        <FieldDescription>Who offers it; a benefit belongs to one entity.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'settings-editors.who_offers_it_a_benefit_belongs',
+            'Who offers it; a benefit belongs to one entity.',
+          )}
+        </FieldDescription>
         <FieldError>{checks.error('entity')}</FieldError>
       </Field>
       <Field>
-        <FieldLabel>Category</FieldLabel>
+        <FieldLabel>{tr('settings-editors.category', 'Category')}</FieldLabel>
         <Select value={category} onValueChange={setCategory}>
           <FieldControl>
             <SelectTrigger>
@@ -1742,7 +2011,7 @@ export function BenefitEditor({
         </Select>
       </Field>
       <Field>
-        <FieldLabel>Worth</FieldLabel>
+        <FieldLabel>{tr('settings-editors.worth', 'Worth')}</FieldLabel>
         <Select
           value={valueKind}
           onValueChange={(k) => {
@@ -1756,17 +2025,17 @@ export function BenefitEditor({
           </FieldControl>
           <Options
             items={[
-              ['descriptive', 'Described, no number'],
-              ['money', 'An amount a year'],
-              ['percent', 'A share of pay'],
-              ['days', 'Days'],
+              ['descriptive', tr('settings-editors.described_no_number', 'Described, no number')],
+              ['money', tr('settings-editors.an_amount_a_year', 'An amount a year')],
+              ['percent', tr('settings-editors.a_share_of_pay', 'A share of pay')],
+              ['days', tr('settings-editors.days', 'Days')],
             ]}
           />
         </Select>
       </Field>
       {valueKind === 'money' ? (
         <Field>
-          <FieldLabel>A year</FieldLabel>
+          <FieldLabel>{tr('settings-editors.a_year', 'A year')}</FieldLabel>
           <FieldControl>
             <CurrencyField
               currency={entity?.currency ?? 'EUR'}
@@ -1777,7 +2046,7 @@ export function BenefitEditor({
         </Field>
       ) : valueKind === 'percent' ? (
         <NumberField
-          label="Share of pay"
+          label={tr('settings-editors.share_of_pay', 'Share of pay')}
           value={percent}
           min={0}
           max={100}
@@ -1787,16 +2056,16 @@ export function BenefitEditor({
         />
       ) : valueKind === 'days' ? (
         <NumberField
-          label="Days a year"
+          label={tr('settings-editors.days_a_year', 'Days a year')}
           value={days}
           min={0}
           max={365}
-          suffix="days"
+          suffix={tr('settings-editors.days_2', 'days')}
           onChange={setDays}
         />
       ) : null}
       <Field>
-        <FieldLabel>From when</FieldLabel>
+        <FieldLabel>{tr('settings-editors.from_when', 'From when')}</FieldLabel>
         <Select
           value={waiting}
           onValueChange={(w) => {
@@ -1810,32 +2079,34 @@ export function BenefitEditor({
           </FieldControl>
           <Options
             items={[
-              ['none', 'The first day'],
-              ['after_probation', 'After probation'],
-              ['months', 'After some months'],
+              ['none', tr('settings-editors.the_first_day', 'The first day')],
+              ['after_probation', tr('settings-editors.after_probation', 'After probation')],
+              ['months', tr('settings-editors.after_some_months', 'After some months')],
             ]}
           />
         </Select>
       </Field>
       {waiting === 'months' ? (
         <NumberField
-          label="Months"
+          label={tr('settings-editors.months', 'Months')}
           value={months}
           min={1}
           max={36}
-          suffix="months"
+          suffix={tr('settings-editors.months_2', 'months')}
           onChange={setMonths}
         />
       ) : null}
       <Field>
-        <FieldLabel>Only these contracts</FieldLabel>
+        <FieldLabel>
+          {tr('settings-editors.only_these_contracts', 'Only these contracts')}
+        </FieldLabel>
         <FieldControl>
           <Combobox
-            label="Employment types"
+            label={tr('settings-editors.employment_types', 'Employment types')}
             multiple
             chips
             clearable
-            placeholder="Everyone"
+            placeholder={tr('settings-editors.everyone', 'Everyone')}
             options={EMPLOYMENT_TYPES.map((t) => ({ value: t, label: words(t) }))}
             value={employmentTypes}
             onChange={(v) => {
@@ -1845,14 +2116,16 @@ export function BenefitEditor({
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Only these ways of working</FieldLabel>
+        <FieldLabel>
+          {tr('settings-editors.only_these_ways_of_working', 'Only these ways of working')}
+        </FieldLabel>
         <FieldControl>
           <Combobox
-            label="Work modes"
+            label={tr('settings-editors.work_modes', 'Work modes')}
             multiple
             chips
             clearable
-            placeholder="Any"
+            placeholder={tr('settings-editors.any', 'Any')}
             options={WORK_MODES.map((m) => ({ value: m, label: words(m) }))}
             value={workModes}
             onChange={(v) => {
@@ -1862,21 +2135,24 @@ export function BenefitEditor({
         </FieldControl>
       </Field>
       <NumberField
-        label="At least"
-        hint="Hours a week; blank for any."
+        label={tr('settings-editors.at_least', 'At least')}
+        hint={tr('settings-editors.hours_a_week_blank_for_any', 'Hours a week; blank for any.')}
         value={minHours}
         min={1}
         max={60}
-        suffix="hours"
+        suffix={tr('settings-editors.hours', 'hours')}
         onChange={setMinHours}
       />
       <Field>
-        <FieldLabel>Tax note</FieldLabel>
+        <FieldLabel>{tr('settings-editors.tax_note', 'Tax note')}</FieldLabel>
         <FieldControl>
           <Textarea
             autoResize
             value={taxNote}
-            placeholder="Exempt up to the statutory limit."
+            placeholder={tr(
+              'settings-editors.exempt_up_to_the_statutory_limit',
+              'Exempt up to the statutory limit.',
+            )}
             onChange={(e) => {
               setTaxNote(e.target.value);
             }}
@@ -1943,8 +2219,11 @@ export function CategoryEditor({
     <Editor
       open
       onClose={onClose}
-      title={held === null ? 'New category' : held.name}
-      description="Benefits are grouped under it, with its icon, on the job’s tiles and on the ad."
+      title={held === null ? tr('settings-editors.new_category', 'New category') : held.name}
+      description={tr(
+        'settings-editors.benefits_are_grouped_under_it_with',
+        'Benefits are grouped under it, with its icon, on the job’s tiles and on the ad.',
+      )}
       checks={checks}
       pending={act.pending}
       error={act.error}
@@ -1957,11 +2236,11 @@ export function CategoryEditor({
       }}
     >
       <Field required invalid={checks.invalid('name')}>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('settings-editors.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={name}
-            placeholder="Community"
+            placeholder={tr('settings-editors.community', 'Community')}
             onChange={(e) => {
               setName(e.target.value);
             }}
@@ -1970,9 +2249,9 @@ export function CategoryEditor({
         <FieldError>{checks.error('name')}</FieldError>
       </Field>
       <Field required>
-        <FieldLabel>Icon</FieldLabel>
+        <FieldLabel>{tr('settings-editors.icon', 'Icon')}</FieldLabel>
         <RadioGroup
-          aria-label="Icon"
+          aria-label={tr('settings-editors.icon', 'Icon')}
           className="grid grid-cols-2 gap-2 sm:grid-cols-3"
           value={icon}
           onValueChange={setIcon}
@@ -2030,7 +2309,12 @@ export function InWords({
       const [name, variables] = operationOf(change, data);
       const done = await act.call(name, variables);
       if (!done.ok) {
-        setRefused(`${summary}: ${done.message}`);
+        setRefused(
+          tr('settings-editors.text_3', '{{summary}}: {{message}}', {
+            summary,
+            message: done.message,
+          }),
+        );
         setApplying(false);
         props.onRefresh?.();
         return;
@@ -2045,7 +2329,7 @@ export function InWords({
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Input
-          aria-label="Ask for a change in words"
+          aria-label={tr('settings-editors.ask_for_a_change_in_words', 'Ask for a change in words')}
           className="flex-1"
           value={text}
           placeholder={placeholder}
@@ -2063,7 +2347,7 @@ export function InWords({
           loading={act.pending}
           onClick={ask}
         >
-          Propose
+          {tr('settings-editors.propose', 'Propose')}
         </Button>
       </div>
       <Refusal error={act.error ?? refused} />
@@ -2082,7 +2366,10 @@ export function InWords({
                     void apply();
                   }}
                 >
-                  {`Apply ${String(plan.changes.length)} change${plan.changes.length === 1 ? '' : 's'}`}
+                  {tr('settings-editors.apply_change', 'Apply {{length}} change{{value}}', {
+                    length: String(plan.changes.length),
+                    value: plan.changes.length === 1 ? '' : 's',
+                  })}
                 </Button>
                 <Button
                   size="sm"
@@ -2091,7 +2378,7 @@ export function InWords({
                     setPlan(null);
                   }}
                 >
-                  Dismiss
+                  {tr('settings-editors.dismiss', 'Dismiss')}
                 </Button>
               </>
             )
@@ -2104,7 +2391,7 @@ export function InWords({
                   {c.summary}
                   {c.change['op'] === 'remove' ? (
                     <Badge size="xs" tone="danger" className="ms-2">
-                      Removes
+                      {tr('settings-editors.removes', 'Removes')}
                     </Badge>
                   ) : null}
                 </li>

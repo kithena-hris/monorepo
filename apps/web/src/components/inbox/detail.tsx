@@ -32,6 +32,7 @@ import { MuteDialog } from './dialogs';
 import { PeopleBody } from './detail-people';
 import { RecruitingBody } from './detail-recruiting';
 import { TimeOffBody } from './detail-timeoff';
+import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const SnoozeDialog = lazy(() =>
@@ -56,11 +57,18 @@ function Head({ item, menu }: { readonly item: Shown; readonly menu: ReactNode }
         {LANE_TAG[item.lane]}
       </Badge>
       <Badge size="sm" variant="outline">
-        {item.area === null ? moduleName(item.module) : `${moduleName(item.module)} › ${item.area}`}
+        {item.area === null
+          ? moduleName(item.module)
+          : t('components.inbox.detail.text', '{{moduleName}} › {{area}}', {
+              moduleName: moduleName(item.module),
+              area: item.area,
+            })}
       </Badge>
       <span className="flex-1" />
       <Button asChild variant="ghost" size="sm" startIcon={<icons.externalLink aria-hidden />}>
-        <a href={item.link}>{`Open in ${item.openIn}`}</a>
+        <a href={item.link}>
+          {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
+        </a>
       </Button>
       {menu}
     </div>
@@ -81,10 +89,15 @@ function Who({
   const name = item.from?.name ?? null;
   const said =
     item.lane === 'request'
-      ? `You asked on ${when(item.at, zone)}`
+      ? t('components.inbox.detail.you_asked_on', 'You asked on {{at}}', {
+          at: when(item.at, zone),
+        })
       : name === null
-        ? `Kithena · ${when(item.at, zone)}`
-        : `${name} · ${when(item.at, zone)}`;
+        ? t('components.inbox.detail.kithena', 'Kithena · {{at}}', { at: when(item.at, zone) })
+        : t('components.inbox.detail.text_2', '{{name}} · {{at}}', {
+            name,
+            at: when(item.at, zone),
+          });
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
       {name === null || item.lane === 'request' ? null : <Avatar name={name} size="xs" />}
@@ -122,8 +135,13 @@ function Activity({
   if (!parsed.success || parsed.data.events.length === 0) return null;
   const events = parsed.data.events;
   return (
-    <section aria-label="What happened" className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-fg-muted">What happened</h3>
+    <section
+      aria-label={t('components.inbox.detail.what_happened', 'What happened')}
+      className="flex flex-col gap-2"
+    >
+      <h3 className="text-sm font-semibold text-fg-muted">
+        {t('components.inbox.detail.what_happened', 'What happened')}
+      </h3>
       <Timeline>
         {events.map((e, i) => {
           const Icon = iconOf(e.icon);
@@ -153,9 +171,11 @@ function snoozeChoices(now: string, due: string | null): { label: string; at: st
   };
   const monday = (8 - at.getDay()) % 7 || 7;
   const choices = [
-    ...(at.getHours() < 15 ? [{ label: 'This afternoon', at: day(0, 16) }] : []),
-    { label: 'Tomorrow morning', at: day(1, 9) },
-    { label: 'Monday', at: day(monday, 9) },
+    ...(at.getHours() < 15
+      ? [{ label: t('components.inbox.detail.this_afternoon', 'This afternoon'), at: day(0, 16) }]
+      : []),
+    { label: t('components.inbox.detail.tomorrow_morning', 'Tomorrow morning'), at: day(1, 9) },
+    { label: t('components.inbox.detail.monday', 'Monday'), at: day(monday, 9) },
   ];
   return choices
     .filter((c) => due === null || c.at.toISOString().slice(0, 10) <= due)
@@ -220,7 +240,7 @@ export function InboxDetail({
     void navigator.clipboard.writeText(
       `${window.location.origin}/inbox/${laneOf(item)}?item=${encodeURIComponent(item.id)}`,
     );
-    toast({ title: 'Link copied', tone: 'success' });
+    toast({ title: t('components.inbox.detail.link_copied', 'Link copied'), tone: 'success' });
   };
   const menu = (
     <DropdownMenu>
@@ -228,7 +248,7 @@ export function InboxDetail({
         <Button
           variant="ghost"
           size="sm"
-          aria-label="More"
+          aria-label={t('components.inbox.detail.more', 'More')}
           startIcon={<icons.more aria-hidden />}
         />
       </DropdownMenuTrigger>
@@ -241,12 +261,16 @@ export function InboxDetail({
                   setAsking(true);
                 }}
               >
-                {`Ask ${sender === '' ? 'them' : sender} a question`}
+                {t('components.inbox.detail.ask_a_question', 'Ask {{value}} a question', {
+                  value: sender === '' ? 'them' : sender,
+                })}
               </DropdownMenuItem>
             ) : null}
             {item.outcome === null && item.count === null ? (
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger>Remind me later</DropdownMenuSubTrigger>
+                <DropdownMenuSubTrigger>
+                  {t('components.inbox.detail.remind_me_later', 'Remind me later')}
+                </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {snoozeChoices(now, item.due).map((c) => (
                     <DropdownMenuItem
@@ -267,7 +291,7 @@ export function InboxDetail({
                       setDialog('snooze');
                     }}
                   >
-                    Pick a date and time…
+                    {t('components.inbox.detail.pick_a_date_and_time', 'Pick a date and time…')}
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
@@ -278,7 +302,7 @@ export function InboxDetail({
                   setSendingBack(true);
                 }}
               >
-                I can’t do this
+                {t('components.inbox.detail.i_cant_do_this', 'I can’t do this')}
               </DropdownMenuItem>
             ) : null}
             {item.snoozedUntil === null ? null : (
@@ -287,7 +311,7 @@ export function InboxDetail({
                   act.run(() => snooze(item.id, null), { title: 'Back in To do' });
                 }}
               >
-                Wake it now
+                {t('components.inbox.detail.wake_it_now', 'Wake it now')}
               </DropdownMenuItem>
             )}
           </>
@@ -299,29 +323,35 @@ export function InboxDetail({
                 act.run(() => markRead([item.id], !item.unread));
               }}
             >
-              {item.unread ? 'Mark read' : 'Mark unread'}
+              {item.unread
+                ? t('components.inbox.detail.mark_read', 'Mark read')
+                : t('components.inbox.detail.mark_unread', 'Mark unread')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
                 act.run(() => moveToDone([item.id]), { title: 'Moved to Done' });
               }}
             >
-              Move to Done
+              {t('components.inbox.detail.move_to_done', 'Move to Done')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
                 setDialog('mute');
               }}
             >
-              Mute updates like this…
+              {t('components.inbox.detail.mute_updates_like_this', 'Mute updates like this…')}
             </DropdownMenuItem>
           </>
         ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <a href={item.link}>{`Open in ${item.openIn}`}</a>
+          <a href={item.link}>
+            {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
+          </a>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={copy}>Copy link</DropdownMenuItem>
+        <DropdownMenuItem onSelect={copy}>
+          {t('components.inbox.detail.copy_link', 'Copy link')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -374,10 +404,14 @@ export function InboxDetail({
         <Who item={item} now={now} zone={zone} />
       </div>
       {item.message === null || item.message === '' ? null : (
-        <ChatLog label={`${item.from?.name ?? 'Their'} message`}>
+        <ChatLog
+          label={t('components.inbox.detail.message', '{{value}} message', {
+            value: item.from?.name ?? 'Their',
+          })}
+        >
           <ChatMessage
             from="other"
-            author={item.from?.name ?? 'Kithena'}
+            author={item.from?.name ?? t('components.inbox.detail.kithena_2', 'Kithena')}
             meta={when(item.at, zone)}
           >
             {item.message}
@@ -387,7 +421,10 @@ export function InboxDetail({
       {body}
       <Activity item={item} zone={zone} />
       {error === null ? null : (
-        <Alert tone="danger" title="That did not work">
+        <Alert
+          tone="danger"
+          title={t('components.inbox.detail.that_did_not_work', 'That did not work')}
+        >
           {error}
         </Alert>
       )}
@@ -432,7 +469,9 @@ function GenericBody({ item }: { readonly item: Shown }): JSX.Element {
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       <div>
         <Button asChild variant="primary" startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>{`Open in ${item.openIn}`}</a>
+          <a href={item.link}>
+            {t('components.inbox.detail.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
+          </a>
         </Button>
       </div>
     </div>

@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { noteInAddress } from '../lib/url-state';
 import { Waking } from './waking';
+import { t } from '../lib/t';
 
 /**
  * Settings (S1): every module's settings as cards that say how each is set
@@ -97,23 +98,35 @@ export function SettingsIndex({
     <div className="flex flex-col gap-6">
       <PageHeader
         className="@3xl/page:pe-64"
-        title="Settings"
-        description="How your company’s workspace works. Open a setting to see it in full and change it."
+        title={t('components.settings-index.settings', 'Settings')}
+        description={t(
+          'components.settings-index.how_your_companys_workspace_works_open',
+          'How your company’s workspace works. Open a setting to see it in full and change it.',
+        )}
       />
       <Waking area="People" waking={waking}>
         {waking ? null : modules.length === 0 || module === undefined ? (
           <EmptyState
             icon={<icons.settings />}
-            title="Nothing here for you to change"
-            description="Settings are for your company’s administrators and HR. Ask one of them if something needs changing."
+            title={t(
+              'components.settings-index.nothing_here_for_you_to_change',
+              'Nothing here for you to change',
+            )}
+            description={t(
+              'components.settings-index.settings_are_for_your_companys_administrators',
+              'Settings are for your company’s administrators and HR. Ask one of them if something needs changing.',
+            )}
           />
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2.5 @3xl/page:pe-64">
               <SearchField
                 size="sm"
-                label="Find a setting"
-                placeholder="Find a setting, like “numbering” or “Slack”"
+                label={t('components.settings-index.find_a_setting', 'Find a setting')}
+                placeholder={t(
+                  'components.settings-index.find_a_setting_like_numbering_or',
+                  'Find a setting, like “numbering” or “Slack”',
+                )}
                 value={query}
                 onValueChange={setQuery}
                 containerClassName="w-full max-w-[26rem]"
@@ -142,7 +155,7 @@ export function SettingsIndex({
               }}
             >
               <TertiaryNav
-                label="Settings areas"
+                label={t('components.settings-index.settings_areas', 'Settings areas')}
                 variant="fill"
                 current="page"
                 items={modules.map((m) => ({ id: m.key, label: m.title, href: `?area=${m.key}` }))}
@@ -162,8 +175,15 @@ export function SettingsIndex({
                 {shown.length === 0 ? (
                   <EmptyState
                     icon={<icons.search />}
-                    title={`No setting matches “${query.trim()}”`}
-                    description="Try another word, or browse the areas on the left."
+                    title={t(
+                      'components.settings-index.no_setting_matches',
+                      'No setting matches “{{query}}”',
+                      { query: query.trim() },
+                    )}
+                    description={t(
+                      'components.settings-index.try_another_word_or_browse_the',
+                      'Try another word, or browse the areas on the left.',
+                    )}
                   />
                 ) : (
                   <ul className="grid gap-3.5 @5xl/page:grid-cols-2">

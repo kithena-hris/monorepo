@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { strokeTone, type ChartTone } from './chart';
+import { t } from '../../lib/i18n';
 
 export interface GaugeProps {
   /** How far along, in the same unit as `max`. */
@@ -62,7 +63,9 @@ export function Gauge({
       aria-valuetext={[
         typeof shown === 'string' ? shown : `${String(Math.round(share * 100))}%`,
         description,
-        target === undefined ? undefined : `target ${String(target)}`,
+        target === undefined
+          ? undefined
+          : t('components.chart.gauge.target', 'target {{target}}', { target: String(target) }),
       ]
         .filter(Boolean)
         .join(', ')}

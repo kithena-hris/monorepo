@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn';
 import { useCoarsePointer, usePrefersReducedMotion } from '../../lib/use-media-query';
 import { useDragDismiss, type DragAxis } from '../../lib/use-drag-dismiss';
 import { usePortalContainer } from '../../lib/portal-container';
+import { t } from '../../lib/i18n';
 
 /**
  * An edge-anchored panel: detail without losing the list behind it.
@@ -267,7 +268,7 @@ export function SheetContent({
             )}
           >
             <X className="size-4" aria-hidden="true" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t('components.sheet.sheet.close', 'Close')}</span>
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>

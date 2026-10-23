@@ -96,6 +96,7 @@ import {
   type LifecycleMove,
   type PlacementState,
 } from './employment';
+import { t } from '../i18n';
 
 export interface ProfileSection extends RecordSection {
   /** Reading this section is audited, and the viewer is told so. */
@@ -331,7 +332,9 @@ function Record({
           questions: (_ids, managerId) => managerChange.questions(managerId),
           apply: (_ids, managerId, answers) => managerChange.apply(managerId, answers),
         },
-    `Change ${state.person.name.split(' ')[0] ?? state.person.name}’s manager?`,
+    t('profile.profile.change_s_manager', 'Change {{value}}’s manager?', {
+      value: state.person.name.split(' ')[0] ?? state.person.name,
+    }),
   );
   const editing = editingHeld ?? sectionOf(focusField);
   const [focus, setFocus] = useState<string | undefined>(focusField);
@@ -404,7 +407,7 @@ function Record({
       ? null
       : {
           id: 'view-as',
-          label: `View as ${person.name}`,
+          label: t('profile.profile.view_as', 'View as {{name}}', { name: person.name }),
           run: () => {
             setOpened('view-as');
           },
@@ -427,7 +430,9 @@ function Record({
       ? null
       : onAsk !== undefined
         ? {
-            label: `Ask ${firstName} for details`,
+            label: t('profile.profile.ask_for_details', 'Ask {{firstName}} for details', {
+              firstName,
+            }),
             run: () => {
               setOpened('ask');
             },
@@ -435,14 +440,27 @@ function Record({
         : {
             label:
               askable.length === 1
-                ? `Ask ${firstName} for ${askable[0]?.label ?? 'this'}`
-                : `Ask ${firstName} for ${String(askable.length)} empty details`,
+                ? t('profile.profile.ask_for', 'Ask {{firstName}} for {{value}}', {
+                    firstName,
+                    value: askable[0]?.label ?? 'this',
+                  })
+                : t(
+                    'profile.profile.ask_for_empty_details',
+                    'Ask {{firstName}} for {{length}} empty details',
+                    { firstName, length: String(askable.length) },
+                  ),
             run: () => {
               void onRequest?.(askable.map((f) => f.key)).then((outcome) => {
                 setNotice(
                   outcome.ok
-                    ? `${firstName} has been asked, by email.`
-                    : `Not sent: ${outcome.message}`,
+                    ? t(
+                        'profile.profile.has_been_asked_by_email',
+                        '{{firstName}} has been asked, by email.',
+                        { firstName },
+                      )
+                    : t('profile.profile.not_sent', 'Not sent: {{message}}', {
+                        message: outcome.message,
+                      }),
                 );
               });
             },
@@ -462,13 +480,18 @@ function Record({
               ? {}
               : {
                   badge: <MissingMark count={n} />,
-                  shortLabel: `${section.label} · ${String(n)}`,
+                  shortLabel: t('profile.profile.text', '{{label}} · {{n}}', {
+                    label: section.label,
+                    n: String(n),
+                  }),
                 }),
           }),
     };
   });
   const history =
-    historyHref === undefined ? null : { id: 'history', label: 'History', href: historyHref };
+    historyHref === undefined
+      ? null
+      : { id: 'history', label: t('profile.profile.history', 'History'), href: historyHref };
 
   // A signature field is adopted in the legal name, never a preferred one.
   const legalName = [values['given_name'], values['family_name']]
@@ -488,7 +511,10 @@ function Record({
                 name={person.name}
                 src={person.avatarUrl ?? undefined}
                 {...(status === 'active'
-                  ? { status: 'success' as const, statusLabel: 'Active' }
+                  ? {
+                      status: 'success' as const,
+                      statusLabel: t('profile.profile.active', 'Active'),
+                    }
                   : {})}
               />
             )}
@@ -508,7 +534,7 @@ function Record({
                         </Badge>
                       )}
                       {person.missing === null ? null : gaps.length === 0 ? (
-                        <Badge tone="success">Complete</Badge>
+                        <Badge tone="success">{t('profile.profile.complete', 'Complete')}</Badge>
                       ) : (
                         <MissingJump
                           labels={gaps.map((g) => g.label)}
@@ -522,11 +548,17 @@ function Record({
                       {state.calendar ? (
                         <Badge>
                           <icons.scheduled aria-hidden />
-                          Their day:{' '}
+                          {t('profile.profile.their_day', 'Their day:')}{' '}
                           <span data-testid="their-day">
                             {state.calendar.now === undefined
-                              ? `${longDate(state.calendar.today)}, ${state.calendar.timeZone}`
-                              : `${localTime(state.calendar.now, state.calendar.timeZone)}, ${zoneCity(state.calendar.timeZone)}`}
+                              ? t('profile.profile.text_2', '{{longDate}}, {{timeZone}}', {
+                                  longDate: longDate(state.calendar.today),
+                                  timeZone: state.calendar.timeZone,
+                                })
+                              : t('profile.profile.text_3', '{{localTime}}, {{zoneCity}}', {
+                                  localTime: localTime(state.calendar.now, state.calendar.timeZone),
+                                  zoneCity: zoneCity(state.calendar.timeZone),
+                                })}
                           </span>
                         </Badge>
                       ) : null}
@@ -541,7 +573,7 @@ function Record({
                         className="touch:hidden"
                         onClick={askAll.run}
                       >
-                        Ask {firstName}
+                        {t('profile.profile.ask', 'Ask')} {firstName}
                       </Button>
                     )}
                     <RecordActions
@@ -577,7 +609,11 @@ function Record({
                             },
                           })}
                       {...(giveFeedbackHref === undefined ? {} : { giveFeedbackHref })}
-                      viewAsLabel={viewAs === undefined ? null : `View as ${firstName}`}
+                      viewAsLabel={
+                        viewAs === undefined
+                          ? null
+                          : t('profile.profile.view_as_2', 'View as {{firstName}}', { firstName })
+                      }
                       onViewAs={() => {
                         setOpened('view-as');
                       }}
@@ -590,7 +626,7 @@ function Record({
                           setEditing(firstWritable.key);
                         }}
                       >
-                        Edit
+                        {t('profile.profile.edit', 'Edit')}
                       </Button>
                     )}
                   </span>
@@ -610,16 +646,18 @@ function Record({
           <div className="hidden gap-2 touch:grid touch:grid-cols-3">
             {typeof values['work_email'] === 'string' && values['work_email'] !== '' ? (
               <Button asChild startIcon={<icons.email aria-hidden />}>
-                <a href={`mailto:${values['work_email']}`}>Email</a>
+                <a href={`mailto:${values['work_email']}`}>{t('profile.profile.email', 'Email')}</a>
               </Button>
             ) : null}
             {typeof values['work_phone'] === 'string' && values['work_phone'] !== '' ? (
               <Button asChild startIcon={<icons.phone aria-hidden />}>
-                <a href={`tel:${values['work_phone']}`}>Call</a>
+                <a href={`tel:${values['work_phone']}`}>{t('profile.profile.call', 'Call')}</a>
               </Button>
             ) : null}
             <Button asChild startIcon={<icons.organisation aria-hidden />}>
-              <a href="/people/directory/org-chart">Org chart</a>
+              <a href="/people/directory/org-chart">
+                {t('profile.profile.org_chart', 'Org chart')}
+              </a>
             </Button>
           </div>
         </div>
@@ -667,7 +705,13 @@ function Record({
                 ? await managerConfirm.confirm([], next, longDate(change.effectiveFrom))
                 : {};
               if (answers === null)
-                return { ok: false, message: 'Not saved: the change of manager was cancelled.' };
+                return {
+                  ok: false,
+                  message: t(
+                    'profile.profile.not_saved_the_change_of_manager',
+                    'Not saved: the change of manager was cancelled.',
+                  ),
+                };
               const outcome = await onChangeDated(change);
               if (outcome.ok && moving) {
                 const done = await managerChange.apply(next, answers);
@@ -684,7 +728,14 @@ function Record({
             fields={askable.map((f) => ({ key: f.key, label: f.label }))}
             onAsk={async (input) => {
               const done = await onAsk(input);
-              if (done.ok) setNotice(`${firstName} has a task in their Inbox.`);
+              if (done.ok)
+                setNotice(
+                  t(
+                    'profile.profile.has_a_task_in_their_inbox',
+                    '{{firstName}} has a task in their Inbox.',
+                    { firstName },
+                  ),
+                );
               return done;
             }}
             onClose={close}
@@ -695,7 +746,8 @@ function Record({
             name={person.name}
             onSend={async (file, input) => {
               const done = await onSendDocument(file, input);
-              if (done.ok) setNotice(`Sent to ${firstName}.`);
+              if (done.ok)
+                setNotice(t('profile.profile.sent_to', 'Sent to {{firstName}}.', { firstName }));
               return done;
             }}
             onClose={close}
@@ -715,28 +767,62 @@ function Record({
                     <CircularProgress
                       value={percent}
                       size={52}
-                      label={own ? 'Your record' : 'Complete'}
+                      label={
+                        own
+                          ? t('profile.profile.your_record', 'Your record')
+                          : t('profile.profile.complete', 'Complete')
+                      }
                       tone={percent === 100 ? 'success' : 'accent'}
                     />
                     <div className="min-w-0">
                       <p className="font-display text-md font-bold">
-                        {own ? 'Your record' : `${String(percent)}% complete`}
+                        {own
+                          ? t('profile.profile.your_record', 'Your record')
+                          : t('profile.profile.complete_2', '{{percent}}% complete', {
+                              percent: String(percent),
+                            })}
                       </p>
                       <p className="text-sm text-fg-muted">
                         {gaps.length === 0
-                          ? 'Nothing left to fill in'
+                          ? t('profile.profile.nothing_left_to_fill_in', 'Nothing left to fill in')
                           : own
-                            ? `${String(percent)}% complete · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`
-                            : `${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left${forOthers === 0 ? '' : `, ${String(forOthers)} for ${gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR'}`}`}
+                            ? t(
+                                'profile.profile.complete_left',
+                                '{{percent}}% complete · {{length}} {{value}} left',
+                                {
+                                  percent: String(percent),
+                                  length: String(gaps.length),
+                                  value: gaps.length === 1 ? 'detail' : 'details',
+                                },
+                              )
+                            : t('profile.profile.left', '{{length}} {{value}} left{{value2}}', {
+                                length: String(gaps.length),
+                                value: gaps.length === 1 ? 'detail' : 'details',
+                                value2:
+                                  forOthers === 0
+                                    ? ''
+                                    : t('profile.profile.for', ', {{forOthers}} for {{value}}', {
+                                        forOthers: String(forOthers),
+                                        value: gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR',
+                                      }),
+                              })}
                       </p>
                     </div>
                   </div>
                 )}
-                <TertiaryNav label="Parts of the record" variant="fill" items={parts} />
+                <TertiaryNav
+                  label={t('profile.profile.parts_of_the_record', 'Parts of the record')}
+                  variant="fill"
+                  items={parts}
+                />
                 {history === null ? null : (
                   <>
                     <Separator />
-                    <TertiaryNav label="The record’s history" variant="fill" items={[history]} />
+                    <TertiaryNav
+                      label={t('profile.profile.the_records_history', 'The record’s history')}
+                      variant="fill"
+                      items={[history]}
+                    />
                   </>
                 )}
               </Card>
@@ -757,13 +843,16 @@ function Record({
                 <CircularProgress
                   value={percent}
                   size={52}
-                  label="Your record"
+                  label={t('profile.profile.your_record', 'Your record')}
                   tone={percent === 100 ? 'success' : 'accent'}
                 />
                 <div className="min-w-0">
-                  <p className="font-display text-md font-bold">Your record</p>
+                  <p className="font-display text-md font-bold">
+                    {t('profile.profile.your_record', 'Your record')}
+                  </p>
                   <p className="text-sm text-fg-muted">
-                    {percent}% complete
+                    {percent}
+                    {t('profile.profile.complete_3', '% complete')}
                     {gaps.length === 0
                       ? ''
                       : ` · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`}
@@ -782,16 +871,26 @@ function Record({
             {decidable === 0 ? null : (
               <Alert
                 tone="warning"
-                title={`${String(decidable)} ${decidable === 1 ? 'change waits' : 'changes wait'} for your approval`}
+                title={t(
+                  'profile.profile.for_your_approval',
+                  '{{decidable}} {{value}} for your approval',
+                  {
+                    decidable: String(decidable),
+                    value: decidable === 1 ? 'change waits' : 'changes wait',
+                  },
+                )}
                 action={
                   onApprovals === undefined ? undefined : (
                     <Button size="sm" onClick={onApprovals}>
-                      Open in Review
+                      {t('profile.profile.open_in_review', 'Open in Review')}
                     </Button>
                   )
                 }
               >
-                Pending values are shown under their fields and are not applied until approved.
+                {t(
+                  'profile.profile.pending_values_are_shown_under_their',
+                  'Pending values are shown under their fields and are not applied until approved.',
+                )}
               </Alert>
             )}
             {/* Asked of them, on their own profile: what, and by whom. */}
@@ -799,9 +898,20 @@ function Record({
               <Alert
                 tone="info"
                 icon={<icons.send aria-hidden />}
-                title={`${[...requests.values()][0]?.by ?? 'HR'} asked you to add ${
-                  requests.size === 1 ? 'a detail' : `${String(requests.size)} details`
-                }: ${[...requests.values()].map((r) => r.label).join(' and ')}.`}
+                title={t(
+                  'profile.profile.asked_you_to_add',
+                  '{{value}} asked you to add {{value2}}: {{join}}.',
+                  {
+                    value: [...requests.values()][0]?.by ?? 'HR',
+                    value2:
+                      requests.size === 1
+                        ? t('profile.profile.a_detail', 'a detail')
+                        : t('profile.profile.details', '{{size}} details', {
+                            size: String(requests.size),
+                          }),
+                    join: [...requests.values()].map((r) => r.label).join(' and '),
+                  },
+                )}
                 action={
                   <Button
                     size="sm"
@@ -810,7 +920,9 @@ function Record({
                       if (first !== undefined) openOne(first);
                     }}
                   >
-                    {requests.size === 1 ? 'Add it' : 'Add them'}
+                    {requests.size === 1
+                      ? t('profile.profile.add_it', 'Add it')
+                      : t('profile.profile.add_them', 'Add them')}
                   </Button>
                 }
               />
@@ -818,14 +930,16 @@ function Record({
             {/* Under a finger, the sections as pills, History last (MD1). */}
             {parts.length + (history === null ? 0 : 1) < 2 ? null : (
               <TertiaryNav
-                label="Sections of the record"
+                label={t('profile.profile.sections_of_the_record', 'Sections of the record')}
                 orientation="horizontal"
                 className="hidden touch:block"
                 items={history === null ? parts : [...parts, history]}
               />
             )}
             {sections.length === 0 ? (
-              <EmptyState title="Nothing else to show" />
+              <EmptyState
+                title={t('profile.profile.nothing_else_to_show', 'Nothing else to show')}
+              />
             ) : (
               sections.map((section) => {
                 const writable = section.fields.some((f) => !f.readOnly);
@@ -845,34 +959,45 @@ function Record({
                         {section.readsLogged && !isEditing ? (
                           <Badge size="sm">
                             <icons.visible aria-hidden />
-                            Reads are logged
+                            {t('profile.profile.reads_are_logged', 'Reads are logged')}
                           </Badge>
                         ) : null}
                         {isEditing ? (
                           <Badge size="sm" tone="accent">
-                            Editing
+                            {t('profile.profile.editing', 'Editing')}
                           </Badge>
                         ) : writable ? (
                           <Button
                             size="sm"
                             variant="ghost"
                             startIcon={<icons.edit aria-hidden />}
-                            aria-label={`Edit ${section.label}`}
+                            aria-label={t('profile.profile.edit_2', 'Edit {{label}}', {
+                              label: section.label,
+                            })}
                             onClick={() => {
                               setEditing(section.key);
                             }}
                           >
-                            Edit
+                            {t('profile.profile.edit', 'Edit')}
                           </Button>
                         ) : null}
                       </span>
                     }
                   >
                     {(held[section.key] ?? []).length === 0 || isEditing ? null : (
-                      <Alert tone="info" title="Sent to HR for approval">
+                      <Alert
+                        tone="info"
+                        title={t(
+                          'profile.profile.sent_to_hr_for_approval',
+                          'Sent to HR for approval',
+                        )}
+                      >
                         {(held[section.key] ?? []).join(' and ')}{' '}
-                        {(held[section.key] ?? []).length === 1 ? 'is' : 'are'} not changed until HR
-                        approves; the record keeps what it had until then.
+                        {(held[section.key] ?? []).length === 1 ? 'is' : 'are'}{' '}
+                        {t(
+                          'profile.profile.not_changed_until_hr_approves_the',
+                          'not changed until HR approves; the record keeps what it had until then.',
+                        )}
                       </Alert>
                     )}
                     {isEditing ? (
@@ -882,7 +1007,10 @@ function Record({
                         pending={pending}
                         columns={2}
                         wide={(f) => WIDE.has(f.dataType) || isFileField(f)}
-                        hint="Only changed fields are sent."
+                        hint={t(
+                          'profile.profile.only_changed_fields_are_sent',
+                          'Only changed fields are sent.',
+                        )}
                         {...(onWithdraw === undefined ? {} : { onWithdraw })}
                         {...(onSelfApprove === undefined ? {} : { onSelfApprove })}
                         {...(onCheck === undefined ? {} : { onCheck })}
@@ -894,7 +1022,7 @@ function Record({
                               setEditing(null);
                             }}
                           >
-                            Cancel
+                            {t('profile.profile.cancel', 'Cancel')}
                           </Button>
                         }
                         onSave={async (key, changed) => {
@@ -909,7 +1037,10 @@ function Record({
                           if (answers === null)
                             return {
                               ok: false,
-                              message: 'Not saved: the change of manager was cancelled.',
+                              message: t(
+                                'profile.profile.not_saved_the_change_of_manager',
+                                'Not saved: the change of manager was cancelled.',
+                              ),
                             };
                           const outcome = await onSave(key, changed);
                           // Sent on even while it waits for approval: carried out when it takes effect.
@@ -987,7 +1118,13 @@ function Record({
           </Stack>
         </div>
         {afterManager === null ? null : (
-          <Alert tone="warning" title="The manager changed; the rest did not">
+          <Alert
+            tone="warning"
+            title={t(
+              'profile.profile.the_manager_changed_the_rest_did',
+              'The manager changed; the rest did not',
+            )}
+          >
             {afterManager}
           </Alert>
         )}
@@ -1041,8 +1178,13 @@ function FieldRow({
     );
   } else if (gap && onAdd !== undefined) {
     trail.push(
-      <Button key="add" size="xs" aria-label={`Add ${field.label}`} onClick={onAdd}>
-        Add
+      <Button
+        key="add"
+        size="xs"
+        aria-label={t('profile.profile.add_2', 'Add {{label}}', { label: field.label })}
+        onClick={onAdd}
+      >
+        {t('profile.profile.add', 'Add')}
       </Button>,
     );
   }
@@ -1052,7 +1194,9 @@ function FieldRow({
         <Button
           variant="ghost"
           size="xs"
-          aria-label={`Change ${field.label} from a date`}
+          aria-label={t('profile.profile.change_from_a_date', 'Change {{label}} from a date', {
+            label: field.label,
+          })}
           startIcon={<icons.history aria-hidden />}
           onClick={onDated}
         />
@@ -1073,8 +1217,12 @@ function FieldRow({
         {gap ? (
           <span className="font-normal text-fg-muted">
             {field.readOnly
-              ? `Not provided yet. ${field.ownedBy ?? 'HR'} fills this in.`
-              : 'Not provided yet.'}
+              ? t(
+                  'profile.profile.not_provided_yet_fills_this_in',
+                  'Not provided yet. {{value}} fills this in.',
+                  { value: field.ownedBy ?? 'HR' },
+                )
+              : t('profile.profile.not_provided_yet', 'Not provided yet.')}
           </span>
         ) : (
           <DisplayValue field={field} value={value} />
@@ -1136,7 +1284,7 @@ function DatedChange({
     >
       <DialogContent className="max-w-140">
         <form
-          aria-label={`Change ${field.label}`}
+          aria-label={t('profile.profile.change', 'Change {{label}}', { label: field.label })}
           className="flex min-h-0 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
@@ -1151,8 +1299,16 @@ function DatedChange({
           }}
         >
           <DialogHeader>
-            <DialogTitle>Change {field.label}</DialogTitle>
-            <DialogDescription>{name} · the old value stays in the history</DialogDescription>
+            <DialogTitle>
+              {t('profile.profile.change_2', 'Change')} {field.label}
+            </DialogTitle>
+            <DialogDescription>
+              {name}{' '}
+              {t(
+                'profile.profile.the_old_value_stays_in_the',
+                '· the old value stays in the history',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
@@ -1162,7 +1318,9 @@ function DatedChange({
                 onChange={setValue}
               />
               <Field>
-                <FieldLabel>When does it take effect?</FieldLabel>
+                <FieldLabel>
+                  {t('profile.profile.when_does_it_take_effect', 'When does it take effect?')}
+                </FieldLabel>
                 <RadioGroup
                   value={when}
                   orientation="horizontal"
@@ -1171,20 +1329,32 @@ function DatedChange({
                     setWhen(next === 'date' ? 'date' : 'today');
                   }}
                 >
-                  <RadioCard value="today" description="From the start of their day.">
-                    Today
+                  <RadioCard
+                    value="today"
+                    description={t(
+                      'profile.profile.from_the_start_of_their_day',
+                      'From the start of their day.',
+                    )}
+                  >
+                    {t('profile.profile.today', 'Today')}
                   </RadioCard>
-                  <RadioCard value="date" description="It shows as scheduled until then.">
-                    On a date
+                  <RadioCard
+                    value="date"
+                    description={t(
+                      'profile.profile.it_shows_as_scheduled_until_then',
+                      'It shows as scheduled until then.',
+                    )}
+                  >
+                    {t('profile.profile.on_a_date', 'On a date')}
                   </RadioCard>
                 </RadioGroup>
               </Field>
               {when === 'date' ? (
                 <Field>
-                  <FieldLabel>Takes effect on</FieldLabel>
+                  <FieldLabel>{t('profile.profile.takes_effect_on', 'Takes effect on')}</FieldLabel>
                   <FieldControl>
                     <DatePicker
-                      label="Takes effect on"
+                      label={t('profile.profile.takes_effect_on', 'Takes effect on')}
                       value={from}
                       onChange={setFrom}
                       {...(today === null ? {} : { today })}
@@ -1193,13 +1363,21 @@ function DatedChange({
                 </Field>
               ) : null}
               {field.sensitive === true ? (
-                <Alert tone="warning" title="This needs a second approver">
-                  Another HR member approves sensitive changes. The record keeps what it has until
-                  then.
+                <Alert
+                  tone="warning"
+                  title={t(
+                    'profile.profile.this_needs_a_second_approver',
+                    'This needs a second approver',
+                  )}
+                >
+                  {t(
+                    'profile.profile.another_hr_member_approves_sensitive_changes',
+                    'Another HR member approves sensitive changes. The record keeps what it has until then.',
+                  )}
                 </Alert>
               ) : null}
               {refused === null ? null : (
-                <Alert tone="danger" title="Not changed">
+                <Alert tone="danger" title={t('profile.profile.not_changed', 'Not changed')}>
                   {refused}
                 </Alert>
               )}
@@ -1207,17 +1385,19 @@ function DatedChange({
           </DialogBody>
           <DialogFooter>
             <Button type="button" onClick={onClose}>
-              Cancel
+              {t('profile.profile.cancel', 'Cancel')}
             </Button>
             <Button
               type="submit"
               variant="primary"
               loading={busy}
-              loadingLabel="Saving"
+              loadingLabel={t('profile.profile.saving', 'Saving')}
               disabled={effectiveFrom === null}
               shortcut="form.submit"
             >
-              {field.sensitive === true ? 'Send for approval' : 'Save change'}
+              {field.sensitive === true
+                ? t('profile.profile.send_for_approval', 'Send for approval')
+                : t('profile.profile.save_change', 'Save change')}
             </Button>
           </DialogFooter>
         </form>
@@ -1250,12 +1430,19 @@ function AskButton({
   const [problem, setProblem] = useState<string | null>(null);
   const label =
     problem !== null
-      ? `Not sent: ${problem}`
+      ? t('profile.profile.not_sent_2', 'Not sent: {{problem}}', { problem })
       : sent
-        ? `Asked ${firstName} for ${field}`
+        ? t('profile.profile.asked_for', 'Asked {{firstName}} for {{field}}', { firstName, field })
         : asked !== null
-          ? `${asked.by} asked ${firstName} for this on ${longDate(asked.requestedAt.slice(0, 10))}. Ask again`
-          : `Ask ${firstName} to add ${field}`;
+          ? t(
+              'profile.profile.asked_for_this_on_ask_again',
+              '{{by}} asked {{firstName}} for this on {{longDate}}. Ask again',
+              { by: asked.by, firstName, longDate: longDate(asked.requestedAt.slice(0, 10)) },
+            )
+          : t('profile.profile.ask_to_add', 'Ask {{firstName}} to add {{field}}', {
+              firstName,
+              field,
+            });
   const done = sent || asked !== null;
   return (
     <>
@@ -1265,7 +1452,7 @@ function AskButton({
           variant={done ? 'ghost' : 'secondary'}
           aria-label={label}
           loading={busy}
-          loadingLabel={`Asking ${firstName}`}
+          loadingLabel={t('profile.profile.asking', 'Asking {{firstName}}', { firstName })}
           startIcon={done ? <icons.confirm aria-hidden /> : <icons.send aria-hidden />}
           onClick={() => {
             setBusy(true);
@@ -1277,7 +1464,7 @@ function AskButton({
             });
           }}
         >
-          {done ? 'Asked' : 'Ask'}
+          {done ? t('profile.profile.asked', 'Asked') : t('profile.profile.ask', 'Ask')}
         </Button>
       </Tooltip>
       {problem === null ? null : (
@@ -1357,7 +1544,9 @@ function RecordActions({
         }}
       >
         <icons.missing aria-hidden />
-        {firstMissing.readOnly ? 'Show missing details' : 'Fill in missing details'}
+        {firstMissing.readOnly
+          ? t('profile.profile.show_missing_details', 'Show missing details')
+          : t('profile.profile.fill_in_missing_details', 'Fill in missing details')}
       </DropdownMenuItem>
     ),
     askFor === null ? null : (
@@ -1369,14 +1558,14 @@ function RecordActions({
     onSendDocument === undefined ? null : (
       <DropdownMenuItem key="send-document" onSelect={onSendDocument}>
         <icons.file aria-hidden />
-        Send a document
+        {t('profile.profile.send_a_document', 'Send a document')}
       </DropdownMenuItem>
     ),
     giveFeedbackHref === undefined ? null : (
       <DropdownMenuItem key="give-feedback" asChild>
         <a href={giveFeedbackHref}>
           <icons.message aria-hidden />
-          Give feedback
+          {t('profile.profile.give_feedback', 'Give feedback')}
         </a>
       </DropdownMenuItem>
     ),
@@ -1384,14 +1573,14 @@ function RecordActions({
       <DropdownMenuItem key="history" asChild>
         <a href={historyHref}>
           <icons.history aria-hidden />
-          History
+          {t('profile.profile.history', 'History')}
         </a>
       </DropdownMenuItem>
     ),
     onDownload === undefined ? null : (
       <DropdownMenuItem key="pdf" onSelect={onDownload}>
         <icons.download aria-hidden />
-        Download PDF
+        {t('profile.profile.download_pdf', 'Download PDF')}
       </DropdownMenuItem>
     ),
     viewAsLabel === null ? null : (
@@ -1422,7 +1611,7 @@ function RecordActions({
     onPlacement === undefined ? null : (
       <DropdownMenuItem key="placement" onSelect={onPlacement}>
         <icons.location aria-hidden />
-        Change placement
+        {t('profile.profile.change_placement', 'Change placement')}
       </DropdownMenuItem>
     ),
   ].filter((x) => x !== null);
@@ -1430,7 +1619,10 @@ function RecordActions({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button aria-label="Actions" startIcon={<icons.more aria-hidden />} />
+        <Button
+          aria-label={t('profile.profile.actions', 'Actions')}
+          startIcon={<icons.more aria-hidden />}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
@@ -1441,14 +1633,14 @@ function RecordActions({
       >
         {employment.length === 0 ? null : (
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Employment</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('profile.profile.employment', 'Employment')}</DropdownMenuLabel>
             {employment}
           </DropdownMenuGroup>
         )}
         {employment.length === 0 || record.length === 0 ? null : <DropdownMenuSeparator />}
         {record.length === 0 ? null : (
           <DropdownMenuGroup>
-            <DropdownMenuLabel>Record</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('profile.profile.record', 'Record')}</DropdownMenuLabel>
             {record}
           </DropdownMenuGroup>
         )}
@@ -1477,7 +1669,11 @@ function PhotoPicker({
   return (
     <div className="flex shrink-0 flex-col items-start gap-2">
       <AvatarUploader
-        label={busy ? 'Photo, uploading' : 'Photo'}
+        label={
+          busy
+            ? t('profile.profile.photo_uploading', 'Photo, uploading')
+            : t('profile.profile.photo', 'Photo')
+        }
         controls="menu"
         size="lg"
         value={picked}
@@ -1488,7 +1684,10 @@ function PhotoPicker({
         disabled={busy}
         invalid={problem !== null}
         onReject={(rejections) => {
-          setProblem(rejections[0]?.message ?? 'That image was not accepted.');
+          setProblem(
+            rejections[0]?.message ??
+              t('profile.profile.that_image_was_not_accepted', 'That image was not accepted.'),
+          );
         }}
         onChange={(next) => {
           const file = next[0]?.file;
@@ -1542,19 +1741,26 @@ function PlacementDialog({
 
   return (
     <RecordDialog
-      title="Change placement"
-      description="Their legal entity and work location, from a date."
+      title={t('profile.profile.change_placement', 'Change placement')}
+      description={t(
+        'profile.profile.their_legal_entity_and_work_location',
+        'Their legal entity and work location, from a date.',
+      )}
       onClose={onClose}
-      refusal={refused === null ? null : { title: 'Not moved', message: refused }}
+      refusal={
+        refused === null
+          ? null
+          : { title: t('profile.profile.not_moved', 'Not moved'), message: refused }
+      }
       action={
         <Button
           type="submit"
           variant="primary"
           disabled={unchanged}
           loading={saving}
-          loadingLabel="Moving"
+          loadingLabel={t('profile.profile.moving', 'Moving')}
         >
-          Move
+          {t('profile.profile.move', 'Move')}
         </Button>
       }
       onSubmit={() => {
@@ -1580,17 +1786,28 @@ function PlacementDialog({
         locationHint="Their working day follows this location’s time zone."
       />
       <Field>
-        <FieldLabel>Effective from</FieldLabel>
+        <FieldLabel>{t('profile.profile.effective_from', 'Effective from')}</FieldLabel>
         <FieldControl>
-          <DatePicker label="Effective from" value={from} onChange={setFrom} />
+          <DatePicker
+            label={t('profile.profile.effective_from', 'Effective from')}
+            value={from}
+            onChange={setFrom}
+          />
         </FieldControl>
       </Field>
       {transfer ? (
-        <Alert tone="info" title="This is a transfer">
+        <Alert tone="info" title={t('profile.profile.this_is_a_transfer', 'This is a transfer')}>
           {was === undefined
-            ? 'The legal entity changes on this date.'
-            : `The legal entity changes from ${was}.`}{' '}
-          Service stays continuous.
+            ? t(
+                'profile.profile.the_legal_entity_changes_on_this',
+                'The legal entity changes on this date.',
+              )
+            : t(
+                'profile.profile.the_legal_entity_changes_from',
+                'The legal entity changes from {{was}}.',
+                { was },
+              )}{' '}
+          {t('profile.profile.service_stays_continuous', 'Service stays continuous.')}
         </Alert>
       ) : null}
     </RecordDialog>
@@ -1657,7 +1874,7 @@ function RecordDialog({
           </DialogBody>
           <DialogFooter>
             <Button type="button" onClick={onClose}>
-              Cancel
+              {t('profile.profile.cancel', 'Cancel')}
             </Button>
             {action}
           </DialogFooter>
@@ -1689,28 +1906,38 @@ function ViewAsDialog({
   if (!open) return null;
   return (
     <RecordDialog
-      title={`View Kithena as ${first}`}
-      description={`Shows Kithena exactly as ${first} sees it, private details included, for up to 30 minutes. Nothing can be changed meanwhile, and ${first} is told afterwards.`}
+      title={t('profile.profile.view_kithena_as', 'View Kithena as {{first}}', { first })}
+      description={t(
+        'profile.profile.shows_kithena_exactly_as_sees_it',
+        'Shows Kithena exactly as {{first}} sees it, private details included, for up to 30 minutes. Nothing can be changed meanwhile, and {{first2}} is told afterwards.',
+        { first, first2: first },
+      )}
       onClose={() => {
         setOpen(false);
         setReason('');
         setRefused(null);
       }}
-      refusal={refused === null ? null : { title: 'Not started', message: refused }}
+      refusal={
+        refused === null
+          ? null
+          : { title: t('profile.profile.not_started', 'Not started'), message: refused }
+      }
       action={
         <Button
           type="submit"
           variant="primary"
           startIcon={<icons.visible aria-hidden />}
           loading={busy}
-          loadingLabel="Starting"
+          loadingLabel={t('profile.profile.starting', 'Starting')}
         >
-          View as {first}
+          {t('profile.profile.view_as_3', 'View as')} {first}
         </Button>
       }
       onSubmit={() => {
         if (reason.trim() === '') {
-          setRefused('Say why you are viewing as them.');
+          setRefused(
+            t('profile.profile.say_why_you_are_viewing_as', 'Say why you are viewing as them.'),
+          );
           return;
         }
         setBusy(true);
@@ -1725,12 +1952,12 @@ function ViewAsDialog({
       }}
     >
       <Field required>
-        <FieldLabel>Reason</FieldLabel>
+        <FieldLabel>{t('profile.profile.reason', 'Reason')}</FieldLabel>
         <FieldControl>
           <Input
             value={reason}
             maxLength={500}
-            placeholder="Kept in the activity log"
+            placeholder={t('profile.profile.kept_in_the_activity_log', 'Kept in the activity log')}
             onChange={(e) => {
               setReason(e.target.value);
             }}
@@ -1765,23 +1992,30 @@ function RecordPdf({
   if (!open) return null;
   return (
     <RecordDialog
-      title={`Download ${name}’s record`}
-      description="A PDF of what you can see. A reason is needed when it includes pay and bank details; it is kept with the export."
+      title={t('profile.profile.download_s_record', 'Download {{name}}’s record', { name })}
+      description={t(
+        'profile.profile.a_pdf_of_what_you_can',
+        'A PDF of what you can see. A reason is needed when it includes pay and bank details; it is kept with the export.',
+      )}
       onClose={() => {
         setOpen(false);
         setReason('');
         setRefused(null);
       }}
-      refusal={refused === null ? null : { title: 'No PDF was made', message: refused }}
+      refusal={
+        refused === null
+          ? null
+          : { title: t('profile.profile.no_pdf_was_made', 'No PDF was made'), message: refused }
+      }
       action={
         <Button
           type="submit"
           variant="primary"
           startIcon={<icons.download aria-hidden />}
           loading={busy}
-          loadingLabel="Preparing PDF"
+          loadingLabel={t('profile.profile.preparing_pdf', 'Preparing PDF')}
         >
-          Download
+          {t('profile.profile.download', 'Download')}
         </Button>
       }
       onSubmit={() => {
@@ -1795,7 +2029,7 @@ function RecordPdf({
       }}
     >
       <Field>
-        <FieldLabel>Reason</FieldLabel>
+        <FieldLabel>{t('profile.profile.reason', 'Reason')}</FieldLabel>
         <FieldControl>
           <Input
             value={reason}

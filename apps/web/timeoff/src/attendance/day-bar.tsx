@@ -2,6 +2,7 @@ import { RangeBar, type ChartLegendItem, type RangeBarSegment } from '@reach/ui'
 import type { JSX } from 'react';
 
 import { clockTime, type Day } from './time';
+import { t } from '../i18n';
 
 /**
  * A day as a bar from 07:00 to 19:00 (§11.3): worked, break, overtime,
@@ -10,12 +11,20 @@ import { clockTime, type Day } from './time';
  */
 
 const SEGMENT: Record<string, Pick<RangeBarSegment, 'label' | 'tone' | 'pattern' | 'size'>> = {
-  worked: { label: 'Worked', tone: 'success' },
-  live: { label: 'Working now', tone: 'success', pattern: 'hatched' },
-  break: { label: 'Break', tone: 'warning', size: 'thin' },
-  overtime: { label: 'Overtime', tone: 'info' },
-  missing: { label: 'Missing', tone: 'danger', pattern: 'hatched' },
-  planned: { label: 'Planned', tone: 'neutral' },
+  worked: { label: t('attendance.day-bar.worked', 'Worked'), tone: 'success' },
+  live: {
+    label: t('attendance.day-bar.working_now', 'Working now'),
+    tone: 'success',
+    pattern: 'hatched',
+  },
+  break: { label: t('attendance.day-bar.break', 'Break'), tone: 'warning', size: 'thin' },
+  overtime: { label: t('attendance.day-bar.overtime', 'Overtime'), tone: 'info' },
+  missing: {
+    label: t('attendance.day-bar.missing', 'Missing'),
+    tone: 'danger',
+    pattern: 'hatched',
+  },
+  planned: { label: t('attendance.day-bar.planned', 'Planned'), tone: 'neutral' },
 };
 
 /** 07:00 to 19:00, in minutes after midnight. */

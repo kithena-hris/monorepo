@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
 import { ChartGrid, type ChartTone } from './chart';
+import { t } from '../../lib/i18n';
 
 /**
  * How a number got from one value to another.
@@ -145,9 +146,16 @@ export function WaterfallChart({
             step.tone ?? (step.total === true ? 'chart-1' : rising ? 'success' : 'danger');
           const selected = selectedLabel === step.label;
           const sign = step.total === true ? '' : rising ? '+' : '−';
-          const readout = `${step.label}: ${sign}${format(Math.abs(step.value))}${
-            step.total === true ? '' : `, running total ${format(end)}`
-          }`;
+          const readout = t(
+            'components.chart.waterfall-chart.text',
+            '{{label}}: {{sign}}{{format}}{{value}}',
+            {
+              label: step.label,
+              sign,
+              format: format(Math.abs(step.value)),
+              value: step.total === true ? '' : `, running total ${format(end)}`,
+            },
+          );
 
           const bar = (
             <div
@@ -205,7 +213,8 @@ export function WaterfallChart({
           is saying you did it. */}
       {truncated ? (
         <p className="mt-1 text-[11px] font-medium text-fg-subtle">
-          Axis starts at {format(Math.round(floor))}
+          {t('components.chart.waterfall-chart.axis_starts_at', 'Axis starts at')}{' '}
+          {format(Math.round(floor))}
         </p>
       ) : null}
 
@@ -229,9 +238,11 @@ export function WaterfallChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Step</th>
-              <th scope="col">Change</th>
-              <th scope="col">Running total</th>
+              <th scope="col">{t('components.chart.waterfall-chart.step', 'Step')}</th>
+              <th scope="col">{t('components.chart.waterfall-chart.change', 'Change')}</th>
+              <th scope="col">
+                {t('components.chart.waterfall-chart.running_total', 'Running total')}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -240,7 +251,7 @@ export function WaterfallChart({
                 <th scope="row">{step.label}</th>
                 <td>
                   {step.total === true
-                    ? 'Balance'
+                    ? t('components.chart.waterfall-chart.balance', 'Balance')
                     : `${step.value >= 0 ? 'up ' : 'down '}${format(Math.abs(step.value))}`}
                 </td>
                 <td>{format(end)}</td>

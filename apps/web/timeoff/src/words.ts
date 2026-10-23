@@ -1,5 +1,6 @@
 import { icons, type IconName } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
+import { t } from './i18n';
 
 /**
  * How the screens say what Time Off sends: amounts, leave types' icons and
@@ -41,7 +42,7 @@ export const signed = (value: string): string =>
 /** "1 day", "5 days", "0.5 days". */
 export const days = (value: string): string => {
   const n = amount(value);
-  return `${n} ${n === '1' ? 'day' : 'days'}`;
+  return t('words.text', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
 };
 
 export const pad = (n: number): string => String(n).padStart(2, '0');
@@ -65,7 +66,10 @@ export function spanLabel(from: string, to: string): string {
   if (from === to) return dayMonth(from);
   return from.slice(0, 7) === to.slice(0, 7)
     ? `${day.format(asDate(from))}–${dayMonth(to)}`
-    : `${dayMonth(from)} – ${dayMonth(to)}`;
+    : t('words.text_2', '{{dayMonth}} – {{dayMonth2}}', {
+        dayMonth: dayMonth(from),
+        dayMonth2: dayMonth(to),
+      });
 }
 
 /** "Mon 19 – Fri 23 Oct", "Wed 21 Oct": a span with its weekdays. */
@@ -76,7 +80,7 @@ export function longSpan(from: string, to: string): string {
       ? { weekday: 'short', day: 'numeric' }
       : { weekday: 'short', day: 'numeric', month: 'short' },
   ).format(asDate(from));
-  return `${start} – ${shortDate(to)}`;
+  return t('words.text_3', '{{start}} – {{to}}', { start, to: shortDate(to) });
 }
 
 export const daysBetween = (from: string, to: string): number =>
@@ -98,24 +102,26 @@ export function nextWorkingDay(date: string): string {
 /** "Today", "Tomorrow", "In 11 days", "Yesterday", "3 days ago". */
 export function relativeDay(today: string, date: string): string {
   const n = daysBetween(today, date);
-  if (n === 0) return 'Today';
-  if (n === 1) return 'Tomorrow';
-  if (n === -1) return 'Yesterday';
-  return n > 0 ? `In ${String(n)} days` : `${String(-n)} days ago`;
+  if (n === 0) return t('words.today', 'Today');
+  if (n === 1) return t('words.tomorrow', 'Tomorrow');
+  if (n === -1) return t('words.yesterday', 'Yesterday');
+  return n > 0
+    ? t('words.in_days', 'In {{n}} days', { n: String(n) })
+    : t('words.days_ago', '{{value}} days ago', { value: String(-n) });
 }
 
 export type StatusTone = 'success' | 'warning' | 'neutral' | 'info' | 'danger';
 
 /** A request's status as a person reads it (PRD §8.1). */
 const STATUS: Record<string, { readonly label: string; readonly tone: StatusTone }> = {
-  pending: { label: 'Waiting for approval', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'success' },
-  counter_proposed: { label: 'New dates suggested', tone: 'info' },
-  change_pending: { label: 'Change waiting', tone: 'warning' },
-  taken: { label: 'Taken', tone: 'neutral' },
-  declined: { label: 'Declined', tone: 'danger' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
+  pending: { label: t('words.waiting_for_approval', 'Waiting for approval'), tone: 'warning' },
+  approved: { label: t('words.approved', 'Approved'), tone: 'success' },
+  counter_proposed: { label: t('words.new_dates_suggested', 'New dates suggested'), tone: 'info' },
+  change_pending: { label: t('words.change_waiting', 'Change waiting'), tone: 'warning' },
+  taken: { label: t('words.taken', 'Taken'), tone: 'neutral' },
+  declined: { label: t('words.declined', 'Declined'), tone: 'danger' },
+  cancelled: { label: t('words.cancelled', 'Cancelled'), tone: 'neutral' },
+  withdrawn: { label: t('words.withdrawn', 'Withdrawn'), tone: 'neutral' },
 };
 
 export const statusOf = (status: string): { readonly label: string; readonly tone: StatusTone } =>

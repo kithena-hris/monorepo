@@ -52,6 +52,7 @@ import { InboxDetail } from './detail';
 import { BulkDecideDialog, type Candidate } from './dialogs';
 import { shortDay } from './format';
 import { InboxRow } from './rows';
+import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
 const HandOverDialog = lazy(() =>
@@ -183,17 +184,25 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
       if (!d.success || d.data.alreadyOut === null) continue;
       const out = d.data.alreadyOut.out + picked.length;
       if (worst === null || out > worst.out) {
-        worst = { out, of: d.data.alreadyOut.of, team: d.data.teamName ?? 'the team' };
+        worst = {
+          out,
+          of: d.data.alreadyOut.of,
+          team: d.data.teamName ?? t('components.inbox.screen.the_team', 'the team'),
+        };
       }
     }
     return worst === null
       ? null
-      : `Up to ${String(worst.out)} of ${String(worst.of)} people in ${worst.team} would be out at once.`;
+      : t(
+          'components.inbox.screen.up_to_of_people_in_would',
+          'Up to {{out}} of {{of}} people in {{team}} would be out at once.',
+          { out: String(worst.out), of: String(worst.of), team: worst.team },
+        );
   };
 
   const tabs = (
     <TertiaryNav
-      label="Inbox"
+      label={t('components.inbox.screen.inbox', 'Inbox')}
       orientation="horizontal"
       variant="line"
       current="page"
@@ -212,7 +221,11 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
     <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
       <SearchField
         className="min-w-40 flex-1"
-        label={lane === 'done' ? 'Search done' : 'Search'}
+        label={
+          lane === 'done'
+            ? t('components.inbox.screen.search_done', 'Search done')
+            : t('components.inbox.screen.search', 'Search')
+        }
         value={search}
         onValueChange={setSearch}
         variant="field"
@@ -224,11 +237,16 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             filter('source', v === 'all' ? '' : v);
           }}
         >
-          <SelectTrigger aria-label="Source" className="w-auto">
+          <SelectTrigger
+            aria-label={t('components.inbox.screen.source', 'Source')}
+            className="w-auto"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
+            <SelectItem value="all">
+              {t('components.inbox.screen.all_sources', 'All sources')}
+            </SelectItem>
             {read.modules.map((m) => (
               <SelectItem key={m} value={m}>
                 {moduleName(m)}
@@ -244,11 +262,16 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             filter('outcome', v === 'all' ? '' : v);
           }}
         >
-          <SelectTrigger aria-label="Outcome" className="w-auto">
+          <SelectTrigger
+            aria-label={t('components.inbox.screen.outcome', 'Outcome')}
+            className="w-auto"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All outcomes</SelectItem>
+            <SelectItem value="all">
+              {t('components.inbox.screen.all_outcomes', 'All outcomes')}
+            </SelectItem>
             {[
               ...new Set(
                 items
@@ -272,14 +295,16 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             setChecked(new Set());
           }}
         >
-          {selecting ? 'Done selecting' : 'Select'}
+          {selecting
+            ? t('components.inbox.screen.done_selecting', 'Done selecting')
+            : t('components.inbox.screen.select', 'Select')}
         </Button>
       ) : null}
       {lane === 'updates' && counts.updates > 0 ? (
         <Button
           variant="ghost"
           size="sm"
-          aria-label="Mark all read"
+          aria-label={t('components.inbox.screen.mark_all_read', 'Mark all read')}
           startIcon={<icons.confirm aria-hidden />}
           onClick={() => {
             setReadHere(new Set(items.filter((i) => i.unread).map((i) => i.id)));
@@ -295,7 +320,11 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
   const bulkBar =
     selecting && picked.length > 0 ? (
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-accent-subtle px-3 py-2">
-        <span className="me-auto text-sm font-semibold">{`${String(picked.length)} selected`}</span>
+        <span className="me-auto text-sm font-semibold">
+          {t('components.inbox.screen.selected', '{{length}} selected', {
+            length: String(picked.length),
+          })}
+        </span>
         {lane === 'updates' ? (
           <>
             <Button
@@ -308,7 +337,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setChecked(new Set());
               }}
             >
-              Mark read
+              {t('components.inbox.screen.mark_read', 'Mark read')}
             </Button>
             <Button
               size="sm"
@@ -322,7 +351,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setSelecting(false);
               }}
             >
-              Move to Done
+              {t('components.inbox.screen.move_to_done', 'Move to Done')}
             </Button>
           </>
         ) : sameKind ? (
@@ -335,7 +364,9 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setDialog({ kind: 'bulk', decision: 'approve' });
               }}
             >
-              {`Approve ${String(picked.length)}`}
+              {t('components.inbox.screen.approve', 'Approve {{length}}', {
+                length: String(picked.length),
+              })}
             </Button>
             <Button
               size="sm"
@@ -343,12 +374,15 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setDialog({ kind: 'bulk', decision: 'decline' });
               }}
             >
-              Decline
+              {t('components.inbox.screen.decline', 'Decline')}
             </Button>
           </>
         ) : (
           <span className="text-sm text-fg-muted">
-            Only time-off approvals can be decided together
+            {t(
+              'components.inbox.screen.only_time_off_approvals_can_be',
+              'Only time-off approvals can be decided together',
+            )}
           </span>
         )}
       </div>
@@ -358,17 +392,26 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
     lane === 'todo' && search === '' && source === null ? (
       <EmptyState
         icon={<icons.success />}
-        title="Nothing needs you"
+        title={t('components.inbox.screen.nothing_needs_you', 'Nothing needs you')}
         description={
           counts.updates > 0
-            ? `New tasks appear here and on the red number. You have ${String(counts.updates)} unread update${counts.updates === 1 ? '' : 's'}.`
-            : 'New tasks appear here and on the red number.'
+            ? t(
+                'components.inbox.screen.new_tasks_appear_here_and_on',
+                'New tasks appear here and on the red number. You have {{updates}} unread update{{value}}.',
+                { updates: String(counts.updates), value: counts.updates === 1 ? '' : 's' },
+              )
+            : t(
+                'components.inbox.screen.new_tasks_appear_here_and_on_2',
+                'New tasks appear here and on the red number.',
+              )
         }
         {...(counts.updates > 0
           ? {
               action: (
                 <Button asChild size="sm">
-                  <a href="/inbox/updates">See updates</a>
+                  <a href="/inbox/updates">
+                    {t('components.inbox.screen.see_updates', 'See updates')}
+                  </a>
                 </Button>
               ),
             }
@@ -377,15 +420,33 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
     ) : (
       <EmptyState
         icon={<icons.inbox />}
-        title={search === '' ? `Nothing in ${LABEL[lane]}` : 'Nothing matches'}
+        title={
+          search === ''
+            ? t('components.inbox.screen.nothing_in', 'Nothing in {{LABEL}}', {
+                LABEL: LABEL[lane],
+              })
+            : t('components.inbox.screen.nothing_matches', 'Nothing matches')
+        }
         description={
           lane === 'requests'
-            ? 'What you ask for appears here until it is decided. Decided requests move to Done, and you get an update.'
+            ? t(
+                'components.inbox.screen.what_you_ask_for_appears_here',
+                'What you ask for appears here until it is decided. Decided requests move to Done, and you get an update.',
+              )
             : lane === 'updates'
-              ? 'News from every module you use lands here. Nothing is owed.'
+              ? t(
+                  'components.inbox.screen.news_from_every_module_you_use',
+                  'News from every module you use lands here. Nothing is owed.',
+                )
               : lane === 'done'
-                ? 'Finished tasks, decided requests and older updates stay here, for as long as your record does.'
-                : 'Try another search or source.'
+                ? t(
+                    'components.inbox.screen.finished_tasks_decided_requests_and_older',
+                    'Finished tasks, decided requests and older updates stay here, for as long as your record does.',
+                  )
+                : t(
+                    'components.inbox.screen.try_another_search_or_source',
+                    'Try another search or source.',
+                  )
         }
       />
     );
@@ -415,7 +476,9 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         ? {
             swipe: [
               {
-                label: i.unread ? 'Read' : 'Unread',
+                label: i.unread
+                  ? t('components.inbox.screen.read', 'Read')
+                  : t('components.inbox.screen.unread', 'Unread'),
                 tone: 'accent' as const,
                 onSelect: () => {
                   if (i.unread) setReadHere((was) => new Set([...was, i.id]));
@@ -425,7 +488,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 },
               },
               {
-                label: 'Done',
+                label: t('components.inbox.screen.done', 'Done'),
                 onSelect: () => {
                   start(async () => {
                     await moveToDone([i.id]);
@@ -493,7 +556,13 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setShowSnoozed((s) => !s);
               }}
             >
-              {`${String(snoozed.length)} snoozed${snoozed.length === 1 && snoozed[0]?.snoozedUntil != null ? ` until ${shortDay(snoozed[0].snoozedUntil.slice(0, 10))}` : ''}`}
+              {t('components.inbox.screen.snoozed', '{{length}} snoozed{{value}}', {
+                length: String(snoozed.length),
+                value:
+                  snoozed.length === 1 && snoozed[0]?.snoozedUntil != null
+                    ? ` until ${shortDay(snoozed[0].snoozedUntil.slice(0, 10))}`
+                    : '',
+              })}
             </Button>
             {showSnoozed ? <List navigable>{snoozed.map(row)}</List> : null}
           </div>
@@ -505,7 +574,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
   return (
     <div className="flex h-[calc(100dvh-7rem)] flex-col gap-4 touch:h-auto">
       <PageHeader
-        title="Inbox"
+        title={t('components.inbox.screen.inbox', 'Inbox')}
         tabs={tabs}
         actions={
           <>
@@ -520,11 +589,13 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                   });
                 }}
               >
-                Hand over
+                {t('components.inbox.screen.hand_over', 'Hand over')}
               </Button>
             ) : null}
             <Button asChild variant="ghost" size="sm" startIcon={<icons.settings aria-hidden />}>
-              <a href="/settings/notifications">Notifications</a>
+              <a href="/settings/notifications">
+                {t('components.inbox.screen.notifications', 'Notifications')}
+              </a>
             </Button>
           </>
         }
@@ -543,7 +614,9 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           onBack={() => {
             setSelectedId(null);
           }}
-          backLabel={`Back to ${LABEL[lane]}`}
+          backLabel={t('components.inbox.screen.back_to', 'Back to {{LABEL}}', {
+            LABEL: LABEL[lane],
+          })}
           list={list}
           detail={
             selected === null ? null : (
@@ -562,8 +635,11 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             <div className="grid h-full place-items-center rounded-2xl bg-surface shadow-sm">
               <EmptyState
                 icon={<icons.inbox />}
-                title="Choose something from the list"
-                description="It opens here."
+                title={t(
+                  'components.inbox.screen.choose_something_from_the_list',
+                  'Choose something from the list',
+                )}
+                description={t('components.inbox.screen.it_opens_here', 'It opens here.')}
               />
             </div>
           }

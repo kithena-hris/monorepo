@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
+import { t } from '../../lib/i18n';
 
 /**
  * Image upload: drop, browse, or paste.
@@ -217,9 +218,15 @@ function TileRemove({ label, onClick }: { label: string; onClick: () => void }):
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${String(bytes)} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} kB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024)
+    return t('components.image-uploader.image-uploader.b', '{{bytes}} B', { bytes: String(bytes) });
+  if (bytes < 1024 * 1024)
+    return t('components.image-uploader.image-uploader.kb', '{{value}} kB', {
+      value: (bytes / 1024).toFixed(0),
+    });
+  return t('components.image-uploader.image-uploader.mb', '{{value}} MB', {
+    value: (bytes / (1024 * 1024)).toFixed(1),
+  });
 }
 
 /** Reads the intrinsic size, which is the only way to enforce a minimum. */
@@ -376,10 +383,24 @@ export function ImageUploader({
         }
         onChange(next);
         setAnnouncement(
-          `${String(passed.length)} ${passed.length === 1 ? 'image' : 'images'} added. ${String(next.length)} of ${String(maxFiles)} in total.`,
+          t(
+            'components.image-uploader.image-uploader.added_of_in_total',
+            '{{length}} {{value}} added. {{length2}} of {{maxFiles}} in total.',
+            {
+              length: String(passed.length),
+              value: passed.length === 1 ? 'image' : 'images',
+              length2: String(next.length),
+              maxFiles: String(maxFiles),
+            },
+          ),
         );
       } else if (failed.length > 0) {
-        setAnnouncement(`${String(failed.length)} rejected. ${failed[0]?.message ?? ''}`);
+        setAnnouncement(
+          t('components.image-uploader.image-uploader.rejected', '{{length}} rejected. {{value}}', {
+            length: String(failed.length),
+            value: failed[0]?.message ?? '',
+          }),
+        );
       }
     },
     [accept, layout, maxFiles, maxSize, minDimensions, multiple, onChange, onReject, value],
@@ -418,14 +439,22 @@ export function ImageUploader({
   const dismiss = (rejection: ImageUploadRejection): void => {
     if (rejection.previewUrl) dropUrl(rejection.previewUrl);
     setRejections((current) => current.filter((r) => r !== rejection));
-    setAnnouncement(`${rejection.file.name} dismissed.`);
+    setAnnouncement(
+      t('components.image-uploader.image-uploader.dismissed', '{{name}} dismissed.', {
+        name: rejection.file.name,
+      }),
+    );
     inputRef.current?.focus();
   };
 
   const remove = (image: UploadedImage): void => {
     dropUrl(image.previewUrl);
     onChange(value.filter((current) => current.id !== image.id));
-    setAnnouncement(`${image.file.name} removed.`);
+    setAnnouncement(
+      t('components.image-uploader.image-uploader.removed', '{{name}} removed.', {
+        name: image.file.name,
+      }),
+    );
     inputRef.current?.focus();
   };
 
@@ -491,7 +520,9 @@ export function ImageUploader({
               />
               {image.progress === undefined ? (
                 <TileRemove
-                  label={`Remove ${image.file.name}`}
+                  label={t('components.image-uploader.image-uploader.remove', 'Remove {{name}}', {
+                    name: image.file.name,
+                  })}
                   onClick={() => {
                     remove(image);
                   }}
@@ -501,7 +532,11 @@ export function ImageUploader({
                   <CircularProgress
                     value={image.progress}
                     size={40}
-                    label={`Uploading ${image.file.name}`}
+                    label={t(
+                      'components.image-uploader.image-uploader.uploading',
+                      'Uploading {{name}}',
+                      { name: image.file.name },
+                    )}
                     className="[&>span]:text-fg-on-accent"
                   />
                 </span>
@@ -516,11 +551,15 @@ export function ImageUploader({
               >
                 <img
                   src={toSafeImageSrc(rejection.previewUrl) ?? undefined}
-                  alt={`${rejection.file.name}, refused`}
+                  alt={t('components.image-uploader.image-uploader.refused', '{{name}}, refused', {
+                    name: rejection.file.name,
+                  })}
                   className="size-full object-cover"
                 />
                 <TileRemove
-                  label={`Dismiss ${rejection.file.name}`}
+                  label={t('components.image-uploader.image-uploader.dismiss', 'Dismiss {{name}}', {
+                    name: rejection.file.name,
+                  })}
                   onClick={() => {
                     dismiss(rejection);
                   }}
@@ -558,7 +597,11 @@ export function ImageUploader({
               <span aria-hidden className="flex flex-col items-center gap-1 px-2 text-center">
                 {refusedType ? <FileX className="size-5.5" /> : <ImagePlus className="size-5.5" />}
                 <span className="text-[0.6875rem] leading-tight font-semibold">
-                  {refusedType ? 'Not an image' : value.length === 0 ? 'Add photo' : 'Add'}
+                  {refusedType
+                    ? t('components.image-uploader.image-uploader.not_an_image', 'Not an image')
+                    : value.length === 0
+                      ? t('components.image-uploader.image-uploader.add_photo', 'Add photo')
+                      : t('components.image-uploader.image-uploader.add', 'Add')}
                 </span>
               </span>
               {fileInput}
@@ -571,7 +614,14 @@ export function ImageUploader({
             <div className="rounded-[1.125rem] bg-surface-sunken p-4 touch:rounded-[1.375rem]">
               <Progress
                 value={progress ?? null}
-                label={progress === null ? 'Uploading' : 'Uploading image'}
+                label={
+                  progress === null
+                    ? t('components.image-uploader.image-uploader.uploading_2', 'Uploading')
+                    : t(
+                        'components.image-uploader.image-uploader.uploading_image',
+                        'Uploading image',
+                      )
+                }
                 showValue
               />
             </div>
@@ -612,12 +662,20 @@ export function ImageUploader({
               </span>
               <p className="text-sm font-semibold text-fg">
                 <span className="text-accent-fg underline underline-offset-3">
-                  Choose {multiple ? 'images' : 'an image'}
+                  {t('components.image-uploader.image-uploader.choose', 'Choose')}{' '}
+                  {multiple
+                    ? 'images'
+                    : t('components.image-uploader.image-uploader.an_image', 'an image')}
                 </span>{' '}
-                <span>or drop {multiple ? 'them' : 'it'} here</span>
+                <span>
+                  {t('components.image-uploader.image-uploader.or_drop', 'or drop')}{' '}
+                  {multiple ? 'them' : 'it'}{' '}
+                  {t('components.image-uploader.image-uploader.here', 'here')}
+                </span>
               </p>
               <p className="text-xs text-fg-muted">
-                {accept.map((type) => type.replace('image/', '').toUpperCase()).join(', ')} · up to{' '}
+                {accept.map((type) => type.replace('image/', '').toUpperCase()).join(', ')}{' '}
+                {t('components.image-uploader.image-uploader.up_to', '· up to')}{' '}
                 {formatBytes(maxSize)}
                 {minDimensions
                   ? ` · at least ${String(minDimensions.width)}×${String(minDimensions.height)}`
@@ -667,7 +725,11 @@ export function ImageUploader({
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label={`Remove ${image.file.name}`}
+                      aria-label={t(
+                        'components.image-uploader.image-uploader.remove',
+                        'Remove {{name}}',
+                        { name: image.file.name },
+                      )}
                       onClick={() => {
                         remove(image);
                       }}
@@ -822,8 +884,20 @@ export function AvatarUploader({
           file,
           reason: accept.includes(file.type) ? 'size' : 'type',
           message: accept.includes(file.type)
-            ? `${file.name} is ${formatBytes(file.size)}. The limit is ${formatBytes(maxSize)}.`
-            : `${file.name} is not an accepted image type.`,
+            ? t(
+                'components.image-uploader.image-uploader.is_the_limit_is',
+                '{{name}} is {{formatBytes}}. The limit is {{formatBytes2}}.',
+                {
+                  name: file.name,
+                  formatBytes: formatBytes(file.size),
+                  formatBytes2: formatBytes(maxSize),
+                },
+              )
+            : t(
+                'components.image-uploader.image-uploader.is_not_an_accepted_image_type',
+                '{{name}} is not an accepted image type.',
+                { name: file.name },
+              ),
         },
       ]);
       return;
@@ -893,7 +967,11 @@ export function AvatarUploader({
         disabled={disabled}
         // Reached through the menu once there is an image, so out of the tab
         // order then; named either way.
-        aria-label={typeof label === 'string' ? label : 'Image'}
+        aria-label={
+          typeof label === 'string'
+            ? label
+            : t('components.image-uploader.image-uploader.image', 'Image')
+        }
         tabIndex={preview === null ? 0 : -1}
         className="sr-only"
         onChange={pick}
@@ -919,7 +997,11 @@ export function AvatarUploader({
             <DropdownMenu>
               <DropdownMenuTrigger
                 disabled={disabled}
-                aria-label={`${typeof label === 'string' ? label : 'Image'}: replace or remove`}
+                aria-label={t(
+                  'components.image-uploader.image-uploader.replace_or_remove',
+                  '{{value}}: replace or remove',
+                  { value: typeof label === 'string' ? label : 'Image' },
+                )}
                 className={cn(
                   target,
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
@@ -935,11 +1017,11 @@ export function AvatarUploader({
                   }}
                 >
                   <RotateCcw aria-hidden />
-                  Replace
+                  {t('components.image-uploader.image-uploader.replace', 'Replace')}
                 </DropdownMenuItem>
                 <DropdownMenuItem destructive onSelect={remove}>
                   <Trash aria-hidden />
-                  Remove
+                  {t('components.image-uploader.image-uploader.remove_2', 'Remove')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1015,7 +1097,9 @@ export function AvatarUploader({
           >
             <span className="flex flex-col items-center gap-1">
               <Camera className="size-5" />
-              <span className="text-xs font-semibold">Change</span>
+              <span className="text-xs font-semibold">
+                {t('components.image-uploader.image-uploader.change', 'Change')}
+              </span>
             </span>
           </span>
           <input
@@ -1046,15 +1130,17 @@ export function AvatarUploader({
                 document.getElementById(inputId)?.click();
               }}
             >
-              Replace
+              {t('components.image-uploader.image-uploader.replace', 'Replace')}
             </Button>
             <Button size="sm" variant="ghost" startIcon={<Trash />} onClick={remove}>
-              Remove
+              {t('components.image-uploader.image-uploader.remove_2', 'Remove')}
             </Button>
           </div>
         ) : (
           <p className="mt-1 text-xs text-fg-subtle">
-            {minDimensions.width}×{minDimensions.height} minimum · up to {formatBytes(maxSize)}
+            {minDimensions.width}×{minDimensions.height}{' '}
+            {t('components.image-uploader.image-uploader.minimum_up_to', 'minimum · up to')}{' '}
+            {formatBytes(maxSize)}
           </p>
         )}
       </div>

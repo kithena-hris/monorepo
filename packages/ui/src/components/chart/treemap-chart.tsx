@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn';
 import { ChartDataTable, ChartMark, seriesTone, toneVar, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
 import { squarify } from './geometry';
+import { t } from '../../lib/i18n';
 
 export interface TreemapItem {
   label: string;
@@ -79,7 +80,15 @@ export function TreemapChart({
           if (!rect || rect.width === 0) return null;
           const quiet = highlightIndex !== undefined && highlightIndex !== index;
           const share = item.value / total;
-          const readout = `${item.label}: ${format(item.value)} (${String(Math.round(share * 100))}%)`;
+          const readout = t(
+            'components.chart.treemap-chart.text',
+            '{{label}}: {{format}} ({{round}}%)',
+            {
+              label: item.label,
+              format: format(item.value),
+              round: String(Math.round(share * 100)),
+            },
+          );
           // Text only where it fits: a short cell is a colour and a tooltip,
           // not a label squeezed to nothing. Width is left to a container
           // query on the cell, which knows its real size.

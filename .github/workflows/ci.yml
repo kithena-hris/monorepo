@@ -203,6 +203,14 @@ jobs:
       - name: email theme drift
         run: pnpm email:theme-drift
 
+      # Every word on a screen is `t('key', 'English')`, and the English every
+      # language is translated from is read out of the code into
+      # `apps/web/src/locales/source`. A word added or changed without running
+      # `pnpm --filter @kithena/web i18n:extract` fails here, so the
+      # translations workflow always sees what the screens say.
+      - name: translation source is current
+        run: pnpm --filter @kithena/web i18n:check
+
       # Everything a person can do in People and Time Off on the web, they can
       # do in the phone app: every operation the web reaches is reached by the
       # app too, or `apps/tenant-mobile/desktop-only.json` says why not. A new

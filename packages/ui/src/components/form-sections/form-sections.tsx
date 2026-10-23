@@ -6,6 +6,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 import { PINNED_BAR } from '../../lib/pinned';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * How a long form is laid out: titled sections, and a save bar that appears
@@ -162,7 +163,7 @@ export function PinnedBar({ message, children, progress, className }: PinnedBarP
       {progress === undefined ? null : (
         <div
           role="progressbar"
-          aria-label="Done so far"
+          aria-label={t('components.form-sections.form-sections.done_so_far', 'Done so far')}
           aria-valuemin={0}
           aria-valuemax={progress.max}
           aria-valuenow={progress.value}

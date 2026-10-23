@@ -1,6 +1,7 @@
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * An ordered history: an approval chain, an audit trail, a record's revisions.
@@ -136,7 +137,9 @@ export function TimelineItem({
           ) : null}
         </div>
         {effectiveFrom ? (
-          <p className="mt-0.5 text-xs text-fg-muted">Effective {effectiveFrom}</p>
+          <p className="mt-0.5 text-xs text-fg-muted">
+            {t('components.timeline.timeline.effective', 'Effective')} {effectiveFrom}
+          </p>
         ) : null}
         {children ? (
           <div className="mt-0.5 text-[0.8125rem]/[1.5] text-pretty text-fg-muted touch:text-[0.9375rem]/[1.5]">

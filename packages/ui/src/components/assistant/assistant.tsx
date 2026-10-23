@@ -30,6 +30,7 @@ import { Card } from '../card/card';
 import { KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
 import { Tooltip, TooltipProvider } from '../tooltip/tooltip';
+import { t } from '../../lib/i18n';
 
 /**
  * An assistant that answers from the reader's policies and data, and acts once
@@ -228,7 +229,7 @@ export function AssistantPanel({
             variant="ghost"
             size="sm"
             startIcon={<SquarePen aria-hidden />}
-            aria-label="New conversation"
+            aria-label={t('components.assistant.assistant.new_conversation', 'New conversation')}
             onClick={onNewChat}
           />
         ) : null}
@@ -237,7 +238,11 @@ export function AssistantPanel({
             variant="ghost"
             size="sm"
             startIcon={expanded ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}
-            aria-label={expanded ? 'Make smaller' : 'Make larger'}
+            aria-label={
+              expanded
+                ? t('components.assistant.assistant.make_smaller', 'Make smaller')
+                : t('components.assistant.assistant.make_larger', 'Make larger')
+            }
             onClick={onExpand}
             className="touch:hidden"
           />
@@ -247,7 +252,7 @@ export function AssistantPanel({
             variant="ghost"
             size="sm"
             startIcon={<Minus aria-hidden />}
-            aria-label="Minimise"
+            aria-label={t('components.assistant.assistant.minimise', 'Minimise')}
             onClick={onMinimize}
           />
         ) : null}
@@ -265,7 +270,7 @@ export function AssistantPanel({
                 </>
               )
             }
-            aria-label="Close assistant"
+            aria-label={t('components.assistant.assistant.close_assistant', 'Close assistant')}
             onClick={onClose}
           />
         ) : null}
@@ -305,7 +310,7 @@ export function AssistantMessage({
   if (from === 'user') {
     return (
       <div className={cn('flex justify-end', className)} {...props}>
-        <p className="sr-only">You said:</p>
+        <p className="sr-only">{t('components.assistant.assistant.you_said', 'You said:')}</p>
         <div className="max-w-[78%] rounded-lg rounded-ee-xs bg-accent-solid px-3.5 py-2.5 text-base text-fg-on-accent">
           {children}
         </div>
@@ -316,7 +321,9 @@ export function AssistantMessage({
     <div className={cn('flex items-start gap-2.5', className)} {...props}>
       <AssistantMark size="sm" />
       <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-0.5 text-base text-pretty text-fg [&_b]:font-semibold [&_strong]:font-semibold">
-        <p className="sr-only">Assistant said:</p>
+        <p className="sr-only">
+          {t('components.assistant.assistant.assistant_said', 'Assistant said:')}
+        </p>
         <div className="flex flex-col gap-2.5">
           {children}
           {streaming ? (
@@ -337,7 +344,13 @@ export function AssistantSources({
   className,
   ...props
 }: ComponentPropsWithoutRef<'ul'>): JSX.Element {
-  return <ul aria-label="Sources" className={cn('flex flex-wrap gap-1.5', className)} {...props} />;
+  return (
+    <ul
+      aria-label={t('components.assistant.assistant.sources', 'Sources')}
+      className={cn('flex flex-wrap gap-1.5', className)}
+      {...props}
+    />
+  );
 }
 
 export interface AssistantSourceProps extends ComponentPropsWithoutRef<'a'> {
@@ -395,11 +408,11 @@ export function AssistantStep({
       )}
     >
       {status === 'running' ? (
-        <Spinner size="xs" label="In progress" />
+        <Spinner size="xs" label={t('components.assistant.assistant.in_progress', 'In progress')} />
       ) : (
         <>
           <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />
-          <span className="sr-only">Done:</span>
+          <span className="sr-only">{t('components.assistant.assistant.done', 'Done:')}</span>
         </>
       )}
       {children}
@@ -490,7 +503,7 @@ export function AssistantComposer({
         )}
       >
         <textarea
-          aria-label="Message"
+          aria-label={t('components.assistant.assistant.message', 'Message')}
           rows={1}
           value={value}
           placeholder={placeholder}
@@ -514,7 +527,7 @@ export function AssistantComposer({
             <button
               type="button"
               onClick={onStop}
-              aria-label="Stop"
+              aria-label={t('components.assistant.assistant.stop', 'Stop')}
               className={cn(
                 'tap-target relative grid size-8 place-items-center rounded-full bg-invert text-fg-on-invert',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-focus',
@@ -528,7 +541,7 @@ export function AssistantComposer({
               variant="primary"
               size="sm"
               startIcon={<ArrowUp aria-hidden />}
-              aria-label="Send"
+              aria-label={t('components.assistant.assistant.send', 'Send')}
               disabled={value.trim() === ''}
               className="rounded-control"
             />
@@ -600,7 +613,7 @@ export function AssistantLauncher({
           {onDismissNudge ? (
             <button
               type="button"
-              aria-label="Dismiss"
+              aria-label={t('components.assistant.assistant.dismiss', 'Dismiss')}
               onClick={onDismissNudge}
               className={cn(
                 'tap-target relative grid size-5 shrink-0 place-items-center rounded-xs text-fg-subtle hover:text-fg',

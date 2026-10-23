@@ -15,6 +15,7 @@ import { useState, useTransition, type JSX } from 'react';
 import { Loaded, type Loadable } from '../load';
 import type { Bridge } from '../overview/overview';
 import { bridgeDays, relativeDay, shortDate } from '../words';
+import { t } from '../i18n';
 
 /**
  * Holidays where you work (MT21, PRD §10.2): the public holidays the
@@ -54,7 +55,9 @@ export function Holidays({ load, onNavigate, onSubscribe }: HolidaysProps): JSX.
   if (load.status === 'loading') return <HolidaysSkeleton />;
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Holidays" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('holidays.holidays.holidays', 'Holidays')} />
+      ) : null}
       <Loaded load={load} what="the holidays">
         {(data) => <Ready data={data} onNavigate={onNavigate} onSubscribe={onSubscribe} />}
       </Loaded>
@@ -74,16 +77,24 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={`Holidays in ${String(data.year)}`}
+        title={t('holidays.holidays.holidays_in', 'Holidays in {{year}}', {
+          year: String(data.year),
+        })}
         description={
           data.locationKey === null
-            ? 'No work location is on your record, so no public holidays apply.'
-            : `${capital(data.locationKey)} · ${layers.join(', ')} holidays`
+            ? t(
+                'holidays.holidays.no_work_location_is_on_your',
+                'No work location is on your record, so no public holidays apply.',
+              )
+            : t('holidays.holidays.holidays_2', '{{capital}} · {{join}} holidays', {
+                capital: capital(data.locationKey),
+                join: layers.join(', '),
+              })
         }
       />
       <div className="flex max-w-2xl flex-col gap-5">
         <SegmentedControl
-          aria-label="Year"
+          aria-label={t('holidays.holidays.year', 'Year')}
           fullWidth
           value={String(data.year)}
           onValueChange={(year) => {
@@ -97,25 +108,39 @@ function Ready({
           ))}
         </SegmentedControl>
         {data.holidays.length === 0 ? (
-          <p className="text-sm text-fg-muted">No public holidays on your calendar this year.</p>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'holidays.holidays.no_public_holidays_on_your_calendar',
+              'No public holidays on your calendar this year.',
+            )}
+          </p>
         ) : (
           <List>
             {data.holidays.map((h) => {
               const bridge = data.bridges.find((b) => b.holidays[0]?.date === h.date);
               const note =
                 bridge !== undefined
-                  ? `Take ${bridgeDays(bridge)} → ${String(bridge.away.days)} days off`
+                  ? t(
+                      'holidays.holidays.take_days_off',
+                      'Take {{bridgeDays}} → {{days}} days off',
+                      { bridgeDays: bridgeDays(bridge), days: String(bridge.away.days) },
+                    )
                   : h.movedFrom !== null
-                    ? `Moved from ${shortDate(h.movedFrom)}`
+                    ? t('holidays.holidays.moved_from', 'Moved from {{movedFrom}}', {
+                        movedFrom: shortDate(h.movedFrom),
+                      })
                     : h.date >= data.today
                       ? relativeDay(data.today, h.date)
-                      : 'Passed';
+                      : t('holidays.holidays.passed', 'Passed');
               return (
                 <ListItem
                   key={h.date}
                   icon={<icons.flagged />}
                   iconTone="neutral"
-                  description={`${shortDate(h.date)} · ${note}`}
+                  description={t('holidays.holidays.text', '{{date}} · {{note}}', {
+                    date: shortDate(h.date),
+                    note,
+                  })}
                 >
                   {h.name}
                 </ListItem>
@@ -135,12 +160,20 @@ function Subscribe({ onSubscribe }: Pick<HolidaysProps, 'onSubscribe'>): JSX.Ele
   if (feed?.ok === true) {
     return (
       <div className="flex flex-col gap-3">
-        <CopyField label="Copy the feed address" value={feed.url} />
+        <CopyField
+          label={t('holidays.holidays.copy_the_feed_address', 'Copy the feed address')}
+          value={feed.url}
+        />
         <p className="text-sm text-fg-muted">
-          Subscribe to it in your calendar app: your time off and these holidays, kept up to date.
+          {t(
+            'holidays.holidays.subscribe_to_it_in_your_calendar',
+            'Subscribe to it in your calendar app: your time off and these holidays, kept up to date.',
+          )}
         </p>
         <Button asChild startIcon={<icons.calendar aria-hidden />}>
-          <a href={feed.url.replace(/^https?:/, 'webcal:')}>Open in my calendar</a>
+          <a href={feed.url.replace(/^https?:/, 'webcal:')}>
+            {t('holidays.holidays.open_in_my_calendar', 'Open in my calendar')}
+          </a>
         </Button>
       </div>
     );
@@ -159,10 +192,10 @@ function Subscribe({ onSubscribe }: Pick<HolidaysProps, 'onSubscribe'>): JSX.Ele
           });
         }}
       >
-        Add to my calendar
+        {t('holidays.holidays.add_to_my_calendar', 'Add to my calendar')}
       </Button>
       {feed?.ok === false ? (
-        <Alert tone="danger" title="No calendar feed">
+        <Alert tone="danger" title={t('holidays.holidays.no_calendar_feed', 'No calendar feed')}>
           {feed.message}
         </Alert>
       ) : null}
@@ -174,9 +207,11 @@ function Subscribe({ onSubscribe }: Pick<HolidaysProps, 'onSubscribe'>): JSX.Ele
 function HolidaysSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Holidays" description={' '} />
+      <PageHeader title={t('holidays.holidays.holidays', 'Holidays')} description={' '} />
       <div role="status" className="flex max-w-2xl flex-col gap-5">
-        <span className="sr-only">Loading the holidays</span>
+        <span className="sr-only">
+          {t('holidays.holidays.loading_the_holidays', 'Loading the holidays')}
+        </span>
         <Skeleton className="h-9 rounded-full" />
         {[0, 1, 2, 3, 4, 5].map((n) => (
           <Skeleton key={n} className="h-16 rounded-md" />

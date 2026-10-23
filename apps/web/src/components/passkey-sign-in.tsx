@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 
 import type { AppSignIn } from '../lib/app-sign-in';
+import { t } from '../lib/t';
 
 /**
  * Signing in with the passkey on this device, on the company's own origin.
@@ -56,7 +57,12 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
   const signIn = useCallback(
     async (address: string = email, auto = false) => {
       if (!LOOKS_LIKE_EMAIL.test(address.trim())) {
-        setEmailProblem('Enter the work address you were invited with.');
+        setEmailProblem(
+          t(
+            'components.passkey-sign-in.enter_the_work_address_you_were',
+            'Enter the work address you were invited with.',
+          ),
+        );
         return;
       }
       setEmailProblem(null);
@@ -148,7 +154,9 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
         className="flex flex-col gap-5"
       >
         <Field invalid={emailProblem !== null}>
-          <FieldLabel htmlFor="workEmail">Work email address</FieldLabel>
+          <FieldLabel htmlFor="workEmail">
+            {t('components.passkey-sign-in.work_email_address', 'Work email address')}
+          </FieldLabel>
           <Input
             id="workEmail"
             name="workEmail"
@@ -165,7 +173,12 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
               if (emailProblem !== null) setEmailProblem(null);
             }}
           />
-          <FieldDescription>The address your HR team invited you with.</FieldDescription>
+          <FieldDescription>
+            {t(
+              'components.passkey-sign-in.the_address_your_hr_team_invited',
+              'The address your HR team invited you with.',
+            )}
+          </FieldDescription>
           <FieldError>{emailProblem}</FieldError>
         </Field>
 
@@ -173,7 +186,9 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
             fill with a border — right beside another button, wrong as the only
             action on a sign-in page, where it makes a themed page look unthemed. */}
         <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? 'Waiting for your device…' : 'Sign in with a passkey'}
+          {busy
+            ? t('components.passkey-sign-in.waiting_for_your_device', 'Waiting for your device…')
+            : t('components.passkey-sign-in.sign_in_with_a_passkey', 'Sign in with a passkey')}
         </Button>
 
         {/* The passkey equivalent of "forgot my password". Placed under the
@@ -192,7 +207,7 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
           href="/recover"
           className="text-fg-muted hover:text-fg self-start text-sm underline-offset-2 hover:underline"
         >
-          Set up a new passkey
+          {t('components.passkey-sign-in.set_up_a_new_passkey', 'Set up a new passkey')}
         </a>
       </form>
 
@@ -203,9 +218,14 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
          * would answer a question that is not the asker's to ask. The precise
          * reason is in identity's log, where the person who can act on it looks.
          */
-        <Alert tone="danger" title="That did not work">
-          Use the passkey you set up for this company. If you have not set one up yet, use the link
-          your HR team sent you.
+        <Alert
+          tone="danger"
+          title={t('components.passkey-sign-in.that_did_not_work', 'That did not work')}
+        >
+          {t(
+            'components.passkey-sign-in.use_the_passkey_you_set_up',
+            'Use the passkey you set up for this company. If you have not set one up yet, use the link your HR team sent you.',
+          )}
         </Alert>
       ) : null}
     </>

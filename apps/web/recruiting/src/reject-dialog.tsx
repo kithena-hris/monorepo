@@ -24,6 +24,7 @@ import { useState, type JSX } from 'react';
 import { EmailComposer, type ComposedEmail } from './composer';
 import { Refusal, useAct, words } from './shared';
 import type { ScreenProps } from './types';
+import { t } from './i18n';
 
 export interface Rejecting {
   readonly ids: readonly string[];
@@ -109,15 +110,17 @@ export function RejectDialog({
         <DialogHeader>
           <DialogTitle>
             {many
-              ? `Reject ${String(rejecting?.ids.length ?? 0)} candidates`
-              : `Reject ${rejecting?.names[0] ?? ''}`}
+              ? t('reject-dialog.reject_candidates', 'Reject {{value}} candidates', {
+                  value: String(rejecting?.ids.length ?? 0),
+                })
+              : t('reject-dialog.reject', 'Reject {{value}}', { value: rejecting?.names[0] ?? '' })}
           </DialogTitle>
           <DialogDescription>{`${data.jobTitle}${many ? ` · ${rejecting?.names.join(', ') ?? ''}` : ''}`}</DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Refusal error={act.error} />
           <Field required>
-            <FieldLabel>Reason</FieldLabel>
+            <FieldLabel>{t('reject-dialog.reason', 'Reason')}</FieldLabel>
             <Select value={reason} onValueChange={setReason}>
               <FieldControl>
                 <SelectTrigger>
@@ -133,7 +136,10 @@ export function RejectDialog({
               </SelectContent>
             </Select>
             <FieldDescription>
-              Internal. The email never states a reason the candidate hasn’t seen in writing.
+              {t(
+                'reject-dialog.internal_the_email_never_states_a',
+                'Internal. The email never states a reason the candidate hasn’t seen in writing.',
+              )}
             </FieldDescription>
           </Field>
           <EmailComposer
@@ -149,25 +155,33 @@ export function RejectDialog({
           />
           {!emailing ? null : (
             <Field>
-              <FieldLabel>Send</FieldLabel>
+              <FieldLabel>{t('reject-dialog.send', 'Send')}</FieldLabel>
               <SegmentedControl
                 value={send}
                 onValueChange={(v) => {
                   setSend(v as typeof send);
                 }}
               >
-                <SegmentedControlItem value="now">Now</SegmentedControlItem>
-                <SegmentedControlItem value="later_today">Later today</SegmentedControlItem>
+                <SegmentedControlItem value="now">
+                  {t('reject-dialog.now', 'Now')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="later_today">
+                  {t('reject-dialog.later_today', 'Later today')}
+                </SegmentedControlItem>
               </SegmentedControl>
               <FieldDescription>
-                Later today: a few hours on, and never between 21:00 and 08:00 in the candidate’s
-                time zone.
+                {t(
+                  'reject-dialog.later_today_a_few_hours_on',
+                  'Later today: a few hours on, and never between 21:00 and 08:00 in the candidate’s time zone.',
+                )}
               </FieldDescription>
             </Field>
           )}
           {many || data.pools.length === 0 ? null : (
             <Field>
-              <FieldLabel>Add to a talent pool</FieldLabel>
+              <FieldLabel>
+                {t('reject-dialog.add_to_a_talent_pool', 'Add to a talent pool')}
+              </FieldLabel>
               <Select value={pool} onValueChange={setPool}>
                 <FieldControl>
                   <SelectTrigger>
@@ -175,7 +189,7 @@ export function RejectDialog({
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
-                  <SelectItem value="none">Not now</SelectItem>
+                  <SelectItem value="none">{t('reject-dialog.not_now', 'Not now')}</SelectItem>
                   {data.pools.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
@@ -184,17 +198,24 @@ export function RejectDialog({
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Without pool consent the candidate is asked by email first.
+                {t(
+                  'reject-dialog.without_pool_consent_the_candidate_is',
+                  'Without pool consent the candidate is asked by email first.',
+                )}
               </FieldDescription>
             </Field>
           )}
         </DialogBody>
         <DialogFooter>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('reject-dialog.cancel', 'Cancel')}
           </Button>
           <Button variant="danger" loading={act.pending} disabled={!ready} onClick={submit}>
-            {many ? `Reject ${String(rejecting?.ids.length ?? 0)}` : 'Reject'}
+            {many
+              ? t('reject-dialog.reject', 'Reject {{value}}', {
+                  value: String(rejecting?.ids.length ?? 0),
+                })
+              : t('reject-dialog.reject_2', 'Reject')}
           </Button>
         </DialogFooter>
       </DialogContent>

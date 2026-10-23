@@ -2,6 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Before and after, one row per value that changed.
@@ -48,7 +49,7 @@ export function ChangeDiff({ items, className, ...props }: ChangeDiffProps): JSX
                 item.mono && 'font-mono',
               )}
             >
-              <span className="sr-only">was </span>
+              <span className="sr-only">{t('components.change-diff.change-diff.was', 'was')} </span>
               {item.before}
             </del>
             <ArrowRight aria-hidden className="size-3.5 text-fg-subtle touch:hidden" />
@@ -58,7 +59,7 @@ export function ChangeDiff({ items, className, ...props }: ChangeDiffProps): JSX
                 item.mono && 'font-mono',
               )}
             >
-              <span className="sr-only">now </span>
+              <span className="sr-only">{t('components.change-diff.change-diff.now', 'now')} </span>
               {item.after}
             </ins>
           </dd>

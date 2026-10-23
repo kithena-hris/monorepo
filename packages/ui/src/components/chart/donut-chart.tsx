@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn';
 import { ChartDataTable, ChartMark, type ChartPoint } from './chart';
 import { ChartFrame } from './chart-window';
 import { bgTone, seriesTone, strokeTone, type ChartTone } from './tones';
+import { t } from '../../lib/i18n';
 
 export interface DonutSlice extends ChartPoint {
   tone?: ChartTone;
@@ -152,7 +153,15 @@ export function DonutChart({
             const fraction = slice.value / total;
             const start = offset;
             const selected = selectedIndex === index;
-            const readout = `${slice.label}: ${format(slice.value)} (${String(Math.round(fraction * 100))}%)`;
+            const readout = t(
+              'components.chart.donut-chart.text',
+              '{{label}}: {{format}} ({{round}}%)',
+              {
+                label: slice.label,
+                format: format(slice.value),
+                round: String(Math.round(fraction * 100)),
+              },
+            );
             const arc = (
               <circle
                 cx={half}
@@ -203,9 +212,19 @@ export function DonutChart({
               const from = outerOffset;
               outerOffset += share;
               if (share <= 0) return null;
-              const partReadout = `${slice.label} · ${part.label}: ${format(part.value)} (${String(
-                Math.round(slice.value === 0 ? 0 : (part.value / slice.value) * 100),
-              )}% of ${slice.label.toLowerCase()})`;
+              const partReadout = t(
+                'components.chart.donut-chart.of',
+                '{{label}} · {{label2}}: {{format}} ({{round}}% of {{label3}})',
+                {
+                  label: slice.label,
+                  label2: part.label,
+                  format: format(part.value),
+                  round: String(
+                    Math.round(slice.value === 0 ? 0 : (part.value / slice.value) * 100),
+                  ),
+                  label3: slice.label.toLowerCase(),
+                },
+              );
               return (
                 <ChartMark key={`${slice.label}/${part.label}`} content={partReadout}>
                   <circle
@@ -323,7 +342,10 @@ export function DonutChart({
         </ul>
         {ringed ? (
           // The outer ring's key: what the slices are made of, and how many of each.
-          <ul aria-label="Made of" className="flex flex-wrap gap-x-3 gap-y-1">
+          <ul
+            aria-label={t('components.chart.donut-chart.made_of', 'Made of')}
+            className="flex flex-wrap gap-x-3 gap-y-1"
+          >
             {partTotals.map((part) => (
               <li key={part.label} className="flex items-center gap-1.5 text-xs text-fg-muted">
                 <span className={cn('size-2 shrink-0 rounded-full', bgTone[part.tone])} />
@@ -341,7 +363,11 @@ export function DonutChart({
             (slice.parts ?? []).length === 0 ? null : (
               <ChartDataTable
                 key={slice.label}
-                caption={`${label}, ${slice.label}, by part`}
+                caption={t(
+                  'components.chart.donut-chart.by_part',
+                  '{{label}}, {{label2}}, by part',
+                  { label, label2: slice.label },
+                )}
                 data={slice.parts ?? []}
                 format={format}
               />

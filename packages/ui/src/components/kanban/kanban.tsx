@@ -66,6 +66,7 @@ import {
 } from '../dropdown-menu/dropdown-menu';
 import { Reveal, staggerStyle } from '../reveal/reveal';
 import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
+import { t } from '../../lib/i18n';
 
 /**
  * A board of columns you can drag cards between.
@@ -744,7 +745,9 @@ export function Kanban<T extends { id: string }>({
       {columns.length > 1 ? (
         <ToggleGroup
           type="single"
-          aria-label={`${label}: column in view`}
+          aria-label={t('components.kanban.kanban.column_in_view', '{{label}}: column in view', {
+            label,
+          })}
           value={inView}
           onValueChange={(id) => {
             if (!id) return;
@@ -867,7 +870,7 @@ export function Kanban<T extends { id: string }>({
           <AlertDialogDescription>{pending?.description ?? ''}</AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
-              <Button>Cancel</Button>
+              <Button>{t('components.kanban.kanban.cancel', 'Cancel')}</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
@@ -878,7 +881,7 @@ export function Kanban<T extends { id: string }>({
                   setPending(null);
                 }}
               >
-                {pending?.confirmLabel ?? 'Confirm'}
+                {pending?.confirmLabel ?? t('components.kanban.kanban.confirm', 'Confirm')}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -921,18 +924,18 @@ function KanbanSelectionBar<T extends { id: string }>({
   return (
     <div
       role="region"
-      aria-label="Selection"
+      aria-label={t('components.kanban.kanban.selection', 'Selection')}
       // No entrance animation of its own: the `Reveal` around it owns both
       // directions, and two animations on one arrival fight each other.
       className={cn('mb-3', bulkBarClass)}
     >
       <p aria-live="polite" className="text-sm font-semibold tabular-nums">
-        {items.length} selected
+        {items.length} {t('components.kanban.kanban.selected', 'selected')}
       </p>
 
       {items.length < total ? (
         <Button size="sm" variant="ghost" onClick={onSelectAll}>
-          Select all {total}
+          {t('components.kanban.kanban.select_all', 'Select all')} {total}
         </Button>
       ) : null}
 
@@ -957,12 +960,18 @@ function KanbanSelectionBar<T extends { id: string }>({
         {overflow.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" aria-label="More actions">
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={t('components.kanban.kanban.more_actions', 'More actions')}
+              >
                 <Ellipsis className="size-4" aria-hidden />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuLabel>{items.length} selected</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                {items.length} {t('components.kanban.kanban.selected', 'selected')}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {overflow.map((action) => (
                 <DropdownMenuItem
@@ -985,7 +994,7 @@ function KanbanSelectionBar<T extends { id: string }>({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Clear selection"
+        aria-label={t('components.kanban.kanban.clear_selection', 'Clear selection')}
         startIcon={<X />}
         onClick={onClear}
       />
@@ -1127,7 +1136,11 @@ function KanbanColumn<T extends { id: string }>({
       {selectable && items.length > 0 ? (
         <Checkbox
           className="mt-0.5"
-          aria-label={`Select every card in ${column.title}`}
+          aria-label={t(
+            'components.kanban.kanban.select_every_card_in',
+            'Select every card in {{title}}',
+            { title: column.title },
+          )}
           // `indeterminate` is a real third state, not a styling flag: a
           // partially selected column reports `aria-checked="mixed"`, which is
           // the difference between "some of these" and "none of these".
@@ -1169,7 +1182,7 @@ function KanbanColumn<T extends { id: string }>({
           {column.locked ? (
             <>
               <Lock aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-              <span className="sr-only">Locked</span>
+              <span className="sr-only">{t('components.kanban.kanban.locked', 'Locked')}</span>
             </>
           ) : null}
         </div>
@@ -1184,7 +1197,9 @@ function KanbanColumn<T extends { id: string }>({
             <Button
               size="sm"
               variant="ghost"
-              aria-label={`Actions for ${column.title}`}
+              aria-label={t('components.kanban.kanban.actions_for', 'Actions for {{title}}', {
+                title: column.title,
+              })}
               className="-me-1.5 -mt-1 shrink-0"
             >
               <Ellipsis className="size-4" aria-hidden />
@@ -1214,7 +1229,11 @@ function KanbanColumn<T extends { id: string }>({
 
   return (
     <section
-      aria-label={`${column.title}, ${String(items.length)} ${items.length === 1 ? 'card' : 'cards'}`}
+      aria-label={t('components.kanban.kanban.text', '{{title}}, {{length}} {{value}}', {
+        title: column.title,
+        length: String(items.length),
+        value: items.length === 1 ? 'card' : 'cards',
+      })}
       className={cn(
         'flex min-h-0 shrink-0 snap-start flex-col rounded-lg bg-surface-sunken p-2.5',
         width === undefined && 'w-65 touch:w-75',
@@ -1265,7 +1284,10 @@ function KanbanColumn<T extends { id: string }>({
           role="status"
           className="mx-1 mb-2 rounded-sm bg-danger-subtle px-2 py-1 text-xs text-danger-fg"
         >
-          Over the work-in-progress limit.
+          {t(
+            'components.kanban.kanban.over_the_work_in_progress_limit',
+            'Over the work-in-progress limit.',
+          )}
         </p>
       ) : null}
 
@@ -1324,7 +1346,9 @@ function KanbanColumn<T extends { id: string }>({
                 : 'border-border text-fg-subtle',
             )}
           >
-            {column.locked ? 'Locked' : 'Drop a card here'}
+            {column.locked
+              ? t('components.kanban.kanban.locked', 'Locked')
+              : t('components.kanban.kanban.drop_a_card_here', 'Drop a card here')}
           </p>
         ) : null}
 
@@ -1481,7 +1505,7 @@ function KanbanCard<T extends { id: string }>({
             ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
-            aria-label={`Drag ${itemLabel}`}
+            aria-label={t('components.kanban.kanban.drag', 'Drag {{itemLabel}}', { itemLabel })}
             className={cn(
               'tap-target absolute z-10 grid size-6 place-items-center rounded-sm text-fg-subtle',
               placement.grip,
@@ -1511,7 +1535,7 @@ function KanbanCard<T extends { id: string }>({
             ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
-            aria-label={`Drag ${itemLabel}`}
+            aria-label={t('components.kanban.kanban.drag', 'Drag {{itemLabel}}', { itemLabel })}
             className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:start-1 focus-visible:top-1 focus-visible:z-10 focus-visible:grid focus-visible:size-6 focus-visible:place-items-center focus-visible:rounded-sm focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus"
           >
             <GripVertical className="size-4" aria-hidden />
@@ -1521,7 +1545,7 @@ function KanbanCard<T extends { id: string }>({
         {selectable ? (
           <Checkbox
             className="mt-0.5 shrink-0"
-            aria-label={`Select ${itemLabel}`}
+            aria-label={t('components.kanban.kanban.select', 'Select {{itemLabel}}', { itemLabel })}
             checked={selected}
             onCheckedChange={() => {
               onToggleSelected(id);
@@ -1541,7 +1565,7 @@ function KanbanCard<T extends { id: string }>({
             <Button
               size="sm"
               variant="ghost"
-              aria-label={`Move ${itemLabel}`}
+              aria-label={t('components.kanban.kanban.move', 'Move {{itemLabel}}', { itemLabel })}
               className={cn(
                 '-me-1 -mt-1 shrink-0',
                 'transition-opacity duration-(--animate-duration-fast)',
@@ -1571,7 +1595,9 @@ function KanbanCard<T extends { id: string }>({
                 <DropdownMenuSeparator />
               </>
             ) : null}
-            <DropdownMenuLabel>Move to</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {t('components.kanban.kanban.move_to', 'Move to')}
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             {moveTargets.map((column) => (
               <DropdownMenuItem
@@ -1590,14 +1616,14 @@ function KanbanCard<T extends { id: string }>({
                 onMove({ itemId: id, from: columnId, to: columnId, toIndex: position - 1 });
               }}
             >
-              Move up
+              {t('components.kanban.kanban.move_up', 'Move up')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
                 onMove({ itemId: id, from: columnId, to: columnId, toIndex: position + 1 });
               }}
             >
-              Move down
+              {t('components.kanban.kanban.move_down', 'Move down')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1639,7 +1665,7 @@ function KanbanCard<T extends { id: string }>({
             <ContextMenuSub>
               <ContextMenuSubTrigger>
                 <MoveRight aria-hidden />
-                Move to
+                {t('components.kanban.kanban.move_to', 'Move to')}
               </ContextMenuSubTrigger>
               <ContextMenuSubContent>
                 {moveTargets.map((column) => (

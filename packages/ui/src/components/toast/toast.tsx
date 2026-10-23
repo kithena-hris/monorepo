@@ -15,6 +15,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Transient confirmation of something that already happened.
@@ -203,7 +204,7 @@ function ToastItem({
         )}
       >
         <X aria-hidden className="size-4" />
-        <span className="sr-only">Dismiss</span>
+        <span className="sr-only">{t('components.toast.toast.dismiss', 'Dismiss')}</span>
       </ToastPrimitive.Close>
     </ToastPrimitive.Root>
   );

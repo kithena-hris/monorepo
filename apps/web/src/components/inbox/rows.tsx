@@ -7,6 +7,7 @@ import type { Shown } from '../../lib/inbox/model';
 import { moduleName } from '../../lib/inbox/plain';
 import { since } from '../since';
 import { dueOf, iconOf } from './format';
+import { t } from '../../lib/t';
 
 /**
  * One row of the Inbox (A1's anatomy, M:A1): the tile or the sender's face,
@@ -30,11 +31,16 @@ export function RowBadges({
     <span className="flex flex-wrap items-center gap-1.5">
       {item.unread ? (
         <Badge size="sm" tone="accent" variant="solid">
-          New
+          {t('components.inbox.rows.new', 'New')}
         </Badge>
       ) : null}
       <Badge size="sm" variant="outline">
-        {item.area === null ? moduleName(item.module) : `${moduleName(item.module)} › ${item.area}`}
+        {item.area === null
+          ? moduleName(item.module)
+          : t('components.inbox.rows.text', '{{moduleName}} › {{area}}', {
+              moduleName: moduleName(item.module),
+              area: item.area,
+            })}
       </Badge>
       {due === null || item.lane !== 'task' ? null : (
         <Badge size="sm" tone={due.tone}>
@@ -49,11 +55,15 @@ export function RowBadges({
       )}
       {item.team === null ? null : item.team.takenBy === null ? (
         <Badge size="sm" tone="warning" dot>
-          {`For ${item.team.role.toLowerCase()}`}
+          {t('components.inbox.rows.for', 'For {{role}}', { role: item.team.role.toLowerCase() })}
         </Badge>
       ) : (
         <Badge size="sm" tone="info" dot>
-          {item.team.mine ? 'You are on it' : `${item.team.takenBy.name ?? 'Somebody'} is on it`}
+          {item.team.mine
+            ? t('components.inbox.rows.you_are_on_it', 'You are on it')
+            : t('components.inbox.rows.is_on_it', '{{value}} is on it', {
+                value: item.team.takenBy.name ?? 'Somebody',
+              })}
         </Badge>
       )}
       {item.outcome === null ? null : (
@@ -63,12 +73,15 @@ export function RowBadges({
       )}
       {item.replies > 0 ? (
         <Badge size="sm" tone="accent">
-          {`${String(item.replies)} repl${item.replies === 1 ? 'y' : 'ies'}`}
+          {t('components.inbox.rows.repl', '{{replies}} repl{{value}}', {
+            replies: String(item.replies),
+            value: item.replies === 1 ? 'y' : 'ies',
+          })}
         </Badge>
       ) : null}
       {item.snoozedUntil === null ? null : (
         <Badge size="sm" variant="outline">
-          Snoozed
+          {t('components.inbox.rows.snoozed', 'Snoozed')}
         </Badge>
       )}
     </span>
@@ -116,7 +129,9 @@ export function InboxRow({
       <ListItem
         leading={
           <Checkbox
-            aria-label={`Select ${item.title}`}
+            aria-label={t('components.inbox.rows.select', 'Select {{title}}', {
+              title: item.title,
+            })}
             checked={checked}
             onCheckedChange={(on) => onCheck?.(on === true)}
           />

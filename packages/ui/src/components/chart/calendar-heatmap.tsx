@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, type JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { ChartDataTable, ChartMark, ChartScaleKey, toneMix, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface CalendarDay {
   /** A calendar date, `YYYY-MM-DD`. Not a timestamp: a day has no time zone. */
@@ -106,7 +107,11 @@ export function CalendarHeatmap({
     timeZone: 'UTC',
   });
   const sentence = (value: number, day: number): string =>
-    describe?.(value, isoOf(day)) ?? `${dateName.format(day * DAY)}: ${format(value)}`;
+    describe?.(value, isoOf(day)) ??
+    t('components.chart.calendar-heatmap.text', '{{format}}: {{format2}}', {
+      format: dateName.format(day * DAY),
+      format2: format(value),
+    });
 
   // A month's name over the first week that contains its 1st.
   const months = Array.from({ length: weeks }, (_, week) => {
@@ -168,10 +173,18 @@ export function CalendarHeatmap({
         </div>
       </div>
 
-      <ChartScaleKey tone={tone} low="Less" high={`More · ${format(ceiling)}+`} />
+      <ChartScaleKey
+        tone={tone}
+        low="Less"
+        high={t('components.chart.calendar-heatmap.more', 'More · {{format}}+', {
+          format: format(ceiling),
+        })}
+      />
 
       <ChartDataTable
-        caption={`${label}: days with any`}
+        caption={t('components.chart.calendar-heatmap.days_with_any', '{{label}}: days with any', {
+          label,
+        })}
         valueLabel="Value"
         data={busy.map(([day, value]) => ({ label: dateName.format(day * DAY), value }))}
         format={format}

@@ -2,6 +2,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { CircularProgress } from '../progress/progress';
+import { t } from '../../lib/i18n';
 
 /**
  * How complete something is, what is missing, and by when.
@@ -64,11 +65,17 @@ export function CompletenessMeter({
       <CircularProgress value={value} label={label} size={size} tone={tone} className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-[1rem] leading-snug font-bold text-fg touch:text-md">
-          {title ?? (value >= 100 ? 'Complete' : null)}
+          {title ??
+            (value >= 100
+              ? t('components.completeness-meter.completeness-meter.complete', 'Complete')
+              : null)}
         </p>
         {description ? <p className="text-sm text-fg-muted">{description}</p> : null}
         {segments && segments.length > 0 ? (
-          <ul className="mt-2 flex gap-[3px]" aria-label="Parts">
+          <ul
+            className="mt-2 flex gap-[3px]"
+            aria-label={t('components.completeness-meter.completeness-meter.parts', 'Parts')}
+          >
             {segments.map((segment) => (
               <li
                 key={segment.label}

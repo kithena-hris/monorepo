@@ -1,6 +1,7 @@
 import type { SignatureValue } from '@reach/ui';
 
 import type { DataType, ViewerScope } from '../settings/model';
+import { t } from '../i18n';
 
 /**
  * One person's record, as the viewer may see it.
@@ -124,18 +125,28 @@ export interface RecordSection {
 
 /** "Only you and HR can see these": who reads an answer, told to the person giving it. */
 export function seenBy(visibility: readonly ViewerScope[]): string {
-  if (visibility.includes('directory')) return 'Everyone at the company can see these.';
+  if (visibility.includes('directory'))
+    return t(
+      'record.model.everyone_at_the_company_can_see',
+      'Everyone at the company can see these.',
+    );
   const others = [
-    visibility.some((v) => v === 'manager' || v === 'manager_chain') ? 'your manager' : null,
+    visibility.some((v) => v === 'manager' || v === 'manager_chain')
+      ? t('record.model.your_manager', 'your manager')
+      : null,
     visibility.includes('hr') || visibility.includes('admin') ? 'HR' : null,
-    visibility.includes('finance') ? 'Finance' : null,
+    visibility.includes('finance') ? t('record.model.finance', 'Finance') : null,
   ].filter((x) => x !== null);
-  if (others.length === 0) return 'Only you can see these.';
+  if (others.length === 0)
+    return t('record.model.only_you_can_see_these', 'Only you can see these.');
   const last = others.pop() ?? '';
-  const list = others.length === 0 ? last : `${others.join(', ')} and ${last}`;
+  const list =
+    others.length === 0
+      ? last
+      : t('record.model.and', '{{join}} and {{last}}', { join: others.join(', '), last });
   return visibility.includes('self')
-    ? `Only you and ${list} can see these.`
-    : `Only ${list} can see these.`;
+    ? t('record.model.only_you_and_can_see_these', 'Only you and {{list}} can see these.', { list })
+    : t('record.model.only_can_see_these', 'Only {{list}} can see these.', { list });
 }
 
 /** Whether a required field still has nothing in it. */
