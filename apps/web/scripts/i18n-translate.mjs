@@ -24,6 +24,7 @@ import {
   readFileSync,
   readdirSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -690,11 +691,10 @@ for (const language of targets) {
       if (key.startsWith(`${ns}:`) && source[key.slice(ns.length + 1)] === undefined)
         delete lock[language][key];
     files.set(path, held);
+    // The lock says what is done: a key it holds with no entry here reads the
+    // same as the English, so the file never repeats the source.
     const todo = Object.entries(source)
-      .filter(
-        ([key, { text }]) =>
-          held[key] === undefined || lock[language][`${ns}:${key}`] !== hash(text),
-      )
+      .filter(([key, { text }]) => lock[language][`${ns}:${key}`] !== hash(text))
       .map(([key, { text, context }]) => ({ key, en: text, context }));
     for (let i = 0; i < todo.length; i += BATCH)
       jobs.push({ language, ns, path, items: todo.slice(i, i + BATCH) });
@@ -705,7 +705,9 @@ console.log(
 );
 
 const save = () => {
-  for (const [path, held] of files) if (Object.keys(held).length > 0) writeJson(path, held);
+  for (const [path, held] of files)
+    if (Object.keys(held).length > 0) writeJson(path, held);
+    else rmSync(path, { force: true });
   writeJson(lockPath, lock);
 };
 
@@ -728,7 +730,8 @@ async function worker() {
         failed++;
         continue;
       }
-      held[item.key] = text;
+      if (text === item.en) delete held[item.key];
+      else held[item.key] = text;
       lock[job.language][`${job.ns}:${item.key}`] = hash(item.en);
       translated++;
     }

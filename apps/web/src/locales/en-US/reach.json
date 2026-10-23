@@ -1,0 +1,5 @@
+{
+  "components.assistant.assistant.minimise": "Minimize",
+  "components.rich-text.rich-text.this_prop_is_inserted_verbatim_sanitise": "This prop is inserted verbatim. Sanitize it on the server.",
+  "components.typed-fields.typed-fields.country_dialling_code": "Country dialing code"
+}
