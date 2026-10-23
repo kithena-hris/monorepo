@@ -28,6 +28,7 @@ import {
   words,
 } from './shared';
 import type { ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * PF1 and PF1b (v2): what the person owes, what is owed to them and their
@@ -79,10 +80,10 @@ export interface HomeData {
 export const CONFIDENCE: Readonly<
   Record<string, readonly [string, 'success' | 'warning' | 'danger' | 'accent']>
 > = {
-  on_track: ['On track', 'success'],
-  at_risk: ['At risk', 'warning'],
-  off_track: ['Off track', 'danger'],
-  done: ['Done', 'accent'],
+  on_track: [tr('home.on_track', 'On track'), 'success'],
+  at_risk: [tr('home.at_risk', 'At risk'), 'warning'],
+  off_track: [tr('home.off_track', 'Off track'), 'danger'],
+  done: [tr('home.done', 'Done'), 'accent'],
 };
 
 export function Home(props: ScreenProps<HomeData>): JSX.Element {
@@ -92,12 +93,18 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-5">
           <PageHeader
-            title="Performance"
-            description={`Reviews, feedback, goals and learning.${data.hr ? ' As HR.' : ''}`}
+            title={tr('home.performance', 'Performance')}
+            description={tr(
+              'home.reviews_feedback_goals_and_learning',
+              'Reviews, feedback, goals and learning.{{value}}',
+              { value: data.hr ? ' As HR.' : '' },
+            )}
             actions={
               <>
                 <Button variant="secondary" asChild>
-                  <a href="/performance/feedback?give=1">Give feedback</a>
+                  <a href="/performance/feedback?give=1">
+                    {tr('home.give_feedback', 'Give feedback')}
+                  </a>
                 </Button>
                 {data.hr ? (
                   <Button
@@ -115,11 +122,13 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                       );
                     }}
                   >
-                    New cycle
+                    {tr('home.new_cycle', 'New cycle')}
                   </Button>
                 ) : (
                   <Button asChild>
-                    <a href="/performance/feedback/requests?ask=1">Request feedback</a>
+                    <a href="/performance/feedback/requests?ask=1">
+                      {tr('home.request_feedback', 'Request feedback')}
+                    </a>
                   </Button>
                 )}
               </>
@@ -142,14 +151,17 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle level={2}>You owe</CardTitle>
+                <CardTitle level={2}>{tr('home.you_owe', 'You owe')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {data.tasks.length === 0 ? (
                   <EmptyState
                     icon={<icons.success aria-hidden />}
-                    title="Nothing needs you"
-                    description="Reviews to write, nominations and learning due land here and in your Inbox."
+                    title={tr('home.nothing_needs_you', 'Nothing needs you')}
+                    description={tr(
+                      'home.reviews_to_write_nominations_and_learning',
+                      'Reviews to write, nominations and learning due land here and in your Inbox.',
+                    )}
                   />
                 ) : (
                   <List>
@@ -158,13 +170,18 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                         key={t.id}
                         asChild
                         chevron
-                        description={[t.summary, t.due === null ? null : `due ${day(t.due)}`]
+                        description={[
+                          t.summary,
+                          t.due === null
+                            ? null
+                            : tr('home.due', 'due {{due}}', { due: day(t.due) }),
+                        ]
                           .filter(Boolean)
                           .join(' · ')}
                         trailing={
                           t.tone === 'danger' ? (
                             <Badge size="sm" tone="danger">
-                              Overdue
+                              {tr('home.overdue', 'Overdue')}
                             </Badge>
                           ) : null
                         }
@@ -181,22 +198,31 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
             <div className="flex flex-col gap-4">
               <Card>
                 <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle level={2}>Owed to you</CardTitle>
+                  <CardTitle level={2}>{tr('home.owed_to_you', 'Owed to you')}</CardTitle>
                   <To href="/performance/reviews/owed" onNavigate={props.onNavigate}>
-                    All
+                    {tr('home.all', 'All')}
                   </To>
                 </CardHeader>
                 <CardContent>
                   {data.owed.length === 0 ? (
                     <p className="text-sm text-fg-muted">
-                      Nobody is writing about you in a running cycle.
+                      {tr(
+                        'home.nobody_is_writing_about_you_in',
+                        'Nobody is writing about you in a running cycle.',
+                      )}
                     </p>
                   ) : (
                     <List>
                       {data.owed.map((o) => (
                         <ListItem
                           key={o.id}
-                          description={`${o.cycle} · ${o.released === null ? 'You see it when it is released' : `Released ${day(o.released)}`}`}
+                          description={tr('home.text', '{{cycle}} · {{value}}', {
+                            cycle: o.cycle,
+                            value:
+                              o.released === null
+                                ? 'You see it when it is released'
+                                : `Released ${day(o.released)}`,
+                          })}
                           trailing={<ReviewBadge state={o.state} />}
                         >
                           {`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}
@@ -208,17 +234,22 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
               </Card>
               <Card>
                 <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle level={2}>My goals</CardTitle>
+                  <CardTitle level={2}>{tr('home.my_goals', 'My goals')}</CardTitle>
                   <To href="/performance/goals" onNavigate={props.onNavigate}>
-                    All goals
+                    {tr('home.all_goals', 'All goals')}
                   </To>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {data.goals.length === 0 ? (
-                    <p className="text-sm text-fg-muted">No goals for this period yet.</p>
+                    <p className="text-sm text-fg-muted">
+                      {tr('home.no_goals_for_this_period_yet', 'No goals for this period yet.')}
+                    </p>
                   ) : (
                     data.goals.map((g) => {
-                      const [label, tone] = CONFIDENCE[g.confidence] ?? ['On track', 'success'];
+                      const [label, tone] = CONFIDENCE[g.confidence] ?? [
+                        tr('home.on_track', 'On track'),
+                        'success',
+                      ];
                       return (
                         <div key={g.id} className="flex flex-col gap-1.5">
                           <span className="flex items-center gap-2">
@@ -235,7 +266,10 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                           </span>
                           <Progress
                             value={g.progress}
-                            label={`${g.title}: ${String(g.progress)}%`}
+                            label={tr('home.text_2', '{{title}}: {{progress}}%', {
+                              title: g.title,
+                              progress: String(g.progress),
+                            })}
                           />
                         </div>
                       );
@@ -248,15 +282,18 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
           {data.hr ? (
             <Card>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle level={2}>Cycles you own</CardTitle>
+                <CardTitle level={2}>{tr('home.cycles_you_own', 'Cycles you own')}</CardTitle>
                 <Live />
               </CardHeader>
               <CardContent>
                 {data.running.length === 0 ? (
                   <EmptyState
                     icon={<icons.review aria-hidden />}
-                    title="No cycle is running"
-                    description="Start one from Cycles; it updates here as reviews come in."
+                    title={tr('home.no_cycle_is_running', 'No cycle is running')}
+                    description={tr(
+                      'home.start_one_from_cycles_it_updates',
+                      'Start one from Cycles; it updates here as reviews come in.',
+                    )}
                   />
                 ) : (
                   <List>
@@ -265,19 +302,27 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                         key={c.id}
                         asChild
                         chevron
-                        description={`${c.who} · from ${day(c.start)}`}
+                        description={tr('home.from', '{{who}} · from {{start}}', {
+                          who: c.who,
+                          start: day(c.start),
+                        })}
                         meta={<CycleBadge state={c.state} />}
                         trailing={
                           c.state === 'in_progress' ? (
                             <span className="w-32">
                               <Progress
                                 value={c.progress}
-                                label={`${c.name}: ${String(c.progress)}% submitted`}
+                                label={tr('home.submitted', '{{name}}: {{progress}}% submitted', {
+                                  name: c.name,
+                                  progress: String(c.progress),
+                                })}
                               />
                             </span>
                           ) : (
                             <span className="text-sm">
-                              {c.state === 'launch_failed' ? 'Retry launch' : words(c.state)}
+                              {c.state === 'launch_failed'
+                                ? tr('home.retry_launch', 'Retry launch')
+                                : words(c.state)}
                             </span>
                           )
                         }

@@ -7,6 +7,7 @@ import { bulkBarClass } from '../../lib/bulk-bar';
 import { cn } from '../../lib/cn';
 import { PINNED_BAR } from '../../lib/pinned';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * The bar a selection summons: how many are picked, what can be done to
@@ -37,19 +38,21 @@ export function BulkBar({
   return (
     <div
       role="group"
-      aria-label={`${String(count)} selected`}
+      aria-label={t('components.table.bulk-bar.selected', '{{count}} selected', {
+        count: String(count),
+      })}
       {...PINNED_BAR}
       className={cn('sticky bottom-4 z-20', bulkBarClass, 'motion-safe:animate-pop-in', className)}
     >
       <span aria-live="polite" className="text-sm font-semibold tabular-nums">
-        {count} selected
+        {count} {t('components.table.bulk-bar.selected_2', 'selected')}
       </span>
       <span aria-hidden className="mx-2 h-5 w-px bg-fg-on-invert/25" />
       <div className="flex flex-wrap items-center gap-1.5">{children}</div>
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Clear selection"
+        aria-label={t('components.table.bulk-bar.clear_selection', 'Clear selection')}
         startIcon={<X />}
         onClick={onClear}
       />

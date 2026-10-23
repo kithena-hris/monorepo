@@ -7,6 +7,7 @@ import { useCoarsePointer } from '../../lib/use-media-query';
 import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
 import type { ChartTone } from './chart';
+import { t } from '../../lib/i18n';
 
 /**
  * A salary band, and where people actually sit in it.
@@ -225,24 +226,45 @@ export function RangeChart({
                 ? ''
                 : outside
                   ? below
-                    ? ', below the minimum'
-                    : ', above the maximum'
+                    ? t('components.chart.range-chart.below_the_minimum', ', below the minimum')
+                    : t('components.chart.range-chart.above_the_maximum', ', above the maximum')
                   : `, ${String(Math.round(((band.value - band.min) / Math.max(band.max - band.min, 1)) * 100))}% through the band`;
 
             const outsiders = outsideOf(band);
-            const readout = `${band.label}: ${format(band.min)} to ${format(band.max)}, ${midLabel.toLowerCase()} ${format(mid)}${
-              band.value === undefined ? '' : `. ${valueLabel} ${format(band.value)}${position}`
-            }${
-              band.spread === undefined
-                ? ''
-                : `. ${spreadLabel} ${format(band.spread.low)} to ${format(band.spread.high)}`
-            }${
-              band.people === undefined
-                ? ''
-                : `. ${String(band.people.length)} people, ${
-                    outsiders === 0 ? 'all inside the band' : `${String(outsiders)} outside it`
-                  }`
-            }`;
+            const readout = t(
+              'components.chart.range-chart.to',
+              '{{label}}: {{format}} to {{format2}}, {{midLabel}} {{format3}}{{value}}{{value2}}{{value3}}',
+              {
+                label: band.label,
+                format: format(band.min),
+                format2: format(band.max),
+                midLabel: midLabel.toLowerCase(),
+                format3: format(mid),
+                value:
+                  band.value === undefined
+                    ? ''
+                    : `. ${valueLabel} ${format(band.value)}${position}`,
+                value2:
+                  band.spread === undefined
+                    ? ''
+                    : `. ${spreadLabel} ${format(band.spread.low)} to ${format(band.spread.high)}`,
+                value3:
+                  band.people === undefined
+                    ? ''
+                    : `. ${String(band.people.length)} people, ${
+                        outsiders === 0
+                          ? t(
+                              'components.chart.range-chart.all_inside_the_band',
+                              'all inside the band',
+                            )
+                          : t(
+                              'components.chart.range-chart.outside_it',
+                              '{{outsiders}} outside it',
+                              { outsiders: String(outsiders) },
+                            )
+                      }`,
+              },
+            );
 
             return (
               <div key={band.label} className="relative" style={{ height: rowHeight }}>
@@ -362,7 +384,7 @@ export function RangeChart({
             <span
               className={cn('h-2.5 w-3.5 rounded-full', bandTone[data[0]?.tone ?? 'chart-1'])}
             />
-            Band
+            {t('components.chart.range-chart.band', 'Band')}
           </li>
           <li className="flex items-center gap-1.5">
             <span
@@ -385,13 +407,17 @@ export function RangeChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Band</th>
-              <th scope="col">Minimum</th>
+              <th scope="col">{t('components.chart.range-chart.band', 'Band')}</th>
+              <th scope="col">{t('components.chart.range-chart.minimum', 'Minimum')}</th>
               <th scope="col">{midLabel}</th>
-              <th scope="col">Maximum</th>
+              <th scope="col">{t('components.chart.range-chart.maximum', 'Maximum')}</th>
               <th scope="col">{valueLabel}</th>
               {spreads ? <th scope="col">{spreadLabel}</th> : null}
-              {counted ? <th scope="col">Outside the band</th> : null}
+              {counted ? (
+                <th scope="col">
+                  {t('components.chart.range-chart.outside_the_band', 'Outside the band')}
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -403,27 +429,34 @@ export function RangeChart({
                 <td>{format(band.max)}</td>
                 <td>
                   {band.value === undefined
-                    ? 'Not compared'
+                    ? t('components.chart.range-chart.not_compared', 'Not compared')
                     : `${format(band.value)}${
                         band.value < band.min
-                          ? ' (below minimum)'
+                          ? ' ' + t('components.chart.range-chart.below_minimum', '(below minimum)')
                           : band.value > band.max
-                            ? ' (above maximum)'
+                            ? ' ' +
+                              t('components.chart.range-chart.above_maximum', '(above maximum)')
                             : ''
                       }`}
                 </td>
                 {spreads ? (
                   <td>
                     {band.spread === undefined
-                      ? 'None'
-                      : `${format(band.spread.low)} to ${format(band.spread.high)}`}
+                      ? t('components.chart.range-chart.none', 'None')
+                      : t('components.chart.range-chart.to_2', '{{format}} to {{format2}}', {
+                          format: format(band.spread.low),
+                          format2: format(band.spread.high),
+                        })}
                   </td>
                 ) : null}
                 {counted ? (
                   <td>
                     {band.people === undefined
-                      ? 'Not counted'
-                      : `${String(outsideOf(band))} of ${String(band.people.length)}`}
+                      ? t('components.chart.range-chart.not_counted', 'Not counted')
+                      : t('components.chart.range-chart.of', '{{outsideOf}} of {{length}}', {
+                          outsideOf: String(outsideOf(band)),
+                          length: String(band.people.length),
+                        })}
                   </td>
                 ) : null}
               </tr>

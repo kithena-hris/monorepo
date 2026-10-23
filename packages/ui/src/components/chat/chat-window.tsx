@@ -4,6 +4,7 @@ import type { JSX, ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '../popover/popover';
+import { t } from '../../lib/i18n';
 
 /**
  * A conversation in a small window, opened from a round button that floats
@@ -81,7 +82,12 @@ export function ChatWindow({
             )}
           </div>
           <PopoverClose asChild>
-            <Button size="sm" variant="ghost" aria-label="Close" startIcon={<X aria-hidden />} />
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={t('components.chat.chat-window.close', 'Close')}
+              startIcon={<X aria-hidden />}
+            />
           </PopoverClose>
         </div>
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3">{children}</div>

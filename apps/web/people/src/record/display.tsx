@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
 import { INDEFINITE, isMissing, signatureOf, type AttributeValue, type RecordField } from './model';
+import { t } from '../i18n';
 
 const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
 
@@ -26,25 +27,32 @@ export function DisplayValue({
   readonly value: AttributeValue | undefined;
 }): JSX.Element {
   if (value === undefined || value === null || isMissing(value)) {
-    return <span className="text-fg-muted">Not provided</span>;
+    return (
+      <span className="text-fg-muted">{t('record.display.not_provided', 'Not provided')}</span>
+    );
   }
-  if (typeof value === 'boolean') return <>{value ? 'Yes' : 'No'}</>;
+  if (typeof value === 'boolean')
+    return <>{value ? t('record.display.yes', 'Yes') : t('record.display.no', 'No')}</>;
   if (typeof value === 'string' && isFileField(field))
     return <FileValue field={field} id={value} />;
   if (field.dataType === 'signature') {
     const mark = signatureOf(value);
     return mark === null ? (
-      <span className="text-fg-muted">Not provided</span>
+      <span className="text-fg-muted">{t('record.display.not_provided', 'Not provided')}</span>
     ) : (
       <span className="block h-12 w-48">
-        <Signature value={mark} label={`${field.label}: signed`} />
+        <Signature
+          value={mark}
+          label={t('record.display.signed', '{{label}}: signed', { label: field.label })}
+        />
       </span>
     );
   }
   if (typeof value === 'string') {
     const option = field.options.find((o) => o.value === value);
     if (option !== undefined) return <>{option.label}</>;
-    if (field.dataType === 'date' && value === INDEFINITE) return <>Indefinite</>;
+    if (field.dataType === 'date' && value === INDEFINITE)
+      return <>{t('record.display.indefinite', 'Indefinite')}</>;
     if (field.dataType === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       return <>{longDate(value)}</>;
     }

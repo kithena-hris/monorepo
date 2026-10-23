@@ -17,6 +17,7 @@ import { useEffect, useState, type JSX } from 'react';
 
 import { shortDate } from '../shared';
 import type { Answer, Cited, Comparison, Read, Summary } from '../types';
+import { t } from '../i18n';
 
 /**
  * Kithena reading a document (D1, D2, D3; PRD §14): asked for once the page
@@ -35,7 +36,9 @@ export interface ReadingProps {
 }
 
 const pagesWord = (pages: readonly number[]): string =>
-  pages.length === 1 ? `p. ${String(pages[0])}` : `pp. ${pages.join(', ')}`;
+  pages.length === 1
+    ? t('document.reading.p', 'p. {{pages}}', { pages: String(pages[0]) })
+    : t('document.reading.pp', 'pp. {{join}}', { join: pages.join(', ') });
 
 function Claim({ claim }: { readonly claim: Cited }): JSX.Element {
   return (
@@ -93,15 +96,25 @@ export function Reading({
   if (summary === null) return null;
   if (summary === 'loading') {
     return (
-      <AssistantCard title="Reading it" level={2}>
-        <Spinner size="sm" label="Kithena is reading the document" />
+      <AssistantCard title={t('document.reading.reading_it', 'Reading it')} level={2}>
+        <Spinner
+          size="sm"
+          label={t(
+            'document.reading.kithena_is_reading_the_document',
+            'Kithena is reading the document',
+          )}
+        />
       </AssistantCard>
     );
   }
   if (!summary.available) {
     // A medical document's dates are the one thing read without a model.
     return summary.dates.length === 0 ? null : (
-      <AssistantCard title="Dates in this document" level={2} note={summary.reason ?? undefined}>
+      <AssistantCard
+        title={t('document.reading.dates_in_this_document', 'Dates in this document')}
+        level={2}
+        note={summary.reason ?? undefined}
+      >
         <ul className="flex flex-wrap gap-1.5">
           {summary.dates.map((d) => (
             <li key={d}>
@@ -115,9 +128,13 @@ export function Reading({
 
   return (
     <AssistantCard
-      title="Summary"
+      title={t('document.reading.summary', 'Summary')}
       level={2}
-      note={`From version ${String(current)}. Answers can be wrong; check the page.`}
+      note={t(
+        'document.reading.from_version_answers_can_be_wrong',
+        'From version {{current}}. Answers can be wrong; check the page.',
+        { current: String(current) },
+      )}
     >
       <div className="flex flex-col gap-2 text-sm">
         {summary.summary.map((c) => (
@@ -134,7 +151,11 @@ export function Reading({
         />
       )}
       {summary.watch === null ? null : (
-        <Alert tone="warning" title="Worth knowing" icon={<icons.flagged />}>
+        <Alert
+          tone="warning"
+          title={t('document.reading.worth_knowing', 'Worth knowing')}
+          icon={<icons.flagged />}
+        >
           {summary.watch.text} ({pagesWord(summary.watch.pages)})
         </Alert>
       )}
@@ -144,14 +165,20 @@ export function Reading({
           <AssistantMessage from="assistant">
             {x.a === null ? (
               x.error === undefined ? (
-                <Spinner size="sm" label="Kithena is answering" />
+                <Spinner
+                  size="sm"
+                  label={t('document.reading.kithena_is_answering', 'Kithena is answering')}
+                />
               ) : (
                 <p>{x.error}</p>
               )
             ) : x.a.available ? (
               x.a.answer.map((c) => <Claim key={c.text} claim={c} />)
             ) : (
-              <p>{x.a.reason ?? 'The document does not say.'}</p>
+              <p>
+                {x.a.reason ??
+                  t('document.reading.the_document_does_not_say', 'The document does not say.')}
+              </p>
             )}
           </AssistantMessage>
         </div>
@@ -175,12 +202,15 @@ export function Reading({
           ) : null}
           <AssistantComposer
             className="px-0 pb-0"
-            aria-label="Ask about this document"
+            aria-label={t('document.reading.ask_about_this_document', 'Ask about this document')}
             value={question}
             onValueChange={setQuestion}
             onSubmit={ask}
             streaming={busy}
-            placeholder="Ask about this document…"
+            placeholder={t(
+              'document.reading.ask_about_this_document_2',
+              'Ask about this document…',
+            )}
             disclaimer={null}
           />
         </>
@@ -222,19 +252,31 @@ function Compare({
           });
         }}
       >
-        {`What changed from version ${String(current - 1)}`}
+        {t('document.reading.what_changed_from_version', 'What changed from version {{value}}', {
+          value: String(current - 1),
+        })}
       </Button>
     );
   }
-  if (answer === 'loading') return <Spinner size="sm" label="Comparing the versions" />;
+  if (answer === 'loading')
+    return (
+      <Spinner
+        size="sm"
+        label={t('document.reading.comparing_the_versions', 'Comparing the versions')}
+      />
+    );
   return (
     <section
       className="flex flex-col gap-2"
-      aria-label={`Changes from version ${String(current - 1)}`}
+      aria-label={t('document.reading.changes_from_version', 'Changes from version {{value}}', {
+        value: String(current - 1),
+      })}
     >
       {error === null ? null : <Alert tone="danger">{error}</Alert>}
       {answer.added.length === 0 && answer.removed.length === 0 ? (
-        <p className="text-sm text-fg-muted">The words did not change.</p>
+        <p className="text-sm text-fg-muted">
+          {t('document.reading.the_words_did_not_change', 'The words did not change.')}
+        </p>
       ) : null}
       {answer.sentences.length === 0 ? null : (
         <ul className="flex list-disc flex-col gap-1 ps-5 text-sm">
@@ -270,7 +312,14 @@ export function AcrossAnswer({
   readonly onNavigate?: ((href: string) => void) | undefined;
 }): JSX.Element {
   return (
-    <AssistantCard title={question} level={2} note="Only from documents you can open.">
+    <AssistantCard
+      title={question}
+      level={2}
+      note={t(
+        'document.reading.only_from_documents_you_can_open',
+        'Only from documents you can open.',
+      )}
+    >
       {answer.available ? (
         <div className="flex flex-col gap-2 text-sm">
           {answer.answer.map((c) => (
@@ -278,7 +327,10 @@ export function AcrossAnswer({
           ))}
         </div>
       ) : (
-        <p className="text-sm">{answer.reason ?? 'Nothing you can open says.'}</p>
+        <p className="text-sm">
+          {answer.reason ??
+            t('document.reading.nothing_you_can_open_says', 'Nothing you can open says.')}
+        </p>
       )}
       {answer.sources.length === 0 ? null : (
         <AssistantSources>
@@ -293,7 +345,10 @@ export function AcrossAnswer({
                 onNavigate(`/documents/d/${s.documentId}`);
               }}
             >
-              {`${s.title} · ${pagesWord(s.pages)}`}
+              {t('document.reading.text', '{{title}} · {{pagesWord}}', {
+                title: s.title,
+                pagesWord: pagesWord(s.pages),
+              })}
             </AssistantSource>
           ))}
         </AssistantSources>

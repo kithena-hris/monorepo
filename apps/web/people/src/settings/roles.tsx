@@ -32,6 +32,7 @@ import { useCallback, useMemo, useState, type JSX, type ReactNode } from 'react'
 
 import { useTyped } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * Who holds a People role, and changing it (PEO-112; PRD §6.6, §9.4).
@@ -87,21 +88,29 @@ const ROLES: readonly {
 }[] = [
   {
     role: 'people_admin',
-    label: 'People administrator',
-    means:
+    label: t('settings.roles.people_administrator', 'People administrator'),
+    means: t(
+      'settings.roles.changes_the_fields_the_settings_and',
       'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
+    ),
     icon: <icons.permission aria-hidden />,
   },
   {
     role: 'hr',
     label: 'HR',
-    means: 'Sees and corrects everybody’s record.',
+    means: t(
+      'settings.roles.sees_and_corrects_everybodys_record',
+      'Sees and corrects everybody’s record.',
+    ),
     icon: <icons.people aria-hidden />,
   },
   {
     role: 'finance',
-    label: 'Finance',
-    means: 'Sees pay, and asks for full values, for payroll.',
+    label: t('settings.roles.finance', 'Finance'),
+    means: t(
+      'settings.roles.sees_pay_and_asks_for_full',
+      'Sees pay, and asks for full values, for payroll.',
+    ),
     icon: <icons.payroll aria-hidden />,
   },
 ];
@@ -122,7 +131,10 @@ export function RoleSettings(props: RoleSettingsProps): JSX.Element {
   );
 }
 
-const nameOf = (p: RolesPerson): string => p.name ?? p.workEmail ?? 'Somebody without a record yet';
+const nameOf = (p: RolesPerson): string =>
+  p.name ??
+  p.workEmail ??
+  t('settings.roles.somebody_without_a_record_yet', 'Somebody without a record yet');
 const accountOf = (p: RolesPerson): string => p.accountId;
 
 function Roles({
@@ -160,7 +172,7 @@ function Roles({
     () => [
       {
         id: 'person',
-        header: 'Person',
+        header: t('settings.roles.person', 'Person'),
         cell: (person) => {
           const who = nameOf(person);
           const me = person.accountId === viewer;
@@ -202,11 +214,22 @@ function Roles({
             <Checkbox
               checked={held || included}
               disabled={locked}
-              title={included ? 'Included with People administrator' : undefined}
+              title={
+                included
+                  ? t(
+                      'settings.roles.included_with_people_administrator',
+                      'Included with People administrator',
+                    )
+                  : undefined
+              }
               aria-label={
                 included
-                  ? `${label} for ${who}, included with People administrator`
-                  : `${label} for ${who}`
+                  ? t(
+                      'settings.roles.for_included_with_people_administrator',
+                      '{{label}} for {{who}}, included with People administrator',
+                      { label, who },
+                    )
+                  : t('settings.roles.for', '{{label}} for {{who}}', { label, who })
               }
               onCheckedChange={(on) => {
                 setPending({ person, role, grant: on === true });
@@ -215,7 +238,10 @@ function Roles({
           ) : held || has(person, role) ? (
             <Badge tone="accent">{label}</Badge>
           ) : (
-            <span className="text-fg-muted" aria-label={`Not ${label}`}>
+            <span
+              className="text-fg-muted"
+              aria-label={t('settings.roles.not', 'Not {{label}}', { label })}
+            >
               —
             </span>
           );
@@ -236,19 +262,32 @@ function Roles({
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Roles"
-        description="Who has administrator, HR and finance access. Managers and employees get theirs from the org chart, not from here."
+        title={t('settings.roles.roles', 'Roles')}
+        description={t(
+          'settings.roles.who_has_administrator_hr_and_finance',
+          'Who has administrator, HR and finance access. Managers and employees get theirs from the org chart, not from here.',
+        )}
       />
       {/* An administrator's HR and Finance are listed as held (the owner, 17 October 2026). */}
       <p className="text-sm text-fg-muted">
-        A People administrator has everything HR and Finance have, so both are ticked for them, and
-        administers every other module the company has.
+        {t(
+          'settings.roles.a_people_administrator_has_everything_hr',
+          'A People administrator has everything HR and Finance have, so both are ticked for them, and administers every other module the company has.',
+        )}
       </p>
       {state.canManage ? null : (
-        <Alert tone="info">Only a People administrator can change who holds a role.</Alert>
+        <Alert tone="info">
+          {t(
+            'settings.roles.only_a_people_administrator_can_change',
+            'Only a People administrator can change who holds a role.',
+          )}
+        </Alert>
       )}
       {/* What each role means and who holds it, before the table of names (S14). */}
-      <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 @3xl/page:grid-cols-3" aria-label="Roles">
+      <ul
+        className="grid grid-cols-[minmax(0,1fr)] gap-4 @3xl/page:grid-cols-3"
+        aria-label={t('settings.roles.roles', 'Roles')}
+      >
         {ROLES.map(({ role, label, means, icon }) => {
           const held = holders(role);
           return (
@@ -257,15 +296,26 @@ function Roles({
                 <div className="flex items-center gap-3">
                   <Avatar name={label} shape="rounded" tone="accent" size="lg" fallback={icon} />
                   <span className="text-md font-semibold">{label}</span>
-                  <Badge className="ms-auto" aria-label={`${String(held.length)} people`}>
+                  <Badge
+                    className="ms-auto"
+                    aria-label={t('settings.roles.people', '{{length}} people', {
+                      length: String(held.length),
+                    })}
+                  >
                     {held.length}
                   </Badge>
                 </div>
                 <p className="text-sm text-fg-muted">{means}</p>
                 {held.length === 0 ? (
-                  <p className="text-sm font-medium text-warning-fg">Nobody yet</p>
+                  <p className="text-sm font-medium text-warning-fg">
+                    {t('settings.roles.nobody_yet', 'Nobody yet')}
+                  </p>
                 ) : (
-                  <AvatarGroup size="sm" max={5} aria-label={`Who is ${label}`}>
+                  <AvatarGroup
+                    size="sm"
+                    max={5}
+                    aria-label={t('settings.roles.who_is', 'Who is {{label}}', { label })}
+                  >
                     {held.map((p) => (
                       <Avatar key={p.accountId} name={nameOf(p)} size="sm" />
                     ))}
@@ -277,27 +327,33 @@ function Roles({
         })}
       </ul>
       {holders('finance').length === 0 ? (
-        <Alert tone="warning" title="Nobody has Finance">
-          Add someone, or name a People administrator: they have Finance’s access too.
+        <Alert tone="warning" title={t('settings.roles.nobody_has_finance', 'Nobody has Finance')}>
+          {t(
+            'settings.roles.add_someone_or_name_a_people',
+            'Add someone, or name a People administrator: they have Finance’s access too.',
+          )}
         </Alert>
       ) : null}
       {state.people.length === 0 && needle === '' ? (
         <EmptyState
-          title="Nobody signs in yet"
-          description="People appear here once they have an account."
+          title={t('settings.roles.nobody_signs_in_yet', 'Nobody signs in yet')}
+          description={t(
+            'settings.roles.people_appear_here_once_they_have',
+            'People appear here once they have an account.',
+          )}
         />
       ) : (
         <Stack gap={3}>
           <div className="w-full max-w-72 touch:max-w-none">
             <SearchField
-              label="Find a person"
-              placeholder="Find a person"
+              label={t('settings.roles.find_a_person', 'Find a person')}
+              placeholder={t('settings.roles.find_a_person', 'Find a person')}
               value={query}
               onValueChange={setQuery}
             />
           </div>
           <DataTable<RolesPerson>
-            label="Who holds a role"
+            label={t('settings.roles.who_holds_a_role', 'Who holds a role')}
             rows={shown}
             rowId={accountOf}
             describeRow={nameOf}
@@ -306,7 +362,7 @@ function Roles({
             fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
-            empty="Nobody matches"
+            empty={t('settings.roles.nobody_matches', 'Nobody matches')}
             columns={columns}
           />
         </Stack>
@@ -350,13 +406,23 @@ function Confirm({
   };
 
   const who =
-    pending === null ? '' : (pending.person.name ?? pending.person.workEmail ?? 'this person');
+    pending === null
+      ? ''
+      : (pending.person.name ??
+        pending.person.workEmail ??
+        t('settings.roles.this_person', 'this person'));
   const title =
     pending === null
       ? ''
       : pending.grant
-        ? `Make ${who} ${labelOf(pending.role)}`
-        : `Remove ${labelOf(pending.role)} from ${who}`;
+        ? t('settings.roles.make', 'Make {{who}} {{labelOf}}', {
+            who,
+            labelOf: labelOf(pending.role),
+          })
+        : t('settings.roles.remove_from', 'Remove {{labelOf}} from {{who}}', {
+            labelOf: labelOf(pending.role),
+            who,
+          });
 
   return (
     <Dialog
@@ -369,13 +435,16 @@ function Confirm({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            It takes effect within a minute, and is kept with who and why.
+            {t(
+              'settings.roles.it_takes_effect_within_a_minute',
+              'It takes effect within a minute, and is kept with who and why.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <Field required invalid={shown && empty}>
-              <FieldLabel>Reason</FieldLabel>
+              <FieldLabel>{t('settings.roles.reason', 'Reason')}</FieldLabel>
               <FieldControl>
                 <Textarea
                   value={reason}
@@ -385,22 +454,24 @@ function Confirm({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>Up to 500 characters.</FieldDescription>
-              <FieldError>Say why.</FieldError>
+              <FieldDescription>
+                {t('settings.roles.up_to_500_characters', 'Up to 500 characters.')}
+              </FieldDescription>
+              <FieldError>{t('settings.roles.say_why', 'Say why.')}</FieldError>
             </Field>
             {refused === null ? null : (
-              <Alert tone="danger" title="Not changed">
+              <Alert tone="danger" title={t('settings.roles.not_changed', 'Not changed')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={close}>Cancel</Button>
+          <Button onClick={close}>{t('settings.roles.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('settings.roles.saving', 'Saving')}
             onClick={() => {
               setShown(true);
               if (empty) return;
@@ -412,7 +483,9 @@ function Confirm({
               });
             }}
           >
-            {pending?.grant === false ? 'Remove' : 'Grant'}
+            {pending?.grant === false
+              ? t('settings.roles.remove', 'Remove')
+              : t('settings.roles.grant', 'Grant')}
           </Button>
         </DialogFooter>
       </DialogContent>

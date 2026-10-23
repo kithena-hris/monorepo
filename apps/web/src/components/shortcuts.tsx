@@ -15,6 +15,7 @@ import { Link } from '../lib/link';
 import { createContext, use, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 
 import { GROUPS, isCharacterKey, type Shortcut, type ShortcutPrefs } from '../lib/shortcuts';
+import { t } from '../lib/t';
 
 /**
  * The shortcuts as the shell runs them: the one key handler, what every hint
@@ -233,13 +234,21 @@ export function ShortcutsHelp({
       groups={groups}
       description={
         prefs.characterKeys
-          ? 'Press G, then a letter, to go somewhere. Not while you are typing in a field.'
-          : 'Single-key shortcuts are off. Those with ⌘ or Ctrl still work.'
+          ? t(
+              'components.shortcuts.press_g_then_a_letter_to',
+              'Press G, then a letter, to go somewhere. Not while you are typing in a field.',
+            )
+          : t(
+              'components.shortcuts.single_key_shortcuts_are_off_those',
+              'Single-key shortcuts are off. Those with ⌘ or Ctrl still work.',
+            )
       }
       footer={
         <>
           <Field orientation="horizontal" className="gap-3">
-            <FieldLabel>Single-key shortcuts</FieldLabel>
+            <FieldLabel>
+              {t('components.shortcuts.single_key_shortcuts', 'Single-key shortcuts')}
+            </FieldLabel>
             <FieldControl>
               <Switch
                 checked={prefs.characterKeys}
@@ -256,7 +265,7 @@ export function ShortcutsHelp({
                 onOpenChange(false);
               }}
             >
-              Change shortcuts
+              {t('components.shortcuts.change_shortcuts', 'Change shortcuts')}
             </Link>
           </Button>
         </>

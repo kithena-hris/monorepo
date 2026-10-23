@@ -24,6 +24,7 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import type { Read } from '../types';
+import { t } from '../i18n';
 
 /**
  * A document drafted with Kithena (PRD §14.2): HR says what they need, Kithena
@@ -84,16 +85,18 @@ export interface DraftProps {
     | undefined;
 }
 
-const OPENING =
-  'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.';
+const OPENING = t(
+  'library.draft.what_do_you_need_tell_me',
+  'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.',
+);
 
 /** What HR usually asks for next, offered as a press once there is a draft. */
 const SUGGESTIONS = [
-  'Make it shorter',
-  'Make it warmer',
-  'Add a probation period',
-  'Add a confidentiality clause',
-  'Use plainer words',
+  t('library.draft.make_it_shorter', 'Make it shorter'),
+  t('library.draft.make_it_warmer', 'Make it warmer'),
+  t('library.draft.add_a_probation_period', 'Add a probation period'),
+  t('library.draft.add_a_confidentiality_clause', 'Add a confidentiality clause'),
+  t('library.draft.use_plainer_words', 'Use plainer words'),
 ] as const;
 
 export function DraftDialog({
@@ -206,17 +209,22 @@ export function DraftDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent sheetOnTouch className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Draft with Kithena</DialogTitle>
+          <DialogTitle>{t('library.draft.draft_with_kithena', 'Draft with Kithena')}</DialogTitle>
           <DialogDescription>
-            Say what you need. Kithena asks for anything missing, writes it, and places a box for
-            each signer in the order you give. Say “send it” when it is right.
+            {t(
+              'library.draft.say_what_you_need_kithena_asks',
+              'Say what you need. Kithena asks for anything missing, writes it, and places a box for each signer in the order you give. Say “send it” when it is right.',
+            )}
           </DialogDescription>
         </DialogHeader>
         {/* One column, top to bottom: the draft as it stands, its preview, then the conversation that changes it. */}
         <DialogBody className="flex flex-col gap-4">
           {draft === null ? (
             <Card variant="outlined" padded className="text-sm text-fg-muted">
-              The draft appears here as Kithena writes it.
+              {t(
+                'library.draft.the_draft_appears_here_as_kithena',
+                'The draft appears here as Kithena writes it.',
+              )}
             </Card>
           ) : (
             <Card variant="outlined" padded className="flex min-w-0 flex-col gap-3">
@@ -232,12 +240,16 @@ export function DraftDialog({
                     startIcon={<icons.document aria-hidden />}
                     onClick={previewNow}
                   >
-                    {shown === null ? 'Preview the PDF' : 'Preview again'}
+                    {shown === null
+                      ? t('library.draft.preview_the_pdf', 'Preview the PDF')
+                      : t('library.draft.preview_again', 'Preview again')}
                   </Button>
                 )}
               </div>
               {draft.about === null ? null : (
-                <p className="text-sm text-fg-muted">About {draft.about}</p>
+                <p className="text-sm text-fg-muted">
+                  {t('library.draft.about', 'About')} {draft.about}
+                </p>
               )}
               {shown === null ? (
                 <p className="max-h-[40vh] overflow-y-auto text-sm whitespace-pre-wrap">
@@ -252,12 +264,19 @@ export function DraftDialog({
               )}
               {draft.figures.length === 0 ? null : (
                 <Alert tone="warning">
-                  Check {draft.figures.join(', ')}: nobody gave Kithena{' '}
-                  {draft.figures.length === 1 ? 'this figure' : 'these figures'}.
+                  {t(
+                    'library.draft.check_nobody_gave_kithena',
+                    'Check {{join}}: nobody gave Kithena',
+                    { join: draft.figures.join(', ') },
+                  )}{' '}
+                  {draft.figures.length === 1
+                    ? t('library.draft.this_figure', 'this figure')
+                    : t('library.draft.these_figures', 'these figures')}
+                  .
                 </Alert>
               )}
               {signs ? (
-                <List aria-label="Who signs, in order">
+                <List aria-label={t('library.draft.who_signs_in_order', 'Who signs, in order')}>
                   {draft.signers
                     .toSorted((a, b) => a.order - b.order)
                     .map((s) => (
@@ -268,16 +287,18 @@ export function DraftDialog({
                             {s.email === null ? '' : ` · ${s.email}`}
                           </span>
                           {s.personId === null && s.email === null ? (
-                            <Badge tone="warning">Not found</Badge>
+                            <Badge tone="warning">
+                              {t('library.draft.not_found', 'Not found')}
+                            </Badge>
                           ) : s.personId === null ? (
-                            <Badge tone="info">Outside</Badge>
+                            <Badge tone="info">{t('library.draft.outside', 'Outside')}</Badge>
                           ) : null}
                         </div>
                       </ListItem>
                     ))}
                 </List>
               ) : null}
-              <ChipRow aria-label="Ask for a change">
+              <ChipRow aria-label={t('library.draft.ask_for_a_change', 'Ask for a change')}>
                 {SUGGESTIONS.map((s) => (
                   <Chip
                     key={s}
@@ -293,14 +314,21 @@ export function DraftDialog({
             </Card>
           )}
           <div className="flex min-h-64 flex-col gap-3">
-            <ChatLog label="Conversation with Kithena" className="max-h-[40vh] flex-1">
+            <ChatLog
+              label={t('library.draft.conversation_with_kithena', 'Conversation with Kithena')}
+              className="max-h-[40vh] flex-1"
+            >
               <ChatMessage author="Kithena">{OPENING}</ChatMessage>
               {said.map((m, i) => (
                 <ChatMessage
                   // The conversation only grows; a turn's place is its identity.
                   key={i}
                   from={m.role === 'user' ? 'self' : 'other'}
-                  author={m.role === 'user' ? 'You' : 'Kithena'}
+                  author={
+                    m.role === 'user'
+                      ? t('library.draft.you', 'You')
+                      : t('library.draft.kithena', 'Kithena')
+                  }
                 >
                   {m.text}
                 </ChatMessage>
@@ -308,8 +336,11 @@ export function DraftDialog({
               {pending ? <ChatTyping author="Kithena" /> : null}
             </ChatLog>
             <ChatComposer
-              label="Message Kithena"
-              placeholder="An offer letter for Omar Lewis, 85,000 a year from 1 November. He signs, then me."
+              label={t('library.draft.message_kithena', 'Message Kithena')}
+              placeholder={t(
+                'library.draft.an_offer_letter_for_omar_lewis',
+                'An offer letter for Omar Lewis, 85,000 a year from 1 November. He signs, then me.',
+              )}
               busy={pending}
               disabled={onDraftDocument === undefined}
               onSend={send}
@@ -329,7 +360,9 @@ export function DraftDialog({
               file(false);
             }}
           >
-            {signs ? 'File without sending' : 'File it'}
+            {signs
+              ? t('library.draft.file_without_sending', 'File without sending')
+              : t('library.draft.file_it', 'File it')}
           </Button>
           {signs ? (
             <Button
@@ -339,7 +372,7 @@ export function DraftDialog({
                 file(true);
               }}
             >
-              Send for signature
+              {t('library.draft.send_for_signature', 'Send for signature')}
             </Button>
           ) : null}
         </DialogFooter>

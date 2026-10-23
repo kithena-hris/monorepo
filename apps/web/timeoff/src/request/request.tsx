@@ -44,6 +44,7 @@ import {
   shortDate,
   spanLabel,
 } from '../words';
+import { t as tr } from '../i18n';
 
 /**
  * Requesting time off (T3, T5, MT5–MT7, MT9): one panel over the overview,
@@ -198,28 +199,45 @@ export function RequestTimeOff({ load, onAsk, onSend, onNavigate }: RequestProps
         ) : (
           <DialogContent className={WIDE} sheetOnTouch>
             <DialogHeader>
-              <DialogTitle>Request time off</DialogTitle>
+              <DialogTitle>
+                {tr('request.request.request_time_off', 'Request time off')}
+              </DialogTitle>
               <DialogDescription>
                 {load.status === 'error'
                   ? load.refused === true
-                    ? 'There is nothing to request from yet.'
-                    : 'Time Off did not answer.'
-                  : 'Loading the types and your balances.'}
+                    ? tr(
+                        'request.request.there_is_nothing_to_request_from',
+                        'There is nothing to request from yet.',
+                      )
+                    : tr('request.request.time_off_did_not_answer', 'Time Off did not answer.')
+                  : tr(
+                      'request.request.loading_the_types_and_your_balances',
+                      'Loading the types and your balances.',
+                    )}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
               {load.status === 'error' && load.refused === true ? (
-                <Alert tone="info" title="You can’t request time off yet">
+                <Alert
+                  tone="info"
+                  title={tr(
+                    'request.request.you_cant_request_time_off_yet',
+                    'You can’t request time off yet',
+                  )}
+                >
                   {load.message}
                 </Alert>
               ) : load.status === 'error' ? (
                 <Alert
                   tone="danger"
-                  title="Could not load the request panel"
+                  title={tr(
+                    'request.request.could_not_load_the_request_panel',
+                    'Could not load the request panel',
+                  )}
                   actions={
                     load.retry === undefined ? undefined : (
                       <Button size="sm" onClick={load.retry}>
-                        Try again
+                        {tr('request.request.try_again', 'Try again')}
                       </Button>
                     )
                   }
@@ -302,14 +320,21 @@ function Panel({
               ask({ step: step === 'review' ? 'dates' : 'type' });
             }}
           >
-            {step === 'review' ? 'Dates' : 'Type'}
+            {step === 'review'
+              ? tr('request.request.dates', 'Dates')
+              : tr('request.request.type', 'Type')}
           </AppBarBack>
         )}
-        <DialogTitle>Request time off</DialogTitle>
+        <DialogTitle>{tr('request.request.request_time_off', 'Request time off')}</DialogTitle>
         <DialogDescription>
           {preview?.approver == null
-            ? 'Choose a type and the dates. Nothing is sent until you send it.'
-            : `${preview.approver.displayName} approves.`}
+            ? tr(
+                'request.request.choose_a_type_and_the_dates',
+                'Choose a type and the dates. Nothing is sent until you send it.',
+              )
+            : tr('request.request.approves', '{{displayName}} approves.', {
+                displayName: preview.approver.displayName,
+              })}
         </DialogDescription>
         <Button
           variant="ghost"
@@ -318,7 +343,9 @@ function Panel({
           startIcon={<icons.assistant aria-hidden />}
           asChild
         >
-          <a href="/time-off/request/describe">Describe it instead</a>
+          <a href="/time-off/request/describe">
+            {tr('request.request.describe_it_instead', 'Describe it instead')}
+          </a>
         </Button>
       </DialogHeader>
       <DialogBody>
@@ -334,15 +361,27 @@ function Panel({
             <DatePicker data={data} className={shown('dates')} ask={ask} />
             <div className={`flex flex-col gap-4 ${shown('review') ?? ''}`}>
               {data.problem === null ? null : (
-                <Alert tone="danger" title="Those dates cannot be asked for">
+                <Alert
+                  tone="danger"
+                  title={tr(
+                    'request.request.those_dates_cannot_be_asked_for',
+                    'Those dates cannot be asked for',
+                  )}
+                >
                   {data.problem}
                 </Alert>
               )}
               {preview === null || type === null ? (
                 <p className="text-sm text-fg-muted touch:hidden">
                   {type === null
-                    ? 'Choose a type, then the dates, to see what they cost.'
-                    : 'Choose the dates to see what they cost.'}
+                    ? tr(
+                        'request.request.choose_a_type_then_the_dates',
+                        'Choose a type, then the dates, to see what they cost.',
+                      )
+                    : tr(
+                        'request.request.choose_the_dates_to_see_what',
+                        'Choose the dates to see what they cost.',
+                      )}
                 </p>
               ) : (
                 <Consequences
@@ -355,7 +394,10 @@ function Panel({
                 />
               )}
               {failed === null ? null : (
-                <Alert tone="danger" title="The request was not sent">
+                <Alert
+                  tone="danger"
+                  title={tr('request.request.the_request_was_not_sent', 'The request was not sent')}
+                >
                   {failed}
                 </Alert>
               )}
@@ -366,7 +408,7 @@ function Panel({
       <DialogFooter className={step === 'type' ? 'touch:hidden' : undefined}>
         {/* At a desk: leave, or send. */}
         <Button className="touch:hidden" onClick={() => onNavigate?.(CLOSE)}>
-          Cancel
+          {tr('request.request.cancel', 'Cancel')}
         </Button>
         <Button
           variant="primary"
@@ -384,17 +426,19 @@ function Panel({
             <p className="min-w-0 flex-1">
               <span className="block truncate text-md font-bold">
                 {asked.from === null || asked.to === null
-                  ? 'No dates yet'
+                  ? tr('request.request.no_dates_yet', 'No dates yet')
                   : spanLabel(asked.from, asked.to)}
               </span>
               <span className="block truncate text-sm text-fg-muted">
                 {preview === null
-                  ? 'Pick the first and last day'
+                  ? tr('request.request.pick_the_first_and_last_day', 'Pick the first and last day')
                   : [
                       days(preview.span.workingDays),
                       preview.balance === null
                         ? null
-                        : `${amount(preview.balance.after)} left after`,
+                        : tr('request.request.left_after', '{{after}} left after', {
+                            after: amount(preview.balance.after),
+                          }),
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -408,7 +452,7 @@ function Panel({
                 ask({ step: 'review' }, 'push');
               }}
             >
-              Next
+              {tr('request.request.next', 'Next')}
             </Button>
           </div>
         ) : null}
@@ -422,15 +466,17 @@ const WIDE = 'sm:max-w-4xl';
 
 /** "Send to Marco", "Send to Marco and HR", "Send to HR", or "Send" when nobody approves it. */
 function sendTo(preview: RequestData['preview']): string {
-  if (preview === null) return 'Send request';
+  if (preview === null) return tr('request.request.send_request', 'Send request');
   const names = preview.approvers.map((role) =>
     role === 'manager' && preview.approver !== null
       ? (preview.approver.displayName.split(' ')[0] ?? preview.approver.displayName)
       : role === 'hr'
         ? 'HR'
-        : 'your manager',
+        : tr('request.request.your_manager', 'your manager'),
   );
-  return names.length === 0 ? 'Send' : `Send to ${names.join(' and ')}`;
+  return names.length === 0
+    ? tr('request.request.send', 'Send')
+    : tr('request.request.send_to', 'Send to {{join}}', { join: names.join(' and ') });
 }
 
 /* --------------------------------------------------------------- type -- */
@@ -449,7 +495,7 @@ function TypePicker({
   return (
     <section aria-labelledby="request-type" className={`flex flex-col gap-2 ${className ?? ''}`}>
       <h3 id="request-type" className="text-sm font-semibold text-fg-muted">
-        Type
+        {tr('request.request.type', 'Type')}
       </h3>
       <RadioGroup
         aria-labelledby="request-type"
@@ -468,10 +514,12 @@ function TypePicker({
             asChild
             icon={<icons.parental />}
             iconTone="neutral"
-            description="Opens the planner"
+            description={tr('request.request.opens_the_planner', 'Opens the planner')}
             chevron
           >
-            <a href="/time-off/parental/plan">Parental leave</a>
+            <a href="/time-off/parental/plan">
+              {tr('request.request.parental_leave', 'Parental leave')}
+            </a>
           </ListItem>
         </List>
       )}
@@ -482,9 +530,11 @@ function TypePicker({
 function leftOf(t: RequestData['leaveTypes'][number]): string {
   if (t.left === null)
     return t.category === 'sick_leave'
-      ? 'Paid · tell your manager today'
-      : 'Not taken from a balance';
-  return t.unit === 'hour' ? `${amount(t.left)}h banked` : `${days(t.left)} left`;
+      ? tr('request.request.paid_tell_your_manager_today', 'Paid · tell your manager today')
+      : tr('request.request.not_taken_from_a_balance', 'Not taken from a balance');
+  return t.unit === 'hour'
+    ? tr('request.request.h_banked', '{{left}}h banked', { left: amount(t.left) })
+    : tr('request.request.left', '{{days}} left', { days: days(t.left) });
 }
 
 /* -------------------------------------------------------------- dates -- */
@@ -521,14 +571,21 @@ function DatePicker({
   for (const c of short) {
     styles[c.date] = {
       appearance: 'danger',
-      label: `${String(c.in)} of ${String(c.of)} in, below the team minimum`,
+      label: tr(
+        'request.request.of_in_below_the_team_minimum',
+        '{{in}} of {{of}} in, below the team minimum',
+        { in: String(c.in), of: String(c.of) },
+      ),
     };
   }
   return (
-    <section aria-label="Dates" className={`flex flex-col gap-3 ${className ?? ''}`}>
+    <section
+      aria-label={tr('request.request.dates', 'Dates')}
+      className={`flex flex-col gap-3 ${className ?? ''}`}
+    >
       <Calendar
         mode="range"
-        label="Dates off"
+        label={tr('request.request.dates_off', 'Dates off')}
         today={data.today}
         month={`${asked.month}-01`}
         onMonthChange={(month) => {
@@ -549,17 +606,24 @@ function DatePicker({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl
           size="sm"
-          aria-label="Length"
+          aria-label={tr('request.request.length', 'Length')}
           value={asked.half ? 'half' : 'full'}
           onValueChange={(v) => {
             ask({ half: v === 'half' ? '1' : null });
           }}
         >
-          <SegmentedControlItem value="full">Full days</SegmentedControlItem>
-          <SegmentedControlItem value="half">Half day</SegmentedControlItem>
+          <SegmentedControlItem value="full">
+            {tr('request.request.full_days', 'Full days')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="half">
+            {tr('request.request.half_day', 'Half day')}
+          </SegmentedControlItem>
         </SegmentedControl>
         <p className="text-xs text-fg-muted">
-          Dots are teammates who are off; struck days are holidays.
+          {tr(
+            'request.request.dots_are_teammates_who_are_off',
+            'Dots are teammates who are off; struck days are holidays.',
+          )}
         </p>
       </div>
     </section>
@@ -591,15 +655,19 @@ function Consequences({
       <div className="grid gap-3 @min-[30rem]/panel:grid-cols-2">
         <Stat
           inset
-          label="You’ll be off"
+          label={tr('request.request.youll_be_off', 'You’ll be off')}
           icon={leaveIcon(type.icon)}
           value={longSpan(span.from, span.to)}
-          description={`${type.name} · ${days(span.workingDays)} · ${days(preview.daysAway.days)} away`}
+          description={tr('request.request.away', '{{name}} · {{days}} · {{days2}} away', {
+            name: type.name,
+            days: days(span.workingDays),
+            days2: days(preview.daysAway.days),
+          })}
         />
         {preview.balance === null ? null : (
           <Stat
             inset
-            label={`${type.name} left`}
+            label={tr('request.request.left_2', '{{name}} left', { name: type.name })}
             from={amount(preview.balance.before)}
             value={amount(preview.balance.after).replace(/^-/, '−')}
             unit={type.unit === 'hour' ? 'hours' : 'days'}
@@ -613,21 +681,34 @@ function Consequences({
         <Alert
           key={c.date}
           tone={preview.blocked ? 'danger' : 'warning'}
-          title={`${shortDate(c.date)}: only ${String(c.in)} of ${String(c.of)} would be in`}
+          title={tr(
+            'request.request.only_of_would_be_in',
+            '{{date}}: only {{in}} of {{of}} would be in',
+            { date: shortDate(c.date), in: String(c.in), of: String(c.of) },
+          )}
         >
-          {`Your team asks for at least ${String(c.required)}. `}
+          {tr(
+            'request.request.your_team_asks_for_at_least',
+            'Your team asks for at least {{required}}.',
+            { required: String(c.required) },
+          ) + ' '}
           {offOn(data, c.date)}
           {preview.blocked
-            ? 'Your team does not take requests below its minimum, so pick other dates.'
+            ? tr(
+                'request.request.your_team_does_not_take_requests',
+                'Your team does not take requests below its minimum, so pick other dates.',
+              )
             : approver === null
-              ? 'It can still be approved.'
-              : `${approver} can still approve it.`}
+              ? tr('request.request.it_can_still_be_approved', 'It can still be approved.')
+              : tr('request.request.can_still_approve_it', '{{approver}} can still approve it.', {
+                  approver,
+                })}
         </Alert>
       ))}
       {others.length === 0 ? null : (
         <section aria-labelledby="request-others" className="flex flex-col gap-2">
           <h3 id="request-others" className="text-sm font-semibold text-fg-muted">
-            Who else is off
+            {tr('request.request.who_else_is_off', 'Who else is off')}
           </h3>
           <List>
             {others.map((o) => (
@@ -635,7 +716,7 @@ function Consequences({
                 key={`${o.personId}${o.span.from}`}
                 leading={<Avatar name={o.name} />}
                 description={spanLabel(o.span.from, o.span.to)}
-                trailing={<Badge size="sm">{o.type ?? 'Off'}</Badge>}
+                trailing={<Badge size="sm">{o.type ?? tr('request.request.off', 'Off')}</Badge>}
               >
                 {o.name}
               </ListItem>
@@ -646,13 +727,21 @@ function Consequences({
       {preview.approvers.length === 0 ? null : (
         <Field>
           <FieldLabel>
-            {approver === null ? 'Note (optional)' : `Note for ${approver} (optional)`}
+            {approver === null
+              ? tr('request.request.note_optional', 'Note (optional)')
+              : tr('request.request.note_for_optional', 'Note for {{approver}} (optional)', {
+                  approver,
+                })}
           </FieldLabel>
           <FieldControl>
             <Textarea
               value={note}
               rows={2}
-              placeholder={`Anything ${approver ?? 'your approver'} should know`}
+              placeholder={tr(
+                'request.request.anything_should_know',
+                'Anything {{value}} should know',
+                { value: approver ?? 'your approver' },
+              )}
               onChange={(e) => {
                 onNote(e.target.value);
               }}
@@ -690,8 +779,18 @@ function offOn(data: RequestData, date: string): string {
   }).map((o) => o.name.split(' ')[0] ?? o.name);
   if (names.length === 0) return '';
   const list =
-    names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${String(names.at(-1))}`;
-  return `${String(list)} ${names.length === 1 ? 'is' : 'are'} already off that day. `;
+    names.length === 1
+      ? names[0]
+      : tr('request.request.and', '{{join}} and {{at}}', {
+          join: names.slice(0, -1).join(', '),
+          at: String(names.at(-1)),
+        });
+  return (
+    tr('request.request.already_off_that_day', '{{list}} {{value}} already off that day.', {
+      list: String(list),
+      value: names.length === 1 ? 'is' : 'are',
+    }) + ' '
+  );
 }
 
 /* ---------------------------------------------------------- below zero -- */
@@ -714,7 +813,9 @@ function BelowZero({
   const below = preview.balance === null ? '' : amount(preview.balance.after).replace(/^-/, '');
   const nextYear = String(Number(span.from.slice(0, 4)) + 1);
   const who = negative.approvers
-    .map((r) => (r === 'manager' ? (approver ?? 'Your manager') : 'HR'))
+    .map((r) =>
+      r === 'manager' ? (approver ?? tr('request.request.your_manager_2', 'Your manager')) : 'HR',
+    )
     .join(' and ');
   const choices: ReactNode[] = [];
   if (negative.kind === 'borrow') {
@@ -724,10 +825,14 @@ function BelowZero({
         value="borrow"
         badge={
           <Badge size="sm" tone="accent">
-            Suggested
+            {tr('request.request.suggested', 'Suggested')}
           </Badge>
         }
-        description={`You keep all ${amount(span.workingDays)} days as paid time off.`}
+        description={tr(
+          'request.request.you_keep_all_days_as_paid',
+          'You keep all {{workingDays}} days as paid time off.',
+          { workingDays: amount(span.workingDays) },
+        )}
         impact={`${nextYear} starts at ${amount(negative.nextYearStartsAt ?? '0')}`}
       >
         {`Borrow ${amount(negative.days ?? '0')} days from ${nextYear}`}
@@ -740,7 +845,10 @@ function BelowZero({
         key="unpaid"
         value="unpaid"
         disabled
-        description="Not offered here yet: Time Off cannot split one request into paid and unpaid days. Ask HR."
+        description={tr(
+          'request.request.not_offered_here_yet_time_off',
+          'Not offered here yet: Time Off cannot split one request into paid and unpaid days. Ask HR.',
+        )}
       >
         {`Make ${amount(negative.unpaid.days)} days unpaid`}
       </RadioCard>,
@@ -752,7 +860,9 @@ function BelowZero({
       <RadioCard
         key="shorten"
         value="shorten"
-        description={`${days(shorten.days)} fits your balance.`}
+        description={tr('request.request.fits_your_balance', '{{days}} fits your balance.', {
+          days: days(shorten.days),
+        })}
         impact="Nothing borrowed"
       >
         {`Shorten to ${spanLabel(span.from, shorten.to)}${shorten.endsHalfDay ? ', half the last day' : ''}`}
@@ -762,43 +872,82 @@ function BelowZero({
   return (
     <>
       {negative.kind === 'borrow' ? (
-        <Alert tone="warning" title={`This takes you ${below} days below zero`}>
-          {`You can borrow up to the company’s limit from next year’s allowance. ${who} need to approve it.`}
+        <Alert
+          tone="warning"
+          title={tr(
+            'request.request.this_takes_you_days_below_zero',
+            'This takes you {{below}} days below zero',
+            { below },
+          )}
+        >
+          {tr(
+            'request.request.you_can_borrow_up_to_the',
+            'You can borrow up to the company’s limit from next year’s allowance. {{who}} need to approve it.',
+            { who },
+          )}
         </Alert>
       ) : (
         <Alert
           tone="danger"
-          title={`This goes past the ${amount(negative.limit ?? '0')} days you can go below zero`}
+          title={tr(
+            'request.request.this_goes_past_the_days_you',
+            'This goes past the {{amount}} days you can go below zero',
+            { amount: amount(negative.limit ?? '0') },
+          )}
         >
-          Shorten it to dates that fit, or ask HR.
+          {tr(
+            'request.request.shorten_it_to_dates_that_fit',
+            'Shorten it to dates that fit, or ask HR.',
+          )}
         </Alert>
       )}
       {negative.kind === 'borrow' ? (
         <section aria-labelledby="request-borrow" className="flex flex-col gap-2">
           <h3 id="request-borrow" className="text-sm font-semibold text-fg-muted">
-            What borrowing means
+            {tr('request.request.what_borrowing_means', 'What borrowing means')}
           </h3>
           <List>
             <ListItem
               icon={<icons.calendar />}
               iconTone="neutral"
-              description={`${amount(negative.days ?? '0')} of next year’s days are used now.`}
+              description={tr(
+                'request.request.of_next_years_days_are_used',
+                '{{amount}} of next year’s days are used now.',
+                { amount: amount(negative.days ?? '0') },
+              )}
             >
-              {`Your ${nextYear} allowance starts at ${amount(negative.nextYearStartsAt ?? '0')}`}
+              {tr(
+                'request.request.your_allowance_starts_at',
+                'Your {{nextYear}} allowance starts at {{amount}}',
+                { nextYear, amount: amount(negative.nextYearStartsAt ?? '0') },
+              )}
             </ListItem>
             <ListItem
               icon={<icons.payroll />}
               iconTone="neutral"
-              description={`The ${amount(negative.days ?? '0')} days come out of your final pay.`}
+              description={tr(
+                'request.request.the_days_come_out_of_your',
+                'The {{amount}} days come out of your final pay.',
+                { amount: amount(negative.days ?? '0') },
+              )}
             >
-              If you leave before you’ve earned them back
+              {tr(
+                'request.request.if_you_leave_before_youve_earned',
+                'If you leave before you’ve earned them back',
+              )}
             </ListItem>
             <ListItem
               icon={<icons.approve />}
               iconTone="neutral"
-              description={negative.approvers.length > 1 ? `${who}, in that order.` : who}
+              description={
+                negative.approvers.length > 1
+                  ? tr('request.request.in_that_order', '{{who}}, in that order.', { who })
+                  : who
+              }
             >
-              {negative.approvers.length > 1 ? 'Two approvals' : 'One approval'}
+              {negative.approvers.length > 1
+                ? tr('request.request.two_approvals', 'Two approvals')
+                : tr('request.request.one_approval', 'One approval')}
             </ListItem>
           </List>
         </section>
@@ -806,7 +955,9 @@ function BelowZero({
       {choices.length === 0 ? null : (
         <section aria-labelledby="request-instead" className="flex flex-col gap-2">
           <h3 id="request-instead" className="text-sm font-semibold text-fg-muted">
-            {negative.kind === 'borrow' ? 'Or instead' : 'What you can do'}
+            {negative.kind === 'borrow'
+              ? tr('request.request.or_instead', 'Or instead')
+              : tr('request.request.what_you_can_do', 'What you can do')}
           </h3>
           <RadioGroup
             aria-labelledby="request-instead"
@@ -832,7 +983,9 @@ function BelowZero({
 function PanelSkeleton(): JSX.Element {
   return (
     <div role="status" className={columns}>
-      <span className="sr-only">Loading the request panel</span>
+      <span className="sr-only">
+        {tr('request.request.loading_the_request_panel', 'Loading the request panel')}
+      </span>
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-12" />
         {[0, 1, 2, 3].map((n) => (

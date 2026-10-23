@@ -24,6 +24,7 @@ import {
   type SignatureStyle,
   type SignatureValue,
 } from './signature';
+import { t } from '../../lib/i18n';
 
 /**
  * Adopting a signature, as DocuSign asks for one: the person's name already
@@ -42,9 +43,12 @@ export function AdoptSignatureDialog({
   value = null,
   onOpenChange,
   onAdopt,
-  title = 'Adopt your signature',
-  action = 'Adopt',
-  note = 'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
+  title = t('components.signature.adopt-signature.adopt_your_signature', 'Adopt your signature'),
+  action = t('components.signature.adopt-signature.adopt', 'Adopt'),
+  note = t(
+    'components.signature.adopt-signature.by_adopting_it_you_agree_this',
+    'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
+  ),
 }: {
   readonly open: boolean;
   /** Their legal name: what a typed signature says. Empty when nobody knows it yet. */
@@ -80,24 +84,35 @@ export function AdoptSignatureDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Choose how it looks, or draw it.</DialogDescription>
+          <DialogDescription>
+            {t(
+              'components.signature.adopt-signature.choose_how_it_looks_or_draw',
+              'Choose how it looks, or draw it.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <SegmentedControl
-            aria-label="How you sign"
+            aria-label={t('components.signature.adopt-signature.how_you_sign', 'How you sign')}
             fullWidth
             value={how}
             onValueChange={(v) => {
               setHow(v === 'draw' ? 'draw' : 'type');
             }}
           >
-            <SegmentedControlItem value="type">Choose a style</SegmentedControlItem>
-            <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
+            <SegmentedControlItem value="type">
+              {t('components.signature.adopt-signature.choose_a_style', 'Choose a style')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="draw">
+              {t('components.signature.adopt-signature.draw', 'Draw')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {how === 'type' ? (
             <>
               <Field disabled={locked}>
-                <FieldLabel>Your legal name</FieldLabel>
+                <FieldLabel>
+                  {t('components.signature.adopt-signature.your_legal_name', 'Your legal name')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={typed}
@@ -110,12 +125,15 @@ export function AdoptSignatureDialog({
                 </FieldControl>
                 {locked ? (
                   <FieldDescription>
-                    A signature is your legal first and last name, as your company keeps them.
+                    {t(
+                      'components.signature.adopt-signature.a_signature_is_your_legal_first',
+                      'A signature is your legal first and last name, as your company keeps them.',
+                    )}
                   </FieldDescription>
                 ) : null}
               </Field>
               <RadioGroup
-                aria-label="Style"
+                aria-label={t('components.signature.adopt-signature.style', 'Style')}
                 value={style}
                 onValueChange={(v) => {
                   setStyle(v as SignatureStyle);
@@ -130,7 +148,14 @@ export function AdoptSignatureDialog({
                       <span className="block h-14 w-full">
                         <Signature
                           value={{ kind: 'typed', text: shown, style: k }}
-                          label={`${shown}, in the ${SIGNATURE_STYLE_LABEL[k].toLowerCase()} style`}
+                          label={t(
+                            'components.signature.adopt-signature.in_the_style',
+                            '{{shown}}, in the {{SIGNATURE_STYLE_LABEL}} style',
+                            {
+                              shown,
+                              SIGNATURE_STYLE_LABEL: SIGNATURE_STYLE_LABEL[k].toLowerCase(),
+                            },
+                          )}
                         />
                       </span>
                     }
@@ -141,7 +166,14 @@ export function AdoptSignatureDialog({
               </RadioGroup>
             </>
           ) : (
-            <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
+            <SignaturePad
+              label={t(
+                'components.signature.adopt-signature.draw_your_signature',
+                'Draw your signature',
+              )}
+              value={path}
+              onValueChange={setPath}
+            />
           )}
           <p className="text-xs text-fg-muted">{note}</p>
         </DialogBody>
@@ -152,7 +184,7 @@ export function AdoptSignatureDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('components.signature.adopt-signature.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -208,10 +240,15 @@ export function SignatureInput({
       >
         {value === null ? (
           <p className="grid size-full place-items-center text-sm text-fg-muted">
-            No signature yet
+            {t('components.signature.adopt-signature.no_signature_yet', 'No signature yet')}
           </p>
         ) : (
-          <Signature value={value} label={`${name}’s signature`} />
+          <Signature
+            value={value}
+            label={t('components.signature.adopt-signature.s_signature', '{{name}}’s signature', {
+              name,
+            })}
+          />
         )}
       </div>
       <Button
@@ -225,13 +262,22 @@ export function SignatureInput({
           setOpen(true);
         }}
       >
-        {value === null ? 'Adopt a signature' : 'Change it'}
+        {value === null
+          ? t('components.signature.adopt-signature.adopt_a_signature', 'Adopt a signature')
+          : t('components.signature.adopt-signature.change_it', 'Change it')}
       </Button>
       <AdoptSignatureDialog
         open={open}
         name={name}
         value={value}
-        title={value === null ? 'Adopt your signature' : 'Change your signature'}
+        title={
+          value === null
+            ? t('components.signature.adopt-signature.adopt_your_signature', 'Adopt your signature')
+            : t(
+                'components.signature.adopt-signature.change_your_signature',
+                'Change your signature',
+              )
+        }
         onOpenChange={setOpen}
         onAdopt={(next) => {
           onChange(next);

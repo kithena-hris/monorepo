@@ -53,6 +53,7 @@ import {
   type Act,
 } from './shared';
 import type { Answers, FormDefinition, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Learning (PRD §15; design PF15 v2): what is assigned to me, the catalogue,
@@ -62,10 +63,10 @@ import type { Answers, FormDefinition, ScreenProps } from './types';
 
 type Tone = 'neutral' | 'accent' | 'info' | 'success' | 'warning' | 'danger';
 const STATE: Readonly<Record<string, readonly [string, Tone]>> = {
-  not_started: ['Assigned', 'neutral'],
-  in_progress: ['In progress', 'warning'],
-  done: ['Completed', 'success'],
-  going: ['Going', 'info'],
+  not_started: [tr('learning.assigned', 'Assigned'), 'neutral'],
+  in_progress: [tr('learning.in_progress', 'In progress'), 'warning'],
+  done: [tr('learning.completed', 'Completed'), 'success'],
+  going: [tr('learning.going', 'Going'), 'info'],
 };
 
 function StateBadge({
@@ -81,7 +82,7 @@ function StateBadge({
     state !== 'done' &&
     due < new Date().toISOString().slice(0, 10);
   const [label, tone] = late
-    ? (['Overdue', 'danger'] as const)
+    ? ([tr('learning.overdue', 'Overdue'), 'danger'] as const)
     : (STATE[state] ?? [state, 'neutral']);
   return (
     <Badge size="sm" tone={tone}>
@@ -91,13 +92,13 @@ function StateBadge({
 }
 
 const KINDS = [
-  ['course', 'External course'],
-  ['session', 'Live session'],
-  ['recording', 'Recording'],
-  ['document', 'Document'],
-  ['quiz', 'Quiz'],
-  ['path', 'Path'],
-  ['link', 'Link'],
+  ['course', tr('learning.external_course', 'External course')],
+  ['session', tr('learning.live_session', 'Live session')],
+  ['recording', tr('learning.recording', 'Recording')],
+  ['document', tr('learning.document', 'Document')],
+  ['quiz', tr('learning.quiz', 'Quiz')],
+  ['path', tr('learning.path', 'Path')],
+  ['link', tr('learning.link', 'Link')],
 ] as const;
 const kindWord = (k: string): string => KINDS.find(([v]) => v === k)?.[1] ?? k;
 
@@ -156,7 +157,7 @@ function catalogueColumns(
   return [
     {
       id: 'item',
-      header: 'Item',
+      header: tr('learning.item', 'Item'),
       sortBy: (i) => i.title,
       cell: (i) => (
         <>
@@ -171,23 +172,27 @@ function catalogueColumns(
     },
     {
       id: 'kind',
-      header: 'Kind',
+      header: tr('learning.kind', 'Kind'),
       sortBy: (i) => i.kind,
       cell: (i) => <span className="text-sm">{kindWord(i.kind)}</span>,
     },
     {
       id: 'length',
-      header: 'Length',
+      header: tr('learning.length', 'Length'),
       numeric: true,
       hideOnCard: true,
       sortBy: (i) => i.minutes,
       cell: (i) => (
-        <span className="text-sm">{i.minutes === 0 ? '—' : `${String(i.minutes)} min`}</span>
+        <span className="text-sm">
+          {i.minutes === 0
+            ? '—'
+            : tr('learning.min', '{{minutes}} min', { minutes: String(i.minutes) })}
+        </span>
       ),
     },
     {
       id: 'assigned',
-      header: 'Assigned',
+      header: tr('learning.assigned', 'Assigned'),
       numeric: true,
       sortBy: (i) => i.assigned,
       cell: (i) => <span className="text-sm">{plural(i.assigned, 'person', 'people')}</span>,
@@ -197,7 +202,7 @@ function catalogueColumns(
       : [
           {
             id: 'assign',
-            header: <span className="sr-only">Assign</span>,
+            header: <span className="sr-only">{tr('learning.assign', 'Assign')}</span>,
             cardTrailing: true,
             cell: (i: CatalogueRow) => (
               <Button
@@ -207,7 +212,7 @@ function catalogueColumns(
                   assign(i.id);
                 }}
               >
-                Assign
+                {tr('learning.assign', 'Assign')}
               </Button>
             ),
           },
@@ -225,8 +230,11 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Learning"
-            description="Courses, sessions and documents: what is assigned to you, and everything the company offers."
+            title={tr('learning.learning', 'Learning')}
+            description={tr(
+              'learning.courses_sessions_and_documents_what_is',
+              'Courses, sessions and documents: what is assigned to you, and everything the company offers.',
+            )}
             actions={
               <>
                 {data.hr ? (
@@ -236,7 +244,7 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                       setImporting(true);
                     }}
                   >
-                    Import completions
+                    {tr('learning.import_completions', 'Import completions')}
                   </Button>
                 ) : null}
                 {data.hr ? (
@@ -246,7 +254,7 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                       setAdding(true);
                     }}
                   >
-                    Add an item
+                    {tr('learning.add_an_item', 'Add an item')}
                   </Button>
                 ) : null}
               </>
@@ -259,18 +267,21 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                 {data.assigned.length === 0 ? (
                   <EmptyState
                     icon={<icons.document aria-hidden />}
-                    title="Nothing assigned"
-                    description="What your company or your manager assigns you shows here and in your Inbox."
+                    title={tr('learning.nothing_assigned', 'Nothing assigned')}
+                    description={tr(
+                      'learning.what_your_company_or_your_manager',
+                      'What your company or your manager assigns you shows here and in your Inbox.',
+                    )}
                   />
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Why</TableHead>
-                        <TableHead>Due</TableHead>
-                        <TableHead>Progress</TableHead>
-                        <TableHead>State</TableHead>
+                        <TableHead>{tr('learning.item', 'Item')}</TableHead>
+                        <TableHead>{tr('learning.why', 'Why')}</TableHead>
+                        <TableHead>{tr('learning.due', 'Due')}</TableHead>
+                        <TableHead>{tr('learning.progress', 'Progress')}</TableHead>
+                        <TableHead>{tr('learning.state', 'State')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -291,7 +302,10 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                           <TableCell className="text-sm">{day(a.due)}</TableCell>
                           <TableCell className="text-sm">
                             {a.state === 'done'
-                              ? `Completed ${day(a.completedAt)}${a.expires === null ? '' : ` · expires ${day(a.expires)}`}`
+                              ? tr('learning.completed_2', 'Completed {{completedAt}}{{value}}', {
+                                  completedAt: day(a.completedAt),
+                                  value: a.expires === null ? '' : ` · expires ${day(a.expires)}`,
+                                })
                               : (a.progress ?? '—')}
                           </TableCell>
                           <TableCell>
@@ -307,12 +321,12 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
           ) : null}
           {data.tab === 'catalogue' ? (
             <DataTable<CatalogueRow>
-              label="Catalogue"
+              label={tr('learning.catalogue', 'Catalogue')}
               rows={data.catalogue}
               rowId={itemId}
               describeRow={itemTitle}
               fill
-              empty="Nothing in the catalogue yet"
+              empty={tr('learning.nothing_in_the_catalogue_yet', 'Nothing in the catalogue yet')}
               columns={catalogueColumns(
                 props.onNavigate,
                 data.hr || data.manager ? setAssigning : null,
@@ -325,8 +339,11 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                 {data.sessions.length === 0 ? (
                   <EmptyState
                     icon={<icons.calendar aria-hidden />}
-                    title="No sessions planned"
-                    description="Live sessions, in a room or online, are listed with who is going."
+                    title={tr('learning.no_sessions_planned', 'No sessions planned')}
+                    description={tr(
+                      'learning.live_sessions_in_a_room_or',
+                      'Live sessions, in a room or online, are listed with who is going.',
+                    )}
                   />
                 ) : (
                   <List>
@@ -334,15 +351,20 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                       <ListItem
                         key={s.sessionId}
                         icon={<icons.meeting />}
-                        description={`${when(s.start)} · ${s.place ?? s.online ?? 'Online'}`}
-                        meta={`${plural(s.going, 'person', 'people')} going`}
+                        description={tr('learning.text', '{{start}} · {{value}}', {
+                          start: when(s.start),
+                          value: s.place ?? s.online ?? 'Online',
+                        })}
+                        meta={tr('learning.going_2', '{{going}} going', {
+                          going: plural(s.going, 'person', 'people'),
+                        })}
                         trailing={
                           data.hr ? (
                             <Button size="sm" variant="secondary" asChild>
                               <a
                                 href={`/performance/learning/items/${s.itemId}/sessions/${s.sessionId}`}
                               >
-                                Attendance
+                                {tr('learning.attendance', 'Attendance')}
                               </a>
                             </Button>
                           ) : null
@@ -409,13 +431,19 @@ function Assign({
     <StepDialog
       open
       onClose={onClose}
-      title={`Assign ${title}`}
-      steps={['What', 'Who', 'Due and repeat']}
+      title={tr('learning.assign_2', 'Assign {{title}}', { title })}
+      steps={[
+        tr('learning.what', 'What'),
+        tr('learning.who', 'Who'),
+        tr('learning.due_and_repeat', 'Due and repeat'),
+      ]}
       step={step}
       onStep={setStep}
       pending={act.pending}
       canNext={step !== 1 || people.length > 0}
-      finishLabel={`Assign to ${plural(people.length, 'person', 'people')}`}
+      finishLabel={tr('learning.assign_to', 'Assign to {{length}}', {
+        length: plural(people.length, 'person', 'people'),
+      })}
       finish={() => {
         act.run(
           'AssignPerformanceLearning',
@@ -432,7 +460,9 @@ function Assign({
         <div className="flex flex-col gap-3">
           <p className="font-semibold">{title}</p>
           <Field>
-            <FieldLabel>Why, as the learner reads it</FieldLabel>
+            <FieldLabel>
+              {tr('learning.why_as_the_learner_reads_it', 'Why, as the learner reads it')}
+            </FieldLabel>
             <Input
               value={why}
               onChange={(e) => {
@@ -443,15 +473,21 @@ function Assign({
         </div>
       ) : null}
       {step === 1 ? (
-        <PersonPicker act={act} label="Who" value={people} onChange={setPeople} many />
+        <PersonPicker
+          act={act}
+          label={tr('learning.who', 'Who')}
+          value={people}
+          onChange={setPeople}
+          many
+        />
       ) : null}
       {step === 2 ? (
         <div className="flex flex-col gap-3">
           <Field>
-            <FieldLabel>Due</FieldLabel>
+            <FieldLabel>{tr('learning.due', 'Due')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Due"
+                label={tr('learning.due', 'Due')}
                 value={due === '' ? null : due}
                 onChange={(date) => {
                   setDue(date ?? '');
@@ -460,7 +496,10 @@ function Assign({
             </FieldControl>
           </Field>
           <p className="text-sm text-fg-muted">
-            An item that recurs is assigned again when it expires, on the item’s own schedule.
+            {tr(
+              'learning.an_item_that_recurs_is_assigned',
+              'An item that recurs is assigned again when it expires, on the item’s own schedule.',
+            )}
           </p>
         </div>
       ) : null}
@@ -488,11 +527,11 @@ function NewItem({
     <Modal
       open
       onClose={onClose}
-      title="Add a learning item"
+      title={tr('learning.add_a_learning_item', 'Add a learning item')}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {tr('learning.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={title.trim() === '' || (kind === 'session' && start === '')}
@@ -534,14 +573,14 @@ function NewItem({
               );
             }}
           >
-            Add
+            {tr('learning.add', 'Add')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field required>
-        <FieldLabel>Title</FieldLabel>
+        <FieldLabel>{tr('learning.title', 'Title')}</FieldLabel>
         <Input
           value={title}
           onChange={(e) => {
@@ -549,9 +588,9 @@ function NewItem({
           }}
         />
       </Field>
-      <Choose label="Kind" value={kind} options={KINDS} onChange={setKind} />
+      <Choose label={tr('learning.kind', 'Kind')} value={kind} options={KINDS} onChange={setKind} />
       <Field>
-        <FieldLabel>Provider</FieldLabel>
+        <FieldLabel>{tr('learning.provider', 'Provider')}</FieldLabel>
         <Input
           value={provider}
           onChange={(e) => {
@@ -559,14 +598,20 @@ function NewItem({
           }}
         />
       </Field>
-      <NumberField label="Length" suffix="min" value={minutes} min={0} onChange={setMinutes} />
+      <NumberField
+        label={tr('learning.length', 'Length')}
+        suffix={tr('learning.min_2', 'min')}
+        value={minutes}
+        min={0}
+        onChange={setMinutes}
+      />
       {kind === 'session' ? (
         <>
           <Field required>
-            <FieldLabel>Starts</FieldLabel>
+            <FieldLabel>{tr('learning.starts', 'Starts')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Starts"
+                label={tr('learning.starts', 'Starts')}
                 value={start === '' ? null : start.slice(0, 10)}
                 onChange={(d) => {
                   setStart(d === null ? '' : `${d}T${start.slice(11, 16) || '09:00'}`);
@@ -575,10 +620,10 @@ function NewItem({
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>At</FieldLabel>
+            <FieldLabel>{tr('learning.at', 'At')}</FieldLabel>
             <FieldControl>
               <TimePicker
-                label="At"
+                label={tr('learning.at', 'At')}
                 value={start === '' ? null : start.slice(11, 16)}
                 onChange={(t) => {
                   if (t !== null && start !== '') setStart(`${start.slice(0, 10)}T${t}`);
@@ -589,7 +634,7 @@ function NewItem({
         </>
       ) : (
         <Field>
-          <FieldLabel>Link</FieldLabel>
+          <FieldLabel>{tr('learning.link', 'Link')}</FieldLabel>
           <Input
             type="url"
             value={url}
@@ -601,13 +646,21 @@ function NewItem({
         </Field>
       )}
       <Field>
-        <FieldLabel>Acknowledgement the learner confirms</FieldLabel>
+        <FieldLabel>
+          {tr(
+            'learning.acknowledgement_the_learner_confirms',
+            'Acknowledgement the learner confirms',
+          )}
+        </FieldLabel>
         <Input
           value={ack}
           onChange={(e) => {
             setAck(e.target.value);
           }}
-          placeholder="I have read and understood the policy"
+          placeholder={tr(
+            'learning.i_have_read_and_understood_the',
+            'I have read and understood the policy',
+          )}
         />
       </Field>
     </Modal>
@@ -630,12 +683,15 @@ function ImportCompletions({
     <Modal
       open
       onClose={onClose}
-      title="Import completions"
-      description="One row per completion: email, item title, completed on. Rows that match nobody are listed, never guessed."
+      title={tr('learning.import_completions', 'Import completions')}
+      description={tr(
+        'learning.one_row_per_completion_email_item',
+        'One row per completion: email, item title, completed on. Rows that match nobody are listed, never guessed.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Close
+            {tr('learning.close', 'Close')}
           </Button>
           <Button
             disabled={csv.trim() === ''}
@@ -646,15 +702,15 @@ function ImportCompletions({
               });
             }}
           >
-            Import
+            {tr('learning.import', 'Import')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Dropzone
-        label="Drop a CSV file, or choose one"
-        hint="Or paste the rows below."
+        label={tr('learning.drop_a_csv_file_or_choose', 'Drop a CSV file, or choose one')}
+        hint={tr('learning.or_paste_the_rows_below', 'Or paste the rows below.')}
         accept=".csv,text/csv"
         rejectMessage="Only a CSV file"
         onFiles={(files) => {
@@ -662,21 +718,30 @@ function ImportCompletions({
         }}
       />
       <Textarea
-        aria-label="Completions"
+        aria-label={tr('learning.completions', 'Completions')}
         className="font-mono"
         rows={8}
         value={csv}
         onChange={(e) => {
           setCsv(e.target.value);
         }}
-        placeholder={'email,item,completed\nadam@acme.com,Security basics,2026-10-01'}
+        placeholder={tr(
+          'learning.email_item_completed_adam_acme_com',
+          'email,item,completed adam@acme.com,Security basics,2026-10-01',
+        )}
       />
       {result === null ? null : (
         <Alert
           tone={result.unmatched.length === 0 ? 'success' : 'warning'}
-          title={`${String(result.matched)} matched · ${String(result.unmatched.length)} unmatched`}
+          title={tr('learning.matched_unmatched', '{{matched}} matched · {{length}} unmatched', {
+            matched: String(result.matched),
+            length: String(result.unmatched.length),
+          })}
         >
-          Unmatched rows stay out until someone fixes the email or the item.
+          {tr(
+            'learning.unmatched_rows_stay_out_until_someone',
+            'Unmatched rows stay out until someone fixes the email or the item.',
+          )}
         </Alert>
       )}
     </Modal>
@@ -747,12 +812,16 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={item.title}
-            description={`${kindWord(item.kind)} · ${item.provider}${item.minutes === 0 ? '' : ` · ${String(item.minutes)} min`}`}
+            description={tr('learning.text_2', '{{kindWord}} · {{provider}}{{value}}', {
+              kindWord: kindWord(item.kind),
+              provider: item.provider,
+              value: item.minutes === 0 ? '' : ` · ${String(item.minutes)} min`,
+            })}
             actions={
               item.url === null ? null : (
                 <Button asChild startIcon={<icons.externalLink aria-hidden />}>
                   <a href={item.url} target="_blank" rel="noreferrer">
-                    Open
+                    {tr('learning.open', 'Open')}
                   </a>
                 </Button>
               )
@@ -760,8 +829,10 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
           />
           <Refusal error={act.error} />
           {a === null ? (
-            <Alert tone="info" title="Not assigned to you">
-              {hr ? 'Assign it from the catalogue.' : 'You can still open it.'}
+            <Alert tone="info" title={tr('learning.not_assigned_to_you', 'Not assigned to you')}>
+              {hr
+                ? tr('learning.assign_it_from_the_catalogue', 'Assign it from the catalogue.')
+                : tr('learning.you_can_still_open_it', 'You can still open it.')}
             </Alert>
           ) : (
             <Card>
@@ -769,15 +840,23 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                 <KeyValues
                   layout="split"
                   items={[
-                    { label: 'State', value: <StateBadge state={a.state} due={a.due} /> },
-                    { label: 'Why', value: a.why },
-                    { label: 'Due', value: day(a.due) },
+                    {
+                      label: tr('learning.state', 'State'),
+                      value: <StateBadge state={a.state} due={a.due} />,
+                    },
+                    { label: tr('learning.why', 'Why'), value: a.why },
+                    { label: tr('learning.due', 'Due'), value: day(a.due) },
                     ...(a.completedAt === null
                       ? []
-                      : [{ label: 'Completed', value: day(a.completedAt) }]),
+                      : [
+                          {
+                            label: tr('learning.completed', 'Completed'),
+                            value: day(a.completedAt),
+                          },
+                        ]),
                     ...(a.expiresOn === null
                       ? []
-                      : [{ label: 'Expires', value: day(a.expiresOn) }]),
+                      : [{ label: tr('learning.expires', 'Expires'), value: day(a.expiresOn) }]),
                   ]}
                 />
               </CardContent>
@@ -786,9 +865,12 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
           {item.parts.length === 0 ? null : (
             <Card>
               <CardHeader>
-                <CardTitle
-                  level={2}
-                >{`Parts · ${String(a?.done.length ?? 0)} of ${String(item.parts.length)}`}</CardTitle>
+                <CardTitle level={2}>
+                  {tr('learning.parts_of', 'Parts · {{value}} of {{length}}', {
+                    value: String(a?.done.length ?? 0),
+                    length: String(item.parts.length),
+                  })}
+                </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 <Progress
@@ -797,7 +879,7 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                       ? 0
                       : Math.round(((a?.done.length ?? 0) / item.parts.length) * 100)
                   }
-                  label="Parts done"
+                  label={tr('learning.parts_done', 'Parts done')}
                 />
                 {item.parts.map((p) => (
                   <Field key={p.id} orientation="horizontal">
@@ -811,7 +893,12 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                         }}
                       />
                     </FieldControl>
-                    <FieldLabel>{`${p.title} · ${String(p.minutes)} min`}</FieldLabel>
+                    <FieldLabel>
+                      {tr('learning.min_3', '{{title}} · {{minutes}} min', {
+                        title: p.title,
+                        minutes: String(p.minutes),
+                      })}
+                    </FieldLabel>
                   </Field>
                 ))}
               </CardContent>
@@ -820,7 +907,7 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
           {item.sessions.length === 0 ? null : (
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Sessions</CardTitle>
+                <CardTitle level={2}>{tr('learning.sessions', 'Sessions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <List>
@@ -830,13 +917,15 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                       <ListItem
                         key={s.id}
                         icon={<icons.meeting />}
-                        description={s.place ?? s.online ?? 'Online'}
+                        description={s.place ?? s.online ?? tr('learning.online', 'Online')}
                         trailing={
                           <span className="flex flex-wrap items-center gap-2">
                             {a === null ? null : (
                               <SegmentedControl
                                 size="sm"
-                                aria-label={`Going on ${when(s.start)}`}
+                                aria-label={tr('learning.going_on', 'Going on {{start}}', {
+                                  start: when(s.start),
+                                })}
                                 value={mine?.invitation ?? ''}
                                 onValueChange={(v) => {
                                   act.run('RespondPerformanceSession', {
@@ -846,17 +935,21 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                                   });
                                 }}
                               >
-                                <SegmentedControlItem value="accepted">Going</SegmentedControlItem>
-                                <SegmentedControlItem value="tentative">Maybe</SegmentedControlItem>
+                                <SegmentedControlItem value="accepted">
+                                  {tr('learning.going', 'Going')}
+                                </SegmentedControlItem>
+                                <SegmentedControlItem value="tentative">
+                                  {tr('learning.maybe', 'Maybe')}
+                                </SegmentedControlItem>
                                 <SegmentedControlItem value="declined">
-                                  Not going
+                                  {tr('learning.not_going', 'Not going')}
                                 </SegmentedControlItem>
                               </SegmentedControl>
                             )}
                             {hr ? (
                               <Button size="sm" variant="secondary" asChild>
                                 <a href={`/performance/learning/items/${item.id}/sessions/${s.id}`}>
-                                  Attendance
+                                  {tr('learning.attendance', 'Attendance')}
                                 </a>
                               </Button>
                             ) : null}
@@ -882,10 +975,14 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                       act.run('AcknowledgePerformanceLearning', { id: a.id });
                     }}
                   >
-                    I confirm
+                    {tr('learning.i_confirm', 'I confirm')}
                   </Button>
                 ) : (
-                  <Badge tone="success">{`Confirmed ${day(a.acknowledgedAt)}`}</Badge>
+                  <Badge tone="success">
+                    {tr('learning.confirmed', 'Confirmed {{acknowledgedAt}}', {
+                      acknowledgedAt: day(a.acknowledgedAt),
+                    })}
+                  </Badge>
                 )}
               </CardContent>
             </Card>
@@ -893,17 +990,29 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
           {item.quiz === null || a === null ? null : a.quiz?.passed === true ? (
             <Alert
               tone="success"
-              title={`Quiz passed · ${String(a.quiz.correct)} of ${String(a.quiz.of)}`}
+              title={tr('learning.quiz_passed_of', 'Quiz passed · {{correct}} of {{of}}', {
+                correct: String(a.quiz.correct),
+                of: String(a.quiz.of),
+              })}
             >
-              The pass mark is {String(item.quiz.passMark)}%.
+              {tr('learning.the_pass_mark_is', 'The pass mark is')} {String(item.quiz.passMark)}%.
             </Alert>
           ) : (
             <div className="flex flex-col gap-3">
               {a.quiz === null ? null : (
                 <Alert
                   tone="warning"
-                  title={`${String(a.quiz.correct)} of ${String(a.quiz.of)}: not passed yet`}
-                >{`The pass mark is ${String(item.quiz.passMark)}%. Try again.`}</Alert>
+                  title={tr('learning.of_not_passed_yet', '{{correct}} of {{of}}: not passed yet', {
+                    correct: String(a.quiz.correct),
+                    of: String(a.quiz.of),
+                  })}
+                >
+                  {tr(
+                    'learning.the_pass_mark_is_try_again',
+                    'The pass mark is {{passMark}}%. Try again.',
+                    { passMark: String(item.quiz.passMark) },
+                  )}
+                </Alert>
               )}
               <FormView
                 definition={item.quiz.definition}
@@ -920,7 +1029,7 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
                   act.run('SubmitPerformanceQuiz', { id: a.id, input: { answers } });
                 }}
               >
-                Submit the quiz
+                {tr('learning.submit_the_quiz', 'Submit the quiz')}
               </Button>
             </div>
           )}
@@ -966,7 +1075,12 @@ function qrPath(text: string): { path: string; size: number } {
       }
       const start = x;
       while (row[x]) x++;
-      path += `M${String(start)} ${String(y)}h${String(x - start)}v1h-${String(x - start)}z`;
+      path += tr('learning.m_h_v1h_z', 'M{{start}} {{y}}h{{value}}v1h-{{value2}}z', {
+        start: String(start),
+        y: String(y),
+        value: String(x - start),
+        value2: String(x - start),
+      });
     }
   });
   return { path, size };
@@ -977,7 +1091,7 @@ function DoorQr({ code }: { readonly code: string }): JSX.Element {
   return (
     <svg
       role="img"
-      aria-label={`The session’s code, ${code}`}
+      aria-label={tr('learning.the_sessions_code', 'The session’s code, {{code}}', { code })}
       viewBox={`0 0 ${String(qr.size)} ${String(qr.size)}`}
       shapeRendering="crispEdges"
       className="aspect-square w-40 rounded-md bg-white"
@@ -996,7 +1110,10 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
         <div className="flex flex-col gap-4">
           <PageHeader
             title={data.item.title}
-            description={`${when(data.session.start)} · ${data.session.place ?? data.session.online ?? 'Online'}`}
+            description={tr('learning.text', '{{start}} · {{value}}', {
+              start: when(data.session.start),
+              value: data.session.place ?? data.session.online ?? 'Online',
+            })}
           />
           <Refusal error={act.error} />
           <Card>
@@ -1004,14 +1121,21 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
               <DoorQr code={data.session.qr} />
               <span className="flex-1">
                 <span className="block text-sm text-fg-muted">
-                  Show this at the door: a learner scans it with the Kithena app, or types the code,
-                  and is marked as attending
+                  {tr(
+                    'learning.show_this_at_the_door_a',
+                    'Show this at the door: a learner scans it with the Kithena app, or types the code, and is marked as attending',
+                  )}
                 </span>
                 <span className="font-mono text-2xl font-bold tracking-widest">
                   {data.session.qr}
                 </span>
               </span>
-              <span className="text-sm text-fg-muted">{`${String(data.rows.filter((r) => r.attended !== null).length)} of ${String(data.rows.length)} attended`}</span>
+              <span className="text-sm text-fg-muted">
+                {tr('learning.of_attended', '{{length}} of {{length2}} attended', {
+                  length: String(data.rows.filter((r) => r.attended !== null).length),
+                  length2: String(data.rows.length),
+                })}
+              </span>
             </CardContent>
           </Card>
           <Card>
@@ -1019,9 +1143,9 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Person</TableHead>
-                    <TableHead>Invitation</TableHead>
-                    <TableHead>Attended</TableHead>
+                    <TableHead>{tr('learning.person', 'Person')}</TableHead>
+                    <TableHead>{tr('learning.invitation', 'Invitation')}</TableHead>
+                    <TableHead>{tr('learning.attended', 'Attended')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1046,8 +1170,15 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
                           </FieldControl>
                           <FieldLabel>
                             {r.attended === null
-                              ? 'No'
-                              : `Yes, ${r.attended.how === 'qr' ? 'by the code' : r.attended.how === 'hand' ? 'by hand' : 'from the meeting'}`}
+                              ? tr('learning.no', 'No')
+                              : tr('learning.yes', 'Yes, {{value}}', {
+                                  value:
+                                    r.attended.how === 'qr'
+                                      ? 'by the code'
+                                      : r.attended.how === 'hand'
+                                        ? 'by hand'
+                                        : 'from the meeting',
+                                })}
                           </FieldLabel>
                         </Field>
                       </TableCell>

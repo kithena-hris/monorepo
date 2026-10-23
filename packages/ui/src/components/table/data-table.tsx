@@ -85,6 +85,7 @@ import {
   TableRow,
   type SortDirection,
 } from './table';
+import { t } from '../../lib/i18n';
 
 /**
  * The table, with everything a table is asked for.
@@ -1080,7 +1081,12 @@ export function DataTable<T extends TableRow>({
   useEffect(() => {
     const added = rows.length - loadedBefore.current;
     loadedBefore.current = rows.length;
-    if (infinite.current && added > 0) setSaid(`${String(added)} more loaded`);
+    if (infinite.current && added > 0)
+      setSaid(
+        t('components.table.data-table.more_loaded', '{{added}} more loaded', {
+          added: String(added),
+        }),
+      );
   }, [rows.length]);
   const wantsEnd = onEndReached !== undefined && !loadingMore;
   const atEnd =
@@ -1219,7 +1225,7 @@ export function DataTable<T extends TableRow>({
         <TableRow className={CARD.headRow}>
           {canReorder ? (
             <TableHead className="w-10 touch:hidden">
-              <span className="sr-only">Reorder</span>
+              <span className="sr-only">{t('components.table.data-table.reorder', 'Reorder')}</span>
             </TableHead>
           ) : null}
 
@@ -1229,7 +1235,15 @@ export function DataTable<T extends TableRow>({
                 checked={allPicked ? true : somePicked ? 'indeterminate' : false}
                 // Named for what it does now, not for what it is. "Select all"
                 // on a table where everything is already selected is a lie.
-                aria-label={allPicked ? `Clear selection` : `Select all ${String(ids.length)} rows`}
+                aria-label={
+                  allPicked
+                    ? t('components.table.data-table.clear_selection', 'Clear selection')
+                    : t(
+                        'components.table.data-table.select_all_rows',
+                        'Select all {{length}} rows',
+                        { length: String(ids.length) },
+                      )
+                }
                 onCheckedChange={() => {
                   setPicked(allPicked ? [] : ids);
                 }}
@@ -1237,14 +1251,14 @@ export function DataTable<T extends TableRow>({
               {/* The cards have no header row to sit the box above, so it says
                   what it is. Hidden from assistive tech: the box is named. */}
               <span aria-hidden className="hidden text-sm font-semibold text-fg-muted touch:inline">
-                Select all
+                {t('components.table.data-table.select_all', 'Select all')}
               </span>
             </TableHead>
           ) : null}
 
           {renderDetail ? (
             <TableHead className="w-10 touch:hidden">
-              <span className="sr-only">Expand</span>
+              <span className="sr-only">{t('components.table.data-table.expand', 'Expand')}</span>
             </TableHead>
           ) : null}
 
@@ -1252,7 +1266,11 @@ export function DataTable<T extends TableRow>({
             const position = activeSorts.findIndex((entry) => entry.columnId === column.id);
             const current = activeSorts[position];
             const isSorted = current !== undefined;
-            const width = fixed ? `${String(widthFor(column))}px` : column.width;
+            const width = fixed
+              ? t('components.table.data-table.px', '{{widthFor}}px', {
+                  widthFor: String(widthFor(column)),
+                })
+              : column.width;
             return (
               <TableHead
                 key={column.id}
@@ -1304,7 +1322,7 @@ export function DataTable<T extends TableRow>({
 
           {rowActions ? (
             <TableHead className="w-12 touch:hidden">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{t('components.table.data-table.actions', 'Actions')}</span>
             </TableHead>
           ) : null}
         </TableRow>
@@ -1317,7 +1335,8 @@ export function DataTable<T extends TableRow>({
               className="touch:flex touch:w-full touch:items-center touch:gap-1.5 touch:px-4 touch:py-3 touch:text-sm touch:font-semibold touch:text-fg-muted"
             >
               <ArrowUpDown aria-hidden className="size-4" />
-              Sorted by {describeSorts(activeSorts, columns)}
+              {t('components.table.data-table.sorted_by', 'Sorted by')}{' '}
+              {describeSorts(activeSorts, columns)}
             </td>
           </tr>
         ) : null}
@@ -1445,7 +1464,11 @@ export function DataTable<T extends TableRow>({
           <TableRow aria-busy="true" className="touch:block" style={{ height: estimateRowHeight }}>
             {Array.from({ length: totalColumns }, (_, i) => (
               <TableCell key={i} className={i === 0 ? 'touch:block touch:h-13' : 'touch:hidden'}>
-                {i === 0 ? <span className="sr-only">Loading more</span> : null}
+                {i === 0 ? (
+                  <span className="sr-only">
+                    {t('components.table.data-table.loading_more', 'Loading more')}
+                  </span>
+                ) : null}
                 <Skeleton
                   className={cn('h-3.5', i === 0 ? 'w-40 max-w-full touch:w-full' : 'w-3/4')}
                 />
@@ -1488,8 +1511,10 @@ export function DataTable<T extends TableRow>({
     <div className="min-w-0 space-y-3">
       {reorderable && activeSorts.length > 0 ? (
         <p role="status" className="text-xs text-fg-muted">
-          Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag
-          them.
+          {t(
+            'components.table.data-table.rows_are_sorted_by_a_column',
+            'Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag them.',
+          )}
         </p>
       ) : null}
 
@@ -1669,7 +1694,7 @@ const BodyRow = memo(function BodyRow<T>({
           >
             <Checkbox
               checked={selected}
-              aria-label={`Select ${name}`}
+              aria-label={t('components.table.data-table.select', 'Select {{name}}', { name })}
               onClick={(event) => {
                 // The row may do something of its own; picking is not it.
                 event.stopPropagation();
@@ -1688,13 +1713,18 @@ const BodyRow = memo(function BodyRow<T>({
             {detail === null ? (
               // A chevron that opens onto nothing teaches people to
               // stop pressing them.
-              <span className="sr-only">No further detail</span>
+              <span className="sr-only">
+                {t('components.table.data-table.no_further_detail', 'No further detail')}
+              </span>
             ) : (
               <button
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={`${base}-${id}`}
-                aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${name}`}
+                aria-label={t('components.table.data-table.text', '{{value}} {{name}}', {
+                  value: isOpen ? 'Collapse' : 'Expand',
+                  name,
+                })}
                 onClick={(event) => {
                   event.stopPropagation();
                   events.toggle(id);
@@ -1877,7 +1907,7 @@ function DataRow({
           <button
             type="button"
             ref={setActivatorNodeRef}
-            aria-label={`Reorder ${name}`}
+            aria-label={t('components.table.data-table.reorder_2', 'Reorder {{name}}', { name })}
             className={cn(
               'flex size-tap cursor-grab touch-none items-center justify-center rounded-sm text-fg-subtle',
               'hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
@@ -1962,7 +1992,7 @@ function ResizeHandle({
     <span
       role="separator"
       aria-orientation="vertical"
-      aria-label={`Resize ${name}`}
+      aria-label={t('components.table.data-table.resize', 'Resize {{name}}', { name })}
       aria-valuenow={width}
       aria-valuemin={COLUMN_MIN}
       aria-valuemax={COLUMN_MAX}

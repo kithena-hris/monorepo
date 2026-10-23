@@ -83,6 +83,7 @@ import {
 } from '../context-menu/context-menu';
 import type { ChartTone } from '../chart/chart';
 import { fitInto, type Rect } from '../chart/geometry';
+import { t } from '../../lib/i18n';
 
 /**
  * Reporting lines, drawn.
@@ -905,7 +906,16 @@ export function OrgChart({
       const dy = (y - (parent?.y ?? 0)) / scale;
       if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
       element.animate(
-        [{ transform: `translate(${String(dx)}px, ${String(dy)}px)` }, { transform: 'none' }],
+        [
+          {
+            transform: t(
+              'components.org-chart.org-chart.translate_px_px',
+              'translate({{dx}}px, {{dy}}px)',
+              { dx: String(dx), dy: String(dy) },
+            ),
+          },
+          { transform: 'none' },
+        ],
         { duration, easing },
       );
     }
@@ -1191,11 +1201,13 @@ export function OrgChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Title</th>
-              <th scope="col">Reports to</th>
-              <th scope="col">Direct reports</th>
-              <th scope="col">Status</th>
+              <th scope="col">{t('components.org-chart.org-chart.name', 'Name')}</th>
+              <th scope="col">{t('components.org-chart.org-chart.title', 'Title')}</th>
+              <th scope="col">{t('components.org-chart.org-chart.reports_to', 'Reports to')}</th>
+              <th scope="col">
+                {t('components.org-chart.org-chart.direct_reports', 'Direct reports')}
+              </th>
+              <th scope="col">{t('components.org-chart.org-chart.status', 'Status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1269,7 +1281,11 @@ export function OrgChart({
       // has focus. Both are fixed by making the canvas a focusable region,
       // which is also what lets a test ask for it by role.
       role="region"
-      aria-label={`${label}, pan and zoom canvas`}
+      aria-label={t(
+        'components.org-chart.org-chart.pan_and_zoom_canvas',
+        '{{label}}, pan and zoom canvas',
+        { label },
+      )}
       tabIndex={0}
       className={cn(
         'relative overflow-auto overscroll-contain rounded-lg bg-canvas touch:rounded-[22px]',
@@ -1367,7 +1383,7 @@ export function OrgChart({
               }}
             >
               <Crosshair aria-hidden />
-              Show only this chain
+              {t('components.org-chart.org-chart.show_only_this_chain', 'Show only this chain')}
             </ContextMenuItem>
             <ContextMenuItem
               disabled={activeFocus === menuNode.id && activeMode === 'branch'}
@@ -1378,7 +1394,7 @@ export function OrgChart({
               }}
             >
               <ListTree aria-hidden />
-              Show their whole chart
+              {t('components.org-chart.org-chart.show_their_whole_chart', 'Show their whole chart')}
             </ContextMenuItem>
             {activeFocus === null ? null : (
               <ContextMenuItem
@@ -1387,7 +1403,7 @@ export function OrgChart({
                 }}
               >
                 <Undo2 aria-hidden />
-                Show whole org
+                {t('components.org-chart.org-chart.show_whole_org', 'Show whole org')}
               </ContextMenuItem>
             )}
 
@@ -1398,7 +1414,9 @@ export function OrgChart({
                 }}
               >
                 {menuRow.expanded ? <ChevronRight aria-hidden /> : <ChevronDown aria-hidden />}
-                {menuRow.expanded ? 'Hide reports' : 'Show reports'}
+                {menuRow.expanded
+                  ? t('components.org-chart.org-chart.hide_reports', 'Hide reports')
+                  : t('components.org-chart.org-chart.show_reports', 'Show reports')}
               </ContextMenuItem>
             ) : null}
 
@@ -1409,7 +1427,7 @@ export function OrgChart({
                 }}
               >
                 <CornerUpLeft aria-hidden />
-                Go to manager
+                {t('components.org-chart.org-chart.go_to_manager', 'Go to manager')}
               </ContextMenuItem>
             )}
 
@@ -1418,7 +1436,10 @@ export function OrgChart({
                 <ContextMenuSeparator />
                 <ContextMenuItem disabled>
                   <Lock aria-hidden />
-                  Reporting lines are read-only
+                  {t(
+                    'components.org-chart.org-chart.reporting_lines_are_read_only',
+                    'Reporting lines are read-only',
+                  )}
                 </ContextMenuItem>
               </>
             ) : null}
@@ -1433,7 +1454,7 @@ export function OrgChart({
                 <ContextMenuSub>
                   <ContextMenuSubTrigger disabled={menuNode.locked === true}>
                     <UserRoundCog aria-hidden />
-                    Report to
+                    {t('components.org-chart.org-chart.report_to', 'Report to')}
                   </ContextMenuSubTrigger>
                   <ContextMenuSubContent className="max-h-72 overflow-y-auto">
                     {managerOptions(menuNode).map((manager) => (
@@ -1470,7 +1491,7 @@ export function OrgChart({
               }}
             >
               <Maximize2 aria-hidden />
-              Expand all
+              {t('components.org-chart.org-chart.expand_all', 'Expand all')}
             </ContextMenuItem>
             <ContextMenuItem
               onSelect={() => {
@@ -1479,7 +1500,7 @@ export function OrgChart({
               }}
             >
               <Minimize2 aria-hidden />
-              Collapse all
+              {t('components.org-chart.org-chart.collapse_all', 'Collapse all')}
             </ContextMenuItem>
             <ContextMenuItem
               disabled={liveZoom === 1}
@@ -1488,7 +1509,7 @@ export function OrgChart({
               }}
             >
               <Frame aria-hidden />
-              Reset zoom
+              {t('components.org-chart.org-chart.reset_zoom', 'Reset zoom')}
             </ContextMenuItem>
           </>
         )}
@@ -1504,7 +1525,7 @@ export function OrgChart({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Zoom out"
+        aria-label={t('components.org-chart.org-chart.zoom_out', 'Zoom out')}
         disabled={liveZoom <= minZoom}
         startIcon={<ZoomOut />}
         onClick={() => {
@@ -1524,7 +1545,7 @@ export function OrgChart({
       <Button
         size="sm"
         variant="ghost"
-        aria-label="Zoom in"
+        aria-label={t('components.org-chart.org-chart.zoom_in', 'Zoom in')}
         disabled={liveZoom >= maxZoom}
         startIcon={<ZoomIn />}
         onClick={() => {
@@ -1532,7 +1553,7 @@ export function OrgChart({
         }}
       />
       <Button size="sm" variant="ghost" startIcon={<Frame />} onClick={fitToFrame}>
-        Fit
+        {t('components.org-chart.org-chart.fit', 'Fit')}
       </Button>
     </div>
   );
@@ -1552,10 +1573,13 @@ export function OrgChart({
             <Combobox
               size="sm"
               className="w-64"
-              label="Find someone"
+              label={t('components.org-chart.org-chart.find_someone', 'Find someone')}
               placeholder={searchPlaceholder}
-              searchPlaceholder="Name or title"
-              emptyMessage="Nobody by that name."
+              searchPlaceholder={t('components.org-chart.org-chart.name_or_title', 'Name or title')}
+              emptyMessage={t(
+                'components.org-chart.org-chart.nobody_by_that_name',
+                'Nobody by that name.',
+              )}
               clearable
               value={activeFocus}
               onChange={(value) => {
@@ -1583,7 +1607,7 @@ export function OrgChart({
               setCollapsed([]);
             }}
           >
-            Expand all
+            {t('components.org-chart.org-chart.expand_all', 'Expand all')}
           </Button>
           <Button
             size="sm"
@@ -1594,10 +1618,13 @@ export function OrgChart({
               setCollapsed(nodes.map((node) => node.id));
             }}
           >
-            Collapse all
+            {t('components.org-chart.org-chart.collapse_all', 'Collapse all')}
           </Button>
           <p aria-live="polite" className="ms-1 text-xs text-fg-muted">
-            {rows.length} of {nodes.length} shown
+            {rows.length}{' '}
+            {t('components.org-chart.org-chart.of_shown', 'of {{length}} shown', {
+              length: nodes.length,
+            })}
           </p>
           {coarse ? (
             <Button
@@ -1609,7 +1636,9 @@ export function OrgChart({
                 setAsChart(!asChart);
               }}
             >
-              {asChart ? 'View as list' : 'View as chart'}
+              {asChart
+                ? t('components.org-chart.org-chart.view_as_list', 'View as list')
+                : t('components.org-chart.org-chart.view_as_chart', 'View as chart')}
             </Button>
           ) : null}
         </div>
@@ -1617,7 +1646,10 @@ export function OrgChart({
         {activeFocus !== null && focusedTree ? (
           // The way back out. A focused branch with no visible path to the top
           // is a chart people get lost in and reload to escape.
-          <Breadcrumb aria-label="Focused branch" className="mb-2">
+          <Breadcrumb
+            aria-label={t('components.org-chart.org-chart.focused_branch', 'Focused branch')}
+            className="mb-2"
+          >
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
@@ -1627,7 +1659,7 @@ export function OrgChart({
                       setFocus(null);
                     }}
                   >
-                    Whole org
+                    {t('components.org-chart.org-chart.whole_org', 'Whole org')}
                   </button>
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -1669,15 +1701,21 @@ export function OrgChart({
             role="status"
             className="mb-2 rounded-md border border-warning bg-warning-subtle px-3 py-2 text-xs text-fg"
           >
-            {unreachable.length} not shown: {unreachable.map((node) => node.name).join(', ')} report
-            into a circular management chain.
+            {unreachable.length} {t('components.org-chart.org-chart.not_shown', 'not shown:')}{' '}
+            {unreachable.map((node) => node.name).join(', ')}{' '}
+            {t(
+              'components.org-chart.org-chart.report_into_a_circular_management_chain',
+              'report into a circular management chain.',
+            )}
           </p>
         ) : null}
 
         {canEdit ? (
           <p id={instructionsId} className="sr-only">
-            Drag a person onto a manager to change who they report to. Without a pointer, open a
-            person&apos;s context menu and use &ldquo;Report to&rdquo;.
+            {t(
+              'components.org-chart.org-chart.drag_a_person_onto_a_manager',
+              "Drag a person onto a manager to change who they report to. Without a pointer, open a person's context menu and use “Report to”.",
+            )}
           </p>
         ) : null}
 
@@ -1849,10 +1887,19 @@ const OrgBranch = memo(function OrgBranch({
 
   // What the card does not show, for its spoken name.
   const unseen = [
-    onSpine ? 'in the reporting chain above' : undefined,
+    onSpine
+      ? t(
+          'components.org-chart.org-chart.in_the_reporting_chain_above',
+          'in the reporting chain above',
+        )
+      : undefined,
     tree.children.length === 0
-      ? 'no direct reports'
-      : `${String(tree.children.length)} direct reports, ${String(tree.total)} in total`,
+      ? t('components.org-chart.org-chart.no_direct_reports', 'no direct reports')
+      : t(
+          'components.org-chart.org-chart.direct_reports_in_total',
+          '{{length}} direct reports, {{total}} in total',
+          { length: String(tree.children.length), total: String(tree.total) },
+        ),
   ]
     .filter(Boolean)
     .join(', ');
@@ -1948,7 +1995,11 @@ const OrgBranch = memo(function OrgBranch({
           id={`${reportsId}-count`}
           aria-hidden
           role="presentation"
-          title={row.expanded ? 'Hide reports' : 'Show reports'}
+          title={
+            row.expanded
+              ? t('components.org-chart.org-chart.hide_reports', 'Hide reports')
+              : t('components.org-chart.org-chart.show_reports', 'Show reports')
+          }
           onPointerDown={(event) => {
             // Stops the card's own drag sensor claiming the gesture.
             event.stopPropagation();
@@ -2214,7 +2265,12 @@ function OrgTreeList({
               <p className="truncate text-[0.8125rem]/[1.3] text-fg-muted">
                 {[
                   node.title,
-                  reports > 0 ? `${String(reports)} report${reports > 1 ? 's' : ''}` : null,
+                  reports > 0
+                    ? t('components.org-chart.org-chart.report', '{{reports}} report{{value}}', {
+                        reports: String(reports),
+                        value: reports > 1 ? 's' : '',
+                      })
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}

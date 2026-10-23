@@ -2,6 +2,7 @@ import { Alert, Badge, SearchField } from '@reach/ui';
 import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
 
 import type { Category, Done, ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * What every Recruiting screen does the same way: a link that stays in the
@@ -57,7 +58,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
   const [error, setError] = useState<string | null>(null);
   const call = async (name: string, variables: Readonly<Record<string, unknown>>): Promise<Done> =>
     props.onAct === undefined
-      ? { ok: false, message: 'Not available here' }
+      ? { ok: false, message: t('shared.not_available_here', 'Not available here') }
       : props.onAct(name, variables);
   return {
     pending,
@@ -83,7 +84,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
 
 export function Refusal({ error }: { readonly error: string | null }): JSX.Element | null {
   return error === null ? null : (
-    <Alert tone="danger" title="That did not go through">
+    <Alert tone="danger" title={t('shared.that_did_not_go_through', 'That did not go through')}>
       {error}
     </Alert>
   );
@@ -108,7 +109,12 @@ export function money(minor: number, currency: string, compact = false): string 
 
 /** A range, or one figure when it is fixed. */
 export const range = (min: number, max: number, currency: string): string =>
-  min === max ? money(min, currency) : `${money(min, currency)} – ${money(max, currency)}`;
+  min === max
+    ? money(min, currency)
+    : t('shared.text', '{{min}} – {{max}}', {
+        min: money(min, currency),
+        max: money(max, currency),
+      });
 
 const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const DAY_YEAR = new Intl.DateTimeFormat('en-GB', {

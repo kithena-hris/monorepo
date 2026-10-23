@@ -14,6 +14,7 @@ import { createElement, type JSX, type ReactNode } from 'react';
 import { Loaded, type Loadable } from '../load';
 import { MonthNav } from './month-nav';
 import { duration, monthName, shortDate } from './time';
+import { t } from '../i18n';
 
 /**
  * Exceptions for HR (T23, PRD §11.7): only what needs action in a month —
@@ -72,7 +73,8 @@ const ICON: Record<
 
 const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-hidden': true });
 const monthLabel = (month: string): string => monthName(`${month}-01`);
-const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
+const people = (n: number): string =>
+  n === 1 ? '1 person' : t('attendance.exceptions.people', '{{n}} people', { n: String(n) });
 
 type Item = ExceptionsData['items'][number];
 
@@ -81,24 +83,56 @@ function words(kind: ExceptionKind, restMinutes: number) {
   const rest = duration(restMinutes);
   return {
     missed_clock_out: {
-      title: 'Missed clock-outs',
-      why: 'Each day’s record has to say when work ended. Each person is asked when they finished.',
-      line: (i: Item) => `${shortDate(i.date)} · no clock-out`,
+      title: t('attendance.exceptions.missed_clock_outs', 'Missed clock-outs'),
+      why: t(
+        'attendance.exceptions.each_days_record_has_to_say',
+        'Each day’s record has to say when work ended. Each person is asked when they finished.',
+      ),
+      line: (i: Item) =>
+        t('attendance.exceptions.no_clock_out', '{{date}} · no clock-out', {
+          date: shortDate(i.date),
+        }),
     },
     short_rest: {
-      title: `Less than ${rest} rest between days`,
-      why: `The working-time rules require ${rest} between the end of one day and the start of the next.`,
-      line: (i: Item) => `${shortDate(i.date)} · ${duration(i.minutes ?? 0)} rest before it`,
+      title: t(
+        'attendance.exceptions.less_than_rest_between_days',
+        'Less than {{rest}} rest between days',
+        { rest },
+      ),
+      why: t(
+        'attendance.exceptions.the_working_time_rules_require_between',
+        'The working-time rules require {{rest}} between the end of one day and the start of the next.',
+        { rest },
+      ),
+      line: (i: Item) =>
+        t('attendance.exceptions.rest_before_it', '{{date}} · {{duration}} rest before it', {
+          date: shortDate(i.date),
+          duration: duration(i.minutes ?? 0),
+        }),
     },
     overtime_waiting: {
-      title: 'Overtime waiting for approval',
-      why: 'Their managers decide it as comp time or pay before the month closes.',
-      line: (i: Item) => `${shortDate(i.date)} · ${duration(i.minutes ?? 0)} over`,
+      title: t(
+        'attendance.exceptions.overtime_waiting_for_approval',
+        'Overtime waiting for approval',
+      ),
+      why: t(
+        'attendance.exceptions.their_managers_decide_it_as_comp',
+        'Their managers decide it as comp time or pay before the month closes.',
+      ),
+      line: (i: Item) =>
+        t('attendance.exceptions.over', '{{date}} · {{duration}} over', {
+          date: shortDate(i.date),
+          duration: duration(i.minutes ?? 0),
+        }),
     },
     worked_on_holiday: {
-      title: 'Worked on a holiday',
-      why: 'A day in lieu is owed for each one.',
-      line: (i: Item) => `${shortDate(i.date)} · ${i.holiday ?? 'Holiday'}`,
+      title: t('attendance.exceptions.worked_on_a_holiday', 'Worked on a holiday'),
+      why: t('attendance.exceptions.a_day_in_lieu_is_owed', 'A day in lieu is owed for each one.'),
+      line: (i: Item) =>
+        t('attendance.exceptions.text', '{{date}} · {{value}}', {
+          date: shortDate(i.date),
+          value: i.holiday ?? 'Holiday',
+        }),
     },
   }[kind];
 }
@@ -107,7 +141,9 @@ export function Exceptions({ load }: ExceptionsProps): JSX.Element {
   if (load.status === 'loading') return <ExceptionsSkeleton />;
   return (
     <div className="@container/exceptions flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Attendance" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('attendance.exceptions.attendance', 'Attendance')} />
+      ) : null}
       <Loaded load={load} what="the exceptions">
         {(data) => <Ready data={data} />}
       </Loaded>
@@ -127,18 +163,30 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
   return (
     <>
       <PageHeader
-        title="Attendance"
-        description={`Everyone · ${monthLabel(data.month)}`}
+        title={t('attendance.exceptions.attendance', 'Attendance')}
+        description={t('attendance.exceptions.everyone', 'Everyone · {{monthLabel}}', {
+          monthLabel: monthLabel(data.month),
+        })}
         actions={
           <>
             <Button asChild variant="secondary" startIcon={<icons.download aria-hidden />}>
               <a href={file('csv')} download>
-                Export for the labour inspector
+                {t(
+                  'attendance.exceptions.export_for_the_labour_inspector',
+                  'Export for the labour inspector',
+                )}
               </a>
             </Button>
             <Button asChild variant="secondary">
-              <a href={file('pdf')} download aria-label="Export for the labour inspector as PDF">
-                PDF
+              <a
+                href={file('pdf')}
+                download
+                aria-label={t(
+                  'attendance.exceptions.export_for_the_labour_inspector_as',
+                  'Export for the labour inspector as PDF',
+                )}
+              >
+                {t('attendance.exceptions.pdf', 'PDF')}
               </a>
             </Button>
           </>
@@ -146,10 +194,17 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
       />
       <MonthNav month={data.month} path="/time-off/attendance/exceptions" />
       {data.items.length === 0 ? (
-        <p className="text-sm text-fg-muted">{`Nothing needs you in ${monthLabel(data.month)}.`}</p>
+        <p className="text-sm text-fg-muted">
+          {t('attendance.exceptions.nothing_needs_you_in', 'Nothing needs you in {{monthLabel}}.', {
+            monthLabel: monthLabel(data.month),
+          })}
+        </p>
       ) : (
         <div className={body}>
-          <List navigable aria-label="What needs action">
+          <List
+            navigable
+            aria-label={t('attendance.exceptions.what_needs_action', 'What needs action')}
+          >
             {KINDS.map((kind) => {
               const items = of(kind);
               const w = words(kind, data.restMinutes);
@@ -184,9 +239,15 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
               surface
             >
               {of(open).length === 0 ? (
-                <p className="text-sm text-fg-muted">Nobody this month.</p>
+                <p className="text-sm text-fg-muted">
+                  {t('attendance.exceptions.nobody_this_month', 'Nobody this month.')}
+                </p>
               ) : (
-                <List aria-label={`${words(open, data.restMinutes).title}, by person`}>
+                <List
+                  aria-label={t('attendance.exceptions.by_person', '{{title}}, by person', {
+                    title: words(open, data.restMinutes).title,
+                  })}
+                >
                   {of(open).map((i) => (
                     <ListItem
                       key={`${i.personId} ${i.date}`}
@@ -197,9 +258,13 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
                         <Button asChild size="xs" variant="secondary">
                           <a
                             href={`/time-off/attendance/timesheets?person=${i.personId}&week=${i.date}`}
-                            aria-label={`Open ${i.displayName}’s ${shortDate(i.date)}`}
+                            aria-label={t(
+                              'attendance.exceptions.open_s',
+                              'Open {{displayName}}’s {{date}}',
+                              { displayName: i.displayName, date: shortDate(i.date) },
+                            )}
                           >
-                            Open
+                            {t('attendance.exceptions.open', 'Open')}
                           </a>
                         </Button>
                       }
@@ -214,7 +279,11 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
         </div>
       )}
       <p className="text-xs text-fg-muted">
-        {`The inspector’s record has each person’s start, end and breaks for every day from ${shortDate(data.from)} to ${shortDate(data.to)}. Never a location.`}
+        {t(
+          'attendance.exceptions.the_inspectors_record_has_each_persons',
+          'The inspector’s record has each person’s start, end and breaks for every day from {{from}} to {{to}}. Never a location.',
+          { from: shortDate(data.from), to: shortDate(data.to) },
+        )}
       </p>
     </>
   );
@@ -224,9 +293,11 @@ function Ready({ data }: { readonly data: ExceptionsData }): JSX.Element {
 export function ExceptionsSkeleton(): JSX.Element {
   return (
     <div className="@container/exceptions flex flex-col gap-6">
-      <PageHeader title="Attendance" description={' '} />
+      <PageHeader title={t('attendance.exceptions.attendance', 'Attendance')} description={' '} />
       <div role="status" className="flex flex-col gap-6">
-        <span className="sr-only">Loading the exceptions</span>
+        <span className="sr-only">
+          {t('attendance.exceptions.loading_the_exceptions', 'Loading the exceptions')}
+        </span>
         <Skeleton className="h-9 w-80 rounded-sm" />
         <div className={body}>
           <div className="flex flex-col gap-px overflow-hidden rounded-[1.125rem]">

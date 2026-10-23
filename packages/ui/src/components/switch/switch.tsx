@@ -5,6 +5,7 @@ import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Spinner } from '../spinner/spinner';
+import { t } from '../../lib/i18n';
 
 export interface SwitchProps extends ComponentPropsWithoutRef<typeof SwitchPrimitive.Root> {
   /**
@@ -91,7 +92,7 @@ export function Switch({
         {loading ? (
           <Spinner
             size={null}
-            label="Saving"
+            label={t('components.switch.switch.saving', 'Saving')}
             className="text-accent-fg [&_svg]:size-2.5 touch:[&_svg]:size-[1.1875rem]"
           />
         ) : null}

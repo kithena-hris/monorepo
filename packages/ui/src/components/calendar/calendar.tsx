@@ -5,6 +5,7 @@ import { useMemo, useState, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t as tr } from '../../lib/i18n';
 
 /**
  * A month grid for choosing calendar dates.
@@ -306,7 +307,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
     locale = 'en-GB',
     today = formatIsoDate(Date.now()),
     className,
-    label = 'Calendar',
+    label = tr('components.calendar.calendar.calendar', 'Calendar'),
   } = props;
   const mode = props.mode ?? 'single';
   // A picker opens on what is chosen: a birthday in 1996 opens on 1996, not on today.
@@ -431,7 +432,10 @@ export function Calendar(props: CalendarProps): JSX.Element {
             whatever the user was already hearing. */}
         {view === 'years' ? (
           <p aria-live="polite" className="ps-1.5 text-base font-semibold text-fg touch:text-md">
-            {`${String(decade)} – ${String(decade + 11)}`}
+            {tr('components.calendar.calendar.text', '{{decade}} – {{value}}', {
+              decade: String(decade),
+              value: String(decade + 11),
+            })}
           </p>
         ) : (
           <Button
@@ -440,8 +444,14 @@ export function Calendar(props: CalendarProps): JSX.Element {
             aria-live="polite"
             aria-label={
               view === 'days'
-                ? `${monthFormatter.format(new Date(parseIsoDate(visibleMonth)))}, choose a month`
-                : `${String(visibleYear)}, choose a year`
+                ? tr('components.calendar.calendar.choose_a_month', '{{format}}, choose a month', {
+                    format: monthFormatter.format(new Date(parseIsoDate(visibleMonth))),
+                  })
+                : tr(
+                    'components.calendar.calendar.choose_a_year',
+                    '{{visibleYear}}, choose a year',
+                    { visibleYear: String(visibleYear) },
+                  )
             }
             className="-ms-1.5 px-1.5 text-base font-semibold touch:text-md"
             onClick={() => {
@@ -479,7 +489,9 @@ export function Calendar(props: CalendarProps): JSX.Element {
       {view === 'months' ? (
         <div
           role="group"
-          aria-label={`Months of ${String(visibleYear)}`}
+          aria-label={tr('components.calendar.calendar.months_of', 'Months of {{visibleYear}}', {
+            visibleYear: String(visibleYear),
+          })}
           className="grid grid-cols-3 gap-1.5"
         >
           {Array.from({ length: 12 }, (_, m) => {
@@ -507,7 +519,10 @@ export function Calendar(props: CalendarProps): JSX.Element {
       ) : view === 'years' ? (
         <div
           role="group"
-          aria-label={`Years ${String(decade)} to ${String(decade + 11)}`}
+          aria-label={tr('components.calendar.calendar.years_to', 'Years {{decade}} to {{value}}', {
+            decade: String(decade),
+            value: String(decade + 11),
+          })}
           className="grid grid-cols-3 gap-1.5"
         >
           {Array.from({ length: 12 }, (_, i) => {

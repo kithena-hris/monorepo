@@ -26,6 +26,7 @@ import {
   type Day,
   type WorkModel,
 } from './time';
+import { t } from '../i18n';
 
 /**
  * Team, right now (T22, MT19, PRD §11.6): a calm live board of the people who
@@ -74,7 +75,9 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
   if (load.status === 'loading') return <TeamNowSkeleton />;
   return (
     <div className="@container/now flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Attendance" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} />
+      ) : null}
       <Loaded load={load} what="your team right now">
         {(data) => <Ready data={data} />}
       </Loaded>
@@ -89,11 +92,11 @@ const counts = 'grid grid-cols-4 gap-3 @max-[40rem]/now:grid-cols-2';
 type Now = 'in' | 'break' | 'waiting' | 'away' | 'done';
 
 const NOW: Record<Now, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: 'In', tone: 'success' },
-  break: { label: 'On a break', tone: 'warning' },
-  waiting: { label: 'Not in yet', tone: 'neutral' },
-  away: { label: 'Away', tone: 'neutral' },
-  done: { label: 'Clocked out', tone: 'neutral' },
+  in: { label: t('attendance.team-now.in', 'In'), tone: 'success' },
+  break: { label: t('attendance.team-now.on_a_break', 'On a break'), tone: 'warning' },
+  waiting: { label: t('attendance.team-now.not_in_yet', 'Not in yet'), tone: 'neutral' },
+  away: { label: t('attendance.team-now.away', 'Away'), tone: 'neutral' },
+  done: { label: t('attendance.team-now.clocked_out', 'Clocked out'), tone: 'neutral' },
 };
 
 const WHERE_ICON: Record<WorkModel, IconName> = {
@@ -135,9 +138,13 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
     const lastBreak = p.today.segments.findLast((s) => s.kind === 'break');
     const badge =
       now === 'in'
-        ? `In · ${duration(p.today.workedMinutes ?? 0)}`
+        ? t('attendance.team-now.in_2', 'In · {{duration}}', {
+            duration: duration(p.today.workedMinutes ?? 0),
+          })
         : now === 'break'
-          ? `Break · ${duration(lastBreak === undefined ? 0 : lastBreak.to - lastBreak.from)}`
+          ? t('attendance.team-now.break', 'Break · {{duration}}', {
+              duration: duration(lastBreak === undefined ? 0 : lastBreak.to - lastBreak.from),
+            })
           : NOW[now].label;
     const back = away.get(p.personId);
     return { ...p, now, badge, back };
@@ -147,8 +154,11 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
   return (
     <>
       <PageHeader
-        title="Attendance"
-        description={`${String(data.people.length)} ${data.people.length === 1 ? 'person reports' : 'people report'} to you`}
+        title={t('attendance.team-now.attendance', 'Attendance')}
+        description={t('attendance.team-now.to_you', '{{length}} {{value}} to you', {
+          length: String(data.people.length),
+          value: data.people.length === 1 ? 'person reports' : 'people report',
+        })}
       />
       <div className={body}>
         <div className="flex min-w-0 flex-col gap-5">
@@ -163,16 +173,20 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
             ))}
           </div>
           {rows.length === 0 ? (
-            <p className="text-sm text-fg-muted">Nobody reports to you.</p>
+            <p className="text-sm text-fg-muted">
+              {t('attendance.team-now.nobody_reports_to_you', 'Nobody reports to you.')}
+            </p>
           ) : (
-            <List aria-label="Your team">
+            <List aria-label={t('attendance.team-now.your_team', 'Your team')}>
               {rows.map((r) => (
                 <ListItem
                   key={r.personId}
                   leading={<Avatar name={r.displayName} />}
                   description={
                     r.back !== undefined ? (
-                      `Back ${shortDate(nextWorkingDay(r.back))}`
+                      t('attendance.team-now.back', 'Back {{nextWorkingDay}}', {
+                        nextWorkingDay: shortDate(nextWorkingDay(r.back)),
+                      })
                     ) : r.workModel === null ? undefined : (
                       <span className="inline-flex items-center gap-1.5 [&_svg]:size-3.5">
                         {icon(WHERE_ICON[r.workModel])}
@@ -184,7 +198,9 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                     <span className="flex items-center gap-4">
                       {r.now === 'away' ? null : (
                         <DayBar
-                          label={`${r.displayName} today`}
+                          label={t('attendance.team-now.today', '{{displayName}} today', {
+                            displayName: r.displayName,
+                          })}
                           segments={r.today.segments}
                           now={minute}
                           axis={false}
@@ -204,18 +220,21 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
           )}
           <p className="flex gap-2 text-xs text-fg-muted [&_svg]:size-3.5 [&_svg]:shrink-0">
             <icons.hidden aria-hidden />
-            Only the punches people make. No location trail and no screen tracking.
+            {t(
+              'attendance.team-now.only_the_punches_people_make_no',
+              'Only the punches people make. No location trail and no screen tracking.',
+            )}
           </p>
         </div>
         <div className="flex min-w-0 flex-col gap-5">
           {data.sentence === undefined ? null : (
             <AssistantCard
               level={2}
-              title="Today, in a sentence"
+              title={t('attendance.team-now.today_in_a_sentence', 'Today, in a sentence')}
               action={
                 data.sentence.ai ? (
                   <Badge tone="assistant" size="sm">
-                    AI
+                    {t('attendance.team-now.ai', 'AI')}
                   </Badge>
                 ) : undefined
               }
@@ -223,9 +242,11 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
               <p className="text-sm text-fg-muted">{data.sentence.text}</p>
             </AssistantCard>
           )}
-          <PageSection title="Needs you">
+          <PageSection title={t('attendance.team-now.needs_you', 'Needs you')}>
             {data.needsYou.length === 0 ? (
-              <p className="text-sm text-fg-muted">Nothing waiting for you.</p>
+              <p className="text-sm text-fg-muted">
+                {t('attendance.team-now.nothing_waiting_for_you', 'Nothing waiting for you.')}
+              </p>
             ) : (
               <List>
                 {data.needsYou.map((n) => (
@@ -235,7 +256,9 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                     iconTone={n.kind === 'correction' ? 'danger' : 'info'}
                     description={
                       n.kind === 'correction'
-                        ? `${shortDate(n.date)} · added afterwards`
+                        ? t('attendance.team-now.added_afterwards', '{{date}} · added afterwards', {
+                            date: shortDate(n.date),
+                          })
                         : shortDate(n.date)
                     }
                     trailing={
@@ -246,16 +269,35 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                               ? '/time-off/attendance/requests'
                               : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
                           }
-                          aria-label={`Review ${n.displayName}’s ${n.kind === 'correction' ? 'correction' : 'overtime'}`}
+                          aria-label={t(
+                            'attendance.team-now.review_s',
+                            'Review {{displayName}}’s {{value}}',
+                            {
+                              displayName: n.displayName,
+                              value: n.kind === 'correction' ? 'correction' : 'overtime',
+                            },
+                          )}
                         >
-                          Review
+                          {t('attendance.team-now.review', 'Review')}
                         </a>
                       </Button>
                     }
                   >
                     {n.kind === 'correction'
-                      ? `${n.displayName} · ${weekdayName(n.date)} ${n.punch?.kind === 'in' ? 'clock-in' : 'clock-out'}`
-                      : `${n.displayName} · ${duration(n.minutes ?? 0)} overtime`}
+                      ? t(
+                          'attendance.team-now.text',
+                          '{{displayName}} · {{weekdayName}} {{value}}',
+                          {
+                            displayName: n.displayName,
+                            weekdayName: weekdayName(n.date),
+                            value: n.punch?.kind === 'in' ? 'clock-in' : 'clock-out',
+                          },
+                        )
+                      : t(
+                          'attendance.team-now.overtime',
+                          '{{displayName}} · {{duration}} overtime',
+                          { displayName: n.displayName, duration: duration(n.minutes ?? 0) },
+                        )}
                   </ListItem>
                 ))}
               </List>
@@ -271,9 +313,11 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
 export function TeamNowSkeleton(): JSX.Element {
   return (
     <div className="@container/now flex flex-col gap-6">
-      <PageHeader title="Attendance" description={' '} />
+      <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} description={' '} />
       <div role="status" className={body}>
-        <span className="sr-only">Loading your team right now</span>
+        <span className="sr-only">
+          {t('attendance.team-now.loading_your_team_right_now', 'Loading your team right now')}
+        </span>
         <div className="flex min-w-0 flex-col gap-5">
           <div className={counts}>
             {[0, 1, 2, 3].map((n) => (

@@ -7,6 +7,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
+import { t } from '../../lib/i18n';
 
 /**
  * A whole page, presented over the one behind it.
@@ -194,12 +195,16 @@ export function ModalPageHeader({
           {dismiss === 'back' ? (
             <>
               <ArrowLeft className="size-4" aria-hidden />
-              <span className="pe-1 @max-xl:sr-only">{dismissLabel ?? 'Back'}</span>
+              <span className="pe-1 @max-xl:sr-only">
+                {dismissLabel ?? t('components.modal-page.modal-page.back', 'Back')}
+              </span>
             </>
           ) : (
             <>
               <X className="size-4" aria-hidden />
-              <span className="sr-only">{dismissLabel ?? 'Close'}</span>
+              <span className="sr-only">
+                {dismissLabel ?? t('components.modal-page.modal-page.close', 'Close')}
+              </span>
             </>
           )}
         </DialogPrimitive.Close>

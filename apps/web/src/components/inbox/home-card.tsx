@@ -18,6 +18,7 @@ import type { InboxPeek } from '../../lib/inbox/peek';
 import { since } from '../since';
 import { iconOf } from './format';
 import { RowBadges } from './rows';
+import { t as tr } from '../../lib/t';
 
 /**
  * Home's To do (B1): the first rows of the Inbox, and what of theirs waits on
@@ -26,7 +27,15 @@ import { RowBadges } from './rows';
  */
 export function HomeInbox({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
   return (
-    <Suspense fallback={<Skeleton shape="block" label="To do" className="h-48" />}>
+    <Suspense
+      fallback={
+        <Skeleton
+          shape="block"
+          label={tr('components.inbox.home-card.to_do', 'To do')}
+          className="h-48"
+        />
+      }
+    >
       <Cards inbox={inbox} />
     </Suspense>
   );
@@ -38,20 +47,26 @@ function Cards({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle level={2}>To do</CardTitle>
+          <CardTitle level={2}>{tr('components.inbox.home-card.to_do', 'To do')}</CardTitle>
           <Button asChild size="sm" variant="link">
-            <a href="/inbox/todo">Open Inbox</a>
+            <a href="/inbox/todo">{tr('components.inbox.home-card.open_inbox', 'Open Inbox')}</a>
           </Button>
         </CardHeader>
         <CardContent>
           {peek.todo.length === 0 ? (
             <EmptyState
               icon={<icons.success />}
-              title="Nothing needs you"
-              description="New tasks from every module appear here."
+              title={tr('components.inbox.home-card.nothing_needs_you', 'Nothing needs you')}
+              description={tr(
+                'components.inbox.home-card.new_tasks_from_every_module_appear',
+                'New tasks from every module appear here.',
+              )}
             />
           ) : (
-            <List aria-label="To do" className="-mx-2 bg-transparent shadow-none">
+            <List
+              aria-label={tr('components.inbox.home-card.to_do', 'To do')}
+              className="-mx-2 bg-transparent shadow-none"
+            >
               {peek.todo.map((t) => {
                 const Icon = iconOf(t.icon);
                 return (
@@ -74,13 +89,20 @@ function Cards({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
       {peek.requests.length === 0 ? null : (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle level={2}>Waiting on others</CardTitle>
+            <CardTitle level={2}>
+              {tr('components.inbox.home-card.waiting_on_others', 'Waiting on others')}
+            </CardTitle>
             <Button asChild size="sm" variant="link">
-              <a href="/inbox/requests">My requests</a>
+              <a href="/inbox/requests">
+                {tr('components.inbox.home-card.my_requests', 'My requests')}
+              </a>
             </Button>
           </CardHeader>
           <CardContent>
-            <List aria-label="Waiting on others" className="-mx-2 bg-transparent shadow-none">
+            <List
+              aria-label={tr('components.inbox.home-card.waiting_on_others', 'Waiting on others')}
+              className="-mx-2 bg-transparent shadow-none"
+            >
               {peek.requests.map((r) => {
                 const Icon = iconOf(r.icon);
                 return (

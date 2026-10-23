@@ -42,6 +42,7 @@ import {
   type LeaveTypeRow,
   type Predicate,
 } from './shared';
+import { t } from '../i18n';
 
 /**
  * Editing a policy (T30, TOF-079): a leave type's allowance by years of
@@ -159,7 +160,7 @@ function StartPolicy({ onStart }: { readonly onStart: () => Promise<Outcome> }):
         size="sm"
         variant="primary"
         loading={busy}
-        loadingLabel="Starting"
+        loadingLabel={t('settings.leave-type.starting', 'Starting')}
         onClick={() => {
           setBusy(true);
           setRefused(null);
@@ -169,7 +170,7 @@ function StartPolicy({ onStart }: { readonly onStart: () => Promise<Outcome> }):
           });
         }}
       >
-        Start a policy
+        {t('settings.leave-type.start_a_policy', 'Start a policy')}
       </Button>
       {refused === null ? null : <span className="text-sm text-danger-fg">{refused}</span>}
     </span>
@@ -185,7 +186,9 @@ export function LeaveType(props: LeaveTypeProps): JSX.Element {
   if (load.status === 'loading') return <LeaveTypeSkeleton />;
   return (
     <div className={page}>
-      {load.status === 'error' ? <PageHeader title="Leave type" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('settings.leave-type.leave_type', 'Leave type')} />
+      ) : null}
       <Loaded load={load} what="the leave type">
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
@@ -213,7 +216,7 @@ function Ready({
         <PageHeader title={type.name.default} description={appliesToLabel(type.appliesTo)} />
         <Alert
           tone="info"
-          title="No policy to edit"
+          title={t('settings.leave-type.no_policy_to_edit', 'No policy to edit')}
           action={
             type.tracked && onStartPolicy !== undefined ? (
               <StartPolicy onStart={() => onStartPolicy(type.key)} />
@@ -221,8 +224,16 @@ function Ready({
           }
         >
           {type.tracked
-            ? `${type.name.default} has no policy yet, so nobody earns any.`
-            : `${type.name.default} draws no balance, so there is no allowance to set.`}
+            ? t(
+                'settings.leave-type.has_no_policy_yet_so_nobody',
+                '{{default}} has no policy yet, so nobody earns any.',
+                { default: type.name.default },
+              )
+            : t(
+                'settings.leave-type.draws_no_balance_so_there_is',
+                '{{default}} draws no balance, so there is no allowance to set.',
+                { default: type.name.default },
+              )}
         </Alert>
       </>
     );
@@ -270,9 +281,17 @@ function Editor({
 
   const description = [
     inEffect === undefined
-      ? 'Never published'
-      : `Version ${String(inEffect.version)} in effect from ${longDate(inEffect.effectiveFrom ?? '')}`,
-    draft === null ? null : `version ${String(draft.version)} is a draft`,
+      ? t('settings.leave-type.never_published', 'Never published')
+      : t(
+          'settings.leave-type.version_in_effect_from',
+          'Version {{version}} in effect from {{longDate}}',
+          { version: String(inEffect.version), longDate: longDate(inEffect.effectiveFrom ?? '') },
+        ),
+    draft === null
+      ? null
+      : t('settings.leave-type.version_is_a_draft', 'version {{version}} is a draft', {
+          version: String(draft.version),
+        }),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -284,7 +303,7 @@ function Editor({
         startIcon={<icons.confirm aria-hidden />}
         disabled={form.dirty}
         loading={publishing}
-        loadingLabel="Publishing"
+        loadingLabel={t('settings.leave-type.publishing', 'Publishing')}
         onClick={() => {
           setPublishing(true);
           setPublished(null);
@@ -294,20 +313,23 @@ function Editor({
           });
         }}
       >
-        Publish changes
+        {t('settings.leave-type.publish_changes', 'Publish changes')}
       </Button>
     );
 
   return (
     <>
       <PageHeader
-        title={`${type.name.default} · ${appliesToLabel(saved.appliesTo)}`}
+        title={t('settings.leave-type.text', '{{default}} · {{appliesToLabel}}', {
+          default: type.name.default,
+          appliesToLabel: appliesToLabel(saved.appliesTo),
+        })}
         description={description}
         actions={publish}
       />
       {data.policies.length > 1 && onPolicy !== undefined ? (
         <Field className="max-w-sm">
-          <FieldLabel>Policy</FieldLabel>
+          <FieldLabel>{t('settings.leave-type.policy', 'Policy')}</FieldLabel>
           <Select value={policyId} onValueChange={onPolicy}>
             <FieldControl>
               <SelectTrigger>
@@ -325,7 +347,7 @@ function Editor({
         </Field>
       ) : null}
       {published?.ok === false ? (
-        <Alert tone="danger" title="Not published">
+        <Alert tone="danger" title={t('settings.leave-type.not_published', 'Not published')}>
           {published.message}
         </Alert>
       ) : null}
@@ -366,7 +388,10 @@ function Editor({
       </div>
       {onSaveDraft === undefined
         ? null
-        : form.bar((definition) => onSaveDraft(policyId, definition), 'Save draft')}
+        : form.bar(
+            (definition) => onSaveDraft(policyId, definition),
+            t('settings.leave-type.save_draft', 'Save draft'),
+          )}
     </>
   );
 }
@@ -396,17 +421,27 @@ function Rules({
   return (
     <FormSections>
       <FormSection
-        title="Allowance"
-        description={`A year’s ${unit}, by years of service. Each band starts on the anniversary.`}
+        title={t('settings.leave-type.allowance', 'Allowance')}
+        description={t(
+          'settings.leave-type.a_years_by_years_of_service',
+          'A year’s {{unit}}, by years of service. Each band starts on the anniversary.',
+          { unit },
+        )}
       >
-        <ul aria-label="Allowance by years of service" className="flex flex-col gap-3">
+        <ul
+          aria-label={t(
+            'settings.leave-type.allowance_by_years_of_service',
+            'Allowance by years of service',
+          )}
+          className="flex flex-col gap-3"
+        >
           {bands.map((band, i) => (
             <li
               key={i}
               className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-3"
             >
               <NumberField
-                label="From year"
+                label={t('settings.leave-type.from_year', 'From year')}
                 value={band.fromYears}
                 min={i === 0 ? 0 : (bands[i - 1]?.fromYears ?? 0) + 1}
                 step={1}
@@ -420,7 +455,10 @@ function Rules({
                 }}
               />
               <NumberField
-                label={`${unit.charAt(0).toUpperCase()}${unit.slice(1)} a year`}
+                label={t('settings.leave-type.a_year', '{{charAt}}{{slice}} a year', {
+                  charAt: unit.charAt(0).toUpperCase(),
+                  slice: unit.slice(1),
+                })}
                 value={Number(band.days)}
                 min={0}
                 step={0.5}
@@ -433,7 +471,11 @@ function Rules({
               />
               <Button
                 variant="ghost"
-                aria-label={`Remove the band from year ${String(band.fromYears)}`}
+                aria-label={t(
+                  'settings.leave-type.remove_the_band_from_year',
+                  'Remove the band from year {{fromYears}}',
+                  { fromYears: String(band.fromYears) },
+                )}
                 disabled={i === 0}
                 startIcon={<icons.delete aria-hidden />}
                 onClick={() => {
@@ -453,12 +495,12 @@ function Rules({
               set({ allowance: [...bands, { fromYears: last.fromYears + 1, days: last.days }] });
             }}
           >
-            Add a band
+            {t('settings.leave-type.add_a_band', 'Add a band')}
           </Button>
         </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium" id="earned">
-            Earned
+            {t('settings.leave-type.earned', 'Earned')}
           </span>
           <SegmentedControl
             aria-labelledby="earned"
@@ -467,17 +509,29 @@ function Rules({
               if (earning === 'upfront' || earning === 'monthly') set({ earning });
             }}
           >
-            <SegmentedControlItem value="upfront">All on the first day</SegmentedControlItem>
-            <SegmentedControlItem value="monthly">Monthly</SegmentedControlItem>
+            <SegmentedControlItem value="upfront">
+              {t('settings.leave-type.all_on_the_first_day', 'All on the first day')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="monthly">
+              {t('settings.leave-type.monthly', 'Monthly')}
+            </SegmentedControlItem>
           </SegmentedControl>
           <p className="text-sm text-fg-muted">
             {value.earning === 'monthly'
-              ? `${monthly} ${unit} on the 1st of each month, in the first band.`
-              : `The year’s ${unit} on the first day of the leave year.`}
+              ? t(
+                  'settings.leave-type.on_the_1st_of_each_month',
+                  '{{monthly}} {{unit}} on the 1st of each month, in the first band.',
+                  { monthly, unit },
+                )
+              : t(
+                  'settings.leave-type.the_years_on_the_first_day',
+                  'The year’s {{unit}} on the first day of the leave year.',
+                  { unit },
+                )}
           </p>
         </div>
         <MonthDayField
-          legend="The leave year starts on"
+          legend={t('settings.leave-type.the_leave_year_starts_on', 'The leave year starts on')}
           value={value.year}
           onChange={(year) => {
             set({ year });
@@ -485,8 +539,14 @@ function Rules({
         />
         <Toggle
           kind="checkbox"
-          label="Pro-rata for joiners and leavers"
-          description="Rounded up to the nearest half day"
+          label={t(
+            'settings.leave-type.pro_rata_for_joiners_and_leavers',
+            'Pro-rata for joiners and leavers',
+          )}
+          description={t(
+            'settings.leave-type.rounded_up_to_the_nearest_half',
+            'Rounded up to the nearest half day',
+          )}
           checked={value.proRata}
           onChange={(proRata) => {
             set({ proRata });
@@ -494,16 +554,22 @@ function Rules({
         />
         <Toggle
           kind="checkbox"
-          label="Keep earning during parental leave"
-          description="Spanish law requires it"
+          label={t(
+            'settings.leave-type.keep_earning_during_parental_leave',
+            'Keep earning during parental leave',
+          )}
+          description={t('settings.leave-type.spanish_law_requires_it', 'Spanish law requires it')}
           checked={value.keepEarningOnParental}
           onChange={(keepEarningOnParental) => {
             set({ keepEarningOnParental });
           }}
         />
         <NumberField
-          label="Can book after (months)"
-          hint="Counted from the first day, and back-dated to it"
+          label={t('settings.leave-type.can_book_after_months', 'Can book after (months)')}
+          hint={t(
+            'settings.leave-type.counted_from_the_first_day_and',
+            'Counted from the first day, and back-dated to it',
+          )}
           value={value.probationMonths}
           min={0}
           max={24}
@@ -514,22 +580,30 @@ function Rules({
         />
       </FormSection>
       <FormSection
-        title="Carry-over"
-        description="What moves into next year, and until when it can be used."
+        title={t('settings.leave-type.carry_over', 'Carry-over')}
+        description={t(
+          'settings.leave-type.what_moves_into_next_year_and',
+          'What moves into next year, and until when it can be used.',
+        )}
       >
         <Toggle
-          label="Carry days into next year"
+          label={t('settings.leave-type.carry_days_into_next_year', 'Carry days into next year')}
           checked={carry !== null}
           onChange={(on) => {
             set({ carryOver: on ? { maxDays: '5.000', useBy: { month: 3, day: 31 } } : null });
           }}
         />
         {carry === null ? (
-          <p className="text-sm text-fg-muted">Anything left is lost at the end of the year.</p>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'settings.leave-type.anything_left_is_lost_at_the',
+              'Anything left is lost at the end of the year.',
+            )}
+          </p>
         ) : (
           <>
             <NumberField
-              label={`Up to (${unit})`}
+              label={t('settings.leave-type.up_to', 'Up to ({{unit}})', { unit })}
               value={Number(carry.maxDays)}
               min={0}
               step={0.5}
@@ -539,36 +613,55 @@ function Rules({
               }}
             />
             <MonthDayField
-              legend="Use carried days by"
+              legend={t('settings.leave-type.use_carried_days_by', 'Use carried days by')}
               value={carry.useBy}
               onChange={(useBy) => {
                 set({ carryOver: { ...carry, useBy } });
               }}
             />
             <p className="text-sm text-fg-muted">
-              {`Anything above ${daysLabel(amount(carry.maxDays))} is lost at the end of the year, and carried days still unused on ${monthDay(carry.useBy)} are lost then.`}
+              {t(
+                'settings.leave-type.anything_above_is_lost_at_the',
+                'Anything above {{daysLabel}} is lost at the end of the year, and carried days still unused on {{monthDay}} are lost then.',
+                { daysLabel: daysLabel(amount(carry.maxDays)), monthDay: monthDay(carry.useBy) },
+              )}
             </p>
           </>
         )}
       </FormSection>
-      <FormSection title="Requests" description="What people can ask for, and what they see first.">
+      <FormSection
+        title={t('settings.leave-type.requests', 'Requests')}
+        description={t(
+          'settings.leave-type.what_people_can_ask_for_and',
+          'What people can ask for, and what they see first.',
+        )}
+      >
         <Toggle
-          label="Half days allowed"
+          label={t('settings.leave-type.half_days_allowed', 'Half days allowed')}
           checked={value.requests.halfDays}
           onChange={(halfDays) => {
             set({ requests: { ...value.requests, halfDays } });
           }}
         />
         <Toggle
-          label="Show who else is off before sending"
+          label={t(
+            'settings.leave-type.show_who_else_is_off_before',
+            'Show who else is off before sending',
+          )}
           checked={value.requests.showWhoIsOff}
           onChange={(showWhoIsOff) => {
             set({ requests: { ...value.requests, showWhoIsOff } });
           }}
         />
         <Toggle
-          label="Block requests below the team minimum"
-          description="Off: show a warning and let the manager decide"
+          label={t(
+            'settings.leave-type.block_requests_below_the_team_minimum',
+            'Block requests below the team minimum',
+          )}
+          description={t(
+            'settings.leave-type.off_show_a_warning_and_let',
+            'Off: show a warning and let the manager decide',
+          )}
           checked={value.requests.blockBelowMinimum}
           onChange={(blockBelowMinimum) => {
             set({ requests: { ...value.requests, blockBelowMinimum } });
@@ -589,15 +682,23 @@ const fromMilli = (n: number): string => amount((n / 1000).toFixed(3));
 function range(deltas: readonly number[], more: string, unit: string): string {
   const low = fromMilli(Math.min(...deltas));
   const high = fromMilli(Math.max(...deltas));
-  const n = low === high ? low : `${low} to ${high}`;
-  return `${n} ${more} ${high === '1' ? unit.replace(/s$/, '') : unit}`;
+  const n = low === high ? low : t('settings.leave-type.to', '{{low}} to {{high}}', { low, high });
+  return t('settings.leave-type.text_2', '{{n}} {{more}} {{value}}', {
+    n,
+    more,
+    value: high === '1' ? unit.replace(/s$/, '') : unit,
+  });
 }
 
-const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
+const people = (n: number): string =>
+  n === 1 ? '1 person' : t('settings.leave-type.people', '{{n}} people', { n: String(n) });
 /** Thousandths as "1 day", "2.5 days". */
 const counted = (thousandths: number, unit: string): string => {
   const n = fromMilli(thousandths);
-  return `${n} ${n === '1' ? unit.replace(/s$/, '') : unit}`;
+  return t('settings.leave-type.text_3', '{{n}} {{value}}', {
+    n,
+    value: n === '1' ? unit.replace(/s$/, '') : unit,
+  });
 };
 
 function ChangePreview({
@@ -615,14 +716,19 @@ function ChangePreview({
     if (dirty)
       return (
         <p className="text-sm text-fg-muted">
-          Save the draft to see who these changes would reach.
+          {t(
+            'settings.leave-type.save_the_draft_to_see_who',
+            'Save the draft to see who these changes would reach.',
+          )}
         </p>
       );
     if (!hasDraft || preview === null)
       return (
         <p className="text-sm text-fg-muted">
-          Nothing is drafted. Change a rule and save the draft to see who it would reach before
-          anything is published.
+          {t(
+            'settings.leave-type.nothing_is_drafted_change_a_rule',
+            'Nothing is drafted. Change a rule and save the draft to see who it would reach before anything is published.',
+          )}
         </p>
       );
     const delta = (c: Change): number => milli(c.draft) - milli(c.current);
@@ -630,46 +736,76 @@ function ChangePreview({
     const loss = preview.members.filter((m) => delta(m.allowance) < 0);
     const lose = preview.members.filter((m) => delta(m.lostAtYearEnd) > 0);
     if (gain.length + loss.length + lose.length === 0)
-      return <p className="text-sm text-fg-muted">Nobody’s balance changes.</p>;
+      return (
+        <p className="text-sm text-fg-muted">
+          {t('settings.leave-type.nobodys_balance_changes', 'Nobody’s balance changes.')}
+        </p>
+      );
     return (
       <IconList>
         {gain.length === 0 ? null : (
           <IconListItem
             icon={<icons.people aria-hidden />}
             tone="success"
-            description={`From ${longDate(preview.effectiveFrom)}, for this leave year.`}
+            description={t(
+              'settings.leave-type.from_for_this_leave_year',
+              'From {{longDate}}, for this leave year.',
+              { longDate: longDate(preview.effectiveFrom) },
+            )}
           >
-            {`${people(gain.length)} ${gain.length === 1 ? 'gets' : 'get'} ${range(
-              gain.map((m) => delta(m.allowance)),
-              'more',
-              unit,
-            )}`}
+            {t('settings.leave-type.text_4', '{{people}} {{value}} {{range}}', {
+              people: people(gain.length),
+              value: gain.length === 1 ? 'gets' : 'get',
+              range: range(
+                gain.map((m) => delta(m.allowance)),
+                'more',
+                unit,
+              ),
+            })}
           </IconListItem>
         )}
         {loss.length === 0 ? null : (
           <IconListItem
             icon={<icons.people aria-hidden />}
             tone="danger"
-            description={`From ${longDate(preview.effectiveFrom)}, for this leave year.`}
+            description={t(
+              'settings.leave-type.from_for_this_leave_year',
+              'From {{longDate}}, for this leave year.',
+              { longDate: longDate(preview.effectiveFrom) },
+            )}
           >
-            {`${people(loss.length)} ${loss.length === 1 ? 'gets' : 'get'} ${range(
-              loss.map((m) => -delta(m.allowance)),
-              'fewer',
-              unit,
-            )}`}
+            {t('settings.leave-type.text_4', '{{people}} {{value}} {{range}}', {
+              people: people(loss.length),
+              value: loss.length === 1 ? 'gets' : 'get',
+              range: range(
+                loss.map((m) => -delta(m.allowance)),
+                'fewer',
+                unit,
+              ),
+            })}
           </IconListItem>
         )}
         {lose.length === 0 ? null : (
           <IconListItem
             icon={<icons.pending aria-hidden />}
             tone="warning"
-            description={`Above the carry-over limit, if they book nothing more: ${range(
-              lose.map((m) => delta(m.lostAtYearEnd)),
-              'more',
-              unit,
-            )} each.`}
+            description={t(
+              'settings.leave-type.above_the_carry_over_limit_if',
+              'Above the carry-over limit, if they book nothing more: {{range}} each.',
+              {
+                range: range(
+                  lose.map((m) => delta(m.lostAtYearEnd)),
+                  'more',
+                  unit,
+                ),
+              },
+            )}
           >
-            {`${people(lose.length)} would lose ${unit} on ${longDate(preview.yearEnd)}`}
+            {t(
+              'settings.leave-type.would_lose_on',
+              '{{people}} would lose {{unit}} on {{longDate}}',
+              { people: people(lose.length), unit, longDate: longDate(preview.yearEnd) },
+            )}
           </IconListItem>
         )}
       </IconList>
@@ -677,10 +813,17 @@ function ChangePreview({
   })();
   return (
     <PageSection
-      title="Change preview"
+      title={t('settings.leave-type.change_preview', 'Change preview')}
       description={
         preview !== null && hasDraft && !dirty
-          ? `If you publish version ${String(preview.draftVersion)}, worked out on ${people(preview.members.length)}’s balances.`
+          ? t(
+              'settings.leave-type.if_you_publish_version_worked_out',
+              'If you publish version {{draftVersion}}, worked out on {{people}}’s balances.',
+              {
+                draftVersion: String(preview.draftVersion),
+                people: people(preview.members.length),
+              },
+            )
           : undefined
       }
       surface
@@ -721,14 +864,16 @@ function PreviewAs({
   );
   return (
     <PageSection
-      title={`What ${who.displayName} would see`}
-      actions={<Badge size="sm">Preview</Badge>}
+      title={t('settings.leave-type.what_would_see', 'What {{displayName}} would see', {
+        displayName: who.displayName,
+      })}
+      actions={<Badge size="sm">{t('settings.leave-type.preview', 'Preview')}</Badge>}
       surface
     >
       <div className="flex flex-col gap-4">
         {onPreviewAs === undefined ? null : (
           <Field>
-            <FieldLabel>Preview as</FieldLabel>
+            <FieldLabel>{t('settings.leave-type.preview_as', 'Preview as')}</FieldLabel>
             <Select value={who.personId} onValueChange={onPreviewAs}>
               <FieldControl>
                 <SelectTrigger>
@@ -746,12 +891,23 @@ function PreviewAs({
           </Field>
         )}
         <div className="grid grid-cols-1 gap-3 @min-[30rem]/policy:grid-cols-2">
-          {stat(`${typeName} this year`, who.allowance)}
-          {stat('Left at the year end', who.left, 'If nothing more is booked')}
+          {stat(
+            t('settings.leave-type.this_year', '{{typeName}} this year', { typeName }),
+            who.allowance,
+          )}
+          {stat(
+            t('settings.leave-type.left_at_the_year_end', 'Left at the year end'),
+            who.left,
+            t('settings.leave-type.if_nothing_more_is_booked', 'If nothing more is booked'),
+          )}
         </div>
         {milli(who.lostAtYearEnd.draft) > 0 ? (
           <p className="text-sm">
-            {`${amount(who.lostAtYearEnd.draft)} of them would be lost on ${longDate(preview.yearEnd)}, above what carries over.`}
+            {t(
+              'settings.leave-type.of_them_would_be_lost_on',
+              '{{draft}} of them would be lost on {{longDate}}, above what carries over.',
+              { draft: amount(who.lostAtYearEnd.draft), longDate: longDate(preview.yearEnd) },
+            )}
           </p>
         ) : null}
       </div>
@@ -807,12 +963,23 @@ function AppliesTo({
       </fieldset>
     );
   return (
-    <PageSection title="Applies to" description={appliesToLabel(value)} surface>
+    <PageSection
+      title={t('settings.leave-type.applies_to', 'Applies to')}
+      description={appliesToLabel(value)}
+      surface
+    >
       <div className="flex flex-col gap-4">
-        {group('country', 'Countries', places?.countries ?? [])}
-        {group('location', 'Work locations', places?.locations ?? [])}
+        {group('country', t('settings.leave-type.countries', 'Countries'), places?.countries ?? [])}
+        {group(
+          'location',
+          t('settings.leave-type.work_locations', 'Work locations'),
+          places?.locations ?? [],
+        )}
         <p className="text-sm text-fg-muted">
-          Nothing ticked is everyone. A change is part of the draft until it is published.
+          {t(
+            'settings.leave-type.nothing_ticked_is_everyone_a_change',
+            'Nothing ticked is everyone. A change is part of the draft until it is published.',
+          )}
         </p>
       </div>
     </PageSection>
@@ -851,11 +1018,23 @@ function ShadowRun({
   const over = shadow !== null && shadow.asOf === shadow.to;
   return (
     <PageSection
-      title="Shadow run"
+      title={t('settings.leave-type.shadow_run', 'Shadow run')}
       description={
         shadow === null
-          ? 'Run the draft beside the policy in effect for a month, and compare balances before anyone sees them.'
-          : `${over ? 'Ran' : 'Running'} ${longDate(shadow.from)} to ${longDate(shadow.to)} · balances as of ${longDate(shadow.asOf)}. Only HR sees this.`
+          ? t(
+              'settings.leave-type.run_the_draft_beside_the_policy',
+              'Run the draft beside the policy in effect for a month, and compare balances before anyone sees them.',
+            )
+          : t(
+              'settings.leave-type.to_balances_as_of_only_hr',
+              '{{value}} {{longDate}} to {{longDate2}} · balances as of {{longDate3}}. Only HR sees this.',
+              {
+                value: over ? 'Ran' : 'Running',
+                longDate: longDate(shadow.from),
+                longDate2: longDate(shadow.to),
+                longDate3: longDate(shadow.asOf),
+              },
+            )
       }
       actions={
         onShadow === undefined ? undefined : (
@@ -863,31 +1042,49 @@ function ShadowRun({
             size="sm"
             variant="secondary"
             loading={busy}
-            loadingLabel={shadow === null ? 'Starting' : 'Stopping'}
+            loadingLabel={
+              shadow === null
+                ? t('settings.leave-type.starting', 'Starting')
+                : t('settings.leave-type.stopping', 'Stopping')
+            }
             onClick={() => {
               press(shadow === null);
             }}
           >
-            {shadow === null ? 'Run for a month' : 'Stop'}
+            {shadow === null
+              ? t('settings.leave-type.run_for_a_month', 'Run for a month')
+              : t('settings.leave-type.stop', 'Stop')}
           </Button>
         )
       }
       surface
     >
       {refused === null ? null : (
-        <Alert tone="danger" title="Not changed">
+        <Alert tone="danger" title={t('settings.leave-type.not_changed', 'Not changed')}>
           {refused}
         </Alert>
       )}
       {shadow === null ? null : differ.length === 0 ? (
-        <p className="text-sm text-fg-muted">{`Every balance is the same under both, ${people(shadow.members.length)} compared.`}</p>
+        <p className="text-sm text-fg-muted">
+          {t(
+            'settings.leave-type.every_balance_is_the_same_under',
+            'Every balance is the same under both, {{people}} compared.',
+            { people: people(shadow.members.length) },
+          )}
+        </p>
       ) : (
-        <List aria-label="Balances under the draft">
+        <List
+          aria-label={t('settings.leave-type.balances_under_the_draft', 'Balances under the draft')}
+        >
           {differ.map((m) => (
             <ListItem
               key={m.personId}
               leading={<Avatar name={m.displayName} size="sm" />}
-              description={`${amount(m.balance.current)} now, ${amount(m.balance.draft)} under the draft`}
+              description={t(
+                'settings.leave-type.now_under_the_draft',
+                '{{current}} now, {{draft}} under the draft',
+                { current: amount(m.balance.current), draft: amount(m.balance.draft) },
+              )}
               trailing={
                 <Badge size="sm" tone={delta(m.balance) > 0 ? 'success' : 'danger'}>
                   {`${delta(m.balance) > 0 ? '+' : '−'}${counted(Math.abs(delta(m.balance)), unit)}`}
@@ -900,7 +1097,11 @@ function ShadowRun({
         </List>
       )}
       {shadow === null || differ.length === 0 ? null : (
-        <p className="text-sm text-fg-muted">{`${people(shadow.members.length - differ.length)} the same under both.`}</p>
+        <p className="text-sm text-fg-muted">
+          {t('settings.leave-type.the_same_under_both', '{{people}} the same under both.', {
+            people: people(shadow.members.length - differ.length),
+          })}
+        </p>
       )}
     </PageSection>
   );
@@ -912,7 +1113,7 @@ function ShadowRun({
 export function LeaveTypeSkeleton(): JSX.Element {
   return (
     <SettingsSkeleton
-      title="Leave type"
+      title={t('settings.leave-type.leave_type', 'Leave type')}
       description=" "
       container="@container/policy"
       columns={columns}

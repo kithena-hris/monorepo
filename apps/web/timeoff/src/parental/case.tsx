@@ -28,6 +28,7 @@ import {
   type Member,
   type Plan,
 } from './shared';
+import { t } from '../i18n';
 
 /**
  * HR's view of a parental leave case (T11): the plan on its track, the
@@ -65,7 +66,9 @@ export function ParentalCase({ load, onApprove }: ParentalCaseProps): JSX.Elemen
   if (load.status === 'loading') return <CaseSkeleton />;
   return (
     <div className="@container/case flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Parental leave" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('parental.case.parental_leave', 'Parental leave')} />
+      ) : null}
       <Loaded load={load} what="this parental leave case">
         {(data) => <Ready data={data} onApprove={onApprove} />}
       </Loaded>
@@ -87,54 +90,89 @@ function step(
   switch (key) {
     case 'entitlement':
       return {
-        title: 'Entitlement checked',
+        title: t('parental.case.entitlement_checked', 'Entitlement checked'),
         detail:
           e.companyWeeks > 0
-            ? `${weeks(lawWeeks(e))} by law, ${weeks(e.companyWeeks)} from the company.`
-            : `${weeks(lawWeeks(e))} by law.`,
+            ? t(
+                'parental.case.by_law_from_the_company',
+                '{{weeks}} by law, {{weeks2}} from the company.',
+                { weeks: weeks(lawWeeks(e)), weeks2: weeks(e.companyWeeks) },
+              )
+            : t('parental.case.by_law', '{{weeks}} by law.', { weeks: weeks(lawWeeks(e)) }),
       };
     case 'manager_told':
       return {
-        title: `${managerName?.split(' ')[0] ?? 'The manager'} told`,
+        title: t('parental.case.told', '{{value}} told', {
+          value: managerName?.split(' ')[0] ?? 'The manager',
+        }),
         detail:
           plan.sentAt === null
-            ? 'When the plan is sent.'
-            : `Sent the plan on ${shortDate(plan.sentAt)}.`,
+            ? t('parental.case.when_the_plan_is_sent', 'When the plan is sent.')
+            : t('parental.case.sent_the_plan_on', 'Sent the plan on {{sentAt}}.', {
+                sentAt: shortDate(plan.sentAt),
+              }),
       };
     case 'certificate':
       return {
-        title: 'Company certificate for Social Security',
-        detail: `Drafted from ${first}’s pay history once you confirm it. Needs your signature.`,
+        title: t(
+          'parental.case.company_certificate_for_social_security',
+          'Company certificate for Social Security',
+        ),
+        detail: t(
+          'parental.case.drafted_from_s_pay_history_once',
+          'Drafted from {{first}}’s pay history once you confirm it. Needs your signature.',
+          { first },
+        ),
       };
     case 'payroll':
       return {
-        title: 'Pause salary in Payroll',
+        title: t('parental.case.pause_salary_in_payroll', 'Pause salary in Payroll'),
         detail:
           sorted[0] === undefined || back === null
-            ? 'For the weeks Social Security pays.'
-            : `${shortDate(sorted[0].from)} – ${shortDate(addDays(back, -1))}, for the weeks Social Security pays.`,
+            ? t(
+                'parental.case.for_the_weeks_social_security_pays',
+                'For the weeks Social Security pays.',
+              )
+            : t(
+                'parental.case.for_the_weeks_social_security_pays_2',
+                '{{from}} – {{addDays}}, for the weeks Social Security pays.',
+                { from: shortDate(sorted[0].from), addDays: shortDate(addDays(back, -1)) },
+              ),
       };
     case 'benefits':
       return {
-        title: 'Add the baby as a dependent',
-        detail: 'Health insurance in Benefits, after the birth certificate.',
+        title: t('parental.case.add_the_baby_as_a_dependent', 'Add the baby as a dependent'),
+        detail: t(
+          'parental.case.health_insurance_in_benefits_after_the',
+          'Health insurance in Benefits, after the birth certificate.',
+        ),
       };
     case 'birth_certificate':
       return {
-        title: 'Birth certificate',
+        title: t('parental.case.birth_certificate', 'Birth certificate'),
         detail:
           plan.birth !== null
-            ? `Ask ${first} for it: the baby was born on ${shortDate(plan.birth)}.`
+            ? t(
+                'parental.case.ask_for_it_the_baby_was',
+                'Ask {{first}} for it: the baby was born on {{birth}}.',
+                { first, birth: shortDate(plan.birth) },
+              )
             : on === null
-              ? `Asked of ${first} after the birth.`
-              : `Time Off asks ${first} for it on ${shortDate(on)}, 3 days after the due date.`,
+              ? t('parental.case.asked_of_after_the_birth', 'Asked of {{first}} after the birth.', {
+                  first,
+                })
+              : t(
+                  'parental.case.time_off_asks_for_it_on',
+                  'Time Off asks {{first}} for it on {{on}}, 3 days after the due date.',
+                  { first, on: shortDate(on) },
+                ),
       };
   }
 }
 
 const MODULE: Record<'payroll' | 'benefits', string> = {
-  payroll: 'Payroll module',
-  benefits: 'Benefits module',
+  payroll: t('parental.case.payroll_module', 'Payroll module'),
+  benefits: t('parental.case.benefits_module', 'Benefits module'),
 };
 
 function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {
@@ -142,13 +180,13 @@ function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {
     case 'done':
       return (
         <Badge size="sm" tone="success">
-          Done
+          {t('parental.case.done', 'Done')}
         </Badge>
       );
     case 'scheduled':
       return (
         <Badge size="sm" tone="info">
-          Scheduled
+          {t('parental.case.scheduled', 'Scheduled')}
         </Badge>
       );
     case 'elsewhere':
@@ -160,7 +198,7 @@ function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {
     case 'todo':
       return (
         <Badge size="sm" variant="outline">
-          To do
+          {t('parental.case.to_do', 'To do')}
         </Badge>
       );
   }
@@ -168,17 +206,38 @@ function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {
 
 /** The domain's rules, each said as passed or not: what the plan breaks is in `problems`. */
 const RULES: readonly { code: string; passed: (plan: Plan) => string }[] = [
-  { code: 'WHOLE_WEEKS', passed: () => 'Flexible weeks are taken in whole weeks' },
+  {
+    code: 'WHOLE_WEEKS',
+    passed: () =>
+      t(
+        'parental.case.flexible_weeks_are_taken_in_whole',
+        'Flexible weeks are taken in whole weeks',
+      ),
+  },
   {
     code: 'FLEXIBLE_DEADLINE',
-    passed: (plan) => `Flexible weeks end before ${longDate(plan.entitlement.flexibleBefore)}`,
+    passed: (plan) =>
+      t('parental.case.flexible_weeks_end_before', 'Flexible weeks end before {{longDate}}', {
+        longDate: longDate(plan.entitlement.flexibleBefore),
+      }),
   },
   {
     code: 'MANDATORY_AT_BIRTH',
     passed: (plan) =>
-      `The ${String(plan.entitlement.mandatoryWeeks)} mandatory weeks run from the birth`,
+      t(
+        'parental.case.the_mandatory_weeks_run_from_the',
+        'The {{mandatoryWeeks}} mandatory weeks run from the birth',
+        { mandatoryWeeks: String(plan.entitlement.mandatoryWeeks) },
+      ),
   },
-  { code: 'OVER_ENTITLEMENT', passed: () => 'Every total is within the entitlement' },
+  {
+    code: 'OVER_ENTITLEMENT',
+    passed: () =>
+      t(
+        'parental.case.every_total_is_within_the_entitlement',
+        'Every total is within the entitlement',
+      ),
+  },
 ];
 
 function Ready({
@@ -207,21 +266,29 @@ function Ready({
   const status =
     plan.status === 'approved' ? (
       <Badge tone="success" dot>
-        Approved
+        {t('parental.case.approved', 'Approved')}
       </Badge>
     ) : (
       <Badge tone="warning" dot>
-        Waiting for HR
+        {t('parental.case.waiting_for_hr', 'Waiting for HR')}
       </Badge>
     );
   return (
     <>
       <PageHeader
-        title={`${member.displayName} · parental leave`}
+        title={t('parental.case.parental_leave_2', '{{displayName}} · parental leave', {
+          displayName: member.displayName,
+        })}
         description={[
-          plan.sentAt === null ? null : `Sent ${shortDate(plan.sentAt)}`,
-          plan.birth === null ? `due ${longDate(due)}` : `born ${longDate(plan.birth)}`,
-          back === null ? null : `back ${longDate(back)}`,
+          plan.sentAt === null
+            ? null
+            : t('parental.case.sent', 'Sent {{sentAt}}', { sentAt: shortDate(plan.sentAt) }),
+          plan.birth === null
+            ? t('parental.case.due', 'due {{longDate}}', { longDate: longDate(due) })
+            : t('parental.case.born', 'born {{longDate}}', { longDate: longDate(plan.birth) }),
+          back === null
+            ? null
+            : t('parental.case.back', 'back {{longDate}}', { longDate: longDate(back) }),
         ]
           .filter(Boolean)
           .join(' · ')}
@@ -234,7 +301,7 @@ function Ready({
               disabled={pending}
               onClick={approve}
             >
-              Approve plan
+              {t('parental.case.approve_plan', 'Approve plan')}
             </Button>
           ) : (
             status
@@ -242,21 +309,27 @@ function Ready({
         }
       />
       {failed === null ? null : (
-        <Alert tone="danger" title="The plan was not approved">
+        <Alert
+          tone="danger"
+          title={t('parental.case.the_plan_was_not_approved', 'The plan was not approved')}
+        >
           {failed}
         </Alert>
       )}
-      <PageSection title="Plan">
+      <PageSection title={t('parental.case.plan', 'Plan')}>
         <Card padded>
           <PlanTrack plan={plan} />
         </Card>
       </PageSection>
       <div className="flex flex-col gap-5 @min-[56rem]/case:grid @min-[56rem]/case:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] @min-[56rem]/case:items-start">
         <PageSection
-          title="Checklist"
+          title={t('parental.case.checklist', 'Checklist')}
           actions={
             <span className="text-sm font-medium text-fg-muted">
-              {`${String(done)} of ${String(data.checklist.length)}`}
+              {t('parental.case.of', '{{done}} of {{length}}', {
+                done: String(done),
+                length: String(data.checklist.length),
+              })}
             </span>
           }
         >
@@ -289,11 +362,11 @@ function Ready({
           {plan.explanation === undefined ? null : (
             <AssistantCard
               level={2}
-              title="Why this plan"
+              title={t('parental.case.why_this_plan', 'Why this plan')}
               action={
                 plan.explanation.ai ? (
                   <Badge tone="assistant" size="sm">
-                    AI
+                    {t('parental.case.ai', 'AI')}
                   </Badge>
                 ) : undefined
               }
@@ -301,7 +374,9 @@ function Ready({
               <p className="text-sm text-fg-muted">{plan.explanation.text}</p>
             </AssistantCard>
           )}
-          <PageSection title="Checked against the rules">
+          <PageSection
+            title={t('parental.case.checked_against_the_rules', 'Checked against the rules')}
+          >
             <Card padded>
               <List>
                 {RULES.map((r) => {
@@ -317,7 +392,11 @@ function Ready({
                         )
                       }
                       iconTone={broken.has(r.code) ? 'chart-5' : 'chart-3'}
-                      description={broken.has(r.code) ? 'Broken' : 'Passed'}
+                      description={
+                        broken.has(r.code)
+                          ? t('parental.case.broken', 'Broken')
+                          : t('parental.case.passed', 'Passed')
+                      }
                     >
                       {problem?.message ?? r.passed(plan)}
                     </ListItem>
@@ -330,7 +409,7 @@ function Ready({
                       key={p.code}
                       icon={<icons.danger aria-hidden />}
                       iconTone="chart-5"
-                      description="Broken"
+                      description={t('parental.case.broken', 'Broken')}
                     >
                       {p.message}
                     </ListItem>
@@ -340,15 +419,26 @@ function Ready({
                     key={r.blockFrom}
                     icon={<icons.warning aria-hidden />}
                     iconTone="chart-4"
-                    description={`${member.firstName} is reminded on ${shortDate(r.remindOn)}. Nothing to do now.`}
+                    description={t(
+                      'parental.case.is_reminded_on_nothing_to_do',
+                      '{{firstName}} is reminded on {{remindOn}}. Nothing to do now.',
+                      { firstName: member.firstName, remindOn: shortDate(r.remindOn) },
+                    )}
                   >
-                    {`The block from ${shortDate(r.blockFrom)} needs ${String(plan.entitlement.noticeDays)} days’ notice`}
+                    {t(
+                      'parental.case.the_block_from_needs_days_notice',
+                      'The block from {{blockFrom}} needs {{noticeDays}} days’ notice',
+                      {
+                        blockFrom: shortDate(r.blockFrom),
+                        noticeDays: String(plan.entitlement.noticeDays),
+                      },
+                    )}
                   </ListItem>
                 ))}
               </List>
             </Card>
           </PageSection>
-          <PageSection title="Who can see this">
+          <PageSection title={t('parental.case.who_can_see_this', 'Who can see this')}>
             <Card padded>
               <KeyValues
                 items={[
@@ -357,7 +447,12 @@ function Ready({
                     ? []
                     : [{ label: data.managerName, value: 'Dates and handover' }]),
                   {
-                    label: member.teamName === null ? 'The team' : `${member.teamName} team`,
+                    label:
+                      member.teamName === null
+                        ? t('parental.case.the_team', 'The team')
+                        : t('parental.case.team', '{{teamName}} team', {
+                            teamName: member.teamName,
+                          }),
                     value: `${plan.teamSees === 'type' ? '“Parental leave”' : '“Away”'}, dates`,
                   },
                   { label: 'HR', value: 'Everything, plus documents' },
@@ -366,7 +461,7 @@ function Ready({
             </Card>
           </PageSection>
           {plan.handover.length === 0 ? null : (
-            <PageSection title="Handover">
+            <PageSection title={t('parental.case.handover', 'Handover')}>
               <Card padded>
                 <KeyValues
                   items={plan.handover.map((h, i) => ({
@@ -379,7 +474,11 @@ function Ready({
             </PageSection>
           )}
           {plan.approvedAt === null ? null : (
-            <p className="text-sm text-fg-muted">{`Approved ${dayDate(plan.approvedAt)}.`}</p>
+            <p className="text-sm text-fg-muted">
+              {t('parental.case.approved_2', 'Approved {{dayDate}}.', {
+                dayDate: dayDate(plan.approvedAt),
+              })}
+            </p>
           )}
         </div>
       </div>
@@ -391,9 +490,11 @@ function Ready({
 export function CaseSkeleton(): JSX.Element {
   return (
     <div className="@container/case flex flex-col gap-6">
-      <PageHeader title="Parental leave" description={' '} />
+      <PageHeader title={t('parental.case.parental_leave', 'Parental leave')} description={' '} />
       <div role="status" className="flex flex-col gap-5">
-        <span className="sr-only">Loading this parental leave case</span>
+        <span className="sr-only">
+          {t('parental.case.loading_this_parental_leave_case', 'Loading this parental leave case')}
+        </span>
         <Skeleton className="h-64 rounded-lg" />
         <div className="flex flex-col gap-5 @min-[56rem]/case:grid @min-[56rem]/case:grid-cols-2">
           <Skeleton className="h-96 rounded-lg" />

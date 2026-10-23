@@ -23,7 +23,13 @@ export const AREAS = [
 export type Area = (typeof AREAS)[number]['value'];
 
 /** The areas a module's own activity falls in (`<module>.activity.recorded`). */
-export const MODULE_AREAS: readonly Area[] = ['settings', 'records', 'access', 'ai', 'integrations'];
+export const MODULE_AREAS: readonly Area[] = [
+  'settings',
+  'records',
+  'access',
+  'ai',
+  'integrations',
+];
 
 /** Whose activity: every module that keeps a log, and identity's sign-ins. */
 export const MODULES = [

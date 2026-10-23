@@ -7,6 +7,7 @@ import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
+import { t } from '../../lib/i18n';
 
 /**
  * Introduces one new feature, pointing at the actual control.
@@ -118,7 +119,7 @@ export function CoachMark({
         <div className="mt-1 flex items-center gap-1.5">
           {total > 1 ? (
             <span className="text-xs font-medium text-fg-muted tabular-nums">
-              {step} of {total}
+              {step} {t('components.coach-mark.coach-mark.of', 'of')} {total}
             </span>
           ) : null}
           <div className="ms-auto flex gap-1.5">
@@ -142,7 +143,10 @@ export function CoachMark({
                 else setOpen(false);
               }}
             >
-              {nextLabel ?? (last ? 'Got it' : 'Next')}
+              {nextLabel ??
+                (last
+                  ? t('components.coach-mark.coach-mark.got_it', 'Got it')
+                  : t('components.coach-mark.coach-mark.next', 'Next'))}
             </Button>
           </div>
         </div>
@@ -160,7 +164,7 @@ export function CoachMark({
  * reduced motion it does not pulse and stays solid.
  */
 export function CoachMarkDot({
-  label = 'New',
+  label = t('components.coach-mark.coach-mark.new', 'New'),
   className,
 }: {
   label?: string;

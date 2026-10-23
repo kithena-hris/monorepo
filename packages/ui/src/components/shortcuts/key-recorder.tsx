@@ -13,9 +13,12 @@ import {
 import { cn } from '../../lib/cn';
 import { fieldShell } from '../field/field-styles';
 import { KbdShortcut, chordOf } from '../kbd/kbd';
+import { t } from '../../lib/i18n';
 
-export interface KeyRecorderProps
-  extends Omit<ComponentPropsWithRef<'button'>, 'value' | 'onChange' | 'children'> {
+export interface KeyRecorderProps extends Omit<
+  ComponentPropsWithRef<'button'>,
+  'value' | 'onChange' | 'children'
+> {
   /** The shortcut now, as chords (`['g', 'd']`, `['mod+shift+k']`). Empty: none. */
   value: readonly string[];
   /** The chords just recorded. Whether they are allowed is the caller's to say, on the `Field`. */
@@ -96,7 +99,10 @@ export function KeyRecorder({
     const next = [...pending, chord];
     clearTimeout(timer.current);
     // A chord with a modifier is whole on its own: ⌘⇧K is not the start of anything.
-    if (next.length >= maxChords || (pending.length === 0 && chord.includes('+') && chord !== '+')) {
+    if (
+      next.length >= maxChords ||
+      (pending.length === 0 && chord.includes('+') && chord !== '+')
+    ) {
       commit(next);
       return;
     }
@@ -143,7 +149,13 @@ export function KeyRecorder({
         </span>
       </button>
       <span aria-live="polite" className="sr-only">
-        {recording ? `${recordingText}. Escape cancels.` : ''}
+        {recording
+          ? t(
+              'components.shortcuts.key-recorder.escape_cancels',
+              '{{recordingText}}. Escape cancels.',
+              { recordingText },
+            )
+          : ''}
       </span>
     </>
   );

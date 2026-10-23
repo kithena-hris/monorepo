@@ -11,6 +11,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
+import { t } from '../../lib/i18n';
 
 /**
  * A one-time code, as separate boxes.
@@ -210,7 +211,11 @@ export function PinInput({
               autoCorrect="off"
               spellCheck={false}
               maxLength={1}
-              aria-label={`${label}, character ${String(index + 1)} of ${String(length)}`}
+              aria-label={t(
+                'components.pin-input.pin-input.character_of',
+                '{{label}}, character {{value}} of {{length}}',
+                { label, value: String(index + 1), length: String(length) },
+              )}
               aria-invalid={invalid || undefined}
               disabled={disabled}
               autoFocus={autoFocus && index === 0}
@@ -255,8 +260,12 @@ export function PinInput({
        */}
       <p id={statusId} aria-live="polite" className="sr-only">
         {value.length === 0
-          ? `${label} empty`
-          : `${String(value.length)} of ${String(length)} characters entered`}
+          ? t('components.pin-input.pin-input.empty', '{{label}} empty', { label })
+          : t(
+              'components.pin-input.pin-input.of_characters_entered',
+              '{{length}} of {{length2}} characters entered',
+              { length: String(value.length), length2: String(length) },
+            )}
       </p>
     </div>
   );

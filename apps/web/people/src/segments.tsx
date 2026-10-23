@@ -22,6 +22,7 @@ import { useState, type JSX } from 'react';
 
 import { useHeld } from './held';
 import type { Outcome } from './load';
+import { t } from './i18n';
 
 /**
  * Saved segments (PEO-068, PRD §16.3): one filter, saved once, applied in the
@@ -57,14 +58,14 @@ export function SegmentSelect({
         onChange(next === NONE ? null : next);
       }}
     >
-      <SelectTrigger aria-label="Segment" className="w-auto min-w-40">
+      <SelectTrigger aria-label={t('segments.segment', 'Segment')} className="w-auto min-w-40">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE}>Segment: none</SelectItem>
+        <SelectItem value={NONE}>{t('segments.segment_none', 'Segment: none')}</SelectItem>
         {segments.map((s) => (
           <SelectItem key={s.id} value={s.id}>
-            Segment: {s.name}
+            {t('segments.segment_2', 'Segment:')} {s.name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -80,7 +81,7 @@ export function SegmentSelect({
  */
 export function SaveSegment({
   onSave,
-  label = 'Save view',
+  label = t('segments.save_view', 'Save view'),
   open: heldOpen,
   onOpenChange,
 }: {
@@ -118,9 +119,11 @@ export function SaveSegment({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-85">
         <Stack gap={4}>
-          <h2 className="text-md font-bold text-fg">Save this view</h2>
+          <h2 className="text-md font-bold text-fg">
+            {t('segments.save_this_view', 'Save this view')}
+          </h2>
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('segments.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={name}
@@ -132,35 +135,38 @@ export function SaveSegment({
             </FieldControl>
           </Field>
           <RadioGroup
-            aria-label="Who can use it"
+            aria-label={t('segments.who_can_use_it', 'Who can use it')}
             value={shared ? 'company' : 'me'}
             onValueChange={(next) => {
               setShared(next === 'company');
             }}
           >
-            <RadioGroupItem value="me">Only me</RadioGroupItem>
+            <RadioGroupItem value="me">{t('segments.only_me', 'Only me')}</RadioGroupItem>
             <RadioGroupItem
               value="company"
-              description="Others see only the people and fields they can already see."
+              description={t(
+                'segments.others_see_only_the_people_and',
+                'Others see only the people and fields they can already see.',
+              )}
             >
-              Share with the company
+              {t('segments.share_with_the_company', 'Share with the company')}
             </RadioGroupItem>
           </RadioGroup>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not saved">
+            <Alert tone="danger" title={t('segments.not_saved', 'Not saved')}>
               {refused}
             </Alert>
           )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={close}>
-              Cancel
+              {t('segments.cancel', 'Cancel')}
             </Button>
             <Button
               variant="primary"
               size="sm"
               disabled={name.trim() === ''}
               loading={busy}
-              loadingLabel="Saving"
+              loadingLabel={t('segments.saving', 'Saving')}
               onClick={() => {
                 setBusy(true);
                 setRefused(null);
@@ -171,7 +177,7 @@ export function SaveSegment({
                 });
               }}
             >
-              Save view
+              {t('segments.save_view', 'Save view')}
             </Button>
           </div>
         </Stack>

@@ -2,6 +2,7 @@ import { Alert, AssistantCard, Badge, Button, Checkbox, List, ListItem, Spinner 
 import { useEffect, useState, type JSX } from 'react';
 
 import type { Read } from './types';
+import { t } from './i18n';
 
 /**
  * Documents that answer HR (J1, J2, J6): what the record is waiting for from
@@ -80,36 +81,59 @@ export function Answers({
     <AssistantCard
       title={
         asked > 0
-          ? `HR is waiting for ${String(asked)} detail${asked === 1 ? '' : 's'} from you`
-          : `Your record is missing ${String(waiting.length)} detail${waiting.length === 1 ? '' : 's'}`
+          ? t(
+              'answers.hr_is_waiting_for_detail_from',
+              'HR is waiting for {{asked}} detail{{value}} from you',
+              { asked: String(asked), value: asked === 1 ? '' : 's' },
+            )
+          : t(
+              'answers.your_record_is_missing_detail',
+              'Your record is missing {{length}} detail{{value}}',
+              { length: String(waiting.length), value: waiting.length === 1 ? '' : 's' },
+            )
       }
       level={2}
-      note="Read for you alone. Nothing is sent until you save it."
+      note={t(
+        'answers.read_for_you_alone_nothing_is',
+        'Read for you alone. Nothing is sent until you save it.',
+      )}
     >
       {found === null ? (
         <Button variant="secondary" size="sm" className="self-start" onClick={look}>
-          {documentIds.length === 1 ? 'Look in this document' : 'Look in your documents'}
+          {documentIds.length === 1
+            ? t('answers.look_in_this_document', 'Look in this document')
+            : t('answers.look_in_your_documents', 'Look in your documents')}
         </Button>
       ) : found === 'looking' ? (
-        <Spinner size="sm" label="Kithena is reading your documents" />
+        <Spinner
+          size="sm"
+          label={t(
+            'answers.kithena_is_reading_your_documents',
+            'Kithena is reading your documents',
+          )}
+        />
       ) : !found.ok ? (
         <Alert tone="danger">{found.message}</Alert>
       ) : rows.length === 0 ? (
         <p className="text-sm text-fg-muted">
           {documentIds.length === 1
-            ? 'This document does not say any of them.'
-            : 'Your documents do not say any of them.'}
+            ? t('answers.this_document_does_not_say_any', 'This document does not say any of them.')
+            : t('answers.your_documents_do_not_say_any', 'Your documents do not say any of them.')}
         </p>
       ) : (
         <>
-          <List aria-label="What Kithena found">
+          <List aria-label={t('answers.what_kithena_found', 'What Kithena found')}>
             {rows.map((f) => (
               <ListItem
                 key={f.key}
-                description={`${f.value} · ${titles?.[f.documentId] ?? 'this document'}, p. ${String(f.page)}`}
+                description={t('answers.p', '{{value}} · {{value2}}, p. {{page}}', {
+                  value: f.value,
+                  value2: titles?.[f.documentId] ?? t('answers.this_document', 'this document'),
+                  page: String(f.page),
+                })}
                 leading={
                   <Checkbox
-                    aria-label={`Save ${f.label}`}
+                    aria-label={t('answers.save', 'Save {{label}}', { label: f.label })}
                     checked={ticked.has(f.key)}
                     disabled={saved !== null}
                     onCheckedChange={(v) => {
@@ -123,7 +147,7 @@ export function Answers({
                 trailing={
                   f.asked ? (
                     <Badge size="sm" tone="accent">
-                      HR asked
+                      {t('answers.hr_asked', 'HR asked')}
                     </Badge>
                   ) : null
                 }
@@ -153,13 +177,19 @@ export function Answers({
                   const held = typeof r.held === 'number' ? r.held : (r.held?.length ?? 0);
                   setSaved(
                     held === 0
-                      ? 'Saved to your record.'
-                      : `Saved. ${String(held)} wait for HR to approve.`,
+                      ? t('answers.saved_to_your_record', 'Saved to your record.')
+                      : t(
+                          'answers.saved_wait_for_hr_to_approve',
+                          'Saved. {{held}} wait for HR to approve.',
+                          { held: String(held) },
+                        ),
                   );
                 });
               }}
             >
-              {`Save ${String(ticked.size)} to your record`}
+              {t('answers.save_to_your_record', 'Save {{size}} to your record', {
+                size: String(ticked.size),
+              })}
             </Button>
           ) : (
             <p className="text-sm">{saved}</p>

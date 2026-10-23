@@ -37,6 +37,7 @@ import { mute } from '../../app/(app)/inbox/actions';
 import { saveNotifications } from '../../app/(app)/settings/notifications/actions';
 import { moduleName, type Mute } from '../../lib/inbox/model';
 import { TASK_ROWS, UPDATE_ROWS, type Notifications } from '../../lib/inbox/notifications';
+import { t as tr } from '../../lib/t';
 
 /**
  * Settings › You › Notifications (P1): tasks (the Inbox always has them, the
@@ -102,7 +103,14 @@ function Settings({
     start(async () => {
       const done = await saveNotifications(next);
       if (!done.ok)
-        toast({ title: 'That did not save', description: done.message, tone: 'danger' });
+        toast({
+          title: tr(
+            'components.inbox.notification-settings.that_did_not_save',
+            'That did not save',
+          ),
+          description: done.message,
+          tone: 'danger',
+        });
     });
   };
   return (
@@ -112,30 +120,49 @@ function Settings({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
+                <BreadcrumbLink href="/settings">
+                  {tr('components.inbox.notification-settings.settings', 'Settings')}
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Notifications</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {tr('components.inbox.notification-settings.notifications', 'Notifications')}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         }
-        title="Notifications"
-        description="Where your tasks and updates reach you. The Inbox always has everything."
-        meta={pending ? <Badge size="sm">Saving</Badge> : undefined}
+        title={tr('components.inbox.notification-settings.notifications', 'Notifications')}
+        description={tr(
+          'components.inbox.notification-settings.where_your_tasks_and_updates_reach',
+          'Where your tasks and updates reach you. The Inbox always has everything.',
+        )}
+        meta={
+          pending ? (
+            <Badge size="sm">{tr('components.inbox.notification-settings.saving', 'Saving')}</Badge>
+          ) : undefined
+        }
       />
       <div className="grid gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Tasks</CardTitle>
+              <CardTitle level={2}>
+                {tr('components.inbox.notification-settings.tasks', 'Tasks')}
+              </CardTitle>
               <CardDescription>
-                Always in your Inbox. Choose where else they reach you.
+                {tr(
+                  'components.inbox.notification-settings.always_in_your_inbox_choose_where',
+                  'Always in your Inbox. Choose where else they reach you.',
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <List aria-label="Tasks" className="-mx-2 bg-transparent shadow-none">
+              <List
+                aria-label={tr('components.inbox.notification-settings.tasks', 'Tasks')}
+                className="-mx-2 bg-transparent shadow-none"
+              >
                 {TASK_ROWS.map((row) => {
                   const c = n.tasks[row.key];
                   return (
@@ -145,10 +172,13 @@ function Settings({
                       trailing={
                         <span className="flex flex-wrap items-center gap-3">
                           <Badge size="sm" variant="outline">
-                            <icons.locked aria-hidden /> Inbox
+                            <icons.locked aria-hidden />{' '}
+                            {tr('components.inbox.notification-settings.inbox', 'Inbox')}
                           </Badge>
                           <Field orientation="horizontal">
-                            <FieldLabel>Phone</FieldLabel>
+                            <FieldLabel>
+                              {tr('components.inbox.notification-settings.phone', 'Phone')}
+                            </FieldLabel>
                             <FieldControl>
                               <Switch
                                 checked={c.phone}
@@ -159,7 +189,11 @@ function Settings({
                             </FieldControl>
                           </Field>
                           <EmailSelect
-                            label={`${row.label} by email`}
+                            label={tr(
+                              'components.inbox.notification-settings.by_email',
+                              '{{label}} by email',
+                              { label: row.label },
+                            )}
                             value={c.email}
                             onChange={(email) => {
                               save({ ...n, tasks: { ...n.tasks, [row.key]: { ...c, email } } });
@@ -177,13 +211,21 @@ function Settings({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Updates</CardTitle>
+              <CardTitle level={2}>
+                {tr('components.inbox.notification-settings.updates', 'Updates')}
+              </CardTitle>
               <CardDescription>
-                News, never something owed. Switch each kind on or off.
+                {tr(
+                  'components.inbox.notification-settings.news_never_something_owed_switch_each',
+                  'News, never something owed. Switch each kind on or off.',
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <List aria-label="Updates" className="-mx-2 bg-transparent shadow-none">
+              <List
+                aria-label={tr('components.inbox.notification-settings.updates', 'Updates')}
+                className="-mx-2 bg-transparent shadow-none"
+              >
                 {UPDATE_ROWS.map((row) => {
                   const c = n.updates[row.key];
                   const set = (next: typeof c) => {
@@ -196,7 +238,9 @@ function Settings({
                       trailing={
                         <span className="flex flex-wrap items-center gap-3">
                           <Field orientation="horizontal">
-                            <FieldLabel>Inbox</FieldLabel>
+                            <FieldLabel>
+                              {tr('components.inbox.notification-settings.inbox', 'Inbox')}
+                            </FieldLabel>
                             <FieldControl>
                               <Switch
                                 checked={c.inbox}
@@ -207,7 +251,9 @@ function Settings({
                             </FieldControl>
                           </Field>
                           <Field orientation="horizontal">
-                            <FieldLabel>Phone</FieldLabel>
+                            <FieldLabel>
+                              {tr('components.inbox.notification-settings.phone', 'Phone')}
+                            </FieldLabel>
                             <FieldControl>
                               <Switch
                                 checked={c.phone}
@@ -218,7 +264,11 @@ function Settings({
                             </FieldControl>
                           </Field>
                           <EmailSelect
-                            label={`${row.label} by email`}
+                            label={tr(
+                              'components.inbox.notification-settings.by_email',
+                              '{{label}} by email',
+                              { label: row.label },
+                            )}
                             value={c.email}
                             onChange={(email) => {
                               set({ ...c, email });
@@ -238,12 +288,24 @@ function Settings({
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Quiet hours</CardTitle>
-              <CardDescription>Tasks due today still come through.</CardDescription>
+              <CardTitle level={2}>
+                {tr('components.inbox.notification-settings.quiet_hours', 'Quiet hours')}
+              </CardTitle>
+              <CardDescription>
+                {tr(
+                  'components.inbox.notification-settings.tasks_due_today_still_come_through',
+                  'Tasks due today still come through.',
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <Field orientation="horizontal">
-                <FieldLabel>Hold phone notifications</FieldLabel>
+                <FieldLabel>
+                  {tr(
+                    'components.inbox.notification-settings.hold_phone_notifications',
+                    'Hold phone notifications',
+                  )}
+                </FieldLabel>
                 <FieldControl>
                   <Switch
                     checked={n.quiet.on}
@@ -255,10 +317,12 @@ function Settings({
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field disabled={!n.quiet.on}>
-                  <FieldLabel>From</FieldLabel>
+                  <FieldLabel>
+                    {tr('components.inbox.notification-settings.from', 'From')}
+                  </FieldLabel>
                   <FieldControl>
                     <TimePicker
-                      label="From"
+                      label={tr('components.inbox.notification-settings.from', 'From')}
                       value={n.quiet.from}
                       disabled={!n.quiet.on}
                       onChange={(t) => {
@@ -268,10 +332,12 @@ function Settings({
                   </FieldControl>
                 </Field>
                 <Field disabled={!n.quiet.on}>
-                  <FieldLabel>Until</FieldLabel>
+                  <FieldLabel>
+                    {tr('components.inbox.notification-settings.until', 'Until')}
+                  </FieldLabel>
                   <FieldControl>
                     <TimePicker
-                      label="Until"
+                      label={tr('components.inbox.notification-settings.until', 'Until')}
                       value={n.quiet.to}
                       disabled={!n.quiet.on}
                       onChange={(t) => {
@@ -282,7 +348,12 @@ function Settings({
                 </Field>
               </div>
               <Field orientation="horizontal" disabled={!n.quiet.on}>
-                <FieldLabel>All day at weekends</FieldLabel>
+                <FieldLabel>
+                  {tr(
+                    'components.inbox.notification-settings.all_day_at_weekends',
+                    'All day at weekends',
+                  )}
+                </FieldLabel>
                 <FieldControl>
                   <Switch
                     checked={n.quiet.weekends}
@@ -297,15 +368,24 @@ function Settings({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Daily digest</CardTitle>
-              <CardDescription>Everything you haven’t opened, once a day.</CardDescription>
+              <CardTitle level={2}>
+                {tr('components.inbox.notification-settings.daily_digest', 'Daily digest')}
+              </CardTitle>
+              <CardDescription>
+                {tr(
+                  'components.inbox.notification-settings.everything_you_havent_opened_once_a',
+                  'Everything you haven’t opened, once a day.',
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Field>
-                <FieldLabel>Sent at</FieldLabel>
+                <FieldLabel>
+                  {tr('components.inbox.notification-settings.sent_at', 'Sent at')}
+                </FieldLabel>
                 <FieldControl>
                   <TimePicker
-                    label="Sent at"
+                    label={tr('components.inbox.notification-settings.sent_at', 'Sent at')}
                     value={n.digestAt}
                     onChange={(t) => {
                       if (t !== null) save({ ...n, digestAt: t });
@@ -317,21 +397,31 @@ function Settings({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Muted</CardTitle>
+              <CardTitle level={2}>
+                {tr('components.inbox.notification-settings.muted', 'Muted')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {muted.length === 0 ? (
                 <p className="text-sm text-fg-muted">
-                  Nothing muted. Mute updates from any update’s menu.
+                  {tr(
+                    'components.inbox.notification-settings.nothing_muted_mute_updates_from_any',
+                    'Nothing muted. Mute updates from any update’s menu.',
+                  )}
                 </p>
               ) : (
-                <List aria-label="Muted" className="-mx-2 bg-transparent shadow-none">
+                <List
+                  aria-label={tr('components.inbox.notification-settings.muted', 'Muted')}
+                  className="-mx-2 bg-transparent shadow-none"
+                >
                   {muted.map((m) => (
                     <ListItem
                       key={m.what}
                       icon={<icons.notifications aria-hidden />}
                       description={[
-                        m.inbox ? 'Inbox' : null,
+                        m.inbox
+                          ? tr('components.inbox.notification-settings.inbox', 'Inbox')
+                          : null,
                         m.email ? 'email' : null,
                         m.phone ? 'phone' : null,
                       ]
@@ -347,13 +437,24 @@ function Settings({
                             });
                           }}
                         >
-                          Unmute
+                          {tr('components.inbox.notification-settings.unmute', 'Unmute')}
                         </Button>
                       }
                     >
                       {m.what.includes('.')
-                        ? `${moduleName(m.what.split('.')[0] ?? '')} · ${m.what.split('.')[1] ?? ''}`
-                        : `Everything from ${moduleName(m.what)}`}
+                        ? tr(
+                            'components.inbox.notification-settings.text',
+                            '{{moduleName}} · {{value}}',
+                            {
+                              moduleName: moduleName(m.what.split('.')[0] ?? ''),
+                              value: m.what.split('.')[1] ?? '',
+                            },
+                          )
+                        : tr(
+                            'components.inbox.notification-settings.everything_from',
+                            'Everything from {{moduleName}}',
+                            { moduleName: moduleName(m.what) },
+                          )}
                     </ListItem>
                   ))}
                 </List>

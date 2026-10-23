@@ -5,6 +5,7 @@ import { useEffect, useState, type ComponentPropsWithoutRef, type JSX } from 're
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * A sensitive value, hidden until somebody asks for it.
@@ -41,7 +42,10 @@ export function timeLeft(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
-  return `${String(minutes)}:${String(seconds).padStart(2, '0')} left`;
+  return t('components.masked-value.masked-value.left', '{{minutes}}:{{padStart}} left', {
+    minutes: String(minutes),
+    padStart: String(seconds).padStart(2, '0'),
+  });
 }
 
 export function MaskedValue({
@@ -82,7 +86,17 @@ export function MaskedValue({
       {...props}
     >
       <span className="truncate">
-        {shown ? value : <span aria-label={`${label}, hidden`}>{masked}</span>}
+        {shown ? (
+          value
+        ) : (
+          <span
+            aria-label={t('components.masked-value.masked-value.hidden', '{{label}}, hidden', {
+              label,
+            })}
+          >
+            {masked}
+          </span>
+        )}
       </span>
       {shown && expiresAt !== null ? (
         <span className="shrink-0 font-sans text-2xs font-semibold text-warning-fg tabular-nums">
@@ -94,7 +108,11 @@ export function MaskedValue({
           variant="ghost"
           size="xs"
           className="relative tap-target size-6 rounded-xs text-fg-muted touch:size-7"
-          aria-label={shown ? `Hide ${label}` : `Show ${label}`}
+          aria-label={
+            shown
+              ? t('components.masked-value.masked-value.hide', 'Hide {{label}}', { label })
+              : t('components.masked-value.masked-value.show', 'Show {{label}}', { label })
+          }
           onClick={action}
           startIcon={shown ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
         />

@@ -29,6 +29,7 @@ import { useState, type JSX } from 'react';
 
 import { useWrite } from './shared';
 import type { GrantInput, Outcome, PersonRef } from './types';
+import { t } from './i18n';
 
 /**
  * Sharing (E1, MA1): people and their permission, Private or Shared as one
@@ -117,14 +118,19 @@ export function ShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Share {title}</DialogTitle>
+          <DialogTitle>
+            {t('share.share', 'Share')} {title}
+          </DialogTitle>
           <DialogDescription>
-            Private ends everyone’s access at once. Sections never change who can open it.
+            {t(
+              'share.private_ends_everyones_access_at_once',
+              'Private ends everyone’s access at once. Sections never change who can open it.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <SegmentedControl
-            aria-label="Who can open it"
+            aria-label={t('share.who_can_open_it', 'Who can open it')}
             fullWidth
             value={level}
             onValueChange={(v) => {
@@ -132,25 +138,25 @@ export function ShareDialog({
             }}
           >
             <SegmentedControlItem value="private">
-              <icons.locked aria-hidden /> Private
+              <icons.locked aria-hidden /> {t('share.private', 'Private')}
             </SegmentedControlItem>
             <SegmentedControlItem value="shared">
-              <icons.people aria-hidden /> Shared
+              <icons.people aria-hidden /> {t('share.shared', 'Shared')}
             </SegmentedControlItem>
           </SegmentedControl>
           {level === 'shared' ? (
             <>
               <Field>
-                <FieldLabel>Add people</FieldLabel>
+                <FieldLabel>{t('share.add_people', 'Add people')}</FieldLabel>
                 <FieldControl>
                   <Combobox
-                    label="Add people"
+                    label={t('share.add_people', 'Add people')}
                     options={options}
                     value={null}
                     onChange={add}
-                    placeholder="Add people"
-                    searchPlaceholder="Find someone"
-                    emptyMessage="Nobody by that name"
+                    placeholder={t('share.add_people', 'Add people')}
+                    searchPlaceholder={t('share.find_someone', 'Find someone')}
+                    emptyMessage={t('share.nobody_by_that_name', 'Nobody by that name')}
                   />
                 </FieldControl>
               </Field>
@@ -163,16 +169,25 @@ export function ShareDialog({
                   onClick={() => {
                     setList([
                       ...list,
-                      { kind: 'everyone', id: '*', label: 'Everyone', permission: 'view', endsOn },
+                      {
+                        kind: 'everyone',
+                        id: '*',
+                        label: t('share.everyone', 'Everyone'),
+                        permission: 'view',
+                        endsOn,
+                      },
                     ]);
                   }}
                 >
-                  Share with everyone
+                  {t('share.share_with_everyone', 'Share with everyone')}
                 </Button>
               ) : null}
               {list.length === 0 ? (
                 <p className="text-sm text-fg-muted">
-                  Nobody yet. Add the people who should open it.
+                  {t(
+                    'share.nobody_yet_add_the_people_who',
+                    'Nobody yet. Add the people who should open it.',
+                  )}
                 </p>
               ) : (
                 <List>
@@ -194,18 +209,23 @@ export function ShareDialog({
                               );
                             }}
                           >
-                            <SelectTrigger size="sm" aria-label={`What ${g.label} can do`}>
+                            <SelectTrigger
+                              size="sm"
+                              aria-label={t('share.what_can_do', 'What {{label}} can do', {
+                                label: g.label,
+                              })}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="view">View</SelectItem>
-                              <SelectItem value="edit">Edit</SelectItem>
+                              <SelectItem value="view">{t('share.view', 'View')}</SelectItem>
+                              <SelectItem value="edit">{t('share.edit', 'Edit')}</SelectItem>
                             </SelectContent>
                           </Select>
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={`Remove ${g.label}`}
+                            aria-label={t('share.remove', 'Remove {{label}}', { label: g.label })}
                             startIcon={<icons.close aria-hidden />}
                             onClick={() => {
                               setList(list.filter((x) => x !== g));
@@ -220,11 +240,11 @@ export function ShareDialog({
                 </List>
               )}
               <Field>
-                <FieldLabel>Access ends</FieldLabel>
+                <FieldLabel>{t('share.access_ends', 'Access ends')}</FieldLabel>
                 <FieldControl>
                   <DatePicker
-                    label="Access ends"
-                    placeholder="Never"
+                    label={t('share.access_ends', 'Access ends')}
+                    placeholder={t('share.never', 'Never')}
                     value={endsOn}
                     onChange={setEndsOn}
                   />
@@ -233,7 +253,7 @@ export function ShareDialog({
             </>
           ) : null}
           {write.error === null ? null : (
-            <Alert tone="danger" title="Not shared">
+            <Alert tone="danger" title={t('share.not_shared', 'Not shared')}>
               {write.error}
             </Alert>
           )}
@@ -245,10 +265,10 @@ export function ShareDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('share.cancel', 'Cancel')}
           </Button>
           <Button variant="primary" disabled={write.pending} onClick={save}>
-            Done
+            {t('share.done', 'Done')}
           </Button>
         </DialogFooter>
       </DialogContent>

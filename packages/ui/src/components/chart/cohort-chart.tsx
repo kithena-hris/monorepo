@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { toneMix, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface CohortRow {
   /** The group: "Q1 2025 joiners". */
@@ -66,7 +67,17 @@ export function CohortChart({
       label={label}
       rows={cohorts.flatMap((cohort) =>
         cohort.values.flatMap((value, index) =>
-          value === null ? [] : [{ label: `${cohort.label} · ${periods[index] ?? ''}`, value }],
+          value === null
+            ? []
+            : [
+                {
+                  label: t('components.chart.cohort-chart.text', '{{label}} · {{value}}', {
+                    label: cohort.label,
+                    value: periods[index] ?? '',
+                  }),
+                  value,
+                },
+              ],
         ),
       )}
       {...(summary === undefined ? {} : { summary })}
@@ -103,7 +114,9 @@ export function CohortChart({
                   return (
                     <td key={period} className="p-0">
                       {value === null ? (
-                        <span className="sr-only">Not yet</span>
+                        <span className="sr-only">
+                          {t('components.chart.cohort-chart.not_yet', 'Not yet')}
+                        </span>
                       ) : (
                         <span
                           className="grid h-[34px] min-w-10 place-items-center rounded-[6px] text-[11px] font-semibold tabular-nums text-fg motion-safe:animate-fade-in"

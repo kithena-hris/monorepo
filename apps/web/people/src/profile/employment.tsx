@@ -37,6 +37,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import type { Outcome } from '../load';
 import { longDate } from '../record/display';
+import { t } from '../i18n';
 
 /**
  * HR's view of somebody's employment (PEO-119, PEO-120): whose day it is for
@@ -110,20 +111,20 @@ export interface PlacementState {
 }
 
 const STATUS: Record<string, string> = {
-  provisional: 'Provisional',
-  pre_hire: 'Starting soon',
-  active: 'Active',
-  on_leave: 'On leave',
-  notice: 'On notice',
-  terminated: 'Left',
-  discarded: 'Discarded',
-  merged: 'Merged into another record',
+  provisional: t('profile.employment.provisional', 'Provisional'),
+  pre_hire: t('profile.employment.starting_soon', 'Starting soon'),
+  active: t('profile.employment.active', 'Active'),
+  on_leave: t('profile.employment.on_leave', 'On leave'),
+  notice: t('profile.employment.on_notice', 'On notice'),
+  terminated: t('profile.employment.left', 'Left'),
+  discarded: t('profile.employment.discarded', 'Discarded'),
+  merged: t('profile.employment.merged_into_another_record', 'Merged into another record'),
 };
 
 const REASONS: readonly { readonly value: LeavingReason; readonly label: string }[] = [
-  { value: 'resigned', label: 'Resigned' },
-  { value: 'dismissed', label: 'Dismissed' },
-  { value: 'end_of_contract', label: 'End of contract' },
+  { value: 'resigned', label: t('profile.employment.resigned', 'Resigned') },
+  { value: 'dismissed', label: t('profile.employment.dismissed', 'Dismissed') },
+  { value: 'end_of_contract', label: t('profile.employment.end_of_contract', 'End of contract') },
 ];
 
 const reasonLabel = (r: LeavingReason | null): string =>
@@ -149,15 +150,15 @@ const OFFERED: Record<string, readonly Asking[]> = {
 };
 
 const LABEL: Record<Asking, string> = {
-  giveNotice: 'Give notice',
-  withdrawNotice: 'Withdraw notice',
-  terminate: 'Terminate',
-  endAccess: 'End access now',
-  startLeave: 'Start leave',
-  endLeave: 'End leave',
-  discard: 'Discard record',
-  rehire: 'Rehire',
-  hire: 'Hire',
+  giveNotice: t('profile.employment.give_notice', 'Give notice'),
+  withdrawNotice: t('profile.employment.withdraw_notice', 'Withdraw notice'),
+  terminate: t('profile.employment.terminate', 'Terminate'),
+  endAccess: t('profile.employment.end_access_now', 'End access now'),
+  startLeave: t('profile.employment.start_leave', 'Start leave'),
+  endLeave: t('profile.employment.end_leave', 'End leave'),
+  discard: t('profile.employment.discard_record', 'Discard record'),
+  rehire: t('profile.employment.rehire', 'Rehire'),
+  hire: t('profile.employment.hire', 'Hire'),
 };
 
 /** The status in words: "Provisional", "On notice". */
@@ -230,13 +231,13 @@ export function EmploymentPeriods({
 }): JSX.Element | null {
   if (periods.length < 2) return null;
   return (
-    <PageSection surface title="Employment periods">
-      <Table aria-label="Employment periods">
+    <PageSection surface title={t('profile.employment.employment_periods', 'Employment periods')}>
+      <Table aria-label={t('profile.employment.employment_periods', 'Employment periods')}>
         <TableHeader>
           <TableRow>
-            <TableHead>Started</TableHead>
-            <TableHead>Last working day</TableHead>
-            <TableHead>Why they left</TableHead>
+            <TableHead>{t('profile.employment.started', 'Started')}</TableHead>
+            <TableHead>{t('profile.employment.last_working_day', 'Last working day')}</TableHead>
+            <TableHead>{t('profile.employment.why_they_left', 'Why they left')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -244,16 +245,21 @@ export function EmploymentPeriods({
             <TableRow key={p.period}>
               <TableCell>{longDate(p.startedOn)}</TableCell>
               <TableCell>
-                {p.lastWorkingDay === null ? 'Current' : longDate(p.lastWorkingDay)}
+                {p.lastWorkingDay === null
+                  ? t('profile.employment.current', 'Current')
+                  : longDate(p.lastWorkingDay)}
               </TableCell>
               <TableCell>
                 {p.lastWorkingDay === null ? '—' : reasonLabel(p.leavingReason)}
                 {p.eligibleForRehire === false ? (
-                  <span className="block text-fg-muted text-sm">Not eligible for rehire</span>
+                  <span className="block text-fg-muted text-sm">
+                    {t('profile.employment.not_eligible_for_rehire', 'Not eligible for rehire')}
+                  </span>
                 ) : null}
                 {p.rehireOverrideReason === null ? null : (
                   <span className="block text-fg-muted text-sm">
-                    Rehired anyway: {p.rehireOverrideReason}
+                    {t('profile.employment.rehired_anyway', 'Rehired anyway:')}{' '}
+                    {p.rehireOverrideReason}
                   </span>
                 )}
               </TableCell>
@@ -278,7 +284,7 @@ function ReasonSelect({
 }): JSX.Element {
   return (
     <Field required={required} invalid={invalid}>
-      <FieldLabel>Reason</FieldLabel>
+      <FieldLabel>{t('profile.employment.reason', 'Reason')}</FieldLabel>
       <Select
         value={value}
         onValueChange={(v) => {
@@ -287,7 +293,7 @@ function ReasonSelect({
       >
         <FieldControl>
           <SelectTrigger>
-            <SelectValue placeholder="Choose a reason" />
+            <SelectValue placeholder={t('profile.employment.choose_a_reason', 'Choose a reason')} />
           </SelectTrigger>
         </FieldControl>
         <SelectContent>
@@ -298,7 +304,9 @@ function ReasonSelect({
           ))}
         </SelectContent>
       </Select>
-      <FieldError>Choose why they are leaving.</FieldError>
+      <FieldError>
+        {t('profile.employment.choose_why_they_are_leaving', 'Choose why they are leaving.')}
+      </FieldError>
     </Field>
   );
 }
@@ -389,39 +397,79 @@ function MoveDialog({
   // Their calendar's city, as people say it: "Madrid" from "Europe/Madrid".
   const city = (timeZone.split('/').at(-1) ?? timeZone).replaceAll('_', ' ');
   const WHAT: Record<Asking, string> = {
-    giveNotice: `${first} keeps access until the end of the last working day on their own calendar.`,
-    withdrawNotice: 'They go back to the status they held before notice.',
-    terminate: `Ends ${first}’s employment on the day you choose. Their record stays, closed.`,
-    endAccess: 'They can no longer sign in, from now. Their record stays.',
-    startLeave: 'They are on leave from today, on their calendar.',
-    endLeave: 'They are back from today, on their calendar.',
-    discard: 'This provisional record was never a person. It is withdrawn.',
-    rehire: 'A new employment period on the same record, starting on this day.',
-    hire: `${first} is pre-hire until the start date, then an employee from it.`,
+    giveNotice: t(
+      'profile.employment.keeps_access_until_the_end_of',
+      '{{first}} keeps access until the end of the last working day on their own calendar.',
+      { first },
+    ),
+    withdrawNotice: t(
+      'profile.employment.they_go_back_to_the_status',
+      'They go back to the status they held before notice.',
+    ),
+    terminate: t(
+      'profile.employment.ends_s_employment_on_the_day',
+      'Ends {{first}}’s employment on the day you choose. Their record stays, closed.',
+      { first },
+    ),
+    endAccess: t(
+      'profile.employment.they_can_no_longer_sign_in',
+      'They can no longer sign in, from now. Their record stays.',
+    ),
+    startLeave: t(
+      'profile.employment.they_are_on_leave_from_today',
+      'They are on leave from today, on their calendar.',
+    ),
+    endLeave: t(
+      'profile.employment.they_are_back_from_today_on',
+      'They are back from today, on their calendar.',
+    ),
+    discard: t(
+      'profile.employment.this_provisional_record_was_never_a',
+      'This provisional record was never a person. It is withdrawn.',
+    ),
+    rehire: t(
+      'profile.employment.a_new_employment_period_on_the',
+      'A new employment period on the same record, starting on this day.',
+    ),
+    hire: t(
+      'profile.employment.is_pre_hire_until_the_start',
+      '{{first}} is pre-hire until the start date, then an employee from it.',
+      { first },
+    ),
   };
   const TITLE: Partial<Record<Asking, string>> = {
-    giveNotice: `${first} is leaving`,
-    terminate: `Terminate ${name}`,
-    rehire: `Rehire ${name}`,
-    hire: `Is ${name} an employee?`,
+    giveNotice: t('profile.employment.is_leaving', '{{first}} is leaving', { first }),
+    terminate: t('profile.employment.terminate_2', 'Terminate {{name}}', { name }),
+    rehire: t('profile.employment.rehire_2', 'Rehire {{name}}', { name }),
+    hire: t('profile.employment.is_an_employee', 'Is {{name}} an employee?', { name }),
   };
 
   const body: ReactNode[] = [];
   const dayField = needsDay ? (
     <Field key="day">
       <FieldLabel>
-        {kind === 'rehire' || kind === 'hire' ? 'Start date' : 'Last working day'}
+        {kind === 'rehire' || kind === 'hire'
+          ? t('profile.employment.start_date', 'Start date')
+          : t('profile.employment.last_working_day', 'Last working day')}
       </FieldLabel>
       <FieldControl>
         <DatePicker
-          label={kind === 'rehire' || kind === 'hire' ? 'Start date' : 'Last working day'}
+          label={
+            kind === 'rehire' || kind === 'hire'
+              ? t('profile.employment.start_date', 'Start date')
+              : t('profile.employment.last_working_day', 'Last working day')
+          }
           value={day}
           onChange={setDay}
           today={today}
         />
       </FieldControl>
       <FieldDescription>
-        A day on their calendar; today there is {longDate(today)}.
+        {t(
+          'profile.employment.a_day_on_their_calendar_today',
+          'A day on their calendar; today there is',
+        )}{' '}
+        {longDate(today)}.
       </FieldDescription>
     </Field>
   ) : null;
@@ -444,12 +492,12 @@ function MoveDialog({
   if (kind === 'terminate') {
     body.push(
       <Field key="note">
-        <FieldLabel>Note</FieldLabel>
+        <FieldLabel>{t('profile.employment.note', 'Note')}</FieldLabel>
         <FieldControl>
           <Input
             value={note}
             maxLength={500}
-            placeholder="Optional"
+            placeholder={t('profile.employment.optional', 'Optional')}
             onChange={(e) => {
               setNote(e.target.value);
             }}
@@ -466,7 +514,9 @@ function MoveDialog({
               }}
             />
           </FieldControl>
-          <FieldLabel>Eligible for rehire</FieldLabel>
+          <FieldLabel>
+            {t('profile.employment.eligible_for_rehire', 'Eligible for rehire')}
+          </FieldLabel>
         </Field>
         <Field orientation="horizontal">
           <FieldControl>
@@ -477,15 +527,21 @@ function MoveDialog({
               }}
             />
           </FieldControl>
-          <FieldLabel>End their access now</FieldLabel>
+          <FieldLabel>
+            {t('profile.employment.end_their_access_now', 'End their access now')}
+          </FieldLabel>
         </Field>
       </div>,
     );
   }
   if (places) {
     body.push(
-      <Alert key="nowhere" tone="neutral" title={`${first} is placed nowhere`}>
-        Choose where they work.
+      <Alert
+        key="nowhere"
+        tone="neutral"
+        title={t('profile.employment.is_placed_nowhere', '{{first}} is placed nowhere', { first })}
+      >
+        {t('profile.employment.choose_where_they_work', 'Choose where they work.')}
       </Alert>,
       <div key="placement" className="grid gap-3 sm:grid-cols-2">
         <PlacementPickers
@@ -502,11 +558,24 @@ function MoveDialog({
   }
   if (notEligible) {
     body.push(
-      <Alert key="warn" tone="warning" title={`${first} was marked not eligible for rehire`}>
-        Say why you are rehiring anyway. It’s kept on the record.
+      <Alert
+        key="warn"
+        tone="warning"
+        title={t(
+          'profile.employment.was_marked_not_eligible_for_rehire',
+          '{{first}} was marked not eligible for rehire',
+          { first },
+        )}
+      >
+        {t(
+          'profile.employment.say_why_you_are_rehiring_anyway',
+          'Say why you are rehiring anyway. It’s kept on the record.',
+        )}
       </Alert>,
       <Field key="override" required invalid={shown && problems.override}>
-        <FieldLabel>Why rehire them anyway</FieldLabel>
+        <FieldLabel>
+          {t('profile.employment.why_rehire_them_anyway', 'Why rehire them anyway')}
+        </FieldLabel>
         <FieldControl>
           <Textarea
             value={override}
@@ -516,7 +585,7 @@ function MoveDialog({
             }}
           />
         </FieldControl>
-        <FieldError>Say why.</FieldError>
+        <FieldError>{t('profile.employment.say_why', 'Say why.')}</FieldError>
       </Field>,
     );
   }
@@ -526,21 +595,43 @@ function MoveDialog({
       ? null
       : kind === 'hire'
         ? day <= today
-          ? `${name} becomes an employee from ${longDate(day)}.`
-          : `${name} is pre-hire until ${longDate(day)}, and an employee from then.`
+          ? t(
+              'profile.employment.becomes_an_employee_from',
+              '{{name}} becomes an employee from {{longDate}}.',
+              { name, longDate: longDate(day) },
+            )
+          : t(
+              'profile.employment.is_pre_hire_until_and_an',
+              '{{name}} is pre-hire until {{longDate}}, and an employee from then.',
+              { name, longDate: longDate(day) },
+            )
         : kind === 'giveNotice' || kind === 'terminate'
-          ? `${first} keeps access until the end of ${longDate(day)} on their own calendar (${city}), not at midnight UTC.${
-              kind === 'terminate' && endNow
-                ? ' Their access ends now instead.'
-                : ' You can withdraw this before then.'
-            }`
+          ? t(
+              'profile.employment.keeps_access_until_the_end_of_2',
+              '{{first}} keeps access until the end of {{longDate}} on their own calendar ({{city}}), not at midnight UTC.{{value}}',
+              {
+                first,
+                longDate: longDate(day),
+                city,
+                value:
+                  kind === 'terminate' && endNow
+                    ? ' Their access ends now instead.'
+                    : ' You can withdraw this before then.',
+              },
+            )
           : kind === 'rehire'
-            ? `A new employment period starts on ${longDate(day)}.`
+            ? t(
+                'profile.employment.a_new_employment_period_starts_on',
+                'A new employment period starts on {{longDate}}.',
+                { longDate: longDate(day) },
+              )
             : null;
   if (happens !== null) {
     body.push(
       <Card key="happens" variant="fill" padded>
-        <p className="text-sm font-semibold text-fg">What happens</p>
+        <p className="text-sm font-semibold text-fg">
+          {t('profile.employment.what_happens', 'What happens')}
+        </p>
         <p className="mt-2 text-sm text-fg-muted">{happens}</p>
       </Card>,
     );
@@ -562,18 +653,18 @@ function MoveDialog({
           <Stack gap={4}>
             {body}
             {refused === null ? null : (
-              <Alert tone="danger" title="Not done">
+              <Alert tone="danger" title={t('profile.employment.not_done', 'Not done')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('profile.employment.cancel', 'Cancel')}</Button>
           <Button
             variant={kind === 'terminate' || kind === 'discard' ? 'destructive' : 'primary'}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('profile.employment.saving', 'Saving')}
             onClick={() => {
               setShown(true);
               if (invalid) return;
@@ -625,13 +716,15 @@ export function PlacementPickers({
     who === undefined ? (
       <FieldLabel>{what}</FieldLabel>
     ) : (
-      <FieldLabel className="sr-only">{`${what} for ${who}`}</FieldLabel>
+      <FieldLabel className="sr-only">
+        {t('profile.employment.for', '{{what}} for {{who}}', { what, who })}
+      </FieldLabel>
     );
   const offices = placement.locations.filter((l) => entity === '' || l.legalEntityId === entity);
   return (
     <>
       <Field required={required} invalid={invalid}>
-        {label('Legal entity')}
+        {label(t('profile.employment.legal_entity', 'Legal entity'))}
         <Select
           value={entity}
           onValueChange={(next) => {
@@ -645,7 +738,7 @@ export function PlacementPickers({
         >
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose" />
+              <SelectValue placeholder={t('profile.employment.choose', 'Choose')} />
             </SelectTrigger>
           </FieldControl>
           <SelectContent>
@@ -656,10 +749,15 @@ export function PlacementPickers({
             ))}
           </SelectContent>
         </Select>
-        <FieldError>Choose where they are employed.</FieldError>
+        <FieldError>
+          {t(
+            'profile.employment.choose_where_they_are_employed',
+            'Choose where they are employed.',
+          )}
+        </FieldError>
       </Field>
       <Field>
-        {label('Work location')}
+        {label(t('profile.employment.work_location', 'Work location'))}
         <Select
           value={location}
           onValueChange={(next) => {
@@ -670,7 +768,7 @@ export function PlacementPickers({
         >
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose" />
+              <SelectValue placeholder={t('profile.employment.choose', 'Choose')} />
             </SelectTrigger>
           </FieldControl>
           <SelectContent>

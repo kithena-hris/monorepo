@@ -1,0 +1,15 @@
+{
+  "analytics.analytics.annualised_over_leavers": "Annualized over {{leavers}} leavers: {{formula}}",
+  "analytics.what-changed.choose_the_format_and_who_it": "Choose the format and who it is for; anything they may not see is left out or summarized.",
+  "import.work-locations.a_new_work_location_is_added": "A new work location is added in Settings › Organization, with the name, country and time zone you give it, by the run that imports the file.",
+  "import.work-locations.added_in_settings_organisation_by_the": "Added in Settings › Organization by the run",
+  "profile.profile.not_saved_the_change_of_manager": "Not saved: the change of manager was canceled.",
+  "settings.organisation.germany_labour_records": "Germany, labor records",
+  "settings.organisation.organisation": "Organization",
+  "settings.organisation.organisation_settings": "Organization settings",
+  "settings.organisation.spain_labour_records": "Spain, labor records",
+  "settings.overview.organisation": "Organization",
+  "settings.words.a_team_or_department_in_your": "A team or department in your organization.",
+  "settings.words.in_your_organisation": "In your organization",
+  "settings.words.suits_laptop_serial_number_cost_centre": "Suits: laptop serial number, cost center, internal grade."
+}

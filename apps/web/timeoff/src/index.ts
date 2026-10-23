@@ -41,6 +41,7 @@ import { NegativeBalance as NegativeBalanceScreen } from './settings/negative-ba
 import { DescribeRequest as DescribeScreen } from './request/describe';
 import { RequestTimeOff as RequestScreen } from './request/request';
 import { MyRequests as RequestsScreen } from './requests/requests';
+import { t } from './i18n';
 
 export const Overview = framed(OverviewScreen);
 export const RequestTimeOff = framed(RequestScreen);
@@ -55,7 +56,7 @@ export const Approvals = framed(ApprovalsScreen);
 export const Delegation = framed(DelegationScreen);
 export const Adjustments = framed(AdjustmentsScreen);
 export const TeamCalendar = framed(TeamCalendarScreen);
-export const Attendance = framed(placeholder('Attendance'));
+export const Attendance = framed(placeholder(t('index.attendance', 'Attendance')));
 // TOF-059, TOF-074 to TOF-077: the clock in the shell's top bar (a slot, not a
 // screen: no frame), my timesheet and the team right now.
 export { TopBarClock } from './clock/clock';

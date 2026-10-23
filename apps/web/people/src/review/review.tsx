@@ -93,6 +93,7 @@ import {
   type IdentifierReviewsState,
   type ReviewItem,
 } from './identifier-reviews';
+import { t } from '../i18n';
 
 /**
  * Review (design E1–E13, MA E1–E7): every decision and every missing detail,
@@ -200,12 +201,12 @@ export interface ReviewProps extends ChangeActions {
 /* ------------------------------------------------------------- words -- */
 
 const CHIP: Readonly<Record<ReviewKind, string>> = {
-  changes: 'Changes',
-  ids: 'ID checks',
-  duplicates: 'Duplicates',
-  access: 'Full values',
-  exports: 'Exports',
-  missing: 'Missing details',
+  changes: t('review.review.changes', 'Changes'),
+  ids: t('review.review.id_checks', 'ID checks'),
+  duplicates: t('review.review.duplicates', 'Duplicates'),
+  access: t('review.review.full_values', 'Full values'),
+  exports: t('review.review.exports', 'Exports'),
+  missing: t('review.review.missing_details', 'Missing details'),
 };
 
 /** Each kind's glyph, on its row and its chip. */
@@ -221,33 +222,66 @@ const KIND_ICON: Readonly<Record<ReviewKind, ReactNode>> = {
 /** Each chip's own empty state (E13), so an empty filter still says what would appear. */
 const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body: string }>> = {
   all: {
-    title: 'Nothing waiting for you',
-    body: 'Changes, ID checks, duplicates and requests appear here when they need you.',
+    title: t('review.review.nothing_waiting_for_you', 'Nothing waiting for you'),
+    body: t(
+      'review.review.changes_id_checks_duplicates_and_requests',
+      'Changes, ID checks, duplicates and requests appear here when they need you.',
+    ),
   },
-  changes: { title: 'Nothing to approve', body: 'All changes have been decided.' },
+  changes: {
+    title: t('review.review.nothing_to_approve', 'Nothing to approve'),
+    body: t('review.review.all_changes_have_been_decided', 'All changes have been decided.'),
+  },
   ids: {
-    title: 'Nothing to review',
-    body: 'Every national identifier entered so far passed its country’s checks, or has been reviewed.',
+    title: t('review.review.nothing_to_review', 'Nothing to review'),
+    body: t(
+      'review.review.every_national_identifier_entered_so_far',
+      'Every national identifier entered so far passed its country’s checks, or has been reviewed.',
+    ),
   },
   duplicates: {
-    title: 'Nothing looks duplicated',
-    body: 'No two records share a work email, a name and birth date, or a unique value.',
+    title: t('review.review.nothing_looks_duplicated', 'Nothing looks duplicated'),
+    body: t(
+      'review.review.no_two_records_share_a_work',
+      'No two records share a work email, a name and birth date, or a unique value.',
+    ),
   },
-  access: { title: 'Nothing to decide', body: 'A request appears here when finance asks.' },
+  access: {
+    title: t('review.review.nothing_to_decide', 'Nothing to decide'),
+    body: t(
+      'review.review.a_request_appears_here_when_finance',
+      'A request appears here when finance asks.',
+    ),
+  },
   exports: {
-    title: 'Nothing to send',
-    body: 'A request appears here when somebody sends an export to a person who can’t see all of it.',
+    title: t('review.review.nothing_to_send', 'Nothing to send'),
+    body: t(
+      'review.review.a_request_appears_here_when_somebody',
+      'A request appears here when somebody sends an export to a person who can’t see all of it.',
+    ),
   },
   missing: {
-    title: 'Nothing is missing',
-    body: 'Every required field has a value for everybody it applies to.',
+    title: t('review.review.nothing_is_missing', 'Nothing is missing'),
+    body: t(
+      'review.review.every_required_field_has_a_value',
+      'Every required field has a value for everybody it applies to.',
+    ),
   },
-  mine: { title: 'Nothing waiting', body: 'None of your changes wait for approval.' },
+  mine: {
+    title: t('review.review.nothing_waiting', 'Nothing waiting'),
+    body: t(
+      'review.review.none_of_your_changes_wait_for',
+      'None of your changes wait for approval.',
+    ),
+  },
 };
 
 /** "6 people", "1 person". */
 const peopleCount = (n: number): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+  t('review.review.text', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? 'person' : 'people',
+  });
 
 const shortDay = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -277,7 +311,9 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
-  by: `Asked by ${item.requestedBy === 'You' ? 'you' : item.requestedBy}`,
+  by: t('review.review.asked_by', 'Asked by {{value}}', {
+    value: item.requestedBy === 'You' ? 'you' : item.requestedBy,
+  }),
   at: item.requestedAt,
   flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
@@ -287,12 +323,17 @@ const idRow = (item: ReviewItem): Row => ({
   kind: 'ids',
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
-  summary: `${item.label} · ${item.findings[0]?.message ?? ''}`,
+  summary: t('review.review.text_2', '{{label}} · {{value}}', {
+    label: item.label,
+    value: item.findings[0]?.message ?? '',
+  }),
   at: item.enteredAt,
   by:
     item.enteredBy == null
       ? null
-      : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
+      : t('review.review.entered_by', 'Entered by {{value}}', {
+          value: item.enteredBy === 'You' ? 'you' : item.enteredBy,
+        }),
   badge: verdictOf(item),
 });
 
@@ -301,7 +342,10 @@ const pairRow = (pair: DuplicatePair): Row => ({
   kind: 'duplicates',
   name: pair.names[0] ?? '',
   avatarUrl: pair.avatarUrls?.[0] ?? null,
-  summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
+  summary: t('review.review.possible_duplicate_of', 'Possible duplicate of {{value}} · {{join}}', {
+    value: pair.names[1] ?? '',
+    join: pair.reasons.join(', '),
+  }),
   by: flaggedByOf(pair),
   at: null,
   badge: bandOf(pair) === null ? null : { tone: 'warning', text: bandOf(pair) ?? '' },
@@ -311,7 +355,10 @@ const accessRow = (r: FullValuesRequest): Row => ({
   id: `access-${r.id}`,
   kind: 'access',
   name: askedBy(r),
-  summary: `${r.fields.join(', ')} · ${r.reason}`,
+  summary: t('review.review.text_3', '{{join}} · {{reason}}', {
+    join: r.fields.join(', '),
+    reason: r.reason,
+  }),
   at: r.requestedAt,
 });
 
@@ -321,9 +368,10 @@ const shareRow = (share: ShareRequest): Row => ({
   name: share.requestedBy.name ?? 'A colleague',
   avatarUrl: share.requestedBy.avatarUrl ?? null,
   // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
-  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${
-    share.people == null ? share.reason : peopleCount(share.people)
-  }`,
+  summary: t('review.review.export_to', 'Export to {{value}} · {{value2}}', {
+    value: share.recipient.name ?? 'a colleague',
+    value2: share.people == null ? share.reason : peopleCount(share.people),
+  }),
   at: share.requestedAt,
 });
 
@@ -512,7 +560,9 @@ function Queue({
           : [
               {
                 id: 'approve',
-                label: isFlagged(item) ? 'Approve with note' : 'Approve',
+                label: isFlagged(item)
+                  ? t('review.review.approve_with_note', 'Approve with note')
+                  : t('review.review.approve', 'Approve'),
                 shortcut: 'row.approve',
                 onSelect: () => {
                   pick(row.id);
@@ -522,7 +572,7 @@ function Queue({
             ]),
         {
           id: 'decline',
-          label: 'Reject',
+          label: t('review.review.reject', 'Reject'),
           shortcut: 'row.decline',
           onSelect: () => {
             pick(row.id);
@@ -535,7 +585,7 @@ function Queue({
       return [
         {
           id: 'compare',
-          label: 'Compare or merge',
+          label: t('review.review.compare_or_merge', 'Compare or merge'),
           shortcut: 'row.merge',
           onSelect: () => {
             pick(row.id);
@@ -543,7 +593,7 @@ function Queue({
         },
         {
           id: 'not-same',
-          label: 'Not the same person',
+          label: t('review.review.not_the_same_person', 'Not the same person'),
           shortcut: 'row.not-same',
           onSelect: () => {
             setRefused(null);
@@ -639,19 +689,31 @@ function Queue({
 
   const description =
     viewer === 'hr'
-      ? 'Every decision and every missing detail, in one place. Nothing here changes a record until someone decides.'
+      ? t(
+          'review.review.every_decision_and_every_missing_detail',
+          'Every decision and every missing detail, in one place. Nothing here changes a record until someone decides.',
+        )
       : viewer === 'finance'
-        ? 'Who can see unmasked values, for how long and why: one download, once, within 24 hours of HR’s approval. Every request is logged.'
+        ? t(
+            'review.review.who_can_see_unmasked_values_for',
+            'Who can see unmasked values, for how long and why: one download, once, within 24 hours of HR’s approval. Every request is logged.',
+          )
         : tab === 'decided'
-          ? 'Your changes HR decided in the last 90 days.'
-          : 'Your changes wait here until HR decides, within 7 days. Your record stays the same until then.';
+          ? t(
+              'review.review.your_changes_hr_decided_in_the',
+              'Your changes HR decided in the last 90 days.',
+            )
+          : t(
+              'review.review.your_changes_wait_here_until_hr',
+              'Your changes wait here until HR decides, within 7 days. Your record stays the same until then.',
+            );
 
   const chipRow =
     chips.length === 0 ? null : (
       <ChipGroup
         type="single"
         scroll
-        aria-label="What kind"
+        aria-label={t('review.review.what_kind', 'What kind')}
         value={kind ?? 'all'}
         onValueChange={(next) => {
           if (next === '') return;
@@ -660,7 +722,8 @@ function Queue({
         }}
       >
         <ChipGroupItem value="all">
-          All <span className="opacity-60 tabular-nums">{total.toLocaleString('en-GB')}</span>
+          {t('review.review.all', 'All')}{' '}
+          <span className="opacity-60 tabular-nums">{total.toLocaleString('en-GB')}</span>
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
@@ -759,7 +822,13 @@ function Queue({
   function queue(): ReactNode {
     const empty =
       tab === 'flagged'
-        ? { title: 'Nothing flagged', body: 'No change waiting for you looks unusual.' }
+        ? {
+            title: t('review.review.nothing_flagged', 'Nothing flagged'),
+            body: t(
+              'review.review.no_change_waiting_for_you_looks',
+              'No change waiting for you looks unusual.',
+            ),
+          }
         : viewer !== 'hr' || tab === 'asked'
           ? EMPTY.mine
           : EMPTY[kind ?? 'all'];
@@ -816,12 +885,19 @@ function Queue({
       <ListDetail
         listWidth="25rem"
         listLabel="Items"
-        detailLabel={current === null ? 'Item' : `${current.name}, ${CHIP[current.kind]}`}
+        detailLabel={
+          current === null
+            ? t('review.review.item', 'Item')
+            : t('review.review.text_4', '{{name}}, {{CHIP}}', {
+                name: current.name,
+                CHIP: CHIP[current.kind],
+              })
+        }
         selected={picked !== null}
         onBack={() => {
           pick(null);
         }}
-        backLabel="All items"
+        backLabel={t('review.review.all_items', 'All items')}
         list={
           <QueueList
             rows={rows}
@@ -840,16 +916,22 @@ function Queue({
 
   return (
     <Stack gap={4}>
-      <PageHeader title="Review" description={description} />
+      <PageHeader title={t('review.review.review', 'Review')} description={description} />
       {chipRow}
       {refused === null ? null : (
-        <Alert tone="danger" title="Not done">
+        <Alert tone="danger" title={t('review.review.not_done', 'Not done')}>
           {refused}
         </Alert>
       )}
       {state.share?.state === 'missing' ? (
-        <Alert tone="warning" title="This request is not here">
-          It was made for somebody else, or it no longer exists.
+        <Alert
+          tone="warning"
+          title={t('review.review.this_request_is_not_here', 'This request is not here')}
+        >
+          {t(
+            'review.review.it_was_made_for_somebody_else',
+            'It was made for somebody else, or it no longer exists.',
+          )}
         </Alert>
       ) : null}
       {body}
@@ -921,7 +1003,7 @@ function QueueList({
   return (
     <VirtualList
       ref={list}
-      label="Waiting for a decision"
+      label={t('review.review.waiting_for_a_decision', 'Waiting for a decision')}
       items={items}
       itemKey={listedKey}
       listItems
@@ -1080,7 +1162,10 @@ function Detail({
         <Card padded className="flex flex-col items-start gap-3">
           <h2 className="text-md font-bold">
             {pair?.names.join(' and ') ?? row.name}
-            <span className="font-normal text-fg-muted"> · Possible duplicate</span>
+            <span className="font-normal text-fg-muted">
+              {' '}
+              {t('review.review.possible_duplicate', '· Possible duplicate')}
+            </span>
           </h2>
           <p className="text-sm text-fg-muted">
             {[pair?.reasons.join(', '), flaggedByOf(pair)].filter((x) => x).join(' · ')}
@@ -1092,7 +1177,7 @@ function Detail({
               pick(row.id);
             }}
           >
-            Compare
+            {t('review.review.compare', 'Compare')}
           </Button>
         </Card>
       );
@@ -1120,14 +1205,19 @@ function RequestCard({ request }: { readonly request: FullValuesRequest }): JSX.
   const shown = stateOf(request);
   return (
     <Card padded className="flex flex-col gap-4">
-      <h2 className="text-md font-bold">Full values: {request.fields.join(', ')}</h2>
+      <h2 className="text-md font-bold">
+        {t('review.review.full_values_2', 'Full values:')} {request.fields.join(', ')}
+      </h2>
       <KeyValues
         layout="aligned"
         labelWidth="7.5rem"
         items={[
-          { label: 'Asked', value: shortDay(request.requestedAt) },
-          { label: 'Reason', value: `“${request.reason}”` },
-          { label: 'State', value: <Badge tone={shown.tone}>{shown.text}</Badge> },
+          { label: t('review.review.asked', 'Asked'), value: shortDay(request.requestedAt) },
+          { label: t('review.review.reason', 'Reason'), value: `“${request.reason}”` },
+          {
+            label: t('review.review.state', 'State'),
+            value: <Badge tone={shown.tone}>{shown.text}</Badge>,
+          },
         ]}
       />
     </Card>
@@ -1150,7 +1240,7 @@ function ExportDetail({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const asker = share.requestedBy.name ?? 'A colleague';
+  const asker = share.requestedBy.name ?? t('review.review.a_colleague', 'A colleague');
   const them = firstName(share.recipient.name);
   const decided = share.state !== 'pending';
   const decide = (approve: boolean): void => {
@@ -1171,21 +1261,22 @@ function ExportDetail({
             {asker}
             <span className="font-normal text-fg-muted">
               {' '}
-              · wants to send an export to {share.recipient.name ?? them}
+              {t('review.review.wants_to_send_an_export_to', '· wants to send an export to')}{' '}
+              {share.recipient.name ?? them}
             </span>
           </h2>
           <p className="text-sm text-fg-muted">
-            Asked {shortDay(share.requestedAt)}
+            {t('review.review.asked', 'Asked')} {shortDay(share.requestedAt)}
             {decided ? '' : ` · waits until ${shortDay(share.expiresAt)}`}
           </p>
         </div>
         {decided ? (
           <Badge size="sm" tone={share.state === 'approved' ? 'success' : 'neutral'}>
             {share.state === 'approved'
-              ? 'Sent'
+              ? t('review.review.sent', 'Sent')
               : share.state === 'rejected'
-                ? 'Rejected'
-                : 'Lapsed'}
+                ? t('review.review.rejected', 'Rejected')
+                : t('review.review.lapsed', 'Lapsed')}
           </Badge>
         ) : null}
       </div>
@@ -1193,19 +1284,34 @@ function ExportDetail({
         <Alert
           tone="warning"
           icon={<icons.locked aria-hidden />}
-          title={`${them} can’t see all of it`}
+          title={t('review.review.cant_see_all_of_it', '{{them}} can’t see all of it', { them })}
         >
           {listed(
-            share.gap.fields.map(
-              (f) =>
-                `${f.label} is outside what ${them} can see for ${String(f.people)} ${f.people === 1 ? 'person' : 'people'}`,
+            share.gap.fields.map((f) =>
+              t(
+                'review.review.is_outside_what_can_see_for',
+                '{{label}} is outside what {{them}} can see for {{people}} {{value}}',
+                {
+                  label: f.label,
+                  them,
+                  people: String(f.people),
+                  value: f.people === 1 ? 'person' : 'people',
+                },
+              ),
             ),
           )}
           {share.gap.unlisted > 0
-            ? `, and ${String(share.gap.unlisted)} people ${them} can’t see at all`
+            ? t(
+                'review.review.and_people_cant_see_at_all',
+                ', and {{unlisted}} people {{them}} can’t see at all',
+                { unlisted: String(share.gap.unlisted), them },
+              )
             : ''}
-          . Approving sends this one file, built as {firstName(asker)} sees it; it changes nothing
-          else {them} can see.
+          {t(
+            'review.review.approving_sends_this_one_file_built',
+            '. Approving sends this one file, built as {{firstName}} sees it; it changes nothing else {{them}} can see.',
+            { firstName: firstName(asker), them },
+          )}
         </Alert>
       )}
       <KeyValues
@@ -1213,7 +1319,7 @@ function ExportDetail({
         labelWidth="7.5rem"
         items={[
           {
-            label: 'Who',
+            label: t('review.review.who', 'Who'),
             value: [
               (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
               share.people == null ? null : peopleCount(share.people),
@@ -1221,13 +1327,13 @@ function ExportDetail({
               .filter((x) => x !== null)
               .join(' · '),
           },
-          { label: 'Fields', value: listed(share.fields) },
+          { label: t('review.review.fields', 'Fields'), value: listed(share.fields) },
           {
-            label: 'As of',
+            label: t('review.review.as_of', 'As of'),
             value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
           },
-          { label: 'Format', value: FORMAT_LABEL[share.format] },
-          { label: 'Reason', value: `“${share.reason}”` },
+          { label: t('review.review.format', 'Format'), value: FORMAT_LABEL[share.format] },
+          { label: t('review.review.reason', 'Reason'), value: `“${share.reason}”` },
         ]}
       />
       {decided && share.note !== null ? (
@@ -1236,13 +1342,16 @@ function ExportDetail({
       {share.canDecide && onDecide !== undefined ? (
         <>
           <Field>
-            <FieldLabel>Note</FieldLabel>
+            <FieldLabel>{t('review.review.note', 'Note')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={note}
                 maxLength={500}
                 rows={2}
-                placeholder="Optional. Shown to whoever asked."
+                placeholder={t(
+                  'review.review.optional_shown_to_whoever_asked',
+                  'Optional. Shown to whoever asked.',
+                )}
                 onChange={(e) => {
                   setNote(e.target.value);
                 }}
@@ -1250,7 +1359,7 @@ function ExportDetail({
             </FieldControl>
           </Field>
           {failed === null ? null : (
-            <Alert tone="danger" title="Not decided">
+            <Alert tone="danger" title={t('review.review.not_decided', 'Not decided')}>
               {failed}
             </Alert>
           )}
@@ -1260,23 +1369,23 @@ function ExportDetail({
           >
             <Button
               loading={busy === 'reject'}
-              loadingLabel="Rejecting"
+              loadingLabel={t('review.review.rejecting', 'Rejecting')}
               onClick={() => {
                 decide(false);
               }}
             >
-              Reject
+              {t('review.review.reject', 'Reject')}
             </Button>
             <Button
               variant="primary"
               startIcon={<icons.send aria-hidden />}
               loading={busy === 'approve'}
-              loadingLabel="Approving"
+              loadingLabel={t('review.review.approving', 'Approving')}
               onClick={() => {
                 decide(true);
               }}
             >
-              Approve and send
+              {t('review.review.approve_and_send', 'Approve and send')}
             </Button>
           </div>
         </>
@@ -1309,33 +1418,36 @@ function decisionsOf(state: ReviewState): Decision[] {
         // One's own (E10): the field, what it held → what was asked for, from when.
         <>
           {c.label}: <DisplayValue field={asField(c)} value={c.before} /> →{' '}
-          <DisplayValue field={asField(c)} value={c.value} /> · from {shortDay(c.effectiveFrom)}
+          <DisplayValue field={asField(c)} value={c.value} /> {t('review.review.from', '· from')}{' '}
+          {shortDay(c.effectiveFrom)}
           {c.note ? ` · Note: “${c.note}”` : ''}
         </>
       ) : (
         [
-          `${c.label} change`,
+          t('review.review.change', '{{label}} change', { label: c.label }),
           isFlagged(c)
-            ? `Flagged when decided: ${c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', ')}`
+            ? t('review.review.flagged_when_decided', 'Flagged when decided: {{value}}', {
+                value: c.flagSummary ?? (c.flags ?? []).map((f) => f.title).join(', '),
+              })
             : null,
-          c.note ? `Note: “${c.note}”` : null,
+          c.note ? t('review.review.note_2', 'Note: “{{note}}”', { note: c.note }) : null,
         ]
           .filter((x) => x !== null)
           .join(' · ')
       ),
     outcome:
       c.state === 'approved'
-        ? { tone: 'success', text: 'Approved' }
+        ? { tone: 'success', text: t('review.review.approved', 'Approved') }
         : c.state === 'lapsed'
-          ? { tone: 'neutral', text: 'Lapsed' }
+          ? { tone: 'neutral', text: t('review.review.lapsed', 'Lapsed') }
           : c.state === 'withdrawn'
-            ? { tone: 'neutral', text: 'Withdrawn' }
-            : { tone: 'danger', text: 'Rejected' },
+            ? { tone: 'neutral', text: t('review.review.withdrawn', 'Withdrawn') }
+            : { tone: 'danger', text: t('review.review.rejected', 'Rejected') },
     by:
       c.state === 'lapsed'
-        ? 'Nobody, in 7 days'
+        ? t('review.review.nobody_in_7_days', 'Nobody, in 7 days')
         : c.state === 'withdrawn'
-          ? 'You'
+          ? t('review.review.you', 'You')
           : (c.decidedBy ?? 'HR'),
     when: c.decidedAt ?? null,
   }));
@@ -1344,13 +1456,16 @@ function decisionsOf(state: ReviewState): Decision[] {
       key: `id-${r.personId}-${r.label}-${r.decidedAt}`,
       kind: 'ids',
       name: r.name,
-      what: [`ID check: ${r.label}`, r.note ? `Note: “${r.note}”` : null]
+      what: [
+        t('review.review.id_check', 'ID check: {{label}}', { label: r.label }),
+        r.note ? t('review.review.note_2', 'Note: “{{note}}”', { note: r.note }) : null,
+      ]
         .filter((x) => x !== null)
         .join(' · '),
       outcome:
         r.outcome === 'accepted'
-          ? { tone: 'success', text: 'Accepted' }
-          : { tone: 'danger', text: 'Sent back' },
+          ? { tone: 'success', text: t('review.review.accepted', 'Accepted') }
+          : { tone: 'danger', text: t('review.review.sent_back', 'Sent back') },
       by: r.decidedBy,
       when: r.decidedAt,
     }),
@@ -1361,7 +1476,10 @@ function decisionsOf(state: ReviewState): Decision[] {
       key: `access-${r.id}`,
       kind: 'access',
       name: askedBy(r),
-      what: `Full values: ${r.fields.join(', ')}${r.note === null ? '' : ` · “${r.note}”`}`,
+      what: t('review.review.full_values_3', 'Full values: {{join}}{{value}}', {
+        join: r.fields.join(', '),
+        value: r.note === null ? '' : ` · “${r.note}”`,
+      }),
       outcome: stateOf(r),
       by: '—',
       when: r.requestedAt,
@@ -1459,8 +1577,11 @@ function Decided({
       <Card padded>
         <EmptyState
           icon={<icons.history />}
-          title="Nothing decided lately"
-          description="Changes decided in the last 90 days appear here."
+          title={t('review.review.nothing_decided_lately', 'Nothing decided lately')}
+          description={t(
+            'review.review.changes_decided_in_the_last_90',
+            'Changes decided in the last 90 days appear here.',
+          )}
         />
       </Card>
     );
@@ -1468,9 +1589,12 @@ function Decided({
   return (
     <Stack gap={4}>
       {decisions.length === 0 ? null : (
-        <PageSection surface title="Decided in the last 90 days">
+        <PageSection
+          surface
+          title={t('review.review.decided_in_the_last_90_days', 'Decided in the last 90 days')}
+        >
           <DataTable<Decision>
-            label="Decided in the last 90 days"
+            label={t('review.review.decided_in_the_last_90_days', 'Decided in the last 90 days')}
             rows={decisions}
             rowId={decisionKey}
             describeRow={decisionName}
@@ -1523,41 +1647,67 @@ function Finance({
     <Stack gap={5}>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 @5xl/page:grid-cols-[26.25rem_minmax(0,1fr)]">
         {tab === 'decided' || fullValues === null ? null : (
-          <PageSection surface title="Ask for full values">
+          <PageSection
+            surface
+            title={t('review.review.ask_for_full_values', 'Ask for full values')}
+          >
             <AskForFullValues state={fullValues} onRequest={actions.onRequestFullValues} />
           </PageSection>
         )}
         <PageSection
           surface
-          title={tab === 'decided' ? 'Decided' : 'Your requests'}
+          title={
+            tab === 'decided'
+              ? t('review.review.decided', 'Decided')
+              : t('review.review.your_requests', 'Your requests')
+          }
           className={tab === 'decided' ? '@5xl/page:col-span-2' : undefined}
         >
           {shown.length === 0 ? (
             <EmptyState
               icon={<icons.sensitive />}
-              title={tab === 'decided' ? 'Nothing decided lately' : 'No requests yet'}
+              title={
+                tab === 'decided'
+                  ? t('review.review.nothing_decided_lately', 'Nothing decided lately')
+                  : t('review.review.no_requests_yet', 'No requests yet')
+              }
               description={
                 tab === 'decided'
-                  ? 'Requests HR decided appear here.'
-                  : 'Ask for the fields you need, and say why.'
+                  ? t(
+                      'review.review.requests_hr_decided_appear_here',
+                      'Requests HR decided appear here.',
+                    )
+                  : t(
+                      'review.review.ask_for_the_fields_you_need',
+                      'Ask for the fields you need, and say why.',
+                    )
               }
             />
           ) : (
-            <RequestsTable label="Your requests" requests={shown} />
+            <RequestsTable
+              label={t('review.review.your_requests', 'Your requests')}
+              requests={shown}
+            />
           )}
         </PageSection>
       </div>
       {rows.length === 0 ? null : (
-        <PageSection title={tab === 'decided' ? 'Your changes, decided' : 'Your changes'}>
+        <PageSection
+          title={
+            tab === 'decided'
+              ? t('review.review.your_changes_decided', 'Your changes, decided')
+              : t('review.review.your_changes', 'Your changes')
+          }
+        >
           <ListDetail
             listWidth="25rem"
             listLabel="Your changes"
-            detailLabel={current === null ? 'Change' : current.summary}
+            detailLabel={current === null ? t('review.review.change_2', 'Change') : current.summary}
             selected={picked !== null}
             onBack={() => {
               pick(null);
             }}
-            backLabel="All items"
+            backLabel={t('review.review.all_items', 'All items')}
             list={<QueueList rows={rows} current={current?.id ?? null} now={now} pick={pick} />}
             detail={
               current === null ? null : (

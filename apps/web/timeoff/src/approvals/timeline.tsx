@@ -15,6 +15,7 @@ import {
   type CalendarView,
   type LeaveTypeLook,
 } from './words';
+import { t } from '../i18n';
 
 /**
  * People by days with a count of who is in (T13, T15, T17, MT13, MT16):
@@ -91,10 +92,10 @@ export function TeamTimeline({
         ? {}
         : {
             summaryRow: {
-              label: 'In',
+              label: t('approvals.timeline.in', 'In'),
               values: Object.fromEntries(counted.map((c) => [c.date, c.in])),
               ...(required === undefined ? {} : { minimum: required }),
-              belowLabel: 'below the team minimum',
+              belowLabel: t('approvals.timeline.below_the_team_minimum', 'below the team minimum'),
             },
           })}
       {...(today === undefined ? {} : { today })}
@@ -121,7 +122,14 @@ export function calendarColumns(view: CalendarView, from: string, to: string): S
     const below = cover?.below === true;
     const note = [
       ...holidays,
-      ...(below ? [`${String(cover.in)} of ${String(cover.of)} in`] : []),
+      ...(below
+        ? [
+            t('approvals.timeline.of_in', '{{in}} of {{of}} in', {
+              in: String(cover.in),
+              of: String(cover.of),
+            }),
+          ]
+        : []),
     ].join(' · ');
     return {
       ...day,

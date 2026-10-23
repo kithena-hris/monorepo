@@ -33,9 +33,7 @@ describe('ceremonyOrigin', () => {
     // Behind a proxy the inbound connection is plain HTTP while the browser's
     // was HTTPS. An origin claiming `http` there would never match.
     expect(
-      ceremonyOrigin(
-        headers({ host: 'acme.app.kithena.com', 'x-forwarded-proto': 'https' }),
-      ),
+      ceremonyOrigin(headers({ host: 'acme.app.kithena.com', 'x-forwarded-proto': 'https' })),
     ).toBe('https://acme.app.kithena.com');
   });
 
@@ -51,7 +49,9 @@ describe('ceremonyOrigin', () => {
     // The header is caller-supplied. `javascript` is not a scheme this may
     // emit, whatever a client asks for.
     expect(
-      ceremonyOrigin(headers({ host: 'acme.app.localhost:3000', 'x-forwarded-proto': 'javascript' })),
+      ceremonyOrigin(
+        headers({ host: 'acme.app.localhost:3000', 'x-forwarded-proto': 'javascript' }),
+      ),
     ).toBe('http://acme.app.localhost:3000');
   });
 

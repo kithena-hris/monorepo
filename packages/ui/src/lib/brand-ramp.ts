@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { t } from './i18n';
 
 /**
  * Re-pointing the brand ramp at a different hue.
@@ -187,7 +188,11 @@ export function brandRamp(hue: number): CSSProperties {
   // move further inside.
   const at = (lightness: number, chroma: number): string => {
     const c = Math.floor(chromaCeiling(lightness, angle, chroma) * 1e4) / 1e4;
-    return `oklch(${String(lightness)} ${c.toFixed(4)} ${String(angle)})`;
+    return t('lib.brand-ramp.oklch', 'oklch({{lightness}} {{value}} {{angle}})', {
+      lightness: String(lightness),
+      value: c.toFixed(4),
+      angle: String(angle),
+    });
   };
 
   for (const [stop, lightness, chroma] of BRAND_CURVE) {

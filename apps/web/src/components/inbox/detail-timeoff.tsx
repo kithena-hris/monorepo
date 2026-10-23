@@ -29,6 +29,7 @@ import { decideTimeOff, nudgeTimeOff, withdrawTimeOff } from '../../app/(app)/in
 import { Actions, type BodyProps } from './pane';
 import { ConfirmDialog } from './dialogs';
 import { days, firstName, shortDay, spanLong, weekdays, when } from './format';
+import { t } from '../../lib/t';
 
 /**
  * Time Off's kinds in the detail pane (INB-010 to INB-013): an approval to
@@ -53,7 +54,7 @@ function Dates({
   return (
     <Stat
       inset
-      label="Dates"
+      label={t('components.inbox.detail-timeoff.dates', 'Dates')}
       icon={<icons.leave aria-hidden />}
       value={spanLong(from, to)}
       description={[weekdays(from, to), days(workingDays), leaveTypeName, extra]
@@ -88,15 +89,28 @@ function Approval({ item, act }: BodyProps): JSX.Element {
     >
       <Dates from={d.from} to={d.to} workingDays={d.workingDays} leaveTypeName={d.leaveTypeName} />
       {d.week.length === 0 ? null : (
-        <section aria-label="Who else is out" className="flex flex-col gap-2">
+        <section
+          aria-label={t('components.inbox.detail-timeoff.who_else_is_out', 'Who else is out')}
+          className="flex flex-col gap-2"
+        >
           <h3 className="text-sm font-semibold text-fg-muted">
-            {`${d.teamName ?? 'The team'} that week${d.alreadyOut === null ? '' : ` · ${String(d.alreadyOut.out)} of ${String(d.alreadyOut.of)} already out`}`}
+            {t('components.inbox.detail-timeoff.that_week', '{{value}} that week{{value2}}', {
+              value: d.teamName ?? 'The team',
+              value2:
+                d.alreadyOut === null
+                  ? ''
+                  : ` · ${String(d.alreadyOut.out)} of ${String(d.alreadyOut.of)} already out`,
+            })}
           </h3>
-          <List aria-label="Each day">
+          <List aria-label={t('components.inbox.detail-timeoff.each_day', 'Each day')}>
             {d.week.map((day) => (
               <ListItem
                 key={day.date}
-                description={day.out.length === 0 ? 'Nobody else out' : day.out.join(', ')}
+                description={
+                  day.out.length === 0
+                    ? t('components.inbox.detail-timeoff.nobody_else_out', 'Nobody else out')
+                    : day.out.join(', ')
+                }
                 trailing={
                   day.out.length === 0 ? undefined : (
                     <AvatarGroup size="xs" max={3}>
@@ -124,24 +138,44 @@ function Approval({ item, act }: BodyProps): JSX.Element {
             ? []
             : [
                 {
-                  label: `${who} has left after this`,
+                  label: t(
+                    'components.inbox.detail-timeoff.has_left_after_this',
+                    '{{who}} has left after this',
+                    { who },
+                  ),
                   value:
                     d.allowance === null
                       ? days(d.balanceAfter)
                       : `${days(d.balanceAfter)} of ${d.allowance}`,
                 },
               ]),
-          ...(d.firstAsk === null ? [] : [{ label: 'Asked first for', value: d.firstAsk }]),
-          ...(d.note === null ? [] : [{ label: `${who}’s note`, value: `“${d.note}”` }]),
+          ...(d.firstAsk === null
+            ? []
+            : [
+                {
+                  label: t('components.inbox.detail-timeoff.asked_first_for', 'Asked first for'),
+                  value: d.firstAsk,
+                },
+              ]),
+          ...(d.note === null
+            ? []
+            : [
+                {
+                  label: t('components.inbox.detail-timeoff.s_note', '{{who}}’s note', { who }),
+                  value: `“${d.note}”`,
+                },
+              ]),
         ]}
       />
       {item.lane === 'task' ? (
         <>
           <Field>
-            <FieldLabel>{`Note to ${who}`}</FieldLabel>
+            <FieldLabel>
+              {t('components.inbox.detail-timeoff.note_to', 'Note to {{who}}', { who })}
+            </FieldLabel>
             <FieldControl>
               <Input
-                placeholder="Optional"
+                placeholder={t('components.inbox.detail-timeoff.optional', 'Optional')}
                 value={note}
                 onChange={(e) => {
                   setNote(e.target.value);
@@ -159,7 +193,7 @@ function Approval({ item, act }: BodyProps): JSX.Element {
                 decide('approve');
               }}
             >
-              Approve
+              {t('components.inbox.detail-timeoff.approve', 'Approve')}
             </Button>
             <Button
               shortcut="R"
@@ -167,10 +201,12 @@ function Approval({ item, act }: BodyProps): JSX.Element {
                 decide('decline');
               }}
             >
-              Decline
+              {t('components.inbox.detail-timeoff.decline', 'Decline')}
             </Button>
             <Button asChild variant="ghost" size="sm">
-              <a href={item.link}>Open in Time off</a>
+              <a href={item.link}>
+                {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+              </a>
             </Button>
           </Actions>
         </>
@@ -192,7 +228,7 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
     <div className="flex flex-col gap-4">
       <Dates from={d.from} to={d.to} workingDays={d.workingDays} leaveTypeName={d.leaveTypeName} />
       <Stepper
-        label="Where it is"
+        label={t('components.inbox.detail-timeoff.where_it_is', 'Where it is')}
         orientation="vertical"
         size="sm"
         current={current === -1 ? d.steps.length : current}
@@ -209,7 +245,7 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
             ? []
             : [
                 {
-                  label: 'With',
+                  label: t('components.inbox.detail-timeoff.with', 'With'),
                   value:
                     d.holder.covering === null
                       ? d.holder.name
@@ -220,14 +256,21 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
             ? []
             : [
                 {
-                  label: 'Left after this',
+                  label: t('components.inbox.detail-timeoff.left_after_this', 'Left after this'),
                   value:
                     d.allowance === null
                       ? days(d.balanceAfter)
                       : `${days(d.balanceAfter)} of ${d.allowance}`,
                 },
               ]),
-          ...(d.instead === null ? [] : [{ label: 'Instead of', value: d.instead }]),
+          ...(d.instead === null
+            ? []
+            : [
+                {
+                  label: t('components.inbox.detail-timeoff.instead_of', 'Instead of'),
+                  value: d.instead,
+                },
+              ]),
         ]}
       />
       {item.lane === 'request' ? (
@@ -236,10 +279,16 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
             d.nudge === null
               ? undefined
               : d.nudge.used
-                ? `You nudged ${holder}`
+                ? t('components.inbox.detail-timeoff.you_nudged', 'You nudged {{holder}}', {
+                    holder,
+                  })
                 : canNudge
-                  ? 'Nudge once'
-                  : `You can nudge after 48 hours, from ${when(d.nudge.from, zone)}`
+                  ? t('components.inbox.detail-timeoff.nudge_once', 'Nudge once')
+                  : t(
+                      'components.inbox.detail-timeoff.you_can_nudge_after_48_hours',
+                      'You can nudge after 48 hours, from {{from}}',
+                      { from: when(d.nudge.from, zone) },
+                    )
           }
         >
           <Button
@@ -250,7 +299,7 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
               act.run(() => nudgeTimeOff(d.requestId), { title: `${holder} was nudged` });
             }}
           >
-            {`Nudge ${holder}`}
+            {t('components.inbox.detail-timeoff.nudge', 'Nudge {{holder}}', { holder })}
           </Button>
           <Button
             variant="ghost"
@@ -258,14 +307,21 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
               setWithdrawing(true);
             }}
           >
-            Withdraw
+            {t('components.inbox.detail-timeoff.withdraw', 'Withdraw')}
           </Button>
         </Actions>
       ) : null}
       {withdrawing ? (
         <ConfirmDialog
-          title="Withdraw your time-off request?"
-          description={`${holder} stops seeing it. You can ask again any time.`}
+          title={t(
+            'components.inbox.detail-timeoff.withdraw_your_time_off_request',
+            'Withdraw your time-off request?',
+          )}
+          description={t(
+            'components.inbox.detail-timeoff.stops_seeing_it_you_can_ask',
+            '{{holder}} stops seeing it. You can ask again any time.',
+            { holder },
+          )}
           confirm="Withdraw"
           cancel="Keep it"
           onClose={() => {
@@ -289,7 +345,7 @@ function Decided({ item }: BodyProps): JSX.Element {
   const parsed = TimeOffDecidedDetail.safeParse(item.detail);
   if (!parsed.success) return <Missing />;
   const d = parsed.data;
-  const by = firstName(d.by) || 'Your approver';
+  const by = firstName(d.by) || t('components.inbox.detail-timeoff.your_approver', 'Your approver');
   return (
     <div className="flex flex-col gap-4">
       <Dates
@@ -297,7 +353,9 @@ function Decided({ item }: BodyProps): JSX.Element {
         to={d.to}
         workingDays={d.workingDays}
         leaveTypeName={d.leaveTypeName}
-        {...(d.approved ? {} : { extra: 'Declined' })}
+        {...(d.approved
+          ? {}
+          : { extra: t('components.inbox.detail-timeoff.declined', 'Declined') })}
       />
       <KeyValues
         items={[
@@ -305,38 +363,64 @@ function Decided({ item }: BodyProps): JSX.Element {
             ? []
             : [
                 {
-                  label: 'Left this year',
+                  label: t('components.inbox.detail-timeoff.left_this_year', 'Left this year'),
                   value:
                     d.allowance === null
                       ? days(d.leftThisYear)
                       : `${days(d.leftThisYear)} of ${d.allowance}`,
                 },
               ]),
-          ...(d.note === null ? [] : [{ label: `${by}’s note`, value: `“${d.note}”` }]),
+          ...(d.note === null
+            ? []
+            : [
+                {
+                  label: t('components.inbox.detail-timeoff.s_note_2', '{{by}}’s note', { by }),
+                  value: `“${d.note}”`,
+                },
+              ]),
         ]}
       />
       {d.followUp === null ? null : (
-        <List aria-label="What you asked for instead">
+        <List
+          aria-label={t(
+            'components.inbox.detail-timeoff.what_you_asked_for_instead',
+            'What you asked for instead',
+          )}
+        >
           <ListItem
             asChild
             icon={<icons.leave aria-hidden />}
-            description={d.followUp.holder === null ? undefined : `With ${d.followUp.holder}`}
+            description={
+              d.followUp.holder === null
+                ? undefined
+                : t('components.inbox.detail-timeoff.with_2', 'With {{holder}}', {
+                    holder: d.followUp.holder,
+                  })
+            }
             chevron
           >
-            <a
-              href={`/time-off/requests/${d.followUp.requestId}`}
-            >{`You asked for ${d.followUp.label} instead`}</a>
+            <a href={`/time-off/requests/${d.followUp.requestId}`}>
+              {t(
+                'components.inbox.detail-timeoff.you_asked_for_instead',
+                'You asked for {{label}} instead',
+                { label: d.followUp.label },
+              )}
+            </a>
           </ListItem>
         </List>
       )}
       <Actions>
         {d.approved || d.followUp !== null ? (
           <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-            <a href={item.link}>Open in Time off</a>
+            <a href={item.link}>
+              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+            </a>
           </Button>
         ) : (
           <Button asChild startIcon={<icons.add aria-hidden />}>
-            <a href={`/time-off/request?from=${d.from}&to=${d.to}`}>Request other dates</a>
+            <a href={`/time-off/request?from=${d.from}&to=${d.to}`}>
+              {t('components.inbox.detail-timeoff.request_other_dates', 'Request other dates')}
+            </a>
           </Button>
         )}
       </Actions>
@@ -354,12 +438,17 @@ function Expiring({ item }: BodyProps): JSX.Element {
       <KeyValues
         items={[
           { label: d.leaveTypeName, value: days(d.days) },
-          { label: 'Use them by', value: shortDay(d.by) },
+          {
+            label: t('components.inbox.detail-timeoff.use_them_by', 'Use them by'),
+            value: shortDay(d.by),
+          },
         ]}
       />
       <Actions>
         <Button asChild variant="primary" startIcon={<icons.add aria-hidden />}>
-          <a href={`/time-off/request?type=${d.leaveTypeKey}`}>Plan time off</a>
+          <a href={`/time-off/request?type=${d.leaveTypeKey}`}>
+            {t('components.inbox.detail-timeoff.plan_time_off', 'Plan time off')}
+          </a>
         </Button>
       </Actions>
     </div>
@@ -375,16 +464,29 @@ function Holidays({ item }: BodyProps): JSX.Element {
     <div className="flex flex-col gap-4">
       <KeyValues
         items={[
-          { label: 'Calendar', value: `${d.calendar} · ${String(d.year)}` },
-          { label: 'Public holidays', value: String(d.count) },
+          {
+            label: t('components.inbox.detail-timeoff.calendar', 'Calendar'),
+            value: `${d.calendar} · ${String(d.year)}`,
+          },
+          {
+            label: t('components.inbox.detail-timeoff.public_holidays', 'Public holidays'),
+            value: String(d.count),
+          },
           ...(d.first === null
             ? []
-            : [{ label: 'First one', value: `${shortDay(d.first.date)} · ${d.first.name}` }]),
+            : [
+                {
+                  label: t('components.inbox.detail-timeoff.first_one', 'First one'),
+                  value: `${shortDay(d.first.date)} · ${d.first.name}`,
+                },
+              ]),
         ]}
       />
       <Actions>
         <Button asChild startIcon={<icons.externalLink aria-hidden />}>
-          <a href={item.link}>Open in Time off</a>
+          <a href={item.link}>
+            {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+          </a>
         </Button>
       </Actions>
     </div>
@@ -393,8 +495,17 @@ function Holidays({ item }: BodyProps): JSX.Element {
 
 function Missing(): JSX.Element {
   return (
-    <Alert tone="warning" title="This can’t be shown here">
-      Open it in Time off instead.
+    <Alert
+      tone="warning"
+      title={t(
+        'components.inbox.detail-timeoff.this_cant_be_shown_here',
+        'This can’t be shown here',
+      )}
+    >
+      {t(
+        'components.inbox.detail-timeoff.open_it_in_time_off_instead',
+        'Open it in Time off instead.',
+      )}
     </Alert>
   );
 }
@@ -415,7 +526,9 @@ export function TimeOffBody(props: BodyProps): JSX.Element {
       return (
         <Actions>
           <Button asChild>
-            <a href={props.item.link}>Open in Time off</a>
+            <a href={props.item.link}>
+              {t('components.inbox.detail-timeoff.open_in_time_off', 'Open in Time off')}
+            </a>
           </Button>
         </Actions>
       );

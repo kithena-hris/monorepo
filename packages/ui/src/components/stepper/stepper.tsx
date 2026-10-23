@@ -5,6 +5,7 @@ import { Check, X } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Progress } from '../progress/progress';
+import { t } from '../../lib/i18n';
 
 /**
  * Where you are in a sequence that has an end.
@@ -224,14 +225,22 @@ export function Stepper({
             value={shown}
             max={steps.length}
             label={label}
-            valueLabel={`Step ${String(shown)} of ${String(steps.length)}: ${steps[shown - 1]?.label ?? ''}`}
+            valueLabel={t(
+              'components.stepper.stepper.step_of',
+              'Step {{shown}} of {{length}}: {{value}}',
+              {
+                shown: String(shown),
+                length: String(steps.length),
+                value: steps[shown - 1]?.label ?? '',
+              },
+            )}
             tone={failed ? 'danger' : 'accent'}
           />
           <span
             aria-hidden
             className="shrink-0 text-sm font-semibold whitespace-nowrap tabular-nums"
           >
-            {shown} of {steps.length}
+            {shown} {t('components.stepper.stepper.of', 'of')} {steps.length}
           </span>
         </div>
       ) : null}
@@ -279,7 +288,8 @@ export function Stepper({
               </span>
               {horizontal && status === 'current' ? (
                 <span className="hidden text-2xs text-fg-subtle touch:block">
-                  Step {index + 1} of {steps.length}
+                  {t('components.stepper.stepper.step', 'Step')} {index + 1}{' '}
+                  {t('components.stepper.stepper.of', 'of')} {steps.length}
                 </span>
               ) : null}
               {step.description === undefined || compact ? null : (

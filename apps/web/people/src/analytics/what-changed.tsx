@@ -39,6 +39,7 @@ import { Loaded, type Loadable, type Outcome } from '../load';
 import type { ReportSchedulesState } from '../reports/report-schedules';
 import type { SegmentRef } from '../segments';
 import { InsightsHeader } from './analytics';
+import { t } from '../i18n';
 
 /**
  * What changed (design AI5, AI6, MA4, MA5): the first tab of Insights.
@@ -350,7 +351,15 @@ function Summary({
   return (
     <Stack gap={6}>
       <InsightsHeader
-        description={`${state.asOf}${state.segment ? ` · ${state.segment.name}` : ''} · From nightly snapshots. Groups under ${String(state.minimum)} people are hidden.`}
+        description={t(
+          'analytics.what-changed.from_nightly_snapshots_groups_under_people',
+          '{{asOf}}{{value}} · From nightly snapshots. Groups under {{minimum}} people are hidden.',
+          {
+            asOf: state.asOf,
+            value: state.segment ? ` · ${state.segment.name}` : '',
+            minimum: String(state.minimum),
+          },
+        )}
         segments={state.segments}
         segmentId={segmentId}
         onSegmentChange={onSegmentChange}
@@ -363,15 +372,18 @@ function Summary({
               className="touch:hidden"
               onClick={open}
             >
-              Export
+              {t('analytics.what-changed.export', 'Export')}
             </Button>
           ) : null
         }
       />
       {state.segment ? (
         <Alert tone="info">
-          Showing the people you may see in {state.segment.name}. Span of control and pay are not
-          described for a segment.
+          {t(
+            'analytics.what-changed.showing_the_people_you_may_see',
+            'Showing the people you may see in {{name}}. Span of control and pay are not described for a segment.',
+            { name: state.segment.name },
+          )}
         </Alert>
       ) : null}
 
@@ -379,18 +391,31 @@ function Summary({
         <AssistantCard
           level={2}
           title={state.title}
-          action={<Badge tone="assistant">Written {state.writtenAt}</Badge>}
-          note={`Every number links to the records behind it. Groups under ${String(state.minimum)} people are never described. ${
-            shown === null
-              ? 'Worded by Kithena’s own rules from the figures.'
-              : 'Worded by the assistant; every figure is Kithena’s.'
-          }`}
+          action={
+            <Badge tone="assistant">
+              {t('analytics.what-changed.written', 'Written')} {state.writtenAt}
+            </Badge>
+          }
+          note={t(
+            'analytics.what-changed.every_number_links_to_the_records',
+            'Every number links to the records behind it. Groups under {{minimum}} people are never described. {{value}}',
+            {
+              minimum: String(state.minimum),
+              value:
+                shown === null
+                  ? 'Worded by Kithena’s own rules from the figures.'
+                  : 'Worded by the assistant; every figure is Kithena’s.',
+            },
+          )}
         >
           <PeriodControl state={state} onPeriodChange={onPeriodChange} />
           {points.length === 0 ? (
             <p className="text-fg-muted">
-              Nothing Kithena can describe changed {state.period.inWords}, or none of it is yours to
-              see.
+              {t(
+                'analytics.what-changed.nothing_kithena_can_describe_changed_or',
+                'Nothing Kithena can describe changed {{inWords}}, or none of it is yours to see.',
+                { inWords: state.period.inWords },
+              )}
             </p>
           ) : (
             <ul aria-label={state.title} aria-busy={wording && shown === null ? true : undefined}>
@@ -414,7 +439,8 @@ function Summary({
                 setMore(true);
               }}
             >
-              Show {points.length - FIRST_ON_A_PHONE} more
+              {t('analytics.what-changed.show', 'Show')} {points.length - FIRST_ON_A_PHONE}{' '}
+              {t('analytics.what-changed.more', 'more')}
             </Button>
           ) : null}
           {onAsk === undefined || state.points.length === 0 ? null : (
@@ -431,29 +457,47 @@ function Summary({
         <div className="flex flex-col gap-3.5 touch:hidden">
           {state.headcount === null ? null : (
             <ChartCard
-              title="Headcount"
+              title={t('analytics.what-changed.headcount', 'Headcount')}
               value={state.headcount.value.toLocaleString()}
               description={
                 state.headcount.change === 0
-                  ? `No change ${state.period.inWords}`
-                  : `${signed(state.headcount.change)} ${state.period.inWords}`
+                  ? t('analytics.what-changed.no_change', 'No change {{inWords}}', {
+                      inWords: state.period.inWords,
+                    })
+                  : t('analytics.what-changed.text', '{{signed}} {{inWords}}', {
+                      signed: signed(state.headcount.change),
+                      inWords: state.period.inWords,
+                    })
               }
             >
               {state.headcount.trend.length > 1 ? (
                 <TrendChart
-                  label="Headcount by month"
+                  label={t('analytics.what-changed.headcount_by_month', 'Headcount by month')}
                   height={110}
                   area
                   showLastPoint
-                  series={[{ label: 'Headcount', data: state.headcount.trend }]}
+                  series={[
+                    {
+                      label: t('analytics.what-changed.headcount', 'Headcount'),
+                      data: state.headcount.trend,
+                    },
+                  ]}
                 />
               ) : null}
             </ChartCard>
           )}
           {state.leavers === null ? null : (
-            <ChartCard title="Leavers by team, 3 months">
+            <ChartCard
+              title={t(
+                'analytics.what-changed.leavers_by_team_3_months',
+                'Leavers by team, 3 months',
+              )}
+            >
               <StackedBarChart
-                label="Leavers by team and month"
+                label={t(
+                  'analytics.what-changed.leavers_by_team_and_month',
+                  'Leavers by team and month',
+                )}
                 height={160}
                 categories={state.leavers.categories}
                 series={state.leavers.series}
@@ -471,7 +515,7 @@ function Summary({
           className="hidden touch:inline-flex"
           onClick={open}
         >
-          Share summary
+          {t('analytics.what-changed.share_summary', 'Share summary')}
         </Button>
       ) : null}
 
@@ -490,10 +534,10 @@ function Summary({
 }
 
 const PERIODS = [
-  ['week', 'This week'],
-  ['month', 'This month'],
-  ['quarter', 'This quarter'],
-  ['custom', 'Custom'],
+  ['week', t('analytics.what-changed.this_week', 'This week')],
+  ['month', t('analytics.what-changed.this_month', 'This month')],
+  ['quarter', t('analytics.what-changed.this_quarter', 'This quarter')],
+  ['custom', t('analytics.what-changed.custom', 'Custom')],
 ] as const;
 
 /** This week, month or quarter, or two dates; and what it is compared with. */
@@ -517,7 +561,7 @@ function PeriodControl({
     <div className="flex flex-col gap-2.5 touch:hidden">
       <div className="flex flex-wrap items-center gap-2.5">
         <SegmentedControl
-          aria-label="Period"
+          aria-label={t('analytics.what-changed.period', 'Period')}
           size="sm"
           value={period.kind}
           onValueChange={(kind) => {
@@ -538,13 +582,15 @@ function PeriodControl({
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={apply}
-          aria-label="Custom period"
+          aria-label={t('analytics.what-changed.custom_period', 'Custom period')}
         >
           <Field>
-            <FieldLabel htmlFor={`${id}-from`}>From</FieldLabel>
+            <FieldLabel htmlFor={`${id}-from`}>
+              {t('analytics.what-changed.from', 'From')}
+            </FieldLabel>
             <FieldControl>
               <DatePicker
-                label="From"
+                label={t('analytics.what-changed.from', 'From')}
                 id={`${id}-from`}
                 size="sm"
                 {...(to === '' ? {} : { max: to })}
@@ -556,10 +602,10 @@ function PeriodControl({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel htmlFor={`${id}-to`}>To</FieldLabel>
+            <FieldLabel htmlFor={`${id}-to`}>{t('analytics.what-changed.to', 'To')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="To"
+                label={t('analytics.what-changed.to', 'To')}
                 id={`${id}-to`}
                 size="sm"
                 {...(from === '' ? {} : { min: from })}
@@ -571,7 +617,7 @@ function PeriodControl({
             </FieldControl>
           </Field>
           <Button type="submit" size="sm">
-            Show
+            {t('analytics.what-changed.show', 'Show')}
           </Button>
         </form>
       ) : null}
@@ -613,7 +659,10 @@ function PointRow({
       </div>
       {first === undefined ? null : (
         <Button asChild variant="ghost" size="xs" className="touch:hidden">
-          <a href={sourceHref(first, segmentId)} aria-label={`Open ${first.label}`}>
+          <a
+            href={sourceHref(first, segmentId)}
+            aria-label={t('analytics.what-changed.open', 'Open {{label}}', { label: first.label })}
+          >
             <icons.externalLink aria-hidden />
           </a>
         </Button>
@@ -651,7 +700,10 @@ function FollowUp({
     if (question === null || answer?.asked === asked) return undefined;
     let live = true;
     void onAsk(question)
-      .catch(() => ({ ok: false as const, message: 'People could not be asked' }))
+      .catch(() => ({
+        ok: false as const,
+        message: t('analytics.what-changed.people_could_not_be_asked', 'People could not be asked'),
+      }))
       .then((a) => {
         if (live) setAnswer({ asked, result: a.ok ? (a.data as FollowUpAnswer) : a.message });
       });
@@ -663,7 +715,12 @@ function FollowUp({
   const team = state.points
     .find((p) => p.key === 'leavers')
     ?.sources.find((s) => s.kind === 'group')?.label;
-  const example = team === undefined ? 'what grew the headcount?' : `why is ${team} losing people?`;
+  const example =
+    team === undefined
+      ? t('analytics.what-changed.what_grew_the_headcount', 'what grew the headcount?')
+      : t('analytics.what-changed.why_is_losing_people', 'why is {{team}} losing people?', {
+          team,
+        });
   const result = answer?.asked === asked ? answer.result : null;
   return (
     <div className="flex flex-col gap-3 touch:hidden">
@@ -678,12 +735,19 @@ function FollowUp({
         <Input
           size="sm"
           containerClassName="flex-1"
-          aria-label="Ask a follow-up"
-          placeholder={`Ask a follow-up, like “${example}”`}
+          aria-label={t('analytics.what-changed.ask_a_follow_up', 'Ask a follow-up')}
+          placeholder={t(
+            'analytics.what-changed.ask_a_follow_up_like',
+            'Ask a follow-up, like “{{example}}”',
+            { example },
+          )}
           startAdornment={<icons.assistant aria-hidden className="text-accent-fg" />}
           endAdornment={
             question !== null && result === null ? (
-              <Spinner size="sm" label="Working it out" />
+              <Spinner
+                size="sm"
+                label={t('analytics.what-changed.working_it_out', 'Working it out')}
+              />
             ) : undefined
           }
           value={text}
@@ -695,22 +759,25 @@ function FollowUp({
         />
         {onExport === undefined ? null : (
           <Button size="sm" startIcon={<icons.download aria-hidden />} onClick={onExport}>
-            Export summary
+            {t('analytics.what-changed.export_summary', 'Export summary')}
           </Button>
         )}
       </form>
       <div role="status" aria-live="polite">
         {question === null ? null : result === null ? (
-          <Spinner label="Answering" />
+          <Spinner label={t('analytics.what-changed.answering', 'Answering')} />
         ) : typeof result === 'string' ? (
-          <Alert tone="danger" title="No answer">
+          <Alert tone="danger" title={t('analytics.what-changed.no_answer', 'No answer')}>
             {result}
           </Alert>
         ) : result.kind === 'refused' ? (
           <Alert
             tone="info"
             icon={<icons.permission aria-hidden />}
-            title="Not something Kithena answers"
+            title={t(
+              'analytics.what-changed.not_something_kithena_answers',
+              'Not something Kithena answers',
+            )}
           >
             {result.sentences.map((s) => s.map((p) => p.text).join('')).join(' ')}
           </Alert>
@@ -723,10 +790,16 @@ function FollowUp({
             ))}
             <p className="text-xs text-fg-subtle">
               {result.kind === 'unknown'
-                ? 'Answered from this summary’s points only.'
+                ? t(
+                    'analytics.what-changed.answered_from_this_summarys_points_only',
+                    'Answered from this summary’s points only.',
+                  )
                 : result.byModel
                   ? 'Answered by the assistant from these points; every figure is Kithena’s.'
-                  : 'Answered by Kithena’s own rules from these points.'}
+                  : t(
+                      'analytics.what-changed.answered_by_kithenas_own_rules_from',
+                      'Answered by Kithena’s own rules from these points.',
+                    )}
             </p>
           </div>
         )}
@@ -790,7 +863,10 @@ function ExportDialog({
     let live = true;
     setDone(null);
     void onDraft({ ...base, edits: [] })
-      .catch(() => ({ ok: false as const, message: 'People could not be asked' }))
+      .catch(() => ({
+        ok: false as const,
+        message: t('analytics.what-changed.people_could_not_be_asked', 'People could not be asked'),
+      }))
       .then((a) => {
         if (live) setDraft({ asked, result: a.ok ? (a.data as SummaryDraft) : a.message });
       });
@@ -835,11 +911,19 @@ function ExportDialog({
         : emailed
           ? {
               tone: 'success',
-              text: `Sent to ${recipient.name}. They get an email with a link that opens only for them, for seven days.`,
+              text: t(
+                'analytics.what-changed.sent_to_they_get_an_email',
+                'Sent to {{name}}. They get an email with a link that opens only for them, for seven days.',
+                { name: recipient.name },
+              ),
             }
           : {
               tone: 'danger',
-              text: `Saved for ${recipient.name}, but the email did not go. Try again in a minute.`,
+              text: t(
+                'analytics.what-changed.saved_for_but_the_email_did',
+                'Saved for {{name}}, but the email did not go. Try again in a minute.',
+                { name: recipient.name },
+              ),
             },
     );
   };
@@ -854,21 +938,31 @@ function ExportDialog({
       <DialogContent className="max-w-[61.25rem]">
         <DialogHeader>
           <DialogTitle>
-            <span className="touch:hidden">Export the {state.period.name} summary</span>
-            <span className="hidden touch:inline">Share the {state.period.name} summary</span>
+            <span className="touch:hidden">
+              {t('analytics.what-changed.export_the_summary', 'Export the {{name}} summary', {
+                name: state.period.name,
+              })}
+            </span>
+            <span className="hidden touch:inline">
+              {t('analytics.what-changed.share_the_summary', 'Share the {{name}} summary', {
+                name: state.period.name,
+              })}
+            </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Choose the format and who it is for; anything they may not see is left out or
-            summarised.
+            {t(
+              'analytics.what-changed.choose_the_format_and_who_it',
+              'Choose the format and who it is for; anything they may not see is left out or summarised.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <div className="flex gap-6 touch:flex-col touch:gap-3">
             <Stack gap={4} className="w-[21.25rem] flex-none touch:w-full">
               <Field>
-                <FieldLabel>Format</FieldLabel>
+                <FieldLabel>{t('analytics.what-changed.format', 'Format')}</FieldLabel>
                 <SegmentedControl
-                  aria-label="Format"
+                  aria-label={t('analytics.what-changed.format', 'Format')}
                   fullWidth
                   value={choices.format}
                   onValueChange={(format) => {
@@ -877,24 +971,28 @@ function ExportDialog({
                 >
                   <SegmentedControlItem value="pdf">
                     <icons.document aria-hidden />
-                    PDF
+                    {t('analytics.what-changed.pdf', 'PDF')}
                   </SegmentedControlItem>
                   <SegmentedControlItem value="email">
                     <icons.email aria-hidden />
-                    <span className="touch:hidden">Email</span>
-                    <span className="hidden touch:inline">Message</span>
+                    <span className="touch:hidden">
+                      {t('analytics.what-changed.email', 'Email')}
+                    </span>
+                    <span className="hidden touch:inline">
+                      {t('analytics.what-changed.message', 'Message')}
+                    </span>
                   </SegmentedControlItem>
                 </SegmentedControl>
               </Field>
               <Field>
-                <FieldLabel>Who it’s for</FieldLabel>
+                <FieldLabel>{t('analytics.what-changed.who_its_for', 'Who it’s for')}</FieldLabel>
                 <FieldControl>
                   <Combobox
-                    label="Who it’s for"
-                    placeholder="You"
+                    label={t('analytics.what-changed.who_its_for', 'Who it’s for')}
+                    placeholder={t('analytics.what-changed.you', 'You')}
                     disabled={state.recipients.length === 0}
                     options={[
-                      { value: ME, label: 'You' },
+                      { value: ME, label: t('analytics.what-changed.you', 'You') },
                       ...state.recipients.map((r) => ({ value: r.accountId, label: r.name })),
                     ]}
                     value={choices.recipient ?? ME}
@@ -907,27 +1005,41 @@ function ExportDialog({
                   />
                 </FieldControl>
                 {state.recipients.length === 0 ? (
-                  <FieldDescription>For you. HR can send it to somebody else.</FieldDescription>
+                  <FieldDescription>
+                    {t(
+                      'analytics.what-changed.for_you_hr_can_send_it',
+                      'For you. HR can send it to somebody else.',
+                    )}
+                  </FieldDescription>
                 ) : null}
               </Field>
               <Field className="touch:hidden">
-                <FieldLabel>Tone</FieldLabel>
+                <FieldLabel>{t('analytics.what-changed.tone', 'Tone')}</FieldLabel>
                 <SegmentedControl
-                  aria-label="Tone"
+                  aria-label={t('analytics.what-changed.tone', 'Tone')}
                   fullWidth
                   value={choices.tone}
                   onValueChange={(tone) => {
                     set({ tone: tone === 'detailed' ? 'detailed' : 'short' });
                   }}
                 >
-                  <SegmentedControlItem value="short">Short</SegmentedControlItem>
-                  <SegmentedControlItem value="detailed">Detailed</SegmentedControlItem>
+                  <SegmentedControlItem value="short">
+                    {t('analytics.what-changed.short', 'Short')}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem value="detailed">
+                    {t('analytics.what-changed.detailed', 'Detailed')}
+                  </SegmentedControlItem>
                 </SegmentedControl>
               </Field>
               {current === null ? (
-                <Spinner label="Writing it for them" />
+                <Spinner
+                  label={t('analytics.what-changed.writing_it_for_them', 'Writing it for them')}
+                />
               ) : typeof current === 'string' ? (
-                <Alert tone="danger" title="Could not prepare it">
+                <Alert
+                  tone="danger"
+                  title={t('analytics.what-changed.could_not_prepare_it', 'Could not prepare it')}
+                >
                   {current}
                 </Alert>
               ) : (
@@ -936,11 +1048,18 @@ function ExportDialog({
                   icon={<icons.permission aria-hidden />}
                   title={
                     to === null ? (
-                      'Written for you'
+                      t('analytics.what-changed.written_for_you', 'Written for you')
                     ) : (
                       <>
-                        <span className="touch:hidden">Written for these readers</span>
-                        <span className="hidden touch:inline">Rewritten for {to}</span>
+                        <span className="touch:hidden">
+                          {t(
+                            'analytics.what-changed.written_for_these_readers',
+                            'Written for these readers',
+                          )}
+                        </span>
+                        <span className="hidden touch:inline">
+                          {t('analytics.what-changed.rewritten_for', 'Rewritten for')} {to}
+                        </span>
                       </>
                     )
                   }
@@ -948,8 +1067,15 @@ function ExportDialog({
                   {current.notes.length > 0
                     ? current.notes.join(' ')
                     : recipient === null
-                      ? 'Only what you can see yourself.'
-                      : `${recipient.name} can see all of it, so nothing was changed.`}
+                      ? t(
+                          'analytics.what-changed.only_what_you_can_see_yourself',
+                          'Only what you can see yourself.',
+                        )
+                      : t(
+                          'analytics.what-changed.can_see_all_of_it_so',
+                          '{{name}} can see all of it, so nothing was changed.',
+                          { name: recipient.name },
+                        )}
                 </Alert>
               )}
               <Field orientation="horizontal" className="justify-start touch:hidden">
@@ -961,7 +1087,9 @@ function ExportDialog({
                     }}
                   />
                 </FieldControl>
-                <FieldLabel>Include the charts</FieldLabel>
+                <FieldLabel>
+                  {t('analytics.what-changed.include_the_charts', 'Include the charts')}
+                </FieldLabel>
               </Field>
               <Field orientation="horizontal" className="justify-start touch:hidden">
                 <FieldControl>
@@ -972,7 +1100,12 @@ function ExportDialog({
                     }}
                   />
                 </FieldControl>
-                <FieldLabel>Add a line on how this was made</FieldLabel>
+                <FieldLabel>
+                  {t(
+                    'analytics.what-changed.add_a_line_on_how_this',
+                    'Add a line on how this was made',
+                  )}
+                </FieldLabel>
                 {doc?.madeLine == null ? null : (
                   <FieldDescription>“{doc.madeLine}”</FieldDescription>
                 )}
@@ -988,7 +1121,10 @@ function ExportDialog({
         </DialogBody>
         <DialogFooter>
           <p className="me-auto text-sm text-fg-muted touch:hidden">
-            You can edit any sentence in the preview before sending.
+            {t(
+              'analytics.what-changed.you_can_edit_any_sentence_in',
+              'You can edit any sentence in the preview before sending.',
+            )}
           </p>
           {choices.format === 'pdf' && onDownload !== undefined ? (
             <Button
@@ -997,12 +1133,12 @@ function ExportDialog({
               className="touch:hidden"
               disabled={doc === null || nothing}
               loading={busy === 'download'}
-              loadingLabel="Preparing the PDF"
+              loadingLabel={t('analytics.what-changed.preparing_the_pdf', 'Preparing the PDF')}
               onClick={() => {
                 void download();
               }}
             >
-              Download
+              {t('analytics.what-changed.download', 'Download')}
             </Button>
           ) : null}
           {state.canSend && recipient !== null && to !== null && onSend !== undefined ? (
@@ -1012,12 +1148,12 @@ function ExportDialog({
               className="touch:w-full"
               disabled={doc === null || nothing || done?.tone === 'success'}
               loading={busy === 'send'}
-              loadingLabel="Sending"
+              loadingLabel={t('analytics.what-changed.sending', 'Sending')}
               onClick={() => {
                 void send();
               }}
             >
-              Send to {to}
+              {t('analytics.what-changed.send_to', 'Send to')} {to}
             </Button>
           ) : null}
         </DialogFooter>
@@ -1043,24 +1179,37 @@ function Preview({
   if (doc === null) {
     return (
       <Card variant="elevated" padded className="grid min-w-0 flex-1 place-items-center">
-        <Spinner label="Preparing the preview" />
+        <Spinner
+          label={t('analytics.what-changed.preparing_the_preview', 'Preparing the preview')}
+        />
       </Card>
     );
   }
   const text = (p: SummaryDocument['points'][number]): string => edits[p.key] ?? p.text;
   return (
-    <Card variant="elevated" padded className="min-w-0 flex-1" aria-label="Preview">
+    <Card
+      variant="elevated"
+      padded
+      className="min-w-0 flex-1"
+      aria-label={t('analytics.what-changed.preview', 'Preview')}
+    >
       <p className="text-[0.6875rem] font-bold tracking-[0.08em] text-fg-muted uppercase">
-        {doc.company === null ? '' : `${doc.company} · `}People report
+        {doc.company === null ? '' : `${doc.company} · `}
+        {t('analytics.what-changed.people_report', 'People report')}
       </p>
       <h3 className="mt-2 font-display text-2xl leading-tight font-bold touch:text-md">
         {doc.title}
       </h3>
       <p className="mt-1 text-xs text-fg-muted touch:hidden">
-        Prepared by {doc.preparedBy} · {doc.preparedOn}
+        {t('analytics.what-changed.prepared_by', 'Prepared by')} {doc.preparedBy} · {doc.preparedOn}
       </p>
       {doc.points.length === 0 ? (
-        <p className="mt-3.5 text-fg-muted">Nothing in this summary is theirs to see.</p>
+        <p className="mt-3.5 text-fg-muted">
+          {t(
+            'analytics.what-changed.nothing_in_this_summary_is_theirs',
+            'Nothing in this summary is theirs to see.',
+          )}
+        </p>
       ) : (
         <>
           <ol className="mt-3.5 flex flex-col gap-3 touch:hidden">
@@ -1068,7 +1217,11 @@ function Preview({
               <li key={p.key} className="flex items-start gap-2.5">
                 <strong className="min-w-11 pt-2 tabular-nums">{p.figure}</strong>
                 <Textarea
-                  aria-label={`The sentence for ${p.figure}`}
+                  aria-label={t(
+                    'analytics.what-changed.the_sentence_for',
+                    'The sentence for {{figure}}',
+                    { figure: p.figure },
+                  )}
                   autoResize
                   rows={2}
                   maxLength={600}
@@ -1088,10 +1241,12 @@ function Preview({
       {doc.chart === null ? null : (
         <div className="mt-4 touch:hidden">
           <TrendChart
-            label="Headcount by month"
+            label={t('analytics.what-changed.headcount_by_month', 'Headcount by month')}
             height={70}
             area
-            series={[{ label: 'Headcount', data: doc.chart }]}
+            series={[
+              { label: t('analytics.what-changed.headcount', 'Headcount'), data: doc.chart },
+            ]}
           />
         </div>
       )}
@@ -1104,15 +1259,23 @@ function Preview({
 
 /** A summary somebody sent the viewer, as they sent it, and the same on paper. */
 function Shared({ shared }: { readonly shared: SharedSummary | null }): JSX.Element {
-  const header = <PageHeader title="Insights" description="A summary sent to you" />;
+  const header = (
+    <PageHeader
+      title={t('analytics.what-changed.insights', 'Insights')}
+      description={t('analytics.what-changed.a_summary_sent_to_you', 'A summary sent to you')}
+    />
+  );
   if (shared === null) {
     return (
       <Stack gap={6}>
         {header}
         <EmptyState
           icon={<icons.analytics />}
-          title="This summary is not here"
-          description="It was sent to somebody else, or it is more than seven days old."
+          title={t('analytics.what-changed.this_summary_is_not_here', 'This summary is not here')}
+          description={t(
+            'analytics.what-changed.it_was_sent_to_somebody_else',
+            'It was sent to somebody else, or it is more than seven days old.',
+          )}
         />
       </Stack>
     );
@@ -1124,8 +1287,14 @@ function Shared({ shared }: { readonly shared: SharedSummary | null }): JSX.Elem
       <AssistantCard
         level={2}
         title={doc.title}
-        action={<Badge tone="assistant">Sent to you</Badge>}
-        note={`Prepared by ${doc.preparedBy} on ${doc.preparedOn}, written for what you’re allowed to see. ${doc.madeLine ?? ''}`.trim()}
+        action={
+          <Badge tone="assistant">{t('analytics.what-changed.sent_to_you', 'Sent to you')}</Badge>
+        }
+        note={t(
+          'analytics.what-changed.prepared_by_on_written_for_what',
+          'Prepared by {{preparedBy}} on {{preparedOn}}, written for what you’re allowed to see. {{value}}',
+          { preparedBy: doc.preparedBy, preparedOn: doc.preparedOn, value: doc.madeLine ?? '' },
+        ).trim()}
       >
         <ul aria-label={doc.title}>
           {doc.points.map((p, i) => (
@@ -1151,7 +1320,7 @@ function Shared({ shared }: { readonly shared: SharedSummary | null }): JSX.Elem
           className="self-start touch:self-stretch"
         >
           <a href={`/people/downloads/summary?shared=${encodeURIComponent(shared.id)}`} download>
-            Download PDF
+            {t('analytics.what-changed.download_pdf', 'Download PDF')}
           </a>
         </Button>
       </AssistantCard>

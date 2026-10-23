@@ -2,6 +2,7 @@ import { Button, icons } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { monthName, shiftMonth } from './time';
+import { t } from '../i18n';
 
 /** The month before and after (`YYYY-MM`) as links to the same page, `?month=` in the address. */
 export function MonthNav({
@@ -16,7 +17,7 @@ export function MonthNav({
     return <a href={`${path}?month=${to}`}>{monthName(`${to}-01`)}</a>;
   };
   return (
-    <nav aria-label="Month" className="flex items-center gap-2">
+    <nav aria-label={t('attendance.month-nav.month', 'Month')} className="flex items-center gap-2">
       <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
         {link(-1)}
       </Button>

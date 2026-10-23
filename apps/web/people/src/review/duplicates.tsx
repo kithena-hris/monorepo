@@ -30,6 +30,7 @@ import {
 import { useCallback, useMemo, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * HR's review of suspected duplicates (PEO-074; PRD §12.4).
@@ -70,14 +71,16 @@ export const faceOf = (
 
 /** "Flagged by Kithena’s duplicate check", or null from an older People. */
 export const flaggedByOf = (pair: DuplicatePair | undefined): string | null =>
-  pair?.flaggedBy == null || pair.flaggedBy === '' ? null : `Flagged by ${pair.flaggedBy}`;
+  pair?.flaggedBy == null || pair.flaggedBy === ''
+    ? null
+    : t('review.duplicates.flagged_by', 'Flagged by {{flaggedBy}}', { flaggedBy: pair.flaggedBy });
 
 export type MatchBand = 'strong' | 'likely' | 'possible';
 
 const BAND: Readonly<Record<MatchBand, string>> = {
-  strong: 'Strong',
-  likely: 'Likely',
-  possible: 'Possible',
+  strong: t('review.duplicates.strong', 'Strong'),
+  likely: t('review.duplicates.likely', 'Likely'),
+  possible: t('review.duplicates.possible', 'Possible'),
 };
 
 export interface ComparedPerson {
@@ -173,22 +176,39 @@ export function Merges({
   // Held across renders, so a page landing redraws only the rows it brought.
   const columns = useMemo<readonly DataColumn<MergedPair>[]>(
     () => [
-      { id: 'merged', header: 'Merged', cell: (m) => m.absorbedName },
-      { id: 'into', header: 'Into', shortHeader: 'Into', cell: (m) => m.survivorName },
-      { id: 'when', header: 'When', cell: (m) => m.mergedAt.slice(0, 10) },
+      {
+        id: 'merged',
+        header: t('review.duplicates.merged', 'Merged'),
+        cell: (m) => m.absorbedName,
+      },
+      {
+        id: 'into',
+        header: t('review.duplicates.into', 'Into'),
+        shortHeader: t('review.duplicates.into', 'Into'),
+        cell: (m) => m.survivorName,
+      },
+      {
+        id: 'when',
+        header: t('review.duplicates.when', 'When'),
+        cell: (m) => m.mergedAt.slice(0, 10),
+      },
       {
         id: 'undo',
-        header: 'Undo',
+        header: t('review.duplicates.undo', 'Undo'),
         cell: (m) =>
           m.refusal === null ? (
             <Button
               size="sm"
-              aria-label={`Undo merge of ${m.absorbedName} into ${m.survivorName}`}
+              aria-label={t(
+                'review.duplicates.undo_merge_of_into',
+                'Undo merge of {{absorbedName}} into {{survivorName}}',
+                { absorbedName: m.absorbedName, survivorName: m.survivorName },
+              )}
               onClick={() => {
                 setUndoing(m);
               }}
             >
-              Undo merge
+              {t('review.duplicates.undo_merge', 'Undo merge')}
             </Button>
           ) : (
             <span className="text-sm">{m.refusal}</span>
@@ -200,9 +220,11 @@ export function Merges({
   if (first.length === 0) return null;
   return (
     <Stack gap={4}>
-      <h2 className="text-lg font-semibold">Merged records</h2>
+      <h2 className="text-lg font-semibold">
+        {t('review.duplicates.merged_records', 'Merged records')}
+      </h2>
       <DataTable<MergedPair>
-        label="Merged records"
+        label={t('review.duplicates.merged_records', 'Merged records')}
         rows={pages.items}
         rowId={mergeId}
         describeRow={mergeName}
@@ -250,20 +272,42 @@ function UndoDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Undo merging {merge.absorbedName}'s record into {merge.survivorName}'s
+            {t(
+              'review.duplicates.undo_merging_s_record_into_s',
+              "Undo merging {{absorbedName}}'s record into {{survivorName}}'s",
+              { absorbedName: merge.absorbedName, survivorName: merge.survivorName },
+            )}
           </DialogTitle>
           <DialogDescription>
-            {merge.absorbedName}'s record comes back as it was before the merge
-            {merge.account === 'returned' ? ', with its sign-in' : ''}. Both records stay, and the
-            pair is offered for review again.
+            {merge.absorbedName}
+            {t(
+              'review.duplicates.s_record_comes_back_as_it',
+              "'s record comes back as it was before the merge",
+            )}
+            {merge.account === 'returned' ? ', with its sign-in' : ''}
+            {t(
+              'review.duplicates.both_records_stay_and_the_pair',
+              '. Both records stay, and the pair is offered for review again.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <div>
-              <p className="text-sm font-medium">Put back on {merge.survivorName}'s record</p>
+              <p className="text-sm font-medium">
+                {t(
+                  'review.duplicates.put_back_on_s_record',
+                  "Put back on {{survivorName}}'s record",
+                  { survivorName: merge.survivorName },
+                )}
+              </p>
               {merge.reversed.length === 0 ? (
-                <p className="text-sm">Nothing: no copied value is still as the merge left it.</p>
+                <p className="text-sm">
+                  {t(
+                    'review.duplicates.nothing_no_copied_value_is_still',
+                    'Nothing: no copied value is still as the merge left it.',
+                  )}
+                </p>
               ) : (
                 <ul className="list-disc pl-5 text-sm">
                   {merge.reversed.map((label) => (
@@ -273,19 +317,33 @@ function UndoDialog({
               )}
             </div>
             {merge.kept.length === 0 && merge.account !== 'kept' ? null : (
-              <Alert tone="warning" title="Kept as it is now">
+              <Alert
+                tone="warning"
+                title={t('review.duplicates.kept_as_it_is_now', 'Kept as it is now')}
+              >
                 <ul className="list-disc pl-5">
                   {merge.kept.map((label) => (
-                    <li key={label}>{label}, changed since the merge</li>
+                    <li key={label}>
+                      {label}
+                      {t('review.duplicates.changed_since_the_merge', ', changed since the merge')}
+                    </li>
                   ))}
                   {merge.account === 'kept' ? (
-                    <li>The sign-in, which {merge.survivorName}'s record no longer holds</li>
+                    <li>
+                      {t(
+                        'review.duplicates.the_sign_in_which_s_record',
+                        "The sign-in, which {{survivorName}}'s record no longer holds",
+                        { survivorName: merge.survivorName },
+                      )}
+                    </li>
                   ) : null}
                 </ul>
               </Alert>
             )}
             <Field required invalid={shown && empty}>
-              <FieldLabel>Why was the merge wrong?</FieldLabel>
+              <FieldLabel>
+                {t('review.duplicates.why_was_the_merge_wrong', 'Why was the merge wrong?')}
+              </FieldLabel>
               <FieldControl>
                 <Textarea
                   value={reason}
@@ -296,23 +354,26 @@ function UndoDialog({
                 />
               </FieldControl>
               <FieldDescription>
-                Kept with the record of the undo. Up to 500 characters.
+                {t(
+                  'review.duplicates.kept_with_the_record_of_the',
+                  'Kept with the record of the undo. Up to 500 characters.',
+                )}
               </FieldDescription>
-              <FieldError>Say why.</FieldError>
+              <FieldError>{t('review.duplicates.say_why', 'Say why.')}</FieldError>
             </Field>
             {refused === null ? null : (
-              <Alert tone="danger" title="Not undone">
+              <Alert tone="danger" title={t('review.duplicates.not_undone', 'Not undone')}>
                 {refused}
               </Alert>
             )}
           </Stack>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('review.duplicates.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             loading={busy}
-            loadingLabel="Undoing"
+            loadingLabel={t('review.duplicates.undoing', 'Undoing')}
             onClick={() => {
               setShown(true);
               if (empty) return;
@@ -325,7 +386,7 @@ function UndoDialog({
               });
             }}
           >
-            Undo merge
+            {t('review.duplicates.undo_merge', 'Undo merge')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -372,16 +433,24 @@ export function DuplicateDetail({
         <div className="min-w-0 flex-1">
           <h2 className="text-md font-bold">
             {people[0]?.name}
-            <span className="font-normal text-fg-muted"> · Possible duplicate</span>
+            <span className="font-normal text-fg-muted">
+              {' '}
+              {t('review.duplicates.possible_duplicate', '· Possible duplicate')}
+            </span>
           </h2>
           <p className="text-sm text-fg-muted">
             {[
               (pair?.reasons ?? []).join(', '),
-              pair === undefined || bandOf(pair) === null ? null : `${bandOf(pair) ?? ''} match`,
+              pair === undefined || bandOf(pair) === null
+                ? null
+                : t('review.duplicates.match', '{{value}} match', { value: bandOf(pair) ?? '' }),
               flaggedByOf(pair),
             ]
               .filter((x) => x !== null && x !== '')
-              .join(' · ') || `Possible duplicate of ${people[1]?.name ?? ''}`}
+              .join(' · ') ||
+              t('review.duplicates.possible_duplicate_of', 'Possible duplicate of {{value}}', {
+                value: people[1]?.name ?? '',
+              })}
           </p>
         </div>
         {pair === undefined || bandOf(pair) === null ? null : (
@@ -391,21 +460,29 @@ export function DuplicateDetail({
         )}
       </div>
       <p className="text-sm text-fg-muted">
-        Side by side, as you may see them. A sealed value shows its last four. Tick the values to
-        take from the other record.
+        {t(
+          'review.duplicates.side_by_side_as_you_may',
+          'Side by side, as you may see them. A sealed value shows its last four. Tick the values to take from the other record.',
+        )}
       </p>
       {refused === null ? null : (
-        <Alert tone="danger" title="Not done">
+        <Alert tone="danger" title={t('review.duplicates.not_done', 'Not done')}>
           {refused}
         </Alert>
       )}
       {may.length === 0 ? (
-        <Alert tone="warning" title="These two cannot be merged here">
+        <Alert
+          tone="warning"
+          title={t(
+            'review.duplicates.these_two_cannot_be_merged_here',
+            'These two cannot be merged here',
+          )}
+        >
           {people.map((p) => p.refusal).find((r) => r !== null) ?? ''}
         </Alert>
       ) : (
         <RadioGroup
-          aria-label="Which record stays"
+          aria-label={t('review.duplicates.which_record_stays', 'Which record stays')}
           value={survivor === null ? '' : String(survivor)}
           onValueChange={(v) => {
             setSurvivor(Number(v));
@@ -421,7 +498,7 @@ export function DuplicateDetail({
                 p.refusal ?? 'Keeps its history; the other record points here afterwards.'
               }
             >
-              Keep {p.name}'s record
+              {t('review.duplicates.keep_s_record', "Keep {{name}}'s record", { name: p.name })}
             </RadioGroupItem>
           ))}
         </RadioGroup>
@@ -476,7 +553,7 @@ export function DuplicateDetail({
           variant="ghost"
           shortcut="row.not-same"
           loading={busy && !confirming}
-          loadingLabel="Saving"
+          loadingLabel={t('review.duplicates.saving', 'Saving')}
           onClick={() => {
             setBusy(true);
             setRefused(null);
@@ -486,7 +563,7 @@ export function DuplicateDetail({
             });
           }}
         >
-          Not the same person
+          {t('review.duplicates.not_the_same_person', 'Not the same person')}
         </Button>
         <Button
           variant="primary"
@@ -498,7 +575,7 @@ export function DuplicateDetail({
             setConfirming(true);
           }}
         >
-          Merge
+          {t('review.duplicates.merge', 'Merge')}
         </Button>
       </div>
       {confirming && kept !== undefined && gone !== undefined ? (
@@ -511,19 +588,37 @@ export function DuplicateDetail({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Merge {gone.name}'s record into {kept.name}'s
+                {t(
+                  'review.duplicates.merge_s_record_into_s',
+                  "Merge {{name}}'s record into {{name2}}'s",
+                  { name: gone.name, name2: kept.name },
+                )}
               </DialogTitle>
               <DialogDescription>
-                {gone.name}'s record is kept, closed, and points at {kept.name}'s. Its sign-in, if
-                it has one, moves across.{' '}
+                {gone.name}
+                {t(
+                  'review.duplicates.s_record_is_kept_closed_and',
+                  "'s record is kept, closed, and points at {{name}}'s. Its sign-in, if it has one, moves across.",
+                  { name: kept.name },
+                )}{' '}
                 {take.size === 0
-                  ? 'No values are copied.'
-                  : `${String(take.size)} ${take.size === 1 ? 'value is' : 'values are'} copied, each correctable afterwards.`}
+                  ? t('review.duplicates.no_values_are_copied', 'No values are copied.')
+                  : t(
+                      'review.duplicates.copied_each_correctable_afterwards',
+                      '{{size}} {{value}} copied, each correctable afterwards.',
+                      {
+                        size: String(take.size),
+                        value: take.size === 1 ? 'value is' : 'values are',
+                      },
+                    )}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <p className="text-sm">
-                You can undo this later, under Decided; a copied value changed since is kept.
+                {t(
+                  'review.duplicates.you_can_undo_this_later_under',
+                  'You can undo this later, under Decided; a copied value changed since is kept.',
+                )}
               </p>
             </DialogBody>
             <DialogFooter>
@@ -532,12 +627,12 @@ export function DuplicateDetail({
                   setConfirming(false);
                 }}
               >
-                Cancel
+                {t('review.duplicates.cancel', 'Cancel')}
               </Button>
               <Button
                 variant="primary"
                 loading={busy}
-                loadingLabel="Merging"
+                loadingLabel={t('review.duplicates.merging', 'Merging')}
                 onClick={() => {
                   setBusy(true);
                   setRefused(null);
@@ -548,7 +643,7 @@ export function DuplicateDetail({
                   });
                 }}
               >
-                Merge
+                {t('review.duplicates.merge', 'Merge')}
               </Button>
             </DialogFooter>
           </DialogContent>

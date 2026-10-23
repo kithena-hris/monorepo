@@ -29,6 +29,7 @@ import { useState, type JSX } from 'react';
 
 import { putFile, useWrite } from '../shared';
 import type { FileRef, Outcome, PersonRef, Read, StartUpload, TypeOption } from '../types';
+import { t as tr } from '../i18n';
 
 /**
  * A stack scanned as one PDF, split into its documents (C2): Kithena
@@ -122,15 +123,21 @@ export function SplitDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>Split a scan</DialogTitle>
+          <DialogTitle>{tr('library.split.split_a_scan', 'Split a scan')}</DialogTitle>
           <DialogDescription>
-            One PDF of several documents. Kithena suggests where each starts; you check it.
+            {tr(
+              'library.split.one_pdf_of_several_documents_kithena',
+              'One PDF of several documents. Kithena suggests where each starts; you check it.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {upload === null ? (
             <Dropzone
-              label="Drop the scanned PDF, or choose it"
+              label={tr(
+                'library.split.drop_the_scanned_pdf_or_choose',
+                'Drop the scanned PDF, or choose it',
+              )}
               accept="application/pdf"
               variant="inline"
               onFiles={(files) => {
@@ -139,21 +146,31 @@ export function SplitDialog({
               }}
             />
           ) : null}
-          {reading ? <Spinner label="Kithena is reading the pages" /> : null}
+          {reading ? (
+            <Spinner
+              label={tr(
+                'library.split.kithena_is_reading_the_pages',
+                'Kithena is reading the pages',
+              )}
+            />
+          ) : null}
           {proposal === null ? null : (
             <>
               {proposal.available ? null : (
                 <Alert tone="info">
-                  Kithena could not tell the documents apart. Set where each ends.
+                  {tr(
+                    'library.split.kithena_could_not_tell_the_documents',
+                    'Kithena could not tell the documents apart. Set where each ends.',
+                  )}
                 </Alert>
               )}
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Pages</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>About</TableHead>
+                    <TableHead>{tr('library.split.pages', 'Pages')}</TableHead>
+                    <TableHead>{tr('library.split.name', 'Name')}</TableHead>
+                    <TableHead>{tr('library.split.type', 'Type')}</TableHead>
+                    <TableHead>{tr('library.split.about', 'About')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -161,7 +178,11 @@ export function SplitDialog({
                     <TableRow key={`${String(p.from)}-${String(i)}`}>
                       <TableCell>
                         <NumberField
-                          label={`Document ${String(i + 1)} ends on page`}
+                          label={tr(
+                            'library.split.document_ends_on_page',
+                            'Document {{value}} ends on page',
+                            { value: String(i + 1) },
+                          )}
                           value={p.to}
                           min={p.from}
                           max={proposal.pages}
@@ -172,7 +193,9 @@ export function SplitDialog({
                       </TableCell>
                       <TableCell>
                         <Input
-                          aria-label={`Document ${String(i + 1)} name`}
+                          aria-label={tr('library.split.document_name', 'Document {{value}} name', {
+                            value: String(i + 1),
+                          })}
                           value={p.title}
                           maxLength={200}
                           onChange={(e) => {
@@ -187,11 +210,19 @@ export function SplitDialog({
                             change(i, { typeKey: v === NONE ? null : v });
                           }}
                         >
-                          <SelectTrigger aria-label={`Document ${String(i + 1)} type`}>
+                          <SelectTrigger
+                            aria-label={tr(
+                              'library.split.document_type',
+                              'Document {{value}} type',
+                              { value: String(i + 1) },
+                            )}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NONE}>No type</SelectItem>
+                            <SelectItem value={NONE}>
+                              {tr('library.split.no_type', 'No type')}
+                            </SelectItem>
                             {types.map((t) => (
                               <SelectItem key={t.key} value={t.key}>
                                 {t.name}
@@ -202,15 +233,22 @@ export function SplitDialog({
                       </TableCell>
                       <TableCell>
                         <Combobox
-                          label={`Document ${String(i + 1)} is about`}
+                          label={tr(
+                            'library.split.document_is_about',
+                            'Document {{value}} is about',
+                            { value: String(i + 1) },
+                          )}
                           options={people.map((x) => ({ value: x.personId, label: x.name }))}
                           value={p.subjectPersonId}
                           onChange={(v) => {
                             change(i, { subjectPersonId: typeof v === 'string' ? v : null });
                           }}
-                          placeholder="Nobody"
-                          searchPlaceholder="Find someone"
-                          emptyMessage="Nobody by that name"
+                          placeholder={tr('library.split.nobody', 'Nobody')}
+                          searchPlaceholder={tr('library.split.find_someone', 'Find someone')}
+                          emptyMessage={tr(
+                            'library.split.nobody_by_that_name',
+                            'Nobody by that name',
+                          )}
                         />
                       </TableCell>
                     </TableRow>
@@ -229,14 +267,14 @@ export function SplitDialog({
                       {
                         from: last.to + 1,
                         to: proposal.pages,
-                        title: 'Document',
+                        title: tr('library.split.document', 'Document'),
                         typeKey: null,
                         subjectPersonId: null,
                       },
                     ]);
                   }}
                 >
-                  Add the pages left
+                  {tr('library.split.add_the_pages_left', 'Add the pages left')}
                 </Button>
               )}
             </>
@@ -250,7 +288,7 @@ export function SplitDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {tr('library.split.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -266,7 +304,9 @@ export function SplitDialog({
               );
             }}
           >
-            {`File ${String(parts.length)} documents`}
+            {tr('library.split.file_documents', 'File {{length}} documents', {
+              length: String(parts.length),
+            })}
           </Button>
         </DialogFooter>
       </DialogContent>

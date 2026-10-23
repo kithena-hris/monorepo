@@ -33,6 +33,7 @@ import {
   type ExportFormat,
   type ShareChoice,
 } from '../lib/export-address';
+import { t } from '../lib/t';
 
 /** What the export page's load holds, as far as the shell reads it. */
 type ExportPageData = {
@@ -233,7 +234,14 @@ async function uploadFile(
   file: File,
 ): Promise<{ ok: true; file: actions.FileInfo } | { ok: false; message: string }> {
   const body = await asUploadable(file);
-  if (body === null) return { ok: false, message: 'That file could not be read.' };
+  if (body === null)
+    return {
+      ok: false,
+      message: t(
+        'components.people-screen.that_file_could_not_be_read',
+        'That file could not be read.',
+      ),
+    };
   const name = body === file ? file.name : file.name.replace(/\.[^.]*$/, '') + '.jpg';
   const target = await actions.startFileUpload(personId, key, name, body.size);
   if (!target.ok) return target;
@@ -590,7 +598,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             }
             const file = await inbox.documentFile(documentId);
             if (file === null)
-              return { ok: false as const, message: 'That document could not be opened' };
+              return {
+                ok: false as const,
+                message: t(
+                  'components.people-screen.that_document_could_not_be_opened',
+                  'That document could not be opened',
+                ),
+              };
             saveBase64(file);
             return { ok: true as const };
           },
@@ -1104,7 +1118,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               search['connected'] !== undefined
                 ? {
                     ok: true,
-                    message: `${search['connected']} is connected. Choose below what it sends.`,
+                    message: t(
+                      'components.people-screen.is_connected_choose_below_what_it',
+                      '{{search}} is connected. Choose below what it sends.',
+                      { search: search['connected'] },
+                    ),
                   }
                 : search['notConnected'] !== undefined
                   ? { ok: false, message: search['notConnected'] }
@@ -1338,8 +1356,11 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(documents
             ? {
                 keep: {
-                  label: 'Save to Documents',
-                  description: 'Kept Confidential to HR in Documents, and deleted after 90 days.',
+                  label: t('components.people-screen.save_to_documents', 'Save to Documents'),
+                  description: t(
+                    'components.people-screen.kept_confidential_to_hr_in_documents',
+                    'Kept Confidential to HR in Documents, and deleted after 90 days.',
+                  ),
                 },
                 onKeep: async (choice: ExportBuilderChoice) => {
                   const kept = await keepExport({ ...choice, ...narrowed(choice.who) });
@@ -1376,8 +1397,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             if (audienceOf === null) {
               return {
                 ok: false,
-                message:
+                message: t(
+                  'components.people-screen.a_schedule_takes_a_saved_view',
                   'A schedule takes a saved view or simple filters. Save this group as a view in the Directory first.',
+                ),
               };
             }
             return actions.createReportSchedule({
@@ -1405,7 +1428,10 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
         const stage = held.step === 'map' && at('step') === null ? { step: 'upload' } : held;
         // An approved import's own address: Importing, then what it did, or why it stopped.
         const watching = at('run') !== null;
-        const again = { ok: false, message: 'Choose the file again' } as const;
+        const again = {
+          ok: false,
+          message: t('components.people-screen.choose_the_file_again', 'Choose the file again'),
+        } as const;
         type Mapping = Readonly<Record<number, string | null>>;
         // Nothing published and not an administrator: the first import is one's.
         const ready =
@@ -1437,7 +1463,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           ...(documents
             ? {
                 kept: {
-                  label: 'Already in Documents',
+                  label: t('components.people-screen.already_in_documents', 'Already in Documents'),
                   load: importableDocuments,
                   onPick: async (documentId: string): Promise<Outcome> => {
                     const handed = await importFromDocuments(documentId);
@@ -1521,9 +1547,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               run: {
                 id: ran.runId,
                 status: 'queued',
-                label: 'Importing',
+                label: t('components.people-screen.importing', 'Importing'),
                 phase: 'setup',
-                step: 'Setting up the fields',
+                step: t('components.people-screen.setting_up_the_fields', 'Setting up the fields'),
                 people: { done: 0, total: null },
                 fileName: file?.name ?? null,
                 startedBy: { name: '', you: true },
@@ -1635,7 +1661,16 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             }).catch(() => null);
             if (response?.ok !== true) {
               const why = (await response?.text().catch(() => '')) ?? '';
-              return { ok: false, message: why === '' ? 'The PDF could not be made' : why };
+              return {
+                ok: false,
+                message:
+                  why === ''
+                    ? t(
+                        'components.people-screen.the_pdf_could_not_be_made',
+                        'The PDF could not be made',
+                      )
+                    : why,
+              };
             }
             const url = URL.createObjectURL(await response.blob());
             const link = document.createElement('a');

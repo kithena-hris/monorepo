@@ -54,6 +54,7 @@ import { EmailComposer, type ComposedEmail } from './composer';
 import { AskList } from './interviews';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R11, R12, a candidate (design R11–R12): one record across applications.
@@ -67,10 +68,10 @@ const TABS = ['profile', 'process', 'messages'] as const;
 type Tab = (typeof TABS)[number];
 
 const VERDICT: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' }>> = {
-  met: { label: 'Met', tone: 'success' },
-  partly_met: { label: 'Partly met', tone: 'info' },
-  not_met: { label: 'Not met', tone: 'neutral' },
-  not_evidenced: { label: 'Not evidenced', tone: 'neutral' },
+  met: { label: tr('candidate.met', 'Met'), tone: 'success' },
+  partly_met: { label: tr('candidate.partly_met', 'Partly met'), tone: 'info' },
+  not_met: { label: tr('candidate.not_met', 'Not met'), tone: 'neutral' },
+  not_evidenced: { label: tr('candidate.not_evidenced', 'Not evidenced'), tone: 'neutral' },
 };
 
 /**
@@ -90,11 +91,20 @@ function Evidence({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Evidence against the criteria</CardTitle>
+        <CardTitle level={2}>
+          {tr('candidate.evidence_against_the_criteria', 'Evidence against the criteria')}
+        </CardTitle>
         <CardDescription>
           {matrix === null
-            ? 'A model reads the masked application against the job’s criteria and quotes what it found. You decide.'
-            : `${matrix.model} · ${day(matrix.at)} · ${words(matrix.band)} match. A label, not a decision.`}
+            ? tr(
+                'candidate.a_model_reads_the_masked_application',
+                'A model reads the masked application against the job’s criteria and quotes what it found. You decide.',
+              )
+            : tr(
+                'candidate.match_a_label_not_a_decision',
+                '{{model}} · {{at}} · {{band}} match. A label, not a decision.',
+                { model: matrix.model, at: day(matrix.at), band: words(matrix.band) },
+              )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -103,10 +113,10 @@ function Evidence({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Criterion</TableHead>
-                <TableHead>Verdict</TableHead>
-                <TableHead>What it read</TableHead>
-                <TableHead>Was this right?</TableHead>
+                <TableHead>{tr('candidate.criterion', 'Criterion')}</TableHead>
+                <TableHead>{tr('candidate.verdict', 'Verdict')}</TableHead>
+                <TableHead>{tr('candidate.what_it_read', 'What it read')}</TableHead>
+                <TableHead>{tr('candidate.was_this_right', 'Was this right?')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -114,7 +124,11 @@ function Evidence({
                 <TableRow key={f.criterionId}>
                   <TableCell>
                     {f.criterion}
-                    {f.must ? <span className="block text-xs text-fg-muted">Must-have</span> : null}
+                    {f.must ? (
+                      <span className="block text-xs text-fg-muted">
+                        {tr('candidate.must_have', 'Must-have')}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <Badge size="sm" tone={VERDICT[f.verdict]?.tone ?? 'neutral'}>
@@ -131,7 +145,11 @@ function Evidence({
                   </TableCell>
                   <TableCell>
                     <SegmentedControl
-                      aria-label={`Was the verdict on ${f.criterion} right?`}
+                      aria-label={tr(
+                        'candidate.was_the_verdict_on_right',
+                        'Was the verdict on {{criterion}} right?',
+                        { criterion: f.criterion },
+                      )}
                       value={f.agreed === null ? '' : f.agreed ? 'yes' : 'no'}
                       disabled={act.pending}
                       onValueChange={(v) => {
@@ -143,8 +161,12 @@ function Evidence({
                         });
                       }}
                     >
-                      <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
-                      <SegmentedControlItem value="no">No</SegmentedControlItem>
+                      <SegmentedControlItem value="yes">
+                        {tr('candidate.yes', 'Yes')}
+                      </SegmentedControlItem>
+                      <SegmentedControlItem value="no">
+                        {tr('candidate.no', 'No')}
+                      </SegmentedControlItem>
                     </SegmentedControl>
                   </TableCell>
                 </TableRow>
@@ -159,7 +181,9 @@ function Evidence({
             act.run('AssessMatrix', { applicationId: application.applicationId });
           }}
         >
-          {matrix === null ? 'Read against the criteria' : 'Read again'}
+          {matrix === null
+            ? tr('candidate.read_against_the_criteria', 'Read against the criteria')
+            : tr('candidate.read_again', 'Read again')}
         </Button>
       </CardContent>
     </Card>
@@ -208,9 +232,12 @@ function ReadCv({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Read from the CV</CardTitle>
+        <CardTitle level={2}>{tr('candidate.read_from_the_cv', 'Read from the CV')}</CardTitle>
         <CardDescription>
-          A model read the masked text; anything it could not quote was left out.
+          {tr(
+            'candidate.a_model_read_the_masked_text',
+            'A model read the masked text; anything it could not quote was left out.',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -225,35 +252,55 @@ function ReadCv({
               });
             }}
           >
-            Read the CV
+            {tr('candidate.read_the_cv', 'Read the CV')}
           </Button>
         ) : (
           <>
             {parsed.confirmedAt === null ? (
               <Badge size="sm" tone="neutral">
-                Not yet checked by the candidate
+                {tr(
+                  'candidate.not_yet_checked_by_the_candidate',
+                  'Not yet checked by the candidate',
+                )}
               </Badge>
             ) : (
-              <Badge
-                size="sm"
-                tone="success"
-              >{`Checked by the candidate ${day(parsed.confirmedAt)}`}</Badge>
+              <Badge size="sm" tone="success">
+                {tr(
+                  'candidate.checked_by_the_candidate',
+                  'Checked by the candidate {{confirmedAt}}',
+                  { confirmedAt: day(parsed.confirmedAt) },
+                )}
+              </Badge>
             )}
             {parsed.note === null ? null : (
-              <Alert tone="info" title="The candidate says">
+              <Alert tone="info" title={tr('candidate.the_candidate_says', 'The candidate says')}>
                 {parsed.note}
               </Alert>
             )}
             {parsed.issues.some((i) => i.code !== 'not_in_text') ? (
-              <Alert tone="warning" title="Dates to check">
-                Some dates are out of order or after today; they are shown as written.
+              <Alert tone="warning" title={tr('candidate.dates_to_check', 'Dates to check')}>
+                {tr(
+                  'candidate.some_dates_are_out_of_order',
+                  'Some dates are out of order or after today; they are shown as written.',
+                )}
               </Alert>
             ) : null}
             <ul className="flex flex-col gap-2">
               {parsed.profile.work.map((w) => (
                 <li key={`${w.employer.value}:${w.from.value}`}>
-                  <span className="font-medium">{`${w.title.value}, ${w.employer.value}`}</span>
-                  <span className="block text-sm text-fg-muted">{`${w.from.value} – ${w.to?.value ?? 'now'} · “${w.employer.passage}”`}</span>
+                  <span className="font-medium">
+                    {tr('candidate.text', '{{value}}, {{value2}}', {
+                      value: w.title.value,
+                      value2: w.employer.value,
+                    })}
+                  </span>
+                  <span className="block text-sm text-fg-muted">
+                    {tr('candidate.text_2', '{{value}} – {{value2}} · “{{passage}}”', {
+                      value: w.from.value,
+                      value2: w.to?.value ?? 'now',
+                      passage: w.employer.passage,
+                    })}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -262,7 +309,14 @@ function ReadCv({
                 <Chip key={x.value}>{x.value}</Chip>
               ))}
               {parsed.profile.languages.map((l) => (
-                <Chip key={l.value}>{l.level === null ? l.value : `${l.value} ${l.level}`}</Chip>
+                <Chip key={l.value}>
+                  {l.level === null
+                    ? l.value
+                    : tr('candidate.text_3', '{{value}} {{level}}', {
+                        value: l.value,
+                        level: l.level,
+                      })}
+                </Chip>
               ))}
             </ChipRow>
           </>
@@ -288,8 +342,11 @@ function References({
         {application.references.length === 0 ? (
           <EmptyState
             icon={<icons.people aria-hidden />}
-            title="No referees named"
-            description="The candidate names referees on their page; nobody is contacted before that."
+            title={tr('candidate.no_referees_named', 'No referees named')}
+            description={tr(
+              'candidate.the_candidate_names_referees_on_their',
+              'The candidate names referees on their page; nobody is contacted before that.',
+            )}
           />
         ) : null}
         {application.references.map((r) => (
@@ -312,7 +369,7 @@ function References({
                     });
                   }}
                 >
-                  Ask for the reference
+                  {tr('candidate.ask_for_the_reference', 'Ask for the reference')}
                 </Button>
               ) : null}
             </div>
@@ -348,8 +405,11 @@ function Messages({
       {data.messages.length === 0 ? (
         <EmptyState
           icon={<icons.message aria-hidden />}
-          title="No messages yet"
-          description="Emails to and from the candidate land here; replies arrive on the thread."
+          title={tr('candidate.no_messages_yet', 'No messages yet')}
+          description={tr(
+            'candidate.emails_to_and_from_the_candidate',
+            'Emails to and from the candidate land here; replies arrive on the thread.',
+          )}
         />
       ) : null}
       <ol className="flex flex-col gap-3">
@@ -363,9 +423,11 @@ function Messages({
               <div className="text-xs text-fg-muted">
                 {m.direction === 'out'
                   ? m.sentAt === null
-                    ? `Sends ${when(m.sendAt)}`
-                    : `Sent ${when(m.sentAt)}`
-                  : `Received ${when(m.createdAt)}`}
+                    ? tr('candidate.sends', 'Sends {{sendAt}}', { sendAt: when(m.sendAt) })
+                    : tr('candidate.sent', 'Sent {{sentAt}}', { sentAt: when(m.sentAt) })
+                  : tr('candidate.received', 'Received {{createdAt}}', {
+                      createdAt: when(m.createdAt),
+                    })}
               </div>
             </div>
           </li>
@@ -377,11 +439,14 @@ function Messages({
             <Refusal error={act.error} />
             <div className="flex flex-wrap items-end gap-2">
               <Field className="min-w-0 flex-1">
-                <FieldLabel>Draft it for me</FieldLabel>
+                <FieldLabel>{tr('candidate.draft_it_for_me', 'Draft it for me')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={intent}
-                    placeholder="Invite to a second interview next week"
+                    placeholder={tr(
+                      'candidate.invite_to_a_second_interview_next',
+                      'Invite to a second interview next week',
+                    )}
                     onChange={(e) => {
                       setIntent(e.target.value);
                     }}
@@ -407,11 +472,11 @@ function Messages({
                   );
                 }}
               >
-                Draft
+                {tr('candidate.draft', 'Draft')}
               </Button>
             </div>
             <Field required>
-              <FieldLabel>Subject</FieldLabel>
+              <FieldLabel>{tr('candidate.subject', 'Subject')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={subject}
@@ -422,7 +487,7 @@ function Messages({
               </FieldControl>
             </Field>
             <Field required>
-              <FieldLabel>Message</FieldLabel>
+              <FieldLabel>{tr('candidate.message', 'Message')}</FieldLabel>
               <FieldControl>
                 <Textarea
                   rows={5}
@@ -452,7 +517,7 @@ function Messages({
                   );
                 }}
               >
-                Send
+                {tr('candidate.send', 'Send')}
               </Button>
             </div>
           </div>
@@ -476,9 +541,12 @@ function Notes({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Notes</CardTitle>
+        <CardTitle level={2}>{tr('candidate.notes', 'Notes')}</CardTitle>
         <CardDescription>
-          Private to the hiring team; interviewers see them only after their scorecard
+          {tr(
+            'candidate.private_to_the_hiring_team_interviewers',
+            'Private to the hiring team; interviewers see them only after their scorecard',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -493,7 +561,7 @@ function Notes({
         ))}
         <Refusal error={act.error} />
         <Field>
-          <FieldLabel>Add a note</FieldLabel>
+          <FieldLabel>{tr('candidate.add_a_note', 'Add a note')}</FieldLabel>
           <FieldControl>
             <Textarea
               rows={2}
@@ -523,7 +591,7 @@ function Notes({
               );
             }}
           >
-            Add note
+            {tr('candidate.add_note', 'Add note')}
           </Button>
         </div>
       </CardContent>
@@ -575,11 +643,22 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           setPoolId(v === 'none' ? '' : v);
                         }}
                       >
-                        <SelectTrigger aria-label="Talent pool" size="sm" className="w-48">
-                          <SelectValue placeholder="Add to a talent pool…" />
+                        <SelectTrigger
+                          aria-label={tr('candidate.talent_pool', 'Talent pool')}
+                          size="sm"
+                          className="w-48"
+                        >
+                          <SelectValue
+                            placeholder={tr(
+                              'candidate.add_to_a_talent_pool',
+                              'Add to a talent pool…',
+                            )}
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Add to a talent pool…</SelectItem>
+                          <SelectItem value="none">
+                            {tr('candidate.add_to_a_talent_pool', 'Add to a talent pool…')}
+                          </SelectItem>
                           {data.allPools
                             .filter((p) => !data.pools.some((m) => m.poolId === p.id))
                             .map((p) => (
@@ -610,7 +689,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           );
                         }}
                       >
-                        Ask to join
+                        {tr('candidate.ask_to_join', 'Ask to join')}
                       </Button>
                     </>
                   )}
@@ -621,15 +700,20 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       startIcon={<icons.email aria-hidden />}
                       onClick={() => props.onFilter?.({ tab: 'messages' })}
                     >
-                      Email
+                      {tr('candidate.email', 'Email')}
                     </Button>
                   )}
                 </span>
               }
             />
             <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
-              <aside className="flex flex-col gap-3" aria-label="Applications">
-                <h2 className="text-sm font-semibold text-fg-muted">Applications</h2>
+              <aside
+                className="flex flex-col gap-3"
+                aria-label={tr('candidate.applications', 'Applications')}
+              >
+                <h2 className="text-sm font-semibold text-fg-muted">
+                  {tr('candidate.applications', 'Applications')}
+                </h2>
                 {data.applications.map((a) => {
                   const on = a.applicationId === chosen?.applicationId;
                   return (
@@ -656,7 +740,11 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             ? (a.stages.find((s) => s.id === a.stageId)?.name ?? '')
                             : words(a.outcome)}
                         </span>
-                        <span className="text-xs text-fg-muted">{`Source: ${words(a.source)}`}</span>
+                        <span className="text-xs text-fg-muted">
+                          {tr('candidate.source', 'Source: {{source}}', {
+                            source: words(a.source),
+                          })}
+                        </span>
                       </a>
                     </Card>
                   );
@@ -674,7 +762,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
               {chosen === undefined ? (
                 <EmptyState
                   icon={<icons.person aria-hidden />}
-                  title="No application you can see"
+                  title={tr('candidate.no_application_you_can_see', 'No application you can see')}
                 />
               ) : (
                 <div className="flex min-w-0 flex-col gap-3">
@@ -687,7 +775,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       )}
                       {chosen.flagged ? (
                         <Badge size="sm" tone="warning">
-                          Knockout to review
+                          {tr('candidate.knockout_to_review', 'Knockout to review')}
                         </Badge>
                       ) : null}
                       <span className="flex-1" />
@@ -703,7 +791,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             )
                           }
                         >
-                          Schedule
+                          {tr('candidate.schedule', 'Schedule')}
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' && chosen.may.includes('candidate.message') ? (
@@ -715,7 +803,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             setAsking(chosen.applicationId);
                           }}
                         >
-                          Ask for information…
+                          {tr('candidate.ask_for_information', 'Ask for information…')}
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' && chosen.may.includes('candidate.message') ? (
@@ -728,7 +816,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             setTelling(chosen.applicationId);
                           }}
                         >
-                          What to expect…
+                          {tr('candidate.what_to_expect', 'What to expect…')}
                         </Button>
                       ) : null}
                       {chosen.may.includes('scorecards.all') ? (
@@ -741,7 +829,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             )
                           }
                         >
-                          Debrief
+                          {tr('candidate.debrief', 'Debrief')}
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' &&
@@ -761,7 +849,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             });
                           }}
                         >
-                          {`Move to ${nextStage.name}`}
+                          {tr('candidate.move_to', 'Move to {{name}}', { name: nextStage.name })}
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' && chosen.may.includes('pipeline.move') ? (
@@ -775,7 +863,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             });
                           }}
                         >
-                          Reject…
+                          {tr('candidate.reject', 'Reject…')}
                         </Button>
                       ) : null}
                       {chosen.outcome === 'active' &&
@@ -791,7 +879,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                             )
                           }
                         >
-                          {chosen.offers[0] === undefined ? 'Make an offer' : 'Open the offer'}
+                          {chosen.offers[0] === undefined
+                            ? tr('candidate.make_an_offer', 'Make an offer')
+                            : tr('candidate.open_the_offer', 'Open the offer')}
                         </Button>
                       ) : null}
                     </div>
@@ -801,37 +891,60 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     onValueChange={(v) => props.onFilter?.({ tab: v === 'profile' ? null : v })}
                   >
                     <TabsList>
-                      <TabsTrigger value="profile">Profile</TabsTrigger>
-                      <TabsTrigger value="process">{`Process${chosen.interviews.length > 0 ? ` (${String(chosen.interviews.length)})` : ''}`}</TabsTrigger>
-                      <TabsTrigger value="messages">{`Messages${data.messages.length > 0 ? ` (${String(data.messages.length)})` : ''}`}</TabsTrigger>
+                      <TabsTrigger value="profile">
+                        {tr('candidate.profile', 'Profile')}
+                      </TabsTrigger>
+                      <TabsTrigger value="process">
+                        {tr('candidate.process', 'Process{{value}}', {
+                          value:
+                            chosen.interviews.length > 0
+                              ? ` (${String(chosen.interviews.length)})`
+                              : '',
+                        })}
+                      </TabsTrigger>
+                      <TabsTrigger value="messages">
+                        {tr('candidate.messages', 'Messages{{value}}', {
+                          value:
+                            data.messages.length > 0 ? ` (${String(data.messages.length)})` : '',
+                        })}
+                      </TabsTrigger>
                     </TabsList>
                     <TabsContent value="profile">
                       <div className="flex flex-col gap-6">
                         <div className="grid gap-4 xl:grid-cols-2">
                           <Card>
                             <CardHeader>
-                              <CardTitle level={2}>Profile</CardTitle>
+                              <CardTitle level={2}>{tr('candidate.profile', 'Profile')}</CardTitle>
                             </CardHeader>
                             <CardContent>
                               <KeyValues
                                 layout="aligned"
                                 items={[
-                                  { label: 'Email', value: data.candidate.email ?? '—' },
-                                  { label: 'Phone', value: data.candidate.phone ?? '—' },
-                                  { label: 'Location', value: data.candidate.location ?? '—' },
                                   {
-                                    label: 'Links',
+                                    label: tr('candidate.email', 'Email'),
+                                    value: data.candidate.email ?? '—',
+                                  },
+                                  {
+                                    label: tr('candidate.phone', 'Phone'),
+                                    value: data.candidate.phone ?? '—',
+                                  },
+                                  {
+                                    label: tr('candidate.location', 'Location'),
+                                    value: data.candidate.location ?? '—',
+                                  },
+                                  {
+                                    label: tr('candidate.links', 'Links'),
                                     value: (data.candidate.links ?? []).join(' · ') || '—',
                                   },
                                   {
-                                    label: 'Files',
+                                    label: tr('candidate.files', 'Files'),
                                     value:
                                       data.files
                                         .map((f) => `${f.fileName} (${words(f.kind)})`)
                                         .join(', ') || '—',
                                   },
                                   {
-                                    label: 'Consent',
+                                    label: tr('candidate.consent', 'Consent'),
                                     value:
                                       data.consents
                                         .filter((c) => c.withdrawnAt === null)
@@ -842,7 +955,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                         .join(' · ') || '—',
                                   },
                                   {
-                                    label: 'Adjustments',
+                                    label: tr('candidate.adjustments', 'Adjustments'),
                                     value: chosen.adjustments ?? 'None asked',
                                   },
                                 ]}
@@ -855,13 +968,18 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           ) : null}
                         </div>
                         <section className="flex flex-col gap-3">
-                          <h3 className="text-sm font-semibold text-fg-muted">Answers</h3>
+                          <h3 className="text-sm font-semibold text-fg-muted">
+                            {tr('candidate.answers', 'Answers')}
+                          </h3>
                           <Card>
                             <CardContent>
                               {Object.keys(chosen.answers).length === 0 ? (
                                 <EmptyState
                                   icon={<icons.list aria-hidden />}
-                                  title="No answers you can see"
+                                  title={tr(
+                                    'candidate.no_answers_you_can_see',
+                                    'No answers you can see',
+                                  )}
                                 />
                               ) : (
                                 <KeyValues
@@ -881,7 +999,10 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                         {chosen.may.includes('candidate.profile') ? (
                           <section className="flex flex-col gap-3">
                             <h3 className="text-sm font-semibold text-fg-muted">
-                              Evidence against the criteria
+                              {tr(
+                                'candidate.evidence_against_the_criteria',
+                                'Evidence against the criteria',
+                              )}
                             </h3>
                             <Evidence application={chosen} props={props} />
                           </section>
@@ -891,19 +1012,21 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     <TabsContent value="process">
                       <div className="flex flex-col gap-6">
                         <section className="flex flex-col gap-3">
-                          <h3 className="text-sm font-semibold text-fg-muted">Interviews</h3>
+                          <h3 className="text-sm font-semibold text-fg-muted">
+                            {tr('candidate.interviews', 'Interviews')}
+                          </h3>
                           <Card>
                             <CardContent className="flex flex-col gap-3">
                               {chosen.interviews.length === 0 ? (
                                 <EmptyState
                                   icon={<icons.meeting aria-hidden />}
-                                  title="No interviews yet"
+                                  title={tr('candidate.no_interviews_yet', 'No interviews yet')}
                                 />
                               ) : null}
                               {chosen.asks.length === 0 ? null : (
                                 <div className="flex flex-col gap-2">
                                   <h3 className="text-sm font-semibold text-fg-muted">
-                                    With the candidate
+                                    {tr('candidate.with_the_candidate', 'With the candidate')}
                                   </h3>
                                   <AskList
                                     asks={chosen.asks}
@@ -931,7 +1054,16 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                       {when(i.startsAt)}
                                     </span>
                                     <StateBadge state={i.state} />
-                                    <span className="text-sm text-fg-muted">{`${String(cards.length)} of ${String(i.interviewerIds.length)} scorecards`}</span>
+                                    <span className="text-sm text-fg-muted">
+                                      {tr(
+                                        'candidate.of_scorecards',
+                                        '{{length}} of {{length2}} scorecards',
+                                        {
+                                          length: String(cards.length),
+                                          length2: String(i.interviewerIds.length),
+                                        },
+                                      )}
+                                    </span>
                                   </div>
                                 );
                               })}
@@ -939,17 +1071,21 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           </Card>
                         </section>
                         <section className="flex flex-col gap-3">
-                          <h3 className="text-sm font-semibold text-fg-muted">References</h3>
+                          <h3 className="text-sm font-semibold text-fg-muted">
+                            {tr('candidate.references', 'References')}
+                          </h3>
                           <References application={chosen} props={props} />
                         </section>
                         <section className="flex flex-col gap-3">
-                          <h3 className="text-sm font-semibold text-fg-muted">Offers</h3>
+                          <h3 className="text-sm font-semibold text-fg-muted">
+                            {tr('candidate.offers', 'Offers')}
+                          </h3>
                           <Card>
                             <CardContent className="flex flex-col gap-3">
                               {chosen.offers.length === 0 ? (
                                 <EmptyState
                                   icon={<icons.agreement aria-hidden />}
-                                  title="No offer yet"
+                                  title={tr('candidate.no_offer_yet', 'No offer yet')}
                                 />
                               ) : null}
                               {chosen.offers.map((o) => (
@@ -957,15 +1093,30 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                   <To
                                     href={`/recruiting/offers/${o.id}`}
                                     onNavigate={props.onNavigate}
-                                  >{`Offer v${String(o.version)}`}</To>
+                                  >
+                                    {tr('candidate.offer_v', 'Offer v{{version}}', {
+                                      version: String(o.version),
+                                    })}
+                                  </To>
                                   <StateBadge state={o.state} />
-                                  <span className="text-sm text-fg-muted">{`${money(o.baseMinor, o.currency)} · starts ${day(o.startDate)}`}</span>
+                                  <span className="text-sm text-fg-muted">
+                                    {tr(
+                                      'candidate.starts',
+                                      '{{baseMinor}} · starts {{startDate}}',
+                                      {
+                                        baseMinor: money(o.baseMinor, o.currency),
+                                        startDate: day(o.startDate),
+                                      },
+                                    )}
+                                  </span>
                                 </div>
                               ))}
                               {chosen.prehire === null ? null : (
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-semibold">Pre-hire</span>
+                                    <span className="font-semibold">
+                                      {tr('candidate.pre_hire', 'Pre-hire')}
+                                    </span>
                                     <StateBadge state={chosen.prehire.state} />
                                   </div>
                                   {chosen.prehire.conditions.map((c) => (
@@ -979,7 +1130,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           </Card>
                         </section>
                         <section className="flex flex-col gap-3">
-                          <h3 className="text-sm font-semibold text-fg-muted">Activity</h3>
+                          <h3 className="text-sm font-semibold text-fg-muted">
+                            {tr('candidate.activity', 'Activity')}
+                          </h3>
                           <Card>
                             <CardContent>
                               <Timeline>
@@ -987,20 +1140,28 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                   <TimelineItem
                                     key={m.id}
                                     title={
-                                      chosen.stages.find((s) => s.id === m.to)?.name ?? 'Moved'
+                                      chosen.stages.find((s) => s.id === m.to)?.name ??
+                                      tr('candidate.moved', 'Moved')
                                     }
                                     timestamp={when(m.at)}
                                   >
                                     {m.supersedes === null
                                       ? null
                                       : m.reason === 'undone'
-                                        ? 'Undone'
-                                        : `Corrected: ${m.reason ?? ''}`}
+                                        ? tr('candidate.undone', 'Undone')
+                                        : tr('candidate.corrected', 'Corrected: {{value}}', {
+                                            value: m.reason ?? '',
+                                          })}
                                   </TimelineItem>
                                 ))}
                               </Timeline>
                               {chosen.rejection === null ? null : (
-                                <p className="mt-3 text-sm">{`Rejected ${day(chosen.rejection.at)}: ${words(chosen.rejection.reasonKey)}`}</p>
+                                <p className="mt-3 text-sm">
+                                  {tr('candidate.rejected', 'Rejected {{at}}: {{reasonKey}}', {
+                                    at: day(chosen.rejection.at),
+                                    reasonKey: words(chosen.rejection.reasonKey),
+                                  })}
+                                </p>
                               )}
                             </CardContent>
                           </Card>
@@ -1022,26 +1183,36 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Ask the candidate for something</DialogTitle>
+                  <DialogTitle>
+                    {tr(
+                      'candidate.ask_the_candidate_for_something',
+                      'Ask the candidate for something',
+                    )}
+                  </DialogTitle>
                   <DialogDescription>
                     {`It lands on ${data.candidate.name}’s page and in their inbox the moment you send it; the answer comes back here.`}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogBody className="flex flex-col gap-3">
                   <Field required>
-                    <FieldLabel>What you need</FieldLabel>
+                    <FieldLabel>{tr('candidate.what_you_need', 'What you need')}</FieldLabel>
                     <FieldControl>
                       <Input
                         value={askLabel}
                         onChange={(e) => {
                           setAskLabel(e.target.value);
                         }}
-                        placeholder="Your notice period, a portfolio link, two references…"
+                        placeholder={tr(
+                          'candidate.your_notice_period_a_portfolio_link',
+                          'Your notice period, a portfolio link, two references…',
+                        )}
                       />
                     </FieldControl>
                   </Field>
                   <Field>
-                    <FieldLabel>More detail (optional)</FieldLabel>
+                    <FieldLabel>
+                      {tr('candidate.more_detail_optional', 'More detail (optional)')}
+                    </FieldLabel>
                     <FieldControl>
                       <Textarea
                         autoResize
@@ -1060,7 +1231,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       setAsking(null);
                     }}
                   >
-                    Cancel
+                    {tr('candidate.cancel', 'Cancel')}
                   </Button>
                   <Button
                     disabled={askLabel.trim() === ''}
@@ -1083,7 +1254,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       );
                     }}
                   >
-                    Send
+                    {tr('candidate.send', 'Send')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1096,9 +1267,15 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{`Move to ${moving?.name ?? ''}`}</DialogTitle>
+                  <DialogTitle>
+                    {tr('candidate.move_to_2', 'Move to {{value}}', { value: moving?.name ?? '' })}
+                  </DialogTitle>
                   <DialogDescription>
-                    {`${data.candidate.name} moves on. Tell them, in the company’s words or your own.`}
+                    {tr(
+                      'candidate.moves_on_tell_them_in_the',
+                      '{{name}} moves on. Tell them, in the company’s words or your own.',
+                      { name: data.candidate.name },
+                    )}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
@@ -1120,7 +1297,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       setMoving(null);
                     }}
                   >
-                    Cancel
+                    {tr('candidate.cancel', 'Cancel')}
                   </Button>
                   <Button
                     loading={act.pending}
@@ -1147,7 +1324,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       );
                     }}
                   >
-                    {moveEmailing ? 'Move and send' : 'Move without an email'}
+                    {moveEmailing
+                      ? tr('candidate.move_and_send', 'Move and send')
+                      : tr('candidate.move_without_an_email', 'Move without an email')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1160,9 +1339,15 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Tell them what to expect</DialogTitle>
+                  <DialogTitle>
+                    {tr('candidate.tell_them_what_to_expect', 'Tell them what to expect')}
+                  </DialogTitle>
                   <DialogDescription>
-                    {`What happens at ${data.candidate.name}’s current stage, from the job’s own plan. Change anything before it goes.`}
+                    {tr(
+                      'candidate.what_happens_at_s_current_stage',
+                      'What happens at {{name}}’s current stage, from the job’s own plan. Change anything before it goes.',
+                      { name: data.candidate.name },
+                    )}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogBody>
@@ -1185,7 +1370,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       setTelling(null);
                     }}
                   >
-                    Cancel
+                    {tr('candidate.cancel', 'Cancel')}
                   </Button>
                   <Button
                     loading={act.pending}
@@ -1205,7 +1390,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       );
                     }}
                   >
-                    Send
+                    {tr('candidate.send', 'Send')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1238,8 +1423,11 @@ export function Candidates(props: ScreenProps<CandidatesData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Candidates"
-            description="Everyone who applied, was referred, submitted or sourced. Search reads CV text."
+            title={tr('candidate.candidates', 'Candidates')}
+            description={tr(
+              'candidate.everyone_who_applied_was_referred_submitted',
+              'Everyone who applied, was referred, submitted or sourced. Search reads CV text.',
+            )}
             actions={
               <Button
                 startIcon={<icons.hire aria-hidden />}
@@ -1247,7 +1435,7 @@ export function Candidates(props: ScreenProps<CandidatesData>): JSX.Element {
                   setAdding(!adding);
                 }}
               >
-                Add sourced profile
+                {tr('candidate.add_sourced_profile', 'Add sourced profile')}
               </Button>
             }
           />
@@ -1257,12 +1445,17 @@ export function Candidates(props: ScreenProps<CandidatesData>): JSX.Element {
               onSearch={(q) => props.onFilter?.({ q: q === '' ? null : q })}
             />
             <span className="flex-1" />
-            <span className="text-sm text-fg-muted">{`${String(data.rows.length)} shown`}</span>
+            <span className="text-sm text-fg-muted">
+              {tr('candidate.shown', '{{length}} shown', { length: String(data.rows.length) })}
+            </span>
           </div>
           <Card>
             <CardContent>
               {data.rows.length === 0 ? (
-                <EmptyState icon={<icons.people aria-hidden />} title="Nobody matches" />
+                <EmptyState
+                  icon={<icons.people aria-hidden />}
+                  title={tr('candidate.nobody_matches', 'Nobody matches')}
+                />
               ) : (
                 <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
                   {data.rows.map((r) => (
@@ -1309,8 +1502,8 @@ function SearchBox({
       }}
     >
       <Input
-        aria-label="Search candidates"
-        placeholder="Name, email or words in a CV"
+        aria-label={tr('candidate.search_candidates', 'Search candidates')}
+        placeholder={tr('candidate.name_email_or_words_in_a', 'Name, email or words in a CV')}
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -1318,7 +1511,7 @@ function SearchBox({
         className="w-80"
       />
       <Button type="submit" variant="secondary">
-        Search
+        {tr('candidate.search', 'Search')}
       </Button>
     </form>
   );
@@ -1335,13 +1528,16 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Talent pools"
-            description="Nobody stays without a lawful basis: consent asked by email, renewed thirty days before it ends."
+            title={tr('candidate.talent_pools', 'Talent pools')}
+            description={tr(
+              'candidate.nobody_stays_without_a_lawful_basis',
+              'Nobody stays without a lawful basis: consent asked by email, renewed thirty days before it ends.',
+            )}
           />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Pools</CardTitle>
+                <CardTitle level={2}>{tr('candidate.pools', 'Pools')}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
@@ -1374,8 +1570,11 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                   }}
                 >
                   <Input
-                    aria-label="New pool’s name"
-                    placeholder="Backend, Berlin · silver medallists"
+                    aria-label={tr('candidate.new_pools_name', 'New pool’s name')}
+                    placeholder={tr(
+                      'candidate.backend_berlin_silver_medallists',
+                      'Backend, Berlin · silver medallists',
+                    )}
                     value={name}
                     onChange={(e) => {
                       setName(e.target.value);
@@ -1387,20 +1586,25 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                     disabled={name.trim() === ''}
                     loading={act.pending}
                   >
-                    New pool
+                    {tr('candidate.new_pool', 'New pool')}
                   </Button>
                 </form>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle level={2}>{data.pool?.name ?? 'Choose a pool'}</CardTitle>
+                <CardTitle level={2}>
+                  {data.pool?.name ?? tr('candidate.choose_a_pool', 'Choose a pool')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {data.pool === null ? (
                   <EmptyState
                     icon={<icons.people aria-hidden />}
-                    title="Pick a pool to see who is in it"
+                    title={tr(
+                      'candidate.pick_a_pool_to_see_who',
+                      'Pick a pool to see who is in it',
+                    )}
                   />
                 ) : (
                   <ul className="flex flex-col divide-y divide-[var(--reach-line)]">
@@ -1415,7 +1619,11 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                         <span className="text-sm text-fg-muted">{m.reason}</span>
                         <span className="flex-1" />
                         <Badge size="sm" tone={m.consentUntil === null ? 'warning' : 'neutral'}>
-                          {m.consentUntil === null ? 'No consent' : `Until ${day(m.consentUntil)}`}
+                          {m.consentUntil === null
+                            ? tr('candidate.no_consent', 'No consent')
+                            : tr('candidate.until', 'Until {{consentUntil}}', {
+                                consentUntil: day(m.consentUntil),
+                              })}
                         </Badge>
                         <Button
                           size="xs"
@@ -1426,7 +1634,7 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                             setForward({ candidateId: m.candidateId, name: m.name });
                           }}
                         >
-                          Put forward…
+                          {tr('candidate.put_forward', 'Put forward…')}
                         </Button>
                       </li>
                     ))}
@@ -1444,19 +1652,28 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{`Put ${forward?.name ?? ''} forward`}</DialogTitle>
+                <DialogTitle>
+                  {tr('candidate.put_forward_2', 'Put {{value}} forward', {
+                    value: forward?.name ?? '',
+                  })}
+                </DialogTitle>
                 <DialogDescription>
-                  They enter the job’s first stage and get an email with the ad and their own page.
+                  {tr(
+                    'candidate.they_enter_the_jobs_first_stage',
+                    'They enter the job’s first stage and get an email with the ad and their own page.',
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <DialogBody className="flex flex-col gap-4">
                 <Refusal error={act.error} />
                 <Field required>
-                  <FieldLabel>Job</FieldLabel>
+                  <FieldLabel>{tr('candidate.job', 'Job')}</FieldLabel>
                   <Select value={jobId} onValueChange={setJobId}>
                     <FieldControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Choose an open job" />
+                        <SelectValue
+                          placeholder={tr('candidate.choose_an_open_job', 'Choose an open job')}
+                        />
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
@@ -1476,7 +1693,7 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                     setForward(null);
                   }}
                 >
-                  Cancel
+                  {tr('candidate.cancel', 'Cancel')}
                 </Button>
                 <Button
                   disabled={jobId === ''}
@@ -1488,7 +1705,7 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
                     });
                   }}
                 >
-                  Put forward
+                  {tr('candidate.put_forward_3', 'Put forward')}
                 </Button>
               </DialogFooter>
             </DialogContent>

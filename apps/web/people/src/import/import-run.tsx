@@ -2,6 +2,7 @@ import { Alert, Button, Card, Progress, icons } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import type { ImportDoneView } from './import-plan';
+import { t } from '../i18n';
 
 /**
  * An approved import, as People runs it in the background: queued, running,
@@ -41,8 +42,16 @@ export const runHref = (id: string): string => `/people/import?run=${encodeURICo
 /** "312 of 1,000 people"; before the file is read, how many so far. */
 export function peopleLine(people: ImportRunStatus['people']): string {
   const done = people.done.toLocaleString('en-GB');
-  if (people.total === null) return `${done} ${people.done === 1 ? 'person' : 'people'} so far`;
-  return `${done} of ${people.total.toLocaleString('en-GB')} ${people.total === 1 ? 'person' : 'people'}`;
+  if (people.total === null)
+    return t('import.import-run.so_far', '{{done}} {{value}} so far', {
+      done,
+      value: people.done === 1 ? 'person' : 'people',
+    });
+  return t('import.import-run.of', '{{done}} of {{toLocaleString}} {{value}}', {
+    done,
+    toLocaleString: people.total.toLocaleString('en-GB'),
+    value: people.total === 1 ? 'person' : 'people',
+  });
 }
 
 /** The reader's zone once in their browser; UTC for the server's render and the first. */
@@ -61,7 +70,10 @@ export function startedLine(run: ImportRunStatus, zone: string | undefined): str
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(run.startedAt ?? run.approvedAt));
-  return `Started by ${run.startedBy.you ? 'you' : run.startedBy.name} at ${at}`;
+  return t('import.import-run.started_by_at', 'Started by {{value}} at {{at}}', {
+    value: run.startedBy.you ? 'you' : run.startedBy.name,
+    at,
+  });
 }
 
 /**
@@ -79,10 +91,11 @@ export function ImportBusy({
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <p id={id} className="text-sm text-fg-muted">
-        An import is running. {startedLine(run, zone)}.
+        {t('import.import-run.an_import_is_running', 'An import is running.')}{' '}
+        {startedLine(run, zone)}.
       </p>
       <Button asChild size="xs" variant="ghost" endIcon={<icons.forward aria-hidden />}>
-        <a href={runHref(run.id)}>See the import</a>
+        <a href={runHref(run.id)}>{t('import.import-run.see_the_import', 'See the import')}</a>
       </Button>
     </div>
   );
@@ -94,7 +107,12 @@ export function elapsedOf(run: ImportRunStatus): string {
     0,
     Math.floor((Date.parse(run.now) - Date.parse(run.startedAt ?? run.approvedAt)) / 1000),
   );
-  return s < 60 ? `${String(s)} s` : `${String(Math.floor(s / 60))} min ${String(s % 60)} s`;
+  return s < 60
+    ? t('import.import-run.s', '{{s}} s', { s: String(s) })
+    : t('import.import-run.min_s', '{{floor}} min {{value}} s', {
+        floor: String(Math.floor(s / 60)),
+        value: String(s % 60),
+      });
 }
 
 /** The import while it runs: where it is, how many people are in, how long so far. */
@@ -109,7 +127,9 @@ export function ImportRunning({
   return (
     <Card padded className="flex max-w-180 flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="font-display text-xl font-bold">Importing</h2>
+        <h2 className="font-display text-xl font-bold">
+          {t('import.import-run.importing', 'Importing')}
+        </h2>
         {run.fileName === null ? null : <p className="text-sm text-fg-muted">{run.fileName}</p>}
       </div>
       <Progress
@@ -119,15 +139,25 @@ export function ImportRunning({
         max={Math.max(1, run.people.total ?? 1)}
         valueLabel={peopleLine(run.people)}
       />
-      <p className="text-sm text-fg-muted tabular-nums">{elapsedOf(run)} so far</p>
+      <p className="text-sm text-fg-muted tabular-nums">
+        {elapsedOf(run)} {t('import.import-run.so_far_2', 'so far')}
+      </p>
       {waking ? (
-        <Alert tone="info" title="Kithena is waking up">
-          The import goes on. This page catches up by itself.
+        <Alert
+          tone="info"
+          title={t('import.import-run.kithena_is_waking_up', 'Kithena is waking up')}
+        >
+          {t(
+            'import.import-run.the_import_goes_on_this_page',
+            'The import goes on. This page catches up by itself.',
+          )}
         </Alert>
       ) : null}
       <p className="text-sm">
-        It carries on if you close this page. Come back here, or to Import & export, to see how it
-        went; you will be told when it is done.
+        {t(
+          'import.import-run.it_carries_on_if_you_close',
+          'It carries on if you close this page. Come back here, or to Import & export, to see how it went; you will be told when it is done.',
+        )}
       </p>
     </Card>
   );

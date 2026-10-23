@@ -23,6 +23,7 @@ import { useState, type JSX } from 'react';
 
 import { Refusal, day, useAct } from './shared';
 import type { ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Analytics (PRD §18; design PF7 v2): a cycle's completion and scores, how
@@ -114,16 +115,22 @@ export function CycleAnalytics({
     return (
       <EmptyState
         icon={<icons.analytics aria-hidden />}
-        title="Analytics aren’t open to you"
-        description="They are for HR and calibrators."
+        title={tr('analytics.analytics_arent_open_to_you', 'Analytics aren’t open to you')}
+        description={tr(
+          'analytics.they_are_for_hr_and_calibrators',
+          'They are for HR and calibrators.',
+        )}
       />
     );
   if (first.empty === true || first.cycleId !== id)
     return (
       <EmptyState
         icon={<icons.analytics aria-hidden />}
-        title="Nothing to measure yet"
-        description="Numbers appear once this cycle has launched and reviews are written."
+        title={tr('analytics.nothing_to_measure_yet', 'Nothing to measure yet')}
+        description={tr(
+          'analytics.numbers_appear_once_this_cycle_has',
+          'Numbers appear once this cycle has launched and reviews are written.',
+        )}
       />
     );
   const section = (title: string, data: AnalyticsData | undefined): JSX.Element | null =>
@@ -135,12 +142,18 @@ export function CycleAnalytics({
     );
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-fg-muted">{`Groups smaller than ${String(first.cohort)} are hidden.`}</p>
-      {section('Completion and scores', views.cycle)}
-      {section('Raters', views.raters)}
-      {section('Fairness', views.fairness)}
-      {section('Across cycles', views.trends)}
-      {section('Ask for a chart', views.ask)}
+      <p className="text-sm text-fg-muted">
+        {tr(
+          'analytics.groups_smaller_than_are_hidden',
+          'Groups smaller than {{cohort}} are hidden.',
+          { cohort: String(first.cohort) },
+        )}
+      </p>
+      {section(tr('analytics.completion_and_scores', 'Completion and scores'), views.cycle)}
+      {section(tr('analytics.raters', 'Raters'), views.raters)}
+      {section(tr('analytics.fairness', 'Fairness'), views.fairness)}
+      {section(tr('analytics.across_cycles', 'Across cycles'), views.trends)}
+      {section(tr('analytics.ask_for_a_chart', 'Ask for a chart'), views.ask)}
     </div>
   );
 }
@@ -161,30 +174,41 @@ function Body({
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
-            label="Submitted"
+            label={tr('analytics.submitted', 'Submitted')}
             value={pct(data.tiles.completion)}
-            description="Of every review in the cycle"
+            description={tr(
+              'analytics.of_every_review_in_the_cycle',
+              'Of every review in the cycle',
+            )}
           />
-          <Stat label="On time" value={pct(data.tiles.onTime)} description="Of those submitted" />
           <Stat
-            label="Average score"
+            label={tr('analytics.on_time', 'On time')}
+            value={pct(data.tiles.onTime)}
+            description={tr('analytics.of_those_submitted', 'Of those submitted')}
+          />
+          <Stat
+            label={tr('analytics.average_score', 'Average score')}
             value={data.tiles.average === null ? '—' : data.tiles.average.toFixed(2)}
-            description="Manager reviews"
+            description={tr('analytics.manager_reviews', 'Manager reviews')}
           />
           <Stat
-            label="Released"
+            label={tr('analytics.released', 'Released')}
             value={String(data.tiles.released)}
-            description={`${String(data.tiles.acknowledged)} acknowledged`}
+            description={tr('analytics.acknowledged', '{{acknowledged}} acknowledged', {
+              acknowledged: String(data.tiles.acknowledged),
+            })}
           />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Submitted, by kind</CardTitle>
+              <CardTitle level={2}>
+                {tr('analytics.submitted_by_kind', 'Submitted, by kind')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <HorizontalBarChart
-                label="Submitted by kind"
+                label={tr('analytics.submitted_by_kind_2', 'Submitted by kind')}
                 showValues
                 format={(v) => `${String(v)}%`}
                 data={Object.entries(data.tiles.byKind).map(([k, v]) => ({
@@ -196,11 +220,11 @@ function Body({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Scores</CardTitle>
+              <CardTitle level={2}>{tr('analytics.scores', 'Scores')}</CardTitle>
             </CardHeader>
             <CardContent>
               <BarChart
-                label="People by score"
+                label={tr('analytics.people_by_score', 'People by score')}
                 showValues
                 data={(data.distribution ?? []).map((d) => ({ label: d.label, value: d.count }))}
               />
@@ -208,14 +232,24 @@ function Body({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Self reviews submitted, by department</CardTitle>
+              <CardTitle level={2}>
+                {tr(
+                  'analytics.self_reviews_submitted_by_department',
+                  'Self reviews submitted, by department',
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {shown(data.byDepartment ?? []).length === 0 ? (
-                <p className="text-sm text-fg-muted">No department is large enough to show.</p>
+                <p className="text-sm text-fg-muted">
+                  {tr(
+                    'analytics.no_department_is_large_enough_to',
+                    'No department is large enough to show.',
+                  )}
+                </p>
               ) : (
                 <HorizontalBarChart
-                  label="Completion by department"
+                  label={tr('analytics.completion_by_department', 'Completion by department')}
                   showValues
                   format={(v) => `${String(Math.round(v))}%`}
                   data={shown(data.byDepartment ?? [])}
@@ -225,17 +259,21 @@ function Body({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Submitted each day</CardTitle>
+              <CardTitle level={2}>
+                {tr('analytics.submitted_each_day', 'Submitted each day')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {(data.perDay ?? []).length < 2 ? (
-                <p className="text-sm text-fg-muted">Not enough days yet.</p>
+                <p className="text-sm text-fg-muted">
+                  {tr('analytics.not_enough_days_yet', 'Not enough days yet.')}
+                </p>
               ) : (
                 <TrendChart
-                  label="Reviews submitted per day"
+                  label={tr('analytics.reviews_submitted_per_day', 'Reviews submitted per day')}
                   series={[
                     {
-                      label: 'Submitted',
+                      label: tr('analytics.submitted', 'Submitted'),
                       data: (data.perDay ?? []).map((d) => ({ label: day(d.day), value: d.count })),
                     },
                   ]}
@@ -259,10 +297,12 @@ function Body({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Rater</TableHead>
-                  <TableHead>Reviews</TableHead>
-                  <TableHead>Average</TableHead>
-                  <TableHead>Against the company</TableHead>
+                  <TableHead>{tr('analytics.rater', 'Rater')}</TableHead>
+                  <TableHead>{tr('analytics.reviews', 'Reviews')}</TableHead>
+                  <TableHead>{tr('analytics.average', 'Average')}</TableHead>
+                  <TableHead>
+                    {tr('analytics.against_the_company', 'Against the company')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -281,7 +321,13 @@ function Body({
               </TableBody>
             </Table>
             {(data.hiddenRaters ?? 0) > 0 ? (
-              <p className="mt-2 text-sm text-fg-muted">{`${String(data.hiddenRaters)} raters with fewer than ${String(data.cohort)} reviews are not shown.`}</p>
+              <p className="mt-2 text-sm text-fg-muted">
+                {tr(
+                  'analytics.raters_with_fewer_than_reviews_are',
+                  '{{hiddenRaters}} raters with fewer than {{cohort}} reviews are not shown.',
+                  { hiddenRaters: String(data.hiddenRaters), cohort: String(data.cohort) },
+                )}
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -291,17 +337,22 @@ function Body({
     return (
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Across cycles</CardTitle>
+          <CardTitle level={2}>{tr('analytics.across_cycles', 'Across cycles')}</CardTitle>
         </CardHeader>
         <CardContent>
           {(data.trend ?? []).length < 2 ? (
-            <p className="text-sm text-fg-muted">A trend needs two cycles.</p>
+            <p className="text-sm text-fg-muted">
+              {tr('analytics.a_trend_needs_two_cycles', 'A trend needs two cycles.')}
+            </p>
           ) : (
             <TrendChart
-              label="Average score and on-time share across cycles"
+              label={tr(
+                'analytics.average_score_and_on_time_share',
+                'Average score and on-time share across cycles',
+              )}
               series={[
                 {
-                  label: 'Average score',
+                  label: tr('analytics.average_score', 'Average score'),
                   data: (data.trend ?? []).map((t) => ({ label: t.cycle, value: t.average ?? 0 })),
                 },
               ]}
@@ -319,20 +370,29 @@ function Body({
               key={p.label}
               label={p.label}
               value={p.value === null ? '—' : p.value.toFixed(2)}
-              description={`${String(p.n)} manager reviews`}
+              description={tr('analytics.manager_reviews_2', '{{n}} manager reviews', {
+                n: String(p.n),
+              })}
             />
           ))}
         </div>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Average score, by department</CardTitle>
+            <CardTitle level={2}>
+              {tr('analytics.average_score_by_department', 'Average score, by department')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {shown(data.byDepartment ?? []).length === 0 ? (
-              <p className="text-sm text-fg-muted">No department is large enough to show.</p>
+              <p className="text-sm text-fg-muted">
+                {tr(
+                  'analytics.no_department_is_large_enough_to',
+                  'No department is large enough to show.',
+                )}
+              </p>
             ) : (
               <HorizontalBarChart
-                label="Score by department"
+                label={tr('analytics.score_by_department', 'Score by department')}
                 showValues
                 format={(v) => v.toFixed(2)}
                 data={shown(data.byDepartment ?? [])}
@@ -352,13 +412,16 @@ function Body({
       <Card>
         <CardContent className="flex flex-col gap-3">
           <Textarea
-            aria-label="Ask for a chart"
+            aria-label={tr('analytics.ask_for_a_chart', 'Ask for a chart')}
             autoResize
             value={question}
             onChange={(e) => {
               setQuestion(e.target.value);
             }}
-            placeholder="Which departments are furthest behind on self reviews?"
+            placeholder={tr(
+              'analytics.which_departments_are_furthest_behind_on',
+              'Which departments are furthest behind on self reviews?',
+            )}
           />
           <Button
             className="self-start"
@@ -373,7 +436,7 @@ function Body({
                 });
             }}
           >
-            Ask
+            {tr('analytics.ask', 'Ask')}
           </Button>
           <Refusal error={act.error} />
         </CardContent>
@@ -392,7 +455,7 @@ function Body({
                 });
               }}
             >
-              Save
+              {tr('analytics.save', 'Save')}
             </Button>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -403,7 +466,10 @@ function Body({
               </p>
             ))}
             <p className="text-xs text-fg-muted">
-              The numbers are Kithena’s; AI chose the chart and wrote the sentences.
+              {tr(
+                'analytics.the_numbers_are_kithenas_ai_chose',
+                'The numbers are Kithena’s; AI chose the chart and wrote the sentences.',
+              )}
             </p>
           </CardContent>
         </Card>
@@ -411,7 +477,7 @@ function Body({
       {(data.saved ?? []).length === 0 ? null : (
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Saved charts</CardTitle>
+            <CardTitle level={2}>{tr('analytics.saved_charts', 'Saved charts')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1 text-sm">
             {(data.saved ?? []).map((c) => (

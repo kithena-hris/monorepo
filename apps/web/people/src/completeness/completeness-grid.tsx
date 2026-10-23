@@ -48,6 +48,7 @@ import { AttributeControl, PeopleSearch, type SearchPeople } from '../record/att
 import { isMissing, type AttributeValue, type RecordField, type Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
 import type { DataType } from '../settings/model';
+import { t } from '../i18n';
 
 /** A field somebody is missing: HR's to fill in, or the person's own. */
 export interface GapField {
@@ -373,7 +374,13 @@ const changesOf = (edits: Readonly<Record<string, Values>>): GridSave[] =>
     .filter((c) => Object.keys(c.values).length > 0);
 
 const doubt = (messages: readonly string[]): string | undefined =>
-  messages.length === 0 ? undefined : `Our checks suggest this may be wrong: ${messages.join(' ')}`;
+  messages.length === 0
+    ? undefined
+    : t(
+        'completeness.completeness-grid.our_checks_suggest_this_may_be',
+        'Our checks suggest this may be wrong: {{join}}',
+        { join: messages.join(' ') },
+      );
 
 /* ------------------------------------------------------------ screen -- */
 
@@ -451,13 +458,38 @@ function Missing({
       ok: true,
       text: [
         who === null
-          ? 'Saved. Each person’s record now carries what you filled in.'
-          : `Saved. ${who}’s record now carries what you filled in.`,
+          ? t(
+              'completeness.completeness-grid.saved_each_persons_record_now_carries',
+              'Saved. Each person’s record now carries what you filled in.',
+            )
+          : t(
+              'completeness.completeness-grid.saved_s_record_now_carries_what',
+              'Saved. {{who}}’s record now carries what you filled in.',
+              { who },
+            ),
         held > 0
-          ? `${String(held)} ${held === 1 ? 'value waits' : 'values wait'} for HR’s approval and ${held === 1 ? 'is' : 'are'} not applied until then.`
+          ? t(
+              'completeness.completeness-grid.for_hrs_approval_and_not_applied',
+              '{{held}} {{value}} for HR’s approval and {{value2}} not applied until then.',
+              {
+                held: String(held),
+                value: held === 1 ? 'value waits' : 'values wait',
+                value2: held === 1 ? 'is' : 'are',
+              },
+            )
           : '',
         reviewed > 0
-          ? `${String(reviewed)} ${reviewed === 1 ? 'value our checks doubted went' : 'values our checks doubted went'} to HR’s review.`
+          ? t(
+              'completeness.completeness-grid.to_hrs_review',
+              '{{reviewed}} {{value}} to HR’s review.',
+              {
+                reviewed: String(reviewed),
+                value:
+                  reviewed === 1
+                    ? 'value our checks doubted went'
+                    : 'values our checks doubted went',
+              },
+            )
           : '',
       ]
         .filter((x) => x !== '')
@@ -495,7 +527,11 @@ function Missing({
       ? null
       : {
           id: 'remind',
-          label: `Remind ${peopleCount(due)} waiting`,
+          label: t(
+            'completeness.completeness-grid.remind_waiting',
+            'Remind {{peopleCount}} waiting',
+            { peopleCount: peopleCount(due) },
+          ),
           run: () => {
             void remindAll();
           },
@@ -506,7 +542,7 @@ function Missing({
       ? null
       : {
           id: 'fill-all',
-          label: 'Fill in for all',
+          label: t('completeness.completeness-grid.fill_in_for_all', 'Fill in for all'),
           run: () => {
             setFill(FILL_ALL);
           },
@@ -518,14 +554,23 @@ function Missing({
       {reminded === null ? null : reminded.ok ? (
         <Alert tone="success">{remindedText(reminded)}</Alert>
       ) : (
-        <Alert tone="danger" title="Nobody was reminded">
+        <Alert
+          tone="danger"
+          title={t('completeness.completeness-grid.nobody_was_reminded', 'Nobody was reminded')}
+        >
           {reminded.message}
         </Alert>
       )}
       {((): ReactNode => {
         const failed = Object.values(asked).find((message) => message !== null);
         return failed == null ? null : (
-          <Alert tone="danger" title="That reminder was not sent">
+          <Alert
+            tone="danger"
+            title={t(
+              'completeness.completeness-grid.that_reminder_was_not_sent',
+              'That reminder was not sent',
+            )}
+          >
             {failed}
           </Alert>
         );
@@ -533,7 +578,10 @@ function Missing({
       {outcome === null ? null : outcome.ok ? (
         <Alert tone="success">{outcome.text}</Alert>
       ) : (
-        <Alert tone="danger" title="Nothing was saved">
+        <Alert
+          tone="danger"
+          title={t('completeness.completeness-grid.nothing_was_saved', 'Nothing was saved')}
+        >
           {outcome.text}
         </Alert>
       )}
@@ -558,28 +606,39 @@ function Missing({
         <Button
           size="sm"
           variant="primary"
-          aria-label={`Fill in ${r.name}`}
+          aria-label={t('completeness.completeness-grid.fill_in_2', 'Fill in {{name}}', {
+            name: r.name,
+          })}
           shortcut="row.fill"
           onClick={() => {
             fillIn(r);
           }}
         >
-          Fill in
+          {t('completeness.completeness-grid.fill_in', 'Fill in')}
         </Button>
       ) : !canRemind ? null : recently(r) ? (
-        <Button size="sm" variant="ghost" disabled aria-label={`Reminded ${r.name}`}>
-          Reminded
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled
+          aria-label={t('completeness.completeness-grid.reminded_2', 'Reminded {{name}}', {
+            name: r.name,
+          })}
+        >
+          {t('completeness.completeness-grid.reminded', 'Reminded')}
         </Button>
       ) : (
         <Button
           size="sm"
-          aria-label={`Remind ${r.name}`}
+          aria-label={t('completeness.completeness-grid.remind_2', 'Remind {{name}}', {
+            name: r.name,
+          })}
           shortcut="row.remind"
           onClick={() => {
             void live.current.remind(r);
           }}
         >
-          Remind
+          {t('completeness.completeness-grid.remind', 'Remind')}
         </Button>
       ),
     [fillIn, canRemind, recently],
@@ -591,7 +650,7 @@ function Missing({
         ? [
             {
               id: 'fill',
-              label: 'Fill in',
+              label: t('completeness.completeness-grid.fill_in', 'Fill in'),
               shortcut: 'row.fill',
               icon: <icons.edit aria-hidden />,
               onSelect: () => {
@@ -604,7 +663,9 @@ function Missing({
           : [
               {
                 id: 'remind',
-                label: recently(r) ? 'Reminded' : 'Remind',
+                label: recently(r)
+                  ? t('completeness.completeness-grid.reminded', 'Reminded')
+                  : t('completeness.completeness-grid.remind', 'Remind'),
                 shortcut: 'row.remind',
                 icon: <icons.notifications aria-hidden />,
                 disabled: recently(r),
@@ -623,7 +684,9 @@ function Missing({
         key={rowId(r)}
         {...item}
         leading={<Avatar size="lg" name={r.name} />}
-        description={`Missing: ${r.missing.map(live.current.labelOf).join(', ')}`}
+        description={t('completeness.completeness-grid.missing', 'Missing: {{join}}', {
+          join: r.missing.map(live.current.labelOf).join(', '),
+        })}
         trailing={action(r)}
       >
         {r.name}
@@ -633,10 +696,15 @@ function Missing({
   );
   const columns = useMemo(
     (): DataColumn<GapRow>[] => [
-      { id: 'person', header: 'Person', width: '15rem', cell: (r) => <PersonCell row={r} /> },
+      {
+        id: 'person',
+        header: t('completeness.completeness-grid.person', 'Person'),
+        width: '15rem',
+        cell: (r) => <PersonCell row={r} />,
+      },
       {
         id: 'missing',
-        header: 'Missing',
+        header: t('completeness.completeness-grid.missing_2', 'Missing'),
         // One line, clipped at the cell's end: badges that wrapped made a row
         // taller than the table counts it, and the list jumped as it scrolled.
         cell: (r) => (
@@ -651,11 +719,18 @@ function Missing({
       },
       {
         id: 'who',
-        header: 'Who fills it in',
+        header: t('completeness.completeness-grid.who_fills_it_in', 'Who fills it in'),
         width: '9rem',
         cell: (r) => <WhoFills owner={r.owner} />,
       },
-      { id: 'act', header: <span className="sr-only">Action</span>, width: '8rem', cell: action },
+      {
+        id: 'act',
+        header: (
+          <span className="sr-only">{t('completeness.completeness-grid.action', 'Action')}</span>
+        ),
+        width: '8rem',
+        cell: action,
+      },
     ],
     [action],
   );
@@ -703,16 +778,23 @@ function Missing({
       <div className="grid grid-cols-2 gap-3.5 @5xl/page:grid-cols-4 touch:hidden">
         {state.complete == null ? null : (
           <Stat
-            label="Complete"
+            label={t('completeness.completeness-grid.complete', 'Complete')}
             value={state.complete.percent}
             unit="%"
             {...(change === null
               ? {
-                  description: `${state.complete.incomplete.toLocaleString('en-GB')} records incomplete`,
+                  description: t(
+                    'completeness.completeness-grid.records_incomplete',
+                    '{{toLocaleString}} records incomplete',
+                    { toLocaleString: state.complete.incomplete.toLocaleString('en-GB') },
+                  ),
                 }
               : {
-                  delta: `${change > 0 ? '+' : change < 0 ? '−' : ''}${String(Math.abs(change))} pts`,
-                  deltaLabel: 'this month',
+                  delta: t('completeness.completeness-grid.pts', '{{value}}{{abs}} pts', {
+                    value: change > 0 ? '+' : change < 0 ? '−' : '',
+                    abs: String(Math.abs(change)),
+                  }),
+                  deltaLabel: t('completeness.completeness-grid.this_month', 'this month'),
                   direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
                   sentiment: change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral',
                 })}
@@ -720,7 +802,10 @@ function Missing({
               trend.length > 1 ? (
                 <Sparkline
                   data={trend}
-                  label="Complete records by month"
+                  label={t(
+                    'completeness.completeness-grid.complete_records_by_month',
+                    'Complete records by month',
+                  )}
                   {...(change === null || change === 0
                     ? {}
                     : { tone: change > 0 ? ('success' as const) : ('danger' as const) })}
@@ -730,20 +815,32 @@ function Missing({
           />
         )}
         <Stat
-          label="Waiting on employees"
+          label={t('completeness.completeness-grid.waiting_on_employees', 'Waiting on employees')}
           value={state.waiting.people}
           description={
             state.waiting.lastReminded === null
-              ? 'Reminded by email once a week'
-              : `Last reminded ${shortDay(state.waiting.lastReminded)}`
+              ? t(
+                  'completeness.completeness-grid.reminded_by_email_once_a_week',
+                  'Reminded by email once a week',
+                )
+              : t('completeness.completeness-grid.last_reminded', 'Last reminded {{shortDay}}', {
+                  shortDay: shortDay(state.waiting.lastReminded),
+                })
           }
         />
-        <Stat label="For HR to fill in" value={toFill} description="Fill them in below" />
+        <Stat
+          label={t('completeness.completeness-grid.for_hr_to_fill_in', 'For HR to fill in')}
+          value={toFill}
+          description={t('completeness.completeness-grid.fill_them_in_below', 'Fill them in below')}
+        />
         {state.blocking === null ? null : (
           <Stat
-            label="Blocking payroll"
+            label={t('completeness.completeness-grid.blocking_payroll', 'Blocking payroll')}
             value={state.blocking}
-            description="Bank, tax or ID details"
+            description={t(
+              'completeness.completeness-grid.bank_tax_or_id_details',
+              'Bank, tax or ID details',
+            )}
           />
         )}
       </div>
@@ -753,15 +850,25 @@ function Missing({
             <span className="font-display text-3xl font-bold tabular-nums">
               {state.complete.percent}%
             </span>
-            <span className="text-sm text-fg-muted">complete</span>
+            <span className="text-sm text-fg-muted">
+              {t('completeness.completeness-grid.complete_2', 'complete')}
+            </span>
           </p>
         )}
         {state.complete == null ? null : (
-          <Progress value={state.complete.percent} label="Records complete" className="mb-2" />
+          <Progress
+            value={state.complete.percent}
+            label={t('completeness.completeness-grid.records_complete', 'Records complete')}
+            className="mb-2"
+          />
         )}
         <p className="text-sm text-fg-muted">
-          {state.waiting.people.toLocaleString('en-GB')} waiting on employees ·{' '}
-          {toFill.toLocaleString('en-GB')} for HR
+          {state.waiting.people.toLocaleString('en-GB')}{' '}
+          {t(
+            'completeness.completeness-grid.waiting_on_employees_for_hr',
+            'waiting on employees · {{toLocaleString}} for HR',
+            { toLocaleString: toFill.toLocaleString('en-GB') },
+          )}
         </p>
       </Card>
 
@@ -772,7 +879,7 @@ function Missing({
       ) : (
         <PageSection
           surface
-          title="Missing information"
+          title={t('completeness.completeness-grid.missing_information', 'Missing information')}
           // A desk's (V4): on a phone each row carries its own Remind and Fill in (MV2).
           actions={
             canRemindAll || hrRows.length > 0 ? (
@@ -782,12 +889,12 @@ function Missing({
                     size="sm"
                     startIcon={<icons.notifications aria-hidden />}
                     loading={reminding}
-                    loadingLabel="Sending"
+                    loadingLabel={t('completeness.completeness-grid.sending', 'Sending')}
                     onClick={() => {
                       void remindAll();
                     }}
                   >
-                    Remind {peopleCount(due)}
+                    {t('completeness.completeness-grid.remind', 'Remind')} {peopleCount(due)}
                   </Button>
                 ) : null}
                 {hrRows.length > 0 ? (
@@ -800,7 +907,7 @@ function Missing({
                       setFill(FILL_ALL);
                     }}
                   >
-                    Fill in for all
+                    {t('completeness.completeness-grid.fill_in_for_all', 'Fill in for all')}
                   </Button>
                 ) : null}
               </span>
@@ -808,7 +915,7 @@ function Missing({
           }
         >
           <DataTable
-            label="Missing information"
+            label={t('completeness.completeness-grid.missing_information', 'Missing information')}
             rows={rows}
             columns={columns}
             rowId={rowId}
@@ -828,7 +935,7 @@ function Missing({
               drawn, and the next people load a screen ahead (not while a dialog is open). */}
           <div className="hidden touch:block">
             <VirtualList
-              label="Missing information"
+              label={t('completeness.completeness-grid.missing_information', 'Missing information')}
               items={rows}
               itemKey={rowId}
               scroll="page"
@@ -865,8 +972,11 @@ function Missing({
 const nameOf = (r: GapRow): string => r.name;
 
 const NOTHING = {
-  title: 'Nothing is missing',
-  body: 'Every required field has a value for everybody it applies to.',
+  title: t('completeness.completeness-grid.nothing_is_missing', 'Nothing is missing'),
+  body: t(
+    'completeness.completeness-grid.every_required_field_has_a_value',
+    'Every required field has a value for everybody it applies to.',
+  ),
 };
 
 /** A phone row's height, for the list to place rows it has not measured yet. */
@@ -889,10 +999,10 @@ function PersonCell({ row }: { readonly row: GapRow }): JSX.Element {
 function WhoFills({ owner }: { readonly owner: GapRow['owner'] }): JSX.Element {
   return owner === 'hr' ? (
     <Badge size="sm" tone="accent">
-      HR
+      {t('completeness.completeness-grid.hr', 'HR')}
     </Badge>
   ) : (
-    <Badge size="sm">Employee</Badge>
+    <Badge size="sm">{t('completeness.completeness-grid.employee', 'Employee')}</Badge>
   );
 }
 
@@ -927,7 +1037,10 @@ function PersonFill({
     const f = fields.get(key);
     return f === undefined ? [] : [recordFieldOf(f)];
   });
-  const details = `${String(shown.length)} ${shown.length === 1 ? 'detail' : 'details'}`;
+  const details = t('completeness.completeness-grid.text', '{{length}} {{value}}', {
+    length: String(shown.length),
+    value: shown.length === 1 ? 'detail' : 'details',
+  });
   return (
     <Dialog
       open
@@ -937,24 +1050,41 @@ function PersonFill({
     >
       <DialogContent className="max-w-140">
         <DialogHeader>
-          <DialogTitle>{`Fill in for ${row.name}`}</DialogTitle>
+          <DialogTitle>
+            {t('completeness.completeness-grid.fill_in_for', 'Fill in for {{name}}', {
+              name: row.name,
+            })}
+          </DialogTitle>
           <DialogDescription>
-            {`${details} HR keeps. Nothing is saved until you press Save.`}
+            {t(
+              'completeness.completeness-grid.hr_keeps_nothing_is_saved_until',
+              '{{details}} HR keeps. Nothing is saved until you press Save.',
+              { details },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <SectionForm
             section={{
               key: 'missing',
-              label: `Missing details for ${row.name}`,
+              label: t(
+                'completeness.completeness-grid.missing_details_for',
+                'Missing details for {{name}}',
+                { name: row.name },
+              ),
               visibility: [],
               fields: shown,
             }}
             values={{}}
-            hint="Sensitive values wait for approval."
+            hint={t(
+              'completeness.completeness-grid.sensitive_values_wait_for_approval',
+              'Sensitive values wait for approval.',
+            )}
             footer={
               <DialogClose asChild>
-                <Button variant="ghost">Cancel</Button>
+                <Button variant="ghost">
+                  {t('completeness.completeness-grid.cancel', 'Cancel')}
+                </Button>
               </DialogClose>
             }
             onSave={async (_section, changed): Promise<Outcome> => {
@@ -1060,7 +1190,7 @@ function FillGrid({
     (): DataColumn<GapRow>[] => [
       {
         id: 'person',
-        header: 'Person',
+        header: t('completeness.completeness-grid.person', 'Person'),
         width: '15rem',
         sticky: true,
         cell: (r) => <PersonCell row={r} />,
@@ -1072,7 +1202,7 @@ function FillGrid({
             <span className="inline-flex items-center gap-2">
               {field.label}
               <Badge tone="sensitive" size="sm">
-                Sensitive
+                {t('completeness.completeness-grid.sensitive', 'Sensitive')}
               </Badge>
             </span>
           ) : (
@@ -1082,7 +1212,13 @@ function FillGrid({
           r.missing.includes(field.key) ? (
             <Cell edits={edits} row={r} field={field} />
           ) : (
-            <span className="text-fg-subtle" aria-label="Already filled in">
+            <span
+              className="text-fg-subtle"
+              aria-label={t(
+                'completeness.completeness-grid.already_filled_in',
+                'Already filled in',
+              )}
+            >
               —
             </span>
           ),
@@ -1151,47 +1287,78 @@ function FillGrid({
     <Stack gap={4}>
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-xl font-bold tracking-tight">Fill in for HR</h2>
+          <h2 className="font-display text-xl font-bold tracking-tight">
+            {t('completeness.completeness-grid.fill_in_for_hr', 'Fill in for HR')}
+          </h2>
           <p className="text-sm text-fg-muted">
-            {`${toFill.toLocaleString('en-GB')} ${toFill === 1 ? 'detail' : 'details'}${
-              everybody ? ` across ${peopleCount(people)}` : ''
-            }. Tab moves across, ↵ moves down. Nothing is saved until you press Save.`}
+            {t(
+              'completeness.completeness-grid.tab_moves_across_moves_down_nothing',
+              '{{toLocaleString}} {{value}}{{value2}}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.',
+              {
+                toLocaleString: toFill.toLocaleString('en-GB'),
+                value: toFill === 1 ? 'detail' : 'details',
+                value2: everybody
+                  ? ' ' +
+                    t('completeness.completeness-grid.across', 'across {{peopleCount}}', {
+                      peopleCount: peopleCount(people),
+                    })
+                  : '',
+              },
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" startIcon={<icons.back aria-hidden />} onClick={onBack}>
-            Back to the list
+            {t('completeness.completeness-grid.back_to_the_list', 'Back to the list')}
           </Button>
           <Button
             variant="primary"
             disabled={pending === 0}
             loading={saving}
-            loadingLabel="Saving"
+            loadingLabel={t('completeness.completeness-grid.saving', 'Saving')}
             shortcut="form.submit"
             onClick={() => {
               void save();
             }}
           >
             {doubted.length > 0
-              ? 'Save anyway'
+              ? t('completeness.completeness-grid.save_anyway', 'Save anyway')
               : pending === 0
-                ? 'Save'
-                : `Save ${String(pending)} ${pending === 1 ? 'change' : 'changes'}`}
+                ? t('completeness.completeness-grid.save', 'Save')
+                : t('completeness.completeness-grid.save_2', 'Save {{pending}} {{value}}', {
+                    pending: String(pending),
+                    value: pending === 1 ? 'change' : 'changes',
+                  })}
           </Button>
         </div>
       </div>
       {notices}
       {doubted.length === 0 ? null : (
-        <Alert tone="warning" title="Our checks suggest some of these may be wrong">
-          Check the marked cells. If they’re correct, save anyway and HR will review them.
+        <Alert
+          tone="warning"
+          title={t(
+            'completeness.completeness-grid.our_checks_suggest_some_of_these',
+            'Our checks suggest some of these may be wrong',
+          )}
+        >
+          {t(
+            'completeness.completeness-grid.check_the_marked_cells_if_theyre',
+            'Check the marked cells. If they’re correct, save anyway and HR will review them.',
+          )}
         </Alert>
       )}
       {rows.length === 0 ? (
         <Card padded>
           <EmptyState
             icon={<icons.missing />}
-            title="Nothing for HR to fill in"
-            description="Every gap left is a person’s own: remind them from the list."
+            title={t(
+              'completeness.completeness-grid.nothing_for_hr_to_fill_in',
+              'Nothing for HR to fill in',
+            )}
+            description={t(
+              'completeness.completeness-grid.every_gap_left_is_a_persons',
+              'Every gap left is a person’s own: remind them from the list.',
+            )}
           />
         </Card>
       ) : (
@@ -1199,7 +1366,7 @@ function FillGrid({
         <div onKeyDown={down} className="contents">
           <DataTable
             ref={table}
-            label="Missing values"
+            label={t('completeness.completeness-grid.missing_values', 'Missing values')}
             rows={rows}
             columns={columns}
             rowId={personOf}
@@ -1211,8 +1378,10 @@ function FillGrid({
         </div>
       )}
       <p className="text-sm text-fg-muted">
-        Each person’s edits go out as one change. Sensitive values wait for approval; doubted
-        identifiers go to HR’s review.
+        {t(
+          'completeness.completeness-grid.each_persons_edits_go_out_as',
+          'Each person’s edits go out as one change. Sensitive values wait for approval; doubted identifiers go to HR’s review.',
+        )}
       </p>
     </Stack>
   );
@@ -1285,7 +1454,10 @@ const Cell = memo(function Cell({
   const [live, setLive] = useState<'focus' | 'open' | null>(null);
   const at = useRef<HTMLDivElement>(null);
   const id = cellId(row.personId, field.key);
-  const label = `${field.label} for ${row.name}`;
+  const label = t('completeness.completeness-grid.for', '{{label}} for {{name}}', {
+    label: field.label,
+    name: row.name,
+  });
   // The control that replaced the plain cell takes the focus it had.
   useLayoutEffect(() => {
     if (live === null) return;
@@ -1341,7 +1513,10 @@ const shortDay = (iso: string): string =>
 
 /** "1 reminder", "40 reminders". */
 const n = (count: number, one: string, many: string): string =>
-  `${count.toLocaleString('en-GB')} ${count === 1 ? one : many}`;
+  t('completeness.completeness-grid.text_2', '{{toLocaleString}} {{value}}', {
+    toLocaleString: count.toLocaleString('en-GB'),
+    value: count === 1 ? one : many,
+  });
 
 /** "12 people", "1 person". */
 const peopleCount = (count: number): string => n(count, 'person', 'people');
@@ -1349,11 +1524,29 @@ const peopleCount = (count: number): string => n(count, 'person', 'people');
 /** What "Remind N people" did, in words: who was sent one, and who was not and why. */
 function remindedText(r: Extract<RemindOutcome, { ok: true }>): string {
   return [
-    r.sent === 0 ? 'Nobody was due a reminder.' : `Sent ${n(r.sent, 'reminder', 'reminders')}.`,
-    r.failed === 0 ? '' : `${n(r.failed, 'email', 'emails')} could not be sent.`,
+    r.sent === 0
+      ? t('completeness.completeness-grid.nobody_was_due_a_reminder', 'Nobody was due a reminder.')
+      : t('completeness.completeness-grid.sent', 'Sent {{n}}.', {
+          n: n(r.sent, 'reminder', 'reminders'),
+        }),
+    r.failed === 0
+      ? ''
+      : t('completeness.completeness-grid.could_not_be_sent', '{{n}} could not be sent.', {
+          n: n(r.failed, 'email', 'emails'),
+        }),
     r.skipped === 0
       ? ''
-      : `${n(r.skipped, 'person was', 'people were')} not due: reminded in the last week, outside their working hours, or with no work email.`,
+      : t(
+          'completeness.completeness-grid.not_due_reminded_in_the_last',
+          '{{n}} not due: reminded in the last week, outside their working hours, or with no work email.',
+          {
+            n: n(
+              r.skipped,
+              t('completeness.completeness-grid.person_was', 'person was'),
+              t('completeness.completeness-grid.people_were', 'people were'),
+            ),
+          },
+        ),
   ]
     .filter((line) => line !== '')
     .join(' ');

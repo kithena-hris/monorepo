@@ -40,6 +40,7 @@ import {
   spanLabel,
   statusOf,
 } from '../words';
+import { t } from '../i18n';
 
 /**
  * My requests and the timeline (T6, T7, MT10): the caller's requests,
@@ -152,7 +153,9 @@ export function MyRequests(props: RequestsProps): JSX.Element {
   if (load.status === 'loading') return <RequestsSkeleton />;
   return (
     <div className="@container/requests flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="My requests" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
+      ) : null}
       <Loaded load={load} what="your requests">
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -165,17 +168,21 @@ const body =
   'flex flex-col gap-5 @min-[56rem]/requests:grid @min-[56rem]/requests:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] @min-[56rem]/requests:items-start';
 
 const EMPTY: Record<Tab, string> = {
-  upcoming: 'Nothing booked ahead.',
-  past: 'No time off taken yet this year.',
-  cancelled: 'Nothing cancelled.',
+  upcoming: t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.'),
+  past: t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.'),
+  cancelled: t('requests.requests.nothing_cancelled', 'Nothing cancelled.'),
 };
 
 function Ready({ data, ...actions }: { readonly data: RequestsData } & RequestsProps): JSX.Element {
   const { selected, single } = data;
   const title =
     single && selected !== null
-      ? `${selected.mine ? '' : `${selected.request.displayName} · `}${selected.request.leaveTypeName} · ${spanLabel(selected.request.span.from, selected.request.span.to)}`
-      : 'My requests';
+      ? t('requests.requests.text', '{{value}}{{leaveTypeName}} · {{spanLabel}}', {
+          value: selected.mine ? '' : `${selected.request.displayName} · `,
+          leaveTypeName: selected.request.leaveTypeName,
+          spanLabel: spanLabel(selected.request.span.from, selected.request.span.to),
+        })
+      : t('requests.requests.my_requests', 'My requests');
   return (
     <>
       <PageHeader title={title} />
@@ -195,7 +202,10 @@ function Ready({ data, ...actions }: { readonly data: RequestsData } & RequestsP
                       asChild
                       selected={on}
                       icon={leaveIcon(iconFor(r))}
-                      description={`${spanLabel(r.span.from, r.span.to)} · ${days(r.workingDays)}`}
+                      description={t('requests.requests.text_2', '{{spanLabel}} · {{days}}', {
+                        spanLabel: spanLabel(r.span.from, r.span.to),
+                        days: days(r.workingDays),
+                      })}
                       trailing={
                         <Badge size="sm" tone={status.tone} dot>
                           {status.label}
@@ -235,8 +245,12 @@ const iconFor = (r: RequestItem): string | undefined => CATEGORY_ICON[r.category
 
 /* ------------------------------------------------------------- detail -- */
 
-const ROLE: Record<string, string> = { manager: 'your manager', hr: 'HR' };
-const role = (r: string | undefined): string => ROLE[r ?? ''] ?? 'an approver';
+const ROLE: Record<string, string> = {
+  manager: t('requests.requests.your_manager', 'your manager'),
+  hr: 'HR',
+};
+const role = (r: string | undefined): string =>
+  ROLE[r ?? ''] ?? t('requests.requests.an_approver', 'an approver');
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 function Detail({
@@ -254,7 +268,10 @@ function Detail({
   const { request } = detail;
   const status = statusOf(request.status);
   const [dialog, setDialog] = useState<Choice | null>(null);
-  const label = `${request.leaveTypeName} · ${spanLabel(request.span.from, request.span.to)}`;
+  const label = t('requests.requests.text_3', '{{leaveTypeName}} · {{spanLabel}}', {
+    leaveTypeName: request.leaveTypeName,
+    spanLabel: spanLabel(request.span.from, request.span.to),
+  });
   return (
     <PageSection
       title={label}
@@ -270,20 +287,28 @@ function Detail({
         <div className="grid gap-3 @min-[28rem]/requests:grid-cols-2">
           <Stat
             inset
-            label="You’re off"
+            label={t('requests.requests.youre_off', 'You’re off')}
             icon={leaveIcon(iconFor(request))}
             value={longSpan(request.span.from, request.span.to)}
             description={days(request.workingDays)}
           />
-          <Stat inset label="Back at work" value={shortDate(nextWorkingDay(request.span.to))} />
+          <Stat
+            inset
+            label={t('requests.requests.back_at_work', 'Back at work')}
+            value={shortDate(nextWorkingDay(request.span.to))}
+          />
         </div>
         {detail.canAnswer && detail.proposals.length > 0 ? (
           <Suggestions detail={detail} onAnswer={onAnswer} />
         ) : null}
-        <Timeline aria-label="What happened">{steps(detail, today)}</Timeline>
+        <Timeline aria-label={t('requests.requests.what_happened', 'What happened')}>
+          {steps(detail, today)}
+        </Timeline>
         {detail.note === null ? null : (
           <p className="text-sm text-fg-muted">
-            <span className="font-medium text-fg">Your note: </span>
+            <span className="font-medium text-fg">
+              {t('requests.requests.your_note', 'Your note:')}{' '}
+            </span>
             {detail.note}
           </p>
         )}
@@ -291,7 +316,8 @@ function Detail({
           <NoteNeeded requestId={request.requestId} personId={request.personId} notes={notes} />
         ) : detail.notePresent === true ? (
           <p className="flex items-center gap-1.5 text-sm text-fg-muted">
-            <icons.success aria-hidden className="size-4 text-success" />A note is attached.
+            <icons.success aria-hidden className="size-4 text-success" />
+            {t('requests.requests.a_note_is_attached', 'A note is attached.')}
           </p>
         ) : null}
         {detail.canChange || detail.canCancel ? (
@@ -303,7 +329,7 @@ function Detail({
                   setDialog('move');
                 }}
               >
-                Change dates
+                {t('requests.requests.change_dates', 'Change dates')}
               </Button>
             ) : null}
             <Button
@@ -312,7 +338,9 @@ function Detail({
                 setDialog('cancel');
               }}
             >
-              {request.status === 'approved' ? 'Cancel request' : 'Withdraw request'}
+              {request.status === 'approved'
+                ? t('requests.requests.cancel_request', 'Cancel request')
+                : t('requests.requests.withdraw_request', 'Withdraw request')}
             </Button>
           </div>
         ) : null}
@@ -346,11 +374,13 @@ function steps(detail: RequestDetailData, today: string): ReactNode {
   const out: (TimelineItemProps & { readonly id: string })[] = [
     {
       id: 'sent',
-      title: 'Sent',
+      title: t('requests.requests.sent', 'Sent'),
       tone: 'success',
       icon: <icons.send />,
       timestamp: shortDate(request.requestedAt.slice(0, 10)),
-      children: `You asked for ${spanLabel(request.span.from, request.span.to)}.`,
+      children: t('requests.requests.you_asked_for', 'You asked for {{spanLabel}}.', {
+        spanLabel: spanLabel(request.span.from, request.span.to),
+      }),
     },
   ];
   const decided = ['approved', 'taken', 'change_pending'].includes(s) ? chain.length : step;
@@ -449,9 +479,16 @@ function Suggestions({
   return (
     <Card padded className="flex flex-col gap-3">
       <div>
-        <h3 className="font-semibold">{`${capital(role(detail.chain[detail.step]))} suggested other dates`}</h3>
+        <h3 className="font-semibold">
+          {t('requests.requests.suggested_other_dates', '{{capital}} suggested other dates', {
+            capital: capital(role(detail.chain[detail.step])),
+          })}
+        </h3>
         <p className="text-sm text-fg-muted">
-          Taking one approves it. Keeping yours sends it back.
+          {t(
+            'requests.requests.taking_one_approves_it_keeping_yours',
+            'Taking one approves it. Keeping yours sends it back.',
+          )}
         </p>
       </div>
       {detail.proposalMessage === null || detail.proposalMessage === undefined ? null : (
@@ -469,7 +506,10 @@ function Suggestions({
                 answer(p.index);
               }}
             >
-              {`Take ${label} · ${days(p.workingDays)}`}
+              {t('requests.requests.take', 'Take {{label}} · {{days}}', {
+                label,
+                days: days(p.workingDays),
+              })}
             </Button>
           );
         })}
@@ -480,11 +520,14 @@ function Suggestions({
             answer(null);
           }}
         >
-          Keep my dates
+          {t('requests.requests.keep_my_dates', 'Keep my dates')}
         </Button>
       </div>
       {failed === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t('requests.requests.that_did_not_go_through', 'That did not go through')}
+        >
           {failed}
         </Alert>
       )}
@@ -561,17 +604,27 @@ function ChangeDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{approved ? `Change ${label}` : `Withdraw ${label}`}</DialogTitle>
+          <DialogTitle>
+            {approved
+              ? t('requests.requests.change', 'Change {{label}}', { label })
+              : t('requests.requests.withdraw', 'Withdraw {{label}}', { label })}
+          </DialogTitle>
           <DialogDescription>
             {approved
-              ? 'It’s approved, so moving it goes back to your approver. Your balance updates when they say yes.'
-              : 'Nobody has decided yet. Withdrawing it gives the days back at once.'}
+              ? t(
+                  'requests.requests.its_approved_so_moving_it_goes',
+                  'It’s approved, so moving it goes back to your approver. Your balance updates when they say yes.',
+                )
+              : t(
+                  'requests.requests.nobody_has_decided_yet_withdrawing_it',
+                  'Nobody has decided yet. Withdrawing it gives the days back at once.',
+                )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {!picking ? (
             <RadioGroup
-              aria-label="What to do"
+              aria-label={t('requests.requests.what_to_do', 'What to do')}
               value={choice}
               onValueChange={(v) => {
                 setChoice(v as Choice);
@@ -581,41 +634,59 @@ function ChangeDialog({
                 <>
                   <RadioCard
                     value="move"
-                    description="Pick new dates. The old ones stay booked until the new ones are approved."
+                    description={t(
+                      'requests.requests.pick_new_dates_the_old_ones',
+                      'Pick new dates. The old ones stay booked until the new ones are approved.',
+                    )}
                   >
-                    Move the dates
+                    {t('requests.requests.move_the_dates', 'Move the dates')}
                   </RadioCard>
                   <RadioCard
                     value="shorten"
-                    description="Give back days you don’t need. Shortening is approved automatically."
-                    impact={`Up to ${days(request.workingDays)} back`}
+                    description={t(
+                      'requests.requests.give_back_days_you_dont_need',
+                      'Give back days you don’t need. Shortening is approved automatically.',
+                    )}
+                    impact={t('requests.requests.up_to_back', 'Up to {{days}} back', {
+                      days: days(request.workingDays),
+                    })}
                   >
-                    Shorten it
+                    {t('requests.requests.shorten_it', 'Shorten it')}
                   </RadioCard>
                 </>
               ) : null}
               <RadioCard
                 value="cancel"
-                description={`All ${n} ${n === '1' ? 'day goes' : 'days go'} back to your balance straight away.`}
+                description={t(
+                  'requests.requests.all_back_to_your_balance_straight',
+                  'All {{n}} {{value}} back to your balance straight away.',
+                  { n, value: n === '1' ? 'day goes' : 'days go' },
+                )}
               >
-                {approved ? 'Cancel it' : 'Withdraw it'}
+                {approved
+                  ? t('requests.requests.cancel_it', 'Cancel it')
+                  : t('requests.requests.withdraw_it', 'Withdraw it')}
               </RadioCard>
             </RadioGroup>
           ) : choice === 'move' ? (
             <Calendar
               mode="range"
-              label="New dates"
+              label={t('requests.requests.new_dates', 'New dates')}
               today={today}
               month={from}
               min={today}
               selected={range}
               onSelect={setRange}
-              highlight={{ start: from, end: to, label: 'Booked now' }}
+              highlight={{
+                start: from,
+                end: to,
+                label: t('requests.requests.booked_now', 'Booked now'),
+              }}
             />
           ) : (
             <Calendar
               mode="single"
-              label="New last day"
+              label={t('requests.requests.new_last_day', 'New last day')}
               today={today}
               month={from}
               min={from > today ? from : today}
@@ -625,13 +696,16 @@ function ChangeDialog({
             />
           )}
           {failed === null ? null : (
-            <Alert tone="danger" title="That did not go through">
+            <Alert
+              tone="danger"
+              title={t('requests.requests.that_did_not_go_through', 'That did not go through')}
+            >
               {failed}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Keep it</Button>
+          <Button onClick={onClose}>{t('requests.requests.keep_it', 'Keep it')}</Button>
           <Button
             variant={choice === 'cancel' ? 'danger' : 'primary'}
             disabled={!ready}
@@ -640,13 +714,13 @@ function ChangeDialog({
           >
             {choice === 'cancel'
               ? approved
-                ? 'Cancel it'
-                : 'Withdraw it'
+                ? t('requests.requests.cancel_it', 'Cancel it')
+                : t('requests.requests.withdraw_it', 'Withdraw it')
               : !picking
-                ? 'Continue'
+                ? t('requests.requests.continue', 'Continue')
                 : choice === 'move'
-                  ? 'Ask again'
-                  : 'Give the days back'}
+                  ? t('requests.requests.ask_again', 'Ask again')
+                  : t('requests.requests.give_the_days_back', 'Give the days back')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -660,9 +734,11 @@ function ChangeDialog({
 export function RequestsSkeleton(): JSX.Element {
   return (
     <div className="@container/requests flex flex-col gap-6">
-      <PageHeader title="My requests" />
+      <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
       <div role="status" className={body}>
-        <span className="sr-only">Loading your requests</span>
+        <span className="sr-only">
+          {t('requests.requests.loading_your_requests', 'Loading your requests')}
+        </span>
         <div className="flex flex-col gap-2">
           {[0, 1, 2, 3, 4].map((n) => (
             <Skeleton key={n} className="h-16 rounded-md" />
@@ -699,9 +775,18 @@ function NoteNeeded({
     });
   };
   return (
-    <Alert tone="warning" title="A note is needed" icon={<icons.document />}>
+    <Alert
+      tone="warning"
+      title={t('requests.requests.a_note_is_needed', 'A note is needed')}
+      icon={<icons.document />}
+    >
       <div className="flex flex-col gap-3">
-        <p>Leave this long needs a doctor’s note. Only its person and HR see it.</p>
+        <p>
+          {t(
+            'requests.requests.leave_this_long_needs_a_doctors',
+            'Leave this long needs a doctor’s note. Only its person and HR see it.',
+          )}
+        </p>
         {notes === undefined ? null : files === null ? (
           <Button
             size="sm"
@@ -710,7 +795,7 @@ function NoteNeeded({
               void notes.load(personId).then(setFiles);
             }}
           >
-            Add note
+            {t('requests.requests.add_note', 'Add note')}
           </Button>
         ) : (
           <>
@@ -729,7 +814,7 @@ function NoteNeeded({
                           attach(() => notes.onAttach(requestId, f.id));
                         }}
                       >
-                        Attach
+                        {t('requests.requests.attach', 'Attach')}
                       </Button>
                     }
                   >
@@ -739,7 +824,7 @@ function NoteNeeded({
               </List>
             )}
             <Dropzone
-              label="Or choose the note"
+              label={t('requests.requests.or_choose_the_note', 'Or choose the note')}
               accept="application/pdf,image/jpeg,image/png,image/webp"
               variant="inline"
               onFiles={(chosen) => {

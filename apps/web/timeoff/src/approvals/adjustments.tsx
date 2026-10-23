@@ -37,6 +37,7 @@ import { useState, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { amount, shortDate } from '../words';
+import { t as tr } from '../i18n';
 
 /**
  * Balance adjustments (PRD §7.1): adding to or taking from someone's balance
@@ -90,15 +91,21 @@ export interface AdjustmentsProps {
 type Item = AdjustmentsData['items'][number];
 
 const STATUS = {
-  pending: { label: 'Waiting for HR', tone: 'warning' },
-  approved: { label: 'Counted', tone: 'success' },
-  declined: { label: 'Declined', tone: 'neutral' },
+  pending: { label: tr('approvals.adjustments.waiting_for_hr', 'Waiting for HR'), tone: 'warning' },
+  approved: { label: tr('approvals.adjustments.counted', 'Counted'), tone: 'success' },
+  declined: { label: tr('approvals.adjustments.declined', 'Declined'), tone: 'neutral' },
 } as const;
 
 const sized = (unit: 'day' | 'hour', value: string): string => {
   const n = amount(value.replace('-', ''));
   const sign = value.startsWith('-') ? '−' : '+';
-  return unit === 'hour' ? `${sign}${n}h` : `${sign}${n} ${n === '1' ? 'day' : 'days'}`;
+  return unit === 'hour'
+    ? `${sign}${n}h`
+    : tr('approvals.adjustments.text', '{{sign}}{{n}} {{value}}', {
+        sign,
+        n,
+        value: n === '1' ? 'day' : 'days',
+      });
 };
 
 export function Adjustments(props: AdjustmentsProps): JSX.Element {
@@ -106,7 +113,11 @@ export function Adjustments(props: AdjustmentsProps): JSX.Element {
   if (load.status === 'loading') return <AdjustmentsSkeleton />;
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Balance adjustments" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader
+          title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
+        />
+      ) : null}
       <Loaded load={load} what="balance adjustments">
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -135,7 +146,10 @@ function Ready({
       key={item.adjustmentId}
       leading={<Avatar name={item.displayName} />}
       description={[
-        `${item.leaveTypeName} · from ${shortDate(item.effectiveOn)}`,
+        tr('approvals.adjustments.from', '{{leaveTypeName}} · from {{effectiveOn}}', {
+          leaveTypeName: item.leaveTypeName,
+          effectiveOn: shortDate(item.effectiveOn),
+        }),
         `“${item.reason}”`,
         item.note,
       ]
@@ -150,7 +164,7 @@ function Ready({
                 setDeclining(item);
               }}
             >
-              Decline
+              {tr('approvals.adjustments.decline', 'Decline')}
             </Button>
             <Button
               size="sm"
@@ -159,7 +173,7 @@ function Ready({
                 approve(item);
               }}
             >
-              Approve
+              {tr('approvals.adjustments.approve', 'Approve')}
             </Button>
           </div>
         ) : (
@@ -167,17 +181,23 @@ function Ready({
         )
       }
     >
-      {`${item.displayName} · ${sized(item.unit, item.amount)}`}
+      {tr('approvals.adjustments.text_2', '{{displayName}} · {{sized}}', {
+        displayName: item.displayName,
+        sized: sized(item.unit, item.amount),
+      })}
     </ListItem>
   );
   return (
     <>
       <PageHeader
-        title="Balance adjustments"
+        title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
         description={
           data.hr
             ? `${String(waiting.length)} waiting for you; HR’s own count at once`
-            : 'Days you asked HR to add or take away'
+            : tr(
+                'approvals.adjustments.days_you_asked_hr_to_add',
+                'Days you asked HR to add or take away',
+              )
         }
         actions={
           <Button
@@ -187,28 +207,45 @@ function Ready({
               setAdding(true);
             }}
           >
-            Adjust a balance
+            {tr('approvals.adjustments.adjust_a_balance', 'Adjust a balance')}
           </Button>
         }
       />
       {refused === null ? null : (
-        <Alert tone="danger" title="Not decided">
+        <Alert tone="danger" title={tr('approvals.adjustments.not_decided', 'Not decided')}>
           {refused}
         </Alert>
       )}
       {waiting.length === 0 ? null : (
-        <PageSection title="Waiting for you">
-          <List aria-label="Waiting for you">{waiting.map((i) => row(i, true))}</List>
+        <PageSection title={tr('approvals.adjustments.waiting_for_you', 'Waiting for you')}>
+          <List aria-label={tr('approvals.adjustments.waiting_for_you', 'Waiting for you')}>
+            {waiting.map((i) => row(i, true))}
+          </List>
         </PageSection>
       )}
-      <PageSection title={data.hr ? 'The last 30 days' : 'Yours'}>
+      <PageSection
+        title={
+          data.hr
+            ? tr('approvals.adjustments.the_last_30_days', 'The last 30 days')
+            : tr('approvals.adjustments.yours', 'Yours')
+        }
+      >
         {rest.length === 0 ? (
           <EmptyState
-            title="Nothing adjusted yet"
-            description="Add or take away days with a reason; it shows beside them in the balance."
+            title={tr('approvals.adjustments.nothing_adjusted_yet', 'Nothing adjusted yet')}
+            description={tr(
+              'approvals.adjustments.add_or_take_away_days_with',
+              'Add or take away days with a reason; it shows beside them in the balance.',
+            )}
           />
         ) : (
-          <List aria-label={data.hr ? 'The last 30 days' : 'Yours'}>
+          <List
+            aria-label={
+              data.hr
+                ? tr('approvals.adjustments.the_last_30_days', 'The last 30 days')
+                : tr('approvals.adjustments.yours', 'Yours')
+            }
+          >
             {rest.map((i) => row(i, false))}
           </List>
         )}
@@ -280,18 +317,28 @@ function Adjust({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Adjust a balance</DialogTitle>
+          <DialogTitle>
+            {tr('approvals.adjustments.adjust_a_balance', 'Adjust a balance')}
+          </DialogTitle>
           <DialogDescription>
-            {data.hr ? 'It counts as soon as you save it.' : 'HR approves it before it counts.'}
+            {data.hr
+              ? tr(
+                  'approvals.adjustments.it_counts_as_soon_as_you',
+                  'It counts as soon as you save it.',
+                )
+              : tr(
+                  'approvals.adjustments.hr_approves_it_before_it_counts',
+                  'HR approves it before it counts.',
+                )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Who</FieldLabel>
+            <FieldLabel>{tr('approvals.adjustments.who', 'Who')}</FieldLabel>
             <FieldControl>
               <Combobox
-                label="Who"
-                placeholder="Choose someone"
+                label={tr('approvals.adjustments.who', 'Who')}
+                placeholder={tr('approvals.adjustments.choose_someone', 'Choose someone')}
                 options={data.people.map((p) => ({
                   value: p.personId,
                   label: p.displayName,
@@ -305,7 +352,7 @@ function Adjust({
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>Leave type</FieldLabel>
+            <FieldLabel>{tr('approvals.adjustments.leave_type', 'Leave type')}</FieldLabel>
             <Select value={leaveTypeKey} onValueChange={setLeaveTypeKey}>
               <FieldControl>
                 <SelectTrigger>
@@ -323,17 +370,25 @@ function Adjust({
           </Field>
           <div className="flex flex-wrap items-end gap-3">
             <SegmentedControl
-              aria-label="Add or take away"
+              aria-label={tr('approvals.adjustments.add_or_take_away', 'Add or take away')}
               value={direction}
               onValueChange={(v) => {
                 if (v !== '') setDirection(v === 'take' ? 'take' : 'add');
               }}
             >
-              <SegmentedControlItem value="add">Add</SegmentedControlItem>
-              <SegmentedControlItem value="take">Take away</SegmentedControlItem>
+              <SegmentedControlItem value="add">
+                {tr('approvals.adjustments.add', 'Add')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="take">
+                {tr('approvals.adjustments.take_away', 'Take away')}
+              </SegmentedControlItem>
             </SegmentedControl>
             <NumberField
-              label={hours ? 'Hours' : 'Days'}
+              label={
+                hours
+                  ? tr('approvals.adjustments.hours', 'Hours')
+                  : tr('approvals.adjustments.days', 'Days')
+              }
               value={size}
               min={0.5}
               max={365}
@@ -344,42 +399,57 @@ function Adjust({
             />
           </div>
           <Field required>
-            <FieldLabel>Why</FieldLabel>
+            <FieldLabel>{tr('approvals.adjustments.why', 'Why')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={reason}
                 maxLength={500}
-                placeholder="For example, worked the offsite weekend"
+                placeholder={tr(
+                  'approvals.adjustments.for_example_worked_the_offsite_weekend',
+                  'For example, worked the offsite weekend',
+                )}
                 onChange={(e) => {
                   setReason(e.target.value);
                 }}
               />
             </FieldControl>
-            <FieldDescription>Always needed. They see it beside the days.</FieldDescription>
+            <FieldDescription>
+              {tr(
+                'approvals.adjustments.always_needed_they_see_it_beside',
+                'Always needed. They see it beside the days.',
+              )}
+            </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Counts from</FieldLabel>
+            <FieldLabel>{tr('approvals.adjustments.counts_from', 'Counts from')}</FieldLabel>
             <FieldControl>
-              <DatePicker label="Counts from" placeholder="Today" value={on} onChange={setOn} />
+              <DatePicker
+                label={tr('approvals.adjustments.counts_from', 'Counts from')}
+                placeholder={tr('approvals.adjustments.today', 'Today')}
+                value={on}
+                onChange={setOn}
+              />
             </FieldControl>
           </Field>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not adjusted">
+            <Alert tone="danger" title={tr('approvals.adjustments.not_adjusted', 'Not adjusted')}>
               {refused}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{tr('approvals.adjustments.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.confirm aria-hidden />}
             disabled={!ready}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={tr('approvals.adjustments.saving', 'Saving')}
             onClick={save}
           >
-            {data.hr ? 'Adjust' : 'Send to HR'}
+            {data.hr
+              ? tr('approvals.adjustments.adjust', 'Adjust')
+              : tr('approvals.adjustments.send_to_hr', 'Send to HR')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -409,12 +479,19 @@ function Decline({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Decline ${sized(item.unit, item.amount)} for ${item.displayName}?`}</DialogTitle>
+          <DialogTitle>
+            {tr('approvals.adjustments.decline_for', 'Decline {{sized}} for {{displayName}}?', {
+              sized: sized(item.unit, item.amount),
+              displayName: item.displayName,
+            })}
+          </DialogTitle>
           <DialogDescription>{`“${item.reason}”`}</DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field>
-            <FieldLabel>Why not (optional)</FieldLabel>
+            <FieldLabel>
+              {tr('approvals.adjustments.why_not_optional', 'Why not (optional)')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 value={note}
@@ -426,17 +503,17 @@ function Decline({
             </FieldControl>
           </Field>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not declined">
+            <Alert tone="danger" title={tr('approvals.adjustments.not_declined', 'Not declined')}>
               {refused}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Keep it</Button>
+          <Button onClick={onClose}>{tr('approvals.adjustments.keep_it', 'Keep it')}</Button>
           <Button
             variant="danger"
             loading={busy}
-            loadingLabel="Declining"
+            loadingLabel={tr('approvals.adjustments.declining', 'Declining')}
             onClick={() => {
               setBusy(true);
               void onDecide(item.adjustmentId, false, note.trim() === '' ? null : note.trim()).then(
@@ -448,7 +525,7 @@ function Decline({
               );
             }}
           >
-            Decline
+            {tr('approvals.adjustments.decline', 'Decline')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -460,9 +537,14 @@ function Decline({
 export function AdjustmentsSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title="Balance adjustments" description={' '} />
+      <PageHeader
+        title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
+        description={' '}
+      />
       <div role="status" className="flex flex-col gap-2">
-        <span className="sr-only">Loading balance adjustments</span>
+        <span className="sr-only">
+          {tr('approvals.adjustments.loading_balance_adjustments', 'Loading balance adjustments')}
+        </span>
         {[0, 1, 2].map((n) => (
           <Skeleton key={n} className="h-16 rounded-sm" />
         ))}

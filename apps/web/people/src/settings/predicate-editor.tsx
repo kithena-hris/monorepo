@@ -21,6 +21,7 @@ import type {
   RegistryDraft,
 } from './model';
 import { FACT_VALUES, OPERAND_LABEL } from './words';
+import { t } from '../i18n';
 
 const { add: Plus, delete: Trash } = icons;
 
@@ -70,14 +71,25 @@ export const EMPTY_PREDICATE: Predicate = {
  * refuses the same things; saying so here puts the sentence beside the row.
  */
 export function predicateProblem(predicate: Predicate): string | null {
-  if (predicate.clauses.length === 0) return 'Add at least one condition.';
+  if (predicate.clauses.length === 0)
+    return t('settings.predicate-editor.add_at_least_one_condition', 'Add at least one condition.');
   for (const clause of predicate.clauses) {
     if (clause.operand !== 'attribute') {
-      if (clause.in.length === 0) return 'Every condition needs at least one value.';
+      if (clause.in.length === 0)
+        return t(
+          'settings.predicate-editor.every_condition_needs_at_least_one',
+          'Every condition needs at least one value.',
+        );
     } else if (clause.key === '') {
-      return 'Choose the field a condition reads.';
+      return t(
+        'settings.predicate-editor.choose_the_field_a_condition_reads',
+        'Choose the field a condition reads.',
+      );
     } else if (clause.is === 'equals' && (clause.equals ?? '').trim() === '') {
-      return 'Say what the field has to equal.';
+      return t(
+        'settings.predicate-editor.say_what_the_field_has_to',
+        'Say what the field has to equal.',
+      );
     }
   }
   return null;
@@ -136,18 +148,32 @@ export function PredicateEditor({
             onChange({ ...value, combine: combine as Predicate['combine'] });
           }}
         >
-          <SelectTrigger aria-label={`${legend}: how the conditions combine`} size="sm">
+          <SelectTrigger
+            aria-label={t(
+              'settings.predicate-editor.how_the_conditions_combine',
+              '{{legend}}: how the conditions combine',
+              { legend },
+            )}
+            size="sm"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All of these hold</SelectItem>
-            <SelectItem value="any">Any of these holds</SelectItem>
+            <SelectItem value="all">
+              {t('settings.predicate-editor.all_of_these_hold', 'All of these hold')}
+            </SelectItem>
+            <SelectItem value="any">
+              {t('settings.predicate-editor.any_of_these_holds', 'Any of these holds')}
+            </SelectItem>
           </SelectContent>
         </Select>
       ) : null}
 
       {value.clauses.map((clause, index) => {
-        const n = `${legend}, condition ${String(index + 1)}`;
+        const n = t('settings.predicate-editor.condition', '{{legend}}, condition {{value}}', {
+          legend,
+          value: String(index + 1),
+        });
         const named =
           clause.operand === 'attribute' ? fields.find((f) => f.key === clause.key) : undefined;
         return (
@@ -161,7 +187,9 @@ export function PredicateEditor({
                 }}
               >
                 <SelectTrigger
-                  aria-label={`${n}: what it reads`}
+                  aria-label={t('settings.predicate-editor.what_it_reads', '{{n}}: what it reads', {
+                    n,
+                  })}
                   size="sm"
                   className="w-auto min-w-40"
                 >
@@ -179,7 +207,7 @@ export function PredicateEditor({
                 variant="ghost"
                 size="sm"
                 startIcon={<Trash aria-hidden="true" />}
-                aria-label={`Remove ${n}`}
+                aria-label={t('settings.predicate-editor.remove', 'Remove {{n}}', { n })}
                 disabled={value.clauses.length === 1}
                 onClick={() => {
                   onChange({ ...value, clauses: value.clauses.filter((_, i) => i !== index) });
@@ -196,11 +224,15 @@ export function PredicateEditor({
                   }}
                 >
                   <SelectTrigger
-                    aria-label={`${n}: which field`}
+                    aria-label={t('settings.predicate-editor.which_field', '{{n}}: which field', {
+                      n,
+                    })}
                     size="sm"
                     className="w-auto min-w-40"
                   >
-                    <SelectValue placeholder="Choose a field" />
+                    <SelectValue
+                      placeholder={t('settings.predicate-editor.choose_a_field', 'Choose a field')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {fields.map((f) => (
@@ -221,15 +253,23 @@ export function PredicateEditor({
                   }}
                 >
                   <SelectTrigger
-                    aria-label={`${n}: how it is compared`}
+                    aria-label={t(
+                      'settings.predicate-editor.how_it_is_compared',
+                      '{{n}}: how it is compared',
+                      { n },
+                    )}
                     size="sm"
                     className="w-auto"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="set">is filled in</SelectItem>
-                    <SelectItem value="equals">equals</SelectItem>
+                    <SelectItem value="set">
+                      {t('settings.predicate-editor.is_filled_in', 'is filled in')}
+                    </SelectItem>
+                    <SelectItem value="equals">
+                      {t('settings.predicate-editor.equals', 'equals')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {clause.is !== 'equals' ? null : named !== undefined && named.options.length > 0 ? (
@@ -240,11 +280,13 @@ export function PredicateEditor({
                     }}
                   >
                     <SelectTrigger
-                      aria-label={`${n}: the value`}
+                      aria-label={t('settings.predicate-editor.the_value', '{{n}}: the value', {
+                        n,
+                      })}
                       size="sm"
                       className="w-auto min-w-32"
                     >
-                      <SelectValue placeholder="Choose" />
+                      <SelectValue placeholder={t('settings.predicate-editor.choose', 'Choose')} />
                     </SelectTrigger>
                     <SelectContent>
                       {named.options.map((option) => (
@@ -256,7 +298,7 @@ export function PredicateEditor({
                   </Select>
                 ) : (
                   <Input
-                    aria-label={`${n}: the value`}
+                    aria-label={t('settings.predicate-editor.the_value', '{{n}}: the value', { n })}
                     className="w-40"
                     maxLength={200}
                     value={clause.equals ?? ''}
@@ -268,10 +310,10 @@ export function PredicateEditor({
               </div>
             ) : (
               <Combobox
-                label={`${n}: is one of`}
+                label={t('settings.predicate-editor.is_one_of', '{{n}}: is one of', { n })}
                 multiple
                 size="sm"
-                placeholder="Choose values"
+                placeholder={t('settings.predicate-editor.choose_values', 'Choose values')}
                 options={listed(clause.operand)}
                 value={clause.in}
                 onChange={(next) => {
@@ -295,7 +337,7 @@ export function PredicateEditor({
               onChange({ ...value, clauses: [...value.clauses, fresh('country')] });
             }}
           >
-            Add a condition
+            {t('settings.predicate-editor.add_a_condition', 'Add a condition')}
           </Button>
         </div>
       ) : null}

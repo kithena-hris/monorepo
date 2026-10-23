@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState, type JSX } from 'react';
 import { nextSequence, sequenceKey, tokenFromFragment, tokenKey } from '../lib/kiosk';
 import { AREAS, remotePath } from '../lib/remotes';
 import { RemoteScreen } from './remote-screen';
+import { t } from '../lib/t';
 
 /**
  * The kiosk at `/kiosk/<id>` (TOF-108): its own full screen, no sidebar and
@@ -138,7 +139,10 @@ export function KioskShell({ deviceId }: { readonly deviceId: string }): JSX.Ele
   if (token === undefined) {
     return (
       <main className="grid min-h-dvh place-items-center bg-canvas">
-        <Spinner size="lg" label="Starting the kiosk" />
+        <Spinner
+          size="lg"
+          label={t('components.kiosk-shell.starting_the_kiosk', 'Starting the kiosk')}
+        />
       </main>
     );
   }
@@ -156,15 +160,25 @@ export function KioskShell({ deviceId }: { readonly deviceId: string }): JSX.Ele
             setToken(given);
           }}
         >
-          <h1 className="font-display text-2xl font-bold tracking-tight">Set up this kiosk</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">
+            {t('components.kiosk-shell.set_up_this_kiosk', 'Set up this kiosk')}
+          </h1>
           {refused ? (
-            <Alert tone="danger" title="This kiosk’s token no longer works">
-              HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations,
-              and paste the new token here.
+            <Alert
+              tone="danger"
+              title={t(
+                'components.kiosk-shell.this_kiosks_token_no_longer_works',
+                'This kiosk’s token no longer works',
+              )}
+            >
+              {t(
+                'components.kiosk-shell.hr_may_have_revoked_it_register',
+                'HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.',
+              )}
             </Alert>
           ) : null}
           <Field>
-            <FieldLabel>Kiosk token</FieldLabel>
+            <FieldLabel>{t('components.kiosk-shell.kiosk_token', 'Kiosk token')}</FieldLabel>
             <FieldControl>
               <Input
                 value={typed}
@@ -176,11 +190,14 @@ export function KioskShell({ deviceId }: { readonly deviceId: string }): JSX.Ele
               />
             </FieldControl>
             <FieldDescription>
-              Shown once to HR when the kiosk was registered. It starts with kk_.
+              {t(
+                'components.kiosk-shell.shown_once_to_hr_when_the',
+                'Shown once to HR when the kiosk was registered. It starts with kk_.',
+              )}
             </FieldDescription>
           </Field>
           <Button type="submit" variant="primary">
-            Start the kiosk
+            {t('components.kiosk-shell.start_the_kiosk', 'Start the kiosk')}
           </Button>
         </form>
       </main>
@@ -195,7 +212,10 @@ export function KioskShell({ deviceId }: { readonly deviceId: string }): JSX.Ele
       props={{ place, online, onIdentify, onPunch }}
       fallback={
         <main className="grid min-h-dvh place-items-center bg-canvas">
-          <Spinner size="lg" label="Starting the kiosk" />
+          <Spinner
+            size="lg"
+            label={t('components.kiosk-shell.starting_the_kiosk', 'Starting the kiosk')}
+          />
         </main>
       }
     />

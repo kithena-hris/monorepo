@@ -5,6 +5,7 @@ import type { Outcome } from '../load';
 import { AiTag, swapWords, type Alternative, type DecisionData } from '../approvals/decision';
 import { impactOf } from '../approvals/suggest';
 import { dayCount, dayName, firstName, shortDate, spanLabel, type Range } from '../approvals/words';
+import { t } from '../i18n';
 
 /**
  * A clash, and how to solve it (T15, §9.6): a request that would take the
@@ -55,13 +56,18 @@ export function ClashCard({
   };
   return (
     <AssistantCard
-      title={`${shortDate(worst.date)} is below the team minimum`}
+      title={t('calendar.clash.is_below_the_team_minimum', '{{date}} is below the team minimum', {
+        date: shortDate(worst.date),
+      })}
       action={data.clash?.ai === true ? <AiTag /> : undefined}
-      note="Approved time off is never moved without the person agreeing."
+      note={t(
+        'calendar.clash.approved_time_off_is_never_moved',
+        'Approved time off is never moved without the person agreeing.',
+      )}
     >
       {data.clash === null ? null : <p className="text-sm text-fg-muted">{data.clash.text}</p>}
       <RadioGroup
-        aria-label="Ways to solve it"
+        aria-label={t('calendar.clash.ways_to_solve_it', 'Ways to solve it')}
         value={choice}
         onValueChange={(value) => {
           setChoice(value);
@@ -79,7 +85,7 @@ export function ClashCard({
               ? {
                   badge: (
                     <Badge tone="assistant" size="sm">
-                      Suggested
+                      {t('calendar.clash.suggested', 'Suggested')}
                     </Badge>
                   ),
                 }
@@ -92,7 +98,7 @@ export function ClashCard({
       {said === null ? null : (
         <Alert
           tone={said.ok ? 'success' : 'danger'}
-          title={said.ok ? said.text : 'Nothing changed'}
+          title={said.ok ? said.text : t('calendar.clash.nothing_changed', 'Nothing changed')}
         >
           {said.ok ? undefined : said.text}
         </Alert>
@@ -108,13 +114,19 @@ export function ClashCard({
             }}
           >
             {picked.kind === 'swap_days'
-              ? `Suggest the swap to ${who}`
-              : `Suggest these dates to ${who}`}
+              ? t('calendar.clash.suggest_the_swap_to', 'Suggest the swap to {{who}}', { who })
+              : t('calendar.clash.suggest_these_dates_to', 'Suggest these dates to {{who}}', {
+                  who,
+                })}
           </Button>
         ) : null}
         {picked?.affects === 'teammate' && picked.teammate !== null ? (
           <p className="text-sm text-fg-muted">
-            {`Ask ${firstName(picked.teammate.displayName)} yourself. Kithena never moves approved time off.`}
+            {t(
+              'calendar.clash.ask_yourself_kithena_never_moves_approved',
+              'Ask {{firstName}} yourself. Kithena never moves approved time off.',
+              { firstName: firstName(picked.teammate.displayName) },
+            )}
           </p>
         ) : null}
         <Button
@@ -122,7 +134,9 @@ export function ClashCard({
           disabled={onDecide === undefined || pending}
           onClick={approve}
         >
-          {picked?.affects === 'nobody' ? 'Approve as asked' : 'Approve anyway'}
+          {picked?.affects === 'nobody'
+            ? t('calendar.clash.approve_as_asked', 'Approve as asked')
+            : t('calendar.clash.approve_anyway', 'Approve anyway')}
         </Button>
       </div>
     </AssistantCard>
@@ -133,35 +147,58 @@ function titleOf(option: Alternative, who: string): string {
   switch (option.kind) {
     case 'swap_days':
       return option.swapped === null
-        ? `Ask ${who} to move a day`
-        : `Ask ${who} to swap ${swapWords(option.swapped)}`;
+        ? t('calendar.clash.ask_to_move_a_day', 'Ask {{who}} to move a day', { who })
+        : t('calendar.clash.ask_to_swap', 'Ask {{who}} to swap {{swapWords}}', {
+            who,
+            swapWords: swapWords(option.swapped),
+          });
     case 'next_clean_week':
-      return `Ask ${who} to take ${spanLabel(option.dates[0] ?? '', option.dates.at(-1) ?? '')}`;
+      return t('calendar.clash.ask_to_take', 'Ask {{who}} to take {{spanLabel}}', {
+        who,
+        spanLabel: spanLabel(option.dates[0] ?? '', option.dates.at(-1) ?? ''),
+      });
     case 'approve_as_asked':
-      return 'Approve as asked';
+      return t('calendar.clash.approve_as_asked', 'Approve as asked');
     case 'ask_teammate':
-      return `Ask ${firstName(option.teammate?.displayName ?? 'a teammate')} to move ${
-        option.absence === null
-          ? 'their time off'
-          : spanLabel(option.absence.from, option.absence.to)
-      }`;
+      return t('calendar.clash.ask_to_move', 'Ask {{firstName}} to move {{value}}', {
+        firstName: firstName(
+          option.teammate?.displayName ?? t('calendar.clash.a_teammate', 'a teammate'),
+        ),
+        value:
+          option.absence === null
+            ? 'their time off'
+            : spanLabel(option.absence.from, option.absence.to),
+      });
   }
 }
 
 function describe(option: Alternative, who: string): string {
   switch (option.kind) {
     case 'swap_days':
-      return `${who} keeps ${dayCount(String(option.dates.length))}.`;
+      return t('calendar.clash.keeps', '{{who}} keeps {{dayCount}}.', {
+        who,
+        dayCount: dayCount(String(option.dates.length)),
+      });
     case 'next_clean_week':
-      return 'A clean week, with nobody else short.';
+      return t(
+        'calendar.clash.a_clean_week_with_nobody_else',
+        'A clean week, with nobody else short.',
+      );
     case 'approve_as_asked': {
       const short = option.coverage.filter((c) => c.below);
       return short.length === 0
-        ? 'Nobody falls short.'
-        : `Fine if ${String(short[0]?.in ?? 0)} people can cover on ${dayName(short[0]?.date ?? '')}.`;
+        ? t('calendar.clash.nobody_falls_short', 'Nobody falls short.')
+        : t(
+            'calendar.clash.fine_if_people_can_cover_on',
+            'Fine if {{value}} people can cover on {{dayName}}.',
+            { value: String(short[0]?.in ?? 0), dayName: dayName(short[0]?.date ?? '') },
+          );
     }
     case 'ask_teammate':
-      return 'Their time off was approved first, so this only works if they offer.';
+      return t(
+        'calendar.clash.their_time_off_was_approved_first',
+        'Their time off was approved first, so this only works if they offer.',
+      );
   }
 }
 
@@ -169,10 +206,10 @@ function impact(option: Alternative, who: string): string {
   switch (option.kind) {
     case 'swap_days':
     case 'next_clean_week':
-      return `Fixes it · ${who} decides`;
+      return t('calendar.clash.fixes_it_decides', 'Fixes it · {{who}} decides', { who });
     case 'approve_as_asked':
       return impactOf(option.coverage);
     case 'ask_teammate':
-      return 'Fixes it · asks someone else';
+      return t('calendar.clash.fixes_it_asks_someone_else', 'Fixes it · asks someone else');
   }
 }

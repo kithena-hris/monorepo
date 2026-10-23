@@ -46,6 +46,7 @@ import {
   type Act,
 } from './shared';
 import type { ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * Goals (PRD §14; design PF18 v2): mine, my team's and the company's as a
@@ -72,9 +73,9 @@ interface GoalRow {
 
 /** Who sees a goal (§14.2), private until made public. */
 const VISIBILITY = [
-  ['owner', 'Only the owner and their managers'],
-  ['team', 'Their team and managers too'],
-  ['everyone', 'Everyone at the company'],
+  ['owner', t('goals.only_the_owner_and_their_managers', 'Only the owner and their managers')],
+  ['team', t('goals.their_team_and_managers_too', 'Their team and managers too')],
+  ['everyone', t('goals.everyone_at_the_company', 'Everyone at the company')],
 ] as const;
 const visibleTo = (v: string): string => VISIBILITY.find(([k]) => k === v)?.[1] ?? v;
 
@@ -100,16 +101,16 @@ export interface GoalsData {
 }
 
 const STATUS = [
-  ['', 'All'],
-  ['active', 'Active'],
-  ['draft', 'Draft'],
-  ['completed', 'Completed'],
-  ['missed', 'Missed'],
-  ['cancelled', 'Cancelled'],
+  ['', t('goals.all', 'All')],
+  ['active', t('goals.active', 'Active')],
+  ['draft', t('goals.draft', 'Draft')],
+  ['completed', t('goals.completed', 'Completed')],
+  ['missed', t('goals.missed', 'Missed')],
+  ['cancelled', t('goals.cancelled', 'Cancelled')],
 ] as const;
 
 function ConfidenceBadge({ value }: { readonly value: string }): JSX.Element {
-  const [label, tone] = CONFIDENCE[value] ?? ['On track', 'success'];
+  const [label, tone] = CONFIDENCE[value] ?? [t('goals.on_track', 'On track'), 'success'];
   return (
     <Badge size="sm" tone={tone}>
       {label}
@@ -128,7 +129,7 @@ function goalColumns(
   return [
     {
       id: 'goal',
-      header: 'Goal',
+      header: t('goals.goal', 'Goal'),
       sortBy: (g) => g.title,
       cell: (g) => (
         <>
@@ -136,29 +137,38 @@ function goalColumns(
             {g.title}
           </To>
           {g.alignedTo === null ? null : (
-            <span className="block text-xs text-fg-muted">{`Aligned to ${g.alignedTo}`}</span>
+            <span className="block text-xs text-fg-muted">
+              {t('goals.aligned_to', 'Aligned to {{alignedTo}}', { alignedTo: g.alignedTo })}
+            </span>
           )}
         </>
       ),
     },
     {
       id: 'owner',
-      header: 'Owner',
+      header: t('goals.owner', 'Owner'),
       sortBy: (g) => g.owner,
       cell: (g) => <span className="text-sm">{g.owner}</span>,
     },
     {
       id: 'progress',
-      header: 'Progress',
+      header: t('goals.progress', 'Progress'),
       width: '10rem',
       sortBy: (g) => g.progress,
       cell: (g) => (
-        <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} showValue />
+        <Progress
+          value={g.progress}
+          label={t('goals.text', '{{title}}: {{progress}}%', {
+            title: g.title,
+            progress: String(g.progress),
+          })}
+          showValue
+        />
       ),
     },
     {
       id: 'confidence',
-      header: 'Confidence',
+      header: t('goals.confidence', 'Confidence'),
       cardTrailing: true,
       sortBy: (g) => (g.status === 'active' ? g.confidence : g.status),
       cell: (g) =>
@@ -172,7 +182,7 @@ function goalColumns(
       ? [
           {
             id: 'weight',
-            header: 'Weight',
+            header: t('goals.weight', 'Weight'),
             numeric: true,
             sortBy: (g: GoalRow) => g.weight ?? 0,
             cell: (g: GoalRow) => (
@@ -198,8 +208,11 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title="Goals"
-              description="What each person, team and the company is working towards this period, and how far along it is."
+              title={t('goals.goals', 'Goals')}
+              description={t(
+                'goals.what_each_person_team_and_the',
+                'What each person, team and the company is working towards this period, and how far along it is.',
+              )}
               actions={
                 data.may.create ? (
                   <Button
@@ -208,7 +221,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
                       setCreating(true);
                     }}
                   >
-                    New goal
+                    {t('goals.new_goal', 'New goal')}
                   </Button>
                 ) : null
               }
@@ -216,7 +229,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
             <div className="flex flex-wrap items-end gap-3">
               <div className="w-48">
                 <Choose
-                  label="Period"
+                  label={t('goals.period', 'Period')}
                   value={data.period ?? ''}
                   options={data.periods.map((p) => [p.id, p.name] as const)}
                   onChange={(v) => {
@@ -224,7 +237,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
                   }}
                 />
               </div>
-              <ChipRow aria-label="Status">
+              <ChipRow aria-label={t('goals.status', 'Status')}>
                 {STATUS.map(([v, l]) => (
                   <Chip
                     key={v}
@@ -239,26 +252,37 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
               </ChipRow>
             </div>
             {data.due.length === 0 ? null : (
-              <Alert tone="info" title={`${plural(data.due.length, 'check-in')} due`}>
+              <Alert
+                tone="info"
+                title={t('goals.due', '{{length}} due', {
+                  length: plural(data.due.length, 'check-in'),
+                })}
+              >
                 {data.due.map((g) => g.title).join(' · ')}
               </Alert>
             )}
             {data.scope === 'mine' && data.weighted ? (
               <div className="grid gap-3 sm:grid-cols-3">
                 <Stat
-                  label="Goal score"
+                  label={t('goals.goal_score', 'Goal score')}
                   value={data.score === null ? '—' : `${String(data.score)}%`}
-                  description="Weighted progress, computed"
+                  description={t('goals.weighted_progress_computed', 'Weighted progress, computed')}
                 />
                 <Stat
-                  label="Weights"
+                  label={t('goals.weights', 'Weights')}
                   value={`${String(weight)}%`}
                   description={
-                    weight === 100 ? 'Committed set adds up' : 'A committed set adds up to 100%'
+                    weight === 100
+                      ? t('goals.committed_set_adds_up', 'Committed set adds up')
+                      : t('goals.a_committed_set_adds_up_to', 'A committed set adds up to 100%')
                   }
                   {...(weight === 100 ? {} : { sentiment: 'negative' as const })}
                 />
-                <Stat label="Goals" value={String(data.rows.length)} description="This period" />
+                <Stat
+                  label={t('goals.goals', 'Goals')}
+                  value={String(data.rows.length)}
+                  description={t('goals.this_period', 'This period')}
+                />
               </div>
             ) : null}
             {data.tab === 'alignment' ? (
@@ -266,12 +290,15 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
             ) : rows.length === 0 ? (
               <EmptyState
                 icon={<icons.goal aria-hidden />}
-                title="No goals here"
-                description="A goal has at least one key result; its progress is worked out from them."
+                title={t('goals.no_goals_here', 'No goals here')}
+                description={t(
+                  'goals.a_goal_has_at_least_one',
+                  'A goal has at least one key result; its progress is worked out from them.',
+                )}
               />
             ) : (
               <DataTable<GoalRow>
-                label="Goals"
+                label={t('goals.goals', 'Goals')}
                 rows={rows}
                 rowId={goalId}
                 describeRow={goalTitle}
@@ -316,7 +343,13 @@ function Tree({
         <span className="flex items-center gap-3">
           <span className="text-sm text-fg-muted">{g.owner}</span>
           <span className="w-24">
-            <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} />
+            <Progress
+              value={g.progress}
+              label={t('goals.text', '{{title}}: {{progress}}%', {
+                title: g.title,
+                progress: String(g.progress),
+              })}
+            />
           </span>
           <ConfidenceBadge value={g.confidence} />
         </span>
@@ -328,10 +361,12 @@ function Tree({
     <Card>
       <CardContent>
         {roots.length === 0 ? (
-          <p className="text-sm text-fg-muted">No goals in this period yet.</p>
+          <p className="text-sm text-fg-muted">
+            {t('goals.no_goals_in_this_period_yet', 'No goals in this period yet.')}
+          </p>
         ) : (
           <TreeView
-            label="Goals"
+            label={t('goals.goals', 'Goals')}
             items={roots}
             defaultExpanded={rows.map((r) => r.id)}
             onSelectedChange={(id) => {
@@ -345,10 +380,10 @@ function Tree({
 }
 
 const MEASURES = [
-  ['number', 'Number'],
-  ['percentage', 'Percentage'],
-  ['currency', 'Amount'],
-  ['done', 'Done or not'],
+  ['number', t('goals.number', 'Number')],
+  ['percentage', t('goals.percentage', 'Percentage')],
+  ['currency', t('goals.amount', 'Amount')],
+  ['done', t('goals.done_or_not', 'Done or not')],
 ] as const;
 
 interface KrDraft {
@@ -401,8 +436,12 @@ function NewGoal({
       open
       wide
       onClose={onClose}
-      title="New goal"
-      steps={['Goal', 'Measure', 'Align and share']}
+      title={t('goals.new_goal', 'New goal')}
+      steps={[
+        t('goals.goal', 'Goal'),
+        t('goals.measure', 'Measure'),
+        t('goals.align_and_share', 'Align and share'),
+      ]}
       step={step}
       onStep={setStep}
       pending={act.pending}
@@ -442,17 +481,17 @@ function NewGoal({
       {step === 0 ? (
         <div className="flex flex-col gap-3">
           <Field required>
-            <FieldLabel>Goal</FieldLabel>
+            <FieldLabel>{t('goals.goal', 'Goal')}</FieldLabel>
             <Input
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
               }}
-              placeholder="Cut checkout latency"
+              placeholder={t('goals.cut_checkout_latency', 'Cut checkout latency')}
             />
           </Field>
           <Field>
-            <FieldLabel>Why it matters</FieldLabel>
+            <FieldLabel>{t('goals.why_it_matters', 'Why it matters')}</FieldLabel>
             <Textarea
               autoResize
               value={description}
@@ -462,22 +501,22 @@ function NewGoal({
             />
           </Field>
           <Choose
-            label="Period"
+            label={t('goals.period', 'Period')}
             value={periodId}
             options={data.periods.map((p) => [p.id, p.name] as const)}
             onChange={setPeriodId}
           />
           {data.may.company ? (
             <RadioGroup
-              aria-label="Whose goal"
+              aria-label={t('goals.whose_goal', 'Whose goal')}
               className="flex flex-col gap-2"
               value={ownerKind}
               onValueChange={(v) => {
                 setOwnerKind(v === 'company' ? 'company' : 'person');
               }}
             >
-              <RadioCard value="person">Mine</RadioCard>
-              <RadioCard value="company">The company’s</RadioCard>
+              <RadioCard value="person">{t('goals.mine', 'Mine')}</RadioCard>
+              <RadioCard value="company">{t('goals.the_companys', 'The company’s')}</RadioCard>
             </RadioGroup>
           ) : null}
         </div>
@@ -488,17 +527,19 @@ function NewGoal({
             <Card key={`kr-${String(i)}`}>
               <CardContent className="flex flex-col gap-3">
                 <Field required>
-                  <FieldLabel>{`Key result ${String(i + 1)}`}</FieldLabel>
+                  <FieldLabel>
+                    {t('goals.key_result', 'Key result {{value}}', { value: String(i + 1) })}
+                  </FieldLabel>
                   <Input
                     value={k.title}
                     onChange={(e) => {
                       setKr(i, { title: e.target.value });
                     }}
-                    placeholder="p95 under 300 ms"
+                    placeholder={t('goals.p95_under_300_ms', 'p95 under 300 ms')}
                   />
                 </Field>
                 <Choose
-                  label="Measured by"
+                  label={t('goals.measured_by', 'Measured by')}
                   value={k.measure}
                   options={MEASURES}
                   onChange={(v) => {
@@ -508,21 +549,21 @@ function NewGoal({
                 {k.measure === 'done' ? null : (
                   <div className="flex flex-col gap-4">
                     <NumberField
-                      label="Start"
+                      label={t('goals.start', 'Start')}
                       value={k.start}
                       onChange={(v) => {
                         setKr(i, { start: v ?? 0, current: v ?? 0 });
                       }}
                     />
                     <NumberField
-                      label="Target"
+                      label={t('goals.target', 'Target')}
                       value={k.target}
                       onChange={(v) => {
                         setKr(i, { target: v ?? 0 });
                       }}
                     />
                     <Field>
-                      <FieldLabel>Unit</FieldLabel>
+                      <FieldLabel>{t('goals.unit', 'Unit')}</FieldLabel>
                       <Input
                         value={k.unit ?? ''}
                         onChange={(e) => {
@@ -542,7 +583,7 @@ function NewGoal({
                       setKrs(krs.filter((_, j) => j !== i));
                     }}
                   >
-                    Remove
+                    {t('goals.remove', 'Remove')}
                   </Button>
                 ) : null}
               </CardContent>
@@ -569,27 +610,39 @@ function NewGoal({
               ]);
             }}
           >
-            Add a key result
+            {t('goals.add_a_key_result', 'Add a key result')}
           </Button>
         </div>
       ) : null}
       {step === 2 ? (
         <div className="flex flex-col gap-3">
           <Choose
-            label="Aligned to"
+            label={t('goals.aligned_to_2', 'Aligned to')}
             value={parentId}
             options={[
-              ['none', 'Nothing'],
+              ['none', t('goals.nothing', 'Nothing')],
               ...data.tree
                 .filter((g) => g.periodId === periodId)
-                .map((g) => [g.id, `${g.title} · ${g.owner}`] as const),
+                .map(
+                  (g) =>
+                    [
+                      g.id,
+                      t('goals.text_2', '{{title}} · {{owner}}', {
+                        title: g.title,
+                        owner: g.owner,
+                      }),
+                    ] as const,
+                ),
             ]}
             onChange={setParentId}
           />
           {data.weighted && ownerKind === 'person' ? (
             <NumberField
-              label="Weight"
-              hint="Your goals for the period add up to 100%"
+              label={t('goals.weight', 'Weight')}
+              hint={t(
+                'goals.your_goals_for_the_period_add',
+                'Your goals for the period add up to 100%',
+              )}
               suffix="%"
               value={weight}
               min={0}
@@ -598,16 +651,21 @@ function NewGoal({
             />
           ) : null}
           <SwitchRow
-            label="Aspirational"
-            hint="A stretch: missing it is expected some of the time"
+            label={t('goals.aspirational', 'Aspirational')}
+            hint={t(
+              'goals.a_stretch_missing_it_is_expected',
+              'A stretch: missing it is expected some of the time',
+            )}
             checked={aspirational}
             onChange={setAspirational}
           />
           {ownerKind === 'company' ? (
-            <p className="text-sm text-fg-muted">A company goal is visible to everyone.</p>
+            <p className="text-sm text-fg-muted">
+              {t('goals.a_company_goal_is_visible_to', 'A company goal is visible to everyone.')}
+            </p>
           ) : (
             <RadioGroup
-              aria-label="Who can see it"
+              aria-label={t('goals.who_can_see_it', 'Who can see it')}
               value={visibility}
               onValueChange={setVisibility}
             >
@@ -666,7 +724,11 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={g.title}
-              description={`${g.owner} · ${data.period?.name ?? ''}${g.alignedTo === null ? '' : ` · aligned to ${g.alignedTo}`}`}
+              description={t('goals.text_3', '{{owner}} · {{value}}{{value2}}', {
+                owner: g.owner,
+                value: data.period?.name ?? '',
+                value2: g.alignedTo === null ? '' : ` · aligned to ${g.alignedTo}`,
+              })}
               actions={
                 <>
                   {data.may.checkIn ? (
@@ -675,7 +737,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                         setChecking(true);
                       }}
                     >
-                      Check in
+                      {t('goals.check_in', 'Check in')}
                     </Button>
                   ) : null}
                   {data.may.edit && g.status === 'active' ? (
@@ -690,7 +752,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                           });
                         }}
                       >
-                        Complete
+                        {t('goals.complete', 'Complete')}
                       </Button>
                       <Button
                         variant="ghost"
@@ -702,7 +764,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                           });
                         }}
                       >
-                        Cancel goal
+                        {t('goals.cancel_goal', 'Cancel goal')}
                       </Button>
                     </>
                   ) : null}
@@ -714,7 +776,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
               <div className="flex flex-col gap-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle level={2}>Key results</CardTitle>
+                    <CardTitle level={2}>{t('goals.key_results', 'Key results')}</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4">
                     {g.keyResults.map((k) => (
@@ -724,12 +786,22 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                           <span className="text-fg-muted">
                             {k.measure === 'done'
                               ? k.current >= 1
-                                ? 'Done'
-                                : 'Not done'
-                              : `${String(k.current)} of ${String(k.target)}${k.unit === null ? '' : ` ${k.unit}`}`}
+                                ? t('goals.done', 'Done')
+                                : t('goals.not_done', 'Not done')
+                              : t('goals.of', '{{current}} of {{target}}{{value}}', {
+                                  current: String(k.current),
+                                  target: String(k.target),
+                                  value: k.unit === null ? '' : ` ${k.unit}`,
+                                })}
                           </span>
                         </span>
-                        <Progress value={k.progress} label={`${k.title}: ${String(k.progress)}%`} />
+                        <Progress
+                          value={k.progress}
+                          label={t('goals.text', '{{title}}: {{progress}}%', {
+                            title: k.title,
+                            progress: String(k.progress),
+                          })}
+                        />
                       </div>
                     ))}
                   </CardContent>
@@ -737,11 +809,11 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                 {data.checkIns.length < 2 ? null : (
                   <Card>
                     <CardHeader>
-                      <CardTitle level={2}>Check-ins</CardTitle>
+                      <CardTitle level={2}>{t('goals.check_ins', 'Check-ins')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <TrendChart
-                        label="Progress at each check-in"
+                        label={t('goals.progress_at_each_check_in', 'Progress at each check-in')}
                         format={(v) => `${String(v)}%`}
                         series={g.keyResults.map((k) => ({
                           label: k.title,
@@ -760,11 +832,13 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                 )}
                 <Card>
                   <CardHeader>
-                    <CardTitle level={2}>History</CardTitle>
+                    <CardTitle level={2}>{t('goals.history', 'History')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {data.checkIns.length === 0 ? (
-                      <p className="text-sm text-fg-muted">No check-ins yet.</p>
+                      <p className="text-sm text-fg-muted">
+                        {t('goals.no_check_ins_yet', 'No check-ins yet.')}
+                      </p>
                     ) : (
                       <Timeline>
                         {data.checkIns.map((c, i) => (
@@ -793,27 +867,36 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                   <KeyValues
                     layout="split"
                     items={[
-                      { label: 'Progress', value: `${String(g.progress)}%` },
-                      { label: 'Confidence', value: <ConfidenceBadge value={g.confidence} /> },
-                      { label: 'Owner', value: g.owner },
+                      { label: t('goals.progress', 'Progress'), value: `${String(g.progress)}%` },
                       {
-                        label: 'Period',
+                        label: t('goals.confidence', 'Confidence'),
+                        value: <ConfidenceBadge value={g.confidence} />,
+                      },
+                      { label: t('goals.owner', 'Owner'), value: g.owner },
+                      {
+                        label: t('goals.period', 'Period'),
                         value:
                           data.period === null
                             ? '—'
                             : `${day(data.period.from)} – ${day(data.period.to)}`,
                       },
-                      { label: 'Next check-in', value: day(data.nextCheckIn) },
-                      { label: 'Weight', value: g.weight === null ? '—' : `${String(g.weight)}%` },
                       {
-                        label: 'Commitment',
+                        label: t('goals.next_check_in', 'Next check-in'),
+                        value: day(data.nextCheckIn),
+                      },
+                      {
+                        label: t('goals.weight', 'Weight'),
+                        value: g.weight === null ? '—' : `${String(g.weight)}%`,
+                      },
+                      {
+                        label: t('goals.commitment', 'Commitment'),
                         value: g.commitment === 'aspirational' ? 'Aspirational' : 'Committed',
                       },
                       {
-                        label: 'Visible to',
+                        label: t('goals.visible_to', 'Visible to'),
                         value: data.may.edit ? (
                           <Choose
-                            label="Visible to"
+                            label={t('goals.visible_to', 'Visible to')}
                             value={g.visibility}
                             options={VISIBILITY}
                             onChange={(v) => {
@@ -831,14 +914,19 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                   />
                   {data.children.length === 0 ? null : (
                     <div className="mt-4 flex flex-col gap-1">
-                      <p className="text-sm font-semibold">Aligned to this</p>
+                      <p className="text-sm font-semibold">
+                        {t('goals.aligned_to_this', 'Aligned to this')}
+                      </p>
                       {data.children.map((c) => (
                         <To
                           key={c.id}
                           href={`/performance/goals/${c.id}`}
                           onNavigate={props.onNavigate}
                         >
-                          {`${c.title} · ${c.owner}`}
+                          {t('goals.text_2', '{{title}} · {{owner}}', {
+                            title: c.title,
+                            owner: c.owner,
+                          })}
                         </To>
                       ))}
                     </div>
@@ -880,12 +968,15 @@ function CheckIn({
     <Modal
       open
       onClose={onClose}
-      title={`Check in on ${data.goal.title}`}
-      description="Where each key result stands today; progress is worked out from it."
+      title={t('goals.check_in_on', 'Check in on {{title}}', { title: data.goal.title })}
+      description={t(
+        'goals.where_each_key_result_stands_today',
+        'Where each key result stands today; progress is worked out from it.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('goals.cancel', 'Cancel')}
           </Button>
           <Button
             loading={act.pending}
@@ -900,7 +991,7 @@ function CheckIn({
               );
             }}
           >
-            Check in
+            {t('goals.check_in', 'Check in')}
           </Button>
         </>
       }
@@ -920,7 +1011,10 @@ function CheckIn({
           <NumberField
             key={k.id}
             label={k.title}
-            hint={`From ${String(k.start)} to ${String(k.target)}`}
+            hint={t('goals.from_to', 'From {{start}} to {{target}}', {
+              start: String(k.start),
+              target: String(k.target),
+            })}
             value={values[k.id] ?? k.current}
             onChange={(v) => {
               if (v !== null) setValues({ ...values, [k.id]: v });
@@ -930,17 +1024,17 @@ function CheckIn({
         ),
       )}
       <RadioGroup
-        aria-label="Confidence"
+        aria-label={t('goals.confidence', 'Confidence')}
         className="flex flex-col gap-2"
         value={confidence}
         onValueChange={setConfidence}
       >
-        <RadioCard value="on_track">On track</RadioCard>
-        <RadioCard value="at_risk">At risk</RadioCard>
-        <RadioCard value="off_track">Off track</RadioCard>
+        <RadioCard value="on_track">{t('goals.on_track', 'On track')}</RadioCard>
+        <RadioCard value="at_risk">{t('goals.at_risk', 'At risk')}</RadioCard>
+        <RadioCard value="off_track">{t('goals.off_track', 'Off track')}</RadioCard>
       </RadioGroup>
       <Field>
-        <FieldLabel>Note</FieldLabel>
+        <FieldLabel>{t('goals.note', 'Note')}</FieldLabel>
         <Textarea
           autoResize
           value={note}

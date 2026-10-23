@@ -15,6 +15,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * A new manager, confirmed before it is saved, wherever HR sets one: the
@@ -133,14 +134,20 @@ function ManagerChangeConfirm({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {when === undefined
-              ? 'They report to the person you chose from now on, and who may see their record follows.'
+              ? t(
+                  'record.manager-change.they_report_to_the_person_you',
+                  'They report to the person you chose from now on, and who may see their record follows.',
+                )
               : `They report to the person you chose from ${when}; whatever you choose here happens then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-5">
           {questions === null ? (
             <p className="text-sm text-fg-muted" aria-live="polite">
-              Checking what else this touches…
+              {t(
+                'record.manager-change.checking_what_else_this_touches',
+                'Checking what else this touches…',
+              )}
             </p>
           ) : (
             questions.map((q) => (
@@ -172,17 +179,15 @@ function ManagerChangeConfirm({
               onDone(null);
             }}
           >
-            Cancel
+            {t('record.manager-change.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={questions === null}
             onClick={() => {
-              onDone(
-                Object.fromEntries((questions ?? []).map((q) => [q.id, chosen(q)] as const)),
-              );
+              onDone(Object.fromEntries((questions ?? []).map((q) => [q.id, chosen(q)] as const)));
             }}
           >
-            Change manager
+            {t('record.manager-change.change_manager', 'Change manager')}
           </Button>
         </DialogFooter>
       </DialogContent>

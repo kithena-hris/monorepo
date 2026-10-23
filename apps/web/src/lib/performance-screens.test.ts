@@ -34,7 +34,10 @@ describe('a cycle being set up', () => {
     const load = await loadScreen('Setup', { params: { id: 'c1' }, search: {} }, '/setup');
     expect(load).toEqual({
       status: 'ready',
-      data: { id: 'c1', places: { locations: { l1: 'Rotterdam' }, entities: { e1: 'Meridian BV' } } },
+      data: {
+        id: 'c1',
+        places: { locations: { l1: 'Rotterdam' }, entities: { e1: 'Meridian BV' } },
+      },
     });
   });
 });

@@ -40,6 +40,7 @@ import {
   type Act,
 } from './shared';
 import type { ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Automations (PRD §16; design PF16 v2): cycles made on a calendar or from an
@@ -106,9 +107,9 @@ export interface AutomationsData {
 
 const KINDS = ['self', 'manager', 'peer', 'upward', 'goals'] as const;
 const SKIP = [
-  ['on_leave', 'On long leave'],
-  ['in_review', 'Already in a cycle'],
-  ['probation', 'On probation'],
+  ['on_leave', tr('automations.on_long_leave', 'On long leave')],
+  ['in_review', tr('automations.already_in_a_cycle', 'Already in a cycle')],
+  ['probation', tr('automations.on_probation', 'On probation')],
 ] as const;
 
 export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
@@ -119,8 +120,11 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Automations"
-            description="Cycles that make themselves: every half, or a set time after someone starts. Each is created as a scheduled cycle you can still change."
+            title={tr('automations.automations', 'Automations')}
+            description={tr(
+              'automations.cycles_that_make_themselves_every_half',
+              'Cycles that make themselves: every half, or a set time after someone starts. Each is created as a scheduled cycle you can still change.',
+            )}
             actions={
               <Button
                 startIcon={<icons.add aria-hidden />}
@@ -128,17 +132,31 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
                   setCreating(true);
                 }}
               >
-                New automation
+                {tr('automations.new_automation', 'New automation')}
               </Button>
             }
           />
           <Refusal error={act.error} />
           {data.overlaps.length === 0 ? null : (
-            <Alert tone="warning" title="Some people would be in two cycles at once">
+            <Alert
+              tone="warning"
+              title={tr(
+                'automations.some_people_would_be_in_two',
+                'Some people would be in two cycles at once',
+              )}
+            >
               {data.overlaps
-                .map(
-                  (o) =>
-                    `${o.automation} from ${day(o.from)} overlaps ${o.cycle} for ${plural(o.people, 'person', 'people')}`,
+                .map((o) =>
+                  tr(
+                    'automations.from_overlaps_for',
+                    '{{automation}} from {{from}} overlaps {{cycle}} for {{people}}',
+                    {
+                      automation: o.automation,
+                      from: day(o.from),
+                      cycle: o.cycle,
+                      people: plural(o.people, 'person', 'people'),
+                    },
+                  ),
                 )
                 .join(' · ')}
             </Alert>
@@ -148,18 +166,21 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.system aria-hidden />}
-                  title="No automations"
-                  description="Probation reviews, quarterly check-ins and half-yearly cycles can run on their own."
+                  title={tr('automations.no_automations', 'No automations')}
+                  description={tr(
+                    'automations.probation_reviews_quarterly_check_ins_and',
+                    'Probation reviews, quarterly check-ins and half-yearly cycles can run on their own.',
+                  )}
                 />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Automation</TableHead>
-                      <TableHead>Rule</TableHead>
-                      <TableHead>Next</TableHead>
-                      <TableHead>Made</TableHead>
-                      <TableHead>State</TableHead>
+                      <TableHead>{tr('automations.automation', 'Automation')}</TableHead>
+                      <TableHead>{tr('automations.rule', 'Rule')}</TableHead>
+                      <TableHead>{tr('automations.next', 'Next')}</TableHead>
+                      <TableHead>{tr('automations.made', 'Made')}</TableHead>
+                      <TableHead>{tr('automations.state', 'State')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -185,7 +206,9 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
                         <TableCell className="text-sm">{plural(a.created, 'cycle')}</TableCell>
                         <TableCell>
                           <Badge size="sm" tone={a.paused ? 'neutral' : 'success'}>
-                            {a.paused ? 'Paused' : 'On'}
+                            {a.paused
+                              ? tr('automations.paused', 'Paused')
+                              : tr('automations.on', 'On')}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -215,9 +238,38 @@ const sentence = (a: AutomationBody): string => {
   const t = a.trigger;
   const when =
     t.kind === 'calendar'
-      ? `Every ${t.every}, starting in month ${String(t.startMonth)}`
-      : `${String(t.offsetDays)} days after ${t.event === 'hired' ? 'someone starts' : t.event === 'probation_end' ? 'probation ends' : 'their anniversary'}${t.times > 1 ? `, then every ${String(t.repeatDays)} days, ${String(t.times)} times in all` : ''}${t.group === 'week' ? ', one cycle per week' : ''}`;
-  return `${when}: ${a.activities.map((k) => kindLabel(k).toLowerCase()).join(', ')}${a.skip.length === 0 ? '' : `; leaves out people ${a.skip.map((s) => SKIP.find(([v]) => v === s)?.[1].toLowerCase() ?? s).join(', ')}`}.`;
+      ? tr(
+          'automations.every_starting_in_month',
+          'Every {{every}}, starting in month {{startMonth}}',
+          { every: t.every, startMonth: String(t.startMonth) },
+        )
+      : tr('automations.days_after', '{{offsetDays}} days after {{value}}{{value2}}{{value3}}', {
+          offsetDays: String(t.offsetDays),
+          value:
+            t.event === 'hired'
+              ? 'someone starts'
+              : t.event === 'probation_end'
+                ? 'probation ends'
+                : 'their anniversary',
+          value2:
+            t.times > 1
+              ? tr(
+                  'automations.then_every_days_times_in_all',
+                  ', then every {{repeatDays}} days, {{times}} times in all',
+                  { repeatDays: String(t.repeatDays), times: String(t.times) },
+                )
+              : '',
+          value3:
+            t.group === 'week' ? tr('automations.one_cycle_per_week_suffix', ', one cycle per week') : '',
+        });
+  return tr('automations.text', '{{when}}: {{join}}{{value}}.', {
+    when,
+    join: a.activities.map((k) => kindLabel(k).toLowerCase()).join(', '),
+    value:
+      a.skip.length === 0
+        ? ''
+        : `; leaves out people ${a.skip.map((s) => SKIP.find(([v]) => v === s)?.[1].toLowerCase() ?? s).join(', ')}`,
+  });
 };
 
 /** PF16b v2: Schedule · Participants · Activities · Release · Preview. */
@@ -280,13 +332,25 @@ function AutomationDialog({
       open
       wide
       onClose={onClose}
-      title={id === undefined ? 'New automation' : `Edit ${a.name}`}
-      steps={['Schedule', 'Participants', 'Activities', 'Release', 'Preview']}
+      title={
+        id === undefined
+          ? tr('automations.new_automation', 'New automation')
+          : tr('automations.edit', 'Edit {{name}}', { name: a.name })
+      }
+      steps={[
+        tr('automations.schedule', 'Schedule'),
+        tr('automations.participants', 'Participants'),
+        tr('automations.activities', 'Activities'),
+        tr('automations.release', 'Release'),
+        tr('automations.preview', 'Preview'),
+      ]}
       step={step}
       onStep={setStep}
       pending={act.pending}
       canNext={a.name.trim() !== '' && a.activities.length > 0}
-      finishLabel={id === undefined ? 'Turn on' : 'Save'}
+      finishLabel={
+        id === undefined ? tr('automations.turn_on', 'Turn on') : tr('automations.save', 'Save')
+      }
       finish={() => {
         if (id === undefined) act.run('CreatePerformanceAutomation', { input: a }, onClose);
         else act.run('SavePerformanceAutomation', { id, input: a }, onClose);
@@ -296,7 +360,7 @@ function AutomationDialog({
       {step === 0 ? (
         <div className="flex flex-col gap-3">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('automations.name', 'Name')}</FieldLabel>
             <Input
               value={a.name}
               onChange={(e) => {
@@ -305,14 +369,17 @@ function AutomationDialog({
             />
           </Field>
           <Field>
-            <FieldLabel>Or say it in words</FieldLabel>
+            <FieldLabel>{tr('automations.or_say_it_in_words', 'Or say it in words')}</FieldLabel>
             <Textarea
               autoResize
               value={words}
               onChange={(e) => {
                 setWords(e.target.value);
               }}
-              placeholder="A self and manager review 90 days after someone starts"
+              placeholder={tr(
+                'automations.a_self_and_manager_review_90',
+                'A self and manager review 90 days after someone starts',
+              )}
             />
           </Field>
           <Button
@@ -329,39 +396,48 @@ function AutomationDialog({
                 });
             }}
           >
-            Fill in from words
+            {tr('automations.fill_in_from_words', 'Fill in from words')}
           </Button>
           <RadioGroup
-            aria-label="When"
+            aria-label={tr('automations.when', 'When')}
             className="flex flex-col gap-2"
             value={t.kind}
             onValueChange={(v) => {
               set({ trigger: v === 'calendar' ? calendar : event });
             }}
           >
-            <RadioCard value="event" description="Probation, anniversaries">
-              After an event
+            <RadioCard
+              value="event"
+              description={tr('automations.probation_anniversaries', 'Probation, anniversaries')}
+            >
+              {tr('automations.after_an_event', 'After an event')}
             </RadioCard>
-            <RadioCard value="calendar" description="Every quarter, half or year">
-              On a calendar
+            <RadioCard
+              value="calendar"
+              description={tr(
+                'automations.every_quarter_half_or_year',
+                'Every quarter, half or year',
+              )}
+            >
+              {tr('automations.on_a_calendar', 'On a calendar')}
             </RadioCard>
           </RadioGroup>
           {t.kind === 'event' ? (
             <div className="flex flex-col gap-4">
               <Choose
-                label="After"
+                label={tr('automations.after', 'After')}
                 value={t.event}
                 options={[
-                  ['hired', 'Someone starts'],
-                  ['probation_end', 'Probation ends'],
-                  ['anniversary', 'Their anniversary'],
+                  ['hired', tr('automations.someone_starts', 'Someone starts')],
+                  ['probation_end', tr('automations.probation_ends', 'Probation ends')],
+                  ['anniversary', tr('automations.their_anniversary', 'Their anniversary')],
                 ]}
                 onChange={(v) => {
                   set({ trigger: { ...t, event: v as typeof t.event } });
                 }}
               />
               <NumberField
-                label="Days after"
+                label={tr('automations.days_after_2', 'Days after')}
                 value={t.offsetDays}
                 min={0}
                 max={730}
@@ -370,7 +446,7 @@ function AutomationDialog({
                 }}
               />
               <NumberField
-                label="Times in all"
+                label={tr('automations.times_in_all', 'Times in all')}
                 value={t.times}
                 min={1}
                 max={6}
@@ -380,8 +456,8 @@ function AutomationDialog({
               />
               {t.times > 1 ? (
                 <NumberField
-                  label="Then every"
-                  suffix="days"
+                  label={tr('automations.then_every', 'Then every')}
+                  suffix={tr('automations.days', 'days')}
                   value={t.repeatDays}
                   min={1}
                   max={730}
@@ -391,19 +467,19 @@ function AutomationDialog({
                 />
               ) : null}
               <Choose
-                label="Group"
+                label={tr('automations.group', 'Group')}
                 value={t.group}
                 options={[
-                  ['week', 'One cycle per week'],
-                  ['person', 'One cycle per person'],
+                  ['week', tr('automations.one_cycle_per_week', 'One cycle per week')],
+                  ['person', tr('automations.one_cycle_per_person', 'One cycle per person')],
                 ]}
                 onChange={(v) => {
                   set({ trigger: { ...t, group: v === 'person' ? 'person' : 'week' } });
                 }}
               />
               <NumberField
-                label="Create it ahead by"
-                suffix="days"
+                label={tr('automations.create_it_ahead_by', 'Create it ahead by')}
+                suffix={tr('automations.days', 'days')}
                 value={t.leadDays}
                 min={0}
                 max={90}
@@ -415,19 +491,19 @@ function AutomationDialog({
           ) : (
             <div className="flex flex-col gap-4">
               <Choose
-                label="Every"
+                label={tr('automations.every', 'Every')}
                 value={t.every}
                 options={[
-                  ['quarter', 'Quarter'],
-                  ['half', 'Half year'],
-                  ['year', 'Year'],
+                  ['quarter', tr('automations.quarter', 'Quarter')],
+                  ['half', tr('automations.half_year', 'Half year')],
+                  ['year', tr('automations.year', 'Year')],
                 ]}
                 onChange={(v) => {
                   set({ trigger: { ...t, every: v as typeof t.every } });
                 }}
               />
               <NumberField
-                label="First in month"
+                label={tr('automations.first_in_month', 'First in month')}
                 value={t.startMonth}
                 min={1}
                 max={12}
@@ -436,8 +512,8 @@ function AutomationDialog({
                 }}
               />
               <NumberField
-                label="Create it ahead by"
-                suffix="days"
+                label={tr('automations.create_it_ahead_by', 'Create it ahead by')}
+                suffix={tr('automations.days', 'days')}
                 value={t.leadDays}
                 min={0}
                 max={90}
@@ -453,12 +529,17 @@ function AutomationDialog({
         <div className="flex flex-col gap-3">
           <p className="text-sm">
             {t.kind === 'event'
-              ? 'Everyone the event happens to.'
-              : 'Everyone at the company on the day it is created.'}
+              ? tr('automations.everyone_the_event_happens_to', 'Everyone the event happens to.')
+              : tr(
+                  'automations.everyone_at_the_company_on_the',
+                  'Everyone at the company on the day it is created.',
+                )}
           </p>
           <Field>
-            <FieldLabel>Leave out people who are</FieldLabel>
-            <ChipRow aria-label="Leave out">
+            <FieldLabel>
+              {tr('automations.leave_out_people_who_are', 'Leave out people who are')}
+            </FieldLabel>
+            <ChipRow aria-label={tr('automations.leave_out', 'Leave out')}>
               {SKIP.map(([v, l]) => (
                 <Chip
                   key={v}
@@ -496,10 +577,10 @@ function AutomationDialog({
                   {on && k !== 'goals' ? (
                     <div className="flex flex-col gap-4">
                       <Choose
-                        label="Form"
+                        label={tr('automations.form', 'Form')}
                         value={a.templates[k] ?? 'default'}
                         options={[
-                          ['default', 'The company default'],
+                          ['default', tr('automations.the_company_default', 'The company default')],
                           ...forms.map((f) => [f.id, f.name] as const),
                         ]}
                         onChange={(v) => {
@@ -514,8 +595,8 @@ function AutomationDialog({
                         }}
                       />
                       <NumberField
-                        label="Due after the start"
-                        suffix="days"
+                        label={tr('automations.due_after_the_start', 'Due after the start')}
+                        suffix={tr('automations.days', 'days')}
                         value={a.dueDays[k] ?? 14}
                         min={0}
                         max={365}
@@ -533,8 +614,10 @@ function AutomationDialog({
       ) : null}
       {step === 3 ? (
         <p className="text-sm">
-          Each cycle is released the way Settings › Performance › Release says, and HR can change
-          any one of them before it launches.
+          {tr(
+            'automations.each_cycle_is_released_the_way',
+            'Each cycle is released the way Settings › Performance › Release says, and HR can change any one of them before it launches.',
+          )}
         </p>
       ) : null}
       {step === 4 ? (
@@ -542,7 +625,7 @@ function AutomationDialog({
           <p className="font-semibold">{a.name}</p>
           <p className="text-sm">{sentence(a)}</p>
           <SwitchRow
-            label="Start paused"
+            label={tr('automations.start_paused', 'Start paused')}
             checked={a.paused}
             onChange={(v) => {
               set({ paused: v });
@@ -592,7 +675,7 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
                       setEditing(true);
                     }}
                   >
-                    Edit
+                    {tr('automations.edit_2', 'Edit')}
                   </Button>
                   <Button
                     variant="secondary"
@@ -604,7 +687,9 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
                       });
                     }}
                   >
-                    {a.paused ? 'Turn on' : 'Pause'}
+                    {a.paused
+                      ? tr('automations.turn_on', 'Turn on')
+                      : tr('automations.pause', 'Pause')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -615,7 +700,7 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
                       });
                     }}
                   >
-                    Delete
+                    {tr('automations.delete', 'Delete')}
                   </Button>
                 </>
               }
@@ -624,14 +709,19 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
             <Card>
               <CardContent className="overflow-x-auto">
                 {data.rows.length === 0 ? (
-                  <p className="text-sm text-fg-muted">Nothing due in the next six months.</p>
+                  <p className="text-sm text-fg-muted">
+                    {tr(
+                      'automations.nothing_due_in_the_next_six',
+                      'Nothing due in the next six months.',
+                    )}
+                  </p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Starts</TableHead>
-                        <TableHead>Cycle</TableHead>
-                        <TableHead>People</TableHead>
+                        <TableHead>{tr('automations.starts', 'Starts')}</TableHead>
+                        <TableHead>{tr('automations.cycle', 'Cycle')}</TableHead>
+                        <TableHead>{tr('automations.people', 'People')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -640,14 +730,18 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
                           <TableCell className="text-sm">{day(r.start)}</TableCell>
                           <TableCell>
                             {r.cycleId === null ? (
-                              <span className="text-sm text-fg-muted">{`Created on ${day(r.createOn)}`}</span>
+                              <span className="text-sm text-fg-muted">
+                                {tr('automations.created_on', 'Created on {{createOn}}', {
+                                  createOn: day(r.createOn),
+                                })}
+                              </span>
                             ) : (
                               <span className="flex items-center gap-2">
                                 <To
                                   href={`/performance/cycles/${r.cycleId}`}
                                   onNavigate={props.onNavigate}
                                 >
-                                  {r.cycle ?? 'Cycle'}
+                                  {r.cycle ?? tr('automations.cycle', 'Cycle')}
                                 </To>
                                 {r.state === null ? null : <CycleBadge state={r.state} />}
                               </span>
@@ -658,7 +752,10 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
                               ? '—'
                               : r.people.slice(0, 4).join(', ') +
                                 (r.people.length > 4
-                                  ? ` and ${String(r.people.length - 4)} more`
+                                  ? ' ' +
+                                    tr('automations.and_more', 'and {{value}} more', {
+                                      value: String(r.people.length - 4),
+                                    })
                                   : '')}
                           </TableCell>
                         </TableRow>

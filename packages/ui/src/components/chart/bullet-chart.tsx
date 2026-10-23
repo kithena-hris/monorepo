@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { ChartMark } from './chart';
 import { ChartFrame } from './chart-window';
+import { t } from '../../lib/i18n';
 
 export interface BulletMeasure {
   label: string;
@@ -56,7 +57,11 @@ export function BulletChart({ data, label, summary, className }: BulletChartProp
         const higher = row.higherIsBetter ?? true;
         const met = higher ? row.value >= row.target : row.value <= row.target;
         const shown = row.display ?? String(row.value);
-        const readout = `${row.label}: ${shown}, target ${String(row.target)}${met ? ', met' : ''}`;
+        const readout = t(
+          'components.chart.bullet-chart.target',
+          '{{label}}: {{shown}}, target {{target}}{{value}}',
+          { label: row.label, shown, target: String(row.target), value: met ? ', met' : '' },
+        );
 
         return (
           <div
@@ -117,10 +122,10 @@ export function BulletChart({ data, label, summary, className }: BulletChartProp
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Measure</th>
-              <th scope="col">Value</th>
-              <th scope="col">Target</th>
-              <th scope="col">Met</th>
+              <th scope="col">{t('components.chart.bullet-chart.measure', 'Measure')}</th>
+              <th scope="col">{t('components.chart.bullet-chart.value', 'Value')}</th>
+              <th scope="col">{t('components.chart.bullet-chart.target_2', 'Target')}</th>
+              <th scope="col">{t('components.chart.bullet-chart.met', 'Met')}</th>
             </tr>
           </thead>
           <tbody>
@@ -132,7 +137,11 @@ export function BulletChart({ data, label, summary, className }: BulletChartProp
                   <th scope="row">{row.label}</th>
                   <td>{row.display ?? row.value}</td>
                   <td>{row.target}</td>
-                  <td>{met ? 'Yes' : 'No'}</td>
+                  <td>
+                    {met
+                      ? t('components.chart.bullet-chart.yes', 'Yes')
+                      : t('components.chart.bullet-chart.no', 'No')}
+                  </td>
                 </tr>
               );
             })}

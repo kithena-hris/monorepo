@@ -26,6 +26,7 @@ import { Loaded, type Loadable } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, RecordField, RecordSection, Values } from '../record/model';
 import { SensitiveMark } from '../record/pending';
+import { t } from '../i18n';
 
 /** One recorded change (PEO-064). A sealed field's reads `{ last4: null }`: it changed, nothing more. */
 export interface HistoryChange {
@@ -153,13 +154,21 @@ function History({
   const today = dayKey(new Date().toISOString(), zone);
   const yesterday = dayKey(new Date(Date.now() - 86_400_000).toISOString(), zone);
   const dayTitle = (day: string): string =>
-    day === today ? 'Today' : day === yesterday ? 'Yesterday' : longDate(day);
+    day === today
+      ? t('profile.history.today', 'Today')
+      : day === yesterday
+        ? t('profile.history.yesterday', 'Yesterday')
+        : longDate(day);
 
   return (
     <Stack gap={5}>
       <PageHeader
-        title="History"
-        description={`Every change to ${state.person.name}’s record, newest first.`}
+        title={t('profile.history.history', 'History')}
+        description={t(
+          'profile.history.every_change_to_s_record_newest',
+          'Every change to {{name}}’s record, newest first.',
+          { name: state.person.name },
+        )}
         actions={
           onBack === undefined ? undefined : (
             <Button
@@ -168,7 +177,7 @@ function History({
               startIcon={<icons.back aria-hidden />}
               onClick={onBack}
             >
-              Profile
+              {t('profile.history.profile', 'Profile')}
             </Button>
           )
         }
@@ -176,11 +185,15 @@ function History({
       {/* One field or all, and a switch between the changes and a past day (D7, D8). */}
       <div className="flex flex-wrap items-center gap-2.5">
         <Select value={only} onValueChange={setOnly}>
-          <SelectTrigger aria-label="Field" size="sm" className="w-55 touch:w-auto touch:flex-1">
+          <SelectTrigger
+            aria-label={t('profile.history.field', 'Field')}
+            size="sm"
+            className="w-55 touch:w-auto touch:flex-1"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>All fields</SelectItem>
+            <SelectItem value={ALL}>{t('profile.history.all_fields', 'All fields')}</SelectItem>
             {[...fields.values()].map((f) => (
               <SelectItem key={f.key} value={f.key}>
                 {f.label}
@@ -189,7 +202,7 @@ function History({
           </SelectContent>
         </Select>
         <SegmentedControl
-          aria-label="Show"
+          aria-label={t('profile.history.show', 'Show')}
           size="sm"
           value={state.asOf === null ? 'changes' : 'as-of'}
           onValueChange={(next) => {
@@ -199,12 +212,16 @@ function History({
             else if (state.asOf === null) onAsOf(new Date().toISOString().slice(0, 10));
           }}
         >
-          <SegmentedControlItem value="changes">Changes</SegmentedControlItem>
-          <SegmentedControlItem value="as-of">As it was on a date</SegmentedControlItem>
+          <SegmentedControlItem value="changes">
+            {t('profile.history.changes', 'Changes')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="as-of">
+            {t('profile.history.as_it_was_on_a_date', 'As it was on a date')}
+          </SegmentedControlItem>
         </SegmentedControl>
         {state.asOf === null ? null : (
           <DatePicker
-            label="See the record as it was on"
+            label={t('profile.history.see_the_record_as_it_was', 'See the record as it was on')}
             size="sm"
             value={state.asOf}
             onChange={onAsOf}
@@ -212,9 +229,9 @@ function History({
         )}
       </div>
       {state.asOf === null ? (
-        <PageSection surface title="Changes">
+        <PageSection surface title={t('profile.history.changes', 'Changes')}>
           {changes.length === 0 ? (
-            <EmptyState title="No changes recorded" />
+            <EmptyState title={t('profile.history.no_changes_recorded', 'No changes recorded')} />
           ) : (
             <Stack gap={5}>
               {[...days].map(([day, items]) => (
@@ -222,7 +239,11 @@ function History({
                   <h3 id={`day-${day}`} className="text-sm font-semibold text-fg-subtle">
                     {dayTitle(day)}
                   </h3>
-                  <Timeline aria-label={`Changes, ${dayTitle(day)}`}>
+                  <Timeline
+                    aria-label={t('profile.history.changes_2', 'Changes, {{dayTitle}}', {
+                      dayTitle: dayTitle(day),
+                    })}
+                  >
                     {items.map((c, i) => (
                       <Change
                         key={c.id}
@@ -246,7 +267,9 @@ function History({
         <>
           <Alert
             tone="info"
-            title={`As it stood on ${longDate(state.asOf)}`}
+            title={t('profile.history.as_it_stood_on', 'As it stood on {{longDate}}', {
+              longDate: longDate(state.asOf),
+            })}
             action={
               <Button
                 size="sm"
@@ -254,12 +277,14 @@ function History({
                   onAsOf(null);
                 }}
               >
-                Today
+                {t('profile.history.today', 'Today')}
               </Button>
             }
           >
-            Includes later corrections. Fields without dates, like phone number, show only their
-            changes.
+            {t(
+              'profile.history.includes_later_corrections_fields_without_dates',
+              'Includes later corrections. Fields without dates, like phone number, show only their changes.',
+            )}
           </Alert>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-5 @4xl/page:grid-cols-2 @4xl/page:items-start">
             {sections.map((section) => (
@@ -273,7 +298,9 @@ function History({
                       </dt>
                       <dd className="text-sm font-medium">
                         {!dated.has(field.key) ? (
-                          <span className="font-normal text-fg-muted">Not kept by date</span>
+                          <span className="font-normal text-fg-muted">
+                            {t('profile.history.not_kept_by_date', 'Not kept by date')}
+                          </span>
                         ) : (
                           <DisplayValue field={field} value={state.values[field.key]} />
                         )}
@@ -351,12 +378,12 @@ function Change({
   // Kithena support has no face, as the system has none; it is named, not automatic.
   const faceless = kind === 'system' || kind === 'support';
   const title = corrected
-    ? `${field.label} corrected`
+    ? t('profile.history.corrected', '{{label}} corrected', { label: field.label })
     : empty(change.value)
-      ? `${field.label} cleared`
+      ? t('profile.history.cleared', '{{label}} cleared', { label: field.label })
       : previous === undefined || empty(previous.value)
-        ? `${field.label} added`
-        : `${field.label} changed`;
+        ? t('profile.history.added', '{{label}} added', { label: field.label })
+        : t('profile.history.changed', '{{label}} changed', { label: field.label });
   const at = new Date(change.recordedAt);
   const time = new Intl.DateTimeFormat(undefined, {
     timeZone: zone,
@@ -399,7 +426,7 @@ function Change({
                 <DisplayValue field={field} value={previous.value} />
               </span>{' '}
               <span aria-hidden>→</span>
-              <span className="sr-only">to</span>{' '}
+              <span className="sr-only">{t('profile.history.to', 'to')}</span>{' '}
             </>
           )}
           <span className={replacement ? 'line-through' : 'font-medium'}>
@@ -407,7 +434,9 @@ function Change({
           </span>
         </p>
         <p className="text-xs text-fg-muted">
-          {kind === 'system' ? 'Done automatically' : `By ${change.by}`}
+          {kind === 'system'
+            ? t('profile.history.done_automatically', 'Done automatically')
+            : t('profile.history.by', 'By {{by}}', { by: change.by })}
           {dated && change.effectiveFrom !== recordedDay
             ? ` · effective ${longDate(change.effectiveFrom)}`
             : null}
@@ -416,25 +445,36 @@ function Change({
           <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">
             <Badge size="sm">
               <icons.locked aria-hidden />
-              Sealed
+              {t('profile.history.sealed', 'Sealed')}
             </Badge>
-            <span>The value is sealed, so only the change is shown.</span>
+            <span>
+              {t(
+                'profile.history.the_value_is_sealed_so_only',
+                'The value is sealed, so only the change is shown.',
+              )}
+            </span>
           </span>
         ) : null}
         {corrected ? (
           <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">
             <Badge size="sm" tone="accent">
-              Correction
+              {t('profile.history.correction', 'Correction')}
             </Badge>
             <span>
-              A mistake fixed: it replaces the value recorded{' '}
+              {t(
+                'profile.history.a_mistake_fixed_it_replaces_the',
+                'A mistake fixed: it replaces the value recorded',
+              )}{' '}
               {longDate(corrected.recordedAt.slice(0, 10))}.
             </span>
           </span>
         ) : replacement ? (
           <span className="inline-flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-            <Badge size="sm">Superseded</Badge>
-            <span>Corrected on {longDate(replacement.recordedAt.slice(0, 10))}</span>
+            <Badge size="sm">{t('profile.history.superseded', 'Superseded')}</Badge>
+            <span>
+              {t('profile.history.corrected_on', 'Corrected on')}{' '}
+              {longDate(replacement.recordedAt.slice(0, 10))}
+            </span>
           </span>
         ) : null}
       </Stack>

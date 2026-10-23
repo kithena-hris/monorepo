@@ -26,6 +26,7 @@ import { ChevronDown, ChevronUp, GripVertical, Lock } from 'lucide-react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * A list whose order is the data.
@@ -155,7 +156,7 @@ export function SortableList<T extends SortableItem>({
     const item = items[index];
     return item !== undefined && itemLabel !== undefined
       ? itemLabel(item)
-      : `item ${String(index + 1)}`;
+      : t('components.sortable.sortable.item', 'item {{value}}', { value: String(index + 1) });
   };
 
   const announcements: Announcements = {
@@ -190,8 +191,10 @@ export function SortableList<T extends SortableItem>({
       }}
     >
       <p id={instructionsId} className="sr-only">
-        Use the Move up and Move down buttons to change the order, or press Space on a drag handle
-        and use the arrow keys.
+        {t(
+          'components.sortable.sortable.use_the_move_up_and_move',
+          'Use the Move up and Move down buttons to change the order, or press Space on a drag handle and use the arrow keys.',
+        )}
       </p>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <ul
@@ -310,7 +313,7 @@ function SortableRow({
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
-          aria-label={`Reorder ${name}`}
+          aria-label={t('components.sortable.sortable.reorder', 'Reorder {{name}}', { name })}
           className="sr-only focus-visible:not-sr-only focus-visible:grid focus-visible:size-6 focus-visible:shrink-0 focus-visible:place-items-center focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus"
         >
           <GripVertical aria-hidden className="size-4" />
@@ -322,7 +325,7 @@ function SortableRow({
           ref={setActivatorNodeRef}
           disabled={locked}
           // Named, because "grip icon" is not a thing anyone can act on.
-          aria-label={`Reorder ${name}`}
+          aria-label={t('components.sortable.sortable.reorder', 'Reorder {{name}}', { name })}
           className={cn(
             'relative -ms-1 shrink-0 rounded-sm p-1 text-fg-subtle tap-target',
             'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
@@ -359,7 +362,7 @@ function SortableRow({
           <Button
             size="sm"
             variant="ghost"
-            aria-label={`Move ${name} up`}
+            aria-label={t('components.sortable.sortable.move_up', 'Move {{name}} up', { name })}
             disabled={index === 0 || locked}
             startIcon={<ChevronUp />}
             onClick={() => {
@@ -369,7 +372,7 @@ function SortableRow({
           <Button
             size="sm"
             variant="ghost"
-            aria-label={`Move ${name} down`}
+            aria-label={t('components.sortable.sortable.move_down', 'Move {{name}} down', { name })}
             disabled={index === total - 1 || locked}
             startIcon={<ChevronDown />}
             onClick={() => {

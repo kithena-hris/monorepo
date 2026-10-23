@@ -8,6 +8,7 @@ import './styles.css';
 import { framed } from './frame';
 import { placeholder } from './placeholder';
 import { split } from './split';
+import { t } from './i18n';
 
 // In the shell's chrome on every page, and the kiosk's own full screen: not split.
 export { TopBarClock } from './clock/clock';
@@ -24,7 +25,7 @@ export const Approvals = split(() => import('./approvals/approvals'), 'Approvals
 export const Delegation = split(() => import('./approvals/delegation'), 'Delegation');
 export const Adjustments = split(() => import('./approvals/adjustments'), 'Adjustments');
 export const TeamCalendar = split(() => import('./calendar/calendar'), 'TeamCalendar');
-export const Attendance = framed(placeholder('Attendance'));
+export const Attendance = framed(placeholder(t('index.browser.attendance', 'Attendance')));
 export const Timesheet = split(() => import('./attendance/timesheet'), 'Timesheet');
 export const KioskCode = split(() => import('./kiosk/code'), 'KioskCode');
 export const TeamNow = split(() => import('./attendance/team-now'), 'TeamNow');

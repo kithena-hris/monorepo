@@ -77,6 +77,7 @@ import {
   type Picks,
 } from './terms-view';
 import type { Done, JobData, JobRecord, JobTerms, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R4–R7: a job, set up on a page of its own over the jobs list. Eight pages,
@@ -134,11 +135,36 @@ const germanJob = (d: JobData): boolean =>
   d.entities.find((e) => e.id === d.terms.entityId)?.country === 'DE';
 
 const SENIORITY = [
-  ['entry', 'Entry', 'New to the work', <icons.goal key="i" aria-hidden />],
-  ['mid', 'Mid', 'Works on their own', <icons.person key="i" aria-hidden />],
-  ['senior', 'Senior', 'Leads the work', <icons.starred key="i" aria-hidden />],
-  ['lead', 'Lead', 'Leads people or a field', <icons.team key="i" aria-hidden />],
-  ['executive', 'Executive', 'Leads a function', <icons.organisation key="i" aria-hidden />],
+  [
+    'entry',
+    tr('job-wizard.entry', 'Entry'),
+    tr('job-wizard.new_to_the_work', 'New to the work'),
+    <icons.goal key="i" aria-hidden />,
+  ],
+  [
+    'mid',
+    tr('job-wizard.mid', 'Mid'),
+    tr('job-wizard.works_on_their_own', 'Works on their own'),
+    <icons.person key="i" aria-hidden />,
+  ],
+  [
+    'senior',
+    tr('job-wizard.senior', 'Senior'),
+    tr('job-wizard.leads_the_work', 'Leads the work'),
+    <icons.starred key="i" aria-hidden />,
+  ],
+  [
+    'lead',
+    tr('job-wizard.lead', 'Lead'),
+    tr('job-wizard.leads_people_or_a_field', 'Leads people or a field'),
+    <icons.team key="i" aria-hidden />,
+  ],
+  [
+    'executive',
+    tr('job-wizard.executive', 'Executive'),
+    tr('job-wizard.leads_a_function', 'Leads a function'),
+    <icons.organisation key="i" aria-hidden />,
+  ],
 ] as const;
 
 /** Every detail of the job as it stands, with a change: the details save is whole, never partial. */
@@ -238,15 +264,18 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
     <>
       <Refusal error={error} />
       <Field required>
-        <FieldLabel>Team</FieldLabel>
+        <FieldLabel>{tr('job-wizard.team', 'Team')}</FieldLabel>
         <FieldControl>
           <Combobox
-            label="Team"
-            placeholder="Choose a team"
-            searchPlaceholder="Search teams"
+            label={tr('job-wizard.team', 'Team')}
+            placeholder={tr('job-wizard.choose_a_team', 'Choose a team')}
+            searchPlaceholder={tr('job-wizard.search_teams', 'Search teams')}
             options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
             value={draft.job.department}
-            emptyMessage="No team by that name. Add teams under Settings."
+            emptyMessage={tr(
+              'job-wizard.no_team_by_that_name_add',
+              'No team by that name. Add teams under Settings.',
+            )}
             onChange={(v) => {
               const next = typeof v === 'string' ? v : null;
               draft.set({ department: next });
@@ -256,9 +285,9 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
         </FieldControl>
       </Field>
       <Field required>
-        <FieldLabel>Level</FieldLabel>
+        <FieldLabel>{tr('job-wizard.level', 'Level')}</FieldLabel>
         <RadioGroup
-          aria-label="Level"
+          aria-label={tr('job-wizard.level', 'Level')}
           className="grid gap-2 sm:grid-cols-2"
           value={draft.job.outline.seniority ?? ''}
           onValueChange={(v) => {
@@ -289,7 +318,7 @@ function TitleStep({ data, props, commit }: TermsProps): JSX.Element {
   useCommit(commit, async () => {
     const next = title.trim();
     if (next === '') {
-      setError('A job needs a title');
+      setError(tr('job-wizard.a_job_needs_a_title', 'A job needs a title'));
       return false;
     }
     if (next === data.job.title) return true;
@@ -332,12 +361,15 @@ function TitleInput({
   return (
     <div className="flex flex-col gap-3">
       <Field required>
-        <FieldLabel>Job title</FieldLabel>
+        <FieldLabel>{tr('job-wizard.job_title', 'Job title')}</FieldLabel>
         <FieldControl>
           <Input
             size="lg"
             value={value}
-            placeholder="Senior Backend Engineer (m/w/d)"
+            placeholder={tr(
+              'job-wizard.senior_backend_engineer_m_w_d',
+              'Senior Backend Engineer (m/w/d)',
+            )}
             // The page opens on this question: the frame puts focus here, not on the close.
             data-autofocus
             onChange={(e) => {
@@ -349,22 +381,24 @@ function TitleInput({
       {flagged ? (
         <Alert
           tone="warning"
-          title="A German ad needs a neutral title"
+          title={tr('job-wizard.a_german_ad_needs_a_neutral', 'A German ad needs a neutral title')}
           className="animate-arrive"
           action={
             <Button
               size="sm"
               variant="secondary"
               onClick={() => {
-                onChange(`${value.trim()} (m/w/d)`);
+                onChange(tr('job-wizard.m_w_d', '{{value}} (m/w/d)', { value: value.trim() }));
               }}
             >
-              Add (m/w/d)
+              {tr('job-wizard.add_m_w_d', 'Add (m/w/d)')}
             </Button>
           }
         >
-          The law (AGG § 11) asks for a marker such as (m/w/d), or a title neutral by itself. Add it
-          now and the ad will not be stopped when you publish.
+          {tr(
+            'job-wizard.the_law_agg_11_asks_for',
+            'The law (AGG § 11) asks for a marker such as (m/w/d), or a title neutral by itself. Add it now and the ad will not be stopped when you publish.',
+          )}
         </Alert>
       ) : null}
     </div>
@@ -419,11 +453,21 @@ function OpeningsFields({
 }): JSX.Element {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <NumberField label="Openings" value={openings} min={1} max={500} onChange={onOpenings} />
+      <NumberField
+        label={tr('job-wizard.openings', 'Openings')}
+        value={openings}
+        min={1}
+        max={500}
+        onChange={onOpenings}
+      />
       <Field required>
-        <FieldLabel>Target start</FieldLabel>
+        <FieldLabel>{tr('job-wizard.target_start', 'Target start')}</FieldLabel>
         <FieldControl>
-          <DatePicker label="Target start" value={start} onChange={onStart} />
+          <DatePicker
+            label={tr('job-wizard.target_start', 'Target start')}
+            value={start}
+            onChange={onStart}
+          />
         </FieldControl>
       </Field>
     </div>
@@ -437,16 +481,16 @@ interface Draft {
 }
 
 const LENGTHS = [
-  ['150', 'Short'],
-  ['300', 'Medium'],
-  ['500', 'Long'],
+  ['150', tr('job-wizard.short', 'Short')],
+  ['300', tr('job-wizard.medium', 'Medium')],
+  ['500', tr('job-wizard.long', 'Long')],
 ] as const;
 
 const TONES = [
-  ['professional', 'Professional'],
-  ['warm', 'Warm'],
-  ['direct', 'Direct'],
-  ['energetic', 'Energetic'],
+  ['professional', tr('job-wizard.professional', 'Professional')],
+  ['warm', tr('job-wizard.warm', 'Warm')],
+  ['direct', tr('job-wizard.direct', 'Direct')],
+  ['energetic', tr('job-wizard.energetic', 'Energetic')],
 ] as const;
 
 /** Words in a document, for the length a change starts from. */
@@ -454,7 +498,10 @@ const wordsIn = (doc: unknown): number => {
   const walk = (n: unknown): string => {
     if (typeof n !== 'object' || n === null) return '';
     const node = n as { text?: unknown; content?: readonly unknown[] };
-    return `${typeof node.text === 'string' ? node.text : ''} ${(node.content ?? []).map(walk).join(' ')}`;
+    return tr('job-wizard.text', '{{value}} {{join}}', {
+      value: typeof node.text === 'string' ? node.text : '',
+      join: (node.content ?? []).map(walk).join(' '),
+    });
   };
   return walk(doc).split(/\s+/u).filter(Boolean).length;
 };
@@ -573,17 +620,27 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
           <Alert
             tone="info"
             icon={<icons.assistant aria-hidden />}
-            title={doing === 'draft' ? 'Writing the description' : 'Changing the description'}
+            title={
+              doing === 'draft'
+                ? tr('job-wizard.writing_the_description', 'Writing the description')
+                : tr('job-wizard.changing_the_description', 'Changing the description')
+            }
             className="animate-arrive"
           >
             {asked !== null && !asked.done
-              ? `As asked: “${asked.text}”. A few seconds.`
-              : `From ${data.job.title}, the team, the place and the terms. A few seconds.`}
+              ? tr('job-wizard.as_asked_a_few_seconds', 'As asked: “{{text}}”. A few seconds.', {
+                  text: asked.text,
+                })
+              : tr(
+                  'job-wizard.from_the_team_the_place_and',
+                  'From {{title}}, the team, the place and the terms. A few seconds.',
+                  { title: data.job.title },
+                )}
           </Alert>
         ) : null}
         <RichTextEditor
           key={String(drawn?.n ?? 0)}
-          label="Role description"
+          label={tr('job-wizard.role_description', 'Role description')}
           value={drawn?.html ?? ad?.html ?? ''}
           onChangeJson={(next) => {
             setDoc(next);
@@ -595,7 +652,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
       {/* Asking the AI for a change: said back while it works, and once it is done. */}
       <section aria-labelledby="ask-ai" className="flex flex-col gap-3">
         <h4 id="ask-ai" className="font-semibold">
-          Ask the AI to change it
+          {tr('job-wizard.ask_the_ai_to_change_it', 'Ask the AI to change it')}
         </h4>
         <form
           className="flex items-start gap-2"
@@ -605,8 +662,11 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
           }}
         >
           <Input
-            aria-label="What to change"
-            placeholder="Mention the payments team and the move to TypeScript"
+            aria-label={tr('job-wizard.what_to_change', 'What to change')}
+            placeholder={tr(
+              'job-wizard.mention_the_payments_team_and_the',
+              'Mention the payments team and the move to TypeScript',
+            )}
             value={note}
             disabled={drafting}
             containerClassName="min-w-0 flex-1"
@@ -621,7 +681,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
             disabled={note.trim() === '' || drafting}
             startIcon={<icons.send aria-hidden />}
           >
-            Ask
+            {tr('job-wizard.ask', 'Ask')}
           </Button>
         </form>
         {asked === null ? null : (
@@ -631,7 +691,12 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
             ) : (
               <icons.loading aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
             )}
-            <span>{`${asked.done ? 'Done' : 'Working on it'}: “${asked.text}”`}</span>
+            <span>
+              {tr('job-wizard.text_2', '{{value}}: “{{text}}”', {
+                value: asked.done ? 'Done' : 'Working on it',
+                text: asked.text,
+              })}
+            </span>
           </p>
         )}
         <div className="flex flex-wrap gap-2">
@@ -639,17 +704,22 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
             [
               [
                 'longer',
-                'Longer',
+                tr('job-wizard.longer', 'Longer'),
                 <icons.add key="i" aria-hidden />,
                 Math.min(900, Math.round(current * 1.4)),
               ],
               [
                 'shorter',
-                'Shorter',
+                tr('job-wizard.shorter', 'Shorter'),
                 <icons.remove key="i" aria-hidden />,
                 Math.max(80, Math.round(current * 0.7)),
               ],
-              ['rephrase', 'Rephrase', <icons.refresh key="i" aria-hidden />, current],
+              [
+                'rephrase',
+                tr('job-wizard.rephrase', 'Rephrase'),
+                <icons.refresh key="i" aria-hidden />,
+                current,
+              ],
             ] as const
           ).map(([change, label, icon, length]) => (
             <Button
@@ -673,11 +743,11 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
       {/* How it is written: the length and the voice, then written again with them. */}
       <section aria-labelledby="how-written" className="flex flex-col gap-5">
         <h4 id="how-written" className="font-semibold">
-          How it is written
+          {tr('job-wizard.how_it_is_written', 'How it is written')}
         </h4>
         <Field>
-          <FieldLabel>Length</FieldLabel>
-          <ChipRow aria-label="Length">
+          <FieldLabel>{tr('job-wizard.length', 'Length')}</FieldLabel>
+          <ChipRow aria-label={tr('job-wizard.length', 'Length')}>
             {LENGTHS.map(([value, label]) => (
               <Chip
                 key={value}
@@ -686,14 +756,14 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
                   setWords(value);
                 }}
               >
-                {`${label}, about ${value} words`}
+                {tr('job-wizard.about_words', '{{label}}, about {{value}} words', { label, value })}
               </Chip>
             ))}
           </ChipRow>
         </Field>
         <Field>
-          <FieldLabel>Tone</FieldLabel>
-          <ChipRow aria-label="Tone">
+          <FieldLabel>{tr('job-wizard.tone', 'Tone')}</FieldLabel>
+          <ChipRow aria-label={tr('job-wizard.tone', 'Tone')}>
             {TONES.map(([value, label]) => (
               <Chip
                 key={value}
@@ -718,12 +788,16 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
               draft(null);
             }}
           >
-            {ad === undefined && drawn === null ? 'Write it' : 'Write it again this way'}
+            {ad === undefined && drawn === null
+              ? tr('job-wizard.write_it', 'Write it')
+              : tr('job-wizard.write_it_again_this_way', 'Write it again this way')}
           </Button>
         </div>
         <p className="text-sm text-fg-muted">
-          Pay, hours, holiday and the contract are never written into the text: the ad shows them
-          from the job, exactly as set.
+          {tr(
+            'job-wizard.pay_hours_holiday_and_the_contract',
+            'Pay, hours, holiday and the contract are never written into the text: the ad shows them from the job, exactly as set.',
+          )}
         </p>
       </section>
     </div>
@@ -738,7 +812,7 @@ function TitleField({ data, props }: TermsProps): JSX.Element {
     <Input
       appearance="plain"
       size="sm"
-      aria-label="Job title"
+      aria-label={tr('job-wizard.job_title', 'Job title')}
       value={title}
       containerClassName="w-[min(28rem,60vw)] font-semibold"
       className="text-center"
@@ -772,7 +846,7 @@ function NeutralTitle({ data, props }: TermsProps): JSX.Element | null {
   return (
     <Alert
       tone="warning"
-      title="A German ad needs a neutral title"
+      title={tr('job-wizard.a_german_ad_needs_a_neutral', 'A German ad needs a neutral title')}
       className="animate-arrive"
       action={
         <Button
@@ -780,7 +854,7 @@ function NeutralTitle({ data, props }: TermsProps): JSX.Element | null {
           variant="secondary"
           loading={act.pending}
           onClick={() => {
-            const next = `${title.trim()} (m/w/d)`;
+            const next = tr('job-wizard.m_w_d_2', '{{title}} (m/w/d)', { title: title.trim() });
             draft.set({ title: next });
             act.run('SaveJobDetails', {
               jobId: data.job.id,
@@ -788,11 +862,15 @@ function NeutralTitle({ data, props }: TermsProps): JSX.Element | null {
             });
           }}
         >
-          Add (m/w/d)
+          {tr('job-wizard.add_m_w_d', 'Add (m/w/d)')}
         </Button>
       }
     >
-      {`“${title}” has no marker such as (m/w/d), which the law (AGG § 11) asks of an ad in Germany.`}
+      {tr(
+        'job-wizard.has_no_marker_such_as_m',
+        '“{{title}}” has no marker such as (m/w/d), which the law (AGG § 11) asks of an ad in Germany.',
+        { title },
+      )}
     </Alert>
   );
 }
@@ -1140,13 +1218,13 @@ function WizardFrame({
           title={title}
           meta={
             <div className="flex w-36 items-center gap-2 max-sm:hidden">
-              <Progress value={percent} label="Set up" size="sm" />
+              <Progress value={percent} label={tr('job-wizard.set_up', 'Set up')} size="sm" />
               <span className="shrink-0 text-xs font-semibold text-fg-muted tabular-nums">{`${String(percent)}%`}</span>
             </div>
           }
           actions={
             <Button size="sm" variant="secondary" onClick={onClose}>
-              Save and close
+              {tr('job-wizard.save_and_close', 'Save and close')}
             </Button>
           }
         />
@@ -1176,7 +1254,7 @@ function WizardFrame({
                 </p>
                 {page.blocks.length < 2 || (data === null && parts === undefined) ? null : (
                   <IconList
-                    aria-label="On this page"
+                    aria-label={tr('job-wizard.on_this_page', 'On this page')}
                     className="mt-2 animate-arrive max-lg:hidden"
                     style={staggerStyle(2, 'animation')}
                   >
@@ -1204,7 +1282,11 @@ function WizardFrame({
                             )
                           }
                           description={
-                            done ? 'Answered' : ready ? 'To answer' : 'After the part above'
+                            done
+                              ? tr('job-wizard.answered', 'Answered')
+                              : ready
+                                ? tr('job-wizard.to_answer', 'To answer')
+                                : tr('job-wizard.after_the_part_above', 'After the part above')
                           }
                         >
                           {b.label}
@@ -1236,15 +1318,20 @@ function WizardFrame({
               onBack?.();
             }}
           >
-            Back
+            {tr('job-wizard.back', 'Back')}
           </Button>
           <span
             className="text-center text-sm text-fg-muted text-pretty tabular-nums"
             aria-live="polite"
           >
             {missing.length === 0
-              ? `Step ${String(index + 1)} of ${String(WIZARD_PAGES.length)}`
-              : `To continue: ${missing.join(', ').toLowerCase()}`}
+              ? tr('job-wizard.step_of', 'Step {{value}} of {{length}}', {
+                  value: String(index + 1),
+                  length: String(WIZARD_PAGES.length),
+                })
+              : tr('job-wizard.to_continue', 'To continue: {{join}}', {
+                  join: missing.join(', ').toLowerCase(),
+                })}
           </span>
           <Button
             loading={moving}
@@ -1252,7 +1339,9 @@ function WizardFrame({
             endIcon={last ? <icons.visible aria-hidden /> : <icons.forward aria-hidden />}
             onClick={onNext}
           >
-            {last ? 'Review the ad' : 'Continue'}
+            {last
+              ? tr('job-wizard.review_the_ad', 'Review the ad')
+              : tr('job-wizard.continue', 'Continue')}
           </Button>
         </ModalPageFooter>
       </ModalPageContent>
@@ -1488,11 +1577,17 @@ export function JobWizard({
           {blocks.some((b) => b.ready(gate)) ? null : (
             <Alert
               tone="info"
-              title="This page follows from the one before"
+              title={tr(
+                'job-wizard.this_page_follows_from_the_one',
+                'This page follows from the one before',
+              )}
               className="animate-arrive"
               style={staggerStyle(2, 'animation')}
             >
-              Answer the earlier pages first; the questions here depend on them.
+              {tr(
+                'job-wizard.answer_the_earlier_pages_first_the',
+                'Answer the earlier pages first; the questions here depend on them.',
+              )}
             </Alert>
           )}
           {blocks.map((b, i) => {
@@ -1543,7 +1638,7 @@ export function JobWizard({
             <SheetBody className="flex flex-col gap-10">{body}</SheetBody>
             <SheetFooter>
               <Button loading={moving} onClick={done}>
-                Done
+                {tr('job-wizard.done', 'Done')}
               </Button>
             </SheetFooter>
           </SheetContent>
@@ -1555,12 +1650,14 @@ export function JobWizard({
     <JobDraftContext value={jobDraft}>
       <WizardFrame
         open={open}
-        label={`Set up ${title.value.trim() === '' ? 'a job' : title.value}`}
+        label={tr('job-wizard.set_up_2', 'Set up {{value}}', {
+          value: title.value.trim() === '' ? 'a job' : title.value,
+        })}
         title={
           // On the page that asks for the title the bar shows it as it is typed: one place to type it.
           page.key === ROLE.key ? (
             <span className="truncate text-md font-semibold text-fg">
-              {title.value.trim() === '' ? 'New job' : title.value}
+              {title.value.trim() === '' ? tr('job-wizard.new_job', 'New job') : title.value}
             </span>
           ) : (
             <TitleField key={data.job.title} data={data} props={props} />
@@ -1580,11 +1677,18 @@ export function JobWizard({
           failed === null ? null : (
             <Alert
               tone="danger"
-              title={`Something on “${WIZARD_PAGES[failed]?.title ?? ''}” did not save`}
+              title={tr(
+                'job-wizard.something_on_did_not_save',
+                'Something on “{{value}}” did not save',
+                { value: WIZARD_PAGES[failed]?.title ?? '' },
+              )}
               className="animate-arrive"
             >
               <span className="flex flex-wrap items-center gap-3">
-                Go back to it to see what Recruiting said.
+                {tr(
+                  'job-wizard.go_back_to_it_to_see',
+                  'Go back to it to see what Recruiting said.',
+                )}
                 <Button
                   size="sm"
                   variant="secondary"
@@ -1592,7 +1696,7 @@ export function JobWizard({
                     go(failed);
                   }}
                 >
-                  Go back
+                  {tr('job-wizard.go_back', 'Go back')}
                 </Button>
               </span>
             </Alert>
@@ -1763,7 +1867,7 @@ export function NewJobWizard({
   }, [title, team, level, openings, start]);
   const next = async (): Promise<void> => {
     if (title.trim() === '') {
-      setError('A job needs a title');
+      setError(tr('job-wizard.a_job_needs_a_title', 'A job needs a title'));
       return;
     }
     // Enter in the title moves on only when the page is answered, as Continue does.
@@ -1806,17 +1910,33 @@ export function NewJobWizard({
   const named = title.trim() !== '' && (!onlyGerman(loaded?.entities ?? []) || neutralTitle(title));
   const placed = team !== null && level !== null;
   const parts = [
-    { key: 'title', label: 'Title', done: named, ready: true },
-    { key: 'level', label: 'Team and level', done: placed, ready: named },
-    { key: 'openings', label: 'Openings and start', done: start !== null, ready: placed },
+    { key: 'title', label: tr('job-wizard.title', 'Title'), done: named, ready: true },
+    {
+      key: 'level',
+      label: tr('job-wizard.team_and_level', 'Team and level'),
+      done: placed,
+      ready: named,
+    },
+    {
+      key: 'openings',
+      label: tr('job-wizard.openings_and_start', 'Openings and start'),
+      done: start !== null,
+      ready: placed,
+    },
   ];
   const total = WIZARD_PAGES.reduce((n, p) => n + p.blocks.length, 0);
   return (
     <WizardFrame
       open
-      label={named ? `Set up ${title.trim()}` : 'New job'}
+      label={
+        named
+          ? tr('job-wizard.set_up_3', 'Set up {{title}}', { title: title.trim() })
+          : tr('job-wizard.new_job', 'New job')
+      }
       title={
-        <span className="truncate text-md font-semibold text-fg">{named ? title : 'New job'}</span>
+        <span className="truncate text-md font-semibold text-fg">
+          {named ? title : tr('job-wizard.new_job', 'New job')}
+        </span>
       }
       percent={Math.round((parts.filter((p) => p.done).length / total) * 100)}
       index={0}
@@ -1839,7 +1959,7 @@ export function NewJobWizard({
       }}
     >
       <Refusal error={error} />
-      <BlockView label="Title" hint={undefined} order={2}>
+      <BlockView label={tr('job-wizard.title', 'Title')} hint={undefined} order={2}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1855,17 +1975,24 @@ export function NewJobWizard({
       </BlockView>
       <Reveal open={named} unmountOnExit from="bottom">
         {named ? (
-          <BlockView label="Team and level" hint={undefined} order={0}>
+          <BlockView
+            label={tr('job-wizard.team_and_level', 'Team and level')}
+            hint={undefined}
+            order={0}
+          >
             <Field required>
-              <FieldLabel>Team</FieldLabel>
+              <FieldLabel>{tr('job-wizard.team', 'Team')}</FieldLabel>
               <FieldControl>
                 <Combobox
-                  label="Team"
-                  placeholder="Choose a team"
-                  searchPlaceholder="Search teams"
+                  label={tr('job-wizard.team', 'Team')}
+                  placeholder={tr('job-wizard.choose_a_team', 'Choose a team')}
+                  searchPlaceholder={tr('job-wizard.search_teams', 'Search teams')}
                   options={orgUnits.map((u) => ({ value: u.name, label: u.name }))}
                   value={team}
-                  emptyMessage="No team by that name. Add teams under Settings."
+                  emptyMessage={tr(
+                    'job-wizard.no_team_by_that_name_add',
+                    'No team by that name. Add teams under Settings.',
+                  )}
                   onChange={(v) => {
                     setTeam(typeof v === 'string' ? v : null);
                   }}
@@ -1873,9 +2000,9 @@ export function NewJobWizard({
               </FieldControl>
             </Field>
             <Field required>
-              <FieldLabel>Level</FieldLabel>
+              <FieldLabel>{tr('job-wizard.level', 'Level')}</FieldLabel>
               <RadioGroup
-                aria-label="Level"
+                aria-label={tr('job-wizard.level', 'Level')}
                 className="grid gap-2 sm:grid-cols-2"
                 value={level ?? ''}
                 onValueChange={setLevel}
@@ -1893,8 +2020,11 @@ export function NewJobWizard({
       <Reveal open={placed} unmountOnExit from="bottom">
         {placed ? (
           <BlockView
-            label="Openings and start"
-            hint="The start date is a target for the team, not a promise in the ad."
+            label={tr('job-wizard.openings_and_start', 'Openings and start')}
+            hint={tr(
+              'job-wizard.the_start_date_is_a_target',
+              'The start date is a target for the team, not a promise in the ad.',
+            )}
             order={0}
           >
             <OpeningsFields

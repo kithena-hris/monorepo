@@ -21,6 +21,7 @@ import { useState, useTransition, type JSX } from 'react';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { firstName, spanLabel, type Range } from './words';
+import { t } from '../i18n';
 
 /**
  * Delegating approvals (T19, §9.7): who decides for me while I am away, for
@@ -69,7 +70,10 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
   if (load.status === 'loading') return <DelegationSkeleton />;
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader title="Requests" description={DESCRIPTION} />
+      <PageHeader
+        title={t('approvals.delegation.requests', 'Requests')}
+        description={DESCRIPTION}
+      />
       <Loaded load={load} what="your delegation">
         {(data) => (
           <Ready
@@ -117,14 +121,14 @@ function Ready({
   };
   return (
     <div className={body}>
-      <PageSection title="While I’m away">
+      <PageSection title={t('approvals.delegation.while_im_away', 'While I’m away')}>
         <div className="flex flex-col gap-4">
           <Field>
-            <FieldLabel>Delegate</FieldLabel>
+            <FieldLabel>{t('approvals.delegation.delegate', 'Delegate')}</FieldLabel>
             <FieldControl>
               <Combobox
-                label="Delegate"
-                placeholder="Choose someone"
+                label={t('approvals.delegation.delegate', 'Delegate')}
+                placeholder={t('approvals.delegation.choose_someone', 'Choose someone')}
                 options={data.candidates.map((c) => ({
                   value: c.personId,
                   label: c.displayName,
@@ -139,15 +143,23 @@ function Ready({
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field invalid={rangeWrong}>
-              <FieldLabel>From</FieldLabel>
+              <FieldLabel>{t('approvals.delegation.from', 'From')}</FieldLabel>
               <FieldControl>
-                <DatePicker label="From" value={from} onChange={setFrom} />
+                <DatePicker
+                  label={t('approvals.delegation.from', 'From')}
+                  value={from}
+                  onChange={setFrom}
+                />
               </FieldControl>
             </Field>
             <Field invalid={rangeWrong}>
-              <FieldLabel>To</FieldLabel>
+              <FieldLabel>{t('approvals.delegation.to', 'To')}</FieldLabel>
               <FieldControl>
-                <DatePicker label="To" value={to} onChange={setTo} />
+                <DatePicker
+                  label={t('approvals.delegation.to', 'To')}
+                  value={to}
+                  onChange={setTo}
+                />
               </FieldControl>
             </Field>
           </div>
@@ -160,7 +172,12 @@ function Ready({
                 }}
               />
             </FieldControl>
-            <FieldLabel>Set automatically whenever my time off is approved</FieldLabel>
+            <FieldLabel>
+              {t(
+                'approvals.delegation.set_automatically_whenever_my_time_off',
+                'Set automatically whenever my time off is approved',
+              )}
+            </FieldLabel>
           </Field>
           <Field orientation="horizontal" className="items-start justify-start">
             <FieldControl>
@@ -171,16 +188,36 @@ function Ready({
                 }}
               />
             </FieldControl>
-            <FieldLabel>{`Let ${name} see salary-related requests`}</FieldLabel>
-            <FieldDescription>Off by default. Overtime pay goes to HR instead.</FieldDescription>
+            <FieldLabel>
+              {t(
+                'approvals.delegation.let_see_salary_related_requests',
+                'Let {{name}} see salary-related requests',
+                { name },
+              )}
+            </FieldLabel>
+            <FieldDescription>
+              {t(
+                'approvals.delegation.off_by_default_overtime_pay_goes',
+                'Off by default. Overtime pay goes to HR instead.',
+              )}
+            </FieldDescription>
           </Field>
-          <Alert tone="info" title="Requests never get stuck">
-            {`If neither of you decides in 3 working days, it goes to ${data.escalatesTo?.displayName ?? 'HR'}.`}
+          <Alert
+            tone="info"
+            title={t('approvals.delegation.requests_never_get_stuck', 'Requests never get stuck')}
+          >
+            {t(
+              'approvals.delegation.if_neither_of_you_decides_in',
+              'If neither of you decides in 3 working days, it goes to {{value}}.',
+              { value: data.escalatesTo?.displayName ?? 'HR' },
+            )}
           </Alert>
           {said === null ? null : (
             <Alert
               tone={said.ok ? 'success' : 'danger'}
-              title={said.ok ? said.text : 'Nothing changed'}
+              title={
+                said.ok ? said.text : t('approvals.delegation.nothing_changed', 'Nothing changed')
+              }
             >
               {said.ok ? undefined : said.text}
             </Alert>
@@ -204,7 +241,7 @@ function Ready({
                 );
               }}
             >
-              Save
+              {t('approvals.delegation.save', 'Save')}
             </Button>
             {now === null ? null : (
               <Button
@@ -214,15 +251,20 @@ function Ready({
                   if (onRemove !== undefined) run(() => onRemove(data.approverId), 'Removed');
                 }}
               >
-                Remove delegate
+                {t('approvals.delegation.remove_delegate', 'Remove delegate')}
               </Button>
             )}
           </div>
         </div>
       </PageSection>
-      <PageSection title="You cover for">
+      <PageSection title={t('approvals.delegation.you_cover_for', 'You cover for')}>
         {data.coveringFor.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nobody has asked you to decide for them.</p>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'approvals.delegation.nobody_has_asked_you_to_decide',
+              'Nobody has asked you to decide for them.',
+            )}
+          </p>
         ) : (
           <List>
             {data.coveringFor.map((c) => (
@@ -231,15 +273,21 @@ function Ready({
                 leading={<Avatar name={c.approverName} />}
                 description={
                   c.automatic
-                    ? 'Whenever their time off is approved'
+                    ? t(
+                        'approvals.delegation.whenever_their_time_off_is_approved',
+                        'Whenever their time off is approved',
+                      )
                     : c.range === null
-                      ? 'Until they say otherwise'
+                      ? t(
+                          'approvals.delegation.until_they_say_otherwise',
+                          'Until they say otherwise',
+                        )
                       : spanLabel(c.range.from, c.range.to)
                 }
                 trailing={
                   <Badge size="sm" tone="info">
                     <icons.approve aria-hidden />
-                    Delegate
+                    {t('approvals.delegation.delegate', 'Delegate')}
                   </Badge>
                 }
               >
@@ -257,9 +305,14 @@ function Ready({
 export function DelegationSkeleton(): JSX.Element {
   return (
     <div className="@container/delegation flex flex-col gap-6">
-      <PageHeader title="Requests" description={DESCRIPTION} />
+      <PageHeader
+        title={t('approvals.delegation.requests', 'Requests')}
+        description={DESCRIPTION}
+      />
       <div role="status" className={body}>
-        <span className="sr-only">Loading your delegation</span>
+        <span className="sr-only">
+          {t('approvals.delegation.loading_your_delegation', 'Loading your delegation')}
+        </span>
         <div className="flex flex-col gap-4">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-16 rounded-md" />

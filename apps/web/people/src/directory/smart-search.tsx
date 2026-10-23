@@ -14,6 +14,7 @@ import {
   icons,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * Smart search on the directory (AI1–AI4, MA1–MA3; docs/ai-settings.md):
@@ -210,11 +211,18 @@ export function AskBar({
         >
           <SearchField
             variant="prompt"
-            label="Search people"
+            label={t('directory.smart-search.search_people', 'Search people')}
             placeholder={
               example === undefined
-                ? 'Ask in plain English, or type a name'
-                : `Ask in plain English, like “${example.charAt(0).toLowerCase()}${example.slice(1)}”`
+                ? t(
+                    'directory.smart-search.ask_in_plain_english_or_type',
+                    'Ask in plain English, or type a name',
+                  )
+                : t(
+                    'directory.smart-search.ask_in_plain_english_like',
+                    'Ask in plain English, like “{{charAt}}{{slice}}”',
+                    { charAt: example.charAt(0).toLowerCase(), slice: example.slice(1) },
+                  )
             }
             value={value}
             onValueChange={onValueChange}
@@ -226,7 +234,7 @@ export function AskBar({
         </div>
       </PopoverAnchor>
       <PopoverContent
-        aria-label="Suggestions"
+        aria-label={t('directory.smart-search.suggestions', 'Suggestions')}
         className="w-(--radix-popover-trigger-width) max-w-130 p-2.5"
         onOpenAutoFocus={(event) => {
           // Typing goes on in the box; the list is a ↓ or a click away.
@@ -252,7 +260,7 @@ export function AskBar({
           {suggestions.length === 0 ? null : (
             <section aria-labelledby="ask-try" className="flex flex-col gap-1">
               <h2 id="ask-try" className="px-2 pt-1 text-xs font-semibold text-fg-subtle">
-                Try asking
+                {t('directory.smart-search.try_asking', 'Try asking')}
               </h2>
               <List navigable>{suggestions.map((s) => row(s, 'suggestion'))}</List>
             </section>
@@ -261,7 +269,7 @@ export function AskBar({
           {recent.length === 0 ? null : (
             <section aria-labelledby="ask-recent" className="flex flex-col gap-1">
               <h2 id="ask-recent" className="px-2 pt-1 text-xs font-semibold text-fg-subtle">
-                Recent
+                {t('directory.smart-search.recent', 'Recent')}
               </h2>
               <List navigable>{recent.map((s) => row(s, 'recent'))}</List>
             </section>
@@ -310,13 +318,17 @@ export function Understood({
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <ChipRow
-        label={<AssistantLabel>Understood as</AssistantLabel>}
+        label={
+          <AssistantLabel>
+            {t('directory.smart-search.understood_as', 'Understood as')}
+          </AssistantLabel>
+        }
         {...(onEdit === undefined
           ? {}
           : {
               action: (
                 <Button variant="link" size="sm" onClick={onEdit}>
-                  Edit as filters
+                  {t('directory.smart-search.edit_as_filters', 'Edit as filters')}
                 </Button>
               ),
             })}
@@ -330,7 +342,10 @@ export function Understood({
             field={c.field}
             selected
             onRemove={c.onRemove}
-            removeLabel={`Remove ${c.field} ${c.text}`}
+            removeLabel={t('directory.smart-search.remove', 'Remove {{field}} {{text}}', {
+              field: c.field,
+              text: c.text,
+            })}
           >
             {c.text}
           </Chip>
@@ -340,7 +355,11 @@ export function Understood({
             key={u.key}
             variant="dashed"
             onRemove={u.onRemove}
-            removeLabel={`Remove “${u.text}”, which was not used`}
+            removeLabel={t(
+              'directory.smart-search.remove_which_was_not_used',
+              'Remove “{{text}}”, which was not used',
+              { text: u.text },
+            )}
           >
             “{u.text}”
           </Chip>
@@ -357,7 +376,11 @@ export function Understood({
 
 /* ---------------------------------------------------------- the cards -- */
 
-const people = (n: number): string => `${String(n)} ${n === 1 ? 'person' : 'people'}`;
+const people = (n: number): string =>
+  t('directory.smart-search.text', '{{n}} {{value}}', {
+    n: String(n),
+    value: n === 1 ? 'person' : 'people',
+  });
 
 /** A part of the "needs you" card: a heading, and what to do about it. */
 interface Part {
@@ -384,10 +407,18 @@ function clarifyPart({
   readonly onPick: (reading: AskedReading) => void;
 }): Part {
   const label = (r: AskedReading): string =>
-    r.count === null ? r.label : `${r.label} · ${String(r.count)}`;
+    r.count === null
+      ? r.label
+      : t('directory.smart-search.text_2', '{{label}} · {{count}}', {
+          label: r.label,
+          count: String(r.count),
+        });
   return {
-    title: `What does “${phrase}” mean${coarse ? '' : ' here'}?`,
-    label: `What does “${phrase}” mean?`,
+    title: t('directory.smart-search.what_does_mean', 'What does “{{phrase}}” mean{{value}}?', {
+      phrase,
+      value: coarse ? '' : ' here',
+    }),
+    label: t('directory.smart-search.what_does_mean_2', 'What does “{{phrase}}” mean?', { phrase }),
     body: coarse ? (
       <div className="flex flex-col gap-2">
         {readings.map((r) => (
@@ -403,7 +434,12 @@ function clarifyPart({
             {label(r)}
           </Button>
         ))}
-        <p className="text-sm text-fg-muted">Pick one and I’ll remember it for next time.</p>
+        <p className="text-sm text-fg-muted">
+          {t(
+            'directory.smart-search.pick_one_and_ill_remember_it',
+            'Pick one and I’ll remember it for next time.',
+          )}
+        </p>
       </div>
     ) : (
       <>
@@ -420,7 +456,10 @@ function clarifyPart({
           ))}
         </div>
         <p className="text-sm text-fg-muted">
-          Pick one and I’ll remember it for next time. Or keep typing.
+          {t(
+            'directory.smart-search.pick_one_and_ill_remember_it_2',
+            'Pick one and I’ll remember it for next time. Or keep typing.',
+          )}
         </p>
       </>
     ),
@@ -443,8 +482,10 @@ function refusedPart({
 }): Part {
   const title =
     refused.length === 1
-      ? 'One part I couldn’t use'
-      : `${String(refused.length)} parts I couldn’t use`;
+      ? t('directory.smart-search.one_part_i_couldnt_use', 'One part I couldn’t use')
+      : t('directory.smart-search.parts_i_couldnt_use', '{{length}} parts I couldn’t use', {
+          length: String(refused.length),
+        });
   return {
     title,
     label: title,
@@ -457,12 +498,19 @@ function refusedPart({
               <span>
                 {r.why}{' '}
                 {r.instead === null
-                  ? 'I left it out.'
-                  : `I can search the ${r.instead.label} field for “${r.instead.subject}” instead${
-                      r.instead.count === null
-                        ? '.'
-                        : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`
-                    }`}
+                  ? t('directory.smart-search.i_left_it_out', 'I left it out.')
+                  : t(
+                      'directory.smart-search.i_can_search_the_field_for',
+                      'I can search the {{label}} field for “{{subject}}” instead{{value}}',
+                      {
+                        label: r.instead.label,
+                        subject: r.instead.subject,
+                        value:
+                          r.instead.count === null
+                            ? '.'
+                            : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`,
+                      },
+                    )}
               </span>
             </p>
             <div className="flex flex-wrap gap-2">
@@ -474,7 +522,9 @@ function refusedPart({
                     onUse(r);
                   }}
                 >
-                  Use the {r.instead.label} field
+                  {t('directory.smart-search.use_the_field', 'Use the {{label}} field', {
+                    label: r.instead.label,
+                  })}
                 </Button>
               )}
               <Button
@@ -483,7 +533,7 @@ function refusedPart({
                   onRemove(r);
                 }}
               >
-                Remove it
+                {t('directory.smart-search.remove_it', 'Remove it')}
               </Button>
             </div>
           </div>
@@ -534,7 +584,11 @@ export function NeedsYou({
   return (
     <AssistantCard
       level={2}
-      title={`Before I search, ${COUNT_WORDS[parts.length] ?? String(parts.length)} things`}
+      title={t(
+        'directory.smart-search.before_i_search_things',
+        'Before I search, {{value}} things',
+        { value: COUNT_WORDS[parts.length] ?? String(parts.length) },
+      )}
     >
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         {parts.map((p) => (

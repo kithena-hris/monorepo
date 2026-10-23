@@ -5,6 +5,7 @@ import { Chip, ChipRow } from '../chip/chip';
 import { Combobox } from '../combobox/combobox';
 import { Progress } from '../progress/progress';
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Times picked from a calendar: a day at a time, the day's free times in a
@@ -116,9 +117,18 @@ export function SlotPicker({
     return map;
   }, [value, timeZone]);
   const markers: Record<IsoDate, readonly CalendarMarker[]> = {};
-  for (const d of byDay.keys()) markers[d] = [{ tone: 'success', label: 'Times free' }];
+  for (const d of byDay.keys())
+    markers[d] = [
+      { tone: 'success', label: t('components.slot-picker.slot-picker.times_free', 'Times free') },
+    ];
   for (const d of bookedDays)
-    markers[d] = [...(markers[d] ?? []), { tone: 'accent', label: 'Already booked' }];
+    markers[d] = [
+      ...(markers[d] ?? []),
+      {
+        tone: 'accent',
+        label: t('components.slot-picker.slot-picker.already_booked', 'Already booked'),
+      },
+    ];
   for (const [d, why] of Object.entries(unavailable))
     markers[d] = [...(markers[d] ?? []), { tone: 'warning', label: why }];
   const weekend = (d: IsoDate): boolean => {
@@ -134,18 +144,25 @@ export function SlotPicker({
     if (!byDay.has(d) && d >= today)
       dayStyles[d] = {
         appearance: 'struck',
-        label: unavailable[d] ?? (weekend(d) ? 'Weekend' : 'Nothing free'),
+        label:
+          unavailable[d] ??
+          (weekend(d)
+            ? t('components.slot-picker.slot-picker.weekend', 'Weekend')
+            : t('components.slot-picker.slot-picker.nothing_free', 'Nothing free')),
       };
   }
   const range = (s: string): string =>
     minutes === undefined
       ? time.format(new Date(s))
-      : `${time.format(new Date(s))} – ${time.format(new Date(Date.parse(s) + minutes * 60_000))}`;
+      : t('components.slot-picker.slot-picker.text', '{{format}} – {{format2}}', {
+          format: time.format(new Date(s)),
+          format2: time.format(new Date(Date.parse(s) + minutes * 60_000)),
+        });
   const full = max !== undefined && value.length >= max;
   return (
     <div className={cn('grid gap-6 md:grid-cols-[auto_minmax(0,1fr)]', className)}>
       <Calendar
-        label={`${label}: day`}
+        label={t('components.slot-picker.slot-picker.day', '{{label}}: day', { label })}
         mode="single"
         today={today}
         min={today}
@@ -162,18 +179,33 @@ export function SlotPicker({
         <h3 className="font-semibold">{longDay.format(new Date(`${day}T12:00:00Z`))}</h3>
         {dayTimes.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            Nothing free that day. Pick a day with a green dot.
+            {t(
+              'components.slot-picker.slot-picker.nothing_free_that_day_pick_a',
+              'Nothing free that day. Pick a day with a green dot.',
+            )}
           </p>
         ) : (
           <Combobox
-            label={`${label}: times on ${day}`}
+            label={t('components.slot-picker.slot-picker.times_on', '{{label}}: times on {{day}}', {
+              label,
+              day,
+            })}
             multiple={max !== 1}
             chips={false}
             placeholder={
-              max === 1 ? 'Choose a time' : full ? `${String(max)} picked` : 'Add a time'
+              max === 1
+                ? t('components.slot-picker.slot-picker.choose_a_time', 'Choose a time')
+                : full
+                  ? t('components.slot-picker.slot-picker.picked', '{{max}} picked', {
+                      max: String(max),
+                    })
+                  : t('components.slot-picker.slot-picker.add_a_time', 'Add a time')
             }
-            searchPlaceholder="Type a time"
-            emptyMessage="No time like that"
+            searchPlaceholder={t('components.slot-picker.slot-picker.type_a_time', 'Type a time')}
+            emptyMessage={t(
+              'components.slot-picker.slot-picker.no_time_like_that',
+              'No time like that',
+            )}
             options={dayTimes.map((s) => ({
               value: s,
               label: range(s),
@@ -195,20 +227,38 @@ export function SlotPicker({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="font-medium">
-                {value.length === max ? 'All picked' : `Pick ${String(max - value.length)} more`}
+                {value.length === max
+                  ? t('components.slot-picker.slot-picker.all_picked', 'All picked')
+                  : t('components.slot-picker.slot-picker.pick_more', 'Pick {{value}} more', {
+                      value: String(max - value.length),
+                    })}
               </span>
-              <span className="text-fg-muted tabular-nums">{`${String(value.length)} of ${String(max)}`}</span>
+              <span className="text-fg-muted tabular-nums">
+                {t('components.slot-picker.slot-picker.of', '{{length}} of {{max}}', {
+                  length: String(value.length),
+                  max: String(max),
+                })}
+              </span>
             </div>
             <Progress
               value={value.length}
               max={max}
               size="sm"
-              label={`${String(value.length)} of ${String(max)} times picked`}
+              label={t(
+                'components.slot-picker.slot-picker.of_times_picked',
+                '{{length}} of {{max}} times picked',
+                { length: String(value.length), max: String(max) },
+              )}
             />
           </div>
         )}
         {value.length === 0 ? null : (
-          <ul className="flex flex-col gap-2" aria-label={`${label}: picked`}>
+          <ul
+            className="flex flex-col gap-2"
+            aria-label={t('components.slot-picker.slot-picker.picked_2', '{{label}}: picked', {
+              label,
+            })}
+          >
             {[...chosenByDay.entries()].map(([d, times]) => {
               const at = new Date(`${d}T12:00:00Z`);
               return (
@@ -225,7 +275,9 @@ export function SlotPicker({
                     }}
                   >
                     {/* The name is the tile's own words, so a voice command can say what it sees. */}
-                    <span className="sr-only">Show </span>
+                    <span className="sr-only">
+                      {t('components.slot-picker.slot-picker.show', 'Show')}{' '}
+                    </span>
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-accent-fg">
                       {weekday.format(at)}
                     </span>{' '}
@@ -235,7 +287,11 @@ export function SlotPicker({
                     <span className="text-[0.6875rem] text-fg-muted">{month.format(at)}</span>
                   </button>
                   <ChipRow
-                    aria-label={`Picked on ${longDay.format(at)}`}
+                    aria-label={t(
+                      'components.slot-picker.slot-picker.picked_on',
+                      'Picked on {{format}}',
+                      { format: longDay.format(at) },
+                    )}
                     className="min-w-0 flex-1 pt-0.5"
                   >
                     {times.map((s) => (
@@ -244,7 +300,11 @@ export function SlotPicker({
                         onRemove={() => {
                           onChange(value.filter((v) => v !== s));
                         }}
-                        removeLabel={`Remove ${range(s)}`}
+                        removeLabel={t(
+                          'components.slot-picker.slot-picker.remove',
+                          'Remove {{range}}',
+                          { range: range(s) },
+                        )}
                       >
                         {range(s)}
                       </Chip>

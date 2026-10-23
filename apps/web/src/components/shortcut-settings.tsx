@@ -22,6 +22,7 @@ import { useState, type JSX } from 'react';
 
 import { GROUPS, SHORTCUTS, problemWith, type Shortcut } from '../lib/shortcuts';
 import { useApple, useShortcuts } from './shortcuts';
+import { t } from '../lib/t';
 
 const same = (a: readonly string[], b: readonly string[]): boolean =>
   a.length === b.length && a.every((k, i) => b[i] === k);
@@ -75,17 +76,24 @@ export function ShortcutSettings(): JSX.Element {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
+                <BreadcrumbLink href="/settings">
+                  {t('components.shortcut-settings.settings', 'Settings')}
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Keyboard shortcuts</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {t('components.shortcut-settings.keyboard_shortcuts', 'Keyboard shortcuts')}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         }
-        title="Keyboard shortcuts"
-        description="Press a shortcut to record new keys for it: one key, or two in a row. Yours alone, and they follow you to any device you sign in on."
+        title={t('components.shortcut-settings.keyboard_shortcuts', 'Keyboard shortcuts')}
+        description={t(
+          'components.shortcut-settings.press_a_shortcut_to_record_new',
+          'Press a shortcut to record new keys for it: one key, or two in a row. Yours alone, and they follow you to any device you sign in on.',
+        )}
         actions={
           <Button
             size="sm"
@@ -95,17 +103,24 @@ export function ShortcutSettings(): JSX.Element {
               void save({ ...prefs, bindings: {} });
             }}
           >
-            Reset all to the defaults
+            {t(
+              'components.shortcut-settings.reset_all_to_the_defaults',
+              'Reset all to the defaults',
+            )}
           </Button>
         }
       />
 
       <Field orientation="horizontal" className="max-w-xl">
         <div className="flex flex-col gap-1">
-          <FieldLabel>Single-key shortcuts</FieldLabel>
+          <FieldLabel>
+            {t('components.shortcut-settings.single_key_shortcuts', 'Single-key shortcuts')}
+          </FieldLabel>
           <FieldDescription>
-            Keys without ⌘ or Ctrl, like G then D or /. Turn them off if they get in the way of a
-            screen reader or speech input.
+            {t(
+              'components.shortcut-settings.keys_without_or_ctrl_like_g',
+              'Keys without ⌘ or Ctrl, like G then D or /. Turn them off if they get in the way of a screen reader or speech input.',
+            )}
           </FieldDescription>
         </div>
         <FieldControl>
@@ -133,7 +148,7 @@ export function ShortcutSettings(): JSX.Element {
                       <span className="font-semibold text-fg">{s.label}</span>
                       <span className="flex items-center gap-3 text-fg-muted">
                         <KbdShortcut keys={s.keys} />
-                        Always this key
+                        {t('components.shortcut-settings.always_this_key', 'Always this key')}
                       </span>
                     </div>
                   ) : (
@@ -154,18 +169,26 @@ export function ShortcutSettings(): JSX.Element {
                           <Button
                             size="sm"
                             variant="ghost"
-                            aria-label={`Reset ${s.label}`}
+                            aria-label={t(
+                              'components.shortcut-settings.reset_2',
+                              'Reset {{label}}',
+                              { label: s.label },
+                            )}
                             onClick={() => {
                               reset(s.id);
                             }}
                           >
-                            Reset
+                            {t('components.shortcut-settings.reset', 'Reset')}
                           </Button>
                         )}
                       </div>
                       {s.href !== undefined && !destinations.has(s.id) ? (
                         <FieldDescription>
-                          Not in your workspace: there is no {s.label} for you to open yet.
+                          {t(
+                            'components.shortcut-settings.not_in_your_workspace_there_is',
+                            'Not in your workspace: there is no {{label}} for you to open yet.',
+                            { label: s.label },
+                          )}
                         </FieldDescription>
                       ) : null}
                       <FieldError>{errors[s.id]}</FieldError>

@@ -27,6 +27,7 @@ import {
 } from 'react';
 
 import { SLOW_AFTER_MS, retryDelay } from '../lib/waking';
+import { t as tr } from '../lib/t';
 
 /**
  * In place of a page's body while the VM behind it wakes (`lib/waking.ts`),
@@ -137,7 +138,7 @@ export function Waking({
       {/* Present from the first waking render, so "ready" is heard when it changes. */}
       {waking || ready ? (
         <p role="status" className="sr-only">
-          {!waking && ready ? `${area} is ready` : ''}
+          {!waking && ready ? tr('components.waking.is_ready', '{{area}} is ready', { area }) : ''}
         </p>
       ) : null}
       {waking ? (
@@ -146,13 +147,20 @@ export function Waking({
           <div className="flex flex-col gap-4">
             <EmptyState
               icon={<Spinner size="lg" aria-hidden="true" />}
-              title={`Waking up ${area}, usually under a minute`}
+              title={tr(
+                'components.waking.waking_up_usually_under_a_minute',
+                'Waking up {{area}}, usually under a minute',
+                { area },
+              )}
               description={
                 <>
-                  The server sleeps when nobody is using it, to keep costs down. This page appears
-                  by itself when it is ready.
+                  {tr(
+                    'components.waking.the_server_sleeps_when_nobody_is',
+                    'The server sleeps when nobody is using it, to keep costs down. This page appears by itself when it is ready.',
+                  )}
                   <span className="mt-2 block tabular-nums">
-                    Waiting {elapsed(began === null ? 0 : now - began)}
+                    {tr('components.waking.waiting', 'Waiting')}{' '}
+                    {elapsed(began === null ? 0 : now - began)}
                   </span>
                 </>
               }
@@ -160,15 +168,20 @@ export function Waking({
             {slow ? (
               <Alert
                 tone="warning"
-                title="This is taking longer than usual"
+                title={tr(
+                  'components.waking.this_is_taking_longer_than_usual',
+                  'This is taking longer than usual',
+                )}
                 action={
                   <Button variant="secondary" onClick={again}>
-                    Try again
+                    {tr('components.waking.try_again', 'Try again')}
                   </Button>
                 }
               >
-                It may still be starting. Try again, and if it stays like this, ask whoever runs
-                your Kithena workspace.
+                {tr(
+                  'components.waking.it_may_still_be_starting_try',
+                  'It may still be starting. Try again, and if it stays like this, ask whoever runs your Kithena workspace.',
+                )}
               </Alert>
             ) : null}
           </div>
@@ -202,7 +215,11 @@ export function WakingHeader({
   readonly frame: WakingFrame;
   readonly title: string;
 }): JSX.Element {
-  const { section = null, trail = [{ href: '/people', label: 'People' }], tabs = [] } = frame;
+  const {
+    section = null,
+    trail = [{ href: '/people', label: tr('components.waking.people', 'People') }],
+    tabs = [],
+  } = frame;
   const tab = tabs.find((t) => t.current);
   return (
     <PageHeader
@@ -221,7 +238,12 @@ export function WakingHeader({
               ))}
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {tab === undefined ? section : `${section}: ${tab.label}`}
+                  {tab === undefined
+                    ? section
+                    : tr('components.waking.text', '{{section}}: {{label}}', {
+                        section,
+                        label: tab.label,
+                      })}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
@@ -231,7 +253,7 @@ export function WakingHeader({
       tabs={
         tabs.length === 0 ? undefined : (
           <TertiaryNav
-            label={`${section ?? title} tabs`}
+            label={tr('components.waking.tabs', '{{value}} tabs', { value: section ?? title })}
             orientation="horizontal"
             variant="line"
             current="page"

@@ -52,6 +52,7 @@ import {
   type Punch,
   type PunchKind,
 } from './time';
+import { t } from '../i18n';
 
 /**
  * My timesheet (T20, MT17, PRD §11.3): a week or a month, each day a bar from
@@ -136,7 +137,9 @@ export function Timesheet({ load, onCorrect }: TimesheetProps): JSX.Element {
   if (load.status === 'loading') return <TimesheetSkeleton />;
   return (
     <div className="@container/sheet flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Attendance" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} />
+      ) : null}
       <Loaded load={load} what="your timesheet">
         {(data) => <Ready data={data} onCorrect={onCorrect} />}
       </Loaded>
@@ -189,29 +192,58 @@ function Ready({
   return (
     <>
       <PageHeader
-        title="Attendance"
+        title={t('attendance.timesheet.attendance', 'Attendance')}
         description={
           week
-            ? `Week of ${dayMonth(period.from)} · ${duration(planned)} scheduled`
-            : `${monthName(period.from)} · ${duration(planned)} scheduled`
+            ? t(
+                'attendance.timesheet.week_of_scheduled',
+                'Week of {{dayMonth}} · {{planned}} scheduled',
+                { dayMonth: dayMonth(period.from), planned: duration(planned) },
+              )
+            : t('attendance.timesheet.scheduled', '{{monthName}} · {{planned}} scheduled', {
+                monthName: monthName(period.from),
+                planned: duration(planned),
+              })
         }
         actions={
           <div className="flex items-center gap-2">
             <Button asChild size="sm" variant="ghost" startIcon={<icons.previous aria-hidden />}>
-              <a href={previous} aria-label={week ? 'Previous week' : 'Previous month'} />
+              <a
+                href={previous}
+                aria-label={
+                  week
+                    ? t('attendance.timesheet.previous_week', 'Previous week')
+                    : t('attendance.timesheet.previous_month', 'Previous month')
+                }
+              />
             </Button>
             <TertiaryNav
-              label="Show by"
+              label={t('attendance.timesheet.show_by', 'Show by')}
               orientation="horizontal"
               current="page"
               activeId={period.kind}
               items={[
-                { id: 'week', label: 'Week', href: weekHref(week ? period.from : thisMonday) },
-                { id: 'month', label: 'Month', href: monthHref(period.from) },
+                {
+                  id: 'week',
+                  label: t('attendance.timesheet.week', 'Week'),
+                  href: weekHref(week ? period.from : thisMonday),
+                },
+                {
+                  id: 'month',
+                  label: t('attendance.timesheet.month', 'Month'),
+                  href: monthHref(period.from),
+                },
               ]}
             />
             <Button asChild size="sm" variant="ghost" startIcon={<icons.next aria-hidden />}>
-              <a href={next} aria-label={week ? 'Next week' : 'Next month'} />
+              <a
+                href={next}
+                aria-label={
+                  week
+                    ? t('attendance.timesheet.next_week', 'Next week')
+                    : t('attendance.timesheet.next_month', 'Next month')
+                }
+              />
             </Button>
           </div>
         }
@@ -223,7 +255,11 @@ function Ready({
               key={o.date}
               tone="danger"
               className="@max-[40rem]/sheet:order-2"
-              title={`You didn’t clock out on ${weekdayName(o.date)}`}
+              title={t(
+                'attendance.timesheet.you_didnt_clock_out_on',
+                'You didn’t clock out on {{weekdayName}}',
+                { weekdayName: weekdayName(o.date) },
+              )}
               action={
                 onCorrect === undefined ? undefined : (
                   <Button
@@ -232,7 +268,7 @@ function Ready({
                       setFixing(o.date);
                     }}
                   >
-                    Fix it
+                    {t('attendance.timesheet.fix_it', 'Fix it')}
                   </Button>
                 )
               }
@@ -246,13 +282,19 @@ function Ready({
         <div className={column}>
           <Stat
             className="@max-[40rem]/sheet:order-1"
-            label={week ? 'This week' : 'This month'}
+            label={
+              week
+                ? t('attendance.timesheet.this_week', 'This week')
+                : t('attendance.timesheet.this_month', 'This month')
+            }
             value={duration(worked)}
-            description={`Of ${duration(planned)}${
-              open.length === 0
-                ? ''
-                : `, not counting ${open.map((o) => weekdayName(o.date)).join(' and ')}`
-            }`}
+            description={t('attendance.timesheet.of', 'Of {{planned}}{{value}}', {
+              planned: duration(planned),
+              value:
+                open.length === 0
+                  ? ''
+                  : `, not counting ${open.map((o) => weekdayName(o.date)).join(' and ')}`,
+            })}
           />
           <Overtime data={data} today={today} />
           <Kept />
@@ -296,15 +338,18 @@ function Days({
   const corrected = new Set(data.corrections.map((c) => localDate(c.punch.at, zone)));
   const now = minuteOfDay(data.now, zone);
   return (
-    <Table containerClassName="@max-[40rem]/sheet:order-3" aria-label="Your days">
+    <Table
+      containerClassName="@max-[40rem]/sheet:order-3"
+      aria-label={t('attendance.timesheet.your_days', 'Your days')}
+    >
       {/* A phone's rows say what each figure is; the header stays for a screen reader. */}
       <TableHeader className="@max-[40rem]/sheet:sr-only">
         <TableRow>
-          <TableHead>Day</TableHead>
-          <TableHead className={deskOnly}>In</TableHead>
-          <TableHead className={deskOnly}>Out</TableHead>
-          <TableHead className={deskOnly}>Breaks</TableHead>
-          <TableHead>Worked</TableHead>
+          <TableHead>{t('attendance.timesheet.day', 'Day')}</TableHead>
+          <TableHead className={deskOnly}>{t('attendance.timesheet.in', 'In')}</TableHead>
+          <TableHead className={deskOnly}>{t('attendance.timesheet.out', 'Out')}</TableHead>
+          <TableHead className={deskOnly}>{t('attendance.timesheet.breaks', 'Breaks')}</TableHead>
+          <TableHead>{t('attendance.timesheet.worked', 'Worked')}</TableHead>
           <TableHead className="w-2/5">
             <span className="flex justify-between text-xs">
               <span>07:00</span>
@@ -313,7 +358,7 @@ function Days({
             </span>
           </TableHead>
           <TableHead>
-            <span className="sr-only">Status</span>
+            <span className="sr-only">{t('attendance.timesheet.status', 'Status')}</span>
           </TableHead>
         </TableRow>
       </TableHeader>
@@ -371,24 +416,26 @@ function status(
   if (d.status === 'open') {
     return onFix === undefined ? (
       <Badge size="sm" tone="danger">
-        No clock-out
+        {t('attendance.timesheet.no_clock_out', 'No clock-out')}
       </Badge>
     ) : (
       <Button
         size="xs"
-        aria-label={`Fix ${weekdayName(d.date)}`}
+        aria-label={t('attendance.timesheet.fix_2', 'Fix {{weekdayName}}', {
+          weekdayName: weekdayName(d.date),
+        })}
         onClick={() => {
           onFix(d.date);
         }}
       >
-        Fix
+        {t('attendance.timesheet.fix', 'Fix')}
       </Button>
     );
   }
   if (d.status === 'live') {
     return (
       <Badge size="sm" tone="success" dot>
-        Clocked in
+        {t('attendance.timesheet.clocked_in', 'Clocked in')}
       </Badge>
     );
   }
@@ -396,13 +443,19 @@ function status(
     return (
       <Badge size="sm" tone="info">
         {`+${duration(d.overtimeMinutes)}`}
-        <span className="sr-only"> overtime</span>
+        <span className="sr-only"> {t('attendance.timesheet.overtime', 'overtime')}</span>
       </Badge>
     );
   }
-  if (corrected) return <Badge size="sm">Corrected</Badge>;
+  if (corrected) return <Badge size="sm">{t('attendance.timesheet.corrected', 'Corrected')}</Badge>;
   if (!past && d.plannedMinutes > 0) {
-    return <span className="text-sm text-fg-muted">{`Planned ${duration(d.plannedMinutes)}`}</span>;
+    return (
+      <span className="text-sm text-fg-muted">
+        {t('attendance.timesheet.planned', 'Planned {{plannedMinutes}}', {
+          plannedMinutes: duration(d.plannedMinutes),
+        })}
+      </span>
+    );
   }
   return null;
 }
@@ -423,13 +476,25 @@ function Overtime({
     .filter((d) => d.date < today && d.overtimeMinutes > 0 && !decided.has(d.date))
     .reduce((n, d) => n + d.overtimeMinutes, 0);
   return (
-    <PageSection title="Overtime" className="@max-[40rem]/sheet:order-5">
+    <PageSection
+      title={t('attendance.timesheet.overtime_2', 'Overtime')}
+      className="@max-[40rem]/sheet:order-5"
+    >
       <KeyValues
         layout="split"
         items={[
-          { label: 'Waiting for approval', value: duration(waiting) },
-          { label: 'Approved as comp time', value: duration(sum('comp')) },
-          { label: 'Approved to be paid', value: duration(sum('paid')) },
+          {
+            label: t('attendance.timesheet.waiting_for_approval', 'Waiting for approval'),
+            value: duration(waiting),
+          },
+          {
+            label: t('attendance.timesheet.approved_as_comp_time', 'Approved as comp time'),
+            value: duration(sum('comp')),
+          },
+          {
+            label: t('attendance.timesheet.approved_to_be_paid', 'Approved to be paid'),
+            value: duration(sum('paid')),
+          },
         ]}
       />
     </PageSection>
@@ -447,12 +512,17 @@ function Kept(): JSX.Element {
     <div className="flex flex-col gap-2 text-xs text-fg-muted @max-[40rem]/sheet:order-6">
       <p className="flex gap-2 [&_svg]:size-3.5 [&_svg]:shrink-0">
         <icons.locked aria-hidden />
-        Kept for 4 years as Spanish law requires. Only you, your manager and HR can see it.
+        {t(
+          'attendance.timesheet.kept_for_4_years_as_spanish',
+          'Kept for 4 years as Spanish law requires. Only you, your manager and HR can see it.',
+        )}
       </p>
       <p className="flex gap-2 [&_svg]:size-3.5 [&_svg]:shrink-0">
         <icons.hidden aria-hidden />
-        Kithena records only the punches you make: no location trail, no screenshots, no keyboard or
-        app activity.
+        {t(
+          'attendance.timesheet.kithena_records_only_the_punches_you',
+          'Kithena records only the punches you make: no location trail, no screenshots, no keyboard or app activity.',
+        )}
       </p>
     </div>
   );
@@ -533,7 +603,13 @@ function FixClockOut({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`When did you finish on ${weekdayName(day.date)}?`}</DialogTitle>
+          <DialogTitle>
+            {t(
+              'attendance.timesheet.when_did_you_finish_on',
+              'When did you finish on {{weekdayName}}?',
+              { weekdayName: weekdayName(day.date) },
+            )}
+          </DialogTitle>
           <DialogDescription>
             {`Your last punch was at ${clockTime(after)}. The clock-out you add goes beside the record; nothing is overwritten.`}
           </DialogDescription>
@@ -543,15 +619,18 @@ function FixClockOut({
           {suggestion === null ? null : (
             <AssistantCard
               level={3}
-              title={`Around ${suggestion.time}`}
+              title={t('attendance.timesheet.around', 'Around {{time}}', { time: suggestion.time })}
               action={
                 suggestion.ai ? (
                   <Badge tone="assistant" size="sm">
-                    AI
+                    {t('attendance.timesheet.ai', 'AI')}
                   </Badge>
                 ) : undefined
               }
-              note="Only your calendar and what you did in Kithena. Never screen time or where you were."
+              note={t(
+                'attendance.timesheet.only_your_calendar_and_what_you',
+                'Only your calendar and what you did in Kithena. Never screen time or where you were.',
+              )}
             >
               <IconList>
                 {suggestion.evidence.map((e) => (
@@ -562,18 +641,26 @@ function FixClockOut({
                     description={e.what}
                   >
                     {e.source === 'calendar'
-                      ? `Your meeting ended at ${clockTime(minuteOfDay(e.at, zone))}`
-                      : `Your last action in Kithena was at ${clockTime(minuteOfDay(e.at, zone))}`}
+                      ? t(
+                          'attendance.timesheet.your_meeting_ended_at',
+                          'Your meeting ended at {{clockTime}}',
+                          { clockTime: clockTime(minuteOfDay(e.at, zone)) },
+                        )
+                      : t(
+                          'attendance.timesheet.your_last_action_in_kithena_was',
+                          'Your last action in Kithena was at {{clockTime}}',
+                          { clockTime: clockTime(minuteOfDay(e.at, zone)) },
+                        )}
                   </IconListItem>
                 ))}
               </IconList>
             </AssistantCard>
           )}
           <Field required>
-            <FieldLabel>Finished at</FieldLabel>
+            <FieldLabel>{t('attendance.timesheet.finished_at', 'Finished at')}</FieldLabel>
             <FieldControl>
               <TimePicker
-                label="Finished at"
+                label={t('attendance.timesheet.finished_at', 'Finished at')}
                 value={time}
                 onChange={setTime}
                 step={5}
@@ -583,17 +670,26 @@ function FixClockOut({
             </FieldControl>
             <FieldDescription>
               {worked === null
-                ? 'After your last punch, on the same day.'
-                : `${duration(worked)} worked${overtime > 0 ? `, ${duration(overtime)} overtime` : ''}`}
+                ? t(
+                    'attendance.timesheet.after_your_last_punch_on_the',
+                    'After your last punch, on the same day.',
+                  )
+                : t('attendance.timesheet.worked_2', '{{worked}} worked{{value}}', {
+                    worked: duration(worked),
+                    value: overtime > 0 ? `, ${duration(overtime)} overtime` : '',
+                  })}
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Note (optional)</FieldLabel>
+            <FieldLabel>{t('attendance.timesheet.note_optional', 'Note (optional)')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={note}
                 maxLength={1000}
-                placeholder="For example, forgot after the release call"
+                placeholder={t(
+                  'attendance.timesheet.for_example_forgot_after_the_release',
+                  'For example, forgot after the release call',
+                )}
                 onChange={(e) => {
                   setNote(e.target.value);
                 }}
@@ -601,25 +697,30 @@ function FixClockOut({
             </FieldControl>
           </Field>
           <p className="text-sm text-fg-muted">
-            Edits after 24 hours are shown to your manager with the original record.
+            {t(
+              'attendance.timesheet.edits_after_24_hours_are_shown',
+              'Edits after 24 hours are shown to your manager with the original record.',
+            )}
           </p>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not saved">
+            <Alert tone="danger" title={t('attendance.timesheet.not_saved', 'Not saved')}>
               {refused}
             </Alert>
           )}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('attendance.timesheet.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.confirm aria-hidden />}
             disabled={time === null}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('attendance.timesheet.saving', 'Saving')}
             onClick={save}
           >
-            {time === null ? 'Save' : `Save ${time}`}
+            {time === null
+              ? t('attendance.timesheet.save', 'Save')
+              : t('attendance.timesheet.save_2', 'Save {{time}}', { time })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -633,9 +734,11 @@ function FixClockOut({
 export function TimesheetSkeleton(): JSX.Element {
   return (
     <div className="@container/sheet flex flex-col gap-6">
-      <PageHeader title="Attendance" description={' '} />
+      <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} description={' '} />
       <div role="status" className={body}>
-        <span className="sr-only">Loading your timesheet</span>
+        <span className="sr-only">
+          {t('attendance.timesheet.loading_your_timesheet', 'Loading your timesheet')}
+        </span>
         <div className={column}>
           <div className="flex flex-col gap-2 @max-[40rem]/sheet:order-3">
             {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (

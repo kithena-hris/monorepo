@@ -10,6 +10,7 @@ import {
 import { createContext, useContext, useState, type JSX } from 'react';
 
 import type { RecordField } from './model';
+import { t } from '../i18n';
 
 /**
  * Files for image and document fields: what a record's file values are, and
@@ -48,8 +49,10 @@ export const isFileField = (field: Pick<RecordField, 'dataType'>): boolean =>
 
 const size = (bytes: number): string =>
   bytes < 1024 * 1024
-    ? `${String(Math.max(1, Math.round(bytes / 1024)))} KB`
-    : `${String(Math.round((bytes / (1024 * 1024)) * 10) / 10)} MB`;
+    ? t('record.files.kb', '{{max}} KB', { max: String(Math.max(1, Math.round(bytes / 1024))) })
+    : t('record.files.mb', '{{value}} MB', {
+        value: String(Math.round((bytes / (1024 * 1024)) * 10) / 10),
+      });
 
 /** A file value, read-only: an image as itself, a document as a link to open it. */
 export function FileValue({
@@ -61,12 +64,15 @@ export function FileValue({
 }): JSX.Element {
   const { known } = useContext(FieldFiles);
   const file = known.get(id);
-  if (file === undefined) return <span className="text-fg-muted">A file</span>;
+  if (file === undefined)
+    return <span className="text-fg-muted">{t('record.files.a_file', 'A file')}</span>;
   if (field.dataType === 'image') {
     return (
       <a href={fileUrl(id)} target="_blank" rel="noreferrer" className="inline-block">
         <Avatar size="2xl" shape="rounded" name={field.label} src={fileUrl(id)} />
-        <span className="sr-only">Open {file.name}</span>
+        <span className="sr-only">
+          {t('record.files.open', 'Open')} {file.name}
+        </span>
       </a>
     );
   }
@@ -110,7 +116,9 @@ export function FileInput({
   const [items, setItems] = useState<readonly UploadItem[]>([]);
   const [images, setImages] = useState<readonly UploadedImage[]>([]);
   const [kept, setKept] = useState<FileInfo | null>(null);
-  const label = field.required ? `${field.label} (required)` : field.label;
+  const label = field.required
+    ? t('record.files.required', '{{label}} (required)', { label: field.label })
+    : field.label;
   const current = value === null ? null : ((kept?.id === value ? kept : known.get(value)) ?? null);
 
   if (upload === null || field.readOnly) {
@@ -119,7 +127,9 @@ export function FileInput({
         <p className="text-sm font-medium text-fg">{field.label}</p>
         {value === null ? (
           <p className="text-sm text-fg-muted">
-            {field.readOnly ? 'Not provided' : 'Uploaded on the profile.'}
+            {field.readOnly
+              ? t('record.files.not_provided', 'Not provided')
+              : t('record.files.uploaded_on_the_profile', 'Uploaded on the profile.')}
           </p>
         ) : (
           <FileValue field={field} id={value} />
@@ -143,7 +153,12 @@ export function FileInput({
     });
   };
 
-  const hint = [description, problem === null ? null : `Not uploaded: ${problem}`]
+  const hint = [
+    description,
+    problem === null
+      ? null
+      : t('record.files.not_uploaded', 'Not uploaded: {{problem}}', { problem }),
+  ]
     .filter((x) => x !== null && x !== '')
     .join(' ');
 
@@ -151,7 +166,13 @@ export function FileInput({
     return (
       <AvatarUploader
         label={label}
-        hint={busy ? 'Uploading…' : hint === '' ? 'A PNG or a JPEG.' : hint}
+        hint={
+          busy
+            ? t('record.files.uploading', 'Uploading…')
+            : hint === ''
+              ? t('record.files.a_png_or_a_jpeg', 'A PNG or a JPEG.')
+              : hint
+        }
         shape="rounded"
         ratio="wide"
         value={images}
@@ -162,7 +183,10 @@ export function FileInput({
         disabled={busy}
         invalid={invalid || problem !== null}
         onReject={(rejections) => {
-          setProblem(rejections[0]?.message ?? 'That image was not accepted.');
+          setProblem(
+            rejections[0]?.message ??
+              t('record.files.that_image_was_not_accepted', 'That image was not accepted.'),
+          );
         }}
         onChange={(next) => {
           setImages(next);
@@ -188,14 +212,14 @@ export function FileInput({
           size="sm"
           variant="ghost"
           startIcon={<icons.delete aria-hidden />}
-          aria-label={`Remove ${current.name}`}
+          aria-label={t('record.files.remove_2', 'Remove {{name}}', { name: current.name })}
           onClick={() => {
             setItems([]);
             setKept(null);
             onChange(null);
           }}
         >
-          Remove
+          {t('record.files.remove', 'Remove')}
         </Button>
       </div>
       {hint === '' ? null : <p className="text-xs text-fg-muted">{hint}</p>}
@@ -203,7 +227,7 @@ export function FileInput({
   ) : (
     <FileUploader
       label={label}
-      hint={hint === '' ? 'A PDF, a PNG or a JPEG.' : hint}
+      hint={hint === '' ? t('record.files.a_pdf_a_png_or_a', 'A PDF, a PNG or a JPEG.') : hint}
       variant="button"
       maxFiles={1}
       accept={['application/pdf', 'image/png', 'image/jpeg']}
@@ -213,7 +237,10 @@ export function FileInput({
       invalid={invalid || problem !== null}
       onChange={setItems}
       onReject={(rejections) => {
-        setProblem(rejections[0]?.message ?? 'That file was not accepted.');
+        setProblem(
+          rejections[0]?.message ??
+            t('record.files.that_file_was_not_accepted', 'That file was not accepted.'),
+        );
       }}
       onAccepted={(files) => {
         const file = files[0];

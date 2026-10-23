@@ -37,6 +37,7 @@ import {
 import { FileInput, isFileField } from './files';
 import { INDEFINITE, isMissing, signatureOf, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
+import { t } from '../i18n';
 
 /** The `type` a line of text takes for each data type that is one. */
 const INPUT_TYPE: Partial<Record<RecordField['dataType'], HTMLInputTypeAttribute>> = {
@@ -184,9 +185,13 @@ export function PersonPicker({
       value={value === '' ? null : value}
       disabled={disabled}
       size={size}
-      placeholder="Choose a person"
-      searchPlaceholder="Type a name"
-      emptyMessage={search === null ? 'No matches.' : 'Nobody by that name.'}
+      placeholder={t('record.attribute-input.choose_a_person', 'Choose a person')}
+      searchPlaceholder={t('record.attribute-input.type_a_name', 'Type a name')}
+      emptyMessage={
+        search === null
+          ? t('record.attribute-input.no_matches', 'No matches.')
+          : t('record.attribute-input.nobody_by_that_name', 'Nobody by that name.')
+      }
       loading={loading}
       {...(search === null ? {} : { onSearchChange: find })}
       onChange={(next) => {
@@ -300,10 +305,10 @@ export function AttributeControl({
           value={typeof value === 'string' && value !== '' && !indefinite ? value : null}
           disabled={disabled}
           {...(indefinite
-            ? { placeholder: 'Indefinite' }
+            ? { placeholder: t('record.attribute-input.indefinite', 'Indefinite') }
             : cell === undefined
               ? {}
-              : { placeholder: 'Missing' })}
+              : { placeholder: t('record.attribute-input.missing', 'Missing') })}
           onChange={(next) => {
             onChange(next);
           }}
@@ -324,7 +329,9 @@ export function AttributeControl({
                 }}
               />
             </FieldControl>
-            <FieldLabel>No end date (indefinite)</FieldLabel>
+            <FieldLabel>
+              {t('record.attribute-input.no_end_date_indefinite', 'No end date (indefinite)')}
+            </FieldLabel>
           </Field>
         </div>
       );
@@ -341,7 +348,11 @@ export function AttributeControl({
           options={field.options}
           value={Array.isArray(value) ? (value as readonly string[]) : []}
           disabled={disabled}
-          placeholder={cell === undefined ? 'Choose' : 'Missing'}
+          placeholder={
+            cell === undefined
+              ? t('record.attribute-input.choose', 'Choose')
+              : t('record.attribute-input.missing', 'Missing')
+          }
           onChange={(next) => {
             onChange(Array.isArray(next) ? (next as readonly string[]) : []);
           }}
@@ -438,8 +449,12 @@ export function AttributeControl({
           options={field.options}
           value={text(value) === '' ? null : text(value)}
           disabled={disabled}
-          placeholder={cell === undefined ? 'Choose' : 'Missing'}
-          searchPlaceholder="Type to search"
+          placeholder={
+            cell === undefined
+              ? t('record.attribute-input.choose', 'Choose')
+              : t('record.attribute-input.missing', 'Missing')
+          }
+          searchPlaceholder={t('record.attribute-input.type_to_search', 'Type to search')}
           onChange={(next) => {
             onChange(typeof next === 'string' ? next : null);
           }}
@@ -465,7 +480,11 @@ export function AttributeControl({
         >
           <SelectValue
             placeholder={
-              empty ? 'Nothing to choose from' : cell === undefined ? 'Choose' : 'Missing'
+              empty
+                ? t('record.attribute-input.nothing_to_choose_from', 'Nothing to choose from')
+                : cell === undefined
+                  ? t('record.attribute-input.choose', 'Choose')
+                  : t('record.attribute-input.missing', 'Missing')
             }
           />
         </SelectTrigger>
@@ -559,15 +578,22 @@ export function AttributeInput({
     field.keptIn !== undefined
       ? `Kept in ${field.keptIn}; change it there.`
       : field.readOnly && field.ownedBy !== undefined
-        ? `Changed by ${field.ownedBy}.`
+        ? t('record.attribute-input.changed_by', 'Changed by {{ownedBy}}.', {
+            ownedBy: field.ownedBy,
+          })
         : null;
   // Required of this person and still empty: said in words, in the
   // description the control points at, so it is announced with the field.
   const gap =
     field.missing === true && isMissing(value)
       ? field.readOnly
-        ? `${field.ownedBy ?? 'HR'} fills this in.`
-        : 'Required, and not provided yet.'
+        ? t('record.attribute-input.fills_this_in', '{{value}} fills this in.', {
+            value: field.ownedBy ?? 'HR',
+          })
+        : t(
+            'record.attribute-input.required_and_not_provided_yet',
+            'Required, and not provided yet.',
+          )
       : null;
   const note = [gap, field.description, owner].filter((x) => x !== null).join(' ');
   // A caution about a value that was accepted (PEO-125) is read with the
@@ -601,7 +627,11 @@ export function AttributeInput({
       <div className="flex flex-col gap-1.5">
         <SensitiveMark field={field} />
         <TagsInput
-          label={field.required ? `${field.label} (required)` : field.label}
+          label={
+            field.required
+              ? t('record.attribute-input.required', '{{label}} (required)', { label: field.label })
+              : field.label
+          }
           value={Array.isArray(value) ? (value as readonly string[]) : []}
           disabled={disabled}
           invalid={invalid}

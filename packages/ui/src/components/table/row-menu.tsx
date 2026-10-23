@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
 import { KbdShortcut } from '../kbd/kbd';
+import { t } from '../../lib/i18n';
 
 /**
  * A row's actions, as a menu at its end: each with its keys on the right,
@@ -33,7 +34,7 @@ export function RowMenu({
         <Button
           size="xs"
           variant="ghost"
-          aria-label={`Actions for ${name}`}
+          aria-label={t('components.table.row-menu.actions_for', 'Actions for {{name}}', { name })}
           startIcon={<Ellipsis aria-hidden />}
           // Not the row's click: the menu is its own target.
           onClick={(event) => {

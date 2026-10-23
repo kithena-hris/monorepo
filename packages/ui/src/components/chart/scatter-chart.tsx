@@ -7,6 +7,7 @@ import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
 import { ChartGrid, ChartLegend, strokeTone, type ChartTone } from './chart';
 import { linearFit } from './geometry';
+import { t } from '../../lib/i18n';
 
 /**
  * Two measures, one point per person.
@@ -227,9 +228,18 @@ export function ScatterChart({
 
             {data.map((point, index) => {
               const selected = selectedLabel === point.label;
-              const readout = `${point.label}: ${xLabel} ${formatX(point.x)}, ${yLabel} ${formatY(
-                point.y,
-              )}${point.meta === undefined ? '' : `, ${point.meta}`}`;
+              const readout = t(
+                'components.chart.scatter-chart.text',
+                '{{label}}: {{xLabel}} {{formatX}}, {{yLabel}} {{formatY}}{{value}}',
+                {
+                  label: point.label,
+                  xLabel,
+                  formatX: formatX(point.x),
+                  yLabel,
+                  formatY: formatY(point.y),
+                  value: point.meta === undefined ? '' : `, ${point.meta}`,
+                },
+              );
 
               return (
                 <Tooltip key={`${point.label}-${String(index)}`} content={readout} side="top">
@@ -295,11 +305,19 @@ export function ScatterChart({
         <ul className="sr-only">
           {fitted.map(({ key, label: name, fit }) => (
             <li key={key}>
-              {`Fit line${name === undefined ? '' : ` for ${name}`}: ${yLabel} ${formatY(
-                fit.slope * xMin + fit.intercept,
-              )} at ${xLabel} ${formatX(xMin)}, ${formatY(
-                fit.slope * xMax + fit.intercept,
-              )} at ${formatX(xMax)}`}
+              {t(
+                'components.chart.scatter-chart.fit_line_at_at',
+                'Fit line{{value}}: {{yLabel}} {{formatY}} at {{xLabel}} {{formatX}}, {{formatY2}} at {{formatX2}}',
+                {
+                  value: name === undefined ? '' : ` for ${name}`,
+                  yLabel,
+                  formatY: formatY(fit.slope * xMin + fit.intercept),
+                  xLabel,
+                  formatX: formatX(xMin),
+                  formatY2: formatY(fit.slope * xMax + fit.intercept),
+                  formatX2: formatX(xMax),
+                },
+              )}
             </li>
           ))}
         </ul>
@@ -310,7 +328,7 @@ export function ScatterChart({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Name</th>
+              <th scope="col">{t('components.chart.scatter-chart.name', 'Name')}</th>
               <th scope="col">{xLabel}</th>
               <th scope="col">{yLabel}</th>
             </tr>

@@ -26,6 +26,7 @@ import { useState, type JSX } from 'react';
 
 import { useWrite } from '../shared';
 import type { PersonRef, Read, Row } from '../types';
+import { t as tr } from '../i18n';
 
 /**
  * Letters from a template (G3): pick the people and a Template document,
@@ -82,21 +83,27 @@ export function LettersDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>Generate letters</DialogTitle>
+          <DialogTitle>{tr('library.letters.generate_letters', 'Generate letters')}</DialogTitle>
           <DialogDescription>
-            Each is filled from the person’s record and filed to their documents.
+            {tr(
+              'library.letters.each_is_filled_from_the_persons',
+              'Each is filled from the person’s record and filed to their documents.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {templates.length === 0 ? (
             <Alert tone="info">
-              Add a document of the Template type first: its text with fields in double braces, such
-              as {'{{Preferred name}}'}.
+              {tr(
+                'library.letters.add_a_document_of_the_template',
+                'Add a document of the Template type first: its text with fields in double braces, such as {{Preferred name}}',
+              )}
+              .
             </Alert>
           ) : (
             <>
               <Field>
-                <FieldLabel>Template</FieldLabel>
+                <FieldLabel>{tr('library.letters.template', 'Template')}</FieldLabel>
                 <Select
                   value={templateId}
                   onValueChange={(v) => {
@@ -120,7 +127,9 @@ export function LettersDialog({
                 </Select>
               </Field>
               <Field required>
-                <FieldLabel>Each letter’s name</FieldLabel>
+                <FieldLabel>
+                  {tr('library.letters.each_letters_name', 'Each letter’s name')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={title}
@@ -132,25 +141,34 @@ export function LettersDialog({
                 </FieldControl>
               </Field>
               <Field>
-                <FieldLabel>{`People · ${String(chosen.size)} chosen`}</FieldLabel>
+                <FieldLabel>
+                  {tr('library.letters.people_chosen', 'People · {{size}} chosen', {
+                    size: String(chosen.size),
+                  })}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={q}
-                    placeholder="Find someone"
+                    placeholder={tr('library.letters.find_someone', 'Find someone')}
                     onChange={(e) => {
                       setQ(e.target.value);
                     }}
                   />
                 </FieldControl>
               </Field>
-              <List aria-label="People" className="max-h-56 overflow-y-auto">
+              <List
+                aria-label={tr('library.letters.people', 'People')}
+                className="max-h-56 overflow-y-auto"
+              >
                 {shown.slice(0, 50).map((p) => (
                   <ListItem
                     key={p.personId}
                     description={p.teamName ?? undefined}
                     leading={
                       <Checkbox
-                        aria-label={`Write to ${p.name}`}
+                        aria-label={tr('library.letters.write_to', 'Write to {{name}}', {
+                          name: p.name,
+                        })}
                         checked={chosen.has(p.personId)}
                         onCheckedChange={(v) => {
                           const next = new Set(chosen);
@@ -175,7 +193,12 @@ export function LettersDialog({
                     }}
                   />
                 </FieldControl>
-                <FieldLabel>Send each to its person to sign</FieldLabel>
+                <FieldLabel>
+                  {tr(
+                    'library.letters.send_each_to_its_person_to',
+                    'Send each to its person to sign',
+                  )}
+                </FieldLabel>
               </Field>
               {preview === null ? null : (
                 <>
@@ -183,9 +206,20 @@ export function LettersDialog({
                     <p className="text-sm whitespace-pre-wrap">{preview.preview}</p>
                   </Card>
                   {preview.missing.length === 0 ? null : (
-                    <Alert tone="warning" title="Not every record fills the letter">
+                    <Alert
+                      tone="warning"
+                      title={tr(
+                        'library.letters.not_every_record_fills_the_letter',
+                        'Not every record fills the letter',
+                      )}
+                    >
                       {preview.missing
-                        .map((m) => `${name(m.personId)}: ${m.fields.join(', ')}`)
+                        .map((m) =>
+                          tr('library.letters.text', '{{name}}: {{join}}', {
+                            name: name(m.personId),
+                            join: m.fields.join(', '),
+                          }),
+                        )
                         .join(' · ')}
                     </Alert>
                   )}
@@ -210,7 +244,7 @@ export function LettersDialog({
               });
             }}
           >
-            Preview
+            {tr('library.letters.preview', 'Preview')}
           </Button>
           <Button
             variant="primary"
@@ -232,7 +266,7 @@ export function LettersDialog({
               });
             }}
           >
-            {`Generate ${String(chosen.size)}`}
+            {tr('library.letters.generate', 'Generate {{size}}', { size: String(chosen.size) })}
           </Button>
         </DialogFooter>
       </DialogContent>

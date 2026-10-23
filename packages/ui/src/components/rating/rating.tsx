@@ -4,6 +4,7 @@ import { Star } from 'lucide-react';
 import { useId, useState, type JSX, type KeyboardEvent, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A star rating.
@@ -123,7 +124,11 @@ export function Rating({
   const shown = hovered ?? value;
 
   const describe = (rating: number): string =>
-    valueLabels?.[rating - 1] ?? `${String(rating)} of ${String(max)}`;
+    valueLabels?.[rating - 1] ??
+    t('components.rating.rating.of', '{{rating}} of {{max}}', {
+      rating: String(rating),
+      max: String(max),
+    });
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (!interactive) return;
@@ -150,7 +155,11 @@ export function Rating({
         // `img` with a label: one announcement of the whole thing, rather than
         // five children a screen reader has to assemble into a number.
         role="img"
-        aria-label={`${label}: ${String(rounded)} out of ${String(max)}`}
+        aria-label={t('components.rating.rating.out_of', '{{label}}: {{rounded}} out of {{max}}', {
+          label,
+          rounded: String(rounded),
+          max: String(max),
+        })}
         className={cn('inline-flex items-center', gapSize[size], className)}
       >
         {Array.from({ length: max }, (_, index) => {
@@ -250,7 +259,7 @@ export function Rating({
         // a reviewer nothing that "Meets expectations" does not tell them
         // better.
         <span aria-live="polite" className="min-w-24 text-sm text-fg-muted">
-          {shown === 0 ? 'Not rated' : describe(shown)}
+          {shown === 0 ? t('components.rating.rating.not_rated', 'Not rated') : describe(shown)}
         </span>
       ) : null}
 

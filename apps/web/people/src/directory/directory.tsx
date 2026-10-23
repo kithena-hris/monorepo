@@ -89,6 +89,7 @@ import {
   type AskedRefusal,
   type UnderstoodChip,
 } from './smart-search';
+import { t } from '../i18n';
 
 /** A column, generated from the published schema: only what this viewer may read. */
 export interface DirectoryColumn {
@@ -327,8 +328,11 @@ function NameSearch({
   const [typed, type] = useTyped(search, onSearchChange);
   return (
     <SearchField
-      label="Search people"
-      placeholder="Search by name, email or employee number"
+      label={t('directory.directory.search_people', 'Search people')}
+      placeholder={t(
+        'directory.directory.search_by_name_email_or_employee',
+        'Search by name, email or employee number',
+      )}
       size="sm"
       value={typed}
       onValueChange={type}
@@ -473,10 +477,23 @@ function useRows(
 export function summaryOf(state: DirectoryState): string {
   const { total, notStarted, incomplete } = state;
   return [
-    `${String(total)} ${total === 1 ? 'person' : 'people'}`,
-    notStarted === null ? null : `${String(state.active)} active`,
-    notStarted === null || notStarted === 0 ? null : `${String(notStarted)} not started`,
-    incomplete === null ? null : `${String(incomplete)} incomplete`,
+    t('directory.directory.text', '{{total}} {{value}}', {
+      total: String(total),
+      value: total === 1 ? 'person' : 'people',
+    }),
+    notStarted === null
+      ? null
+      : t('directory.directory.active', '{{active}} active', { active: String(state.active) }),
+    notStarted === null || notStarted === 0
+      ? null
+      : t('directory.directory.not_started', '{{notStarted}} not started', {
+          notStarted: String(notStarted),
+        }),
+    incomplete === null
+      ? null
+      : t('directory.directory.incomplete', '{{incomplete}} incomplete', {
+          incomplete: String(incomplete),
+        }),
   ]
     .filter((x) => x !== null)
     .join(' · ');
@@ -490,12 +507,12 @@ const EMPTY: FilterOperator[] = [
 const OPERATORS: Record<string, readonly FilterOperator[]> = {
   text: [
     { id: 'contains', label: 'contains', value: 'text' },
-    { id: 'is', label: 'is exactly', value: 'text' },
+    { id: 'is', label: t('directory.directory.is_exactly', 'is exactly'), value: 'text' },
     ...EMPTY,
   ],
   select: [
-    { id: 'in', label: 'is any of', value: 'options' },
-    { id: 'not_in', label: 'is none of', value: 'options' },
+    { id: 'in', label: t('directory.directory.is_any_of', 'is any of'), value: 'options' },
+    { id: 'not_in', label: t('directory.directory.is_none_of', 'is none of'), value: 'options' },
     ...EMPTY,
   ],
   status: [
@@ -503,15 +520,19 @@ const OPERATORS: Record<string, readonly FilterOperator[]> = {
     { id: 'not_in', label: 'is none of', value: 'options' },
   ],
   date: [
-    { id: 'between', label: 'is between', value: 'date-range' },
-    { id: 'before', label: 'is before', value: 'date' },
-    { id: 'after', label: 'is after', value: 'date' },
+    {
+      id: 'between',
+      label: t('directory.directory.is_between', 'is between'),
+      value: 'date-range',
+    },
+    { id: 'before', label: t('directory.directory.is_before', 'is before'), value: 'date' },
+    { id: 'after', label: t('directory.directory.is_after', 'is after'), value: 'date' },
     ...EMPTY,
   ],
   number: [
     { id: 'is', label: 'is', value: 'number' },
-    { id: 'before', label: 'is less than', value: 'number' },
-    { id: 'after', label: 'is more than', value: 'number' },
+    { id: 'before', label: t('directory.directory.is_less_than', 'is less than'), value: 'number' },
+    { id: 'after', label: t('directory.directory.is_more_than', 'is more than'), value: 'number' },
     ...EMPTY,
   ],
   person: EMPTY,
@@ -539,14 +560,31 @@ export function describeCondition(
   const shown = (v: string) =>
     field?.options.find((o) => o.value === v)?.label ??
     (field?.kind === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? longDate(v) : v);
-  if (condition.op === 'empty' || condition.op === 'not_empty') return `${label} ${op}`;
+  if (condition.op === 'empty' || condition.op === 'not_empty')
+    return t('directory.directory.text_2', '{{label}} {{op}}', { label, op });
   if (condition.op === 'between') {
     const [from = '', to = ''] = condition.values;
-    if (from === '') return `${label} is on or before ${shown(to)}`;
-    if (to === '') return `${label} is on or after ${shown(from)}`;
-    return `${label} is between ${shown(from)} and ${shown(to)}`;
+    if (from === '')
+      return t('directory.directory.is_on_or_before', '{{label}} is on or before {{shown}}', {
+        label,
+        shown: shown(to),
+      });
+    if (to === '')
+      return t('directory.directory.is_on_or_after', '{{label}} is on or after {{shown}}', {
+        label,
+        shown: shown(from),
+      });
+    return t(
+      'directory.directory.is_between_and',
+      '{{label}} is between {{shown}} and {{shown2}}',
+      { label, shown: shown(from), shown2: shown(to) },
+    );
   }
-  return `${label} ${op} ${condition.values.map(shown).join(', ')}`;
+  return t('directory.directory.text_3', '{{label}} {{op}} {{join}}', {
+    label,
+    op,
+    join: condition.values.map(shown).join(', '),
+  });
 }
 
 /**
@@ -573,7 +611,7 @@ export function Directory(props: DirectoryProps): JSX.Element {
   return (
     <Stack gap={5}>
       <PageHeader
-        title="Directory"
+        title={t('directory.directory.directory', 'Directory')}
         description={summary}
         actions={
           onViewChange === undefined ? undefined : (
@@ -618,18 +656,22 @@ export function ViewSwitch({
   };
   return phone ? (
     <SegmentedControl
-      aria-label="Show people as"
+      aria-label={t('directory.directory.show_people_as', 'Show people as')}
       fullWidth
       value={view === 'org-chart' ? 'org-chart' : 'list'}
       onValueChange={chosen}
       className="hidden touch:flex"
     >
-      <SegmentedControlItem value="list">List</SegmentedControlItem>
-      <SegmentedControlItem value="org-chart">Org chart</SegmentedControlItem>
+      <SegmentedControlItem value="list">
+        {t('directory.directory.list', 'List')}
+      </SegmentedControlItem>
+      <SegmentedControlItem value="org-chart">
+        {t('directory.directory.org_chart', 'Org chart')}
+      </SegmentedControlItem>
     </SegmentedControl>
   ) : (
     <SegmentedControl
-      aria-label="Show people as"
+      aria-label={t('directory.directory.show_people_as', 'Show people as')}
       size="sm"
       value={view}
       onValueChange={chosen}
@@ -637,15 +679,15 @@ export function ViewSwitch({
     >
       <SegmentedControlItem value="list">
         <icons.list aria-hidden />
-        List
+        {t('directory.directory.list', 'List')}
       </SegmentedControlItem>
       <SegmentedControlItem value="cards">
         <icons.cards aria-hidden />
-        Cards
+        {t('directory.directory.cards', 'Cards')}
       </SegmentedControlItem>
       <SegmentedControlItem value="org-chart">
         <icons.hierarchy aria-hidden />
-        Org chart
+        {t('directory.directory.org_chart', 'Org chart')}
       </SegmentedControlItem>
     </SegmentedControl>
   );
@@ -684,7 +726,7 @@ function Views({
   const views = [
     {
       id: 'everyone',
-      label: 'Everyone',
+      label: t('directory.directory.everyone', 'Everyone'),
       count: everyone ? state.total : null,
       on: everyone,
       view: { conditions: [], incomplete: false, segmentId: null },
@@ -693,14 +735,14 @@ function Views({
       ? [
           {
             id: 'starting',
-            label: 'Starting soon',
+            label: t('directory.directory.starting_soon', 'Starting soon'),
             count: everyone ? state.notStarted : null,
             on: statusIs('pre_hire'),
             view: status('pre_hire'),
           },
           {
             id: 'leaving',
-            label: 'Leaving',
+            label: t('directory.directory.leaving', 'Leaving'),
             count: everyone ? (state.leaving ?? null) : null,
             on: statusIs('notice'),
             view: status('notice'),
@@ -712,7 +754,7 @@ function Views({
       : [
           {
             id: 'incomplete',
-            label: 'Incomplete',
+            label: t('directory.directory.incomplete_2', 'Incomplete'),
             count: everyone ? state.incomplete : null,
             on: incomplete,
             view: { conditions: [], incomplete: true, segmentId: null },
@@ -734,7 +776,7 @@ function Views({
       <ChipGroup
         type="single"
         scroll
-        aria-label="Views"
+        aria-label={t('directory.directory.views', 'Views')}
         value={active}
         onValueChange={(id) => {
           const chosen = views.find((v) => v.id === (id === '' ? 'everyone' : id));
@@ -762,7 +804,10 @@ const DIRECTORY_PAGE = 100;
 type Answered = Extract<DirectoryAsked, { ok: true }>;
 
 const peopleCount = (n: number): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+  t('directory.directory.text_4', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? 'person' : 'people',
+  });
 
 /** "ordered by start date, latest first", "sorted by most missing details": an order in words. */
 function orderWords(
@@ -770,26 +815,31 @@ function orderWords(
   fields: readonly DirectoryField[],
   metrics: readonly DirectoryMetric[] = [],
 ): string {
-  if (sort.key === 'name') return `sorted by name${sort.direction === 'desc' ? ', Z to A' : ''}`;
+  if (sort.key === 'name')
+    return t('directory.directory.sorted_by_name', 'sorted by name{{value}}', {
+      value: sort.direction === 'desc' ? ', Z to A' : '',
+    });
   const metric = metrics.find((m) => m.key === sort.key);
   if (metric !== undefined) {
-    return `sorted by ${sort.direction === 'desc' ? metric.most : metric.least}`;
+    return t('directory.directory.sorted_by', 'sorted by {{value}}', {
+      value: sort.direction === 'desc' ? metric.most : metric.least,
+    });
   }
   const field = fields.find((f) => f.key === sort.key);
   const label = (field?.label ?? sort.key).toLowerCase();
   const way =
     field?.kind === 'date'
       ? sort.direction === 'desc'
-        ? 'latest first'
-        : 'earliest first'
+        ? t('directory.directory.latest_first', 'latest first')
+        : t('directory.directory.earliest_first', 'earliest first')
       : field?.kind === 'number'
         ? sort.direction === 'desc'
-          ? 'highest first'
-          : 'lowest first'
+          ? t('directory.directory.highest_first', 'highest first')
+          : t('directory.directory.lowest_first', 'lowest first')
         : sort.direction === 'desc'
-          ? 'Z to A'
-          : 'A to Z';
-  return `ordered by ${label}, ${way}`;
+          ? t('directory.directory.z_to_a', 'Z to A')
+          : t('directory.directory.a_to_z', 'A to Z');
+  return t('directory.directory.ordered_by', 'ordered by {{label}}, {{way}}', { label, way });
 }
 
 /** "Most missing details": an order as a menu offers it. */
@@ -807,9 +857,18 @@ function spanWords(from: string, to: string): string {
       timeZone: 'UTC',
     });
   }
-  if (from === '') return `on or before ${longDate(to)}`;
-  if (to === '') return `on or after ${longDate(from)}`;
-  return `${longDate(from)} to ${longDate(to)}`;
+  if (from === '')
+    return t('directory.directory.on_or_before', 'on or before {{longDate}}', {
+      longDate: longDate(to),
+    });
+  if (to === '')
+    return t('directory.directory.on_or_after', 'on or after {{longDate}}', {
+      longDate: longDate(from),
+    });
+  return t('directory.directory.to', '{{longDate}} to {{longDate2}}', {
+    longDate: longDate(from),
+    longDate2: longDate(to),
+  });
 }
 
 /**
@@ -837,15 +896,26 @@ export function chipOf(
     case 'before':
       return {
         field: label,
-        text: field?.kind === 'number' ? `${first} or fewer` : `before ${shown(first)}`,
+        text:
+          field?.kind === 'number'
+            ? t('directory.directory.or_fewer', '{{first}} or fewer', { first })
+            : t('directory.directory.before', 'before {{shown}}', { shown: shown(first) }),
       };
     case 'after':
       return {
         field: label,
-        text: field?.kind === 'number' ? `${first} or more` : `after ${shown(first)}`,
+        text:
+          field?.kind === 'number'
+            ? t('directory.directory.or_more', '{{first}} or more', { first })
+            : t('directory.directory.after', 'after {{shown}}', { shown: shown(first) }),
       };
     case 'not_in':
-      return { field: label, text: `not ${condition.values.map(shown).join(' or ')}` };
+      return {
+        field: label,
+        text: t('directory.directory.not', 'not {{join}}', {
+          join: condition.values.map(shown).join(' or '),
+        }),
+      };
     // Everybody below a manager, however deep: "Marco's team".
     case 'under':
       return { field: 'Team of', text: condition.values.map(shown).join(' or ') };
@@ -1030,7 +1100,10 @@ function PlacePill({
   if (at.top === 0) return null;
   return (
     <ScrollPosition onBackToTop={place.toTop} className={className}>
-      {`${(at.last + 1).toLocaleString('en-GB')} of ${total.toLocaleString('en-GB')}`}
+      {t('directory.directory.of', '{{toLocaleString}} of {{toLocaleString2}}', {
+        toLocaleString: (at.last + 1).toLocaleString('en-GB'),
+        toLocaleString2: total.toLocaleString('en-GB'),
+      })}
     </ScrollPosition>
   );
 }
@@ -1056,9 +1129,12 @@ const DirectoryCard = memo(function DirectoryCard({
         description={line}
         {...(p.avatarUrl === null ? {} : { avatarSrc: p.avatarUrl })}
         {...(p.values['status'] === 'Active'
-          ? { status: 'success' as const, statusLabel: 'Active' }
+          ? { status: 'success' as const, statusLabel: t('directory.directory.active_2', 'Active') }
           : p.values['status'] === 'On leave'
-            ? { status: 'info' as const, statusLabel: 'On leave' }
+            ? {
+                status: 'info' as const,
+                statusLabel: t('directory.directory.on_leave', 'On leave'),
+              }
             : {})}
         badges={
           p.missing === null || p.missing === 0 ? undefined : <MissingMark count={p.missing} />
@@ -1066,7 +1142,11 @@ const DirectoryCard = memo(function DirectoryCard({
         actions={
           <>
             {p.email === null ? null : (
-              <Button asChild size="xs" aria-label={`Email ${p.name}`}>
+              <Button
+                asChild
+                size="xs"
+                aria-label={t('directory.directory.email', 'Email {{name}}', { name: p.name })}
+              >
                 <a href={`mailto:${p.email}`}>
                   <icons.email aria-hidden />
                 </a>
@@ -1078,7 +1158,7 @@ const DirectoryCard = memo(function DirectoryCard({
                 onOpen(p.id);
               }}
             >
-              Profile
+              {t('directory.directory.profile', 'Profile')}
             </Button>
           </>
         }
@@ -1206,7 +1286,12 @@ function Body({
     void onAsk(text, rememberedReadings()).then((got) => {
       setReading(false);
       if (!got.ok) {
-        setFailed(`“${text}” could not be read: ${got.message}`);
+        setFailed(
+          t('directory.directory.could_not_be_read', '“{{text}}” could not be read: {{message}}', {
+            text,
+            message: got.message,
+          }),
+        );
         return;
       }
       addRecent(text);
@@ -1233,7 +1318,8 @@ function Body({
     grouping === null
       ? ''
       : (p.people?.find((r) => r.key === grouping.key)?.name ??
-        (p.values[grouping.key] || `No ${grouping.label.toLowerCase()}`));
+        (p.values[grouping.key] ||
+          t('directory.directory.no', 'No {{label}}', { label: grouping.label.toLowerCase() })));
 
   // What the rows read and do, held between renders so a page landing, the
   // place being noted or the quick look moving redraws only the rows whose
@@ -1382,7 +1468,7 @@ function Body({
         cell: (p) =>
           p.missing === null ? null : p.missing === 0 ? (
             <Badge tone="success" size="sm">
-              Complete
+              {t('directory.directory.complete', 'Complete')}
             </Badge>
           ) : (
             <MissingMark count={p.missing} />
@@ -1395,7 +1481,7 @@ function Body({
     (p: DirectoryPerson): readonly RowAction[] => [
       {
         id: 'edit',
-        label: 'Edit profile',
+        label: t('directory.directory.edit_profile', 'Edit profile'),
         shortcut: 'row.edit',
         icon: <icons.edit aria-hidden />,
         onSelect: () => {
@@ -1421,9 +1507,15 @@ function Body({
             src={p.avatarUrl ?? undefined}
             size="xl"
             {...(p.values['status'] === 'Active'
-              ? { status: 'success' as const, statusLabel: 'Active' }
+              ? {
+                  status: 'success' as const,
+                  statusLabel: t('directory.directory.active_2', 'Active'),
+                }
               : p.values['status'] === 'On leave'
-                ? { status: 'info' as const, statusLabel: 'On leave' }
+                ? {
+                    status: 'info' as const,
+                    statusLabel: t('directory.directory.on_leave', 'On leave'),
+                  }
                 : {})}
           />
         }
@@ -1488,11 +1580,17 @@ function Body({
     return (
       <>
         <EmptyState
-          title="No employees yet"
+          title={t('directory.directory.no_employees_yet', 'No employees yet')}
           description={
             onImport === undefined
-              ? 'Nobody has been added to People yet.'
-              : 'Add people one at a time with Add person, or import a spreadsheet of everybody.'
+              ? t(
+                  'directory.directory.nobody_has_been_added_to_people',
+                  'Nobody has been added to People yet.',
+                )
+              : t(
+                  'directory.directory.add_people_one_at_a_time',
+                  'Add people one at a time with Add person, or import a spreadsheet of everybody.',
+                )
           }
           // Import lives in Import & export; an empty directory is where it is wanted first.
           action={
@@ -1504,13 +1602,13 @@ function Body({
                     disabled
                     aria-describedby={busyId}
                   >
-                    Import
+                    {t('directory.directory.import', 'Import')}
                   </Button>
                   <ImportBusy id={busyId} run={running} />
                 </span>
               ) : (
                 <Button startIcon={<icons.upload aria-hidden />} onClick={onImport}>
-                  Import
+                  {t('directory.directory.import', 'Import')}
                 </Button>
               )}
               {onAdd === undefined ? null : (
@@ -1520,7 +1618,7 @@ function Body({
                     setAddOpen(true);
                   }}
                 >
-                  Add person
+                  {t('directory.directory.add_person', 'Add person')}
                 </Button>
               )}
             </span>
@@ -1583,11 +1681,17 @@ function Body({
 
   const empty = (
     <EmptyState
-      title="Nobody matches"
+      title={t('directory.directory.nobody_matches', 'Nobody matches')}
       description={
         asked !== null
-          ? 'Nobody matches what the question was understood as. Remove a chip, or ask it differently.'
-          : 'Remove a filter or change the search to see more people.'
+          ? t(
+              'directory.directory.nobody_matches_what_the_question_was',
+              'Nobody matches what the question was understood as. Remove a chip, or ask it differently.',
+            )
+          : t(
+              'directory.directory.remove_a_filter_or_change_the',
+              'Remove a filter or change the search to see more people.',
+            )
       }
     />
   );
@@ -1599,7 +1703,7 @@ function Body({
     ) : (
       // Virtualized with the page as its scroll, a page ahead of the reader.
       <VirtualList
-        label="People"
+        label={t('directory.directory.people', 'People')}
         items={rows}
         itemKey={(p) => p.id}
         scroll="page"
@@ -1616,7 +1720,7 @@ function Body({
     ) : (
       // As many columns as fit, rows drawn only near the view, the page its scroll.
       <VirtualList
-        label="People"
+        label={t('directory.directory.people', 'People')}
         items={rows}
         itemKey={(p) => p.id}
         scroll="page"
@@ -1632,7 +1736,7 @@ function Body({
   ) : (
     <DataTable
       ref={tableRef}
-      label="People"
+      label={t('directory.directory.people', 'People')}
       rows={rows}
       {...(grouping === null ? {} : { groupBy: groupOf })}
       resizable
@@ -1681,7 +1785,9 @@ function Body({
             // One floating bar, one action (C6).
             bulkActions: (picked: DirectoryPerson[]) => (
               <>
-                <span className="me-1.5 text-sm font-medium opacity-75">Esc to clear</span>
+                <span className="me-1.5 text-sm font-medium opacity-75">
+                  {t('directory.directory.esc_to_clear', 'Esc to clear')}
+                </span>
                 <Button
                   size="sm"
                   variant="primary"
@@ -1690,7 +1796,7 @@ function Body({
                     onBulkEdit(picked.map((p) => p.id));
                   }}
                 >
-                  Edit together
+                  {t('directory.directory.edit_together', 'Edit together')}
                 </Button>
               </>
             ),
@@ -1780,13 +1886,19 @@ function Body({
   const remembered =
     said?.remembered == null
       ? null
-      : `“${said.remembered.phrase}” read as you chose before: ${said.remembered.label}.`;
+      : t(
+          'directory.directory.read_as_you_chose_before',
+          '“{{phrase}}” read as you chose before: {{label}}.',
+          { phrase: said.remembered.phrase, label: said.remembered.label },
+        );
   const sayNote = [remembered, said?.note ?? null].filter((x) => x !== null).join(' ') || null;
   // What was not understood, said in words beside the dashed chips; then anything else to say.
   const notUnderstood =
     (said?.unused ?? []).length === 0
       ? null
-      : `Not understood: ${(said?.unused ?? []).map((u) => `“${u}”`).join(', ')}.`;
+      : t('directory.directory.not_understood', 'Not understood: {{join}}.', {
+          join: (said?.unused ?? []).map((u) => `“${u}”`).join(', '),
+        });
   const sayNotes = [
     ...(notUnderstood === null ? [] : [notUnderstood]),
     ...(said?.notes ?? []),
@@ -1805,7 +1917,15 @@ function Body({
         .join(' and ');
       setReminded(
         done.ok
-          ? `Asked ${peopleCount(done.asked)} for their ${what}.${done.more ? ' That is the first 500; remind again for the rest.' : ''}`
+          ? t(
+              'directory.directory.asked_for_their',
+              'Asked {{peopleCount}} for their {{what}}.{{value}}',
+              {
+                peopleCount: peopleCount(done.asked),
+                what,
+                value: done.more ? ' That is the first 500; remind again for the rest.' : '',
+              },
+            )
           : done.message,
       );
     });
@@ -1815,10 +1935,14 @@ function Body({
       size={coarse ? 'xs' : 'sm'}
       startIcon={<icons.notifications aria-hidden />}
       loading={reminding}
-      loadingLabel="Reminding"
+      loadingLabel={t('directory.directory.reminding', 'Reminding')}
       onClick={remindAll}
     >
-      {coarse ? 'Remind all' : `Remind all ${state.total.toLocaleString('en-GB')}`}
+      {coarse
+        ? t('directory.directory.remind_all', 'Remind all')
+        : t('directory.directory.remind_all_2', 'Remind all {{toLocaleString}}', {
+            toLocaleString: state.total.toLocaleString('en-GB'),
+          })}
     </Button>
   ) : null;
   const saveable =
@@ -1917,20 +2041,31 @@ function Body({
             coarse ? undefined : (
               <p className="flex items-baseline gap-2.5 text-sm text-fg-muted">
                 <span className="text-base font-bold text-fg">{peopleCount(state.total)}</span>
-                Updates as you edit the chips
+                {t(
+                  'directory.directory.updates_as_you_edit_the_chips',
+                  'Updates as you edit the chips',
+                )}
               </p>
             )
           ) : (
-            <ChipRow role="group" aria-label="Filters in force">
+            <ChipRow
+              role="group"
+              aria-label={t('directory.directory.filters_in_force', 'Filters in force')}
+            >
               {match === 'any' && conditions.length > 1 ? (
-                <span className="text-xs text-fg-muted">Any of:</span>
+                <span className="text-xs text-fg-muted">
+                  {t('directory.directory.any_of', 'Any of:')}
+                </span>
               ) : null}
               {chips.map((chip) => (
                 <Chip
                   key={chip.key}
                   {...(chip.field === '' ? {} : { field: chip.field })}
                   onRemove={chip.remove}
-                  removeLabel={`Remove ${chip.field === '' ? '' : `${chip.field} `}${chip.text}`}
+                  removeLabel={t('directory.directory.remove', 'Remove {{value}}{{text}}', {
+                    value: chip.field === '' ? '' : `${chip.field} `,
+                    text: chip.text,
+                  })}
                 >
                   {chip.text}
                 </Chip>
@@ -1943,7 +2078,7 @@ function Body({
                     setFiltersOpen(true);
                   }}
                 >
-                  Add filter
+                  {t('directory.directory.add_filter', 'Add filter')}
                 </Chip>
               )}
               {chips.length === 0 ? null : (
@@ -1955,7 +2090,7 @@ function Body({
                     if (Object.keys(filters).length > 0) onFiltersChange({});
                   }}
                 >
-                  Clear all
+                  {t('directory.directory.clear_all', 'Clear all')}
                 </Button>
               )}
               {saveable ? <SaveSegment onSave={onSaveSegment} {...savePanel} /> : null}
@@ -1967,7 +2102,11 @@ function Body({
             <span className="flex flex-wrap items-center gap-2">
               {fromQuestion ? remindButton : null}
               {fromQuestion && saveable ? (
-                <SaveSegment onSave={onSaveSegment} label="Save as view" {...savePanel} />
+                <SaveSegment
+                  onSave={onSaveSegment}
+                  label={t('directory.directory.save_as_view', 'Save as view')}
+                  {...savePanel}
+                />
               ) : null}
               <ViewMenu
                 columns={state.columns}
@@ -1986,7 +2125,7 @@ function Body({
                   startIcon={<icons.download aria-hidden />}
                   onClick={onExport}
                 >
-                  Export
+                  {t('directory.directory.export', 'Export')}
                 </Button>
               )}
             </span>
@@ -2028,7 +2167,10 @@ function Body({
                   src={peeked.avatarUrl ?? undefined}
                   size="2xl"
                   {...(peeked.values['status'] === 'Active'
-                    ? { status: 'success' as const, statusLabel: 'Active' }
+                    ? {
+                        status: 'success' as const,
+                        statusLabel: t('directory.directory.active_2', 'Active'),
+                      }
                     : {})}
                 />
               }
@@ -2052,7 +2194,9 @@ function Body({
                 <>
                   {peeked.email === null ? null : (
                     <Button asChild size="sm" startIcon={<icons.email aria-hidden />}>
-                      <a href={`mailto:${peeked.email}`}>Email</a>
+                      <a href={`mailto:${peeked.email}`}>
+                        {t('directory.directory.email_2', 'Email')}
+                      </a>
                     </Button>
                   )}
                   <Button
@@ -2062,7 +2206,7 @@ function Body({
                       onOpen(peeked.id);
                     }}
                   >
-                    Open profile
+                    {t('directory.directory.open_profile', 'Open profile')}
                   </Button>
                 </>
               }
@@ -2085,7 +2229,9 @@ function Body({
               {peeked.missing === null || peeked.missing === 0 ? null : (
                 <p className="flex items-center gap-2 text-sm text-fg-muted">
                   <MissingMark count={peeked.missing} />
-                  required {peeked.missing === 1 ? 'detail' : 'details'} to fill in
+                  {t('directory.directory.required', 'required')}{' '}
+                  {peeked.missing === 1 ? 'detail' : 'details'}{' '}
+                  {t('directory.directory.to_fill_in', 'to fill in')}
                 </p>
               )}
               {/*
@@ -2102,7 +2248,7 @@ function Body({
                   tableRef.current?.revealRow(peeked.id, { focus: true });
                 }}
               >
-                Show in list
+                {t('directory.directory.show_in_list', 'Show in list')}
               </Button>
             </QuickLook>
           </div>
@@ -2120,21 +2266,22 @@ function Body({
             <>
               <span className="flex items-center gap-1.5">
                 <Kbd keyName="up" />
-                <Kbd keyName="down" /> move
+                <Kbd keyName="down" /> {t('directory.directory.move', 'move')}
               </span>
               {previewKeys.length === 0 ? null : (
                 <span className="flex items-center gap-1.5">
-                  <KbdShortcut keys={previewKeys} /> quick look
+                  <KbdShortcut keys={previewKeys} />{' '}
+                  {t('directory.directory.quick_look', 'quick look')}
                 </span>
               )}
               {profileKeys.length === 0 ? null : (
                 <span className="flex items-center gap-1.5">
-                  <KbdShortcut keys={profileKeys} /> profile
+                  <KbdShortcut keys={profileKeys} /> {t('directory.directory.profile_2', 'profile')}
                 </span>
               )}
               {onBulkEdit === undefined || selectKeys.length === 0 ? null : (
                 <span className="flex items-center gap-1.5">
-                  <KbdShortcut keys={selectKeys} /> select
+                  <KbdShortcut keys={selectKeys} /> {t('directory.directory.select', 'select')}
                 </span>
               )}
             </>
@@ -2145,7 +2292,14 @@ function Body({
             // "Loading" swapped in each time would blink under a scroll that
             // never waits. Where they would wait, the rows' own skeleton says so.
             <p className="ms-auto">
-              {`Loads ${String(DIRECTORY_PAGE)} at a time${sort === null ? '' : ` · ${orderWords(sort, fields, metrics)}`}`}
+              {t(
+                'directory.directory.loads_at_a_time',
+                'Loads {{DIRECTORY_PAGE}} at a time{{value}}',
+                {
+                  DIRECTORY_PAGE: String(DIRECTORY_PAGE),
+                  value: sort === null ? '' : ` · ${orderWords(sort, fields, metrics)}`,
+                },
+              )}
             </p>
           )}
         </div>
@@ -2153,15 +2307,26 @@ function Body({
       {fromQuestion && said?.by === 'assistant' ? (
         <p className="flex items-center gap-1.5 text-xs text-fg-muted">
           <icons.assistant aria-hidden className="size-3" />
-          Read by the assistant: it saw your sentence and field names, never a value. Every chip is
-          an ordinary filter in the address.
+          {t(
+            'directory.directory.read_by_the_assistant_it_saw',
+            'Read by the assistant: it saw your sentence and field names, never a value. Every chip is an ordinary filter in the address.',
+          )}
         </p>
       ) : null}
       {onLoadMore !== undefined ||
       (onNextPage === undefined && onFirstPage === undefined) ? null : (
-        <nav aria-label="Pages of people" className="flex justify-end gap-2">
-          {onFirstPage === undefined ? null : <Button onClick={onFirstPage}>First page</Button>}
-          {onNextPage === undefined ? null : <Button onClick={onNextPage}>Next page</Button>}
+        <nav
+          aria-label={t('directory.directory.pages_of_people', 'Pages of people')}
+          className="flex justify-end gap-2"
+        >
+          {onFirstPage === undefined ? null : (
+            <Button onClick={onFirstPage}>
+              {t('directory.directory.first_page', 'First page')}
+            </Button>
+          )}
+          {onNextPage === undefined ? null : (
+            <Button onClick={onNextPage}>{t('directory.directory.next_page', 'Next page')}</Button>
+          )}
         </nav>
       )}
       {addDialog}
@@ -2233,13 +2398,17 @@ function ViewMenu({
     <Popover>
       <PopoverTrigger asChild>
         <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
-          View
+          {t('directory.directory.view', 'View')}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" aria-label="View" className="flex w-75 flex-col gap-2.5">
+      <PopoverContent
+        align="end"
+        aria-label={t('directory.directory.view', 'View')}
+        className="flex w-75 flex-col gap-2.5"
+      >
         {onSortChange === undefined || metrics.length === 0 ? null : (
           <>
-            <p className={label}>Sort by</p>
+            <p className={label}>{t('directory.directory.sort_by', 'Sort by')}</p>
             <Select
               disabled={group !== null}
               value={
@@ -2254,14 +2423,17 @@ function ViewMenu({
                 );
               }}
             >
-              <SelectTrigger aria-label="Sort by" size="sm">
+              <SelectTrigger aria-label={t('directory.directory.sort_by', 'Sort by')} size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={ANY}>
                   {sort === null || metrics.every((m) => m.key !== sort.key)
-                    ? 'Name, or the column chosen'
-                    : 'No ranking'}
+                    ? t(
+                        'directory.directory.name_or_the_column_chosen',
+                        'Name, or the column chosen',
+                      )
+                    : t('directory.directory.no_ranking', 'No ranking')}
                 </SelectItem>
                 {metrics.flatMap((m) => [
                   <SelectItem key={`${m.key}:desc`} value={`${m.key}:desc`}>
@@ -2277,18 +2449,20 @@ function ViewMenu({
         )}
         {onGroupChange === undefined || groupable.length === 0 ? null : (
           <>
-            <p className={label}>Group by</p>
+            <p className={label}>{t('directory.directory.group_by', 'Group by')}</p>
             <Select
               value={group ?? ANY}
               onValueChange={(value) => {
                 onGroupChange(value === ANY ? null : value);
               }}
             >
-              <SelectTrigger aria-label="Group by" size="sm">
+              <SelectTrigger aria-label={t('directory.directory.group_by', 'Group by')} size="sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ANY}>No grouping</SelectItem>
+                <SelectItem value={ANY}>
+                  {t('directory.directory.no_grouping', 'No grouping')}
+                </SelectItem>
                 {groupable.map((f) => (
                   <SelectItem key={f.key} value={f.key}>
                     {f.label}
@@ -2298,11 +2472,11 @@ function ViewMenu({
             </Select>
           </>
         )}
-        <p className={label}>Columns</p>
+        <p className={label}>{t('directory.directory.columns', 'Columns')}</p>
         <ColumnChooser
           inline
           columns={[
-            { id: PERSON, label: 'Name', locked: true },
+            { id: PERSON, label: t('directory.directory.name', 'Name'), locked: true },
             ...columns.map((c) => ({ id: c.key, label: c.label })),
           ]}
           value={chosen.value}
@@ -2316,9 +2490,11 @@ function ViewMenu({
               chosen.choose(null);
             }}
           >
-            Reset columns
+            {t('directory.directory.reset_columns', 'Reset columns')}
           </Button>
-          <span className="ms-auto text-xs text-fg-subtle">Kept in this browser</span>
+          <span className="ms-auto text-xs text-fg-subtle">
+            {t('directory.directory.kept_in_this_browser', 'Kept in this browser')}
+          </span>
         </div>
       </PopoverContent>
     </Popover>
@@ -2391,15 +2567,18 @@ function Filters({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-170">
         <DialogHeader>
-          <DialogTitle>Filter people</DialogTitle>
+          <DialogTitle>{t('directory.directory.filter_people', 'Filter people')}</DialogTitle>
           <DialogDescription>
-            Combine conditions on any column you can see. Nothing applies until you press Apply.
+            {t(
+              'directory.directory.combine_conditions_on_any_column_you',
+              'Combine conditions on any column you can see. Nothing applies until you press Apply.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={4}>
             <FilterBuilder
-              label="Conditions"
+              label={t('directory.directory.conditions', 'Conditions')}
               fields={builderFields}
               value={draft}
               onChange={setDraft}
@@ -2407,7 +2586,11 @@ function Filters({
             />
             {worked.length === 0 ? null : (
               <Card variant="fill" padded className="text-sm text-fg-muted">
-                Besides the columns you can filter on {worked.join(', ')}.
+                {t(
+                  'directory.directory.besides_the_columns_you_can_filter',
+                  'Besides the columns you can filter on',
+                )}{' '}
+                {worked.join(', ')}.
               </Card>
             )}
           </Stack>
@@ -2420,14 +2603,14 @@ function Filters({
               setDraft({ match: 'all', conditions: [] });
             }}
           >
-            Clear
+            {t('directory.directory.clear', 'Clear')}
           </Button>
           <Button
             onClick={() => {
               setOpen(false);
             }}
           >
-            Cancel
+            {t('directory.directory.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -2440,8 +2623,11 @@ function Filters({
             }}
           >
             {complete.length === 0
-              ? 'Show everybody'
-              : `Apply ${String(complete.length)} ${complete.length === 1 ? 'condition' : 'conditions'}`}
+              ? t('directory.directory.show_everybody', 'Show everybody')
+              : t('directory.directory.apply', 'Apply {{length}} {{value}}', {
+                  length: String(complete.length),
+                  value: complete.length === 1 ? 'condition' : 'conditions',
+                })}
           </Button>
         </DialogFooter>
       </DialogContent>

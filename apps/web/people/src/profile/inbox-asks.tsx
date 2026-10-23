@@ -32,6 +32,7 @@ import {
 import { useEffect, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * What HR starts from a profile that lands in the person's Inbox (H2, H3):
@@ -105,15 +106,21 @@ export function AskDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Ask ${first} for details`}</DialogTitle>
+          <DialogTitle>
+            {t('profile.inbox-asks.ask_for_details', 'Ask {{first}} for details', { first })}
+          </DialogTitle>
           <DialogDescription>
-            {`${first} gets one task with these fields and fills them in from the Inbox. You get an update when it’s done.`}
+            {t(
+              'profile.inbox-asks.gets_one_task_with_these_fields',
+              '{{first}} gets one task with these fields and fills them in from the Inbox. You get an update when it’s done.',
+              { first },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>What to ask for</FieldLabel>
-            <ChipRow aria-label="Fields">
+            <FieldLabel>{t('profile.inbox-asks.what_to_ask_for', 'What to ask for')}</FieldLabel>
+            <ChipRow aria-label={t('profile.inbox-asks.fields', 'Fields')}>
               {fields.map((f) => (
                 <Chip
                   key={f.key}
@@ -130,11 +137,15 @@ export function AskDialog({
             </ChipRow>
           </Field>
           <Field>
-            <FieldLabel>Message</FieldLabel>
+            <FieldLabel>{t('profile.inbox-asks.message', 'Message')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={message}
-                placeholder={`Why you need it, in your words to ${first}`}
+                placeholder={t(
+                  'profile.inbox-asks.why_you_need_it_in_your',
+                  'Why you need it, in your words to {{first}}',
+                  { first },
+                )}
                 onChange={(e) => {
                   setMessage(e.target.value);
                 }}
@@ -142,28 +153,37 @@ export function AskDialog({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>Due</FieldLabel>
+            <FieldLabel>{t('profile.inbox-asks.due', 'Due')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Due"
+                label={t('profile.inbox-asks.due', 'Due')}
                 value={due === '' ? null : due}
                 onChange={(d) => {
                   setDue(d ?? '');
                 }}
               />
             </FieldControl>
-            <FieldDescription>Reminded the day before, then every two days.</FieldDescription>
+            <FieldDescription>
+              {t(
+                'profile.inbox-asks.reminded_the_day_before_then_every',
+                'Reminded the day before, then every two days.',
+              )}
+            </FieldDescription>
           </Field>
           {chosen.length === 0 ? null : (
-            <List aria-label={`${first} will see`}>
+            <List aria-label={t('profile.inbox-asks.will_see', '{{first}} will see', { first })}>
               <ListItem
                 icon={<icons.edit aria-hidden />}
                 description={chosen.map((f) => f.label).join(', ')}
                 meta="now"
               >
                 {chosen.length === 1
-                  ? `Add your ${chosen[0]?.label.toLowerCase() ?? ''}`
-                  : `Add ${String(chosen.length)} details`}
+                  ? t('profile.inbox-asks.add_your', 'Add your {{value}}', {
+                      value: chosen[0]?.label.toLowerCase() ?? '',
+                    })
+                  : t('profile.inbox-asks.add_details', 'Add {{length}} details', {
+                      length: String(chosen.length),
+                    })}
               </ListItem>
             </List>
           )}
@@ -171,9 +191,12 @@ export function AskDialog({
         </DialogBody>
         <DialogFooter>
           <span className="me-auto text-sm text-fg-subtle">
-            Goes to their Inbox, phone and email
+            {t(
+              'profile.inbox-asks.goes_to_their_inbox_phone_and',
+              'Goes to their Inbox, phone and email',
+            )}
           </span>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('profile.inbox-asks.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.send aria-hidden />}
@@ -192,7 +215,7 @@ export function AskDialog({
               });
             }}
           >
-            {`Send to ${first}`}
+            {t('profile.inbox-asks.send_to', 'Send to {{first}}', { first })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -227,23 +250,30 @@ export function SendDocumentDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Send a document to ${first}`}</DialogTitle>
+          <DialogTitle>
+            {t('profile.inbox-asks.send_a_document_to', 'Send a document to {{first}}', { first })}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           {file === null ? (
             <Dropzone
-              label="Choose the document"
-              hint="A PDF or a photo of one, up to 25 MB"
+              label={t('profile.inbox-asks.choose_the_document', 'Choose the document')}
+              hint={t(
+                'profile.inbox-asks.a_pdf_or_a_photo_of',
+                'A PDF or a photo of one, up to 25 MB',
+              )}
               accept=".pdf,application/pdf,image/png,image/jpeg"
               onFiles={(files) => {
                 setFile(files[0] ?? null);
               }}
             />
           ) : (
-            <List aria-label="Document">
+            <List aria-label={t('profile.inbox-asks.document', 'Document')}>
               <ListItem
                 icon={<icons.file aria-hidden />}
-                description={`${String(Math.max(1, Math.round(file.size / 1024)))} KB`}
+                description={t('profile.inbox-asks.kb', '{{max}} KB', {
+                  max: String(Math.max(1, Math.round(file.size / 1024))),
+                })}
                 trailing={
                   <Button
                     variant="ghost"
@@ -252,7 +282,7 @@ export function SendDocumentDialog({
                       setFile(null);
                     }}
                   >
-                    Replace
+                    {t('profile.inbox-asks.replace', 'Replace')}
                   </Button>
                 }
               >
@@ -261,7 +291,11 @@ export function SendDocumentDialog({
             </List>
           )}
           <RadioGroup
-            aria-label={`What should ${first} do with it?`}
+            aria-label={t(
+              'profile.inbox-asks.what_should_do_with_it',
+              'What should {{first}} do with it?',
+              { first },
+            )}
             value={mode}
             onValueChange={(v) => {
               if (v === 'keep' || v === 'acknowledge' || v === 'sign') setMode(v);
@@ -269,36 +303,45 @@ export function SendDocumentDialog({
           >
             <RadioCard
               value="keep"
-              description="Filed in their profile. They get an update."
-              badge={<Badge size="sm">Update</Badge>}
+              description={t(
+                'profile.inbox-asks.filed_in_their_profile_they_get',
+                'Filed in their profile. They get an update.',
+              )}
+              badge={<Badge size="sm">{t('profile.inbox-asks.update', 'Update')}</Badge>}
             >
-              Just keep it
+              {t('profile.inbox-asks.just_keep_it', 'Just keep it')}
             </RadioCard>
             <RadioCard
               value="acknowledge"
-              description="They confirm they’ve read it."
+              description={t(
+                'profile.inbox-asks.they_confirm_theyve_read_it',
+                'They confirm they’ve read it.',
+              )}
               badge={
                 <Badge size="sm" tone="accent">
-                  Task
+                  {t('profile.inbox-asks.task', 'Task')}
                 </Badge>
               }
             >
-              Read and acknowledge
+              {t('profile.inbox-asks.read_and_acknowledge', 'Read and acknowledge')}
             </RadioCard>
             <RadioCard
               value="sign"
-              description="They sign; then you countersign."
+              description={t(
+                'profile.inbox-asks.they_sign_then_you_countersign',
+                'They sign; then you countersign.',
+              )}
               badge={
                 <Badge size="sm" tone="accent">
-                  Task
+                  {t('profile.inbox-asks.task', 'Task')}
                 </Badge>
               }
             >
-              Sign it
+              {t('profile.inbox-asks.sign_it', 'Sign it')}
             </RadioCard>
           </RadioGroup>
           <Field>
-            <FieldLabel>Message</FieldLabel>
+            <FieldLabel>{t('profile.inbox-asks.message', 'Message')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={message}
@@ -310,10 +353,10 @@ export function SendDocumentDialog({
           </Field>
           {mode === 'keep' ? null : (
             <Field>
-              <FieldLabel>Due</FieldLabel>
+              <FieldLabel>{t('profile.inbox-asks.due', 'Due')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Due"
+                  label={t('profile.inbox-asks.due', 'Due')}
                   value={due === '' ? null : due}
                   onChange={(d) => {
                     setDue(d ?? '');
@@ -324,7 +367,9 @@ export function SendDocumentDialog({
           )}
           {mode === 'sign' ? (
             <Field orientation="horizontal">
-              <FieldLabel>I countersign it after them</FieldLabel>
+              <FieldLabel>
+                {t('profile.inbox-asks.i_countersign_it_after_them', 'I countersign it after them')}
+              </FieldLabel>
               <FieldControl>
                 <Switch checked={countersign} onCheckedChange={setCountersign} />
               </FieldControl>
@@ -333,7 +378,7 @@ export function SendDocumentDialog({
           {refused === null ? null : <Alert tone="danger">{refused}</Alert>}
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('profile.inbox-asks.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.send aria-hidden />}
@@ -354,7 +399,7 @@ export function SendDocumentDialog({
               });
             }}
           >
-            Send
+            {t('profile.inbox-asks.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -364,12 +409,15 @@ export function SendDocumentDialog({
 
 const STATE: Readonly<Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' }>> =
   {
-    open: { label: 'Waiting', tone: 'warning' },
-    kept: { label: 'Kept', tone: 'neutral' },
-    acknowledged: { label: 'Acknowledged', tone: 'success' },
-    signed: { label: 'Signed', tone: 'success' },
-    countersigned: { label: 'Signed by both', tone: 'success' },
-    declined: { label: 'Sent back', tone: 'neutral' },
+    open: { label: t('profile.inbox-asks.waiting', 'Waiting'), tone: 'warning' },
+    kept: { label: t('profile.inbox-asks.kept', 'Kept'), tone: 'neutral' },
+    acknowledged: { label: t('profile.inbox-asks.acknowledged', 'Acknowledged'), tone: 'success' },
+    signed: { label: t('profile.inbox-asks.signed', 'Signed'), tone: 'success' },
+    countersigned: {
+      label: t('profile.inbox-asks.signed_by_both', 'Signed by both'),
+      tone: 'success',
+    },
+    declined: { label: t('profile.inbox-asks.sent_back', 'Sent back'), tone: 'neutral' },
   };
 
 /** The person's Documents (D2, F1): every document sent to them, kept with their record. */
@@ -394,10 +442,13 @@ export function Documents({
   return (
     <Card id="section-documents">
       <CardHeader>
-        <CardTitle level={2}>Documents</CardTitle>
+        <CardTitle level={2}>{t('profile.inbox-asks.documents', 'Documents')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <List aria-label="Documents" className="-mx-2 bg-transparent shadow-none">
+        <List
+          aria-label={t('profile.inbox-asks.documents', 'Documents')}
+          className="-mx-2 bg-transparent shadow-none"
+        >
           {docs.map((d) => {
             const s = STATE[d.state] ?? { label: d.state, tone: 'neutral' as const };
             return (
@@ -410,8 +461,16 @@ export function Documents({
                     month: 'short',
                     year: 'numeric',
                   }),
-                  d.signature === null ? null : `signed by ${d.signature.name}`,
-                  d.countersignedName === null ? null : `and ${d.countersignedName}`,
+                  d.signature === null
+                    ? null
+                    : t('profile.inbox-asks.signed_by', 'signed by {{name}}', {
+                        name: d.signature.name,
+                      }),
+                  d.countersignedName === null
+                    ? null
+                    : t('profile.inbox-asks.and', 'and {{countersignedName}}', {
+                        countersignedName: d.countersignedName,
+                      }),
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -424,7 +483,9 @@ export function Documents({
                       <Button
                         variant="ghost"
                         size="sm"
-                        aria-label={`Download ${d.name}`}
+                        aria-label={t('profile.inbox-asks.download', 'Download {{name}}', {
+                          name: d.name,
+                        })}
                         startIcon={<icons.download aria-hidden />}
                         onClick={() => {
                           void onOpen(d.id);
@@ -439,7 +500,7 @@ export function Documents({
                             void onOpen(d.id);
                           }}
                         >
-                          Open
+                          {t('profile.inbox-asks.open', 'Open')}
                         </a>
                       </Button>
                     )}

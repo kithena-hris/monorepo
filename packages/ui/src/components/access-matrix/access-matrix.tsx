@@ -5,6 +5,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Checkbox } from '../checkbox/checkbox';
+import { t } from '../../lib/i18n';
 
 /**
  * Who can see a value and who can change it, as one grid.
@@ -159,7 +160,7 @@ export function AccessMatrix({
         <thead>
           <tr className="bg-surface-sunken text-xs font-semibold text-fg-muted">
             <th scope="col" className="px-3.5 py-2.5 text-start font-semibold">
-              Who
+              {t('components.access-matrix.access-matrix.who', 'Who')}
             </th>
             <th scope="col" className="w-24 px-2 py-2.5 text-center font-semibold touch:w-14">
               {seeLabel}
@@ -177,7 +178,14 @@ export function AccessMatrix({
             const change = value.change.includes(a.id);
             const see = allSee || change || value.see.includes(a.id);
             // Deterministic: a See box is ticked by `allSee`, by a change, or by itself.
-            const why = allSee ? allSeeReason : change ? 'because they can change it' : null;
+            const why = allSee
+              ? allSeeReason
+              : change
+                ? t(
+                    'components.access-matrix.access-matrix.because_they_can_change_it',
+                    'because they can change it',
+                  )
+                : null;
             return (
               <tr
                 key={a.id}
@@ -233,7 +241,12 @@ export function AccessMatrix({
       {footer === false ? null : (
         <p className="flex items-center gap-1.5 border-t border-border px-3.5 py-2.5 text-xs text-fg-muted">
           <Info aria-hidden className="size-3.5 shrink-0" />
-          {footer ?? `Ticking ${changeLabel} ticks ${seeLabel} too.`}
+          {footer ??
+            t(
+              'components.access-matrix.access-matrix.ticking_ticks_too',
+              'Ticking {{changeLabel}} ticks {{seeLabel}} too.',
+              { changeLabel, seeLabel },
+            )}
         </p>
       )}
     </div>
@@ -255,7 +268,10 @@ export function AccessStrip({
   const words = audiences.map((a) => {
     const change = value.change.includes(a.id);
     const see = change || value.see.includes(a.id);
-    return `${a.label}: ${change ? 'changes' : see ? 'sees' : 'no access'}`;
+    return t('components.access-matrix.access-matrix.text', '{{label}}: {{value}}', {
+      label: a.label,
+      value: change ? 'changes' : see ? 'sees' : 'no access',
+    });
   });
   return (
     <span

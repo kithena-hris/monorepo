@@ -29,6 +29,7 @@ import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
 import { safeLinkUrl } from '../../lib/safe-url';
 import { Button } from '../button/button';
 import { Progress } from '../progress/progress';
+import { t } from '../../lib/i18n';
 
 /**
  * File upload, for anything.
@@ -146,9 +147,15 @@ const extensionIcon: Record<string, typeof FileIcon> = {
 };
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${String(bytes)} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} kB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024)
+    return t('components.file-uploader.file-uploader.b', '{{bytes}} B', { bytes: String(bytes) });
+  if (bytes < 1024 * 1024)
+    return t('components.file-uploader.file-uploader.kb', '{{value}} kB', {
+      value: (bytes / 1024).toFixed(0),
+    });
+  return t('components.file-uploader.file-uploader.mb', '{{value}} MB', {
+    value: (bytes / (1024 * 1024)).toFixed(1),
+  });
 }
 
 /**
@@ -290,9 +297,17 @@ export function FileUploader({
       setAnnouncement(
         [
           passed.length > 0
-            ? `${String(passed.length)} ${passed.length === 1 ? 'file' : 'files'} added.`
+            ? t('components.file-uploader.file-uploader.added', '{{length}} {{value}} added.', {
+                length: String(passed.length),
+                value: passed.length === 1 ? 'file' : 'files',
+              })
             : '',
-          failed.length > 0 ? `${String(failed.length)} refused. ${failed[0]?.message ?? ''}` : '',
+          failed.length > 0
+            ? t('components.file-uploader.file-uploader.refused', '{{length}} refused. {{value}}', {
+                length: String(failed.length),
+                value: failed[0]?.message ?? '',
+              })
+            : '',
         ]
           .filter(Boolean)
           .join(' '),
@@ -331,7 +346,11 @@ export function FileUploader({
     onRemove?.(item);
     onChange(value.filter((current) => current.id !== item.id));
     setAnnouncement(
-      `${displayName(item.file.name)} removed. ${String(value.length - 1)} remaining.`,
+      t(
+        'components.file-uploader.file-uploader.removed_remaining',
+        '{{displayName}} removed. {{value}} remaining.',
+        { displayName: displayName(item.file.name), value: String(value.length - 1) },
+      ),
     );
     inputRef.current?.focus();
   };
@@ -367,7 +386,12 @@ export function FileUploader({
           {label}
         </label>
         <span className="text-xs tabular-nums text-fg-muted">
-          {maxFiles > 1 ? `${String(value.length)} / ${String(maxFiles)}` : null}
+          {maxFiles > 1
+            ? t('components.file-uploader.file-uploader.text', '{{length}} / {{maxFiles}}', {
+                length: String(value.length),
+                maxFiles: String(maxFiles),
+              })
+            : null}
           {maxTotalSize !== undefined
             ? ` · ${formatBytes(usedBytes)} of ${formatBytes(maxTotalSize)}`
             : null}
@@ -416,29 +440,48 @@ export function FileUploader({
           </span>
           <p className="text-sm font-semibold text-fg">
             <span className="text-accent-fg underline underline-offset-3">
-              Choose {multiple ? 'files' : 'a file'}
+              {t('components.file-uploader.file-uploader.choose', 'Choose')}{' '}
+              {multiple ? 'files' : t('components.file-uploader.file-uploader.a_file', 'a file')}
             </span>{' '}
-            <span>or drop {multiple ? 'them' : 'it'} here</span>
+            <span>
+              {t('components.file-uploader.file-uploader.or_drop', 'or drop')}{' '}
+              {multiple ? 'them' : 'it'} {t('components.file-uploader.file-uploader.here', 'here')}
+            </span>
           </p>
           <p className="text-xs text-fg-muted">
             {accept.length > 0
               ? accept.map((entry) => entry.replace(/^.*\//, '').toUpperCase()).join(', ')
-              : 'Any file'}{' '}
-            · up to {formatBytes(maxSize)} each
+              : t('components.file-uploader.file-uploader.any_file', 'Any file')}{' '}
+            {t(
+              'components.file-uploader.file-uploader.up_to_each',
+              '· up to {{formatBytes}} each',
+              { formatBytes: formatBytes(maxSize) },
+            )}
           </p>
           {input}
         </div>
       ) : (
         <div className="relative inline-flex">
           <Button asChild variant="secondary" startIcon={<Paperclip />} disabled={disabled || full}>
-            <label htmlFor={inputId}>{multiple ? 'Attach files' : 'Attach a file'}</label>
+            <label htmlFor={inputId}>
+              {multiple
+                ? t('components.file-uploader.file-uploader.attach_files', 'Attach files')
+                : t('components.file-uploader.file-uploader.attach_a_file', 'Attach a file')}
+            </label>
           </Button>
           {input}
         </div>
       )}
 
       {value.length > 0 ? (
-        <ul aria-label={`${label}, ${String(value.length)} files`} className="space-y-2">
+        <ul
+          aria-label={t(
+            'components.file-uploader.file-uploader.files',
+            '{{label}}, {{length}} files',
+            { label, length: String(value.length) },
+          )}
+          className="space-y-2"
+        >
           {value.map((item) => {
             const name = displayName(item.file.name);
             const Icon = extensionIcon[extensionOf(item.file.name)] ?? FileIcon;
@@ -495,19 +538,29 @@ export function FileUploader({
                       <Progress
                         value={item.progress ?? null}
                         size="sm"
-                        label={`Uploading ${name}`}
+                        label={t(
+                          'components.file-uploader.file-uploader.uploading',
+                          'Uploading {{name}}',
+                          { name },
+                        )}
                       />
                     </div>
                   ) : null}
 
                   {item.status === 'error' ? (
                     <p className="mt-0.5 text-xs text-danger-fg">
-                      {item.error ?? 'The upload failed.'}
+                      {item.error ??
+                        t(
+                          'components.file-uploader.file-uploader.the_upload_failed',
+                          'The upload failed.',
+                        )}
                     </p>
                   ) : null}
 
                   {item.status === 'done' ? (
-                    <p className="mt-0.5 text-xs text-success-fg">Uploaded</p>
+                    <p className="mt-0.5 text-xs text-success-fg">
+                      {t('components.file-uploader.file-uploader.uploaded', 'Uploaded')}
+                    </p>
                   ) : null}
                 </div>
 
@@ -516,7 +569,11 @@ export function FileUploader({
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label={`Retry ${name}`}
+                      aria-label={t(
+                        'components.file-uploader.file-uploader.retry',
+                        'Retry {{name}}',
+                        { name },
+                      )}
                       startIcon={<RotateCcw />}
                       onClick={() => {
                         onRetry(item);
@@ -529,7 +586,15 @@ export function FileUploader({
                     // Named after the file, never just "Remove": forty
                     // identically-named buttons is forty identical entries in a
                     // screen reader's control list.
-                    aria-label={item.status === 'uploading' ? `Cancel ${name}` : `Remove ${name}`}
+                    aria-label={
+                      item.status === 'uploading'
+                        ? t('components.file-uploader.file-uploader.cancel', 'Cancel {{name}}', {
+                            name,
+                          })
+                        : t('components.file-uploader.file-uploader.remove', 'Remove {{name}}', {
+                            name,
+                          })
+                    }
                     startIcon={item.status === 'uploading' ? <X /> : <Trash />}
                     onClick={() => {
                       remove(item);

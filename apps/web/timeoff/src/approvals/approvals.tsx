@@ -29,6 +29,7 @@ import {
   type RequestItem,
   type Written,
 } from './words';
+import { t } from '../i18n';
 
 /**
  * Requests, for an approver (T16–T18, MT15, MT16): what waits for them,
@@ -118,7 +119,7 @@ export function Approvals({
     return <ApprovalsSkeleton tab={tabOf(path)} opened={id !== null} />;
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader title="Requests" description={DESCRIPTION} />
+      <PageHeader title={t('approvals.approvals.requests', 'Requests')} description={DESCRIPTION} />
       <Loaded load={load} what="requests">
         {(data) =>
           data.tab !== 'waiting' ? (
@@ -170,9 +171,14 @@ function Waiting({
   if (data.clear.length === 0 && data.lookCloser.length === 0) {
     return (
       <Card padded className="text-center">
-        <p className="text-md font-semibold">Nothing is waiting for you</p>
+        <p className="text-md font-semibold">
+          {t('approvals.approvals.nothing_is_waiting_for_you', 'Nothing is waiting for you')}
+        </p>
         <p className="mt-1 text-sm text-fg-muted">
-          New requests from your team come here, sorted into what is clear and what needs a look.
+          {t(
+            'approvals.approvals.new_requests_from_your_team_come',
+            'New requests from your team come here, sorted into what is clear and what needs a look.',
+          )}
         </p>
       </Card>
     );
@@ -191,7 +197,11 @@ function Waiting({
               <Checkbox
                 className={deskOnly}
                 checked={!unchecked.has(item.requestId)}
-                aria-label={`Include ${who}’s request in Approve all`}
+                aria-label={t(
+                  'approvals.approvals.include_s_request_in_approve_all',
+                  'Include {{who}}’s request in Approve all',
+                  { who },
+                )}
                 onCheckedChange={(on) => {
                   setUnchecked((was) => {
                     const next = new Set(was);
@@ -205,7 +215,11 @@ function Waiting({
             <Avatar name={who} />
           </span>
         }
-        description={`${look.name} · ${spanLabel(item.span.from, item.span.to)} · ${dayCount(item.workingDays)}`}
+        description={t('approvals.approvals.text', '{{name}} · {{spanLabel}} · {{dayCount}}', {
+          name: look.name,
+          spanLabel: spanLabel(item.span.from, item.span.to),
+          dayCount: dayCount(item.workingDays),
+        })}
         supporting={
           <span className="inline-flex items-start gap-1.5">
             {clear ? (
@@ -216,7 +230,7 @@ function Waiting({
             <span>{line?.text}</span>
             {line?.ai === true ? (
               <Badge tone="assistant" size="sm">
-                AI
+                {t('approvals.approvals.ai', 'AI')}
               </Badge>
             ) : null}
           </span>
@@ -226,7 +240,9 @@ function Waiting({
           <span className={`flex gap-1.5 ${deskOnly}`}>
             <Button
               size="xs"
-              aria-label={`Decline ${who}’s request`}
+              aria-label={t('approvals.approvals.decline_s_request', 'Decline {{who}}’s request', {
+                who,
+              })}
               startIcon={<icons.close aria-hidden />}
               disabled={onDecide === undefined || pending}
               onClick={() => {
@@ -236,7 +252,9 @@ function Waiting({
             <Button
               size="xs"
               variant="primary"
-              aria-label={`Approve ${who}’s request`}
+              aria-label={t('approvals.approvals.approve_s_request', 'Approve {{who}}’s request', {
+                who,
+              })}
               startIcon={<icons.confirm aria-hidden />}
               disabled={onDecide === undefined || pending}
               onClick={() => {
@@ -256,7 +274,7 @@ function Waiting({
   return (
     <div className="flex flex-col gap-4">
       {failed === null ? null : (
-        <Alert tone="danger" title="Nothing changed">
+        <Alert tone="danger" title={t('approvals.approvals.nothing_changed', 'Nothing changed')}>
           {failed}
         </Alert>
       )}
@@ -268,7 +286,7 @@ function Waiting({
               className="flex flex-1 items-center gap-2 text-sm font-semibold text-fg-muted"
             >
               <icons.assistant aria-hidden className="size-3.5 text-accent-fg" />
-              Clear to approve
+              {t('approvals.approvals.clear_to_approve', 'Clear to approve')}
               <span className="text-fg-subtle">{data.clear.length}</span>
             </h2>
             <Button
@@ -282,8 +300,12 @@ function Waiting({
               }}
             >
               {chosen.length === data.clear.length
-                ? `Approve all ${String(chosen.length)}`
-                : `Approve ${String(chosen.length)}`}
+                ? t('approvals.approvals.approve_all', 'Approve all {{length}}', {
+                    length: String(chosen.length),
+                  })
+                : t('approvals.approvals.approve', 'Approve {{length}}', {
+                    length: String(chosen.length),
+                  })}
             </Button>
           </div>
           <List>{data.clear.map((item) => row(item, true))}</List>
@@ -296,7 +318,7 @@ function Waiting({
             className="flex items-center gap-2 px-1 text-sm font-semibold text-fg-muted"
           >
             <icons.visible aria-hidden className="size-3.5 text-warning-fg" />
-            Look closer
+            {t('approvals.approvals.look_closer', 'Look closer')}
             <span className="text-fg-subtle">{data.lookCloser.length}</span>
           </h2>
           <List>{data.lookCloser.map(({ item }) => row(item, false))}</List>
@@ -304,7 +326,10 @@ function Waiting({
       )}
       <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
         <icons.info aria-hidden className="size-3.5" />
-        Sorted by Kithena using coverage, balances and deadlines. The order never decides for you.
+        {t(
+          'approvals.approvals.sorted_by_kithena_using_coverage_balances',
+          'Sorted by Kithena using coverage, balances and deadlines. The order never decides for you.',
+        )}
       </p>
     </div>
   );
@@ -337,9 +362,9 @@ function Opened({
       <ListDetail
         selected
         onBack={() => onNavigate?.(WAITING)}
-        backLabel="Waiting for me"
+        backLabel={t('approvals.approvals.waiting_for_me', 'Waiting for me')}
         listLabel="Waiting for you"
-        detailLabel={decision?.request.displayName ?? 'Request'}
+        detailLabel={decision?.request.displayName ?? t('approvals.approvals.request', 'Request')}
         listWidth="23.75rem"
         splitFrom="lg"
         list={
@@ -353,13 +378,19 @@ function Opened({
                   asChild
                   selected={current}
                   leading={<Avatar name={item.displayName} />}
-                  description={`${look.name} · ${spanLabel(item.span.from, item.span.to)}`}
+                  description={t('approvals.approvals.text_2', '{{name}} · {{spanLabel}}', {
+                    name: look.name,
+                    spanLabel: spanLabel(item.span.from, item.span.to),
+                  })}
                   trailing={
                     closer ? (
-                      <icons.visible aria-label="Look closer" className="size-4 text-warning-fg" />
+                      <icons.visible
+                        aria-label={t('approvals.approvals.look_closer', 'Look closer')}
+                        className="size-4 text-warning-fg"
+                      />
                     ) : (
                       <icons.success
-                        aria-label="Clear to approve"
+                        aria-label={t('approvals.approvals.clear_to_approve', 'Clear to approve')}
                         className="size-4 text-success-fg"
                       />
                     )
@@ -378,8 +409,17 @@ function Opened({
         }
         detail={
           decision === null ? (
-            <Alert tone="warning" title="This request is not waiting for you">
-              It may have been decided already, or it is not one you decide.
+            <Alert
+              tone="warning"
+              title={t(
+                'approvals.approvals.this_request_is_not_waiting_for',
+                'This request is not waiting for you',
+              )}
+            >
+              {t(
+                'approvals.approvals.it_may_have_been_decided_already',
+                'It may have been decided already, or it is not one you decide.',
+              )}
             </Alert>
           ) : (
             <Decision
@@ -425,12 +465,15 @@ const STATUS: Record<
   string,
   { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' | 'info' }
 > = {
-  approved: { label: 'Approved', tone: 'success' },
-  taken: { label: 'Taken', tone: 'neutral' },
-  declined: { label: 'Declined', tone: 'danger' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
-  pending: { label: 'Waiting', tone: 'warning' },
-  counter_proposed: { label: 'New dates suggested', tone: 'info' },
+  approved: { label: t('approvals.approvals.approved', 'Approved'), tone: 'success' },
+  taken: { label: t('approvals.approvals.taken', 'Taken'), tone: 'neutral' },
+  declined: { label: t('approvals.approvals.declined', 'Declined'), tone: 'danger' },
+  cancelled: { label: t('approvals.approvals.cancelled', 'Cancelled'), tone: 'neutral' },
+  pending: { label: t('approvals.approvals.waiting', 'Waiting'), tone: 'warning' },
+  counter_proposed: {
+    label: t('approvals.approvals.new_dates_suggested', 'New dates suggested'),
+    tone: 'info',
+  },
 };
 
 /**
@@ -460,14 +503,23 @@ function Decided({
     return (
       <Card padded className="text-center">
         <p className="text-md font-semibold">
-          {data.tab === 'coming_up' ? 'Nothing approved is coming up' : 'Nothing decided yet'}
+          {data.tab === 'coming_up'
+            ? t(
+                'approvals.approvals.nothing_approved_is_coming_up',
+                'Nothing approved is coming up',
+              )
+            : t('approvals.approvals.nothing_decided_yet', 'Nothing decided yet')}
         </p>
       </Card>
     );
   }
   return (
     <VirtualList
-      label={data.tab === 'coming_up' ? 'Coming up' : 'Decided'}
+      label={
+        data.tab === 'coming_up'
+          ? t('approvals.approvals.coming_up', 'Coming up')
+          : t('approvals.approvals.decided', 'Decided')
+      }
       items={pages.items}
       itemKey={(item) => item.requestId}
       scroll="page"
@@ -486,7 +538,11 @@ function Decided({
             asChild
             icon={look.icon}
             iconTone={look.tone}
-            description={`${look.name} · ${spanLabel(item.span.from, item.span.to)} · ${dayCount(item.workingDays)}`}
+            description={t('approvals.approvals.text', '{{name}} · {{spanLabel}} · {{dayCount}}', {
+              name: look.name,
+              spanLabel: spanLabel(item.span.from, item.span.to),
+              dayCount: dayCount(item.workingDays),
+            })}
             trailing={
               <Badge size="sm" tone={status.tone} dot>
                 {status.label}
@@ -531,9 +587,11 @@ export function ApprovalsSkeleton({
 }): JSX.Element {
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader title="Requests" description={DESCRIPTION} />
+      <PageHeader title={t('approvals.approvals.requests', 'Requests')} description={DESCRIPTION} />
       <div role="status" className="flex flex-col gap-4">
-        <span className="sr-only">Loading requests</span>
+        <span className="sr-only">
+          {t('approvals.approvals.loading_requests', 'Loading requests')}
+        </span>
         {tab !== 'waiting' ? (
           rows(5)
         ) : opened ? (

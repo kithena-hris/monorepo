@@ -45,6 +45,7 @@ import {
   type Act,
 } from './shared';
 import type { ScaleOption, ScreenProps } from './types';
+import { t } from './i18n';
 
 /**
  * Calibration (PRD §17; design PF19 v2): sessions over a cycle's scores, the
@@ -69,9 +70,9 @@ export interface CalibrationsData {
 }
 
 const STATE: Readonly<Record<string, string>> = {
-  not_started: 'Not started',
-  in_progress: 'In progress',
-  finalised: 'Finalised',
+  not_started: t('calibration.not_started', 'Not started'),
+  in_progress: t('calibration.in_progress', 'In progress'),
+  finalised: t('calibration.finalised', 'Finalised'),
 };
 
 type SessionRow = CalibrationsData['rows'][number];
@@ -84,7 +85,7 @@ function sessionColumns(
   return [
     {
       id: 'session',
-      header: 'Session',
+      header: t('calibration.session', 'Session'),
       sortBy: (s) => s.name,
       cell: (s) => (
         <To href={`/performance/calibration/${s.id}`} onNavigate={onNavigate}>
@@ -94,32 +95,32 @@ function sessionColumns(
     },
     {
       id: 'cycle',
-      header: 'Cycle',
+      header: t('calibration.cycle', 'Cycle'),
       sortBy: (s) => s.cycle,
       cell: (s) => <span className="text-sm">{s.cycle}</span>,
     },
     {
       id: 'calibrators',
-      header: 'Calibrators',
+      header: t('calibration.calibrators', 'Calibrators'),
       hideOnCard: true,
       cell: (s) => <span className="text-sm">{s.calibrators.join(', ')}</span>,
     },
     {
       id: 'people',
-      header: 'People',
+      header: t('calibration.people', 'People'),
       numeric: true,
       sortBy: (s) => s.people,
       cell: (s) => <span className="text-sm">{String(s.people)}</span>,
     },
     {
       id: 'meets',
-      header: 'Meets',
+      header: t('calibration.meets', 'Meets'),
       sortBy: (s) => s.meetsOn ?? '',
       cell: (s) => <span className="text-sm">{day(s.meetsOn)}</span>,
     },
     {
       id: 'state',
-      header: 'State',
+      header: t('calibration.state', 'State'),
       cardTrailing: true,
       sortBy: (s) => s.state,
       cell: (s) => (
@@ -144,8 +145,11 @@ export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element 
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Calibration"
-            description="Calibrators compare scores across teams before they are released. Every change keeps its reason."
+            title={t('calibration.calibration', 'Calibration')}
+            description={t(
+              'calibration.calibrators_compare_scores_across_teams_before',
+              'Calibrators compare scores across teams before they are released. Every change keeps its reason.',
+            )}
             actions={
               data.hr ? (
                 <Button
@@ -155,7 +159,7 @@ export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element 
                     setCreating(true);
                   }}
                 >
-                  New session
+                  {t('calibration.new_session', 'New session')}
                 </Button>
               ) : null
             }
@@ -164,12 +168,15 @@ export function Calibrations(props: ScreenProps<CalibrationsData>): JSX.Element 
           {data.rows.length === 0 ? (
             <EmptyState
               icon={<icons.people aria-hidden />}
-              title="No sessions"
-              description="A session takes the scores of a cycle, or one department of it, and holds them until it is finalised."
+              title={t('calibration.no_sessions', 'No sessions')}
+              description={t(
+                'calibration.a_session_takes_the_scores_of',
+                'A session takes the scores of a cycle, or one department of it, and holds them until it is finalised.',
+              )}
             />
           ) : (
             <DataTable<SessionRow>
-              label="Calibration sessions"
+              label={t('calibration.calibration_sessions', 'Calibration sessions')}
               rows={data.rows}
               rowId={sessionId}
               describeRow={sessionName}
@@ -220,8 +227,12 @@ function NewSession({
     <StepDialog
       open
       onClose={onClose}
-      title="New calibration session"
-      steps={['Group', 'Calibrators', 'Confirm']}
+      title={t('calibration.new_calibration_session', 'New calibration session')}
+      steps={[
+        t('calibration.group', 'Group'),
+        t('calibration.calibrators', 'Calibrators'),
+        t('calibration.confirm', 'Confirm'),
+      ]}
       step={step}
       onStep={setStep}
       pending={act.pending}
@@ -253,23 +264,23 @@ function NewSession({
       {step === 0 ? (
         <div className="flex flex-col gap-3">
           <Choose
-            label="Cycle"
+            label={t('calibration.cycle', 'Cycle')}
             value={cycle}
             options={cycles.map((c) => [c.id, c.name] as const)}
             onChange={setCycle}
           />
           <Field>
-            <FieldLabel>Department</FieldLabel>
+            <FieldLabel>{t('calibration.department', 'Department')}</FieldLabel>
             <Input
               value={department}
               onChange={(e) => {
                 setDepartment(e.target.value);
               }}
-              placeholder="Everyone in the cycle"
+              placeholder={t('calibration.everyone_in_the_cycle', 'Everyone in the cycle')}
             />
           </Field>
           <Field>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('calibration.name', 'Name')}</FieldLabel>
             <Input
               value={name}
               onChange={(e) => {
@@ -283,7 +294,7 @@ function NewSession({
       {step === 1 ? (
         <PersonPicker
           act={act}
-          label="Calibrators"
+          label={t('calibration.calibrators', 'Calibrators')}
           value={calibrators}
           onChange={setCalibrators}
           many
@@ -292,10 +303,10 @@ function NewSession({
       {step === 2 ? (
         <div className="flex flex-col gap-3">
           <Field>
-            <FieldLabel>Meets on</FieldLabel>
+            <FieldLabel>{t('calibration.meets_on', 'Meets on')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Meets on"
+                label={t('calibration.meets_on', 'Meets on')}
                 value={meetsOn === '' ? null : meetsOn}
                 onChange={(date) => {
                   setMeetsOn(date ?? '');
@@ -303,8 +314,19 @@ function NewSession({
               />
             </FieldControl>
           </Field>
-          <Alert tone="info" title="Scores are held from release">
-            {`Submitted manager reviews in ${cycleName}${department === '' ? '' : `, ${department}`} are held until the session is finalised. ${plural(calibrators.length, 'calibrator')} besides HR.`}
+          <Alert
+            tone="info"
+            title={t('calibration.scores_are_held_from_release', 'Scores are held from release')}
+          >
+            {t(
+              'calibration.submitted_manager_reviews_in_are_held',
+              'Submitted manager reviews in {{cycleName}}{{value}} are held until the session is finalised. {{length}} besides HR.',
+              {
+                cycleName,
+                value: department === '' ? '' : `, ${department}`,
+                length: plural(calibrators.length, 'calibrator'),
+              },
+            )}
           </Alert>
         </div>
       ) : null}
@@ -360,7 +382,11 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={data.session.name}
-              description={`${data.cycle} · ${data.session.calibrators.map((c) => c.name).join(', ') || 'HR'} · ${STATE[data.session.state] ?? data.session.state}`}
+              description={t('calibration.text', '{{cycle}} · {{value}} · {{value2}}', {
+                cycle: data.cycle,
+                value: data.session.calibrators.map((c) => c.name).join(', ') || 'HR',
+                value2: STATE[data.session.state] ?? data.session.state,
+              })}
               actions={
                 <>
                   {data.may.change ? (
@@ -378,7 +404,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                           });
                       }}
                     >
-                      Suggest changes
+                      {t('calibration.suggest_changes', 'Suggest changes')}
                     </Button>
                   ) : null}
                   {data.may.finalise ? (
@@ -387,7 +413,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                         setFinalising(true);
                       }}
                     >
-                      Finalise
+                      {t('calibration.finalise', 'Finalise')}
                     </Button>
                   ) : null}
                 </>
@@ -399,8 +425,12 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                 tone="info"
                 title={
                   proposals.length === 0
-                    ? 'Nothing stands out'
-                    : `${plural(proposals.length, 'proposal')}, for you to accept or leave`
+                    ? t('calibration.nothing_stands_out', 'Nothing stands out')
+                    : t(
+                        'calibration.for_you_to_accept_or_leave',
+                        '{{length}}, for you to accept or leave',
+                        { length: plural(proposals.length, 'proposal') },
+                      )
                 }
               >
                 <List className="mt-2">
@@ -410,7 +440,10 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                       <ListItem
                         key={p.personId}
                         description={p.reason}
-                        meta={`${score(row?.now)} → ${score(p.now)}`}
+                        meta={t('calibration.text_2', '{{score}} → {{score2}}', {
+                          score: score(row?.now),
+                          score2: score(p.now),
+                        })}
                         trailing={
                           <Button
                             size="xs"
@@ -423,11 +456,11 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                               });
                             }}
                           >
-                            Accept
+                            {t('calibration.accept', 'Accept')}
                           </Button>
                         }
                       >
-                        {row?.name ?? 'Someone'}
+                        {row?.name ?? t('calibration.someone', 'Someone')}
                       </ListItem>
                     );
                   })}
@@ -437,7 +470,9 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>Performance and potential</CardTitle>
+                  <CardTitle level={2}>
+                    {t('calibration.performance_and_potential', 'Performance and potential')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))] gap-2">
@@ -446,7 +481,11 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                         key={`axis-${String(row)}`}
                         className="self-center text-xs text-fg-muted [writing-mode:vertical-rl]"
                       >
-                        {row === 0 ? 'High potential' : row === 1 ? 'Potential' : 'Low'}
+                        {row === 0
+                          ? t('calibration.high_potential', 'High potential')
+                          : row === 1
+                            ? t('calibration.potential', 'Potential')
+                            : t('calibration.low', 'Low')}
                       </span>,
                       ...data.cells.slice(row * 3, row * 3 + 3).map((c) => (
                         <div
@@ -461,7 +500,12 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                                   ? 'text-warning-fg'
                                   : 'text-fg-muted'
                               }
-                            >{`${String(c.share)}% · guide ${String(c.guide)}%`}</span>
+                            >
+                              {t('calibration.guide', '{{share}}% · guide {{guide}}%', {
+                                share: String(c.share),
+                                guide: String(c.guide),
+                              })}
+                            </span>
                           </span>
                           {c.people.map((p) => (
                             <span key={p.personId} className="truncate text-sm">
@@ -472,16 +516,18 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                       )),
                     ])}
                   </div>
-                  <p className="mt-2 text-center text-xs text-fg-muted">Performance: low to high</p>
+                  <p className="mt-2 text-center text-xs text-fg-muted">
+                    {t('calibration.performance_low_to_high', 'Performance: low to high')}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>Distribution</CardTitle>
+                  <CardTitle level={2}>{t('calibration.distribution', 'Distribution')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <BarChart
-                    label="People by score"
+                    label={t('calibration.people_by_score', 'People by score')}
                     showValues
                     data={data.scale.map((o) => ({
                       label: o.label,
@@ -490,7 +536,13 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                       ).length,
                     }))}
                   />
-                  <p className="mt-2 text-sm text-fg-muted">{`${plural(changed, 'score')} changed in this session`}</p>
+                  <p className="mt-2 text-sm text-fg-muted">
+                    {t(
+                      'calibration.changed_in_this_session',
+                      '{{changed}} changed in this session',
+                      { changed: plural(changed, 'score') },
+                    )}
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -499,14 +551,14 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Person</TableHead>
-                      <TableHead>Manager</TableHead>
-                      <TableHead>Was</TableHead>
-                      <TableHead>Now</TableHead>
-                      <TableHead>Reason</TableHead>
+                      <TableHead>{t('calibration.person', 'Person')}</TableHead>
+                      <TableHead>{t('calibration.manager', 'Manager')}</TableHead>
+                      <TableHead>{t('calibration.was', 'Was')}</TableHead>
+                      <TableHead>{t('calibration.now', 'Now')}</TableHead>
+                      <TableHead>{t('calibration.reason', 'Reason')}</TableHead>
                       {data.may.change ? (
                         <TableHead>
-                          <span className="sr-only">Change</span>
+                          <span className="sr-only">{t('calibration.change', 'Change')}</span>
                         </TableHead>
                       ) : null}
                     </TableRow>
@@ -518,10 +570,15 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                         <TableCell className="text-sm">{r.manager}</TableCell>
                         <TableCell className="text-sm">{score(r.was)}</TableCell>
                         <TableCell className="text-sm">
-                          {r.now === null ? 'Not submitted' : `${score(r.now)} · ${r.label ?? ''}`}
+                          {r.now === null
+                            ? t('calibration.not_submitted', 'Not submitted')
+                            : t('calibration.text_3', '{{score}} · {{value}}', {
+                                score: score(r.now),
+                                value: r.label ?? '',
+                              })}
                           {r.now !== r.was && r.now !== null ? (
                             <Badge size="sm" tone="accent" className="ml-2">
-                              Changed
+                              {t('calibration.changed', 'Changed')}
                             </Badge>
                           ) : null}
                         </TableCell>
@@ -537,7 +594,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                                   setChanging(r);
                                 }}
                               >
-                                Change
+                                {t('calibration.change', 'Change')}
                               </Button>
                               <Button
                                 size="sm"
@@ -550,7 +607,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                                   });
                                 }}
                               >
-                                Take out
+                                {t('calibration.take_out', 'Take out')}
                               </Button>
                             </span>
                           </TableCell>
@@ -578,8 +635,13 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                 onClose={() => {
                   setFinalising(false);
                 }}
-                title={`Finalise ${data.session.name}?`}
-                description="The scores become final, the reviews held for this session are released to the cycle's release rules, and the session can no longer change."
+                title={t('calibration.finalise_2', 'Finalise {{name}}?', {
+                  name: data.session.name,
+                })}
+                description={t(
+                  'calibration.the_scores_become_final_the_reviews',
+                  "The scores become final, the reviews held for this session are released to the cycle's release rules, and the session can no longer change.",
+                )}
                 footer={
                   <>
                     <Button
@@ -588,7 +650,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                         setFinalising(false);
                       }}
                     >
-                      Cancel
+                      {t('calibration.cancel', 'Cancel')}
                     </Button>
                     <Button
                       loading={act.pending}
@@ -598,12 +660,17 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                         });
                       }}
                     >
-                      Finalise
+                      {t('calibration.finalise', 'Finalise')}
                     </Button>
                   </>
                 }
               >
-                <p className="text-sm">{`${plural(data.rows.length, 'person', 'people')}, ${plural(changed, 'score')} changed.`}</p>
+                <p className="text-sm">
+                  {t('calibration.changed_2', '{{length}}, {{changed}} changed.', {
+                    length: plural(data.rows.length, 'person', 'people'),
+                    changed: plural(changed, 'score'),
+                  })}
+                </p>
               </Modal>
             ) : null}
           </div>
@@ -634,12 +701,16 @@ function ChangeDialog({
     <Modal
       open
       onClose={onClose}
-      title={`Change ${row.name}’s score`}
-      description={`Submitted by ${row.manager} as ${score(row.was)}. The reason is kept with the change and shown to HR.`}
+      title={t('calibration.change_s_score', 'Change {{name}}’s score', { name: row.name })}
+      description={t(
+        'calibration.submitted_by_as_the_reason_is',
+        'Submitted by {{manager}} as {{score}}. The reason is kept with the change and shown to HR.',
+        { manager: row.manager, score: score(row.was) },
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('calibration.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={value === null || reason.trim() === ''}
@@ -655,15 +726,22 @@ function ChangeDialog({
               );
             }}
           >
-            Change
+            {t('calibration.change', 'Change')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
-      <NumberField label="Score" value={value} min={lo} max={hi} step={0.1} onChange={setValue} />
+      <NumberField
+        label={t('calibration.score', 'Score')}
+        value={value}
+        min={lo}
+        max={hi}
+        step={0.1}
+        onChange={setValue}
+      />
       <Field required>
-        <FieldLabel>Reason</FieldLabel>
+        <FieldLabel>{t('calibration.reason', 'Reason')}</FieldLabel>
         <Textarea
           autoResize
           value={reason}

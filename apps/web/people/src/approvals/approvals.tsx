@@ -37,6 +37,7 @@ import type { Outcome } from '../load';
 import { DisplayValue, longDate } from '../record/display';
 import type { AttributeValue, PendingValue, RecordField } from '../record/model';
 import { ApproveAlone, PendingBadge } from '../record/pending';
+import { t } from '../i18n';
 
 /**
  * The approvals inbox (PEO-077; PRD §8.6), and flagged approvals (design AI7,
@@ -222,37 +223,59 @@ export const isClosed = (item: ApprovalItem): boolean =>
 
 /** "Salary €61k → €84k · from 1 Oct", or the field and the date where no amount shows. */
 export function summaryOf(item: ApprovalItem): string {
-  const from = `from ${shortDate.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`))}`;
+  const from = t('approvals.approvals.from', 'from {{format}}', {
+    format: shortDate.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`)),
+  });
   const after = item.readable ? compact(item.value) : null;
   // A decided change keeps what was asked for, not what was in force before it.
   if (isClosed(item)) {
-    return after === null ? `${item.label} · ${from}` : `${item.label} ${after} · ${from}`;
+    return after === null
+      ? t('approvals.approvals.text', '{{label}} · {{from}}', { label: item.label, from })
+      : t('approvals.approvals.text_2', '{{label}} {{after}} · {{from}}', {
+          label: item.label,
+          after,
+          from,
+        });
   }
   const before = item.readable ? compact(item.current) : null;
   return before !== null && after !== null
-    ? `${item.label} ${before} → ${after} · ${from}`
-    : `${item.label} · ${from}`;
+    ? t('approvals.approvals.text_3', '{{label}} {{before}} → {{after}} · {{from}}', {
+        label: item.label,
+        before,
+        after,
+        from,
+      })
+    : t('approvals.approvals.text', '{{label}} · {{from}}', { label: item.label, from });
 }
 
 /** "12m", "3h", "Yesterday", "4 days": how long ago it was asked for. */
 export function ago(at: string, now: number): string {
   const minutes = Math.max(0, Math.floor((now - Date.parse(at)) / 60_000));
-  if (minutes < 60) return `${String(Math.max(minutes, 1))}m`;
-  if (minutes < 24 * 60) return `${String(Math.floor(minutes / 60))}h`;
+  if (minutes < 60)
+    return t('approvals.approvals.m', '{{max}}m', { max: String(Math.max(minutes, 1)) });
+  if (minutes < 24 * 60)
+    return t('approvals.approvals.h', '{{floor}}h', { floor: String(Math.floor(minutes / 60)) });
   const days = Math.floor(minutes / (24 * 60));
-  return days === 1 ? 'Yesterday' : `${String(days)} days`;
+  return days === 1
+    ? t('approvals.approvals.yesterday', 'Yesterday')
+    : t('approvals.approvals.days', '{{days}} days', { days: String(days) });
 }
 
 /** How long until it lapses, in days: "2 days left". */
 function daysLeft(expiresAt: string, now: number): string {
   const days = Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 86_400_000));
-  return days === 0 ? 'Expires today' : `${String(days)} ${days === 1 ? 'day' : 'days'} left`;
+  return days === 0
+    ? t('approvals.approvals.expires_today', 'Expires today')
+    : t('approvals.approvals.left', '{{days}} {{value}} left', {
+        days: String(days),
+        value: days === 1 ? 'day' : 'days',
+      });
 }
 
 /** "Nora" from "Nora Becker"; "the requester" when it is not a name. */
 export const firstName = (name: string): string =>
   name === 'You' || name.startsWith('A ') || name.startsWith('An ')
-    ? 'the requester'
+    ? t('approvals.approvals.the_requester', 'the requester')
     : (name.split(' ')[0] ?? name);
 
 /**
@@ -334,17 +357,28 @@ export function ChangeDetail({
                 {item.name}
               </Button>
             )}
-            <span className="font-normal text-fg-muted"> · {item.label.toLowerCase()} change</span>
+            <span className="font-normal text-fg-muted">
+              {' '}
+              · {item.label.toLowerCase()} {t('approvals.approvals.change', 'change')}
+            </span>
           </h2>
           <p className="text-sm text-fg-muted">
-            Asked by {item.requestedBy} on {longDate(item.requestedAt.slice(0, 10))}
+            {t('approvals.approvals.asked_by_on', 'Asked by {{requestedBy}} on', {
+              requestedBy: item.requestedBy,
+            })}{' '}
+            {longDate(item.requestedAt.slice(0, 10))}
             {decided
               ? item.state === 'lapsed'
-                ? ` · lapsed${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}, nobody decided in 7 days`
+                ? ` · lapsed${item.decidedAt ? ' ' + t('approvals.approvals.on', 'on {{longDate}}', { longDate: longDate(item.decidedAt.slice(0, 10)) }) : ''}, nobody decided in 7 days`
                 : item.state === 'withdrawn'
-                  ? ` · withdrawn${item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''}`
+                  ? ` · withdrawn${item.decidedAt ? ' ' + t('approvals.approvals.on', 'on {{longDate}}', { longDate: longDate(item.decidedAt.slice(0, 10)) }) : ''}`
                   : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
-                      item.decidedAt ? ` on ${longDate(item.decidedAt.slice(0, 10))}` : ''
+                      item.decidedAt
+                        ? ' ' +
+                          t('approvals.approvals.on', 'on {{longDate}}', {
+                            longDate: longDate(item.decidedAt.slice(0, 10)),
+                          })
+                        : ''
                     }`
               : ` · expires in ${daysLeft(item.expiresAt, now).replace(' left', '').toLowerCase()}`}
           </p>
@@ -364,29 +398,45 @@ export function ChangeDetail({
               before: <DisplayValue field={field} value={item.before} />,
               after: <DisplayValue field={field} value={item.value} />,
             },
-            { label: 'Effective', before: '—', after: longDate(item.effectiveFrom) },
+            {
+              label: t('approvals.approvals.effective', 'Effective'),
+              before: '—',
+              after: longDate(item.effectiveFrom),
+            },
           ]}
         />
       ) : item.readable && decided ? (
         // What was asked for; what was in force before it is not kept with the decision.
         <p className="text-sm">
-          {item.label}: <DisplayValue field={field} value={item.value} />, from{' '}
-          {longDate(item.effectiveFrom)}
+          {item.label}: <DisplayValue field={field} value={item.value} />
+          {t('approvals.approvals.from_2', ', from')} {longDate(item.effectiveFrom)}
         </p>
       ) : item.readable ? (
         <ChangeDiff
           items={[
             {
-              label: item.kind === 'correction' ? `${item.label} (correction)` : item.label,
+              label:
+                item.kind === 'correction'
+                  ? t('approvals.approvals.correction', '{{label}} (correction)', {
+                      label: item.label,
+                    })
+                  : item.label,
               before: <DisplayValue field={field} value={item.current} />,
               after: <DisplayValue field={field} value={item.value} />,
             },
-            { label: 'Effective', before: '—', after: longDate(item.effectiveFrom) },
+            {
+              label: t('approvals.approvals.effective', 'Effective'),
+              before: '—',
+              after: longDate(item.effectiveFrom),
+            },
           ]}
         />
       ) : (
         <p className="text-sm text-fg-muted">
-          You can’t view this field. Decide based on who asked and why. It takes effect from{' '}
+          {t(
+            'approvals.approvals.you_cant_view_this_field_decide',
+            'You can’t view this field. Decide based on who asked and why. It takes effect from',
+          )}{' '}
           {longDate(item.effectiveFrom)}.
         </p>
       )}
@@ -403,16 +453,22 @@ export function ChangeDetail({
       {flaggedNow && decided ? (
         <p className="flex items-center gap-1.5 text-sm text-warning-fg [&_svg]:size-3.5">
           <icons.flagged aria-hidden />
-          Flagged when decided: {item.flagSummary ?? flags.map((f) => f.title).join(', ')}
+          {t('approvals.approvals.flagged_when_decided', 'Flagged when decided:')}{' '}
+          {item.flagSummary ?? flags.map((f) => f.title).join(', ')}
         </p>
       ) : null}
-      {decided && item.note ? <p className="text-sm">Note: “{item.note}”</p> : null}
+      {decided && item.note ? (
+        <p className="text-sm">
+          {t('approvals.approvals.note', 'Note: “')}
+          {item.note}”
+        </p>
+      ) : null}
 
       <Questions item={item} onAnswer={onAnswer} />
 
       {item.canDecide && !decided ? (
         <Field invalid={needsNote}>
-          <FieldLabel>Note</FieldLabel>
+          <FieldLabel>{t('approvals.approvals.note_2', 'Note')}</FieldLabel>
           <FieldControl>
             <Textarea
               ref={noteRef}
@@ -427,15 +483,23 @@ export function ChangeDetail({
           </FieldControl>
           <FieldDescription>
             {flaggedNow
-              ? 'Required when you approve something flagged.'
+              ? t(
+                  'approvals.approvals.required_when_you_approve_something_flagged',
+                  'Required when you approve something flagged.',
+                )
               : 'Optional; kept with the decision.'}
           </FieldDescription>
-          <FieldError>Add a note to approve something flagged.</FieldError>
+          <FieldError>
+            {t(
+              'approvals.approvals.add_a_note_to_approve_something',
+              'Add a note to approve something flagged.',
+            )}
+          </FieldError>
         </Field>
       ) : null}
 
       {refused === null ? null : (
-        <Alert tone="danger" title="Not done">
+        <Alert tone="danger" title={t('approvals.approvals.not_done', 'Not done')}>
           {refused}
         </Alert>
       )}
@@ -449,7 +513,7 @@ export function ChangeDetail({
               variant="ghost"
               startIcon={<icons.reject aria-hidden />}
               loading={busy === 'mark'}
-              loadingLabel="Saving"
+              loadingLabel={t('approvals.approvals.saving', 'Saving')}
               onClick={() => {
                 setBusy('mark');
                 setRefused(null);
@@ -459,7 +523,7 @@ export function ChangeDetail({
                 });
               }}
             >
-              Not unusual
+              {t('approvals.approvals.not_unusual', 'Not unusual')}
             </Button>
           ) : null}
           {item.canAsk === true && onAsk !== undefined ? (
@@ -469,20 +533,31 @@ export function ChangeDetail({
                 setAsking(true);
               }}
             >
-              Ask {requester}
+              {t('approvals.approvals.ask', 'Ask')} {requester}
             </Button>
           ) : null}
           {item.awaitingReview === true ? (
-            <span className="text-sm text-fg-muted">Check this ID under ID checks first.</span>
+            <span className="text-sm text-fg-muted">
+              {t(
+                'approvals.approvals.check_this_id_under_id_checks',
+                'Check this ID under ID checks first.',
+              )}
+            </span>
           ) : null}
           {!item.canDecide && !item.mine ? (
             <span className="text-sm text-fg-muted">
-              This change is about you, so someone else decides.
+              {t(
+                'approvals.approvals.this_change_is_about_you_so',
+                'This change is about you, so someone else decides.',
+              )}
             </span>
           ) : null}
           {!item.canDecide && item.mine && isHr && item.canSelfApprove !== true ? (
             <span className="text-sm text-fg-muted">
-              Another HR member must approve your change.
+              {t(
+                'approvals.approvals.another_hr_member_must_approve_your',
+                'Another HR member must approve your change.',
+              )}
             </span>
           ) : null}
           <div
@@ -493,48 +568,69 @@ export function ChangeDetail({
             item.awaitingReview !== true &&
             onSelfApprove !== undefined ? (
               <ApproveAlone
-                label={`${item.name}'s ${item.label}`}
+                label={t('approvals.approvals.s', "{{name}}'s {{label}}", {
+                  name: item.name,
+                  label: item.label,
+                })}
                 onApprove={() => onSelfApprove(item.id, note.trim() === '' ? null : note.trim())}
               />
             ) : null}
             {item.canDecide ? (
               <>
                 <Button
-                  aria-label={`Reject the change to ${item.name}'s ${item.label}`}
+                  aria-label={t(
+                    'approvals.approvals.reject_the_change_to_s',
+                    "Reject the change to {{name}}'s {{label}}",
+                    { name: item.name, label: item.label },
+                  )}
                   shortcut="row.decline"
                   loading={busy === 'reject'}
-                  loadingLabel="Rejecting"
+                  loadingLabel={t('approvals.approvals.rejecting', 'Rejecting')}
                   onClick={() => {
                     decide(false);
                   }}
                 >
-                  Reject
+                  {t('approvals.approvals.reject', 'Reject')}
                 </Button>
                 {item.awaitingReview === true ? null : (
                   <Button
                     variant="primary"
                     aria-label={
                       flaggedNow
-                        ? `Approve with note: the change to ${item.name}'s ${item.label}`
-                        : `Approve the change to ${item.name}'s ${item.label}`
+                        ? t(
+                            'approvals.approvals.approve_with_note_the_change_to',
+                            "Approve with note: the change to {{name}}'s {{label}}",
+                            { name: item.name, label: item.label },
+                          )
+                        : t(
+                            'approvals.approvals.approve_the_change_to_s',
+                            "Approve the change to {{name}}'s {{label}}",
+                            { name: item.name, label: item.label },
+                          )
                     }
                     shortcut="row.approve"
                     loading={busy === 'approve'}
-                    loadingLabel="Approving"
+                    loadingLabel={t('approvals.approvals.approving', 'Approving')}
                     onClick={() => {
                       decide(true);
                     }}
                   >
-                    {flaggedNow ? 'Approve with note' : 'Approve'}
+                    {flaggedNow
+                      ? t('approvals.approvals.approve_with_note', 'Approve with note')
+                      : t('approvals.approvals.approve', 'Approve')}
                   </Button>
                 )}
               </>
             ) : null}
             {item.mine ? (
               <Button
-                aria-label={`Withdraw the change to ${item.name}'s ${item.label}`}
+                aria-label={t(
+                  'approvals.approvals.withdraw_the_change_to_s',
+                  "Withdraw the change to {{name}}'s {{label}}",
+                  { name: item.name, label: item.label },
+                )}
                 loading={busy === 'withdraw'}
-                loadingLabel="Withdrawing"
+                loadingLabel={t('approvals.approvals.withdrawing', 'Withdrawing')}
                 onClick={() => {
                   setBusy('withdraw');
                   setRefused(null);
@@ -544,7 +640,7 @@ export function ChangeDetail({
                   });
                 }}
               >
-                Withdraw
+                {t('approvals.approvals.withdraw', 'Withdraw')}
               </Button>
             ) : null}
           </div>
@@ -569,13 +665,16 @@ function WhyFlagged({ item }: { readonly item: ApprovalItem }): JSX.Element {
   const comparisons = item.comparisons ?? [];
   return (
     <AssistantCard
-      title="Why this is flagged"
+      title={t('approvals.approvals.why_this_is_flagged', 'Why this is flagged')}
       action={
         <Badge tone="assistant" size="sm">
-          AI
+          {t('approvals.approvals.ai', 'AI')}
         </Badge>
       }
-      note="Flags never approve or reject anything. They only ask you to look twice."
+      note={t(
+        'approvals.approvals.flags_never_approve_or_reject_anything',
+        'Flags never approve or reject anything. They only ask you to look twice.',
+      )}
     >
       <IconList>
         {flagsOf(item).map((f) => (
@@ -587,7 +686,10 @@ function WhyFlagged({ item }: { readonly item: ApprovalItem }): JSX.Element {
       {comparisons.length === 0 ? null : (
         <Card variant="fill" padded>
           <HorizontalBarChart
-            label="This change against the raises it was compared with"
+            label={t(
+              'approvals.approvals.this_change_against_the_raises_it',
+              'This change against the raises it was compared with',
+            )}
             sorted={false}
             showValues
             data={comparisons.map((c) => ({ label: c.label, value: Number(c.percent) }))}
@@ -616,7 +718,10 @@ function Questions({
   const questions = item.questions ?? [];
   if (questions.length === 0) return null;
   return (
-    <PageSection title="Questions" className="[&_h2]:text-base">
+    <PageSection
+      title={t('approvals.approvals.questions', 'Questions')}
+      className="[&_h2]:text-base"
+    >
       <IconList divided>
         {questions.map((q) => (
           <IconListItem
@@ -627,11 +732,15 @@ function Questions({
               q.answer === null
                 ? q.canAnswer
                   ? null
-                  : 'Not answered yet.'
-                : `${item.requestedBy === 'You' ? 'You' : item.requestedBy}: “${q.answer}”`
+                  : t('approvals.approvals.not_answered_yet', 'Not answered yet.')
+                : t('approvals.approvals.text_4', '{{value}}: “{{answer}}”', {
+                    value: item.requestedBy === 'You' ? 'You' : item.requestedBy,
+                    answer: q.answer,
+                  })
             }
           >
-            {q.askedBy} asked: “{q.question}”
+            {q.askedBy} {t('approvals.approvals.asked', 'asked: “')}
+            {q.question}”
             {q.canAnswer && onAnswer !== undefined ? (
               <Answer questionId={q.id} onAnswer={onAnswer} />
             ) : null}
@@ -655,7 +764,7 @@ function Answer({
   return (
     <span className="mt-2 flex flex-col gap-2 font-normal">
       <Field invalid={refused !== null}>
-        <FieldLabel>Your answer</FieldLabel>
+        <FieldLabel>{t('approvals.approvals.your_answer', 'Your answer')}</FieldLabel>
         <FieldControl>
           <Textarea
             value={answer}
@@ -674,7 +783,7 @@ function Answer({
           variant="primary"
           disabled={answer.trim() === ''}
           loading={busy}
-          loadingLabel="Sending"
+          loadingLabel={t('approvals.approvals.sending', 'Sending')}
           onClick={() => {
             setBusy(true);
             setRefused(null);
@@ -684,7 +793,7 @@ function Answer({
             });
           }}
         >
-          Send answer
+          {t('approvals.approvals.send_answer', 'Send answer')}
         </Button>
       </span>
     </span>
@@ -715,15 +824,23 @@ function Ask({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ask {to} about this change</DialogTitle>
+          <DialogTitle>
+            {t('approvals.approvals.ask_about_this_change', 'Ask {{to}} about this change', { to })}
+          </DialogTitle>
           <DialogDescription>
-            {to === 'the requester' ? 'They see' : `${to} sees`} your question on {item.name}’s{' '}
-            {item.label.toLowerCase()} change, and answers there. Nothing is decided meanwhile.
+            {to === 'the requester'
+              ? t('approvals.approvals.they_see', 'They see')
+              : t('approvals.approvals.sees', '{{to}} sees', { to })}{' '}
+            {t(
+              'approvals.approvals.your_question_on_s_change_and',
+              'your question on {{name}}’s {{label}} change, and answers there. Nothing is decided meanwhile.',
+              { name: item.name, label: item.label.toLowerCase() },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field invalid={refused !== null}>
-            <FieldLabel>Question</FieldLabel>
+            <FieldLabel>{t('approvals.approvals.question', 'Question')}</FieldLabel>
             <FieldControl>
               <Textarea
                 value={question}
@@ -738,13 +855,13 @@ function Ask({
           </Field>
         </DialogBody>
         <DialogFooter>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('approvals.approvals.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.send aria-hidden />}
             disabled={question.trim() === ''}
             loading={busy}
-            loadingLabel="Sending"
+            loadingLabel={t('approvals.approvals.sending', 'Sending')}
             onClick={() => {
               setBusy(true);
               setRefused(null);
@@ -755,7 +872,7 @@ function Ask({
               });
             }}
           >
-            Send question
+            {t('approvals.approvals.send_question', 'Send question')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -786,15 +903,22 @@ export function Checks({
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <PageSection
         surface
-        title="What Kithena checks"
-        description={tunable ? undefined : 'A People administrator switches these.'}
+        title={t('approvals.approvals.what_kithena_checks', 'What Kithena checks')}
+        description={
+          tunable
+            ? undefined
+            : t(
+                'approvals.approvals.a_people_administrator_switches_these',
+                'A People administrator switches these.',
+              )
+        }
         actions={
           <Badge tone="assistant" size="sm">
-            AI
+            {t('approvals.approvals.ai', 'AI')}
           </Badge>
         }
       >
-        <List aria-label="Checks">
+        <List aria-label={t('approvals.approvals.checks', 'Checks')}>
           {checks.map((c) => (
             <ListItem
               key={c.code}
@@ -823,28 +947,46 @@ export function Checks({
           ))}
         </List>
         {refused === null ? null : (
-          <Alert tone="danger" title="Not switched" className="mt-3">
+          <Alert
+            tone="danger"
+            title={t('approvals.approvals.not_switched', 'Not switched')}
+            className="mt-3"
+          >
             {refused}
           </Alert>
         )}
       </PageSection>
       <Stack gap={4}>
         {last90 === null || last90 === undefined ? null : (
-          <PageSection surface title="The last 90 days">
+          <PageSection
+            surface
+            title={t('approvals.approvals.the_last_90_days', 'The last 90 days')}
+          >
             <div className="grid grid-cols-3 gap-2.5">
-              <Stat label="Flagged" value={last90.flagged} />
-              <Stat label="Rejected" value={last90.rejected} />
-              <Stat label="Marked not unusual" value={last90.marked} />
+              <Stat label={t('approvals.approvals.flagged', 'Flagged')} value={last90.flagged} />
+              <Stat label={t('approvals.approvals.rejected', 'Rejected')} value={last90.rejected} />
+              <Stat
+                label={t('approvals.approvals.marked_not_unusual', 'Marked not unusual')}
+                value={last90.marked}
+              />
             </div>
             <p className="mt-3 text-sm text-fg-muted">
-              When you mark a flag as not unusual, similar changes are flagged less often. Each
-              person’s marks only affect their own company.
+              {t(
+                'approvals.approvals.when_you_mark_a_flag_as',
+                'When you mark a flag as not unusual, similar changes are flagged less often. Each person’s marks only affect their own company.',
+              )}
             </p>
           </PageSection>
         )}
-        <Alert tone="info" icon={<icons.permission aria-hidden />} title="What it never does">
-          It never blocks a change, never contacts anyone, and never uses health, diversity or other
-          special-category data.
+        <Alert
+          tone="info"
+          icon={<icons.permission aria-hidden />}
+          title={t('approvals.approvals.what_it_never_does', 'What it never does')}
+        >
+          {t(
+            'approvals.approvals.it_never_blocks_a_change_never',
+            'It never blocks a change, never contacts anyone, and never uses health, diversity or other special-category data.',
+          )}
         </Alert>
       </Stack>
     </div>

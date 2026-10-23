@@ -37,6 +37,7 @@ import {
   type ExportChoice,
   type ExportFormat,
 } from './words';
+import { t } from '../i18n';
 
 export type { AddressPatch, ExportChoice, ExportFormat } from './words';
 
@@ -119,20 +120,37 @@ export type ExportDescribed =
   | { readonly ok: false; readonly message: string };
 
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
-  { value: 'csv', label: 'CSV', description: 'For another system, or to import back.' },
-  { value: 'xlsx', label: 'Excel', description: 'For a person to read and edit.' },
+  {
+    value: 'csv',
+    label: 'CSV',
+    description: t(
+      'export.export-builder.for_another_system_or_to_import',
+      'For another system, or to import back.',
+    ),
+  },
+  {
+    value: 'xlsx',
+    label: t('export.export-builder.excel', 'Excel'),
+    description: t(
+      'export.export-builder.for_a_person_to_read_and',
+      'For a person to read and edit.',
+    ),
+  },
   {
     value: 'pdf',
-    label: 'PDF roster',
-    description: 'To print or file, with the filter on every page.',
+    label: t('export.export-builder.pdf_roster', 'PDF roster'),
+    description: t(
+      'export.export-builder.to_print_or_file_with_the',
+      'To print or file, with the filter on every page.',
+    ),
   },
 ];
 
 /** How each format carries its About (design AI14). */
 const FORMAT_NOTE: Record<ExportFormat, string> = {
-  xlsx: 'One sheet, plus About',
-  csv: 'One file, plus About',
-  pdf: 'A roster, About on top',
+  xlsx: t('export.export-builder.one_sheet_plus_about', 'One sheet, plus About'),
+  csv: t('export.export-builder.one_file_plus_about', 'One file, plus About'),
+  pdf: t('export.export-builder.a_roster_about_on_top', 'A roster, About on top'),
 };
 
 /** Name, family name, preferred name: what "Mask names" leaves out. */
@@ -213,8 +231,11 @@ export function ExportBuilder({
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Export"
-        description="Describe what you need. Kithena builds the export, and you check it."
+        title={t('export.export-builder.export', 'Export')}
+        description={t(
+          'export.export-builder.describe_what_you_need_kithena_builds',
+          'Describe what you need. Kithena builds the export, and you check it.',
+        )}
       />
       <Loaded load={load} what="the export builder">
         {(state) =>
@@ -350,8 +371,11 @@ function Describe({
     <Stack gap={2}>
       <SearchField
         variant="prompt"
-        label="Describe the export"
-        placeholder="Ask in plain English, like “salaries in Madrid as of 30 June, for Finance”"
+        label={t('export.export-builder.describe_the_export', 'Describe the export')}
+        placeholder={t(
+          'export.export-builder.ask_in_plain_english_like_salaries',
+          'Ask in plain English, like “salaries in Madrid as of 30 June, for Finance”',
+        )}
         shortcut="page.search"
         enterKeyHint="go"
         maxLength={300}
@@ -374,7 +398,10 @@ function Describe({
           </p>
         ))
       ) : (
-        <Alert tone="danger" title="Nothing was built">
+        <Alert
+          tone="danger"
+          title={t('export.export-builder.nothing_was_built', 'Nothing was built')}
+        >
           {answer.message}
         </Alert>
       )}
@@ -405,7 +432,10 @@ function Built({
     .map((f) => f.label);
   const sensitive = preview?.sensitive.length ?? 0;
   const count = preview?.people ?? audience?.count ?? 0;
-  const people = `${String(count)} ${count === 1 ? 'person' : 'people'}`;
+  const people = t('export.export-builder.text', '{{count}} {{value}}', {
+    count: String(count),
+    value: count === 1 ? 'person' : 'people',
+  });
   const adjust = (
     <Button
       variant="ghost"
@@ -416,18 +446,33 @@ function Built({
         onAddress({ hand: address.hand === true ? null : '1' });
       }}
     >
-      Adjust by hand
+      {t('export.export-builder.adjust_by_hand', 'Adjust by hand')}
     </Button>
   );
   const tiles: readonly [string, string, string][] = [
-    ['Who', audience?.label ?? 'Everybody you can see', people],
     [
-      'Fields',
-      listed(labels),
-      `${String(labels.length)} ${labels.length === 1 ? 'field' : 'fields'}`,
+      t('export.export-builder.who', 'Who'),
+      audience?.label ?? t('export.export-builder.everybody_you_can_see', 'Everybody you can see'),
+      people,
     ],
-    ['As of', spokenDate(choice.asOf), 'Values at end of day'],
-    ['Format', FORMAT_LABEL[choice.format], FORMAT_NOTE[choice.format]],
+    [
+      t('export.export-builder.fields', 'Fields'),
+      listed(labels),
+      t('export.export-builder.text_2', '{{length}} {{value}}', {
+        length: String(labels.length),
+        value: labels.length === 1 ? 'field' : 'fields',
+      }),
+    ],
+    [
+      t('export.export-builder.as_of', 'As of'),
+      spokenDate(choice.asOf),
+      t('export.export-builder.values_at_end_of_day', 'Values at end of day'),
+    ],
+    [
+      t('export.export-builder.format', 'Format'),
+      FORMAT_LABEL[choice.format],
+      FORMAT_NOTE[choice.format],
+    ],
   ];
   const body = (
     <Stack gap={3}>
@@ -445,12 +490,12 @@ function Built({
         className="@2xl/page:hidden"
         layout="split"
         items={[
-          { label: 'Who', value: people },
+          { label: t('export.export-builder.who', 'Who'), value: people },
           {
-            label: 'Fields',
+            label: t('export.export-builder.fields', 'Fields'),
             value: `${String(labels.length)}${sensitive === 0 ? '' : ` · ${String(sensitive)} sensitive`}`,
           },
-          { label: 'As of', value: spokenDate(choice.asOf) },
+          { label: t('export.export-builder.as_of', 'As of'), value: spokenDate(choice.asOf) },
         ]}
       />
       <Reason
@@ -472,7 +517,9 @@ function Built({
     return (
       <Card padded className="flex flex-col gap-3.5">
         <div className="flex items-center gap-2.5">
-          <h2 className="min-w-0 flex-1 text-base font-semibold text-fg">Your export</h2>
+          <h2 className="min-w-0 flex-1 text-base font-semibold text-fg">
+            {t('export.export-builder.your_export', 'Your export')}
+          </h2>
           {adjust}
         </div>
         {body}
@@ -482,12 +529,18 @@ function Built({
   return (
     <AssistantCard
       level={2}
-      title="Here’s the export I’ve built"
+      title={t('export.export-builder.heres_the_export_ive_built', 'Here’s the export I’ve built')}
       action={adjust}
       note={
         address.read === 'assistant'
-          ? 'Built by the assistant from your sentence, with the same field permissions as the builder. Check it before it goes anywhere.'
-          : 'Built by People’s own rules from your sentence. Check it before it goes anywhere.'
+          ? t(
+              'export.export-builder.built_by_the_assistant_from_your',
+              'Built by the assistant from your sentence, with the same field permissions as the builder. Check it before it goes anywhere.',
+            )
+          : t(
+              'export.export-builder.built_by_peoples_own_rules_from',
+              'Built by People’s own rules from your sentence. Check it before it goes anywhere.',
+            )
       }
     >
       {body}
@@ -518,42 +571,52 @@ function Reason({
           }}
         >
           <Field required>
-            <FieldLabel>Reason, for the audit log</FieldLabel>
+            <FieldLabel>
+              {t('export.export-builder.reason_for_the_audit_log', 'Reason, for the audit log')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 value={draft}
                 maxLength={500}
-                placeholder="Budget planning for 2027, requested by Finance"
+                placeholder={t(
+                  'export.export-builder.budget_planning_for_2027_requested_by',
+                  'Budget planning for 2027, requested by Finance',
+                )}
                 onChange={(e) => {
                   setDraft(e.target.value);
                 }}
               />
             </FieldControl>
             <FieldDescription>
-              Required. Saved with the export and shown in the audit log.
+              {t(
+                'export.export-builder.required_saved_with_the_export_and',
+                'Required. Saved with the export and shown in the audit log.',
+              )}
             </FieldDescription>
           </Field>
           <div>
             <Button type="submit" size="sm" variant="secondary">
-              Save reason
+              {t('export.export-builder.save_reason', 'Save reason')}
             </Button>
           </div>
         </form>
       ) : (
         <>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-fg-subtle">Reason, for the audit log</p>
+            <p className="text-xs text-fg-subtle">
+              {t('export.export-builder.reason_for_the_audit_log', 'Reason, for the audit log')}
+            </p>
             <p className="mt-1.5 text-sm font-medium text-fg">{reason}</p>
           </div>
           <Button
             variant="ghost"
             size="xs"
-            aria-label="Edit the reason"
+            aria-label={t('export.export-builder.edit_the_reason', 'Edit the reason')}
             onClick={() => {
               setEditing(true);
             }}
           >
-            Edit
+            {t('export.export-builder.edit', 'Edit')}
           </Button>
         </>
       )}
@@ -580,24 +643,67 @@ function Gap({
   const them = firstName(recipient.name);
   const fields = gap.fields.map((f) => f.label);
   const top = gap.fields[0];
-  const approvers = preview?.approvers.map((a) => a.name ?? 'a People administrator') ?? [];
+  const approvers =
+    preview?.approvers.map(
+      (a) => a.name ?? t('export.export-builder.a_people_administrator', 'a People administrator'),
+    ) ?? [];
   const title =
     fields.length > 0
-      ? `${listed(fields)} ${fields.length === 1 ? 'needs' : 'need'} ${them}’s access`
-      : `${them} can’t see ${String(gap.unlisted)} of these people`;
+      ? t('export.export-builder.s_access', '{{listed}} {{value}} {{them}}’s access', {
+          listed: listed(fields),
+          value: fields.length === 1 ? 'needs' : 'need',
+          them,
+        })
+      : t(
+          'export.export-builder.cant_see_of_these_people',
+          '{{them}} can’t see {{unlisted}} of these people',
+          { them, unlisted: String(gap.unlisted) },
+        );
   return (
     <Alert tone="warning" icon={<icons.locked aria-hidden />} title={title}>
       {top === undefined
-        ? `You can export them, but ${them} can’t see them in People.`
-        : `You can export it, but sending it to ${them} means ${them} would see ${top.label.toLowerCase()} for ${String(top.people)} ${top.people === 1 ? 'person' : 'people'} ${them} can’t see it for in People.`}
+        ? t(
+            'export.export-builder.you_can_export_them_but_cant',
+            'You can export them, but {{them}} can’t see them in People.',
+            { them },
+          )
+        : t(
+            'export.export-builder.you_can_export_it_but_sending',
+            'You can export it, but sending it to {{them}} means {{them2}} would see {{label}} for {{people}} {{value}} {{them3}} can’t see it for in People.',
+            {
+              them,
+              them2: them,
+              label: top.label.toLowerCase(),
+              people: String(top.people),
+              value: top.people === 1 ? 'person' : 'people',
+              them3: them,
+            },
+          )}
       {gap.unlisted > 0 && top !== undefined
-        ? ` ${String(gap.unlisted)} of them ${them} can’t see at all.`
+        ? ' ' +
+          t(
+            'export.export-builder.of_them_cant_see_at_all',
+            '{{unlisted}} of them {{them}} can’t see at all.',
+            { unlisted: String(gap.unlisted), them },
+          )
         : ''}{' '}
       {scheduled
-        ? `A schedule is built as ${them} can see it each month, so that is left out of ${them}’s.`
+        ? t(
+            'export.export-builder.a_schedule_is_built_as_can',
+            'A schedule is built as {{them}} can see it each month, so that is left out of {{them2}}’s.',
+            { them, them2: them },
+          )
         : approvers.length === 0
-          ? `Nobody else here can approve sending it: that takes a People administrator who is neither you nor ${them}.`
-          : `So it waits for ${listed(approvers)} to approve sending this one file.`}
+          ? t(
+              'export.export-builder.nobody_else_here_can_approve_sending',
+              'Nobody else here can approve sending it: that takes a People administrator who is neither you nor {{them}}.',
+              { them },
+            )
+          : t(
+              'export.export-builder.so_it_waits_for_to_approve',
+              'So it waits for {{listed}} to approve sending this one file.',
+              { listed: listed(approvers) },
+            )}
     </Alert>
   );
 }
@@ -614,7 +720,11 @@ function Suggestions({
   readonly onAddress: (patch: AddressPatch, mode?: 'push' | 'replace') => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Suggestions">
+    <div
+      className="flex flex-wrap gap-2"
+      role="group"
+      aria-label={t('export.export-builder.suggestions', 'Suggestions')}
+    >
       {suggestionsFor(state, choice.fields, choice.format, sensitive).map((s) => (
         <Chip
           key={s.id}
@@ -653,7 +763,7 @@ function ByHand({
   };
   return (
     <Stack gap={4}>
-      <PageSection surface title="Who">
+      <PageSection surface title={t('export.export-builder.who', 'Who')}>
         {state.who.length === 1 ? (
           <p className="text-base text-fg">
             <span className="font-semibold">{state.who[0]?.label}</span>
@@ -663,7 +773,7 @@ function ByHand({
         ) : (
           <ChipGroup
             type="single"
-            aria-label="Who to export"
+            aria-label={t('export.export-builder.who_to_export', 'Who to export')}
             value={choice.who}
             onValueChange={(next) => {
               if (next !== '') onAddress({ who: next === 'everyone' ? null : next }, 'replace');
@@ -677,7 +787,13 @@ function ByHand({
           </ChipGroup>
         )}
       </PageSection>
-      <PageSection surface title="Which fields" description={`${String(fields.size)} selected`}>
+      <PageSection
+        surface
+        title={t('export.export-builder.which_fields', 'Which fields')}
+        description={t('export.export-builder.selected', '{{size}} selected', {
+          size: String(fields.size),
+        })}
+      >
         <div className="grid gap-5 @container @2xl:grid-cols-3">
           {state.sections.map((section) => {
             const keys = section.fields.map((f) => f.key);
@@ -720,11 +836,14 @@ function ByHand({
       </PageSection>
       <PageSection
         surface
-        title="As of when"
-        description="Values as they were at the end of that day. Any past date works."
+        title={t('export.export-builder.as_of_when', 'As of when')}
+        description={t(
+          'export.export-builder.values_as_they_were_at_the',
+          'Values as they were at the end of that day. Any past date works.',
+        )}
       >
         <DatePicker
-          label="As of"
+          label={t('export.export-builder.as_of', 'As of')}
           value={choice.asOf}
           max={state.today}
           onChange={(next) => {
@@ -732,9 +851,9 @@ function ByHand({
           }}
         />
       </PageSection>
-      <PageSection surface title="Format">
+      <PageSection surface title={t('export.export-builder.format', 'Format')}>
         <RadioGroup
-          aria-label="Format"
+          aria-label={t('export.export-builder.format', 'Format')}
           value={choice.format}
           onValueChange={(value) => {
             onAddress({ format: value === 'xlsx' ? null : value }, 'replace');
@@ -762,11 +881,16 @@ function ByHand({
             />
           </FieldControl>
           <div>
-            <FieldLabel>Include profile photos</FieldLabel>
+            <FieldLabel>
+              {t('export.export-builder.include_profile_photos', 'Include profile photos')}
+            </FieldLabel>
             <FieldDescription>
               {choice.format === 'pdf'
-                ? 'Not available for PDF.'
-                : 'Adds a ZIP of photos, named by employee number.'}
+                ? t('export.export-builder.not_available_for_pdf', 'Not available for PDF.')
+                : t(
+                    'export.export-builder.adds_a_zip_of_photos_named',
+                    'Adds a ZIP of photos, named by employee number.',
+                  )}
             </FieldDescription>
           </div>
         </Field>

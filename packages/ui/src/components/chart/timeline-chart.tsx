@@ -46,6 +46,7 @@ import {
   useDragZoom,
 } from './chart-window';
 import { bgTone, type ChartInteractionProps, type ChartTone } from './chart';
+import { t } from '../../lib/i18n';
 
 /**
  * A schedule drawn against a date axis: onboarding plans, leave cover,
@@ -300,7 +301,7 @@ const ghostTone: Record<ChartTone, string> = {
 
 /** What an item's outline says, in words: colour and shape are never the only signal. */
 function notes(item: TimelineEntry): string {
-  return `${item.tentative === true ? ', tentative' : ''}${item.clash === true ? ', clashes with another item' : ''}`;
+  return `${item.tentative === true ? t('components.chart.timeline-chart.tentative', ', tentative') : ''}${item.clash === true ? t('components.chart.timeline-chart.clashes_with_another_item', ', clashes with another item') : ''}`;
 }
 
 /** The solid fill: the completed part of a bar, and a milestone. */
@@ -660,10 +661,29 @@ function TimelineGantt({
       element.animate(
         [
           {
-            transform: `translate(${String(dx)}px, ${String(dy)}px)`,
-            ...(resized ? { width: `${String(from.width)}px` } : {}),
+            transform: t(
+              'components.chart.timeline-chart.translate_px_px',
+              'translate({{dx}}px, {{dy}}px)',
+              { dx: String(dx), dy: String(dy) },
+            ),
+            ...(resized
+              ? {
+                  width: t('components.chart.timeline-chart.px', '{{width}}px', {
+                    width: String(from.width),
+                  }),
+                }
+              : {}),
           },
-          { transform: 'none', ...(resized ? { width: `${String(to.width)}px` } : {}) },
+          {
+            transform: 'none',
+            ...(resized
+              ? {
+                  width: t('components.chart.timeline-chart.px', '{{width}}px', {
+                    width: String(to.width),
+                  }),
+                }
+              : {}),
+          },
         ],
         { duration, easing },
       );
@@ -701,17 +721,36 @@ function TimelineGantt({
 
   const describe = (row: TimelineRow, item: TimelineEntry): string => {
     const dates = item.end
-      ? `${formatDate(item.start)} to ${formatDate(item.end)}`
-      : `${formatDate(item.start)}, milestone`;
+      ? t('components.chart.timeline-chart.to', '{{start}} to {{end}}', {
+          start: formatDate(item.start),
+          end: formatDate(item.end),
+        })
+      : t('components.chart.timeline-chart.milestone', '{{start}}, milestone', {
+          start: formatDate(item.start),
+        });
     const done =
       item.progress === undefined ? '' : `, ${String(Math.round(item.progress * 100))}% complete`;
     // A bar named as its lane is said once: "Self review: …", not twice.
     const name = item.label === row.label ? row.label : `${row.label}, ${item.label}`;
-    return `${name}: ${dates}${done}${notes(item)}`;
+    return t('components.chart.timeline-chart.text', '{{name}}: {{dates}}{{done}}{{notes}}', {
+      name,
+      dates,
+      done,
+      notes: notes(item),
+    });
   };
 
   const csvRows = entries.map(({ row, item }) => ({
-    label: `${row.label} · ${item.label} (${item.start}${item.end ? ` – ${item.end}` : ''})`,
+    label: t(
+      'components.chart.timeline-chart.text_2',
+      '{{label}} · {{label2}} ({{start}}{{value}})',
+      {
+        label: row.label,
+        label2: item.label,
+        start: item.start,
+        value: item.end ? ` – ${item.end}` : '',
+      },
+    ),
     // Length in days, inclusive of both ends. A milestone is one day.
     value: toDay(item.end ?? item.start) - toDay(item.start) + 1,
   }));
@@ -786,9 +825,18 @@ function TimelineGantt({
     onItemMove?.(move);
 
     announce(
-      `${item.label} ${target.label === fromRow.label ? '' : `moved to ${target.label}, `}${formatDate(toIso(nextStart))}${
-        nextEnd === undefined ? '' : ` to ${formatDate(toIso(nextEnd))}`
-      }`,
+      t('components.chart.timeline-chart.text_3', '{{label}} {{value}}{{toIso}}{{value2}}', {
+        label: item.label,
+        value: target.label === fromRow.label ? '' : `moved to ${target.label}, `,
+        toIso: formatDate(toIso(nextStart)),
+        value2:
+          nextEnd === undefined
+            ? ''
+            : ' ' +
+              t('components.chart.timeline-chart.to_iso', 'to {{toIso}}', {
+                toIso: formatDate(toIso(nextEnd)),
+              }),
+      }),
     );
     return true;
   };
@@ -869,13 +917,21 @@ function TimelineGantt({
     const x = state.baseX + dx;
     if (state.mode === 'move') {
       const y = Math.min(Math.max(state.baseY + dy, state.minY), state.maxY);
-      style.transform = `translate(${String(x)}px, ${String(y)}px)`;
+      style.transform = t(
+        'components.chart.timeline-chart.translate_px_px_2',
+        'translate({{x}}px, {{y}}px)',
+        { x: String(x), y: String(y) },
+      );
     } else if (state.mode === 'resize-end') {
-      style.width = `${String(Math.max(state.width + dx, state.pxPerDay))}px`;
+      style.width = t('components.chart.timeline-chart.px_2', '{{max}}px', {
+        max: String(Math.max(state.width + dx, state.pxPerDay)),
+      });
     } else {
       const shift = Math.min(dx, state.width - state.pxPerDay);
       style.transform = `translateX(${String(state.baseX + shift)}px)`;
-      style.width = `${String(state.width - shift)}px`;
+      style.width = t('components.chart.timeline-chart.px_3', '{{value}}px', {
+        value: String(state.width - shift),
+      });
     }
     style.zIndex = '30';
     style.opacity = '0.85';
@@ -1269,9 +1325,10 @@ function TimelineGantt({
       {editable ? (
         <>
           <p id={instructionsId} className="sr-only">
-            Drag to reschedule, drag the ends to resize, drop on another lane to move it there.
-            Without a pointer: Shift with Left or Right moves it a day, Shift and Alt with Left or
-            Right changes the end date, Shift with Up or Down moves it to the lane above or below.
+            {t(
+              'components.chart.timeline-chart.drag_to_reschedule_drag_the_ends',
+              'Drag to reschedule, drag the ends to resize, drop on another lane to move it there. Without a pointer: Shift with Left or Right moves it a day, Shift and Alt with Left or Right changes the end date, Shift with Up or Down moves it to the lane above or below.',
+            )}
           </p>
           {/* Where the bar is *going*, said out loud while it is being dragged.
               A gesture whose result only exists in pixels is one nobody using a
@@ -1286,11 +1343,11 @@ function TimelineGantt({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Lane</th>
-              <th scope="col">Item</th>
-              <th scope="col">Start</th>
-              <th scope="col">End</th>
-              <th scope="col">Progress</th>
+              <th scope="col">{t('components.chart.timeline-chart.lane', 'Lane')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.item', 'Item')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.start', 'Start')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.end', 'End')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.progress', 'Progress')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1313,10 +1370,14 @@ function TimelineGantt({
                         {notes(item)}
                       </td>
                       <td>{formatDate(item.start)}</td>
-                      <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
+                      <td>
+                        {item.end === undefined
+                          ? t('components.chart.timeline-chart.milestone_2', 'Milestone')
+                          : formatDate(item.end)}
+                      </td>
                       <td>
                         {item.progress === undefined
-                          ? 'Not tracked'
+                          ? t('components.chart.timeline-chart.not_tracked', 'Not tracked')
                           : `${String(Math.round(item.progress * 100))}%`}
                       </td>
                     </tr>
@@ -1544,10 +1605,18 @@ function TimelineTrack({
     const start = formatDate(toIso(toDay(item.start) + by));
     return item.end === undefined
       ? start
-      : `${start} to ${formatDate(toIso(toDay(item.end) + by))}`;
+      : t('components.chart.timeline-chart.to_2', '{{start}} to {{toIso}}', {
+          start,
+          toIso: formatDate(toIso(toDay(item.end) + by)),
+        });
   };
   const describe = (row: TimelineRow, item: TimelineEntry): string =>
-    `${row.label}, ${item.label}: ${dates(item, 0)}${notes(item)}`;
+    t('components.chart.timeline-chart.text_4', '{{label}}, {{label2}}: {{dates}}{{notes}}', {
+      label: row.label,
+      label2: item.label,
+      dates: dates(item, 0),
+      notes: notes(item),
+    });
 
   const snap: Modifier = ({ transform, active }) => {
     const entry = active === null ? undefined : find(active.id);
@@ -1556,7 +1625,14 @@ function TimelineTrack({
     return { ...transform, x: shift.current * pxPerDay.current, y: 0 };
   };
 
-  const step = snapDays === 7 ? 'a week' : snapDays === 1 ? 'a day' : `${String(snapDays)} days`;
+  const step =
+    snapDays === 7
+      ? t('components.chart.timeline-chart.a_week', 'a week')
+      : snapDays === 1
+        ? t('components.chart.timeline-chart.a_day', 'a day')
+        : t('components.chart.timeline-chart.days', '{{snapDays}} days', {
+            snapDays: String(snapDays),
+          });
   const announcements: Announcements = {
     onDragStart: ({ active }) => {
       const entry = find(active.id);
@@ -1594,8 +1670,15 @@ function TimelineTrack({
     const applied = by !== 0 && allowed(item, row);
     onDrop?.(move, applied);
     outcome.current = applied
-      ? `${item.label} moved to ${dates(item, by)}.`
-      : `${item.label} was dropped where it started.`;
+      ? t('components.chart.timeline-chart.moved_to', '{{label}} moved to {{dates}}.', {
+          label: item.label,
+          dates: dates(item, by),
+        })
+      : t(
+          'components.chart.timeline-chart.was_dropped_where_it_started',
+          '{{label}} was dropped where it started.',
+          { label: item.label },
+        );
     if (!applied) return;
     setDropped((current) => new Map(current).set(item.id, move.to));
     onItemMove?.(move);
@@ -1616,7 +1699,16 @@ function TimelineTrack({
     <ChartFrame
       label={label}
       rows={entries.map(({ row, item }) => ({
-        label: `${row.label} · ${item.label} (${item.start}${item.end ? ` – ${item.end}` : ''})`,
+        label: t(
+          'components.chart.timeline-chart.text_2',
+          '{{label}} · {{label2}} ({{start}}{{value}})',
+          {
+            label: row.label,
+            label2: item.label,
+            start: item.start,
+            value: item.end ? ` – ${item.end}` : '',
+          },
+        ),
         value: toDay(item.end ?? item.start) - toDay(item.start) + 1,
       }))}
       {...(menuItems ? { menuItems } : {})}
@@ -1628,7 +1720,11 @@ function TimelineTrack({
         accessibility={{
           announcements,
           screenReaderInstructions: {
-            draggable: `To move a segment, press Space or Enter, then Left or Right to move it ${step} at a time. Press Space or Enter again to drop it, or Escape to put it back.`,
+            draggable: t(
+              'components.chart.timeline-chart.to_move_a_segment_press_space',
+              'To move a segment, press Space or Enter, then Left or Right to move it {{step}} at a time. Press Space or Enter again to drop it, or Escape to put it back.',
+              { step },
+            ),
           },
         }}
         onDragStart={({ active }) => {
@@ -1755,10 +1851,10 @@ function TimelineTrack({
           <caption>{label}</caption>
           <thead>
             <tr>
-              <th scope="col">Lane</th>
-              <th scope="col">Item</th>
-              <th scope="col">Start</th>
-              <th scope="col">End</th>
+              <th scope="col">{t('components.chart.timeline-chart.lane', 'Lane')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.item', 'Item')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.start', 'Start')}</th>
+              <th scope="col">{t('components.chart.timeline-chart.end', 'End')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1770,7 +1866,11 @@ function TimelineTrack({
                   {notes(item)}
                 </td>
                 <td>{formatDate(item.start)}</td>
-                <td>{item.end === undefined ? 'Milestone' : formatDate(item.end)}</td>
+                <td>
+                  {item.end === undefined
+                    ? t('components.chart.timeline-chart.milestone_2', 'Milestone')
+                    : formatDate(item.end)}
+                </td>
               </tr>
             ))}
           </tbody>

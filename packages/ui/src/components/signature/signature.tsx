@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A signature as it is shown: typed in one of three handwriting faces, or
@@ -59,7 +60,16 @@ export function Signature({
         viewBox={
           ink === null
             ? '0 0 400 120'
-            : `${String(ink.x - pad)} ${String(ink.y - pad)} ${String(ink.width + pad * 2)} ${String(ink.height + pad * 2)}`
+            : t(
+                'components.signature.signature.text',
+                '{{value}} {{value2}} {{value3}} {{value4}}',
+                {
+                  value: String(ink.x - pad),
+                  value2: String(ink.y - pad),
+                  value3: String(ink.width + pad * 2),
+                  value4: String(ink.height + pad * 2),
+                },
+              )
         }
         preserveAspectRatio="xMidYMid meet"
         className={cn('block size-full', className)}

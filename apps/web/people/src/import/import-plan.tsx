@@ -21,6 +21,7 @@ import { TypeIcon } from '../settings/access';
 import type { DataType } from '../settings/model';
 import type { ForExisting } from './new-fields';
 import type { PlacesHere, WorkplaceValue } from './work-locations';
+import { t } from '../i18n';
 
 /**
  * The import's last two steps (design AI11, AI12; MA9 on a phone): the plan,
@@ -164,7 +165,10 @@ export interface ImportDoneView {
 }
 
 const plural = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+  t('import.import-plan.text', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? one : many,
+  });
 
 const STEP_LOOK: Record<
   PlanStepKind,
@@ -211,7 +215,9 @@ export function PlanSteps({
           action={
             s.kind === 'people' && blocked > 0 && onSeeRows !== undefined ? (
               <Button size="xs" variant="ghost" aria-expanded={seeingRows} onClick={onSeeRows}>
-                {seeingRows === true ? 'Hide rows' : 'See rows'}
+                {seeingRows === true
+                  ? t('import.import-plan.hide_rows', 'Hide rows')
+                  : t('import.import-plan.see_rows', 'See rows')}
               </Button>
             ) : undefined
           }
@@ -225,7 +231,7 @@ export function PlanSteps({
 
 /** Who a listed row is: first, so under a finger it is the card's title. */
 const whoOf = (r: { readonly row: number; readonly name?: string | null }): string =>
-  r.name ?? `Row ${String(r.row)}`;
+  r.name ?? t('import.import-plan.row', 'Row {{row}}', { row: String(r.row) });
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
   { id: 'name', header: 'Name', cell: whoOf },
@@ -245,13 +251,23 @@ function LeftEmpty({
 }): JSX.Element {
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-md font-semibold">Left empty for HR</h2>
+      <h2 className="text-md font-semibold">
+        {t('import.import-plan.left_empty_for_hr', 'Left empty for HR')}
+      </h2>
       <p className="text-sm text-fg-muted">
-        {count > rows.length ? `The first ${String(rows.length)} of ${String(count)}. ` : ''}
-        These rows import without the value. Set each on the person’s profile.
+        {count > rows.length
+          ? t('import.import-plan.the_first_of', 'The first {{length}} of {{count}}.', {
+              length: String(rows.length),
+              count: String(count),
+            }) + ' '
+          : ''}
+        {t(
+          'import.import-plan.these_rows_import_without_the_value',
+          'These rows import without the value. Set each on the person’s profile.',
+        )}
       </p>
       <DataTable
-        label="Left empty for HR"
+        label={t('import.import-plan.left_empty_for_hr', 'Left empty for HR')}
         rows={rows}
         columns={LEFT_EMPTY_COLUMNS}
         rowId={(r) => `${String(r.row)}/${r.cell}`}
@@ -273,14 +289,24 @@ export function notYetOf(plan: ImportPlanView): NotYet[] {
   if (plan.blocked !== null) return [{ message: plan.blocked }];
   if (plan.problems.length > 0) {
     return plan.problems.map((p) => ({
-      message: `${p.header}: ${p.message}`,
+      message: t('import.import-plan.text_2', '{{header}}: {{message}}', {
+        header: p.header,
+        message: p.message,
+      }),
       column: p.column,
       header: p.header,
     }));
   }
   const { counts } = plan.review.dryRun;
   return counts.create + counts.update === 0 && plan.fields.length === 0 && plan.setup === null
-    ? [{ message: 'No row of the file has a name or a work email, so there is nobody to import.' }]
+    ? [
+        {
+          message: t(
+            'import.import-plan.no_row_of_the_file_has',
+            'No row of the file has a name or a work email, so there is nobody to import.',
+          ),
+        },
+      ]
     : [];
 }
 
@@ -299,7 +325,7 @@ export function WhyNotYet({
 }): JSX.Element | null {
   if (reasons.length === 0) return null;
   return (
-    <Alert id={id} tone="warning" title="Not yet">
+    <Alert id={id} tone="warning" title={t('import.import-plan.not_yet', 'Not yet')}>
       <ul className="flex flex-col gap-2">
         {reasons.map((r) => (
           <li key={r.message} className="flex flex-wrap items-center gap-2">
@@ -311,7 +337,7 @@ export function WhyNotYet({
                   onLeaveOut(r.column as number);
                 }}
               >
-                Leave {r.header} out
+                {t('import.import-plan.leave_out', 'Leave {{header}} out', { header: r.header })}
               </Button>
             )}
           </li>
@@ -381,8 +407,14 @@ export function PlanStep({
       <div className="flex min-w-0 flex-col gap-4">
         <AssistantCard
           level={2}
-          title="Here’s everything that will happen"
-          note="Written from your choices. Nothing has happened yet."
+          title={t(
+            'import.import-plan.heres_everything_that_will_happen',
+            'Here’s everything that will happen',
+          )}
+          note={t(
+            'import.import-plan.written_from_your_choices_nothing_has',
+            'Written from your choices. Nothing has happened yet.',
+          )}
         >
           <PlanSteps
             plan={plan}
@@ -395,7 +427,9 @@ export function PlanStep({
         {seeingRows && blocked.length > 0 ? (
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-md font-semibold">Skipped rows</h2>
+              <h2 className="text-md font-semibold">
+                {t('import.import-plan.skipped_rows', 'Skipped rows')}
+              </h2>
               {blockedUrl === null ? null : (
                 <Button
                   size="sm"
@@ -404,16 +438,19 @@ export function PlanStep({
                     onDownloadBlocked(blockedUrl);
                   }}
                 >
-                  Download all {counts.blocked + counts.duplicate} as CSV
+                  {t('import.import-plan.download_all', 'Download all')}{' '}
+                  {counts.blocked + counts.duplicate} {t('import.import-plan.as_csv', 'as CSV')}
                 </Button>
               )}
             </div>
             <p className="text-sm text-fg-muted">
-              Each has no name and no work email, or is somebody already in the file. Nothing else
-              is skipped.
+              {t(
+                'import.import-plan.each_has_no_name_and_no',
+                'Each has no name and no work email, or is somebody already in the file. Nothing else is skipped.',
+              )}
             </p>
             <DataTable
-              label="Skipped rows"
+              label={t('import.import-plan.skipped_rows', 'Skipped rows')}
               rows={blocked}
               columns={blockedColumns}
               rowId={(r) => `${String(r.row)}/${r.cell}`}
@@ -430,13 +467,19 @@ export function PlanStep({
           <div className="flex flex-col gap-3">
             <Alert
               tone="warning"
-              title={`Our checks suggest ${plural(findings.length, 'identifier', 'identifiers')} may be wrong`}
+              title={t(
+                'import.import-plan.our_checks_suggest_may_be_wrong',
+                'Our checks suggest {{length}} may be wrong',
+                { length: plural(findings.length, 'identifier', 'identifiers') },
+              )}
             >
-              These rows will import, and HR will review each value. If a value is wrong, fix it in
-              the file first.
+              {t(
+                'import.import-plan.these_rows_will_import_and_hr',
+                'These rows will import, and HR will review each value. If a value is wrong, fix it in the file first.',
+              )}
             </Alert>
             <DataTable
-              label="Identifiers to check"
+              label={t('import.import-plan.identifiers_to_check', 'Identifiers to check')}
               rows={findings}
               columns={findingColumns}
               rowId={(r) => `${r.cell}/${r.message}`}
@@ -445,25 +488,36 @@ export function PlanStep({
         ) : null}
       </div>
       <div className="flex flex-col gap-3.5">
-        <PageSection surface title="Approve">
+        <PageSection surface title={t('import.import-plan.approve', 'Approve')}>
           <div className="flex flex-col gap-3">
             <KeyValues
               items={[
-                { label: 'File', value: plan.review.file.name },
-                { label: 'Rows', value: plan.review.file.rows.toLocaleString('en-GB') },
-                { label: 'New fields', value: plan.fields.length },
-                { label: 'People asked', value: plan.asked.toLocaleString('en-GB') },
+                { label: t('import.import-plan.file', 'File'), value: plan.review.file.name },
+                {
+                  label: t('import.import-plan.rows', 'Rows'),
+                  value: plan.review.file.rows.toLocaleString('en-GB'),
+                },
+                {
+                  label: t('import.import-plan.new_fields', 'New fields'),
+                  value: plan.fields.length,
+                },
+                {
+                  label: t('import.import-plan.people_asked', 'People asked'),
+                  value: plan.asked.toLocaleString('en-GB'),
+                },
               ]}
             />
             <WhyNotYet id={whyId} reasons={notYet} onLeaveOut={onLeaveOut} />
             {refused === null ? null : (
               <Alert
                 tone="danger"
-                title="That did not go through"
+                title={t('import.import-plan.that_did_not_go_through', 'That did not go through')}
                 action={
                   refusedLink === null ? undefined : (
                     <Button asChild size="sm">
-                      <a href={refusedLink}>See the import</a>
+                      <a href={refusedLink}>
+                        {t('import.import-plan.see_the_import', 'See the import')}
+                      </a>
                     </Button>
                   )
                 }
@@ -478,19 +532,22 @@ export function PlanStep({
               disabled={notYet.length > 0}
               aria-describedby={notYet.length > 0 ? whyId : undefined}
               loading={busy}
-              loadingLabel="Starting the import"
+              loadingLabel={t('import.import-plan.starting_the_import', 'Starting the import')}
               onClick={onApprove}
             >
-              Approve and run
+              {t('import.import-plan.approve_and_run', 'Approve and run')}
             </Button>
             <Button variant="ghost" className="w-full" onClick={onChange}>
-              Change something
+              {t('import.import-plan.change_something', 'Change something')}
             </Button>
           </div>
         </PageSection>
         <p className="inline-flex items-center gap-1.5 text-xs text-fg-subtle [&_svg]:size-3.5">
           <icons.permission aria-hidden />
-          Approved by you, run by Kithena, logged in Activity
+          {t(
+            'import.import-plan.approved_by_you_run_by_kithena',
+            'Approved by you, run by Kithena, logged in Activity',
+          )}
         </p>
       </div>
     </div>
@@ -507,8 +564,21 @@ export function columnsLine(c: NonNullable<ImportDoneView['columns']>): string {
   const ids =
     c.kithena === 0
       ? ''
-      : ` · ${plural(c.kithena, 'id column', 'id columns')}: Kithena creates this`;
-  return `${plural(c.existing, 'column', 'columns')} → existing fields, ${plural(c.created, 'new field', 'new fields')}, ${c.leftOut.toLocaleString('en-GB')} left out${ids}`;
+      : ` · ${plural(c.kithena, t('import.import-plan.id_column', 'id column'), t('import.import-plan.id_columns', 'id columns'))}: Kithena creates this`;
+  return t(
+    'import.import-plan.existing_fields_left_out',
+    '{{existing}} → existing fields, {{created}}, {{toLocaleString}} left out{{ids}}',
+    {
+      existing: plural(c.existing, 'column', 'columns'),
+      created: plural(
+        c.created,
+        t('import.import-plan.new_field', 'new field'),
+        t('import.import-plan.new_fields_lower', 'new fields'),
+      ),
+      toLocaleString: c.leftOut.toLocaleString('en-GB'),
+      ids,
+    },
+  );
 }
 
 /** "Imported 369 people and created 3 fields" (design AI12). */
@@ -518,7 +588,9 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
   const took =
     done.tookMs === undefined
       ? null
-      : `took ${String(Math.max(1, Math.round(done.tookMs / 1000)))} s`;
+      : t('import.import-plan.took_s', 'took {{max}} s', {
+          max: String(Math.max(1, Math.round(done.tookMs / 1000))),
+        });
   return (
     <div className="grid items-start gap-4 @4xl/page:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <Card padded className="flex min-w-0 flex-col gap-4">
@@ -531,15 +603,20 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
           </span>
           <div className="flex min-w-0 flex-col gap-1">
             <h2 className="font-display text-xl font-bold">
-              Imported {plural(imported, 'person', 'people')}
-              {fields.length > 0 ? ` and created ${plural(fields.length, 'field', 'fields')}` : ''}
+              {t('import.import-plan.imported', 'Imported')} {plural(imported, 'person', 'people')}
+              {fields.length > 0
+                ? ' ' +
+                  t('import.import-plan.and_created', 'and created {{length}}', {
+                    length: plural(fields.length, 'field', 'fields'),
+                  })
+                : ''}
             </h2>
             {done.columns === undefined ? null : (
               <p className="text-sm">{columnsLine(done.columns)}</p>
             )}
             {done.finishedAt === undefined ? null : (
               <p className="text-sm text-fg-muted">
-                Finished {clockOf(done.finishedAt)}
+                {t('import.import-plan.finished', 'Finished')} {clockOf(done.finishedAt)}
                 {took === null ? '' : ` · ${took}`}
               </p>
             )}
@@ -547,15 +624,15 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         </div>
         <div
           role="group"
-          aria-label="What the import did"
+          aria-label={t('import.import-plan.what_the_import_did', 'What the import did')}
           className="grid grid-cols-4 gap-2.5 touch:grid-cols-2"
         >
           {(
             [
-              ['Created', done.created],
-              ['Updated', done.updated],
-              ['Asked', done.asked ?? 0],
-              ['For HR', done.forHr ?? 0],
+              [t('import.import-plan.created', 'Created'), done.created],
+              [t('import.import-plan.updated', 'Updated'), done.updated],
+              [t('import.import-plan.asked', 'Asked'), done.asked ?? 0],
+              [t('import.import-plan.for_hr', 'For HR'), done.forHr ?? 0],
             ] as const
           ).map(([label, n]) => (
             <Stat key={label} inset label={label} value={n.toLocaleString('en-GB')} />
@@ -564,26 +641,43 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         {done.blocked > 0 ? (
           <Alert
             tone="info"
-            title={`${plural(done.blocked, 'row was', 'rows were')} skipped`}
+            title={t('import.import-plan.skipped', '{{blocked}} skipped', {
+              blocked: plural(
+                done.blocked,
+                t('import.import-plan.row_was', 'row was'),
+                t('import.import-plan.rows_were', 'rows were'),
+              ),
+            })}
             action={
               done.reportUrl === undefined ? undefined : (
                 <Button asChild size="sm">
-                  <a href={done.reportUrl}>Download them</a>
+                  <a href={done.reportUrl}>
+                    {t('import.import-plan.download_them', 'Download them')}
+                  </a>
                 </Button>
               )
             }
           >
-            Each had no name and no work email, or repeated somebody. The file says which.
+            {t(
+              'import.import-plan.each_had_no_name_and_no',
+              'Each had no name and no work email, or repeated somebody. The file says which.',
+            )}
           </Alert>
         ) : null}
         {(done.forReview ?? 0) > 0 ? (
           <Alert tone="info">
             {plural(
               done.forReview ?? 0,
-              'national identifier our checks doubt went',
-              'national identifiers our checks doubt went',
+              t(
+                'import.import-plan.national_identifier_our_checks_doubt_went',
+                'national identifier our checks doubt went',
+              ),
+              t(
+                'import.import-plan.national_identifiers_our_checks_doubt_went',
+                'national identifiers our checks doubt went',
+              ),
             )}{' '}
-            to HR’s review.
+            {t('import.import-plan.to_hrs_review', 'to HR’s review.')}
           </Alert>
         ) : null}
         {(done.leftEmptyCount ?? 0) > 0 ? (
@@ -591,14 +685,28 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">
-            {plural(done.held ?? 0, 'sensitive value waits', 'sensitive values wait')} for HR’s
-            approval and {done.held === 1 ? 'is' : 'are'} not applied until then.
+            {plural(
+              done.held ?? 0,
+              t('import.import-plan.sensitive_value_waits', 'sensitive value waits'),
+              t('import.import-plan.sensitive_values_wait', 'sensitive values wait'),
+            )}{' '}
+            {t('import.import-plan.for_hrs_approval_and', 'for HR’s approval and')}{' '}
+            {done.held === 1 ? 'is' : 'are'}{' '}
+            {t('import.import-plan.not_applied_until_then', 'not applied until then.')}
           </Alert>
         ) : null}
         {done.created > 0 ? (
-          <Alert tone="info" title="Nobody has been invited yet">
-            Nobody is invited by an import, and nobody who has left ever is. Invite each from their
-            record when you’re ready.
+          <Alert
+            tone="info"
+            title={t(
+              'import.import-plan.nobody_has_been_invited_yet',
+              'Nobody has been invited yet',
+            )}
+          >
+            {t(
+              'import.import-plan.nobody_is_invited_by_an_import',
+              'Nobody is invited by an import, and nobody who has left ever is. Invite each from their record when you’re ready.',
+            )}
           </Alert>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
@@ -606,8 +714,12 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
             <Button asChild variant="secondary" endIcon={<icons.forward aria-hidden />}>
               <a href="/people/directory/list">
                 {done.created > 0
-                  ? `Open the ${done.created.toLocaleString('en-GB')} in Directory`
-                  : 'Open the Directory'}
+                  ? t(
+                      'import.import-plan.open_the_in_directory',
+                      'Open the {{toLocaleString}} in Directory',
+                      { toLocaleString: done.created.toLocaleString('en-GB') },
+                    )
+                  : t('import.import-plan.open_the_directory', 'Open the Directory')}
               </a>
             </Button>
           </span>
@@ -616,10 +728,12 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
       {fields.length === 0 ? null : (
         <PageSection
           surface
-          title="Now in Employee fields"
+          title={t('import.import-plan.now_in_employee_fields', 'Now in Employee fields')}
           actions={
             <Button asChild size="sm" variant="ghost" endIcon={<icons.forward aria-hidden />}>
-              <a href="/settings/people/fields">Open Settings</a>
+              <a href="/settings/people/fields">
+                {t('import.import-plan.open_settings', 'Open Settings')}
+              </a>
             </Button>
           }
         >
@@ -628,14 +742,20 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
               <ListItem
                 key={f.key}
                 icon={<TypeIcon dataType={f.dataType} />}
-                description={`${f.section} · published in version ${String(done.version ?? 1)}`}
+                description={t(
+                  'import.import-plan.published_in_version',
+                  '{{section}} · published in version {{value}}',
+                  { section: f.section, value: String(done.version ?? 1) },
+                )}
                 trailing={
                   <Button asChild size="xs" variant="ghost">
                     <a
                       href={`/settings/people/fields?q=${encodeURIComponent(f.label)}`}
-                      aria-label={`Edit ${f.label}`}
+                      aria-label={t('import.import-plan.edit_2', 'Edit {{label}}', {
+                        label: f.label,
+                      })}
                     >
-                      Edit
+                      {t('import.import-plan.edit', 'Edit')}
                     </a>
                   </Button>
                 }
@@ -643,7 +763,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
                 <span className="inline-flex items-center gap-2">
                   {f.label}
                   <Badge tone="assistant" size="sm">
-                    From import
+                    {t('import.import-plan.from_import', 'From import')}
                   </Badge>
                 </span>
               </ListItem>

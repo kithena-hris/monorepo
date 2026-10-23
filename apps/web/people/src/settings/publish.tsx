@@ -20,6 +20,7 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 
 import type { Outcome } from '../load';
 import type { PublishPreview } from './model';
+import { t } from '../i18n';
 
 /**
  * The change markers, each a glyph and a word (§9.3, screen 4).
@@ -28,12 +29,12 @@ import type { PublishPreview } from './model';
  * the three: colour alone never tells an added field from an archived one.
  */
 const MARKER = {
-  added: { glyph: '+', word: 'Added', tone: 'success' },
-  tightened: { glyph: '~', word: 'Tightened', tone: 'warning' },
-  loosened: { glyph: '~', word: 'Loosened', tone: 'info' },
+  added: { glyph: '+', word: t('settings.publish.added', 'Added'), tone: 'success' },
+  tightened: { glyph: '~', word: t('settings.publish.tightened', 'Tightened'), tone: 'warning' },
+  loosened: { glyph: '~', word: t('settings.publish.loosened', 'Loosened'), tone: 'info' },
   // Who may read it, or the conditions it is required under (PEO-065, PEO-066).
-  changed: { glyph: '~', word: 'Changed', tone: 'warning' },
-  archived: { glyph: '−', word: 'Archived', tone: 'neutral' },
+  changed: { glyph: '~', word: t('settings.publish.changed', 'Changed'), tone: 'warning' },
+  archived: { glyph: '−', word: t('settings.publish.archived', 'Archived'), tone: 'neutral' },
 } as const;
 
 export interface PublishDialogProps {
@@ -97,24 +98,44 @@ export function PublishDialog({
   };
 
   const ready = previewed.status === 'ready' ? previewed.preview : null;
-  const version = ready === null ? '' : ` version ${String(ready.nextVersion)}`;
+  const version =
+    ready === null
+      ? ''
+      : ' ' +
+        t('settings.publish.version', 'version {{nextVersion}}', {
+          nextVersion: String(ready.nextVersion),
+        });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Publish{version}</DialogTitle>
+          <DialogTitle>
+            {t('settings.publish.publish', 'Publish')}
+            {version}
+          </DialogTitle>
           <DialogDescription>
-            Takes effect immediately for everyone. Nothing already saved is changed or lost.
+            {t(
+              'settings.publish.takes_effect_immediately_for_everyone_nothing',
+              'Takes effect immediately for everyone. Nothing already saved is changed or lost.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {previewed.status === 'loading' ? (
-            <Spinner label="Working out what this changes" />
+            <Spinner
+              label={t(
+                'settings.publish.working_out_what_this_changes',
+                'Working out what this changes',
+              )}
+            />
           ) : previewed.status === 'error' ? (
             <Alert
               tone="danger"
-              title="Could not work out what this changes"
+              title={t(
+                'settings.publish.could_not_work_out_what_this',
+                'Could not work out what this changes',
+              )}
               action={
                 <Button
                   size="sm"
@@ -122,21 +143,27 @@ export function PublishDialog({
                     setAttempt((n) => n + 1);
                   }}
                 >
-                  Try again
+                  {t('settings.publish.try_again', 'Try again')}
                 </Button>
               }
             >
-              Nothing has been published.
+              {t('settings.publish.nothing_has_been_published', 'Nothing has been published.')}
             </Alert>
           ) : previewed.preview.unchanged ? (
-            <Alert tone="info" title="Nothing to publish">
-              The draft is the same as the published version.
+            <Alert
+              tone="info"
+              title={t('settings.publish.nothing_to_publish', 'Nothing to publish')}
+            >
+              {t(
+                'settings.publish.the_draft_is_the_same_as',
+                'The draft is the same as the published version.',
+              )}
             </Alert>
           ) : (
             <Stack gap={5}>
               <section aria-labelledby="publish-changes">
                 <h3 id="publish-changes" className="mb-2 text-sm font-semibold">
-                  Changes
+                  {t('settings.publish.changes', 'Changes')}
                 </h3>
                 <ul className="flex flex-col gap-2">
                   {previewed.preview.changes.map((change) => {
@@ -152,7 +179,7 @@ export function PublishDialog({
                         <span className="min-w-0 flex-1">{change.summary}</span>
                         {change.specialCategory ? (
                           <Badge tone="danger" size="sm">
-                            Special category
+                            {t('settings.publish.special_category', 'Special category')}
                           </Badge>
                         ) : null}
                       </li>
@@ -163,20 +190,25 @@ export function PublishDialog({
 
               <section aria-labelledby="publish-impact">
                 <h3 id="publish-impact" className="mb-2 text-sm font-semibold">
-                  Impact on {previewed.preview.impact.evaluated} people
+                  {t('settings.publish.impact_on_people', 'Impact on {{evaluated}} people', {
+                    evaluated: previewed.preview.impact.evaluated,
+                  })}
                 </h3>
                 <AutoGrid minItemWidth="9rem" gap={3}>
                   <Stat
-                    label="Become incomplete"
+                    label={t('settings.publish.become_incomplete', 'Become incomplete')}
                     value={previewed.preview.impact.becomingIncomplete}
                   />
                   <Stat
-                    label="For employees to fill"
+                    label={t('settings.publish.for_employees_to_fill', 'For employees to fill')}
                     value={previewed.preview.impact.forEmployees}
                   />
-                  <Stat label="For you to fill" value={previewed.preview.impact.forStaff} />
                   <Stat
-                    label="Integrations notified"
+                    label={t('settings.publish.for_you_to_fill', 'For you to fill')}
+                    value={previewed.preview.impact.forStaff}
+                  />
+                  <Stat
+                    label={t('settings.publish.integrations_notified', 'Integrations notified')}
                     value={previewed.preview.integrationsNotified}
                   />
                 </AutoGrid>
@@ -184,13 +216,19 @@ export function PublishDialog({
 
               {previewed.preview.impact.becomingComplete > 0 ? (
                 <Alert tone="success">
-                  {previewed.preview.impact.becomingComplete} people who are incomplete today will
-                  be complete.
+                  {previewed.preview.impact.becomingComplete}{' '}
+                  {t(
+                    'settings.publish.people_who_are_incomplete_today_will',
+                    'people who are incomplete today will be complete.',
+                  )}
                 </Alert>
               ) : null}
               {previewed.preview.impact.forEmployees > 0 ? (
                 <Alert tone="info">
-                  Employees with missing details get at most one reminder email a week.
+                  {t(
+                    'settings.publish.employees_with_missing_details_get_at',
+                    'Employees with missing details get at most one reminder email a week.',
+                  )}
                 </Alert>
               ) : null}
             </Stack>
@@ -198,7 +236,7 @@ export function PublishDialog({
 
           <div className="mt-5">
             <DatePicker
-              label="Required from"
+              label={t('settings.publish.required_from', 'Required from')}
               value={requiredFrom}
               min={today}
               onChange={(next) => {
@@ -206,12 +244,19 @@ export function PublishDialog({
               }}
             />
             <p className="mt-1 text-xs text-fg-muted">
-              Records completed before this date are not counted as incomplete.
+              {t(
+                'settings.publish.records_completed_before_this_date_are',
+                'Records completed before this date are not counted as incomplete.',
+              )}
             </p>
           </div>
 
           {refused === null ? null : (
-            <Alert tone="danger" title="Not published" className="mt-4">
+            <Alert
+              tone="danger"
+              title={t('settings.publish.not_published', 'Not published')}
+              className="mt-4"
+            >
               {refused}
             </Alert>
           )}
@@ -222,18 +267,19 @@ export function PublishDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('settings.publish.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
             loading={publishing}
-            loadingLabel="Publishing"
+            loadingLabel={t('settings.publish.publishing', 'Publishing')}
             disabled={ready === null || ready.unchanged}
             onClick={() => {
               void publish();
             }}
           >
-            Publish{version}
+            {t('settings.publish.publish', 'Publish')}
+            {version}
           </Button>
         </DialogFooter>
       </DialogContent>

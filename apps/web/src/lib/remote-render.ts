@@ -39,6 +39,8 @@ export interface Renderer {
   readonly pending: Map<number, Pending>;
   ready: Promise<void>;
   heard: number;
+  /** The languages whose words this process holds already. */
+  readonly languages: Set<string>;
 }
 
 /** The renderer running for each remote, by slot. */
@@ -84,6 +86,7 @@ function spawn(code: string, sha: string, slot: string, path: string): Renderer 
       settle = { resolve, reject };
     }),
     heard: Date.now(),
+    languages: new Set(),
   };
   // Nobody may be waiting on `ready` when it fails.
   renderer.ready.catch(() => undefined);
@@ -157,6 +160,8 @@ export async function renderRemote(
   path: string = RENDERER,
   /** The page's budget; a test asking *why* a build fails can afford longer. */
   wallMs: number = WALL_MS,
+  /** The page's language and its words; none renders the English in the build. */
+  i18n?: { readonly language: string; readonly messages: Readonly<Record<string, unknown>> },
 ): Promise<string> {
   if (refused.has(sha)) throw new Error('the build was refused');
   // `prefix` is the remote's own (`<name>-`), so it names the remote's renderer too.
@@ -174,7 +179,19 @@ export async function renderRemote(
       () => {
         if (!renderer.pending.has(id)) return;
         try {
-          renderer.child.send({ type: 'render', id, component, props, prefix });
+          // Each language's words cross once per process, ahead of its first render.
+          if (i18n !== undefined && !renderer.languages.has(i18n.language)) {
+            renderer.child.send({ type: 'messages', ...i18n });
+            renderer.languages.add(i18n.language);
+          }
+          renderer.child.send({
+            type: 'render',
+            id,
+            component,
+            props,
+            prefix,
+            language: i18n?.language ?? null,
+          });
         } catch {
           stop(renderer, 'the renderer went away');
         }

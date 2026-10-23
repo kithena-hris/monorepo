@@ -2,6 +2,7 @@
 
 import { Alert, Button, Field, FieldDescription, FieldError, FieldLabel, Input } from '@reach/ui';
 import { useCallback, useState, type JSX } from 'react';
+import { t } from '../lib/t';
 
 /**
  * Asking for a fresh setup link when the passkey is gone.
@@ -34,7 +35,12 @@ export function RequestSetupLink(): JSX.Element {
 
   const request = useCallback(async () => {
     if (!LOOKS_LIKE_EMAIL.test(email.trim())) {
-      setProblem('Enter the work address your account uses.');
+      setProblem(
+        t(
+          'components.request-setup-link.enter_the_work_address_your_account',
+          'Enter the work address your account uses.',
+        ),
+      );
       return;
     }
     setProblem(null);
@@ -55,9 +61,14 @@ export function RequestSetupLink(): JSX.Element {
 
   if (state.kind === 'sent') {
     return (
-      <Alert tone="success" title="Check your email">
-        If that address has an account, a link is on its way. It works once and expires, so use it
-        on the device you want to sign in with from now on.
+      <Alert
+        tone="success"
+        title={t('components.request-setup-link.check_your_email', 'Check your email')}
+      >
+        {t(
+          'components.request-setup-link.if_that_address_has_an_account',
+          'If that address has an account, a link is on its way. It works once and expires, so use it on the device you want to sign in with from now on.',
+        )}
       </Alert>
     );
   }
@@ -72,7 +83,9 @@ export function RequestSetupLink(): JSX.Element {
         className="flex flex-col gap-5"
       >
         <Field invalid={problem !== null}>
-          <FieldLabel htmlFor="workEmail">Work email address</FieldLabel>
+          <FieldLabel htmlFor="workEmail">
+            {t('components.request-setup-link.work_email_address', 'Work email address')}
+          </FieldLabel>
           <Input
             id="workEmail"
             name="workEmail"
@@ -87,18 +100,34 @@ export function RequestSetupLink(): JSX.Element {
               if (problem !== null) setProblem(null);
             }}
           />
-          <FieldDescription>The address your HR team set your account up with.</FieldDescription>
+          <FieldDescription>
+            {t(
+              'components.request-setup-link.the_address_your_hr_team_set',
+              'The address your HR team set your account up with.',
+            )}
+          </FieldDescription>
           <FieldError>{problem}</FieldError>
         </Field>
 
         <Button type="submit" variant="primary" disabled={state.kind === 'sending'}>
-          {state.kind === 'sending' ? 'Sending…' : 'Email me a setup link'}
+          {state.kind === 'sending'
+            ? t('components.request-setup-link.sending', 'Sending…')
+            : t('components.request-setup-link.email_me_a_setup_link', 'Email me a setup link')}
         </Button>
       </form>
 
       {state.kind === 'stuck' ? (
-        <Alert tone="danger" title="That could not be sent">
-          Try again in a moment, or ask your HR team to send you a new link.
+        <Alert
+          tone="danger"
+          title={t(
+            'components.request-setup-link.that_could_not_be_sent',
+            'That could not be sent',
+          )}
+        >
+          {t(
+            'components.request-setup-link.try_again_in_a_moment_or',
+            'Try again in a moment, or ask your HR team to send you a new link.',
+          )}
         </Alert>
       ) : null}
     </>

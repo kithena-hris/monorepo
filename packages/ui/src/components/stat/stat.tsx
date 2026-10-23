@@ -2,6 +2,7 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A single headline number.
@@ -130,10 +131,10 @@ export function Stat({
         >
           {from === undefined ? null : (
             <span className="me-2 inline-flex items-center gap-2 align-baseline text-[0.55em] font-semibold tracking-normal text-fg-muted">
-              <span className="sr-only">From </span>
+              <span className="sr-only">{t('components.stat.stat.from', 'From')} </span>
               {from}
               <ArrowRight aria-hidden className="size-[0.9em] text-fg-subtle" />
-              <span className="sr-only"> to </span>
+              <span className="sr-only"> {t('components.stat.stat.to', 'to')} </span>
             </span>
           )}
           {value}

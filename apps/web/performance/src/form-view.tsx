@@ -38,6 +38,7 @@ import type {
   Score,
   Suggestion,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * The form, drawn from its definition (PRD §11, Reach additions §28 composed
@@ -106,7 +107,7 @@ export function Paragraphs({
   return (
     <div className={`flex flex-col gap-1.5 ${muted === true ? 'text-fg-muted' : ''}`}>
       {lines.length === 0 ? (
-        <p className="text-fg-muted">No answer</p>
+        <p className="text-fg-muted">{tr('form-view.no_answer', 'No answer')}</p>
       ) : (
         lines.map((l, i) => <p key={`${String(i)}-${l.slice(0, 12)}`}>{l}</p>)
       )}
@@ -158,14 +159,14 @@ export interface FormViewProps {
 
 /** The tones an answer can be rephrased in, several at once (the server's `REPHRASE_TONES`). */
 const TONES = [
-  ['clearer', 'Clearer'],
-  ['concise', 'More concise'],
-  ['specific', 'More specific'],
-  ['warmer', 'Warmer'],
-  ['direct', 'More direct'],
-  ['formal', 'More formal'],
-  ['constructive', 'More constructive'],
-  ['confident', 'More confident'],
+  ['clearer', tr('form-view.clearer', 'Clearer')],
+  ['concise', tr('form-view.more_concise', 'More concise')],
+  ['specific', tr('form-view.more_specific', 'More specific')],
+  ['warmer', tr('form-view.warmer', 'Warmer')],
+  ['direct', tr('form-view.more_direct', 'More direct')],
+  ['formal', tr('form-view.more_formal', 'More formal')],
+  ['constructive', tr('form-view.more_constructive', 'More constructive')],
+  ['confident', tr('form-view.more_confident', 'More confident')],
 ] as const;
 
 /**
@@ -217,19 +218,35 @@ function Rephrase({
           variant="ghost"
           startIcon={<icons.assistant aria-hidden />}
           disabled={empty}
-          {...(empty ? { title: 'Write something to rephrase first' } : {})}
+          {...(empty
+            ? {
+                title: tr(
+                  'form-view.write_something_to_rephrase_first',
+                  'Write something to rephrase first',
+                ),
+              }
+            : {})}
         >
-          Rephrase
+          {tr('form-view.rephrase', 'Rephrase')}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" aria-label="Rephrase" className="flex w-[26rem] flex-col gap-3">
+      <PopoverContent
+        align="end"
+        aria-label={tr('form-view.rephrase', 'Rephrase')}
+        className="flex w-[26rem] flex-col gap-3"
+      >
         <div>
-          <p className="text-sm font-semibold">Rephrase this answer</p>
+          <p className="text-sm font-semibold">
+            {tr('form-view.rephrase_this_answer', 'Rephrase this answer')}
+          </p>
           <p className="text-xs text-fg-muted">
-            Choose one or more tones. The meaning, links, lists and formatting stay.
+            {tr(
+              'form-view.choose_one_or_more_tones_the',
+              'Choose one or more tones. The meaning, links, lists and formatting stay.',
+            )}
           </p>
         </div>
-        <ChipRow aria-label="Tones">
+        <ChipRow aria-label={tr('form-view.tones', 'Tones')}>
           {TONES.map(([v, l]) => (
             <Chip
               key={v}
@@ -244,14 +261,19 @@ function Rephrase({
         </ChipRow>
         {result === null ? null : (
           <div className="max-h-64 overflow-y-auto">
-            <RichTextEditor aria-label="Rephrased answer" readOnly value={result} toolbar={[]} />
+            <RichTextEditor
+              aria-label={tr('form-view.rephrased_answer', 'Rephrased answer')}
+              readOnly
+              value={result}
+              toolbar={[]}
+            />
           </div>
         )}
         {error === null ? null : <Alert tone="danger" title={error} />}
         <div className="flex justify-end gap-2">
           {result === null ? (
             <Button size="sm" loading={busy} disabled={tones.length === 0} onClick={run}>
-              Rephrase
+              {tr('form-view.rephrase', 'Rephrase')}
             </Button>
           ) : (
             <>
@@ -262,7 +284,7 @@ function Rephrase({
                 disabled={tones.length === 0}
                 onClick={run}
               >
-                Try again
+                {tr('form-view.try_again', 'Try again')}
               </Button>
               <Button
                 size="sm"
@@ -272,7 +294,7 @@ function Rephrase({
                   setResult(null);
                 }}
               >
-                Use this
+                {tr('form-view.use_this', 'Use this')}
               </Button>
             </>
           )}
@@ -292,7 +314,12 @@ export function FormView(props: FormViewProps): JSX.Element {
       {sections.map((s, si) => (
         <Card key={s.id}>
           <CardHeader>
-            <CardTitle level={2}>{`${String((props.only ?? 0) + si + 1)} · ${s.title}`}</CardTitle>
+            <CardTitle level={2}>
+              {tr('form-view.text', '{{value}} · {{title}}', {
+                value: String((props.only ?? 0) + si + 1),
+                title: s.title,
+              })}
+            </CardTitle>
             {s.description === null ? null : (
               <p className="text-sm text-fg-muted">{s.description}</p>
             )}
@@ -341,12 +368,21 @@ export function QuestionBlock({
     // No number until there is one: a bold dash at this size read as a bar.
     control =
       score === null || score === undefined ? (
-        <p className="text-sm text-fg-muted">Computed once the rating questions are answered</p>
+        <p className="text-sm text-fg-muted">
+          {tr(
+            'form-view.computed_once_the_rating_questions_are',
+            'Computed once the rating questions are answered',
+          )}
+        </p>
       ) : (
         <div className="flex items-baseline gap-3">
           <span className="text-3xl font-bold tabular-nums">{score.display}</span>
           <span className="text-sm text-fg-muted">
-            {`${score.label} · computed from ${String(score.rated)} rated answers, by section`}
+            {tr(
+              'form-view.computed_from_rated_answers_by_section',
+              '{{label}} · computed from {{rated}} rated answers, by section',
+              { label: score.label, rated: String(score.rated) },
+            )}
           </span>
         </div>
       );
@@ -389,7 +425,13 @@ export function QuestionBlock({
     control = (
       <div className="flex flex-col gap-2">
         {q.type === 'goals' && q.progress !== null ? (
-          <Progress value={q.progress} label={`Progress ${String(q.progress)}%`} showValue />
+          <Progress
+            value={q.progress}
+            label={tr('form-view.progress', 'Progress {{progress}}%', {
+              progress: String(q.progress),
+            })}
+            showValue
+          />
         ) : null}
         {/* Pressing the chosen rating again leaves the question unanswered. */}
         <RadioGroup
@@ -409,7 +451,7 @@ export function QuestionBlock({
               badge={
                 s !== undefined && !s.confirmed && s.value === o.value ? (
                   <Badge size="sm" tone="accent">
-                    Suggested
+                    {tr('form-view.suggested', 'Suggested')}
                   </Badge>
                 ) : undefined
               }
@@ -510,20 +552,22 @@ export function QuestionBlock({
           {required ? (
             isMissing ? (
               <Badge size="sm" tone="danger">
-                Required
+                {tr('form-view.required', 'Required')}
               </Badge>
             ) : (
-              <span className="text-xs text-fg-muted">Required</span>
+              <span className="text-xs text-fg-muted">{tr('form-view.required', 'Required')}</span>
             )
           ) : null}
           {q.private ? (
             <Badge size="sm" tone="warning">
-              {`Private: hidden from ${subject ?? 'the subject'}`}
+              {tr('form-view.private_hidden_from', 'Private: hidden from {{value}}', {
+                value: subject ?? 'the subject',
+              })}
             </Badge>
           ) : null}
           {isDrafted ? (
             <Badge size="sm" tone="accent">
-              Drafted by AI
+              {tr('form-view.drafted_by_ai', 'Drafted by AI')}
             </Badge>
           ) : null}
         </div>
@@ -532,8 +576,14 @@ export function QuestionBlock({
       {control}
       {s !== undefined && !s.confirmed ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge size="sm" tone="accent">{`Suggested: ${optionLabel(q, s.value, scale)}`}</Badge>
-          <span className="text-accent-fg">{`Reason: ${s.reason}`}</span>
+          <Badge size="sm" tone="accent">
+            {tr('form-view.suggested_2', 'Suggested: {{optionLabel}}', {
+              optionLabel: optionLabel(q, s.value, scale),
+            })}
+          </Badge>
+          <span className="text-accent-fg">
+            {tr('form-view.reason', 'Reason: {{reason}}', { reason: s.reason })}
+          </span>
           {onConfirm === undefined || editable !== true ? null : (
             <Button
               size="xs"
@@ -542,7 +592,7 @@ export function QuestionBlock({
                 onConfirm(q.id);
               }}
             >
-              Confirm
+              {tr('form-view.confirm', 'Confirm')}
             </Button>
           )}
         </div>
@@ -551,8 +601,8 @@ export function QuestionBlock({
       {q.allowComment ? (
         write ? (
           <Textarea
-            aria-label={`Comment on ${q.prompt}`}
-            placeholder="Add a comment (optional)"
+            aria-label={tr('form-view.comment_on', 'Comment on {{prompt}}', { prompt: q.prompt })}
+            placeholder={tr('form-view.add_a_comment_optional', 'Add a comment (optional)')}
             autoResize
             value={a?.comment ?? ''}
             onChange={(e) => {
@@ -563,7 +613,9 @@ export function QuestionBlock({
             }}
           />
         ) : a?.comment === null || a?.comment === undefined ? null : (
-          <p className="text-sm text-fg-muted">{`Comment: ${a.comment}`}</p>
+          <p className="text-sm text-fg-muted">
+            {tr('form-view.comment', 'Comment: {{comment}}', { comment: a.comment })}
+          </p>
         )
       ) : null}
     </div>

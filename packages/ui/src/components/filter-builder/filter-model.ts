@@ -1,3 +1,4 @@
+import { t } from '../../lib/i18n';
 /**
  * A filter as data: conditions joined by all or any and, one level down,
  * groups of their own. Every change is a pure function from one filter to the
@@ -226,7 +227,10 @@ export function describeFilter(root: FilterGroup, fields: readonly FilterField[]
       case 'date-range': {
         // An open end reads as an ellipsis: "1 Jan – …" is on or after.
         const [from = '', to = ''] = values;
-        return `${from === '' ? '…' : from} – ${to === '' ? '…' : to}`;
+        return t('components.filter-builder.filter-model.text', '{{value}} – {{value2}}', {
+          value: from === '' ? '…' : from,
+          value2: to === '' ? '…' : to,
+        });
       }
       default:
         return labelOf(field, values[0] ?? '');

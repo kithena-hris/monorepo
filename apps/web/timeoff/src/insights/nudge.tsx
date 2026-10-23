@@ -15,6 +15,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Toggle } from '../settings/shared';
+import { t } from '../i18n';
 
 /**
  * Nudging people to rest (T28, PRD §14.2): one click from the insight to a
@@ -68,7 +69,8 @@ export interface NudgeProps {
   readonly onClose: () => void;
 }
 
-const people = (n: number): string => (n === 1 ? '1 person' : `${String(n)} people`);
+const people = (n: number): string =>
+  n === 1 ? '1 person' : t('insights.nudge.people', '{{n}} people', { n: String(n) });
 
 export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Element {
   const [busy, setBusy] = useState(false);
@@ -89,18 +91,27 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
     >
       <DialogContent sheetOnTouch className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{`Nudge ${people(n)} to take a break`}</DialogTitle>
+          <DialogTitle>
+            {t('insights.nudge.nudge_to_take_a_break', 'Nudge {{people}} to take a break', {
+              people: people(n),
+            })}
+          </DialogTitle>
           <DialogDescription>
-            Each message is written for its person, with their own numbers and nobody else’s.
+            {t(
+              'insights.nudge.each_message_is_written_for_its',
+              'Each message is written for its person, with their own numbers and nobody else’s.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="@container/nudge">
           <div className="flex flex-col gap-5 @min-[40rem]/nudge:grid @min-[40rem]/nudge:grid-cols-[16rem_minmax(0,1fr)]">
             <fieldset className="flex min-w-0 flex-col gap-3">
-              <legend className="mb-1 text-sm font-medium">Include</legend>
+              <legend className="mb-1 text-sm font-medium">
+                {t('insights.nudge.include', 'Include')}
+              </legend>
               <Toggle
                 kind="checkbox"
-                label="Their own balance"
+                label={t('insights.nudge.their_own_balance', 'Their own balance')}
                 checked={include.balance}
                 onChange={(on) => {
                   flip('balance', on);
@@ -108,8 +119,11 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
               />
               <Toggle
                 kind="checkbox"
-                label="A bridge day for them"
-                description="A day that joins a holiday where they work to a weekend"
+                label={t('insights.nudge.a_bridge_day_for_them', 'A bridge day for them')}
+                description={t(
+                  'insights.nudge.a_day_that_joins_a_holiday',
+                  'A day that joins a holiday where they work to a weekend',
+                )}
                 checked={include.bridge}
                 onChange={(on) => {
                   flip('bridge', on);
@@ -117,7 +131,10 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
               />
               <Toggle
                 kind="checkbox"
-                label="Days they’ll lose at the year end"
+                label={t(
+                  'insights.nudge.days_theyll_lose_at_the_year',
+                  'Days they’ll lose at the year end',
+                )}
                 checked={include.losing}
                 onChange={(on) => {
                   flip('losing', on);
@@ -126,21 +143,30 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
               <Alert
                 tone="info"
                 icon={<icons.sensitive aria-hidden />}
-                title="Personal, not public"
+                title={t('insights.nudge.personal_not_public', 'Personal, not public')}
               >
-                Each person only sees their own numbers. Their managers are not written to.
+                {t(
+                  'insights.nudge.each_person_only_sees_their_own',
+                  'Each person only sees their own numbers. Their managers are not written to.',
+                )}
               </Alert>
             </fieldset>
             {nudge.preview === null ? (
-              <p className="text-sm text-fg-muted">Nobody to nudge right now.</p>
+              <p className="text-sm text-fg-muted">
+                {t('insights.nudge.nobody_to_nudge_right_now', 'Nobody to nudge right now.')}
+              </p>
             ) : (
               <Card padded>
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-fg-muted">{`Preview for ${nudge.preview.displayName}`}</span>
+                    <span className="text-xs text-fg-muted">
+                      {t('insights.nudge.preview_for', 'Preview for {{displayName}}', {
+                        displayName: nudge.preview.displayName,
+                      })}
+                    </span>
                     {nudge.preview.ai === true ? (
                       <Badge tone="assistant" size="sm">
-                        AI
+                        {t('insights.nudge.ai', 'AI')}
                       </Badge>
                     ) : null}
                   </div>
@@ -152,35 +178,62 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
           </div>
         </DialogBody>
         {result === null ? null : result.ok ? (
-          <Alert tone="success" title={`Sent to ${people(result.sent)}`}>
+          <Alert
+            tone="success"
+            title={t('insights.nudge.sent_to', 'Sent to {{people}}', {
+              people: people(result.sent),
+            })}
+          >
             {[
               result.unreachable === 0
                 ? null
-                : `${people(result.unreachable)} ${result.unreachable === 1 ? 'has' : 'have'} no work email Time Off knows.`,
+                : t(
+                    'insights.nudge.no_work_email_time_off_knows',
+                    '{{people}} {{value}} no work email Time Off knows.',
+                    {
+                      people: people(result.unreachable),
+                      value: result.unreachable === 1 ? 'has' : 'have',
+                    },
+                  ),
               result.failed === 0 ? null : `${String(result.failed)} could not be sent; try again.`,
             ]
               .filter(Boolean)
-              .join(' ') || 'Each sees only their own numbers.'}
+              .join(' ') ||
+              t(
+                'insights.nudge.each_sees_only_their_own_numbers',
+                'Each sees only their own numbers.',
+              )}
           </Alert>
         ) : (
-          <Alert tone="danger" title="Not sent">
+          <Alert tone="danger" title={t('insights.nudge.not_sent', 'Not sent')}>
             {result.message}
           </Alert>
         )}
         <DialogFooter>
           <p className="mr-auto text-sm text-fg-muted">
             {unreachable === 0
-              ? 'Written per person from Time Off’s numbers.'
-              : `${people(unreachable)} without a work email won’t get one.`}
+              ? t(
+                  'insights.nudge.written_per_person_from_time_offs',
+                  'Written per person from Time Off’s numbers.',
+                )
+              : t(
+                  'insights.nudge.without_a_work_email_wont_get',
+                  '{{people}} without a work email won’t get one.',
+                  { people: people(unreachable) },
+                )}
           </p>
-          <Button onClick={onClose}>{result?.ok === true ? 'Done' : 'Cancel'}</Button>
+          <Button onClick={onClose}>
+            {result?.ok === true
+              ? t('insights.nudge.done', 'Done')
+              : t('insights.nudge.cancel', 'Cancel')}
+          </Button>
           {onSend === undefined || result?.ok === true ? null : (
             <Button
               variant="primary"
               startIcon={<icons.send aria-hidden />}
               disabled={n === unreachable}
               loading={busy}
-              loadingLabel="Sending"
+              loadingLabel={t('insights.nudge.sending', 'Sending')}
               onClick={() => {
                 setBusy(true);
                 void onSend(include).then((sent) => {
@@ -189,7 +242,7 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
                 });
               }}
             >
-              Send now
+              {t('insights.nudge.send_now', 'Send now')}
             </Button>
           )}
         </DialogFooter>

@@ -45,6 +45,7 @@ import {
   spanLabel,
   statusOf,
 } from '../words';
+import { t } from '../i18n';
 
 /**
  * The overview (T1, MT1): the day and the year on one page. The live clock,
@@ -171,7 +172,9 @@ export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
   if (load.status === 'loading') return <OverviewSkeleton />;
   return (
     <div className="@container/overview flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Time off" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('overview.overview.time_off', 'Time off')} />
+      ) : null}
       <Loaded load={load} what="your time off">
         {(data) => <Ready data={data} onPunch={onPunch} />}
       </Loaded>
@@ -202,8 +205,11 @@ function Ready({
       <PageHeader
         title={
           data.member === null
-            ? 'Time off'
-            : `Good ${partOfDay(data.now, zone)}, ${data.member.firstName}`
+            ? t('overview.overview.time_off', 'Time off')
+            : t('overview.overview.good', 'Good {{partOfDay}}, {{firstName}}', {
+                partOfDay: partOfDay(data.now, zone),
+                firstName: data.member.firstName,
+              })
         }
         description={[longDate(today), data.member?.teamName].filter(Boolean).join(' · ')}
         actions={
@@ -212,15 +218,22 @@ function Ready({
             startIcon={<icons.parental aria-hidden />}
             className={'@max-[40rem]/overview:hidden'}
           >
-            <a href="/time-off/parental/plan">Plan parental leave</a>
+            <a href="/time-off/parental/plan">
+              {t('overview.overview.plan_parental_leave', 'Plan parental leave')}
+            </a>
           </Button>
         }
       />
       {data.member === null ? (
         // An account Time Off holds no member for: somebody People has not hired.
-        <Alert tone="info" title="Nothing here for you yet">
-          Time Off does not have you as an employee yet, so there are no balances to show or time
-          off to request. There will be once HR hires you in People.
+        <Alert
+          tone="info"
+          title={t('overview.overview.nothing_here_for_you_yet', 'Nothing here for you yet')}
+        >
+          {t(
+            'overview.overview.time_off_does_not_have_you',
+            'Time Off does not have you as an employee yet, so there are no balances to show or time off to request. There will be once HR hires you in People.',
+          )}
         </Alert>
       ) : null}
       <div className={body}>
@@ -245,24 +258,28 @@ function Ready({
 /* -------------------------------------------------------------- clock -- */
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: 'Clocked in', tone: 'success' },
-  on_break: { label: 'On a break', tone: 'warning' },
-  out: { label: 'Not clocked in', tone: 'neutral' },
+  in: { label: t('overview.overview.clocked_in', 'Clocked in'), tone: 'success' },
+  on_break: { label: t('overview.overview.on_a_break', 'On a break'), tone: 'warning' },
+  out: { label: t('overview.overview.not_clocked_in', 'Not clocked in'), tone: 'neutral' },
 };
 
 const WHERE: Record<WorkModel, string> = {
-  office: 'Office',
-  remote: 'Remote',
-  client: 'At a client',
+  office: t('overview.overview.office', 'Office'),
+  remote: t('overview.overview.remote', 'Remote'),
+  client: t('overview.overview.at_a_client', 'At a client'),
 };
 
 const SEGMENT: Record<string, Pick<RangeBarSegment, 'label' | 'tone' | 'pattern' | 'size'>> = {
-  worked: { label: 'Worked', tone: 'success' },
-  live: { label: 'Working now', tone: 'success', pattern: 'hatched' },
-  break: { label: 'Break', tone: 'warning', size: 'thin' },
-  overtime: { label: 'Overtime', tone: 'chart-4' },
-  missing: { label: 'Missing', tone: 'danger', pattern: 'hatched' },
-  planned: { label: 'Planned', tone: 'neutral' },
+  worked: { label: t('overview.overview.worked', 'Worked'), tone: 'success' },
+  live: {
+    label: t('overview.overview.working_now', 'Working now'),
+    tone: 'success',
+    pattern: 'hatched',
+  },
+  break: { label: t('overview.overview.break', 'Break'), tone: 'warning', size: 'thin' },
+  overtime: { label: t('overview.overview.overtime', 'Overtime'), tone: 'chart-4' },
+  missing: { label: t('overview.overview.missing', 'Missing'), tone: 'danger', pattern: 'hatched' },
+  planned: { label: t('overview.overview.planned', 'Planned'), tone: 'neutral' },
 };
 
 /** 07:00 to 19:00, in minutes after midnight, as the design's day bar. */
@@ -323,14 +340,29 @@ function ClockCard({
   const left = Math.max(0, today.plannedMinutes - worked);
   const sub =
     state === 'in'
-      ? `Since ${clockTime(first?.from ?? 0)} · ${duration(left)} left of your ${duration(today.plannedMinutes)} day`
+      ? t(
+          'overview.overview.since_left_of_your_day',
+          'Since {{clockTime}} · {{left}} left of your {{plannedMinutes}} day',
+          {
+            clockTime: clockTime(first?.from ?? 0),
+            left: duration(left),
+            plannedMinutes: duration(today.plannedMinutes),
+          },
+        )
       : state === 'on_break'
-        ? `${duration(worked)} worked of ${duration(today.plannedMinutes)}`
+        ? t('overview.overview.worked_of', '{{worked}} worked of {{plannedMinutes}}', {
+            worked: duration(worked),
+            plannedMinutes: duration(today.plannedMinutes),
+          })
         : worked > 0
-          ? `${duration(worked)} worked today`
+          ? t('overview.overview.worked_today', '{{worked}} worked today', {
+              worked: duration(worked),
+            })
           : today.plannedMinutes > 0
-            ? `Your day is ${duration(today.plannedMinutes)}`
-            : 'Not a working day';
+            ? t('overview.overview.your_day_is', 'Your day is {{plannedMinutes}}', {
+                plannedMinutes: duration(today.plannedMinutes),
+              })
+            : t('overview.overview.not_a_working_day', 'Not a working day');
   return (
     <Card padded className={`flex flex-col gap-4 @max-[40rem]/overview:order-1`}>
       <div className="flex items-center gap-3">
@@ -352,16 +384,21 @@ function ClockCard({
         <div ref={card} className="flex gap-2">
           {state === 'in'
             ? [
-                action('break_start', 'Start break', 'break', false),
-                action('out', 'Clock out', 'stop', true),
+                action(
+                  'break_start',
+                  t('overview.overview.start_break', 'Start break'),
+                  'break',
+                  false,
+                ),
+                action('out', t('overview.overview.clock_out', 'Clock out'), 'stop', true),
               ]
             : state === 'on_break'
-              ? action('break_end', 'End break', 'play', true)
-              : action('in', 'Clock in', 'play', true)}
+              ? action('break_end', t('overview.overview.end_break', 'End break'), 'play', true)
+              : action('in', t('overview.overview.clock_in', 'Clock in'), 'play', true)}
         </div>
       </div>
       <RangeBar
-        label="Today"
+        label={t('overview.overview.today', 'Today')}
         domain={DAY}
         ticks={[420, 600, 780, 960, 1140]}
         format={clockTime}
@@ -397,7 +434,10 @@ function ClockCard({
         />
       ) : null}
       {failed === null ? null : (
-        <Alert tone="danger" title="The clock did not change">
+        <Alert
+          tone="danger"
+          title={t('overview.overview.the_clock_did_not_change', 'The clock did not change')}
+        >
           {failed}
         </Alert>
       )}
@@ -438,7 +478,11 @@ function LiveTimer({
   return (
     <p
       role="timer"
-      aria-label={`${String(h)} hours ${String(m)} minutes worked today`}
+      aria-label={t(
+        'overview.overview.hours_minutes_worked_today',
+        '{{h}} hours {{m}} minutes worked today',
+        { h: String(h), m: String(m) },
+      )}
       className="font-display text-5xl leading-none font-bold tracking-[-0.04em] tabular-nums text-fg"
     >
       {`${String(h)}:${pad(m)}:${pad(s)}`}
@@ -456,7 +500,7 @@ function Balances({
   if (balances.length === 0) return null;
   return (
     <Carousel
-      label="Your balances"
+      label={t('overview.overview.your_balances', 'Your balances')}
       controls="none"
       className={'@max-[40rem]/overview:order-2'}
       itemClassName="w-56 @min-[40rem]/overview:w-auto @min-[40rem]/overview:min-w-0 @min-[40rem]/overview:flex-1 @min-[40rem]/overview:shrink"
@@ -472,14 +516,18 @@ function Balances({
             label={b.name}
             icon={leaveIcon(b.icon)}
             value={hours ? `${amount(b.left)}h` : amount(b.left)}
-            unit={hours ? 'banked' : 'days left'}
+            unit={hours ? 'banked' : t('overview.overview.days_left', 'days left')}
             description={
               <Button variant="link" size="xs" asChild>
                 <a
                   href={`/time-off/balances/${b.leaveTypeKey}`}
-                  aria-label={`${b.name}: where the days went`}
+                  aria-label={t(
+                    'overview.overview.where_the_days_went_2',
+                    '{{name}}: where the days went',
+                    { name: b.name },
+                  )}
                 >
-                  Where the days went
+                  {t('overview.overview.where_the_days_went', 'Where the days went')}
                 </a>
               </Button>
             }
@@ -489,14 +537,22 @@ function Balances({
                 label={b.name}
                 max={Number(b.yearly)}
                 showValue
-                valueLabel={`${amount(b.yearly)} a year`}
+                valueLabel={t('overview.overview.a_year', '{{yearly}} a year', {
+                  yearly: amount(b.yearly),
+                })}
                 segments={[
-                  { value: used, label: `${amount(b.used)} used`, tone: chartTone(b.colorToken) },
+                  {
+                    value: used,
+                    label: t('overview.overview.used', '{{used}} used', { used: amount(b.used) }),
+                    tone: chartTone(b.colorToken),
+                  },
                   ...(booked > 0
                     ? [
                         {
                           value: booked,
-                          label: `${amount(b.booked)} booked`,
+                          label: t('overview.overview.booked', '{{booked}} booked', {
+                            booked: amount(b.booked),
+                          }),
                           tone: chartTone(b.colorToken),
                           pattern: 'hatched' as const,
                         },
@@ -530,16 +586,23 @@ function ComingUp({
   const year = today.slice(0, 4);
   return (
     <PageSection
-      title="Coming up"
+      title={t('overview.overview.coming_up', 'Coming up')}
       className={'@max-[40rem]/overview:order-4'}
       actions={
         <Button variant="ghost" size="sm" asChild>
-          <a href={`/time-off/holidays/${year}`}>All holidays</a>
+          <a href={`/time-off/holidays/${year}`}>
+            {t('overview.overview.all_holidays', 'All holidays')}
+          </a>
         </Button>
       }
     >
       {rows.length === 0 ? (
-        <p className="text-sm text-fg-muted">Nothing booked, and no holidays ahead this year.</p>
+        <p className="text-sm text-fg-muted">
+          {t(
+            'overview.overview.nothing_booked_and_no_holidays_ahead',
+            'Nothing booked, and no holidays ahead this year.',
+          )}
+        </p>
       ) : (
         <List>
           {rows.map(({ request, holiday }, index) => {
@@ -552,10 +615,18 @@ function ComingUp({
                   className={late}
                   icon={<icons.flagged />}
                   iconTone="neutral"
-                  description={`${shortDate(holiday.date)} · public holiday`}
+                  description={t('overview.overview.public_holiday', '{{date}} · public holiday', {
+                    date: shortDate(holiday.date),
+                  })}
                   trailing={
                     <span className="text-sm text-fg-muted">
-                      {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${String(days)} days`}
+                      {days === 0
+                        ? t('overview.overview.today', 'Today')
+                        : days === 1
+                          ? t('overview.overview.tomorrow', 'Tomorrow')
+                          : t('overview.overview.in_days', 'In {{days}} days', {
+                              days: String(days),
+                            })}
                     </span>
                   }
                 >
@@ -573,7 +644,10 @@ function ComingUp({
                 className={late}
                 icon={leaveIcon(type?.icon)}
                 iconTone={chartTone(type?.colorToken)}
-                description={`${days} ${days === '1' ? 'day' : 'days'}`}
+                description={t('overview.overview.text', '{{days}} {{value}}', {
+                  days,
+                  value: days === '1' ? 'day' : 'days',
+                })}
                 trailing={
                   <Badge size="sm" tone={status.tone} dot>
                     {status.label}
@@ -581,7 +655,10 @@ function ComingUp({
                 }
               >
                 <a href={`/time-off/requests/${request.requestId}`}>
-                  {`${request.leaveTypeName} · ${spanLabel(request.span.from, request.span.to)}`}
+                  {t('overview.overview.text_2', '{{leaveTypeName}} · {{spanLabel}}', {
+                    leaveTypeName: request.leaveTypeName,
+                    spanLabel: spanLabel(request.span.from, request.span.to),
+                  })}
                 </a>
               </ListItem>
             );
@@ -605,16 +682,23 @@ function Bridges({
 }): JSX.Element {
   return (
     <AssistantCard
-      title={`Make the most of your ${left} days`}
+      title={t(
+        'overview.overview.make_the_most_of_your_days',
+        'Make the most of your {{left}} days',
+        { left },
+      )}
       className={'@max-[40rem]/overview:order-3'}
       action={
         bridges.some((b) => b.text.ai) ? (
           <Badge tone="assistant" size="sm">
-            AI
+            {t('overview.overview.ai', 'AI')}
           </Badge>
         ) : undefined
       }
-      note="Uses your working week and the holidays where you work. Nothing is booked until you send it."
+      note={t(
+        'overview.overview.uses_your_working_week_and_the',
+        'Uses your working week and the holidays where you work. Nothing is booked until you send it.',
+      )}
     >
       <List>
         {bridges.map((b, index) => (
@@ -623,8 +707,11 @@ function Bridges({
             className={index > 0 ? '@max-[40rem]/overview:hidden' : undefined}
             leading={
               <Badge tone="accent" size="lg">
-                {`${String(b.used)} → ${String(b.away.days)}`}
-                <span className="sr-only"> days off</span>
+                {t('overview.overview.text_3', '{{used}} → {{days}}', {
+                  used: String(b.used),
+                  days: String(b.away.days),
+                })}
+                <span className="sr-only"> {t('overview.overview.days_off', 'days off')}</span>
               </Badge>
             }
             supporting={b.text.text}
@@ -632,14 +719,16 @@ function Bridges({
               <Button variant="secondary" size="xs" asChild>
                 <a
                   href={`/time-off/request?type=${type.leaveTypeKey}&from=${b.from}&to=${b.to}`}
-                  aria-label={`Request ${bridgeDays(b)}`}
+                  aria-label={t('overview.overview.request_2', 'Request {{bridgeDays}}', {
+                    bridgeDays: bridgeDays(b),
+                  })}
                 >
-                  Request
+                  {t('overview.overview.request', 'Request')}
                 </a>
               </Button>
             }
           >
-            {`Take ${bridgeDays(b)}`}
+            {t('overview.overview.take', 'Take {{bridgeDays}}', { bridgeDays: bridgeDays(b) })}
           </ListItem>
         ))}
       </List>
@@ -658,16 +747,18 @@ function TeamToday({
 }): JSX.Element {
   return (
     <PageSection
-      title="Your team today"
+      title={t('overview.overview.your_team_today', 'Your team today')}
       className={'@max-[40rem]/overview:hidden'}
       actions={
         <Button variant="ghost" size="sm" asChild endIcon={<icons.forward aria-hidden />}>
-          <a href="/time-off/calendar/month">Calendar</a>
+          <a href="/time-off/calendar/month">{t('overview.overview.calendar', 'Calendar')}</a>
         </Button>
       }
     >
       {data.teamToday.length === 0 ? (
-        <p className="text-sm text-fg-muted">Everybody is in today.</p>
+        <p className="text-sm text-fg-muted">
+          {t('overview.overview.everybody_is_in_today', 'Everybody is in today.')}
+        </p>
       ) : (
         <List>
           {data.teamToday.map((p) => {
@@ -676,8 +767,12 @@ function TeamToday({
               <ListItem
                 key={p.personId}
                 leading={<Avatar name={p.displayName} />}
-                description={`Back ${shortDate(nextWorkingDay(p.span.to < today ? today : p.span.to))}`}
-                trailing={<Badge size="sm">{type?.name ?? 'Away'}</Badge>}
+                description={t('overview.overview.back', 'Back {{nextWorkingDay}}', {
+                  nextWorkingDay: shortDate(nextWorkingDay(p.span.to < today ? today : p.span.to)),
+                })}
+                trailing={
+                  <Badge size="sm">{type?.name ?? t('overview.overview.away', 'Away')}</Badge>
+                }
               >
                 {p.displayName}
               </ListItem>
@@ -701,9 +796,11 @@ export function OverviewSkeleton(): JSX.Element {
   return (
     <div className="@container/overview flex flex-col gap-6">
       {/* A no-break space holds the description's line until the date is known. */}
-      <PageHeader title="Time off" description={' '} />
+      <PageHeader title={t('overview.overview.time_off', 'Time off')} description={' '} />
       <div role="status" className={body}>
-        <span className="sr-only">Loading your time off</span>
+        <span className="sr-only">
+          {t('overview.overview.loading_your_time_off', 'Loading your time off')}
+        </span>
         <div className={column}>
           {block(`h-60 rounded-lg @max-[40rem]/overview:order-1`)}
           <div className={`flex gap-3 overflow-hidden @max-[40rem]/overview:order-2`}>
@@ -734,7 +831,11 @@ const clockTime = (minutes: number): string =>
 function duration(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m === 0 ? `${String(h)}h` : h === 0 ? `${String(m)}m` : `${String(h)}h ${String(m)}m`;
+  return m === 0
+    ? t('overview.overview.h', '{{h}}h', { h: String(h) })
+    : h === 0
+      ? t('overview.overview.m', '{{m}}m', { m: String(m) })
+      : t('overview.overview.h_m', '{{h}}h {{m}}m', { h: String(h), m: String(m) });
 }
 
 function parts(at: string, zone: string): Record<string, string> {

@@ -11,6 +11,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { usePortalContainer } from '../../lib/portal-container';
+import { t } from '../../lib/i18n';
 
 /**
  * Modal dialog.
@@ -105,7 +106,7 @@ export function DialogContent({
             )}
           >
             <X className="size-4" aria-hidden="true" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t('components.dialog.dialog.close', 'Close')}</span>
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>

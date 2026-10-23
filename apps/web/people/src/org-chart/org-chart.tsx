@@ -18,6 +18,7 @@ import { useMemo, type JSX } from 'react';
 import { ViewSwitch, type DirectoryView } from '../directory/directory';
 import { useHeld } from '../held';
 import { Loaded, type Loadable } from '../load';
+import { t } from '../i18n';
 
 /**
  * The Directory's org chart view (V3, MV4; W6, W7, M11), at
@@ -131,10 +132,16 @@ function Body({
   return (
     <Stack gap={5}>
       <PageHeader
-        title="Directory"
-        description={`${state.people.length.toLocaleString('en-GB')} people · ${String(managers.size)} managers${
-          state.truncated ? ' · the first pages of the directory' : ''
-        }`}
+        title={t('org-chart.org-chart.directory', 'Directory')}
+        description={t(
+          'org-chart.org-chart.people_managers',
+          '{{toLocaleString}} people · {{size}} managers{{value}}',
+          {
+            toLocaleString: state.people.length.toLocaleString('en-GB'),
+            size: String(managers.size),
+            value: state.truncated ? ' · the first pages of the directory' : '',
+          },
+        )}
         actions={
           onViewChange === undefined ? undefined : (
             <ViewSwitch view="org-chart" onChange={onViewChange} />
@@ -147,8 +154,11 @@ function Body({
       {nodes.length === 0 ? (
         <EmptyState
           icon={<icons.organisation />}
-          title="Nobody to chart yet"
-          description="The chart draws itself from each person’s manager once people are added."
+          title={t('org-chart.org-chart.nobody_to_chart_yet', 'Nobody to chart yet')}
+          description={t(
+            'org-chart.org-chart.the_chart_draws_itself_from_each',
+            'The chart draws itself from each person’s manager once people are added.',
+          )}
         />
       ) : (
         <div
@@ -160,29 +170,34 @@ function Body({
         >
           <Card className="min-w-0 overflow-hidden">
             <Chart
-              label="Org chart"
+              label={t('org-chart.org-chart.org_chart', 'Org chart')}
               nodes={nodes}
               orientation={orientation}
               searchable
-              searchPlaceholder="Find a person or team"
+              searchPlaceholder={t(
+                'org-chart.org-chart.find_a_person_or_team',
+                'Find a person or team',
+              )}
               // The direction sits on the canvas it turns; a phone's tree has none.
               {...(coarse
                 ? {}
                 : {
                     toolbar: (
                       <span className="flex items-center gap-2 text-sm text-fg-muted">
-                        <span aria-hidden>Direction</span>
+                        <span aria-hidden>{t('org-chart.org-chart.direction', 'Direction')}</span>
                         <SegmentedControl
-                          aria-label="Direction"
+                          aria-label={t('org-chart.org-chart.direction', 'Direction')}
                           size="sm"
                           value={orientation}
                           onValueChange={(next) => {
                             setOrientation(next === 'horizontal' ? 'horizontal' : 'vertical');
                           }}
                         >
-                          <SegmentedControlItem value="vertical">Top down</SegmentedControlItem>
+                          <SegmentedControlItem value="vertical">
+                            {t('org-chart.org-chart.top_down', 'Top down')}
+                          </SegmentedControlItem>
                           <SegmentedControlItem value="horizontal">
-                            Left to right
+                            {t('org-chart.org-chart.left_to_right', 'Left to right')}
                           </SegmentedControlItem>
                         </SegmentedControl>
                       </span>
@@ -213,12 +228,25 @@ function Body({
               </div>
               <KeyValues
                 items={[
-                  ...(person.team === null ? [] : [{ label: 'Team', value: person.team }]),
-                  { label: 'Manager', value: person.managerName ?? '—' },
+                  ...(person.team === null
+                    ? []
+                    : [{ label: t('org-chart.org-chart.team', 'Team'), value: person.team }]),
+                  {
+                    label: t('org-chart.org-chart.manager', 'Manager'),
+                    value: person.managerName ?? '—',
+                  },
                   ...(person.location === null
                     ? []
-                    : [{ label: 'Location', value: person.location }]),
-                  { label: 'Reports', value: reports === 0 ? 'None' : String(reports) },
+                    : [
+                        {
+                          label: t('org-chart.org-chart.location', 'Location'),
+                          value: person.location,
+                        },
+                      ]),
+                  {
+                    label: t('org-chart.org-chart.reports', 'Reports'),
+                    value: reports === 0 ? 'None' : String(reports),
+                  },
                 ]}
               />
               <div className="flex gap-2 *:flex-1">
@@ -228,7 +256,7 @@ function Body({
                     setPicked(null);
                   }}
                 >
-                  Close
+                  {t('org-chart.org-chart.close', 'Close')}
                 </Button>
                 <Button
                   size="sm"
@@ -237,7 +265,7 @@ function Body({
                     onOpen(person.id);
                   }}
                 >
-                  Profile
+                  {t('org-chart.org-chart.profile', 'Profile')}
                 </Button>
               </div>
             </Card>

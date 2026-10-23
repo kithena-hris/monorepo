@@ -6,6 +6,7 @@ import { useId, type ComponentPropsWithoutRef, type JSX } from 'react';
 
 import { cn } from '../../lib/cn';
 import { bgTone, type ChartTone } from '../chart/tones';
+import { t } from '../../lib/i18n';
 
 /**
  * Determinate and indeterminate progress.
@@ -179,7 +180,10 @@ function SegmentedProgress({
   valueLabel: string | undefined;
 }): JSX.Element {
   const parts = segments.map((segment) => segment.label);
-  const spoken = `${label}: ${[...parts, ...(valueLabel ? [valueLabel] : [])].join(', ')}`;
+  const spoken = t('components.progress.progress.text', '{{label}}: {{join}}', {
+    label,
+    join: [...parts, ...(valueLabel ? [valueLabel] : [])].join(', '),
+  });
 
   return (
     <div className="w-full">

@@ -25,6 +25,7 @@ import {
 import { useEffect, useState, type JSX } from 'react';
 
 import type { FieldKind, FileLink } from '../types';
+import { t } from '../i18n';
 
 /**
  * K2, as DocuSign does it: the sender puts each box on the document itself —
@@ -55,13 +56,13 @@ export interface Placing {
 }
 
 export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
-  signature: 'Signature',
-  initials: 'Initials',
-  date: 'Dated signature',
+  signature: t('envelopes.prepare.signature', 'Signature'),
+  initials: t('envelopes.prepare.initials', 'Initials'),
+  date: t('envelopes.prepare.dated_signature', 'Dated signature'),
   name: 'Full name',
-  title: 'Job title',
-  text: 'Text',
-  checkbox: 'Tick box',
+  title: t('envelopes.prepare.job_title', 'Job title'),
+  text: t('envelopes.prepare.text', 'Text'),
+  checkbox: t('envelopes.prepare.tick_box', 'Tick box'),
 };
 
 /** A new box's size, as a fraction of an A4-shaped page. */
@@ -140,7 +141,8 @@ export function WhereTheySign({
   }, [documentId, onFileLink]);
 
   const index = new Map(signers.map((s, i) => [s.key, i]));
-  const nameOf = (key: string) => signers.find((s) => s.key === key)?.name ?? 'Nobody';
+  const nameOf = (key: string) =>
+    signers.find((s) => s.key === key)?.name ?? t('envelopes.prepare.nobody', 'Nobody');
   const chosen = fields.find((f) => f.id === selected) ?? null;
   const unplaced = signers.filter(
     (s) => !fields.some((f) => f.signer === s.key && (f.kind === 'signature' || f.kind === 'date')),
@@ -154,11 +156,11 @@ export function WhereTheySign({
       <div className="flex flex-col gap-4">
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Add a box</CardTitle>
+            <CardTitle level={2}>{t('envelopes.prepare.add_a_box', 'Add a box')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Field>
-              <FieldLabel>For</FieldLabel>
+              <FieldLabel>{t('envelopes.prepare.for', 'For')}</FieldLabel>
               <Select value={forWhom} onValueChange={setForWhom}>
                 <FieldControl>
                   <SelectTrigger>
@@ -176,7 +178,7 @@ export function WhereTheySign({
             </Field>
             <ToggleGroup
               type="single"
-              aria-label="Kind of box"
+              aria-label={t('envelopes.prepare.kind_of_box', 'Kind of box')}
               orientation="vertical"
               className="flex flex-col items-stretch"
               value={tool}
@@ -191,19 +193,25 @@ export function WhereTheySign({
               ))}
             </ToggleGroup>
             <p className="text-sm text-fg-muted">
-              Press the page where it goes. Drag a box to move it, its corner to resize it; Delete
-              removes it.
+              {t(
+                'envelopes.prepare.press_the_page_where_it_goes',
+                'Press the page where it goes. Drag a box to move it, its corner to resize it; Delete removes it.',
+              )}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle level={2}>Who signs</CardTitle>
+            <CardTitle level={2}>{t('envelopes.prepare.who_signs', 'Who signs')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartLegend
               items={signers.map((s, i) => ({
-                label: `${s.name} · ${String(fields.filter((f) => f.signer === s.key).length)} ${fields.filter((f) => f.signer === s.key).length === 1 ? 'box' : 'boxes'}`,
+                label: t('envelopes.prepare.text_2', '{{name}} · {{length}} {{value}}', {
+                  name: s.name,
+                  length: String(fields.filter((f) => f.signer === s.key).length),
+                  value: fields.filter((f) => f.signer === s.key).length === 1 ? 'box' : 'boxes',
+                }),
                 tone: CHART_TONE[toneOf(i)],
               }))}
             />
@@ -212,13 +220,16 @@ export function WhereTheySign({
         {chosen === null ? null : (
           <Card>
             <CardHeader>
-              <CardTitle
-                level={3}
-              >{`${KIND_LABEL[chosen.kind]}, page ${String(chosen.page)}`}</CardTitle>
+              <CardTitle level={3}>
+                {t('envelopes.prepare.page', '{{KIND_LABEL}}, page {{page}}', {
+                  KIND_LABEL: KIND_LABEL[chosen.kind],
+                  page: String(chosen.page),
+                })}
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <Field>
-                <FieldLabel>Whose box</FieldLabel>
+                <FieldLabel>{t('envelopes.prepare.whose_box', 'Whose box')}</FieldLabel>
                 <Select
                   value={chosen.signer}
                   onValueChange={(v) => {
@@ -249,7 +260,9 @@ export function WhereTheySign({
                       }}
                     />
                   </FieldControl>
-                  <FieldLabel>They must fill it in</FieldLabel>
+                  <FieldLabel>
+                    {t('envelopes.prepare.they_must_fill_it_in', 'They must fill it in')}
+                  </FieldLabel>
                 </Field>
               )}
               <Button
@@ -260,25 +273,37 @@ export function WhereTheySign({
                   setSelected(null);
                 }}
               >
-                Remove the box
+                {t('envelopes.prepare.remove_the_box', 'Remove the box')}
               </Button>
             </CardContent>
           </Card>
         )}
         {unplaced.length === 0 ? null : (
-          <Alert tone="warning" title="Nowhere to sign yet">
-            {`${unplaced.map((s) => s.name).join(', ')} ${unplaced.length === 1 ? 'needs' : 'need'} a signature box.`}
+          <Alert
+            tone="warning"
+            title={t('envelopes.prepare.nowhere_to_sign_yet', 'Nowhere to sign yet')}
+          >
+            {t('envelopes.prepare.a_signature_box', '{{join}} {{value}} a signature box.', {
+              join: unplaced.map((s) => s.name).join(', '),
+              value: unplaced.length === 1 ? 'needs' : 'need',
+            })}
           </Alert>
         )}
       </div>
       <Card variant="fill" padded>
         {failed !== null ? (
-          <Alert tone="danger" title="The document could not be opened">
+          <Alert
+            tone="danger"
+            title={t(
+              'envelopes.prepare.the_document_could_not_be_opened',
+              'The document could not be opened',
+            )}
+          >
             {failed}
           </Alert>
         ) : url === null ? (
           <div className="grid min-h-[36rem] place-items-center text-sm text-fg-muted">
-            Opening the document
+            {t('envelopes.prepare.opening_the_document', 'Opening the document')}
           </div>
         ) : (
           <PdfPages
@@ -298,8 +323,14 @@ export function WhereTheySign({
                     w: f.w,
                     h: f.h,
                     tone: toneOf(index.get(f.signer) ?? 0),
-                    label: `${KIND_LABEL[f.kind]}, ${nameOf(f.signer)}`,
-                    hint: `${KIND_LABEL[f.kind]} · ${nameOf(f.signer)}`,
+                    label: t('envelopes.prepare.text_3', '{{KIND_LABEL}}, {{nameOf}}', {
+                      KIND_LABEL: KIND_LABEL[f.kind],
+                      nameOf: nameOf(f.signer),
+                    }),
+                    hint: t('envelopes.prepare.text_4', '{{KIND_LABEL}} · {{nameOf}}', {
+                      KIND_LABEL: KIND_LABEL[f.kind],
+                      nameOf: nameOf(f.signer),
+                    }),
                   }))}
                 onChange={(id, rect) => {
                   change(id, rect);

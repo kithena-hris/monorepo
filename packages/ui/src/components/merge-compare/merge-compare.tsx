@@ -5,6 +5,7 @@ import { Equal } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Two records side by side, and which value to keep for each field.
@@ -84,7 +85,14 @@ export function MergeCompare({
                 >
                   <Equal aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
                   <span className="truncate">{value}</span>
-                  {index === 0 ? <span className="sr-only">, the same in both</span> : null}
+                  {index === 0 ? (
+                    <span className="sr-only">
+                      {t(
+                        'components.merge-compare.merge-compare.the_same_in_both',
+                        ', the same in both',
+                      )}
+                    </span>
+                  ) : null}
                 </span>
               ))
             ) : (
@@ -112,7 +120,11 @@ export function MergeCompare({
                   >
                     <RadioGroupPrimitive.Item
                       value={String(index)}
-                      aria-label={`${labelText}: keep ${sourceNames[index] ?? ''}`}
+                      aria-label={t(
+                        'components.merge-compare.merge-compare.keep',
+                        '{{labelText}}: keep {{value}}',
+                        { labelText, value: sourceNames[index] ?? '' },
+                      )}
                       className={cn(
                         'relative grid size-[1.125rem] shrink-0 place-items-center rounded-full border-[1.5px] border-border-strong touch:size-6',
                         'data-[state=checked]:border-accent data-[state=checked]:bg-accent',

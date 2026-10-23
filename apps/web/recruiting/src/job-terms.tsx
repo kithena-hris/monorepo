@@ -43,6 +43,7 @@ import { BenefitPicker } from './benefits';
 import { usePicks } from './terms-view';
 import { Refusal, useAct } from './shared';
 import type { JobData, JobTerms, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * A job's terms, one small choice at a time and in order: the employing
@@ -163,24 +164,31 @@ export function useCommit(commit: Commit | undefined, fn: () => Promise<boolean>
 
 /** A step that waits on an earlier one, said plainly rather than shown empty. */
 function Waiting({ what, icon }: { readonly what: string; readonly icon: ReactNode }): JSX.Element {
-  return <EmptyState icon={icon} title="Not yet" description={what} />;
+  return <EmptyState icon={icon} title={tr('job-terms.not_yet', 'Not yet')} description={what} />;
 }
 
 const COUNTRY: Readonly<Record<string, string>> = {
-  DE: 'Germany',
-  ES: 'Spain',
-  GB: 'the United Kingdom',
-  IN: 'India',
-  US: 'the United States',
+  DE: tr('job-terms.germany', 'Germany'),
+  ES: tr('job-terms.spain', 'Spain'),
+  GB: tr('job-terms.the_united_kingdom', 'the United Kingdom'),
+  IN: tr('job-terms.india', 'India'),
+  US: tr('job-terms.the_united_states', 'the United States'),
 };
 
 export const countryName = (code: string | null): string =>
-  code === null ? 'that country' : (COUNTRY[code] ?? code);
+  code === null ? tr('job-terms.that_country', 'that country') : (COUNTRY[code] ?? code);
 
 function Unreviewed({ data }: { readonly data: JobData }): JSX.Element | null {
   return data.options.reviewed || data.options.country === null ? null : (
-    <Alert tone="info" title="Rules awaiting a local reviewer">
-      {`The rules for ${countryName(data.options.country)} are drafted and not yet checked by a lawyer there. Confirm them before an offer goes out.`}
+    <Alert
+      tone="info"
+      title={tr('job-terms.rules_awaiting_a_local_reviewer', 'Rules awaiting a local reviewer')}
+    >
+      {tr(
+        'job-terms.the_rules_for_are_drafted_and',
+        'The rules for {{countryName}} are drafted and not yet checked by a lawyer there. Confirm them before an offer goes out.',
+        { countryName: countryName(data.options.country) },
+      )}
     </Alert>
   );
 }
@@ -191,7 +199,7 @@ export function EntityChoice({ data, props }: TermsProps): JSX.Element {
     <>
       <Refusal error={error} />
       <RadioGroup
-        aria-label="Employing entity"
+        aria-label={tr('job-terms.employing_entity', 'Employing entity')}
         className="grid gap-2"
         value={terms.entityId ?? ''}
         onValueChange={(v) => {
@@ -203,7 +211,10 @@ export function EntityChoice({ data, props }: TermsProps): JSX.Element {
             <RadioCard
               value={e.id}
               icon={<icons.company aria-hidden />}
-              description={`${countryName(e.country)} · pays in ${e.currency}`}
+              description={tr('job-terms.pays_in', '{{countryName}} · pays in {{currency}}', {
+                countryName: countryName(e.country),
+                currency: e.currency,
+              })}
             >
               {e.name}
             </RadioCard>
@@ -223,15 +234,23 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
     );
   if (options.locations.length === 0)
     return (
-      <Alert tone="warning" title={`No workplace in ${countryName(options.country)} yet`}>
-        Add one under Settings, Company, Locations, then come back.
+      <Alert
+        tone="warning"
+        title={tr('job-terms.no_workplace_in_yet', 'No workplace in {{countryName}} yet', {
+          countryName: countryName(options.country),
+        })}
+      >
+        {tr(
+          'job-terms.add_one_under_settings_company_locations',
+          'Add one under Settings, Company, Locations, then come back.',
+        )}
       </Alert>
     );
   return (
     <>
       <Refusal error={error} />
       <RadioGroup
-        aria-label="Workplace"
+        aria-label={tr('job-terms.workplace', 'Workplace')}
         className="grid gap-2"
         value={terms.locationId ?? ''}
         onValueChange={(v) => {
@@ -255,14 +274,27 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
 }
 
 const MODES = [
-  ['onsite', 'On site', 'Every day at the workplace.', <icons.company key="i" aria-hidden />],
+  [
+    'onsite',
+    tr('job-terms.on_site', 'On site'),
+    tr('job-terms.every_day_at_the_workplace', 'Every day at the workplace.'),
+    <icons.company key="i" aria-hidden />,
+  ],
   [
     'hybrid',
-    'Hybrid',
-    'Some days at the workplace, the rest from home.',
+    tr('job-terms.hybrid', 'Hybrid'),
+    tr(
+      'job-terms.some_days_at_the_workplace_the',
+      'Some days at the workplace, the rest from home.',
+    ),
     <icons.transfer key="i" aria-hidden />,
   ],
-  ['remote', 'Remote', 'From home, within the country’s law.', <icons.home key="i" aria-hidden />],
+  [
+    'remote',
+    tr('job-terms.remote', 'Remote'),
+    tr('job-terms.from_home_within_the_countrys_law', 'From home, within the country’s law.'),
+    <icons.home key="i" aria-hidden />,
+  ],
 ] as const;
 
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
@@ -273,7 +305,7 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
     <>
       <Refusal error={error} />
       <RadioGroup
-        aria-label="How the work is done"
+        aria-label={tr('job-terms.how_the_work_is_done', 'How the work is done')}
         className="grid gap-2 sm:grid-cols-3"
         value={terms.workMode ?? ''}
         onValueChange={(v) => {
@@ -289,9 +321,9 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
       <Reveal open={terms.workMode === 'hybrid'} unmountOnExit>
         <div className="flex flex-col gap-5 pt-1">
           <Field required>
-            <FieldLabel>Days on site a week</FieldLabel>
+            <FieldLabel>{tr('job-terms.days_on_site_a_week', 'Days on site a week')}</FieldLabel>
             <SegmentedControl
-              aria-label="Days on site a week"
+              aria-label={tr('job-terms.days_on_site_a_week', 'Days on site a week')}
               value={terms.hybridDaysOnsite === null ? '' : String(terms.hybridDaysOnsite)}
               onValueChange={(v) => {
                 save({ hybridDaysOnsite: Number(v) });
@@ -299,15 +331,18 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
             >
               {[1, 2, 3, 4].map((n) => (
                 <SegmentedControlItem key={n} value={String(n)}>
-                  {`${String(n)} day${n === 1 ? '' : 's'}`}
+                  {tr('job-terms.day', '{{n}} day{{value}}', {
+                    n: String(n),
+                    value: n === 1 ? '' : 's',
+                  })}
                 </SegmentedControlItem>
               ))}
             </SegmentedControl>
           </Field>
           <Field required>
-            <FieldLabel>Which days</FieldLabel>
+            <FieldLabel>{tr('job-terms.which_days', 'Which days')}</FieldLabel>
             <RadioGroup
-              aria-label="Which days on site"
+              aria-label={tr('job-terms.which_days_on_site', 'Which days on site')}
               className="grid gap-2 sm:grid-cols-2"
               value={terms.hybridOnsiteDays === null ? 'chosen' : 'set'}
               onValueChange={(v) => {
@@ -317,23 +352,29 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
               <RadioCard
                 value="chosen"
                 icon={<icons.calendar aria-hidden />}
-                description="They pick their own days each week."
+                description={tr(
+                  'job-terms.they_pick_their_own_days_each',
+                  'They pick their own days each week.',
+                )}
               >
-                Any days they choose
+                {tr('job-terms.any_days_they_choose', 'Any days they choose')}
               </RadioCard>
               <RadioCard
                 value="set"
                 icon={<icons.scheduled aria-hidden />}
-                description="The same days every week, for the whole team."
+                description={tr(
+                  'job-terms.the_same_days_every_week_for',
+                  'The same days every week, for the whole team.',
+                )}
               >
-                Set days
+                {tr('job-terms.set_days', 'Set days')}
               </RadioCard>
             </RadioGroup>
           </Field>
           <Reveal open={terms.hybridOnsiteDays !== null} unmountOnExit>
             <Field required>
-              <FieldLabel>Days on site</FieldLabel>
-              <ChipRow aria-label="Days on site">
+              <FieldLabel>{tr('job-terms.days_on_site', 'Days on site')}</FieldLabel>
+              <ChipRow aria-label={tr('job-terms.days_on_site', 'Days on site')}>
                 {DAYS.map(([d, label]) => {
                   const set = terms.hybridOnsiteDays ?? [];
                   const on = set.includes(d);
@@ -355,8 +396,11 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
               </ChipRow>
               <FieldDescription>
                 {terms.hybridDaysOnsite === null
-                  ? 'Choose how many days first.'
-                  : `${String((terms.hybridOnsiteDays ?? []).length)} of ${String(terms.hybridDaysOnsite)} chosen.`}
+                  ? tr('job-terms.choose_how_many_days_first', 'Choose how many days first.')
+                  : tr('job-terms.of_chosen', '{{length}} of {{hybridDaysOnsite}} chosen.', {
+                      length: String((terms.hybridOnsiteDays ?? []).length),
+                      hybridDaysOnsite: String(terms.hybridDaysOnsite),
+                    })}
               </FieldDescription>
             </Field>
           </Reveal>
@@ -368,8 +412,14 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
 
 /** What each kind of work means, where the country's own rules give no line of their own. */
 const RELATIONSHIP_NOTE: Readonly<Record<string, string>> = {
-  employee: 'On the payroll, with the full protection of employment law.',
-  worker: 'Paid for the work, with core rights such as holiday pay and the minimum wage.',
+  employee: tr(
+    'job-terms.on_the_payroll_with_the_full',
+    'On the payroll, with the full protection of employment law.',
+  ),
+  worker: tr(
+    'job-terms.paid_for_the_work_with_core',
+    'Paid for the work, with core rights such as holiday pay and the minimum wage.',
+  ),
   contractor: 'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
 };
 
@@ -388,7 +438,7 @@ export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
       <Refusal error={error} />
       <Unreviewed data={data} />
       <RadioGroup
-        aria-label="Work type"
+        aria-label={tr('job-terms.work_type', 'Work type')}
         className="grid gap-2"
         value={terms.relationship ?? ''}
         onValueChange={(v) => {
@@ -423,7 +473,7 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
       <Refusal error={error} />
       <Unreviewed data={data} />
       <RadioGroup
-        aria-label="Contract"
+        aria-label={tr('job-terms.contract', 'Contract')}
         className="grid gap-2"
         value={terms.contractType ?? ''}
         onValueChange={(v) => {
@@ -438,7 +488,9 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
               icon={t.fixedTerm ? <icons.calendar aria-hidden /> : <icons.agreement aria-hidden />}
               badge={
                 <Badge size="xs" variant="soft" tone={t.fixedTerm ? 'warning' : 'neutral'}>
-                  {t.fixedTerm ? 'Fixed term' : 'Open-ended'}
+                  {t.fixedTerm
+                    ? tr('job-terms.fixed_term', 'Fixed term')
+                    : tr('job-terms.open_ended', 'Open-ended')}
                 </Badge>
               }
               description={t.unavailable ?? t.note ?? ''}
@@ -450,8 +502,13 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
       </RadioGroup>
       {chosen?.fixedTerm === true && options.fixedTermReasons.length > 0 ? (
         <Field required>
-          <FieldLabel>Why it is fixed term</FieldLabel>
-          <FieldDescription>The law there asks for the reason in the contract.</FieldDescription>
+          <FieldLabel>{tr('job-terms.why_it_is_fixed_term', 'Why it is fixed term')}</FieldLabel>
+          <FieldDescription>
+            {tr(
+              'job-terms.the_law_there_asks_for_the',
+              'The law there asks for the reason in the contract.',
+            )}
+          </FieldDescription>
           <Select
             value={terms.fixedTermReason ?? ''}
             onValueChange={(v) => {
@@ -460,7 +517,7 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
           >
             <FieldControl>
               <SelectTrigger>
-                <SelectValue placeholder="Choose a reason" />
+                <SelectValue placeholder={tr('job-terms.choose_a_reason', 'Choose a reason')} />
               </SelectTrigger>
             </FieldControl>
             <SelectContent>
@@ -478,18 +535,18 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
 }
 
 const DAYS = [
-  [1, 'Mon'],
-  [2, 'Tue'],
-  [3, 'Wed'],
-  [4, 'Thu'],
-  [5, 'Fri'],
-  [6, 'Sat'],
-  [7, 'Sun'],
+  [1, tr('job-terms.mon', 'Mon')],
+  [2, tr('job-terms.tue', 'Tue')],
+  [3, tr('job-terms.wed', 'Wed')],
+  [4, tr('job-terms.thu', 'Thu')],
+  [5, tr('job-terms.fri', 'Fri')],
+  [6, tr('job-terms.sat', 'Sat')],
+  [7, tr('job-terms.sun', 'Sun')],
 ] as const;
 
 const WEEKS = [
-  [[1, 2, 3, 4, 5], 'Monday to Friday'],
-  [[1, 2, 3, 4], 'Monday to Thursday'],
+  [[1, 2, 3, 4, 5], tr('job-terms.monday_to_friday', 'Monday to Friday')],
+  [[1, 2, 3, 4], tr('job-terms.monday_to_thursday', 'Monday to Thursday')],
 ] as const;
 
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
@@ -499,7 +556,7 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
   return (
     <>
       <Refusal error={error} />
-      <ChipRow aria-label="Work days">
+      <ChipRow aria-label={tr('job-terms.work_days', 'Work days')}>
         {DAYS.map(([d, label]) => {
           const on = terms.workDays.includes(d);
           return (
@@ -519,7 +576,7 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
       </ChipRow>
       {/* Shortcuts that fill the days above, said as such: they are not a second setting. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
-        <span>Fill in a common week:</span>
+        <span>{tr('job-terms.fill_in_a_common_week', 'Fill in a common week:')}</span>
         {WEEKS.filter(
           ([days]) => days.join() !== terms.workDays.toSorted((a, b) => a - b).join(),
         ).map(([days, label]) => (
@@ -553,7 +610,9 @@ const minutesOf = (time: string | null): number | null => {
 
 export const hoursOf = (minutes: number): string => {
   const h = minutes / 60;
-  return `${Number.isInteger(h) ? String(h) : h.toFixed(1)} h`;
+  return tr('job-terms.h', '{{value}} h', {
+    value: Number.isInteger(h) ? String(h) : h.toFixed(1),
+  });
 };
 
 const BREAKS = [0, 15, 30, 45, 60, 90] as const;
@@ -572,10 +631,10 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
       <Refusal error={error} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Field required>
-          <FieldLabel>Starts</FieldLabel>
+          <FieldLabel>{tr('job-terms.starts', 'Starts')}</FieldLabel>
           <FieldControl>
             <TimePicker
-              label="Starts"
+              label={tr('job-terms.starts', 'Starts')}
               step={15}
               // Only times before the end, when the end is chosen first.
               {...(terms.dayEnd === null ? {} : { max: hhmm(terms.dayEnd - 15) ?? '23:45' })}
@@ -587,10 +646,10 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
           </FieldControl>
         </Field>
         <Field required>
-          <FieldLabel>Ends</FieldLabel>
+          <FieldLabel>{tr('job-terms.ends', 'Ends')}</FieldLabel>
           <FieldControl>
             <TimePicker
-              label="Ends"
+              label={tr('job-terms.ends', 'Ends')}
               step={15}
               // Only times after the start.
               {...(terms.dayStart === null ? {} : { min: hhmm(terms.dayStart + 15) ?? '00:00' })}
@@ -602,7 +661,7 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
           </FieldControl>
         </Field>
         <Field>
-          <FieldLabel>Unpaid break</FieldLabel>
+          <FieldLabel>{tr('job-terms.unpaid_break', 'Unpaid break')}</FieldLabel>
           <Select
             value={String(terms.breakMinutes)}
             onValueChange={(v) => {
@@ -617,7 +676,9 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
             <SelectContent>
               {BREAKS.map((b) => (
                 <SelectItem key={b} value={String(b)}>
-                  {b === 0 ? 'None' : `${String(b)} min`}
+                  {b === 0
+                    ? tr('job-terms.none', 'None')
+                    : tr('job-terms.min', '{{b}} min', { b: String(b) })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -628,16 +689,16 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
         <KeyValues
           layout="split"
           items={[
-            { label: 'A week', value: hoursOf(options.weeklyMinutes) },
+            { label: tr('job-terms.a_week', 'A week'), value: hoursOf(options.weeklyMinutes) },
             {
-              label: 'Full time there',
+              label: tr('job-terms.full_time_there', 'Full time there'),
               value:
                 options.fullTimeWeeklyMinutes === null
                   ? 'Not set'
                   : hoursOf(options.fullTimeWeeklyMinutes),
             },
             {
-              label: 'So this is',
+              label: tr('job-terms.so_this_is', 'So this is'),
               value: (
                 <Badge size="sm" variant="soft" tone="accent">
                   {options.hours === 'full_time' ? 'Full time' : 'Part time'}
@@ -646,13 +707,18 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
             },
             ...(options.maxWeeklyMinutes === null
               ? []
-              : [{ label: 'The law’s limit', value: hoursOf(options.maxWeeklyMinutes) }]),
+              : [
+                  {
+                    label: tr('job-terms.the_laws_limit', 'The law’s limit'),
+                    value: hoursOf(options.maxWeeklyMinutes),
+                  },
+                ]),
           ]}
         />
       )}
       {over ? (
-        <Alert tone="danger" title="Over the legal week">
-          Shorten the day or take a day off the week.
+        <Alert tone="danger" title={tr('job-terms.over_the_legal_week', 'Over the legal week')}>
+          {tr('job-terms.shorten_the_day_or_take_a', 'Shorten the day or take a day off the week.')}
         </Alert>
       ) : null}
     </>
@@ -671,7 +737,10 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
   useAnswered(days !== null);
   if (leave === null)
     return <Waiting icon={<icons.vacation aria-hidden />} what="Choose the work type first." />;
-  const unit = leave.unit === 'calendar_days' ? 'calendar days' : 'working days';
+  const unit =
+    leave.unit === 'calendar_days'
+      ? tr('job-terms.calendar_days', 'calendar days')
+      : tr('job-terms.working_days', 'working days');
   return (
     <>
       <Refusal error={error} />
@@ -679,14 +748,18 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
         tone="info"
         title={
           leave.days === 0
-            ? 'No legal minimum'
-            : `The legal minimum is ${String(leave.days)} ${unit} a year`
+            ? tr('job-terms.no_legal_minimum', 'No legal minimum')
+            : tr(
+                'job-terms.the_legal_minimum_is_a_year',
+                'The legal minimum is {{days}} {{unit}} a year',
+                { days: String(leave.days), unit },
+              )
         }
       >
-        {`${leave.note} (${leave.source})`}
+        {tr('job-terms.text', '{{note}} ({{source}})', { note: leave.note, source: leave.source })}
       </Alert>
       <NumberField
-        label={`Paid holiday, ${unit} a year`}
+        label={tr('job-terms.paid_holiday_a_year', 'Paid holiday, {{unit}} a year', { unit })}
         value={days}
         min={leave.days}
         max={60}
@@ -695,7 +768,7 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
         className="max-w-xs"
       />
       {leave.days > 0 ? (
-        <ChipRow aria-label="Common choices">
+        <ChipRow aria-label={tr('job-terms.common_choices', 'Common choices')}>
           {[leave.days, leave.days + 5, leave.days + 10].map((n) => (
             <Chip
               key={n}
@@ -704,7 +777,9 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
                 setDays(n);
               }}
             >
-              {n === leave.days ? `${String(n)}, the minimum` : `${String(n)} days`}
+              {n === leave.days
+                ? tr('job-terms.the_minimum', '{{n}}, the minimum', { n: String(n) })
+                : tr('job-terms.days', '{{n}} days', { n: String(n) })}
             </Chip>
           ))}
         </ChipRow>
@@ -718,7 +793,7 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
               void persist();
             }}
           >
-            Save time off
+            {tr('job-terms.save_time_off', 'Save time off')}
           </Button>
         </div>
       ) : null}
@@ -769,31 +844,46 @@ function PayBand({
   return (
     <div className="flex flex-col gap-3">
       <RangeBar
-        label="The pay against the market"
+        label={tr('job-terms.the_pay_against_the_market', 'The pay against the market')}
         domain={[from, to]}
         now={median}
         format={(v) => short(v, estimate.currency)}
-        summary={`The market pays ${money(low)} to ${money(high)}, ${money(median)} in the middle. This job pays ${kind === 'fixed' ? money(min) : `${money(min)} to ${money(max)}`}.`}
+        summary={tr(
+          'job-terms.the_market_pays_to_in_the',
+          'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{value}}.',
+          {
+            low: money(low),
+            high: money(high),
+            median: money(median),
+            value: kind === 'fixed' ? money(min) : `${money(min)} to ${money(max)}`,
+          },
+        )}
         segments={[
           {
             start: low,
             end: high,
-            label: 'What the market pays',
+            label: tr('job-terms.what_the_market_pays', 'What the market pays'),
             tone: 'neutral',
             pattern: 'hatched',
           },
           {
             start: min,
             end: kind === 'fixed' ? min + sliver : max,
-            label: 'This job',
+            label: tr('job-terms.this_job', 'This job'),
             tone: 'accent',
             size: 'thin',
           },
         ]}
       />
       <Slider
-        label={kind === 'fixed' ? 'Yearly salary' : 'Pay range'}
-        {...(kind === 'range' ? { thumbLabels: ['From', 'To'] } : {})}
+        label={
+          kind === 'fixed'
+            ? tr('job-terms.yearly_salary', 'Yearly salary')
+            : tr('job-terms.pay_range', 'Pay range')
+        }
+        {...(kind === 'range'
+          ? { thumbLabels: [tr('job-terms.from', 'From'), tr('job-terms.to', 'To')] }
+          : {})}
         min={from}
         max={to}
         step={500}
@@ -809,21 +899,24 @@ function PayBand({
       <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-fg-muted" aria-hidden>
         <li className="flex items-center gap-1.5">
           <Badge size="xs" variant="outline">
-            Hatched
+            {tr('job-terms.hatched', 'Hatched')}
           </Badge>
-          {`What the market pays, ${money(low)} to ${money(high)}`}
+          {tr('job-terms.what_the_market_pays_to', 'What the market pays, {{low}} to {{high}}', {
+            low: money(low),
+            high: money(high),
+          })}
         </li>
         <li className="flex items-center gap-1.5">
           <Badge size="xs" variant="outline">
-            Line
+            {tr('job-terms.line', 'Line')}
           </Badge>
-          {`The middle, ${money(median)}`}
+          {tr('job-terms.the_middle', 'The middle, {{median}}', { median: money(median) })}
         </li>
         <li className="flex items-center gap-1.5">
           <Badge size="xs" tone="accent" variant="soft">
-            Solid
+            {tr('job-terms.solid', 'Solid')}
           </Badge>
-          This job
+          {tr('job-terms.this_job', 'This job')}
         </li>
       </ul>
     </div>
@@ -928,7 +1021,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     <>
       <Refusal error={error} />
       <SegmentedControl
-        aria-label="Kind of pay"
+        aria-label={tr('job-terms.kind_of_pay', 'Kind of pay')}
         value={kind}
         onValueChange={(v) => {
           const next = v as 'fixed' | 'range';
@@ -940,12 +1033,20 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
           else if (next === 'range' && max === null) setMax(min);
         }}
       >
-        <SegmentedControlItem value="range">A range</SegmentedControlItem>
-        <SegmentedControlItem value="fixed">A fixed salary</SegmentedControlItem>
+        <SegmentedControlItem value="range">
+          {tr('job-terms.a_range', 'A range')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="fixed">
+          {tr('job-terms.a_fixed_salary', 'A fixed salary')}
+        </SegmentedControlItem>
       </SegmentedControl>
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField
-          label={kind === 'fixed' ? 'Yearly salary' : 'From, a year'}
+          label={
+            kind === 'fixed'
+              ? tr('job-terms.yearly_salary', 'Yearly salary')
+              : tr('job-terms.from_a_year', 'From, a year')
+          }
           value={min}
           min={floor ?? 0}
           step={500}
@@ -955,7 +1056,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
         />
         {kind === 'range' ? (
           <NumberField
-            label="To, a year"
+            label={tr('job-terms.to_a_year', 'To, a year')}
             value={max}
             min={min ?? floor ?? 0}
             step={500}
@@ -986,14 +1087,23 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
           <icons.assistant aria-hidden className="size-4 shrink-0 text-accent-fg" />
           <span className="min-w-0 flex-1 font-medium">
             {asking
-              ? 'Estimating what the market pays for this role there…'
+              ? tr(
+                  'job-terms.estimating_what_the_market_pays_for',
+                  'Estimating what the market pays for this role there…',
+                )
               : estimate === null || suggested === null
-                ? 'No estimate yet.'
-                : `AI estimate: ${
-                    kind === 'fixed'
-                      ? amount(suggested[0], estimate.currency)
-                      : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`
-                  } a year · ${estimate.confidence} confidence`}
+                ? tr('job-terms.no_estimate_yet', 'No estimate yet.')
+                : tr(
+                    'job-terms.ai_estimate_a_year_confidence',
+                    'AI estimate: {{value}} a year · {{confidence}} confidence',
+                    {
+                      value:
+                        kind === 'fixed'
+                          ? amount(suggested[0], estimate.currency)
+                          : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`,
+                      confidence: estimate.confidence,
+                    },
+                  )}
           </span>
           <span className="flex gap-1">
             {changed && estimate !== null ? (
@@ -1005,7 +1115,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
                   use(kind, estimate);
                 }}
               >
-                Use the estimate
+                {tr('job-terms.use_the_estimate', 'Use the estimate')}
               </Button>
             ) : null}
             <Button
@@ -1017,7 +1127,9 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
                 ask(kind);
               }}
             >
-              {estimate === null ? 'Estimate with AI' : 'Estimate again'}
+              {estimate === null
+                ? tr('job-terms.estimate_with_ai', 'Estimate with AI')
+                : tr('job-terms.estimate_again', 'Estimate again')}
             </Button>
           </span>
         </div>
@@ -1027,14 +1139,23 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
       </div>
       <p className="text-sm text-fg-muted">
         {floor === null
-          ? 'Yearly and gross, before tax.'
-          : `Yearly and gross. The legal minimum at these hours is ${amount(floor, currency)}.`}
+          ? tr('job-terms.yearly_and_gross_before_tax', 'Yearly and gross, before tax.')
+          : tr(
+              'job-terms.yearly_and_gross_the_legal_minimum',
+              'Yearly and gross. The legal minimum at these hours is {{floor}}.',
+              { floor: amount(floor, currency) },
+            )}
       </p>
       <Field orientation="horizontal">
         <span className="flex min-w-0 flex-col">
-          <FieldLabel>Show the pay in the ad</FieldLabel>
+          <FieldLabel>
+            {tr('job-terms.show_the_pay_in_the_ad', 'Show the pay in the ad')}
+          </FieldLabel>
           <FieldDescription>
-            Required in some places, and candidates apply more readily when they see it.
+            {tr(
+              'job-terms.required_in_some_places_and_candidates',
+              'Required in some places, and candidates apply more readily when they see it.',
+            )}
           </FieldDescription>
         </span>
         <FieldControl>
@@ -1050,7 +1171,7 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
               void persist();
             }}
           >
-            Save pay
+            {tr('job-terms.save_pay', 'Save pay')}
           </Button>
         </div>
       ) : null}
@@ -1081,8 +1202,11 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
     return (
       <EmptyState
         icon={<icons.payment aria-hidden />}
-        title="No benefits in the catalogue"
-        description="Add them under Settings, Recruiting, Benefits."
+        title={tr('job-terms.no_benefits_in_the_catalogue', 'No benefits in the catalogue')}
+        description={tr(
+          'job-terms.add_them_under_settings_recruiting_benefits',
+          'Add them under Settings, Recruiting, Benefits.',
+        )}
       />
     );
   return (
@@ -1103,7 +1227,7 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
               void persist();
             }}
           >
-            Save benefits
+            {tr('job-terms.save_benefits', 'Save benefits')}
           </Button>
         </div>
       ) : null}

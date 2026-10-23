@@ -1,6 +1,8 @@
 import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
 
+import { DEFAULT_LANGUAGE, isLanguage, type Namespace } from './languages';
+import { loadMessages } from './messages';
 import { renderRemote, warmRenderer } from './remote-render';
 import { AREAS, remotePath, type Area } from './remotes';
 import { timed } from './timing';
@@ -149,15 +151,27 @@ const verified = new Map<string, { readonly code: string; readonly sha: string }
  * process. Only a URL this file verified renders.
  */
 export const REMOTE_RENDER = Symbol.for('kithena.remote-render');
-(globalThis as unknown as Record<symbol, unknown>)[REMOTE_RENDER] = (
+(globalThis as unknown as Record<symbol, unknown>)[REMOTE_RENDER] = async (
   url: string,
   component: string,
   props: string,
   prefix: string,
+  language: string,
+  namespace: string | null,
 ): Promise<string> => {
   const build = verified.get(url);
-  if (build === undefined) return Promise.reject(new Error(`${url} was not verified`));
-  return timed('remote.render', renderRemote(build.code, build.sha, component, props, prefix));
+  if (build === undefined) throw new Error(`${url} was not verified`);
+  // The remote's words and Reach's, in the page's language: the renderer has nothing to fetch them with.
+  const lang = isLanguage(language) ? language : DEFAULT_LANGUAGE;
+  const namespaces = (namespace === null ? ['reach'] : ['reach', namespace]) as Namespace[];
+  const messages = await loadMessages(lang, namespaces);
+  return timed(
+    'remote.render',
+    renderRemote(build.code, build.sha, component, props, prefix, undefined, undefined, {
+      language: lang,
+      messages,
+    }),
+  );
 };
 
 /**

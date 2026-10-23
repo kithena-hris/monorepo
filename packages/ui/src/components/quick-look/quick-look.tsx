@@ -6,6 +6,7 @@ import type { ComponentPropsWithoutRef, JSX, KeyboardEvent, ReactNode } from 're
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { Kbd } from '../kbd/kbd';
+import { t } from '../../lib/i18n';
 
 /**
  * A peek at one record beside the list it came from.
@@ -141,7 +142,13 @@ export function QuickLook({
               size="xs"
               className="relative tap-target aspect-square px-0 touch:px-0"
             >
-              <a href={href} aria-label="Open the full page">
+              <a
+                href={href}
+                aria-label={t(
+                  'components.quick-look.quick-look.open_the_full_page',
+                  'Open the full page',
+                )}
+              >
                 <Maximize2 aria-hidden />
               </a>
             </Button>
@@ -151,7 +158,7 @@ export function QuickLook({
               variant="ghost"
               size="xs"
               className="relative tap-target"
-              aria-label="Close"
+              aria-label={t('components.quick-look.quick-look.close', 'Close')}
               onClick={onClose}
               startIcon={<X aria-hidden />}
             />
@@ -169,12 +176,13 @@ export function QuickLook({
           {onPrevious || onNext ? (
             <span className="flex items-center gap-1">
               <Kbd keyName="up" />
-              <Kbd keyName="down" /> next record
+              <Kbd keyName="down" />{' '}
+              {t('components.quick-look.quick-look.next_record', 'next record')}
             </span>
           ) : null}
           {open ? (
             <span className="flex items-center gap-1">
-              <Kbd keyName="enter" /> open
+              <Kbd keyName="enter" /> {t('components.quick-look.quick-look.open', 'open')}
             </span>
           ) : null}
         </p>

@@ -25,6 +25,7 @@ import type { JSX } from 'react';
 import { Loaded, type Loadable } from '../load';
 import { amount, longDate, shortDate } from '../words';
 import { Nudge, type NudgeData, type NudgeProps } from './nudge';
+import { t as tr } from '../i18n';
 
 /**
  * Insights (T27, PRD §14.2): time off and attendance across the company for
@@ -107,13 +108,17 @@ const monthLong = (month: string): string =>
     new Date(`${month}-01T00:00:00Z`),
   );
 const n = (s: string): number => Number(s);
-const people = (count: number): string => (count === 1 ? '1 person' : `${String(count)} people`);
-const hoursOf = (minutes: number): string => `${String(Math.round(minutes / 60))}h`;
+const people = (count: number): string =>
+  count === 1
+    ? '1 person'
+    : tr('insights.insights.people', '{{count}} people', { count: String(count) });
+const hoursOf = (minutes: number): string =>
+  tr('insights.insights.h', '{{round}}h', { round: String(Math.round(minutes / 60)) });
 
 /** Why a point is there in a word: the link that opens its people. */
 const BEHIND: Record<PointKind, string> = {
-  unbooked: 'who would lose days',
-  no_break: 'who has had no break',
+  unbooked: tr('insights.insights.who_would_lose_days', 'who would lose days'),
+  no_break: tr('insights.insights.who_has_had_no_break', 'who has had no break'),
   missed_clock_outs: '',
   overtime: '',
 };
@@ -122,26 +127,40 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
   if (load.status === 'loading') return <InsightsSkeleton />;
   return (
     <div className="@container/insights flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Insights" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={tr('insights.insights.insights', 'Insights')} />
+      ) : null}
       <Loaded load={load} what="the insights">
         {(data) => (
           <>
             <PageHeader
-              title="Insights"
-              description={`Time off and attendance ${
-                data.scope === 'company' ? 'across the company' : 'for your team'
-              } · ${people(data.people.length)} · as of ${longDate(data.asOf)}`}
+              title={tr('insights.insights.insights', 'Insights')}
+              description={tr(
+                'insights.insights.time_off_and_attendance_as_of',
+                'Time off and attendance {{value}} · {{people}} · as of {{longDate}}',
+                {
+                  value: data.scope === 'company' ? 'across the company' : 'for your team',
+                  people: people(data.people.length),
+                  longDate: longDate(data.asOf),
+                },
+              )}
             />
             {data.tab === 'what-changed' ? <WhatChanged data={data} /> : null}
             {data.tab === 'time-off' ? <TimeOffTab data={data} /> : null}
             {data.tab === 'attendance' ? <AttendanceTab data={data} /> : null}
             {data.tab === 'balances' ? <BalancesTab data={data} /> : null}
             <p className="text-xs text-fg-muted">
-              {`Groups under ${String(data.cohortMinimum)} people are never described, and sick leave is only ever a total for a group that size or larger.${
-                data.hiddenTeams === 0
-                  ? ''
-                  : ` ${String(data.hiddenTeams)} smaller ${data.hiddenTeams === 1 ? 'team is' : 'teams are'} left out of the per-team figures.`
-              }`}
+              {tr(
+                'insights.insights.groups_under_people_are_never_described',
+                'Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger.{{value}}',
+                {
+                  cohortMinimum: String(data.cohortMinimum),
+                  value:
+                    data.hiddenTeams === 0
+                      ? ''
+                      : ` ${String(data.hiddenTeams)} smaller ${data.hiddenTeams === 1 ? 'team is' : 'teams are'} left out of the per-team figures.`,
+                },
+              )}
             </p>
             {data.nudge === null || data.nudge === undefined ? null : (
               <Nudge
@@ -167,18 +186,35 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
     <div className={body}>
       <AssistantCard
         level={2}
-        title={`${monthLong(month)} in ${String(data.points.length)} ${data.points.length === 1 ? 'point' : 'points'}`}
+        title={tr('insights.insights.in', '{{monthLong}} in {{length}} {{value}}', {
+          monthLong: monthLong(month),
+          length: String(data.points.length),
+          value: data.points.length === 1 ? 'point' : 'points',
+        })}
         action={
           <Badge tone="assistant" size="sm">
-            {data.points.some((p) => p.ai === true) ? 'AI' : 'Templated'}
+            {data.points.some((p) => p.ai === true)
+              ? 'AI'
+              : tr('insights.insights.templated', 'Templated')}
           </Badge>
         }
-        note="Written from Time Off’s own numbers. Each point links to the people behind it."
+        note={tr(
+          'insights.insights.written_from_time_offs_own_numbers',
+          'Written from Time Off’s own numbers. Each point links to the people behind it.',
+        )}
       >
         {data.points.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nothing changed worth saying this month.</p>
+          <p className="text-sm text-fg-muted">
+            {tr(
+              'insights.insights.nothing_changed_worth_saying_this_month',
+              'Nothing changed worth saying this month.',
+            )}
+          </p>
         ) : (
-          <ol aria-label="What changed" className="flex flex-col gap-3">
+          <ol
+            aria-label={tr('insights.insights.what_changed', 'What changed')}
+            className="flex flex-col gap-3"
+          >
             {data.points.map((p, i) => (
               <li key={p.kind} className="flex flex-col gap-3">
                 {i === 0 ? null : <Separator />}
@@ -198,9 +234,15 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
                         <Button asChild size="xs" variant="ghost">
                           <a
                             href={`/time-off/insights/what-changed?point=${p.kind}`}
-                            aria-label={`See the ${String(p.personIds.length)}: ${BEHIND[p.kind]}`}
+                            aria-label={tr(
+                              'insights.insights.see_the',
+                              'See the {{length}}: {{BEHIND}}',
+                              { length: String(p.personIds.length), BEHIND: BEHIND[p.kind] },
+                            )}
                           >
-                            {`See the ${String(p.personIds.length)}`}
+                            {tr('insights.insights.see_the_2', 'See the {{length}}', {
+                              length: String(p.personIds.length),
+                            })}
                           </a>
                         </Button>
                       )}
@@ -229,30 +271,42 @@ function Behind({
   const who = data.people.filter((p) => ids.has(p.personId));
   return (
     <PageSection
-      title={point.kind === 'unbooked' ? 'Who would lose days' : 'No day off since'}
+      title={
+        point.kind === 'unbooked'
+          ? tr('insights.insights.who_would_lose_days_2', 'Who would lose days')
+          : tr('insights.insights.no_day_off_since', 'No day off since')
+      }
       description={people(who.length)}
       actions={
         point.kind === 'no_break' ? (
           <Button asChild size="sm" variant="primary">
             <a href={`/time-off/insights/what-changed?point=no_break&nudge=no_break`}>
-              {`Nudge the ${String(who.length)}`}
+              {tr('insights.insights.nudge_the', 'Nudge the {{length}}', {
+                length: String(who.length),
+              })}
             </a>
           </Button>
         ) : undefined
       }
       surface
     >
-      <List aria-label="The people behind it">
+      <List aria-label={tr('insights.insights.the_people_behind_it', 'The people behind it')}>
         {who.map((p) => (
           <ListItem
             key={p.personId}
             leading={<Avatar name={p.displayName} />}
             description={
               point.kind === 'unbooked'
-                ? `${amount(p.losesAtYearEnd)} of ${amount(p.left)} days lost at the year end`
+                ? tr(
+                    'insights.insights.of_days_lost_at_the_year',
+                    '{{losesAtYearEnd}} of {{left}} days lost at the year end',
+                    { losesAtYearEnd: amount(p.losesAtYearEnd), left: amount(p.left) },
+                  )
                 : p.lastDayOff === null
-                  ? 'No day off this year'
-                  : `Last day off ${shortDate(p.lastDayOff)}`
+                  ? tr('insights.insights.no_day_off_this_year', 'No day off this year')
+                  : tr('insights.insights.last_day_off', 'Last day off {{lastDayOff}}', {
+                      lastDayOff: shortDate(p.lastDayOff),
+                    })
             }
             meta={p.teamName ?? undefined}
           >
@@ -273,20 +327,30 @@ function DaysTaken({ data }: { readonly data: InsightsData }): JSX.Element {
   );
   return (
     <ChartCard
-      title="Days taken by month"
+      title={tr('insights.insights.days_taken_by_month', 'Days taken by month')}
       value={amount(total.toFixed(3))}
-      description={`The last ${String(data.months.length)} months`}
+      description={tr('insights.insights.the_last_months', 'The last {{length}} months', {
+        length: String(data.months.length),
+      })}
     >
       <StackedBarChart
-        label="Days taken by month"
+        label={tr('insights.insights.days_taken_by_month', 'Days taken by month')}
         categories={data.months.map((m) => monthShort(m.month))}
         series={[
-          { label: 'Vacation', tone: 'chart-1', values: data.months.map((m) => n(m.vacation)) },
-          { label: 'Personal', tone: 'chart-2', values: data.months.map((m) => n(m.personal)) },
+          {
+            label: tr('insights.insights.vacation', 'Vacation'),
+            tone: 'chart-1',
+            values: data.months.map((m) => n(m.vacation)),
+          },
+          {
+            label: tr('insights.insights.personal', 'Personal'),
+            tone: 'chart-2',
+            values: data.months.map((m) => n(m.personal)),
+          },
           ...(sick
             ? [
                 {
-                  label: 'Sick',
+                  label: tr('insights.insights.sick', 'Sick'),
                   tone: 'chart-3' as const,
                   values: data.months.map((m) => n(m.sick ?? '0')),
                 },
@@ -313,21 +377,30 @@ function Teams({
   readonly of: (t: InsightsData['teams'][number]) => string;
 }): JSX.Element {
   if (data.teams.length === 0) {
-    return <p className="text-sm text-fg-muted">No team is large enough to describe on its own.</p>;
+    return (
+      <p className="text-sm text-fg-muted">
+        {tr(
+          'insights.insights.no_team_is_large_enough_to',
+          'No team is large enough to describe on its own.',
+        )}
+      </p>
+    );
   }
   return (
     <Table aria-label={label}>
       <TableHeader>
         <TableRow>
-          <TableHead>Team</TableHead>
-          <TableHead className="text-end">People</TableHead>
+          <TableHead>{tr('insights.insights.team', 'Team')}</TableHead>
+          <TableHead className="text-end">{tr('insights.insights.people_2', 'People')}</TableHead>
           <TableHead className="text-end">{value}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {data.teams.map((t) => (
           <TableRow key={t.team}>
-            <TableCell className="font-semibold">{t.teamName ?? 'No team'}</TableCell>
+            <TableCell className="font-semibold">
+              {t.teamName ?? tr('insights.insights.no_team', 'No team')}
+            </TableCell>
             <TableCell className="text-end tabular-nums">{t.people}</TableCell>
             <TableCell className="text-end tabular-nums">{of(t)}</TableCell>
           </TableRow>
@@ -340,13 +413,13 @@ function Teams({
 function TimeOffTab({ data }: { readonly data: InsightsData }): JSX.Element {
   return (
     <div className={body}>
-      <PageSection title="By month">
+      <PageSection title={tr('insights.insights.by_month', 'By month')}>
         <DaysTaken data={data} />
       </PageSection>
-      <PageSection title="By team" surface>
+      <PageSection title={tr('insights.insights.by_team', 'By team')} surface>
         <Teams
           data={data}
-          label="Days taken by team"
+          label={tr('insights.insights.days_taken_by_team', 'Days taken by team')}
           value="Days taken"
           of={(t) => amount(t.daysTaken)}
         />
@@ -359,14 +432,14 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
   const now = data.months.at(-1);
   return (
     <div className={body}>
-      <PageSection title="By month">
+      <PageSection title={tr('insights.insights.by_month', 'By month')}>
         <ChartCard
-          title="Missed clock-outs by month"
+          title={tr('insights.insights.missed_clock_outs_by_month', 'Missed clock-outs by month')}
           value={String(now?.missedClockOuts ?? 0)}
-          description="This month so far"
+          description={tr('insights.insights.this_month_so_far', 'This month so far')}
         >
           <BarChart
-            label="Missed clock-outs by month"
+            label={tr('insights.insights.missed_clock_outs_by_month', 'Missed clock-outs by month')}
             data={data.months.map((m) => ({
               label: monthShort(m.month),
               value: m.missedClockOuts,
@@ -376,26 +449,26 @@ function AttendanceTab({ data }: { readonly data: InsightsData }): JSX.Element {
           />
         </ChartCard>
         <ChartCard
-          title="Overtime by month"
+          title={tr('insights.insights.overtime_by_month', 'Overtime by month')}
           value={hoursOf(now?.overtimeMinutes ?? 0)}
-          description="This month so far"
+          description={tr('insights.insights.this_month_so_far', 'This month so far')}
         >
           <BarChart
-            label="Overtime hours by month"
+            label={tr('insights.insights.overtime_hours_by_month', 'Overtime hours by month')}
             data={data.months.map((m) => ({
               label: monthShort(m.month),
               value: Math.round(m.overtimeMinutes / 60),
             }))}
             tone="chart-5"
-            format={(v) => `${String(v)}h`}
+            format={(v) => tr('insights.insights.h_2', '{{v}}h', { v: String(v) })}
             height={140}
           />
         </ChartCard>
       </PageSection>
-      <PageSection title="Overtime by team" surface>
+      <PageSection title={tr('insights.insights.overtime_by_team', 'Overtime by team')} surface>
         <Teams
           data={data}
-          label="Overtime by team"
+          label={tr('insights.insights.overtime_by_team', 'Overtime by team')}
           value="Overtime"
           of={(t) => hoursOf(t.overtimeMinutes)}
         />
@@ -412,19 +485,29 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
   return (
     <div className={body}>
       <PageSection
-        title="Who would lose days"
-        description="Above the carry-over at the year end, if nothing more is booked"
+        title={tr('insights.insights.who_would_lose_days_2', 'Who would lose days')}
+        description={tr(
+          'insights.insights.above_the_carry_over_at_the',
+          'Above the carry-over at the year end, if nothing more is booked',
+        )}
         surface
       >
         {losing.length === 0 ? (
-          <p className="text-sm text-fg-muted">Nobody would lose days at the year end.</p>
+          <p className="text-sm text-fg-muted">
+            {tr(
+              'insights.insights.nobody_would_lose_days_at_the',
+              'Nobody would lose days at the year end.',
+            )}
+          </p>
         ) : (
-          <List aria-label="Who would lose days">
+          <List aria-label={tr('insights.insights.who_would_lose_days_2', 'Who would lose days')}>
             {losing.map((p) => (
               <ListItem
                 key={p.personId}
                 leading={<Avatar name={p.displayName} />}
-                description={`${amount(p.left)} days left`}
+                description={tr('insights.insights.days_left', '{{left}} days left', {
+                  left: amount(p.left),
+                })}
                 meta={p.teamName ?? undefined}
                 trailing={<Badge size="sm" tone="warning">{`−${amount(p.losesAtYearEnd)}`}</Badge>}
               >
@@ -436,13 +519,19 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
       </PageSection>
       <div className="flex min-w-0 flex-col gap-6">
         <div className="grid grid-cols-2 gap-3">
-          <Stat label="Unbooked days" value={amount(unbooked.toFixed(3))} />
-          <Stat label="Would lose some" value={String(losing.length)} />
+          <Stat
+            label={tr('insights.insights.unbooked_days', 'Unbooked days')}
+            value={amount(unbooked.toFixed(3))}
+          />
+          <Stat
+            label={tr('insights.insights.would_lose_some', 'Would lose some')}
+            value={String(losing.length)}
+          />
         </div>
-        <PageSection title="Days left by team" surface>
+        <PageSection title={tr('insights.insights.days_left_by_team', 'Days left by team')} surface>
           <Teams
             data={data}
-            label="Days left by team"
+            label={tr('insights.insights.days_left_by_team', 'Days left by team')}
             value="Days left"
             of={(t) => amount(t.left)}
           />
@@ -456,9 +545,11 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
 export function InsightsSkeleton(): JSX.Element {
   return (
     <div className="@container/insights flex flex-col gap-6">
-      <PageHeader title="Insights" description={' '} />
+      <PageHeader title={tr('insights.insights.insights', 'Insights')} description={' '} />
       <div role="status" className={body}>
-        <span className="sr-only">Loading the insights</span>
+        <span className="sr-only">
+          {tr('insights.insights.loading_the_insights', 'Loading the insights')}
+        </span>
         <Skeleton className="h-96 rounded-lg" />
         <Skeleton className="h-72 rounded-lg" />
       </div>

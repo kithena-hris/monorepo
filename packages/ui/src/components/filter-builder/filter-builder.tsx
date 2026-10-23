@@ -24,6 +24,7 @@ import {
   type FilterGroup,
   type FilterValueKind,
 } from './filter-model';
+import { t } from '../../lib/i18n';
 
 export { isConditionComplete } from './filter-model';
 export type {
@@ -135,7 +136,7 @@ export function FilterBuilder({
       <EmptyState
         className={cn('border-0 bg-surface shadow-sm', className)}
         icon={<Filter />}
-        title="No conditions yet"
+        title={t('components.filter-builder.filter-builder.no_conditions_yet', 'No conditions yet')}
         description={emptyDescription}
         action={
           <Button
@@ -147,7 +148,7 @@ export function FilterBuilder({
               add(null);
             }}
           >
-            Add condition
+            {t('components.filter-builder.filter-builder.add_condition', 'Add condition')}
           </Button>
         }
       />
@@ -162,7 +163,13 @@ export function FilterBuilder({
       <ConditionRow
         key={condition.id}
         n={n}
-        joiner={index === 0 ? 'Where' : match === 'all' ? 'and' : 'or'}
+        joiner={
+          index === 0
+            ? t('components.filter-builder.filter-builder.where', 'Where')
+            : match === 'all'
+              ? 'and'
+              : 'or'
+        }
         fields={fields}
         condition={condition}
         error={errors[condition.id]}
@@ -188,35 +195,60 @@ export function FilterBuilder({
         >
           <JoinLabel
             joiner={
-              value.conditions.length + index === 0 ? 'Where' : value.match === 'all' ? 'and' : 'or'
+              value.conditions.length + index === 0
+                ? t('components.filter-builder.filter-builder.where', 'Where')
+                : value.match === 'all'
+                  ? 'and'
+                  : 'or'
             }
           />
           <div
             role="group"
-            aria-label={`Group, ${group.match} of these`}
+            aria-label={t(
+              'components.filter-builder.filter-builder.group_of_these',
+              'Group, {{match}} of these',
+              { match: group.match },
+            )}
             className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3 touch:p-2.5"
           >
             <div className="flex flex-wrap items-center gap-2">
               <MatchToggle
-                label="Match in this group"
+                label={t(
+                  'components.filter-builder.filter-builder.match_in_this_group',
+                  'Match in this group',
+                )}
                 match={group.match}
                 onChange={(match) => {
                   onChange(setMatch(value, group.id, match));
                 }}
               />
-              <span className="text-xs font-medium text-fg-muted">of these are true</span>
+              <span className="text-xs font-medium text-fg-muted">
+                {t(
+                  'components.filter-builder.filter-builder.of_these_are_true',
+                  'of these are true',
+                )}
+              </span>
               <Button
                 size="sm"
                 variant="ghost"
                 className="ms-auto"
-                aria-label="Remove this group"
+                aria-label={t(
+                  'components.filter-builder.filter-builder.remove_this_group',
+                  'Remove this group',
+                )}
                 startIcon={<Trash2 />}
                 onClick={() => {
                   onChange(removeItem(value, group.id));
                 }}
               />
             </div>
-            <ol aria-label="Conditions in this group" className="flex flex-col gap-2">
+            <ol
+              aria-label={t(
+                'components.filter-builder.filter-builder.conditions_in_this_group',
+                'Conditions in this group',
+              )}
+              className="flex flex-col gap-2"
+            >
               {group.conditions.map((condition, i) => row(condition, i, group.match))}
             </ol>
             <div>
@@ -229,7 +261,7 @@ export function FilterBuilder({
                   add(group.id);
                 }}
               >
-                Condition
+                {t('components.filter-builder.filter-builder.condition', 'Condition')}
               </Button>
             </div>
           </div>
@@ -249,7 +281,7 @@ export function FilterBuilder({
         }}
         disabled={full || fields.length === 0}
       >
-        Add condition
+        {t('components.filter-builder.filter-builder.add_condition', 'Add condition')}
       </Button>
       {allowGroups ? (
         <Button
@@ -259,12 +291,16 @@ export function FilterBuilder({
           disabled={full || fields.length === 0}
           onClick={addNested}
         >
-          Add group
+          {t('components.filter-builder.filter-builder.add_group', 'Add group')}
         </Button>
       ) : null}
       {full ? (
         <span className="text-xs text-fg-muted">
-          Up to {maxConditions} conditions. Remove one to add another.
+          {t(
+            'components.filter-builder.filter-builder.up_to_conditions_remove_one_to',
+            'Up to {{maxConditions}} conditions. Remove one to add another.',
+            { maxConditions },
+          )}
         </span>
       ) : null}
       {action ? <div className="ms-auto">{action}</div> : null}
@@ -274,7 +310,7 @@ export function FilterBuilder({
   const match =
     items < 2 ? null : (
       <MatchToggle
-        label="Match"
+        label={t('components.filter-builder.filter-builder.match', 'Match')}
         match={value.match}
         onChange={(next) => {
           onChange(setMatch(value, null, next));
@@ -288,7 +324,7 @@ export function FilterBuilder({
       <div className={cn('flex flex-col gap-3', className)}>
         {match === null ? null : (
           <div className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
-            <span id={matchId}>Match</span>
+            <span id={matchId}>{t('components.filter-builder.filter-builder.match', 'Match')}</span>
             {match}
           </div>
         )}
@@ -300,7 +336,11 @@ export function FilterBuilder({
 
   return (
     <section
-      aria-label={typeof title === 'string' ? title : 'Filters'}
+      aria-label={
+        typeof title === 'string'
+          ? title
+          : t('components.filter-builder.filter-builder.filters', 'Filters')
+      }
       className={cn('flex flex-col gap-3 rounded-lg bg-surface p-5 shadow-sm touch:p-4', className)}
     >
       <div className="flex flex-wrap items-center gap-2.5">
@@ -314,7 +354,7 @@ export function FilterBuilder({
             onChange({ match: value.match, conditions: [] });
           }}
         >
-          Clear
+          {t('components.filter-builder.filter-builder.clear', 'Clear')}
         </Button>
       </div>
       {list}
@@ -346,10 +386,10 @@ function MatchToggle({
       }}
     >
       <ToggleGroupItem size="sm" value="all">
-        All
+        {t('components.filter-builder.filter-builder.all', 'All')}
       </ToggleGroupItem>
       <ToggleGroupItem size="sm" value="any">
-        Any
+        {t('components.filter-builder.filter-builder.any', 'Any')}
       </ToggleGroupItem>
     </ToggleGroup>
   );
@@ -389,7 +429,11 @@ function ConditionRow({
   const operator = field?.operators.find((o) => o.id === condition.operator);
   const name = String(n);
   const fieldName = field?.label ?? 'field';
-  const remove = `Remove condition ${name}, ${fieldName}`;
+  const remove = t(
+    'components.filter-builder.filter-builder.remove_condition',
+    'Remove condition {{name}}, {{fieldName}}',
+    { name, fieldName },
+  );
 
   return (
     <li
@@ -407,8 +451,15 @@ function ConditionRow({
           onChange({ field: id });
         }}
       >
-        <SelectTrigger size="sm" aria-label={`Condition ${name} field`}>
-          <SelectValue placeholder="Field" />
+        <SelectTrigger
+          size="sm"
+          aria-label={t(
+            'components.filter-builder.filter-builder.condition_field',
+            'Condition {{name}} field',
+            { name },
+          )}
+        >
+          <SelectValue placeholder={t('components.filter-builder.filter-builder.field', 'Field')} />
         </SelectTrigger>
         <SelectContent>
           {fields.map((f) => (
@@ -425,8 +476,15 @@ function ConditionRow({
           onChange({ operator: id });
         }}
       >
-        <SelectTrigger size="sm" aria-label={`Condition ${name} operator`}>
-          <SelectValue placeholder="Is" />
+        <SelectTrigger
+          size="sm"
+          aria-label={t(
+            'components.filter-builder.filter-builder.condition_operator',
+            'Condition {{name}} operator',
+            { name },
+          )}
+        >
+          <SelectValue placeholder={t('components.filter-builder.filter-builder.is', 'Is')} />
         </SelectTrigger>
         <SelectContent>
           {(field?.operators ?? []).map((o) => (
@@ -441,7 +499,11 @@ function ConditionRow({
         <div className="min-w-0 flex-1">
           <ValueInput
             kind={operator?.value ?? 'none'}
-            label={`Condition ${name} value for ${fieldName}`}
+            label={t(
+              'components.filter-builder.filter-builder.condition_value_for',
+              'Condition {{name}} value for {{fieldName}}',
+              { name, fieldName },
+            )}
             options={field?.options ?? []}
             values={condition.values}
             onValues={(values) => {
@@ -505,7 +567,7 @@ function ValueInput({
         <Input
           size="sm"
           aria-label={label}
-          placeholder="Value"
+          placeholder={t('components.filter-builder.filter-builder.value', 'Value')}
           type={kind === 'number' ? 'number' : 'text'}
           {...(kind === 'number' ? { inputMode: 'decimal' as const } : {})}
           {...invalid}
@@ -535,7 +597,7 @@ function ValueInput({
           size="sm"
           mode="range"
           label={label}
-          placeholder="Pick a period"
+          placeholder={t('components.filter-builder.filter-builder.pick_a_period', 'Pick a period')}
           {...invalid}
           value={range}
           onChange={(next) => {
@@ -553,7 +615,9 @@ function ValueInput({
           }}
         >
           <SelectTrigger size="sm" aria-label={label} {...invalid}>
-            <SelectValue placeholder="Choose one" />
+            <SelectValue
+              placeholder={t('components.filter-builder.filter-builder.choose_one', 'Choose one')}
+            />
           </SelectTrigger>
           <SelectContent>
             {options.map((o) => (
@@ -570,7 +634,7 @@ function ValueInput({
           size="sm"
           multiple
           label={label}
-          placeholder="Choose any"
+          placeholder={t('components.filter-builder.filter-builder.choose_any', 'Choose any')}
           options={options}
           {...invalid}
           value={values}

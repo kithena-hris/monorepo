@@ -16,6 +16,7 @@ import { useState, type JSX } from 'react';
 import type { Outcome } from '../load';
 import { DisplayValue, longDate } from './display';
 import type { PendingValue, RecordField } from './model';
+import { t } from '../i18n';
 
 /**
  * A value waiting for HR's approval, beside the field it would change
@@ -39,13 +40,23 @@ export function PendingNote({
     <span className="flex flex-wrap items-center gap-2 text-sm">
       <PendingBadge pending={pending} />
       <span>
-        {pending.kind === 'correction' ? 'Correction to ' : ''}
-        <DisplayValue field={field} value={pending.value} />, from {longDate(pending.effectiveFrom)}
-        , asked by {pending.requestedBy}; waits until {longDate(pending.expiresAt.slice(0, 10))}.
+        {pending.kind === 'correction'
+          ? t('record.pending.correction_to', 'Correction to') + ' '
+          : ''}
+        <DisplayValue field={field} value={pending.value} />
+        {t(
+          'record.pending.from_asked_by_waits_until',
+          ', from {{longDate}}, asked by {{requestedBy}}; waits until',
+          { longDate: longDate(pending.effectiveFrom), requestedBy: pending.requestedBy },
+        )}{' '}
+        {longDate(pending.expiresAt.slice(0, 10))}.
       </span>
       {pending.awaitingReview === true ? (
         <span className="text-fg-muted">
-          HR reviews what our checks doubted before it can be approved.
+          {t(
+            'record.pending.hr_reviews_what_our_checks_doubted',
+            'HR reviews what our checks doubted before it can be approved.',
+          )}
         </span>
       ) : null}
       {pending.canSelfApprove === true && pending.awaitingReview !== true && onSelfApprove ? (
@@ -54,12 +65,16 @@ export function PendingNote({
       {pending.mine && onWithdraw !== undefined ? (
         <Button
           size="sm"
-          aria-label={`Withdraw the change to ${field.label}`}
+          aria-label={t(
+            'record.pending.withdraw_the_change_to',
+            'Withdraw the change to {{label}}',
+            { label: field.label },
+          )}
           onClick={() => {
             void onWithdraw(pending.id);
           }}
         >
-          Withdraw
+          {t('record.pending.withdraw', 'Withdraw')}
         </Button>
       ) : null}
     </span>
@@ -70,11 +85,11 @@ export function PendingNote({
 export function PendingBadge({ pending }: { readonly pending: PendingValue }): JSX.Element {
   return pending.awaitingReview === true ? (
     <Badge tone="warning" size="sm">
-      Awaiting identifier review
+      {t('record.pending.awaiting_identifier_review', 'Awaiting identifier review')}
     </Badge>
   ) : (
     <Badge tone="warning" size="sm">
-      Pending approval
+      {t('record.pending.pending_approval', 'Pending approval')}
     </Badge>
   );
 }
@@ -102,27 +117,48 @@ export function ApproveAlone({
       <Button
         size="sm"
         variant="primary"
-        aria-label={`Approve it myself: the change to ${label}`}
+        aria-label={t(
+          'record.pending.approve_it_myself_the_change_to',
+          'Approve it myself: the change to {{label}}',
+          { label },
+        )}
         onClick={() => {
           setRefused(null);
           setOpen(true);
         }}
       >
-        Approve it myself
+        {t('record.pending.approve_it_myself', 'Approve it myself')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve your own change to {label}?</DialogTitle>
-            <DialogDescription>No other HR member can approve this change.</DialogDescription>
+            <DialogTitle>
+              {t('record.pending.approve_your_own_change_to', 'Approve your own change to')} {label}
+              ?
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                'record.pending.no_other_hr_member_can_approve',
+                'No other HR member can approve this change.',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
-              <Alert tone="warning" title="Recorded as approved by you alone">
-                The audit log will show you approved your own change because no one else could.
+              <Alert
+                tone="warning"
+                title={t(
+                  'record.pending.recorded_as_approved_by_you_alone',
+                  'Recorded as approved by you alone',
+                )}
+              >
+                {t(
+                  'record.pending.the_audit_log_will_show_you',
+                  'The audit log will show you approved your own change because no one else could.',
+                )}
               </Alert>
               {refused === null ? null : (
-                <Alert tone="danger" title="Not approved">
+                <Alert tone="danger" title={t('record.pending.not_approved', 'Not approved')}>
                   {refused}
                 </Alert>
               )}
@@ -134,12 +170,12 @@ export function ApproveAlone({
                 setOpen(false);
               }}
             >
-              Cancel
+              {t('record.pending.cancel', 'Cancel')}
             </Button>
             <Button
               variant="primary"
               loading={busy}
-              loadingLabel="Approving"
+              loadingLabel={t('record.pending.approving', 'Approving')}
               onClick={() => {
                 setBusy(true);
                 setRefused(null);
@@ -150,7 +186,7 @@ export function ApproveAlone({
                 });
               }}
             >
-              Approve it myself
+              {t('record.pending.approve_it_myself', 'Approve it myself')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -163,7 +199,7 @@ export function ApproveAlone({
 export function SensitiveMark({ field }: { readonly field: RecordField }): JSX.Element | null {
   return field.sensitive === true ? (
     <Badge tone="sensitive" size="sm">
-      Sensitive
+      {t('record.pending.sensitive', 'Sensitive')}
     </Badge>
   ) : null;
 }

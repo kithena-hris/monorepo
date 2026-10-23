@@ -62,6 +62,7 @@ import { ShareQuestion, UploadDialog, type UploadInput, type UploadPreset } from
 import { DraftDialog, type DraftProps } from './draft';
 import { LettersDialog, type LettersProps } from './letters';
 import { SplitDialog, type SplitProps } from './split';
+import { t as tr } from '../i18n';
 
 /**
  * The Documents screen (B1, B2, B6, H1, H3; MD1, MH1, MH6): one item, one
@@ -130,11 +131,18 @@ export interface LibraryProps {
 export function Library(props: LibraryProps): JSX.Element {
   const { load } = props;
   if (load.status === 'loading') {
-    return <Skeleton shape="page" label="Loading your documents" />;
+    return (
+      <Skeleton
+        shape="page"
+        label={tr('library.library.loading_your_documents', 'Loading your documents')}
+      />
+    );
   }
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Documents" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={tr('library.library.documents', 'Documents')} />
+      ) : null}
       <Loaded load={load} what="your documents">
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -197,11 +205,22 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={data.deleted ? 'Deleted' : 'Documents'}
+        title={
+          data.deleted
+            ? tr('library.library.deleted', 'Deleted')
+            : tr('library.library.documents', 'Documents')
+        }
         description={
           data.deleted
-            ? 'Deleted documents wait 30 days, then are gone. A legal hold keeps them.'
-            : `${String(data.total)} document${data.total === 1 ? '' : 's'} you can open`
+            ? tr(
+                'library.library.deleted_documents_wait_30_days_then',
+                'Deleted documents wait 30 days, then are gone. A legal hold keeps them.',
+              )
+            : tr(
+                'library.library.document_you_can_open',
+                '{{total}} document{{value}} you can open',
+                { total: String(data.total), value: data.total === 1 ? '' : 's' },
+              )
         }
         actions={
           <>
@@ -213,7 +232,7 @@ function Ready({
                   setDrafting(true);
                 }}
               >
-                Draft with Kithena
+                {tr('library.library.draft_with_kithena', 'Draft with Kithena')}
               </Button>
             ) : null}
             <Button
@@ -223,13 +242,13 @@ function Ready({
                 upload();
               }}
             >
-              Add
+              {tr('library.library.add', 'Add')}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="secondary"
-                  aria-label="More"
+                  aria-label={tr('library.library.more', 'More')}
                   startIcon={<icons.more aria-hidden />}
                 />
               </DropdownMenuTrigger>
@@ -239,7 +258,7 @@ function Ready({
                     setNewSection(true);
                   }}
                 >
-                  New section
+                  {tr('library.library.new_section', 'New section')}
                 </DropdownMenuItem>
                 {data.viewer.hr && props.onGenerateLetters !== undefined ? (
                   <DropdownMenuItem
@@ -247,7 +266,7 @@ function Ready({
                       setLettering(true);
                     }}
                   >
-                    Generate letters
+                    {tr('library.library.generate_letters', 'Generate letters')}
                   </DropdownMenuItem>
                 ) : null}
                 {data.viewer.hr && props.onProposeSplit !== undefined ? (
@@ -256,7 +275,7 @@ function Ready({
                       setSplitting(true);
                     }}
                   >
-                    Split a scan
+                    {tr('library.library.split_a_scan', 'Split a scan')}
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuSeparator />
@@ -265,7 +284,9 @@ function Ready({
                     props.onFilter?.({ deleted: data.deleted ? null : 'true', queue: null });
                   }}
                 >
-                  {data.deleted ? 'Back to documents' : 'Deleted'}
+                  {data.deleted
+                    ? tr('library.library.back_to_documents', 'Back to documents')
+                    : tr('library.library.deleted', 'Deleted')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -274,8 +295,8 @@ function Ready({
       />
 
       <Input
-        aria-label="Search documents"
-        placeholder="Search documents"
+        aria-label={tr('library.library.search_documents', 'Search documents')}
+        placeholder={tr('library.library.search_documents', 'Search documents')}
         startAdornment={<icons.search aria-hidden />}
         value={query}
         onChange={(e) => {
@@ -293,12 +314,18 @@ function Ready({
           startIcon={<icons.assistant aria-hidden />}
           onClick={askAcross}
         >
-          Ask Kithena
+          {tr('library.library.ask_kithena', 'Ask Kithena')}
         </Button>
       ) : null}
       {answer === null ? null : answer.a === null ? (
         answer.error === undefined ? (
-          <Spinner size="sm" label="Kithena is reading your documents" />
+          <Spinner
+            size="sm"
+            label={tr(
+              'library.library.kithena_is_reading_your_documents',
+              'Kithena is reading your documents',
+            )}
+          />
         ) : (
           <Alert tone="danger">{answer.error}</Alert>
         )
@@ -321,7 +348,7 @@ function Ready({
       {data.needsYou.length > 0 && !data.deleted ? (
         <section className="flex flex-col gap-3" aria-labelledby="needs-you">
           <h2 id="needs-you" className="text-md font-semibold">
-            Needs you{' '}
+            {tr('library.library.needs_you', 'Needs you')}{' '}
             <Badge tone="accent" size="sm">
               {data.needsYou.length}
             </Badge>
@@ -342,7 +369,12 @@ function Ready({
                   )
                 }
                 iconTone="accent"
-                description={[n.detail, n.dueOn === null ? null : `Due ${shortDate(n.dueOn)}`]
+                description={[
+                  n.detail,
+                  n.dueOn === null
+                    ? null
+                    : tr('library.library.due', 'Due {{dueOn}}', { dueOn: shortDate(n.dueOn) }),
+                ]
                   .filter(Boolean)
                   .join(' · ')}
                 trailing={
@@ -358,7 +390,7 @@ function Ready({
                         });
                       }}
                     >
-                      Add it
+                      {tr('library.library.add_it', 'Add it')}
                     </Button>
                   ) : n.kind === 'sign' || n.kind === 'acknowledge' ? (
                     <Button size="sm" variant="primary" asChild>
@@ -369,7 +401,9 @@ function Ready({
                             : href(n.documentId ?? '')
                         }
                       >
-                        {n.kind === 'sign' ? 'Review and sign' : 'Read it'}
+                        {n.kind === 'sign'
+                          ? tr('library.library.review_and_sign', 'Review and sign')
+                          : tr('library.library.read_it', 'Read it')}
                       </a>
                     </Button>
                   ) : (
@@ -389,7 +423,10 @@ function Ready({
       {data.queue !== null && !data.deleted ? (
         <QueueList data={data} {...props} />
       ) : (
-        <section className="flex flex-col gap-3" aria-label="Every document">
+        <section
+          className="flex flex-col gap-3"
+          aria-label={tr('library.library.every_document', 'Every document')}
+        >
           <div className="flex flex-wrap items-center gap-3">
             <ShowPicker
               data={data}
@@ -402,16 +439,26 @@ function Ready({
           {data.rows.length === 0 ? (
             <EmptyState
               icon={<icons.folder />}
-              title={data.q === '' ? 'Nothing here yet' : `Nothing matches “${data.q}”`}
+              title={
+                data.q === ''
+                  ? tr('library.library.nothing_here_yet', 'Nothing here yet')
+                  : tr('library.library.nothing_matches', 'Nothing matches “{{q}}”', { q: data.q })
+              }
               description={
                 data.deleted
-                  ? 'Nothing has been deleted in the last 30 days.'
-                  : 'Add a document, or choose another section.'
+                  ? tr(
+                      'library.library.nothing_has_been_deleted_in_the',
+                      'Nothing has been deleted in the last 30 days.',
+                    )
+                  : tr(
+                      'library.library.add_a_document_or_choose_another',
+                      'Add a document, or choose another section.',
+                    )
               }
             />
           ) : (
             <DataTable<Row>
-              label="Documents"
+              label={tr('library.library.documents', 'Documents')}
               rows={data.rows}
               rowId={rowId}
               describeRow={rowTitle}
@@ -540,7 +587,7 @@ function AccessDecision({
           write.run(() => onDecide?.(id, false) ?? Promise.resolve({ ok: true }));
         }}
       >
-        Refuse
+        {tr('library.library.refuse', 'Refuse')}
       </Button>
       <Button
         size="sm"
@@ -550,7 +597,7 @@ function AccessDecision({
           write.run(() => onDecide?.(id, true) ?? Promise.resolve({ ok: true }));
         }}
       >
-        Grant
+        {tr('library.library.grant', 'Grant')}
       </Button>
     </div>
   );
@@ -565,7 +612,11 @@ function Tiles({
   readonly onFilter: LibraryProps['onFilter'];
 }): JSX.Element {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4" role="list" aria-label="Queues">
+    <div
+      className="grid grid-cols-2 gap-3 md:grid-cols-4"
+      role="list"
+      aria-label={tr('library.library.queues', 'Queues')}
+    >
       {data.tiles.map((t) => {
         const on = data.queue === t.key;
         return (
@@ -599,10 +650,10 @@ function Tiles({
 }
 
 const QUEUE_TITLES: Record<QueueKey, string> = {
-  to_sign: 'Waiting for a signature',
-  expiring: 'Expiring in 60 days',
-  missing: 'Missing from people’s files',
-  to_delete: 'Retention ended',
+  to_sign: tr('library.library.waiting_for_a_signature', 'Waiting for a signature'),
+  expiring: tr('library.library.expiring_in_60_days', 'Expiring in 60 days'),
+  missing: tr('library.library.missing_from_peoples_files', 'Missing from people’s files'),
+  to_delete: tr('library.library.retention_ended', 'Retention ended'),
 };
 
 function QueueList({
@@ -623,7 +674,7 @@ function QueueList({
         <Badge
           tone="accent"
           onRemove={() => props.onFilter?.({ queue: null })}
-          removeLabel="Show every document"
+          removeLabel={tr('library.library.show_every_document', 'Show every document')}
         >
           {QUEUE_TITLES[queue]}
         </Badge>
@@ -638,17 +689,20 @@ function QueueList({
               );
             }}
           >
-            Delete {deletable.length}
+            {tr('library.library.delete', 'Delete')} {deletable.length}
           </Button>
         ) : null}
       </div>
       {write.error === null ? null : (
-        <Alert tone="danger" title="Not deleted">
+        <Alert tone="danger" title={tr('library.library.not_deleted', 'Not deleted')}>
           {write.error}
         </Alert>
       )}
       {data.queueRows.length === 0 ? (
-        <EmptyState icon={<icons.success />} title="Nothing in this queue" />
+        <EmptyState
+          icon={<icons.success />}
+          title={tr('library.library.nothing_in_this_queue', 'Nothing in this queue')}
+        />
       ) : (
         <List>
           {data.queueRows.map((r) => (
@@ -668,12 +722,14 @@ function QueueList({
                 queue === 'to_sign' ? (
                   <Button size="sm" variant={r.action === 'sign' ? 'primary' : 'secondary'} asChild>
                     <a href={`/documents/envelopes/${r.requestId}`}>
-                      {r.action === 'sign' ? 'Sign' : 'Open'}
+                      {r.action === 'sign'
+                        ? tr('library.library.sign', 'Sign')
+                        : tr('library.library.open', 'Open')}
                     </a>
                   </Button>
                 ) : r.action === 'view' && r.documentId !== null ? (
                   <Button size="sm" variant="secondary" asChild>
-                    <a href={href(r.documentId)}>Open</a>
+                    <a href={href(r.documentId)}>{tr('library.library.open', 'Open')}</a>
                   </Button>
                 ) : r.action === 'remind' && r.requestId !== null ? (
                   <Remind id={r.requestId} onRemind={props.onRemind} />
@@ -691,11 +747,11 @@ function QueueList({
                       }
                     }}
                   >
-                    Ask
+                    {tr('library.library.ask', 'Ask')}
                   </Button>
                 ) : r.documentId === null ? null : (
                   <Badge tone={r.tone} size="sm">
-                    {r.dueOn === null ? 'Due' : shortDate(r.dueOn)}
+                    {r.dueOn === null ? tr('library.library.due_2', 'Due') : shortDate(r.dueOn)}
                   </Badge>
                 )
               }
@@ -749,7 +805,7 @@ export function Remind({
         );
       }}
     >
-      {sent ? 'Reminded' : 'Remind'}
+      {sent ? tr('library.library.reminded', 'Reminded') : tr('library.library.remind', 'Remind')}
     </Button>
   );
 }
@@ -783,14 +839,20 @@ export function AskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Ask {first} for a document</DialogTitle>
+          <DialogTitle>
+            {tr('library.library.ask_for_a_document', 'Ask {{first}} for a document', { first })}
+          </DialogTitle>
           <DialogDescription>
-            {first} gets a task in their Inbox; their upload is filed and ticked off here.
+            {first}{' '}
+            {tr(
+              'library.library.gets_a_task_in_their_inbox',
+              'gets a task in their Inbox; their upload is filed and ticked off here.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Document</FieldLabel>
+            <FieldLabel>{tr('library.library.document', 'Document')}</FieldLabel>
             <Select value={key} onValueChange={setKey}>
               <FieldControl>
                 <SelectTrigger>
@@ -809,7 +871,7 @@ export function AskDialog({
             </Select>
           </Field>
           <Field>
-            <FieldLabel>Message</FieldLabel>
+            <FieldLabel>{tr('library.library.message', 'Message')}</FieldLabel>
             <FieldControl>
               <Input
                 value={message}
@@ -821,7 +883,7 @@ export function AskDialog({
             </FieldControl>
           </Field>
           {write.error === null ? null : (
-            <Alert tone="danger" title="Not sent">
+            <Alert tone="danger" title={tr('library.library.not_sent', 'Not sent')}>
               {write.error}
             </Alert>
           )}
@@ -833,7 +895,7 @@ export function AskDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {tr('library.library.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -849,7 +911,7 @@ export function AskDialog({
               );
             }}
           >
-            Send
+            {tr('library.library.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -877,23 +939,33 @@ function ShowPicker({
         else onShow(v);
       }}
     >
-      <SelectTrigger aria-label="Show" className="min-w-56">
+      <SelectTrigger aria-label={tr('library.library.show', 'Show')} className="min-w-56">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          <SelectItem value="all">All documents</SelectItem>
-          <SelectItem value="about-me">About me</SelectItem>
-          <SelectItem value="shared">Shared with me</SelectItem>
-          <SelectItem value="mine">My own</SelectItem>
-          <SelectItem value="company">Company</SelectItem>
-          {data.viewer.hr ? <SelectItem value="people">People files</SelectItem> : null}
+          <SelectItem value="all">
+            {tr('library.library.all_documents', 'All documents')}
+          </SelectItem>
+          <SelectItem value="about-me">{tr('library.library.about_me', 'About me')}</SelectItem>
+          <SelectItem value="shared">
+            {tr('library.library.shared_with_me', 'Shared with me')}
+          </SelectItem>
+          <SelectItem value="mine">{tr('library.library.my_own', 'My own')}</SelectItem>
+          <SelectItem value="company">{tr('library.library.company', 'Company')}</SelectItem>
+          {data.viewer.hr ? (
+            <SelectItem value="people">
+              {tr('library.library.people_files', 'People files')}
+            </SelectItem>
+          ) : null}
         </SelectGroup>
         {company.length === 0 ? null : (
           <>
             <SelectSeparator />
             <SelectGroup>
-              <SelectLabel>Company · set up by HR</SelectLabel>
+              <SelectLabel>
+                {tr('library.library.company_set_up_by_hr', 'Company · set up by HR')}
+              </SelectLabel>
               {company.map((s) => (
                 <SelectItem key={s.id} value={`section:${s.id}`}>
                   {s.name} ({s.count})
@@ -904,13 +976,17 @@ function ShowPicker({
         )}
         <SelectSeparator />
         <SelectGroup>
-          <SelectLabel>Yours · only you see these</SelectLabel>
+          <SelectLabel>
+            {tr('library.library.yours_only_you_see_these', 'Yours · only you see these')}
+          </SelectLabel>
           {mine.map((s) => (
             <SelectItem key={s.id} value={`section:${s.id}`}>
               {s.name} ({s.count})
             </SelectItem>
           ))}
-          <SelectItem value="__new">New section…</SelectItem>
+          <SelectItem value="__new">
+            {tr('library.library.new_section_2', 'New section…')}
+          </SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>
@@ -940,7 +1016,7 @@ function documentColumns(ctx: RowContext): readonly DataColumn<Row>[] {
   return [
     {
       id: 'name',
-      header: 'Name',
+      header: tr('library.library.name', 'Name'),
       sortBy: (row) => row.title,
       cell: (row) => (
         <div className="flex min-w-0 items-center gap-3">
@@ -964,34 +1040,34 @@ function documentColumns(ctx: RowContext): readonly DataColumn<Row>[] {
     },
     {
       id: 'access',
-      header: 'Access',
+      header: tr('library.library.access', 'Access'),
       hideOnCard: true,
       sortBy: (row) => row.level,
       cell: (row) => <AccessBadge row={row} />,
     },
     {
       id: 'who',
-      header: 'Who can see it',
+      header: tr('library.library.who_can_see_it', 'Who can see it'),
       hideOnCard: true,
       sortBy: (row) => row.who.label,
       cell: (row) => <span className="text-sm text-fg-muted">{row.who.label}</span>,
     },
     {
       id: 'updated',
-      header: 'Updated',
+      header: tr('library.library.updated', 'Updated'),
       sortBy: (row) => row.updatedAt,
       cell: (row) => <span className="text-sm text-fg-muted">{shortDate(row.updatedAt)}</span>,
     },
     {
       id: 'status',
-      header: 'Status',
+      header: tr('library.library.status', 'Status'),
       cardTrailing: true,
       sortBy: (row) => row.status?.label ?? '',
       cell: (row) => <RowStatus row={row} />,
     },
     {
       id: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: <span className="sr-only">{tr('library.library.actions', 'Actions')}</span>,
       width: '3rem',
       cell: (row) => <RowActions row={row} ctx={ctx} open={open(row.id)} />,
     },
@@ -1032,7 +1108,7 @@ function RowActions({
           write.run(() => ctx.onRestore?.(row.id) ?? Promise.resolve({ ok: true }));
         }}
       >
-        Restore
+        {tr('library.library.restore', 'Restore')}
       </Button>
     );
   }
@@ -1043,14 +1119,14 @@ function RowActions({
         <Button
           variant="ghost"
           size="sm"
-          aria-label={`More for ${row.title}`}
+          aria-label={tr('library.library.more_for', 'More for {{title}}', { title: row.title })}
           startIcon={<icons.more aria-hidden />}
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem asChild>
           <a href={href(row.id)} onClick={open}>
-            Open
+            {tr('library.library.open', 'Open')}
           </a>
         </DropdownMenuItem>
         {row.mine && !row.aboutMe ? (
@@ -1059,7 +1135,7 @@ function RowActions({
               ctx.onShare({ id: row.id, title: row.title });
             }}
           >
-            Share…
+            {tr('library.library.share', 'Share…')}
           </DropdownMenuItem>
         ) : null}
         {signing?.canRemind === true && onRemindSigners !== undefined ? (
@@ -1075,8 +1151,12 @@ function RowActions({
             }}
           >
             {reminded
-              ? `Reminder sent to ${signing.waitingOn.join(', ')}`
-              : `Send reminder email to ${signing.waitingOn.join(', ') || 'the next signer'}`}
+              ? tr('library.library.reminder_sent_to', 'Reminder sent to {{join}}', {
+                  join: signing.waitingOn.join(', '),
+                })
+              : tr('library.library.send_reminder_email_to', 'Send reminder email to {{value}}', {
+                  value: signing.waitingOn.join(', ') || 'the next signer',
+                })}
           </DropdownMenuItem>
         ) : null}
         {mine.length === 0 ? null : <DropdownMenuSeparator />}
@@ -1093,7 +1173,9 @@ function RowActions({
                 );
               }}
             >
-              {inIt ? `Remove from ${s.name}` : `Add to ${s.name}`}
+              {inIt
+                ? tr('library.library.remove_from', 'Remove from {{name}}', { name: s.name })
+                : tr('library.library.add_to', 'Add to {{name}}', { name: s.name })}
             </DropdownMenuItem>
           );
         })}
@@ -1111,20 +1193,26 @@ function SigningBadge({ signing }: { readonly signing: NonNullable<Row['signing'
   if (signing.status === 'completed') {
     return (
       <Badge tone="success" size="sm">
-        {`All ${String(signing.of)} signed`}
+        {tr('library.library.all_signed', 'All {{of}} signed', { of: String(signing.of) })}
       </Badge>
     );
   }
   if (signing.status !== 'sent') {
     return (
       <Badge tone="neutral" size="sm">
-        {signing.status === 'voided' ? 'Signing cancelled' : 'Signing declined'}
+        {signing.status === 'voided'
+          ? tr('library.library.signing_cancelled', 'Signing cancelled')
+          : tr('library.library.signing_declined', 'Signing declined')}
       </Badge>
     );
   }
   return (
     <Badge tone="warning" size="sm">
-      {`${String(signing.signed)} of ${String(signing.of)} signed · ${String(pending)} pending`}
+      {tr(
+        'library.library.of_signed_pending',
+        '{{signed}} of {{of}} signed · {{pending}} pending',
+        { signed: String(signing.signed), of: String(signing.of), pending: String(pending) },
+      )}
     </Badge>
   );
 }
@@ -1150,16 +1238,22 @@ function NewSection({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New section</DialogTitle>
+          <DialogTitle>{tr('library.library.new_section', 'New section')}</DialogTitle>
           <DialogDescription>
             {kind === 'personal'
-              ? 'Only you see it. Documents keep their own access.'
-              : 'Everyone sees it, with only the documents each of them can open.'}
+              ? tr(
+                  'library.library.only_you_see_it_documents_keep',
+                  'Only you see it. Documents keep their own access.',
+                )
+              : tr(
+                  'library.library.everyone_sees_it_with_only_the',
+                  'Everyone sees it, with only the documents each of them can open.',
+                )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('library.library.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={name}
@@ -1172,7 +1266,7 @@ function NewSection({
           </Field>
           {hr ? (
             <Field>
-              <FieldLabel>For</FieldLabel>
+              <FieldLabel>{tr('library.library.for', 'For')}</FieldLabel>
               <Select
                 value={kind}
                 onValueChange={(v) => {
@@ -1185,14 +1279,18 @@ function NewSection({
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
-                  <SelectItem value="personal">Only me</SelectItem>
-                  <SelectItem value="company">The company</SelectItem>
+                  <SelectItem value="personal">
+                    {tr('library.library.only_me', 'Only me')}
+                  </SelectItem>
+                  <SelectItem value="company">
+                    {tr('library.library.the_company', 'The company')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </Field>
           ) : null}
           {write.error === null ? null : (
-            <Alert tone="danger" title="Not created">
+            <Alert tone="danger" title={tr('library.library.not_created', 'Not created')}>
               {write.error}
             </Alert>
           )}
@@ -1204,7 +1302,7 @@ function NewSection({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {tr('library.library.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -1222,7 +1320,7 @@ function NewSection({
               });
             }}
           >
-            Create
+            {tr('library.library.create', 'Create')}
           </Button>
         </DialogFooter>
       </DialogContent>

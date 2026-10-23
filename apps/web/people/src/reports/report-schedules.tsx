@@ -41,6 +41,7 @@ import { useState, type JSX } from 'react';
 
 import { useHeld } from '../held';
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * Scheduled reports (PEO-069; PRD §16.3): HR's list, the form, pause and
@@ -138,48 +139,85 @@ export interface ReportSchedulesProps {
 }
 
 /** The sentence every place that names recipients says. */
-export const EACH_SEES_THEIR_OWN =
-  'Each recipient sees only the people and columns they have access to.';
+export const EACH_SEES_THEIR_OWN = t(
+  'reports.report-schedules.each_recipient_sees_only_the_people',
+  'Each recipient sees only the people and columns they have access to.',
+);
 
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAYS = [
+  t('reports.report-schedules.monday', 'Monday'),
+  t('reports.report-schedules.tuesday', 'Tuesday'),
+  t('reports.report-schedules.wednesday', 'Wednesday'),
+  t('reports.report-schedules.thursday', 'Thursday'),
+  t('reports.report-schedules.friday', 'Friday'),
+  t('reports.report-schedules.saturday', 'Saturday'),
+  t('reports.report-schedules.sunday', 'Sunday'),
+];
 const hh = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
 
 /** Who gets it, short enough for one line: two names, then how many more. */
 export function recipientsText(row: Pick<ScheduleRow, 'recipients'>): string {
-  const names = row.recipients.map((r) => r.name ?? 'Somebody who has left');
+  const names = row.recipients.map(
+    (r) => r.name ?? t('reports.report-schedules.somebody_who_has_left', 'Somebody who has left'),
+  );
   if (names.length <= 2) return names.join(', ');
-  return `${names.slice(0, 2).join(', ')} and ${String(names.length - 2)} more`;
+  return t('reports.report-schedules.and_more', '{{join}} and {{value}} more', {
+    join: names.slice(0, 2).join(', '),
+    value: String(names.length - 2),
+  });
 }
 
 export function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
   if (r.every === 'week')
-    return `Weekly on ${WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday'} at ${hh(r.hour)}`;
-  if (r.every === 'month') return `Monthly on day ${String(r.day ?? 1)} at ${hh(r.hour)}`;
-  return `Daily at ${hh(r.hour)}`;
+    return t('reports.report-schedules.weekly_on_at', 'Weekly on {{value}} at {{hh}}', {
+      value: WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday',
+      hh: hh(r.hour),
+    });
+  if (r.every === 'month')
+    return t('reports.report-schedules.monthly_on_day_at', 'Monthly on day {{value}} at {{hh}}', {
+      value: String(r.day ?? 1),
+      hh: hh(r.hour),
+    });
+  return t('reports.report-schedules.daily_at', 'Daily at {{hh}}', { hh: hh(r.hour) });
 }
 
 const reportText = (r: ScheduleRow): string =>
-  r.kind === 'summary' ? 'Summary' : r.format === 'pdf' ? 'PDF roster' : 'Excel file';
+  r.kind === 'summary'
+    ? t('reports.report-schedules.summary', 'Summary')
+    : r.format === 'pdf'
+      ? t('reports.report-schedules.pdf_roster', 'PDF roster')
+      : t('reports.report-schedules.excel_file', 'Excel file');
 
 const audienceText = (r: ScheduleRow): string =>
   r.segmentId !== null
-    ? (r.segmentName ?? 'A segment you cannot see')
+    ? (r.segmentName ??
+      t('reports.report-schedules.a_segment_you_cannot_see', 'A segment you cannot see'))
     : r.filter.length > 0
-      ? r.filter.map((c) => `${c.key}: ${c.value}`).join(', ')
-      : 'Everybody';
+      ? r.filter
+          .map((c) =>
+            t('reports.report-schedules.text', '{{key}}: {{value}}', {
+              key: c.key,
+              value: c.value,
+            }),
+          )
+          .join(', ')
+      : t('reports.report-schedules.everybody', 'Everybody');
 
 export const RUN_OUTCOME: Record<
   string,
   { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
 > = {
-  sent: { label: 'Sent', tone: 'success' },
-  partial: { label: 'Partly sent', tone: 'warning' },
-  failed: { label: 'Failed', tone: 'danger' },
-  skipped: { label: 'Skipped', tone: 'neutral' },
+  sent: { label: t('reports.report-schedules.sent', 'Sent'), tone: 'success' },
+  partial: { label: t('reports.report-schedules.partly_sent', 'Partly sent'), tone: 'warning' },
+  failed: { label: t('reports.report-schedules.failed', 'Failed'), tone: 'danger' },
+  skipped: { label: t('reports.report-schedules.skipped', 'Skipped'), tone: 'neutral' },
 };
 const outcomeOf = (outcome: string | null) =>
   outcome === null
-    ? { label: 'Did not finish', tone: 'neutral' as const }
+    ? {
+        label: t('reports.report-schedules.did_not_finish', 'Did not finish'),
+        tone: 'neutral' as const,
+      }
     : (RUN_OUTCOME[outcome] ?? { label: outcome, tone: 'neutral' as const });
 
 export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
@@ -194,9 +232,11 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   );
 }
 
-const TITLE = 'Scheduled reports';
-const ABOUT =
-  'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.';
+const TITLE = t('reports.report-schedules.scheduled_reports', 'Scheduled reports');
+const ABOUT = t(
+  'reports.report-schedules.a_file_or_the_summary_emailed',
+  'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.',
+);
 
 /**
  * The one list of schedules: the Schedules button on every Insights tab opens
@@ -222,7 +262,7 @@ function Schedules({
     state.canManage
       ? {
           id: 'create',
-          label: 'New scheduled report',
+          label: t('reports.report-schedules.new_scheduled_report', 'New scheduled report'),
           run: () => {
             setOpen('new');
           },
@@ -234,7 +274,12 @@ function Schedules({
     return (
       <>
         <PageHeader title={TITLE} description={ABOUT} />
-        <Alert tone="info">Only HR and People administrators schedule reports.</Alert>
+        <Alert tone="info">
+          {t(
+            'reports.report-schedules.only_hr_and_people_administrators_schedule',
+            'Only HR and People administrators schedule reports.',
+          )}
+        </Alert>
       </>
     );
   }
@@ -263,12 +308,12 @@ function Schedules({
               setOpen('new');
             }}
           >
-            New scheduled report
+            {t('reports.report-schedules.new_scheduled_report', 'New scheduled report')}
           </Button>
         }
       />
       {refused === null ? null : (
-        <Alert tone="danger" title="Not changed">
+        <Alert tone="danger" title={t('reports.report-schedules.not_changed', 'Not changed')}>
           {refused}
         </Alert>
       )}
@@ -280,14 +325,17 @@ function Schedules({
         rowMenuOnCard
         empty={
           <EmptyState
-            title="No scheduled reports"
-            description="Schedule an Excel file, a PDF roster or the summary for the people who need it."
+            title={t('reports.report-schedules.no_scheduled_reports', 'No scheduled reports')}
+            description={t(
+              'reports.report-schedules.schedule_an_excel_file_a_pdf',
+              'Schedule an Excel file, a PDF roster or the summary for the people who need it.',
+            )}
           />
         }
         columns={[
           {
             id: 'report',
-            header: 'Report',
+            header: t('reports.report-schedules.report', 'Report'),
             cell: (row) => (
               <span className="flex flex-col">
                 <span className="font-semibold">{row.name}</span>
@@ -297,13 +345,26 @@ function Schedules({
               </span>
             ),
           },
-          { id: 'when', header: 'When', cell: (row) => cadenceText(row) },
-          { id: 'recipients', header: 'Recipients', cell: (row) => recipientsText(row) },
+          {
+            id: 'when',
+            header: t('reports.report-schedules.when', 'When'),
+            cell: (row) => cadenceText(row),
+          },
+          {
+            id: 'recipients',
+            header: t('reports.report-schedules.recipients', 'Recipients'),
+            cell: (row) => recipientsText(row),
+          },
           {
             id: 'last',
-            header: 'Last run',
+            header: t('reports.report-schedules.last_run', 'Last run'),
             cell: (row) => {
-              if (row.lastRun === null) return <span className="text-fg-muted">Not yet</span>;
+              if (row.lastRun === null)
+                return (
+                  <span className="text-fg-muted">
+                    {t('reports.report-schedules.not_yet', 'Not yet')}
+                  </span>
+                );
               const last = outcomeOf(row.lastRun.outcome);
               return (
                 <span className="inline-flex flex-wrap items-center gap-2">
@@ -317,14 +378,14 @@ function Schedules({
           },
           {
             id: 'status',
-            header: 'Status',
+            header: t('reports.report-schedules.status', 'Status'),
             cardTrailing: true,
             cell: (row) =>
               row.paused ? (
-                <Badge size="sm">Paused</Badge>
+                <Badge size="sm">{t('reports.report-schedules.paused', 'Paused')}</Badge>
               ) : (
                 <Badge size="sm" tone="success">
-                  Active
+                  {t('reports.report-schedules.active', 'Active')}
                 </Badge>
               ),
           },
@@ -332,7 +393,7 @@ function Schedules({
         rowActions={(row) => [
           {
             id: 'edit',
-            label: 'Edit',
+            label: t('reports.report-schedules.edit', 'Edit'),
             icon: <icons.edit aria-hidden />,
             onSelect: () => {
               setOpen(row.id);
@@ -340,7 +401,9 @@ function Schedules({
           },
           {
             id: 'pause',
-            label: row.paused ? 'Resume' : 'Pause',
+            label: row.paused
+              ? t('reports.report-schedules.resume', 'Resume')
+              : t('reports.report-schedules.pause', 'Pause'),
             icon: row.paused ? <icons.play aria-hidden /> : <icons.pause aria-hidden />,
             onSelect: () => {
               act(row.paused ? onResume(row.id) : onPause(row.id));
@@ -348,7 +411,7 @@ function Schedules({
           },
           {
             id: 'history',
-            label: 'History',
+            label: t('reports.report-schedules.history', 'History'),
             icon: <icons.history aria-hidden />,
             onSelect: () => {
               history(row);
@@ -356,7 +419,7 @@ function Schedules({
           },
           {
             id: 'delete',
-            label: 'Delete',
+            label: t('reports.report-schedules.delete', 'Delete'),
             icon: <icons.delete aria-hidden />,
             destructive: true,
             onSelect: () => {
@@ -374,7 +437,9 @@ function Schedules({
           onClose={() => {
             setOpen(null);
           }}
-          onSave={(draft) => (editingRow === null ? onCreate(draft) : onUpdate(editingRow.id, draft))}
+          onSave={(draft) =>
+            editingRow === null ? onCreate(draft) : onUpdate(editingRow.id, draft)
+          }
         />
       ) : null}
       <DeleteSchedule
@@ -408,13 +473,18 @@ export function DeleteSchedule({
       }}
     >
       <AlertDialogContent>
-        <AlertDialogTitle>Delete {row?.name}?</AlertDialogTitle>
+        <AlertDialogTitle>
+          {t('reports.report-schedules.delete', 'Delete')} {row?.name}?
+        </AlertDialogTitle>
         <AlertDialogDescription>
-          Nobody will receive it again, and its run history is deleted with it.
+          {t(
+            'reports.report-schedules.nobody_will_receive_it_again_and',
+            'Nobody will receive it again, and its run history is deleted with it.',
+          )}
         </AlertDialogDescription>
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
-            <Button>Cancel</Button>
+            <Button>{t('reports.report-schedules.cancel', 'Cancel')}</Button>
           </AlertDialogCancel>
           <Button
             variant="destructive"
@@ -423,7 +493,7 @@ export function DeleteSchedule({
               onClose();
             }}
           >
-            Delete
+            {t('reports.report-schedules.delete', 'Delete')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -511,15 +581,22 @@ export function ScheduleForm({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{row === null ? 'New scheduled report' : `Edit ${row.name}`}</DialogTitle>
+            <DialogTitle>
+              {row === null
+                ? t('reports.report-schedules.new_scheduled_report', 'New scheduled report')
+                : t('reports.report-schedules.edit_2', 'Edit {{name}}', { name: row.name })}
+            </DialogTitle>
             <DialogDescription>
-              It first goes out at its next time, not when it is saved.
+              {t(
+                'reports.report-schedules.it_first_goes_out_at_its',
+                'It first goes out at its next time, not when it is saved.',
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={4}>
               <Field required>
-                <FieldLabel>Name</FieldLabel>
+                <FieldLabel>{t('reports.report-schedules.name', 'Name')}</FieldLabel>
                 <FieldControl>
                   <Input
                     value={draft.name}
@@ -530,41 +607,59 @@ export function ScheduleForm({
                   />
                 </FieldControl>
                 <FieldDescription>
-                  Only you and other HR see it; it is not in the email.
+                  {t(
+                    'reports.report-schedules.only_you_and_other_hr_see',
+                    'Only you and other HR see it; it is not in the email.',
+                  )}
                 </FieldDescription>
               </Field>
 
               <RadioGroup
-                aria-label="Report"
+                aria-label={t('reports.report-schedules.report', 'Report')}
                 value={draft.kind === 'summary' ? 'summary' : draft.format}
                 onValueChange={(value) => {
                   if (value === 'summary') set({ kind: 'summary', segmentId: null, filter: [] });
                   else set({ kind: 'export', format: value as 'xlsx' | 'pdf' });
                 }}
               >
-                <RadioCard value="xlsx" description="For a person to read and edit.">
-                  Excel file
+                <RadioCard
+                  value="xlsx"
+                  description={t(
+                    'reports.report-schedules.for_a_person_to_read_and',
+                    'For a person to read and edit.',
+                  )}
+                >
+                  {t('reports.report-schedules.excel_file', 'Excel file')}
                 </RadioCard>
-                <RadioCard value="pdf" description="To print or file.">
-                  PDF roster
+                <RadioCard
+                  value="pdf"
+                  description={t('reports.report-schedules.to_print_or_file', 'To print or file.')}
+                >
+                  {t('reports.report-schedules.pdf_roster', 'PDF roster')}
                 </RadioCard>
                 <RadioCard
                   value="summary"
-                  description="Headcount, movement and completeness, read signed in."
+                  description={t(
+                    'reports.report-schedules.headcount_movement_and_completeness_read_signed',
+                    'Headcount, movement and completeness, read signed in.',
+                  )}
                 >
-                  Summary
+                  {t('reports.report-schedules.summary', 'Summary')}
                 </RadioCard>
               </RadioGroup>
 
               {draft.kind === 'export' ? (
                 <>
                   <Field>
-                    <FieldLabel>Fields</FieldLabel>
+                    <FieldLabel>{t('reports.report-schedules.fields', 'Fields')}</FieldLabel>
                     <FieldControl>
                       <Combobox
-                        label="Fields"
+                        label={t('reports.report-schedules.fields', 'Fields')}
                         multiple
-                        placeholder="Every field each recipient may read"
+                        placeholder={t(
+                          'reports.report-schedules.every_field_each_recipient_may_read',
+                          'Every field each recipient may read',
+                        )}
                         options={state.fields.map((f) => ({
                           value: f.key,
                           label: f.label,
@@ -578,12 +673,14 @@ export function ScheduleForm({
                       />
                     </FieldControl>
                     <FieldDescription>
-                      Leave empty for every field. A recipient who cannot read a field gets the file
-                      without it.
+                      {t(
+                        'reports.report-schedules.leave_empty_for_every_field_a',
+                        'Leave empty for every field. A recipient who cannot read a field gets the file without it.',
+                      )}
                     </FieldDescription>
                   </Field>
                   <Field>
-                    <FieldLabel>Reason</FieldLabel>
+                    <FieldLabel>{t('reports.report-schedules.reason', 'Reason')}</FieldLabel>
                     <FieldControl>
                       <Input
                         value={draft.reason ?? ''}
@@ -594,14 +691,17 @@ export function ScheduleForm({
                       />
                     </FieldControl>
                     <FieldDescription>
-                      Needed when pay or a bank account is in the file; kept with every run.
+                      {t(
+                        'reports.report-schedules.needed_when_pay_or_a_bank',
+                        'Needed when pay or a bank account is in the file; kept with every run.',
+                      )}
                     </FieldDescription>
                   </Field>
                 </>
               ) : null}
 
               <Field>
-                <FieldLabel>About</FieldLabel>
+                <FieldLabel>{t('reports.report-schedules.about', 'About')}</FieldLabel>
                 <Select
                   value={audience}
                   onValueChange={(value) => {
@@ -615,9 +715,19 @@ export function ScheduleForm({
                     </SelectTrigger>
                   </FieldControl>
                   <SelectContent>
-                    <SelectItem value={EVERYBODY}>Everybody each recipient may see</SelectItem>
+                    <SelectItem value={EVERYBODY}>
+                      {t(
+                        'reports.report-schedules.everybody_each_recipient_may_see',
+                        'Everybody each recipient may see',
+                      )}
+                    </SelectItem>
                     {row !== null && row.filter.length > 0 ? (
-                      <SelectItem value={SAVED_FILTER}>The filter it was saved with</SelectItem>
+                      <SelectItem value={SAVED_FILTER}>
+                        {t(
+                          'reports.report-schedules.the_filter_it_was_saved_with',
+                          'The filter it was saved with',
+                        )}
+                      </SelectItem>
                     ) : null}
                     {segments.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
@@ -630,7 +740,7 @@ export function ScheduleForm({
 
               <div className="flex flex-wrap gap-4">
                 <Field>
-                  <FieldLabel>How often</FieldLabel>
+                  <FieldLabel>{t('reports.report-schedules.how_often', 'How often')}</FieldLabel>
                   <Select
                     value={draft.every}
                     onValueChange={(value) => {
@@ -643,15 +753,21 @@ export function ScheduleForm({
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      <SelectItem value="day">Daily</SelectItem>
-                      <SelectItem value="week">Weekly</SelectItem>
-                      <SelectItem value="month">Monthly</SelectItem>
+                      <SelectItem value="day">
+                        {t('reports.report-schedules.daily', 'Daily')}
+                      </SelectItem>
+                      <SelectItem value="week">
+                        {t('reports.report-schedules.weekly', 'Weekly')}
+                      </SelectItem>
+                      <SelectItem value="month">
+                        {t('reports.report-schedules.monthly', 'Monthly')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
                 {draft.every === 'week' ? (
                   <Field>
-                    <FieldLabel>On</FieldLabel>
+                    <FieldLabel>{t('reports.report-schedules.on', 'On')}</FieldLabel>
                     <Select
                       value={String(draft.weekday)}
                       onValueChange={(value) => {
@@ -675,7 +791,9 @@ export function ScheduleForm({
                 ) : null}
                 {draft.every === 'month' ? (
                   <Field>
-                    <FieldLabel>Day of the month</FieldLabel>
+                    <FieldLabel>
+                      {t('reports.report-schedules.day_of_the_month', 'Day of the month')}
+                    </FieldLabel>
                     <Select
                       value={String(draft.day)}
                       onValueChange={(value) => {
@@ -698,7 +816,7 @@ export function ScheduleForm({
                   </Field>
                 ) : null}
                 <Field>
-                  <FieldLabel>At</FieldLabel>
+                  <FieldLabel>{t('reports.report-schedules.at', 'At')}</FieldLabel>
                   <Select
                     value={String(draft.hour)}
                     onValueChange={(value) => {
@@ -723,7 +841,9 @@ export function ScheduleForm({
 
               {state.legalEntities.length === 0 ? null : (
                 <Field>
-                  <FieldLabel>On whose clock</FieldLabel>
+                  <FieldLabel>
+                    {t('reports.report-schedules.on_whose_clock', 'On whose clock')}
+                  </FieldLabel>
                   <Select
                     value={draft.legalEntityId ?? 'default'}
                     onValueChange={(value) => {
@@ -736,7 +856,12 @@ export function ScheduleForm({
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      <SelectItem value="default">The company’s default time zone</SelectItem>
+                      <SelectItem value="default">
+                        {t(
+                          'reports.report-schedules.the_companys_default_time_zone',
+                          'The company’s default time zone',
+                        )}
+                      </SelectItem>
                       {state.legalEntities.map((e) => (
                         <SelectItem key={e.id} value={e.id}>
                           {e.name}
@@ -749,24 +874,36 @@ export function ScheduleForm({
 
               <Field required>
                 <div className="flex items-center gap-1">
-                  <FieldLabel>Recipients</FieldLabel>
+                  <FieldLabel>{t('reports.report-schedules.recipients', 'Recipients')}</FieldLabel>
                   <Tooltip content={EACH_SEES_THEIR_OWN}>
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label="What each recipient gets"
+                      aria-label={t(
+                        'reports.report-schedules.what_each_recipient_gets',
+                        'What each recipient gets',
+                      )}
                       startIcon={<icons.help aria-hidden="true" />}
                     />
                   </Tooltip>
                 </div>
                 <FieldControl>
                   <Combobox
-                    label="Recipients"
+                    label={t('reports.report-schedules.recipients', 'Recipients')}
                     multiple
-                    placeholder="Pick up to 25 people"
+                    placeholder={t(
+                      'reports.report-schedules.pick_up_to_25_people',
+                      'Pick up to 25 people',
+                    )}
                     options={state.people.map((p) => ({
                       value: p.accountId,
-                      label: p.name ?? p.workEmail ?? 'Somebody without a name yet',
+                      label:
+                        p.name ??
+                        p.workEmail ??
+                        t(
+                          'reports.report-schedules.somebody_without_a_name_yet',
+                          'Somebody without a name yet',
+                        ),
                       ...(p.name !== null && p.workEmail !== null
                         ? { description: p.workEmail }
                         : {}),
@@ -785,25 +922,25 @@ export function ScheduleForm({
               </Field>
 
               {refused === null ? null : (
-                <Alert tone="danger" title="Not saved">
+                <Alert tone="danger" title={t('reports.report-schedules.not_saved', 'Not saved')}>
                   {refused}
                 </Alert>
               )}
             </Stack>
           </DialogBody>
           <DialogFooter>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{t('reports.report-schedules.cancel', 'Cancel')}</Button>
             <Button
               variant="primary"
               disabled={!ready}
               loading={busy}
-              loadingLabel="Saving"
+              loadingLabel={t('reports.report-schedules.saving', 'Saving')}
               onClick={() => {
                 if (needsConfirmation(row, draft)) setConfirming(true);
                 else save();
               }}
             >
-              Save
+              {t('reports.report-schedules.save', 'Save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -817,21 +954,38 @@ export function ScheduleForm({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Each recipient gets only what they may see</DialogTitle>
-            <DialogDescription>Confirm before this schedule is saved.</DialogDescription>
+            <DialogTitle>
+              {t(
+                'reports.report-schedules.each_recipient_gets_only_what_they',
+                'Each recipient gets only what they may see',
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                'reports.report-schedules.confirm_before_this_schedule_is_saved',
+                'Confirm before this schedule is saved.',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Stack gap={3}>
               <p>
-                This report is built again for each of its {String(draft.recipients.length)}{' '}
-                {draft.recipients.length === 1 ? 'recipient' : 'recipients'}, every time it runs, as
-                that person. Each one gets only the people they may list and the columns they may
-                read — so different recipients may receive different people and different columns,
-                and a manager’s file can be much shorter than HR’s.
+                {t(
+                  'reports.report-schedules.this_report_is_built_again_for',
+                  'This report is built again for each of its',
+                )}{' '}
+                {String(draft.recipients.length)}{' '}
+                {draft.recipients.length === 1 ? 'recipient' : 'recipients'}
+                {t(
+                  'reports.report-schedules.every_time_it_runs_as_that',
+                  ', every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                )}
               </p>
               <p>
-                People who have left or lost access receive nothing. Emails contain a sign-in link,
-                never data.
+                {t(
+                  'reports.report-schedules.people_who_have_left_or_lost',
+                  'People who have left or lost access receive nothing. Emails contain a sign-in link, never data.',
+                )}
               </p>
             </Stack>
           </DialogBody>
@@ -841,10 +995,15 @@ export function ScheduleForm({
                 setConfirming(false);
               }}
             >
-              Back
+              {t('reports.report-schedules.back', 'Back')}
             </Button>
-            <Button variant="primary" loading={busy} loadingLabel="Saving" onClick={save}>
-              I understand, save it
+            <Button
+              variant="primary"
+              loading={busy}
+              loadingLabel={t('reports.report-schedules.saving', 'Saving')}
+              onClick={save}
+            >
+              {t('reports.report-schedules.i_understand_save_it', 'I understand, save it')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -35,6 +35,7 @@ import { useEffect, useState, type JSX } from 'react';
 import { Loaded } from './load';
 import { Refusal, To, useAct, words } from './shared';
 import type { AnalyticsData, Bucket, ScreenProps } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R23 and R25: dashboards over the stage history, filters in the address,
@@ -49,23 +50,27 @@ const PERIODS = ['last_30_days', 'last_90_days', 'this_quarter', 'this_year', 'l
 const METRICS: readonly { key: string; label: string; by: readonly string[] }[] = [
   {
     key: 'applications',
-    label: 'Applications',
+    label: tr('analytics.applications', 'Applications'),
     by: ['department', 'source', 'job', 'country', 'month'],
   },
   {
     key: 'hires',
-    label: 'Hires',
+    label: tr('analytics.hires', 'Hires'),
     by: ['department', 'source', 'job', 'country', 'month', 'hiring_manager'],
   },
-  { key: 'conversion', label: 'Conversion by stage', by: ['stage', 'job', 'department', 'source'] },
+  {
+    key: 'conversion',
+    label: tr('analytics.conversion_by_stage', 'Conversion by stage'),
+    by: ['stage', 'job', 'department', 'source'],
+  },
   {
     key: 'time_to_hire',
-    label: 'Time to hire',
+    label: tr('analytics.time_to_hire', 'Time to hire'),
     by: ['department', 'job', 'source', 'month', 'country'],
   },
   {
     key: 'rejection_reasons',
-    label: 'Rejection reasons',
+    label: tr('analytics.rejection_reasons', 'Rejection reasons'),
     by: ['rejection_reason', 'stage', 'job'],
   },
 ];
@@ -89,25 +94,25 @@ const TILES: readonly {
 }[] = [
   {
     id: 'hires-by-month',
-    title: 'Hires by month',
+    title: tr('analytics.hires_by_month', 'Hires by month'),
     dashboard: 'overview',
-    unit: 'Hires',
+    unit: tr('analytics.hires', 'Hires'),
     chart: 'trend',
     rows: (d) => d.overview.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
   },
   {
     id: 'pipeline',
-    title: 'Pipeline by stage',
+    title: tr('analytics.pipeline_by_stage', 'Pipeline by stage'),
     dashboard: 'funnel',
-    unit: 'Applications',
+    unit: tr('analytics.applications', 'Applications'),
     chart: 'funnel',
     rows: (d) => d.overview.funnel.map((f) => ({ label: words(f.category), value: f.count })),
   },
   {
     id: 'time-in-stage',
-    title: 'Time in stage',
+    title: tr('analytics.time_in_stage', 'Time in stage'),
     dashboard: 'funnel',
-    unit: 'Median days',
+    unit: tr('analytics.median_days', 'Median days'),
     chart: 'bars',
     rows: (d) =>
       d.timeInStage
@@ -116,27 +121,27 @@ const TILES: readonly {
   },
   {
     id: 'rejection-reasons',
-    title: 'Rejection reasons',
+    title: tr('analytics.rejection_reasons', 'Rejection reasons'),
     dashboard: 'funnel',
-    unit: 'Applications',
+    unit: tr('analytics.applications', 'Applications'),
     chart: 'bars',
     rows: (d) => points(d.overview.rejectionReasons),
     withheld: (d) => d.overview.rejectionReasons,
   },
   {
     id: 'time-to-fill',
-    title: 'Time to fill',
+    title: tr('analytics.time_to_fill', 'Time to fill'),
     dashboard: 'speed',
-    unit: 'Days',
+    unit: tr('analytics.days', 'Days'),
     chart: 'bars',
     rows: (d) =>
       d.speed.filter((s) => s.days !== null).map((s) => ({ label: s.title, value: s.days ?? 0 })),
   },
   {
     id: 'sources',
-    title: 'Applications by source',
+    title: tr('analytics.applications_by_source', 'Applications by source'),
     dashboard: 'sources',
-    unit: 'Applications',
+    unit: tr('analytics.applications', 'Applications'),
     chart: 'bars',
     rows: (d) => points(d.overview.sources),
     withheld: (d) => d.overview.sources,
@@ -162,7 +167,7 @@ function Detail({
 }): JSX.Element {
   return (
     <To href={`/recruiting/analytics/${id}${query(props.search)}`} onNavigate={props.onNavigate}>
-      Details
+      {tr('analytics.details', 'Details')}
     </To>
   );
 }
@@ -188,7 +193,12 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
     <Loaded load={props.load} what="this chart">
       {(data) => {
         if (tile === undefined)
-          return <EmptyState icon={<icons.analytics aria-hidden />} title="No such chart" />;
+          return (
+            <EmptyState
+              icon={<icons.analytics aria-hidden />}
+              title={tr('analytics.no_such_chart', 'No such chart')}
+            />
+          );
         const rows = tile.rows(data);
         const back = `/recruiting/analytics${query(props.search, tile.dashboard)}`;
         return (
@@ -198,14 +208,19 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
               description={words(data.filters.period)}
               actions={
                 <To href={back} onNavigate={props.onNavigate}>
-                  {`Back to ${words(tile.dashboard).toLowerCase()}`}
+                  {tr('analytics.back_to', 'Back to {{dashboard}}', {
+                    dashboard: words(tile.dashboard).toLowerCase(),
+                  })}
                 </To>
               }
             />
-            <h2 className="sr-only">Chart and data</h2>
+            <h2 className="sr-only">{tr('analytics.chart_and_data', 'Chart and data')}</h2>
             <ChartCard title={tile.title}>
               {rows.length === 0 ? (
-                <EmptyState icon={<icons.analytics aria-hidden />} title="Nothing in this period" />
+                <EmptyState
+                  icon={<icons.analytics aria-hidden />}
+                  title={tr('analytics.nothing_in_this_period', 'Nothing in this period')}
+                />
               ) : (
                 <Drawn tile={tile} rows={rows} />
               )}
@@ -214,7 +229,11 @@ export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{tile.chart === 'trend' ? 'Month' : 'Group'}</TableHead>
+                  <TableHead>
+                    {tile.chart === 'trend'
+                      ? tr('analytics.month', 'Month')
+                      : tr('analytics.group', 'Group')}
+                  </TableHead>
                   <TableHead className="text-right">{tile.unit}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,19 +274,24 @@ function ImpactTable({
   return (
     <ChartCard
       title={title}
-      description="Share of each group that reached the stage, against the highest"
+      description={tr(
+        'analytics.share_of_each_group_that_reached',
+        'Share of each group that reached the stage, against the highest',
+      )}
     >
       {rows.length === 0 ? (
-        <p className="text-sm text-fg-muted">No group of five or more people yet.</p>
+        <p className="text-sm text-fg-muted">
+          {tr('analytics.no_group_of_five_or_more', 'No group of five or more people yet.')}
+        </p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Stage</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead className="text-right">People</TableHead>
-              <TableHead className="text-right">Reached</TableHead>
-              <TableHead className="text-right">Ratio</TableHead>
+              <TableHead>{tr('analytics.stage', 'Stage')}</TableHead>
+              <TableHead>{tr('analytics.group', 'Group')}</TableHead>
+              <TableHead className="text-right">{tr('analytics.people', 'People')}</TableHead>
+              <TableHead className="text-right">{tr('analytics.reached', 'Reached')}</TableHead>
+              <TableHead className="text-right">{tr('analytics.ratio', 'Ratio')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -279,7 +303,11 @@ function ImpactTable({
                 <TableCell className="text-right tabular-nums">{pct(r.rateBp)}</TableCell>
                 <TableCell className="text-right tabular-nums">
                   {r.flagged ? (
-                    <Badge size="sm" tone="warning">{`${pct(r.ratioBp)}, under four-fifths`}</Badge>
+                    <Badge size="sm" tone="warning">
+                      {tr('analytics.under_four_fifths', '{{ratioBp}}, under four-fifths', {
+                        ratioBp: pct(r.ratioBp),
+                      })}
+                    </Badge>
                   ) : (
                     pct(r.ratioBp)
                   )}
@@ -315,28 +343,40 @@ function Fairness({ props }: { readonly props: ScreenProps<AnalyticsData> }): JS
   return (
     <div className="flex flex-col gap-4">
       <SegmentedControl
-        aria-label="Group by"
+        aria-label={tr('analytics.group_by', 'Group by')}
         value={category}
         onValueChange={(v) => {
           setCategory(v === 'ethnicity' ? 'ethnicity' : 'gender');
         }}
       >
-        <SegmentedControlItem value="gender">Gender</SegmentedControlItem>
-        <SegmentedControlItem value="ethnicity">Race or ethnicity</SegmentedControlItem>
+        <SegmentedControlItem value="gender">
+          {tr('analytics.gender', 'Gender')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="ethnicity">
+          {tr('analytics.race_or_ethnicity', 'Race or ethnicity')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {refused === null ? null : <Alert tone="info" title={refused} />}
       {data === null ? null : (
         <>
-          <ImpactTable title="Every decision" rows={data.all} />
+          <ImpactTable title={tr('analytics.every_decision', 'Every decision')} rows={data.all} />
           <div className="grid gap-4 lg:grid-cols-2">
-            <ImpactTable title="With an evidence matrix" rows={data.aiAssisted} />
-            <ImpactTable title="Without one" rows={data.notAssisted} />
+            <ImpactTable
+              title={tr('analytics.with_an_evidence_matrix', 'With an evidence matrix')}
+              rows={data.aiAssisted}
+            />
+            <ImpactTable
+              title={tr('analytics.without_one', 'Without one')}
+              rows={data.notAssisted}
+            />
           </div>
         </>
       )}
       <p className="text-xs text-fg-muted">
-        From voluntary answers given after applying, sealed and never shown to a hiring team. A
-        group under five people is never shown.
+        {tr(
+          'analytics.from_voluntary_answers_given_after_applying',
+          'From voluntary answers given after applying, sealed and never shown to a hiring team. A group under five people is never shown.',
+        )}
       </p>
     </div>
   );
@@ -345,7 +385,13 @@ function Fairness({ props }: { readonly props: ScreenProps<AnalyticsData> }): JS
 function Withheld({ buckets }: { readonly buckets: readonly Bucket[] }): JSX.Element | null {
   const n = buckets.filter((b) => b.suppressed).length;
   return n === 0 ? null : (
-    <p className="text-xs text-fg-muted">{`${String(n)} group${n === 1 ? '' : 's'} under five people withheld.`}</p>
+    <p className="text-xs text-fg-muted">
+      {tr(
+        'analytics.group_under_five_people_withheld',
+        '{{n}} group{{value}} under five people withheld.',
+        { n: String(n), value: n === 1 ? '' : 's' },
+      )}
+    </p>
   );
 }
 
@@ -403,8 +449,11 @@ function Ask({
         }}
       >
         <Input
-          aria-label="Ask for a chart"
-          placeholder="Offer acceptance by department this year"
+          aria-label={tr('analytics.ask_for_a_chart', 'Ask for a chart')}
+          placeholder={tr(
+            'analytics.offer_acceptance_by_department_this_year',
+            'Offer acceptance by department this year',
+          )}
           value={question}
           onChange={(e) => {
             setQuestion(e.target.value);
@@ -417,16 +466,18 @@ function Ask({
           loading={act.pending}
           disabled={question.trim() === ''}
         >
-          Ask
+          {tr('analytics.ask', 'Ask')}
         </Button>
       </form>
       <p className="text-xs text-fg-muted">
-        A model picks the chart below by name; Kithena checks the plan and computes every number.
-        Change any chip.
+        {tr(
+          'analytics.a_model_picks_the_chart_below',
+          'A model picks the chart below by name; Kithena checks the plan and computes every number. Change any chip.',
+        )}
       </p>
       <div className="flex flex-wrap items-end gap-2">
         {chip(
-          'Metric',
+          tr('analytics.metric', 'Metric'),
           metric,
           (v) => {
             setMetric(v);
@@ -435,7 +486,7 @@ function Ask({
           METRICS,
         )}
         {chip(
-          'By',
+          tr('analytics.by', 'By'),
           by,
           setBy,
           (m?.by ?? []).map((k) => ({ key: k, label: words(k) })),
@@ -454,22 +505,34 @@ function Ask({
             );
           }}
         >
-          Draw
+          {tr('analytics.draw', 'Draw')}
         </Button>
       </div>
       <Refusal error={act.error} />
       {rows === null ? null : (
         <ChartCard
-          title={`${m?.label ?? ''} by ${words(by).toLowerCase()}`}
+          title={tr('analytics.by_2', '{{value}} by {{by}}', {
+            value: m?.label ?? '',
+            by: words(by).toLowerCase(),
+          })}
           description={words(period)}
         >
-          <BarChart label={`${m?.label ?? ''} by ${words(by)}`} data={points(rows)} showValues />
+          <BarChart
+            label={tr('analytics.by_2', '{{value}} by {{by}}', {
+              value: m?.label ?? '',
+              by: words(by),
+            })}
+            data={points(rows)}
+            showValues
+          />
           <Withheld buckets={rows} />
         </ChartCard>
       )}
       <p className="text-xs text-fg-muted">
-        Every chart is validated whole and computed by Kithena; a breakdown that would show a group
-        under five people is refused.
+        {tr(
+          'analytics.every_chart_is_validated_whole_and',
+          'Every chart is validated whole and computed by Kithena; a breakdown that would show a group under five people is refused.',
+        )}
       </p>
     </div>
   );
@@ -481,12 +544,16 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
     <Loaded load={props.load} what="analytics">
       {(data) => {
         const o = data.overview;
-        const days = (n: number | null) => (n === null ? '—' : `${String(Math.round(n))} d`);
+        const days = (n: number | null) =>
+          n === null ? '—' : tr('analytics.d', '{{round}} d', { round: String(Math.round(n)) });
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title="Analytics"
-              description="Every number is computed from the stage history. Groups under five people are hidden."
+              title={tr('analytics.analytics', 'Analytics')}
+              description={tr(
+                'analytics.every_number_is_computed_from_the',
+                'Every number is computed from the stage history. Groups under five people are hidden.',
+              )}
               actions={
                 <Select
                   value={data.filters.period}
@@ -494,7 +561,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                     props.onFilter?.({ period: v === 'last_90_days' ? null : v })
                   }
                 >
-                  <SelectTrigger aria-label="Period" className="w-44">
+                  <SelectTrigger aria-label={tr('analytics.period', 'Period')} className="w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -510,21 +577,23 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
             {data.filters.jobId === undefined ? null : (
               <Alert
                 tone="info"
-                title="One job"
+                title={tr('analytics.one_job', 'One job')}
                 action={
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={() => props.onFilter?.({ job: null })}
                   >
-                    All jobs
+                    {tr('analytics.all_jobs', 'All jobs')}
                   </Button>
                 }
               >
-                Filtered to the job you came from.
+                {tr('analytics.filtered_to_the_job_you_came', 'Filtered to the job you came from.')}
               </Alert>
             )}
-            <h2 className="sr-only">{tab === 'ask' ? 'Build a chart' : words(tab)}</h2>
+            <h2 className="sr-only">
+              {tab === 'ask' ? tr('analytics.build_a_chart', 'Build a chart') : words(tab)}
+            </h2>
             <Tabs
               value={tab}
               onValueChange={(v) => props.onFilter?.({ dashboard: v === 'overview' ? null : v })}
@@ -532,33 +601,39 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               <TabsList>
                 {DASHBOARDS.map((d) => (
                   <TabsTrigger key={d} value={d}>
-                    {d === 'ask' ? 'Build a chart' : words(d)}
+                    {d === 'ask' ? tr('analytics.build_a_chart', 'Build a chart') : words(d)}
                   </TabsTrigger>
                 ))}
               </TabsList>
               <TabsContent value="overview" className="flex flex-col gap-4">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <Stat label="Open jobs" value={String(o.openJobs)} />
-                  <Stat label="Applications" value={String(o.applications)} />
-                  <Stat label="Hires" value={String(o.hires)} />
-                  <Stat label="Offers out" value={String(o.offersOut)} />
+                  <Stat label={tr('analytics.open_jobs', 'Open jobs')} value={String(o.openJobs)} />
+                  <Stat
+                    label={tr('analytics.applications', 'Applications')}
+                    value={String(o.applications)}
+                  />
+                  <Stat label={tr('analytics.hires', 'Hires')} value={String(o.hires)} />
+                  <Stat
+                    label={tr('analytics.offers_out', 'Offers out')}
+                    value={String(o.offersOut)}
+                  />
                 </div>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <ChartCard
-                    title="Hires by month"
+                    title={tr('analytics.hires_by_month', 'Hires by month')}
                     action={<Detail id="hires-by-month" props={props} />}
                   >
                     {o.hiresByMonth.length === 0 ? (
                       <EmptyState
                         icon={<icons.analytics aria-hidden />}
-                        title="No hires in this period"
+                        title={tr('analytics.no_hires_in_this_period', 'No hires in this period')}
                       />
                     ) : (
                       <TrendChart
-                        label="Hires by month"
+                        label={tr('analytics.hires_by_month', 'Hires by month')}
                         series={[
                           {
-                            label: 'Hires',
+                            label: tr('analytics.hires', 'Hires'),
                             data: o.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
                           },
                         ]}
@@ -566,11 +641,14 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                     )}
                   </ChartCard>
                   <ChartCard
-                    title="Pipeline by stage"
-                    description="Applications that ever reached each stage"
+                    title={tr('analytics.pipeline_by_stage', 'Pipeline by stage')}
+                    description={tr(
+                      'analytics.applications_that_ever_reached_each_stage',
+                      'Applications that ever reached each stage',
+                    )}
                   >
                     <FunnelChart
-                      label="Pipeline by stage"
+                      label={tr('analytics.pipeline_by_stage', 'Pipeline by stage')}
                       data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
                       showConversion
                     />
@@ -579,23 +657,23 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               </TabsContent>
               <TabsContent value="funnel" className="grid gap-4 lg:grid-cols-2">
                 <ChartCard
-                  title="Conversion per stage"
+                  title={tr('analytics.conversion_per_stage', 'Conversion per stage')}
                   action={<Detail id="pipeline" props={props} />}
                 >
                   <FunnelChart
-                    label="Conversion per stage"
+                    label={tr('analytics.conversion_per_stage', 'Conversion per stage')}
                     data={o.funnel.map((f) => ({ label: words(f.category), value: f.count }))}
                     showConversion
                     highlightBiggestDrop
                   />
                 </ChartCard>
                 <ChartCard
-                  title="Time in stage"
-                  description="Median days"
+                  title={tr('analytics.time_in_stage', 'Time in stage')}
+                  description={tr('analytics.median_days', 'Median days')}
                   action={<Detail id="time-in-stage" props={props} />}
                 >
                   <HorizontalBarChart
-                    label="Median days in stage"
+                    label={tr('analytics.median_days_in_stage', 'Median days in stage')}
                     data={data.timeInStage
                       .filter((t) => t.median !== null)
                       .map((t) => ({ label: words(t.category), value: Math.round(t.median ?? 0) }))}
@@ -603,12 +681,12 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
                   />
                 </ChartCard>
                 <ChartCard
-                  title="Rejection reasons"
+                  title={tr('analytics.rejection_reasons', 'Rejection reasons')}
                   className="lg:col-span-2"
                   action={<Detail id="rejection-reasons" props={props} />}
                 >
                   <HorizontalBarChart
-                    label="Rejection reasons"
+                    label={tr('analytics.rejection_reasons', 'Rejection reasons')}
                     data={points(o.rejectionReasons)}
                     showValues
                     sorted
@@ -618,16 +696,25 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               </TabsContent>
               <TabsContent value="speed" className="flex flex-col gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Stat label="Median time to hire" value={days(o.timeToHire.median)} />
-                  <Stat label="85th percentile" value={days(o.timeToHire.p85)} />
+                  <Stat
+                    label={tr('analytics.median_time_to_hire', 'Median time to hire')}
+                    value={days(o.timeToHire.median)}
+                  />
+                  <Stat
+                    label={tr('analytics.85th_percentile', '85th percentile')}
+                    value={days(o.timeToHire.p85)}
+                  />
                 </div>
                 <ChartCard
-                  title="Time to fill"
+                  title={tr('analytics.time_to_fill', 'Time to fill')}
                   action={<Detail id="time-to-fill" props={props} />}
-                  description="Job opened to the last opening hired, days"
+                  description={tr(
+                    'analytics.job_opened_to_the_last_opening',
+                    'Job opened to the last opening hired, days',
+                  )}
                 >
                   <HorizontalBarChart
-                    label="Time to fill by job"
+                    label={tr('analytics.time_to_fill_by_job', 'Time to fill by job')}
                     data={data.speed
                       .filter((s) => s.days !== null)
                       .map((s) => ({ label: s.title, value: s.days ?? 0 }))}
@@ -638,12 +725,15 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               </TabsContent>
               <TabsContent value="sources">
                 <ChartCard
-                  title="Applications by source"
+                  title={tr('analytics.applications_by_source', 'Applications by source')}
                   action={<Detail id="sources" props={props} />}
-                  description="Source is fixed at application, so attribution can’t drift"
+                  description={tr(
+                    'analytics.source_is_fixed_at_application_so',
+                    'Source is fixed at application, so attribution can’t drift',
+                  )}
                 >
                   <HorizontalBarChart
-                    label="Applications by source"
+                    label={tr('analytics.applications_by_source', 'Applications by source')}
                     data={points(o.sources)}
                     showValues
                     sorted
@@ -653,12 +743,18 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
               </TabsContent>
               <TabsContent value="offers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Stat
-                  label="Acceptance rate"
+                  label={tr('analytics.acceptance_rate', 'Acceptance rate')}
                   value={data.offers.rate === null ? '—' : `${data.offers.rate}%`}
                 />
-                <Stat label="Sent" value={String(data.offers.sent)} />
-                <Stat label="Accepted" value={String(data.offers.accepted)} />
-                <Stat label="Declined" value={String(data.offers.declined)} />
+                <Stat label={tr('analytics.sent', 'Sent')} value={String(data.offers.sent)} />
+                <Stat
+                  label={tr('analytics.accepted', 'Accepted')}
+                  value={String(data.offers.accepted)}
+                />
+                <Stat
+                  label={tr('analytics.declined', 'Declined')}
+                  value={String(data.offers.declined)}
+                />
               </TabsContent>
               <TabsContent value="fairness">
                 <Fairness props={props} />

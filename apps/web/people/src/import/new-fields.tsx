@@ -33,6 +33,7 @@ import { useId, useState, type JSX } from 'react';
 import { AUDIENCES, TypeIcon, accessOf } from '../settings/access';
 import type { Classification, DataType, PiiKind, ViewerScope, WriterRole } from '../settings/model';
 import { DATA_TYPE_LABEL, SCOPE_LABEL, WRITER_LABEL } from '../settings/words';
+import { t as tr } from '../i18n';
 
 /**
  * The import's "New fields" step (design AI9, AI10; on a phone MA8, MA9):
@@ -142,19 +143,32 @@ export function handlingOf(f: NewField): readonly {
 }[] {
   return [
     f.classification === 'special-category'
-      ? { label: 'Special category', tone: 'danger' as const }
+      ? {
+          label: tr('import.new-fields.special_category', 'Special category'),
+          tone: 'danger' as const,
+        }
       : f.classification === 'confidential'
-        ? { label: 'Confidential', tone: 'warning' as const }
-        : { label: 'Ordinary', tone: 'neutral' as const },
-    ...(f.encrypted ? [{ label: 'Sealed', tone: 'sensitive' as const }] : []),
+        ? { label: tr('import.new-fields.confidential', 'Confidential'), tone: 'warning' as const }
+        : { label: tr('import.new-fields.ordinary', 'Ordinary'), tone: 'neutral' as const },
+    ...(f.encrypted
+      ? [{ label: tr('import.new-fields.sealed', 'Sealed'), tone: 'sensitive' as const }]
+      : []),
     ...(f.requiresApproval === true
-      ? [{ label: 'Approval required', tone: 'neutral' as const }]
+      ? [
+          {
+            label: tr('import.new-fields.approval_required', 'Approval required'),
+            tone: 'neutral' as const,
+          },
+        ]
       : []),
   ];
 }
 
 const plural = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
+  tr('import.new-fields.text', '{{toLocaleString}} {{value}}', {
+    toLocaleString: n.toLocaleString('en-GB'),
+    value: n === 1 ? one : many,
+  });
 
 const TYPES: readonly DataType[] = [
   'text',
@@ -197,7 +211,7 @@ function sectionName(p: ColumnProposal, sections: NewFieldsView['sections']): st
   return 'sectionKey' in p.placement
     ? (sections.find((s) => s.key === (p.placement as { sectionKey: string }).sectionKey)?.label ??
         p.placement.sectionKey)
-    : `${p.placement.newSection} (new)`;
+    : tr('import.new-fields.new', '{{newSection}} (new)', { newSection: p.placement.newSection });
 }
 
 /** "XS, S, M, L, XL", "CC-100 … CC-160 (7 found)", or the shape in words. */
@@ -206,7 +220,11 @@ function optionsLine(p: ColumnProposal): string {
   if (p.field.dataType !== 'select' || options.length === 0) return p.shape;
   return options.length <= 5
     ? options.join(', ')
-    : `${options[0] ?? ''} … ${options.at(-1) ?? ''} (${String(options.length)} found)`;
+    : tr('import.new-fields.found', '{{value}} … {{value2}} ({{length}} found)', {
+        value: options[0] ?? '',
+        value2: options.at(-1) ?? '',
+        length: String(options.length),
+      });
 }
 
 /* ------------------------------------------------------- one proposal -- */
@@ -259,7 +277,7 @@ export function ProposedFieldCard({
         </h3>
         {readOnly ? null : (
           <Switch
-            aria-label={`Create ${f.label}`}
+            aria-label={tr('import.new-fields.create', 'Create {{label}}', { label: f.label })}
             checked={p.include}
             onCheckedChange={(include) => {
               onChange({ include });
@@ -269,24 +287,32 @@ export function ProposedFieldCard({
       </div>
       <dl className="grid grid-cols-4 gap-2.5 touch:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <dt className="text-2xs font-medium text-fg-subtle">Type</dt>
+          <dt className="text-2xs font-medium text-fg-subtle">
+            {tr('import.new-fields.type', 'Type')}
+          </dt>
           <dd className="flex items-center gap-1 text-sm font-medium [&_svg]:size-3.5">
             <TypeIcon dataType={f.dataType} />
             {DATA_TYPE_LABEL[f.dataType]}
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <dt className="text-2xs font-medium text-fg-subtle">Section</dt>
+          <dt className="text-2xs font-medium text-fg-subtle">
+            {tr('import.new-fields.section', 'Section')}
+          </dt>
           <dd className="text-sm font-medium">{sectionName(p, sections)}</dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <dt className="text-2xs font-medium text-fg-subtle">Who sees it</dt>
+          <dt className="text-2xs font-medium text-fg-subtle">
+            {tr('import.new-fields.who_sees_it', 'Who sees it')}
+          </dt>
           <dd>
             <AccessStrip audiences={AUDIENCES} value={accessOf(f.visibility, f.ownership)} />
           </dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <dt className="text-2xs font-medium text-fg-subtle">Sensitivity</dt>
+          <dt className="text-2xs font-medium text-fg-subtle">
+            {tr('import.new-fields.sensitivity', 'Sensitivity')}
+          </dt>
           <dd className="flex flex-wrap gap-1">
             {handlingOf(f).map((h) => (
               <Badge key={h.label} tone={h.tone} size="sm">
@@ -303,15 +329,27 @@ export function ProposedFieldCard({
       <div className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
         <span className="inline-flex items-center gap-1 [&_svg]:size-3 [&_svg]:text-accent-fg">
           <icons.assistant aria-hidden />
-          {p.confidence === 'high' ? 'High' : 'Medium'} confidence
+          {p.confidence === 'high'
+            ? tr('import.new-fields.high', 'High')
+            : tr('import.new-fields.medium', 'Medium')}{' '}
+          {tr('import.new-fields.confidence', 'confidence')}
         </span>
         <span aria-hidden>·</span>
         <span>{optionsLine(p)}</span>
         <span aria-hidden>·</span>
         <span>
           {counts === undefined
-            ? `${plural(rows, 'row', 'rows')} in the file`
-            : `${counts.have.toLocaleString('en-GB')} of ${plural(rows, 'row has', 'rows have')} a value`}
+            ? tr('import.new-fields.in_the_file', '{{rows}} in the file', {
+                rows: plural(rows, 'row', 'rows'),
+              })
+            : tr('import.new-fields.of_a_value', '{{toLocaleString}} of {{rows}} a value', {
+                toLocaleString: counts.have.toLocaleString('en-GB'),
+                rows: plural(
+                  rows,
+                  tr('import.new-fields.row_has', 'row has'),
+                  tr('import.new-fields.rows_have', 'rows have'),
+                ),
+              })}
         </span>
         {readOnly ? null : (
           <span className="ms-auto">
@@ -324,7 +362,9 @@ export function ProposedFieldCard({
                 setEditing((e) => !e);
               }}
             >
-              {editing ? 'Done' : 'Edit'}
+              {editing
+                ? tr('import.new-fields.done', 'Done')
+                : tr('import.new-fields.edit', 'Edit')}
             </Button>
           </span>
         )}
@@ -365,7 +405,7 @@ function FieldEditor({
   return (
     <div id={id} className="grid gap-4 border-t border-border pt-4 @2xl/page:grid-cols-2">
       <Field>
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.name', 'Name')}</FieldLabel>
         <FieldControl>
           <Input
             value={f.label}
@@ -376,7 +416,7 @@ function FieldEditor({
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Section</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.section', 'Section')}</FieldLabel>
         <Select
           value={placementValue}
           onValueChange={(v) => {
@@ -400,14 +440,14 @@ function FieldEditor({
             ))}
             {newSections.map((n) => (
               <SelectItem key={n} value={`n:${n}`}>
-                {n} (new section)
+                {n} {tr('import.new-fields.new_section', '(new section)')}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </Field>
       <Field>
-        <FieldLabel>Type</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.type', 'Type')}</FieldLabel>
         <Select
           value={f.dataType}
           onValueChange={(v) => {
@@ -427,12 +467,17 @@ function FieldEditor({
             ))}
           </SelectContent>
         </Select>
-        <FieldDescription>Values in the file: {p.shape}.</FieldDescription>
+        <FieldDescription>
+          {tr('import.new-fields.values_in_the_file', 'Values in the file:')} {p.shape}.
+        </FieldDescription>
       </Field>
       {f.dataType === 'select' ? (
         <TagsInput
-          label="Choices"
-          hint="From the file. Add or remove any."
+          label={tr('import.new-fields.choices', 'Choices')}
+          hint={tr(
+            'import.new-fields.from_the_file_add_or_remove',
+            'From the file. Add or remove any.',
+          )}
           value={f.options ?? []}
           onChange={(options) => {
             set({ options });
@@ -440,10 +485,12 @@ function FieldEditor({
         />
       ) : null}
       <Field>
-        <FieldLabel>Filled in by</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.filled_in_by', 'Filled in by')}</FieldLabel>
         <ChipGroup
           type="multiple"
-          aria-label={`Who fills in ${f.label}`}
+          aria-label={tr('import.new-fields.who_fills_in', 'Who fills in {{label}}', {
+            label: f.label,
+          })}
           value={[...f.ownership]}
           onValueChange={(v: string[]) => {
             if (v.length > 0) set({ ownership: v as WriterRole[] });
@@ -457,10 +504,10 @@ function FieldEditor({
         </ChipGroup>
       </Field>
       <Field>
-        <FieldLabel>Who sees it</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.who_sees_it', 'Who sees it')}</FieldLabel>
         <ChipGroup
           type="multiple"
-          aria-label={`Who sees ${f.label}`}
+          aria-label={tr('import.new-fields.who_sees', 'Who sees {{label}}', { label: f.label })}
           value={[...f.visibility]}
           onValueChange={(v: string[]) => {
             set({ visibility: v as ViewerScope[] });
@@ -474,7 +521,7 @@ function FieldEditor({
         </ChipGroup>
       </Field>
       <Field>
-        <FieldLabel>Sensitivity</FieldLabel>
+        <FieldLabel>{tr('import.new-fields.sensitivity', 'Sensitivity')}</FieldLabel>
         <Select
           value={f.classification}
           onValueChange={(v) => {
@@ -494,7 +541,7 @@ function FieldEditor({
           <SelectContent>
             {CLASSES.map((c) => (
               <SelectItem key={c} value={c}>
-                {c === 'public' ? 'Public' : CLASS_WORD[c]}
+                {c === 'public' ? tr('import.new-fields.public', 'Public') : CLASS_WORD[c]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -502,7 +549,9 @@ function FieldEditor({
       </Field>
       <div className="flex flex-col gap-3">
         <Field orientation="horizontal" className="items-center justify-between gap-4">
-          <FieldLabel>Store it encrypted</FieldLabel>
+          <FieldLabel>
+            {tr('import.new-fields.store_it_encrypted', 'Store it encrypted')}
+          </FieldLabel>
           <FieldControl>
             <Switch
               checked={f.encrypted}
@@ -518,7 +567,9 @@ function FieldEditor({
           </FieldControl>
         </Field>
         <Field orientation="horizontal" className="items-center justify-between gap-4">
-          <FieldLabel>The assistant may use it</FieldLabel>
+          <FieldLabel>
+            {tr('import.new-fields.the_assistant_may_use_it', 'The assistant may use it')}
+          </FieldLabel>
           <FieldControl>
             <Switch
               checked={f.aiEligible}
@@ -532,7 +583,12 @@ function FieldEditor({
           </FieldControl>
         </Field>
         <Field orientation="horizontal" className="items-center justify-between gap-4">
-          <FieldLabel>Changes need a second HR approval</FieldLabel>
+          <FieldLabel>
+            {tr(
+              'import.new-fields.changes_need_a_second_hr_approval',
+              'Changes need a second HR approval',
+            )}
+          </FieldLabel>
           <FieldControl>
             <Switch
               checked={f.requiresApproval === true}
@@ -543,7 +599,9 @@ function FieldEditor({
           </FieldControl>
         </Field>
         <Field orientation="horizontal" className="items-center justify-between gap-4">
-          <FieldLabel>Required for new people</FieldLabel>
+          <FieldLabel>
+            {tr('import.new-fields.required_for_new_people', 'Required for new people')}
+          </FieldLabel>
           <FieldControl>
             <Switch
               checked={f.required}
@@ -611,13 +669,20 @@ export function NewFieldsStep({
   };
   const assistantNote = view.byModel
     ? null
-    : 'Proposed by Kithena’s own rules: the assistant didn’t answer this time.';
+    : tr(
+        'import.new-fields.proposed_by_kithenas_own_rules_the',
+        'Proposed by Kithena’s own rules: the assistant didn’t answer this time.',
+      );
   const alerts = (
     <>
       {view.blocked === null ? null : (
         <Alert
           tone={readOnly ? 'info' : 'warning'}
-          title={readOnly ? 'An administrator adds fields' : 'Not yet'}
+          title={
+            readOnly
+              ? tr('import.new-fields.an_administrator_adds_fields', 'An administrator adds fields')
+              : tr('import.new-fields.not_yet', 'Not yet')
+          }
         >
           {view.blocked}
         </Alert>
@@ -631,16 +696,29 @@ export function NewFieldsStep({
       <div className="flex flex-col gap-3">
         <AssistantCard
           level={2}
-          title={n === 1 ? 'This column isn’t a field yet' : 'These columns aren’t fields yet'}
+          title={
+            n === 1
+              ? tr(
+                  'import.new-fields.this_column_isnt_a_field_yet',
+                  'This column isn’t a field yet',
+                )
+              : tr(
+                  'import.new-fields.these_columns_arent_fields_yet',
+                  'These columns aren’t fields yet',
+                )
+          }
           {...(assistantNote === null ? {} : { note: assistantNote })}
         >
           <p className="text-sm text-fg-muted">
-            Swipe through. I’ve designed each one from the data.
+            {tr(
+              'import.new-fields.swipe_through_ive_designed_each_one',
+              'Swipe through. I’ve designed each one from the data.',
+            )}
           </p>
         </AssistantCard>
         {alerts}
         <Carousel
-          label="Proposed fields"
+          label={tr('import.new-fields.proposed_fields', 'Proposed fields')}
           controls="dots"
           itemClassName="w-full"
           index={index}
@@ -660,7 +738,10 @@ export function NewFieldsStep({
         <p className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-fg-muted">
           <icons.assistant aria-hidden className="size-3.5 shrink-0" />
           {assistantNote ??
-            'I read the headers and the shape of each column, never a value, to choose the type, the options and who should see it.'}
+            tr(
+              'import.new-fields.i_read_the_headers_and_the',
+              'I read the headers and the shape of each column, never a value, to choose the type, the options and who should see it.',
+            )}
         </p>
         {readOnly || proposals.length === 0 ? null : (
           <Button
@@ -670,7 +751,7 @@ export function NewFieldsStep({
               for (const p of proposals) onChange(p.column, { include: true });
             }}
           >
-            Accept all {proposals.length}
+            {tr('import.new-fields.accept_all', 'Accept all')} {proposals.length}
           </Button>
         )}
       </div>
@@ -703,14 +784,20 @@ export function FileFactsCard({
   ];
   return (
     <div className="flex flex-col gap-3.5">
-      <PageSection surface title="From this file">
+      <PageSection surface title={tr('import.new-fields.from_this_file', 'From this file')}>
         <KeyValues
           items={[
-            { label: 'Columns', value: facts.columns },
-            { label: 'Matched to fields', value: facts.mapped },
-            { label: 'New fields suggested', value: kept.length },
+            { label: tr('import.new-fields.columns', 'Columns'), value: facts.columns },
             {
-              label: 'Not imported',
+              label: tr('import.new-fields.matched_to_fields', 'Matched to fields'),
+              value: facts.mapped,
+            },
+            {
+              label: tr('import.new-fields.new_fields_suggested', 'New fields suggested'),
+              value: kept.length,
+            },
+            {
+              label: tr('import.new-fields.not_imported', 'Not imported'),
               value:
                 notImported.length === 0
                   ? 'None'
@@ -722,11 +809,31 @@ export function FileFactsCard({
       {view === null || kept.length === 0 ? null : (
         <Alert
           tone="info"
-          title={view.setup === null ? 'These become a draft in Settings' : 'These come with setup'}
+          title={
+            view.setup === null
+              ? tr(
+                  'import.new-fields.these_become_a_draft_in_settings',
+                  'These become a draft in Settings',
+                )
+              : tr('import.new-fields.these_come_with_setup', 'These come with setup')
+          }
         >
           {view.setup === null
-            ? `Draft version ${String(view.version)}. Nothing is published until you approve the plan.`
-            : `They’re published with ${view.setup.countryName === null ? 'the fields every company has' : `the ${view.setup.countryName} pack`} as version 1. Nothing is published until you approve the plan.`}
+            ? tr(
+                'import.new-fields.draft_version_nothing_is_published_until',
+                'Draft version {{version}}. Nothing is published until you approve the plan.',
+                { version: String(view.version) },
+              )
+            : tr(
+                'import.new-fields.theyre_published_with_as_version_1',
+                'They’re published with {{value}} as version 1. Nothing is published until you approve the plan.',
+                {
+                  value:
+                    view.setup.countryName === null
+                      ? 'the fields every company has'
+                      : `the ${view.setup.countryName} pack`,
+                },
+              )}
         </Alert>
       )}
     </div>
@@ -748,85 +855,119 @@ const CHOICE: Record<
 > = {
   // An ask is required: they show as incomplete until they answer (an optional ask is PEO-148).
   ask: {
-    label: (n) => `Ask the ${n} to fill it in`,
+    label: (n) =>
+      tr('import.new-fields.ask_the_to_fill_it_in', 'Ask the {{n}} to fill it in', { n }),
     means: () =>
-      'One request each, with everything else asked of them, on their profile or in onboarding. The import emails nobody, and nobody who has left is asked. Until they answer, they show as incomplete.',
-    short: 'Ask them',
-    shortMeans: 'They show as incomplete',
+      tr(
+        'import.new-fields.one_request_each_with_everything_else',
+        'One request each, with everything else asked of them, on their profile or in onboarding. The import emails nobody, and nobody who has left is asked. Until they answer, they show as incomplete.',
+      ),
+    short: tr('import.new-fields.ask_them', 'Ask them'),
+    shortMeans: tr('import.new-fields.they_show_as_incomplete', 'They show as incomplete'),
   },
   new: {
-    label: () => 'Only ask people who join from now on',
-    means: (count) => `The ${count} stay empty. New joiners are asked in onboarding.`,
-    short: 'Only new joiners',
-    shortMeans: 'Nobody asked today',
+    label: () =>
+      tr('import.new-fields.only_ask_people_who_join_from', 'Only ask people who join from now on'),
+    means: (count) =>
+      tr(
+        'import.new-fields.the_stay_empty_new_joiners_are',
+        'The {{count}} stay empty. New joiners are asked in onboarding.',
+        { count },
+      ),
+    short: tr('import.new-fields.only_new_joiners', 'Only new joiners'),
+    shortMeans: tr('import.new-fields.nobody_asked_today', 'Nobody asked today'),
   },
   hr: {
-    label: (_n, count) => `HR fills in the ${count}`,
-    means: () => 'They go to the Data health grid, for HR.',
-    short: 'HR fills it in',
-    shortMeans: 'In Data health, for HR',
+    label: (_n, count) =>
+      tr('import.new-fields.hr_fills_in_the', 'HR fills in the {{count}}', { count }),
+    means: () =>
+      tr(
+        'import.new-fields.they_go_to_the_data_health',
+        'They go to the Data health grid, for HR.',
+      ),
+    short: tr('import.new-fields.hr_fills_it_in', 'HR fills it in'),
+    shortMeans: tr('import.new-fields.in_data_health_for_hr', 'In Data health, for HR'),
   },
   leave: {
-    label: () => 'Leave it empty',
-    means: () => 'It’s optional, and nobody is asked.',
-    short: 'Leave it empty',
-    shortMeans: 'Nobody is asked',
+    label: () => tr('import.new-fields.leave_it_empty', 'Leave it empty'),
+    means: () =>
+      tr(
+        'import.new-fields.its_optional_and_nobody_is_asked',
+        'It’s optional, and nobody is asked.',
+      ),
+    short: tr('import.new-fields.leave_it_empty', 'Leave it empty'),
+    shortMeans: tr('import.new-fields.nobody_is_asked', 'Nobody is asked'),
   },
   default: {
-    label: (_n, count) => `Give the ${count} the file’s value`,
-    means: () => 'Every row of the file holds the same value, so it’s written for them too.',
-    short: 'The file’s value',
-    shortMeans: 'Written for them',
+    label: (_n, count) =>
+      tr('import.new-fields.give_the_the_files_value', 'Give the {{count}} the file’s value', {
+        count,
+      }),
+    means: () =>
+      tr(
+        'import.new-fields.every_row_of_the_file_holds',
+        'Every row of the file holds the same value, so it’s written for them too.',
+      ),
+    short: tr('import.new-fields.the_files_value', 'The file’s value'),
+    shortMeans: tr('import.new-fields.written_for_them', 'Written for them'),
   },
 };
 
 function impactOf(kind: ForExisting['kind'], n: number): string {
-  if (n === 0) return 'Nothing to do';
+  if (n === 0) return tr('import.new-fields.nothing_to_do', 'Nothing to do');
   switch (kind) {
     case 'ask':
-      return `${plural(n, 'person', 'people')} asked · incomplete until they answer`;
+      return tr(
+        'import.new-fields.asked_incomplete_until_they_answer',
+        '{{n}} asked · incomplete until they answer',
+        { n: plural(n, 'person', 'people') },
+      );
     case 'hr':
-      return `${plural(n, 'cell', 'cells')} for HR`;
+      return tr('import.new-fields.for_hr', '{{n}} for HR', { n: plural(n, 'cell', 'cells') });
     case 'new':
-      return 'Nobody asked today';
+      return tr('import.new-fields.nobody_asked_today', 'Nobody asked today');
     case 'leave':
-      return 'Nobody asked';
+      return tr('import.new-fields.nobody_asked', 'Nobody asked');
     case 'default':
-      return `${plural(n, 'value', 'values')} written`;
+      return tr('import.new-fields.written', '{{n}} written', { n: plural(n, 'value', 'values') });
   }
 }
 
 /** The same on a phone (MA9): a count and a word, beside the one-line meaning. */
 function shortImpactOf(kind: ForExisting['kind'], n: number): string {
-  if (n === 0) return 'Nothing to do';
+  if (n === 0) return tr('import.new-fields.nothing_to_do', 'Nothing to do');
   const count = n.toLocaleString('en-GB');
   switch (kind) {
     case 'ask':
-      return `${count} incomplete`;
+      return tr('import.new-fields.incomplete', '{{count}} incomplete', { count });
     case 'hr':
-      return `${count} for HR`;
+      return tr('import.new-fields.for_hr_2', '{{count}} for HR', { count });
     case 'new':
     case 'leave':
-      return 'Nothing to do today';
+      return tr('import.new-fields.nothing_to_do_today', 'Nothing to do today');
     case 'default':
-      return `${count} written`;
+      return tr('import.new-fields.written_2', '{{count}} written', { count });
   }
 }
 
 /** What happens for a field's people without a value, as a short word: the table's last column. */
 export function planWord(p: ColumnProposal, missing: number): string {
-  if (missing === 0) return 'Nothing to do';
+  if (missing === 0) return tr('import.new-fields.nothing_to_do', 'Nothing to do');
   switch (p.forExisting.kind) {
     case 'ask':
-      return `Ask the ${plural(missing, 'person', 'people')}`;
+      return tr('import.new-fields.ask_the', 'Ask the {{missing}}', {
+        missing: plural(missing, 'person', 'people'),
+      });
     case 'hr':
-      return 'HR fills it in';
+      return tr('import.new-fields.hr_fills_it_in', 'HR fills it in');
     case 'new':
-      return 'Only new joiners';
+      return tr('import.new-fields.only_new_joiners', 'Only new joiners');
     case 'leave':
-      return 'Left empty';
+      return tr('import.new-fields.left_empty', 'Left empty');
     case 'default':
-      return `“${p.forExisting.value}” for them`;
+      return tr('import.new-fields.for_them', '“{{value}}” for them', {
+        value: p.forExisting.value,
+      });
   }
 }
 
@@ -861,7 +1002,11 @@ export function ExistingChoices({
   const shown = compact ? kinds.filter((k) => k !== 'hr' || recommended === 'hr') : kinds;
   return (
     <RadioGroup
-      aria-label={`What happens for the people without ${p.field.label}`}
+      aria-label={tr(
+        'import.new-fields.what_happens_for_the_people_without',
+        'What happens for the people without {{label}}',
+        { label: p.field.label },
+      )}
       value={p.forExisting.kind}
       disabled={readOnly}
       onValueChange={(kind) => {
@@ -885,7 +1030,7 @@ export function ExistingChoices({
             ? {
                 badge: (
                   <Badge tone="assistant" size="sm">
-                    Suggested
+                    {tr('import.new-fields.suggested', 'Suggested')}
                   </Badge>
                 ),
               }
@@ -915,25 +1060,39 @@ export function WithoutValue({
   // The table names the first twenty of the file's rows; the rest are counted.
   const inFile = Math.max(0, missing - here - names.length);
   const rest = [
-    inFile > 0 ? `${plural(inFile, 'more person', 'more people')} in the file` : null,
+    inFile > 0
+      ? tr('import.new-fields.in_the_file_2', '{{inFile}} in the file', {
+          inFile: plural(
+            inFile,
+            tr('import.new-fields.more_person', 'more person'),
+            tr('import.new-fields.more_people', 'more people'),
+          ),
+        })
+      : null,
     here > 0
-      ? `${plural(here, 'person', 'people')} already here, whom the file doesn’t reach`
+      ? tr(
+          'import.new-fields.already_here_whom_the_file_doesnt',
+          '{{here}} already here, whom the file doesn’t reach',
+          { here: plural(here, 'person', 'people') },
+        )
       : null,
   ].filter((x) => x !== null);
   return (
     <div className="flex flex-col gap-2">
       {names.length === 0 ? null : (
         <DataTable
-          label={`People without ${label}`}
+          label={tr('import.new-fields.people_without', 'People without {{label}}', { label })}
           rows={names.map((name, i) => ({ id: `${String(i)} ${name}`, name }))}
-          columns={[{ id: 'name', header: 'Name', cell: (r) => r.name }]}
+          columns={[
+            { id: 'name', header: tr('import.new-fields.name', 'Name'), cell: (r) => r.name },
+          ]}
           rowId={(r) => r.id}
           dense
         />
       )}
       {rest.length > 0 ? (
         <p className="text-sm text-fg-muted">
-          {names.length === 0 ? '' : 'And '}
+          {names.length === 0 ? '' : tr('import.new-fields.and', 'And') + ' '}
           {rest.join(', and ')}.
         </p>
       ) : null}
@@ -990,7 +1149,7 @@ export function ExistingStep({
           <span className="text-fg-subtle">—</span>
         ) : (
           <span className="font-medium text-warning-fg">
-            {missingOf(p).toLocaleString('en-GB')} missing
+            {missingOf(p).toLocaleString('en-GB')} {tr('import.new-fields.missing', 'missing')}
           </span>
         ),
     },
@@ -1002,7 +1161,7 @@ export function ExistingStep({
     {
       // Each row opens its choices beside the table (design AI10's chevron).
       id: 'open',
-      header: <span className="sr-only">Choose</span>,
+      header: <span className="sr-only">{tr('import.new-fields.choose', 'Choose')}</span>,
       cell: () => <icons.next aria-hidden className="size-4 text-fg-subtle" />,
     },
   ];
@@ -1010,12 +1169,18 @@ export function ExistingStep({
     <div className="grid items-start gap-4 @4xl/page:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-3">
         {kept.length === 0 ? (
-          <Alert tone="info" title="No new fields">
-            Every new column is switched off, so the file imports without them.
+          <Alert tone="info" title={tr('import.new-fields.no_new_fields', 'No new fields')}>
+            {tr(
+              'import.new-fields.every_new_column_is_switched_off',
+              'Every new column is switched off, so the file imports without them.',
+            )}
           </Alert>
         ) : (
           <DataTable
-            label="New fields and the people without a value"
+            label={tr(
+              'import.new-fields.new_fields_and_the_people_without',
+              'New fields and the people without a value',
+            )}
             rows={kept}
             columns={columns}
             rowId={(p) => p.key}
@@ -1030,7 +1195,14 @@ export function ExistingStep({
       {current === undefined ? null : (
         <PageSection
           surface
-          title={`${current.field.label} · ${plural(missingOf(current), 'person', 'people')} without a value`}
+          title={tr(
+            'import.new-fields.without_a_value',
+            '{{label}} · {{missingOf}} without a value',
+            {
+              label: current.field.label,
+              missingOf: plural(missingOf(current), 'person', 'people'),
+            },
+          )}
         >
           <div className="flex flex-col gap-3">
             <ExistingChoices
@@ -1044,7 +1216,12 @@ export function ExistingStep({
             />
             {current.forExisting.kind === 'default' ? (
               <Field>
-                <FieldLabel>Value for the people without one</FieldLabel>
+                <FieldLabel>
+                  {tr(
+                    'import.new-fields.value_for_the_people_without_one',
+                    'Value for the people without one',
+                  )}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={current.forExisting.value}
@@ -1058,7 +1235,10 @@ export function ExistingStep({
                 </FieldControl>
               </Field>
             ) : null}
-            <p className="text-sm text-fg-muted">Why this suggestion: {current.forExistingWhy}</p>
+            <p className="text-sm text-fg-muted">
+              {tr('import.new-fields.why_this_suggestion', 'Why this suggestion:')}{' '}
+              {current.forExistingWhy}
+            </p>
             <WithoutValue
               label={current.field.label}
               names={withoutOf(current)}

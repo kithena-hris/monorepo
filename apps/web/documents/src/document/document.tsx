@@ -39,6 +39,7 @@ import { ActOnLetter, type LetterProps } from './letter';
 import { FillRecord, type RecordProps } from './record';
 import { AccessBadge, StatusBadge, pages, putFile, shortDate, useWrite } from '../shared';
 import type { DocumentData, FileLink, FileRef, GrantInput, Outcome, StartUpload } from '../types';
+import { t } from '../i18n';
 
 /**
  * A document (D1, E2, E3; MR1, MR4, MA2): the page itself, then who can see
@@ -85,15 +86,23 @@ export interface DocumentViewProps {
 
 export function DocumentView(props: DocumentViewProps): JSX.Element {
   const { load } = props;
-  if (load.status === 'loading') return <Skeleton shape="page" label="Loading the document" />;
+  if (load.status === 'loading')
+    return (
+      <Skeleton
+        shape="page"
+        label={t('document.document.loading_the_document', 'Loading the document')}
+      />
+    );
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="Document" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('document.document.document', 'Document')} />
+      ) : null}
       <Loaded load={load} what="the document">
         {(data) =>
           data.document === null ? (
             <Closed
-              owner={data.closed?.owner ?? 'Its owner'}
+              owner={data.closed?.owner ?? t('document.document.its_owner', 'Its owner')}
               requested={data.closed?.requested === true}
               {...props}
             />
@@ -121,17 +130,21 @@ function Closed({
     <div className="mx-auto flex max-w-md flex-col gap-5 py-8">
       <EmptyState
         icon={<icons.locked />}
-        title="You can’t open this yet"
-        description={`${owner} owns it. They’ll get a task in their Inbox, and you’ll hear back as an update.`}
+        title={t('document.document.you_cant_open_this_yet', 'You can’t open this yet')}
+        description={t(
+          'document.document.owns_it_theyll_get_a_task',
+          '{{owner}} owns it. They’ll get a task in their Inbox, and you’ll hear back as an update.',
+          { owner },
+        )}
       />
       {sent ? (
-        <Alert tone="success" title="Asked">
-          {owner} will decide.
+        <Alert tone="success" title={t('document.document.asked', 'Asked')}>
+          {owner} {t('document.document.will_decide', 'will decide.')}
         </Alert>
       ) : (
         <>
           <Field required>
-            <FieldLabel>Why you need it</FieldLabel>
+            <FieldLabel>{t('document.document.why_you_need_it', 'Why you need it')}</FieldLabel>
             <FieldControl>
               <Input
                 value={reason}
@@ -157,7 +170,7 @@ function Closed({
               );
             }}
           >
-            Ask for access
+            {t('document.document.ask_for_access', 'Ask for access')}
           </Button>
         </>
       )}
@@ -186,7 +199,11 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
     <>
       <PageHeader
         title={row.title}
-        description={[row.typeName ?? 'Your document', row.subject?.name ?? null, pages(row.pages)]
+        description={[
+          row.typeName ?? t('document.document.your_document', 'Your document'),
+          row.subject?.name ?? null,
+          pages(row.pages),
+        ]
           .filter(Boolean)
           .join(' · ')}
         actions={
@@ -199,7 +216,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                   write.run(() => props.onRestore?.(row.id) ?? Promise.resolve({ ok: true }));
                 }}
               >
-                Restore
+                {t('document.document.restore', 'Restore')}
               </Button>
             ) : undefined
           ) : (
@@ -210,7 +227,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                   startIcon={<icons.download aria-hidden />}
                   onClick={download}
                 >
-                  Download
+                  {t('document.document.download', 'Download')}
                 </Button>
               ) : null}
               {doc.may.share &&
@@ -225,7 +242,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                       props.onNavigate(`/documents/d/${row.id}/send`);
                     }}
                   >
-                    Request signature
+                    {t('document.document.request_signature', 'Request signature')}
                   </a>
                 </Button>
               ) : null}
@@ -237,7 +254,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                     setSharing(true);
                   }}
                 >
-                  Share
+                  {t('document.document.share', 'Share')}
                 </Button>
               ) : null}
             </>
@@ -249,7 +266,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
         <StatusBadge status={row.status} />
         {doc.held ? (
           <Badge tone="danger" size="sm">
-            Legal hold
+            {t('document.document.legal_hold', 'Legal hold')}
           </Badge>
         ) : null}
       </div>
@@ -297,25 +314,40 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
             />
           )}
           {row.confidential ? (
-            <Alert tone="warning" title="Confidential" icon={<icons.sensitive />}>
+            <Alert
+              tone="warning"
+              title={t('document.document.confidential', 'Confidential')}
+              icon={<icons.sensitive />}
+            >
               {doc.may.download
                 ? 'Your name is on every page you view. You can download it; most people cannot.'
-                : 'Your name is on every page. It cannot be downloaded or printed, and every open is logged.'}
+                : t(
+                    'document.document.your_name_is_on_every_page',
+                    'Your name is on every page. It cannot be downloaded or printed, and every open is logged.',
+                  )}
             </Alert>
           ) : null}
           <Card padded>
             <KeyValues
               layout="split"
               items={[
-                { label: 'Who can see it', value: row.who.label },
-                { label: 'Owner', value: doc.owner },
                 {
-                  label: 'Version',
+                  label: t('document.document.who_can_see_it', 'Who can see it'),
+                  value: row.who.label,
+                },
+                { label: t('document.document.owner', 'Owner'), value: doc.owner },
+                {
+                  label: t('document.document.version', 'Version'),
                   value: `${String(doc.current.n)} of ${String(doc.versions.length)} · ${shortDate(doc.current.uploadedAt)}`,
                 },
                 ...(row.expiresOn === null
                   ? []
-                  : [{ label: 'Expires', value: shortDate(row.expiresOn) }]),
+                  : [
+                      {
+                        label: t('document.document.expires', 'Expires'),
+                        value: shortDate(row.expiresOn),
+                      },
+                    ]),
               ]}
             />
           </Card>
@@ -324,10 +356,16 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
               <div className="flex flex-col gap-2">
                 <span className="font-semibold">
                   {doc.signing.status === 'sent'
-                    ? `Out for signature · ${String(doc.signing.signed)} of ${String(doc.signing.of)} signed`
+                    ? t(
+                        'document.document.out_for_signature_of_signed',
+                        'Out for signature · {{signed}} of {{of}} signed',
+                        { signed: String(doc.signing.signed), of: String(doc.signing.of) },
+                      )
                     : doc.signing.status === 'completed'
-                      ? 'Signed and sealed'
-                      : `Signature request ${doc.signing.status}`}
+                      ? t('document.document.signed_and_sealed', 'Signed and sealed')
+                      : t('document.document.signature_request', 'Signature request {{status}}', {
+                          status: doc.signing.status,
+                        })}
                 </span>
                 <Button
                   asChild
@@ -339,8 +377,8 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                 >
                   <a href={`/documents/envelopes/${doc.signing.id}`}>
                     {doc.signing.mine && doc.signing.status === 'sent'
-                      ? 'Review and sign'
-                      : 'Open the request'}
+                      ? t('document.document.review_and_sign', 'Review and sign')
+                      : t('document.document.open_the_request', 'Open the request')}
                   </a>
                 </Button>
               </div>
@@ -351,18 +389,27 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
               <div className="flex flex-col gap-2">
                 <span className="font-semibold">
                   {c.asked && !c.acknowledged
-                    ? 'Read it, then acknowledge it'
-                    : `Acknowledged by ${String(c.done)} of ${String(c.of)}`}
+                    ? t(
+                        'document.document.read_it_then_acknowledge_it',
+                        'Read it, then acknowledge it',
+                      )
+                    : t(
+                        'document.document.acknowledged_by_of',
+                        'Acknowledged by {{done}} of {{of}}',
+                        { done: String(c.done), of: String(c.of) },
+                      )}
                 </span>
                 {c.asked && !c.acknowledged ? (
                   <Acknowledge id={c.id} onAcknowledge={props.onAcknowledge} />
                 ) : c.asked ? (
                   <Badge tone="success" size="sm">
-                    You acknowledged it
+                    {t('document.document.you_acknowledged_it', 'You acknowledged it')}
                   </Badge>
                 ) : (
                   <Button asChild size="sm" variant="secondary" className="self-start">
-                    <a href={`/documents/campaigns/${c.id}`}>See who is left</a>
+                    <a href={`/documents/campaigns/${c.id}`}>
+                      {t('document.document.see_who_is_left', 'See who is left')}
+                    </a>
                   </Button>
                 )}
               </div>
@@ -379,7 +426,9 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
           {doc.accessRequests.length === 0 ? null : (
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Asked to open it</CardTitle>
+                <CardTitle level={2}>
+                  {t('document.document.asked_to_open_it', 'Asked to open it')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <List>
@@ -398,7 +447,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
           )}
           <Card>
             <CardHeader>
-              <CardTitle level={2}>Versions</CardTitle>
+              <CardTitle level={2}>{t('document.document.versions', 'Versions')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <List>
@@ -409,7 +458,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                       .filter(Boolean)
                       .join(' · ')}
                   >
-                    Version {v.n}
+                    {t('document.document.version', 'Version')} {v.n}
                   </ListItem>
                 ))}
               </List>
@@ -423,7 +472,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                     setVersioning(true);
                   }}
                 >
-                  New version
+                  {t('document.document.new_version', 'New version')}
                 </Button>
               ) : null}
             </CardContent>
@@ -431,7 +480,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
           {doc.views.length + doc.activity.length === 0 ? null : (
             <Card>
               <CardHeader>
-                <CardTitle level={2}>Activity</CardTitle>
+                <CardTitle level={2}>{t('document.document.activity', 'Activity')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <List>
@@ -466,7 +515,7 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
                 );
               }}
             >
-              Delete
+              {t('document.document.delete', 'Delete')}
             </Button>
           ) : null}
         </div>
@@ -522,19 +571,23 @@ function Preview({
   }, [doc.row.id, doc.current.n, deleted, onFileLink]);
   if (deleted) {
     return (
-      <EmptyState icon={<icons.delete />} title="In Deleted" description="Restore it to open it." />
+      <EmptyState
+        icon={<icons.delete />}
+        title={t('document.document.in_deleted', 'In Deleted')}
+        description={t('document.document.restore_it_to_open_it', 'Restore it to open it.')}
+      />
     );
   }
   if (link === null) {
     return (
       <Card variant="fill" className="grid min-h-[36rem] place-items-center">
-        <Spinner label="Opening the document" />
+        <Spinner label={t('document.document.opening_the_document', 'Opening the document')} />
       </Card>
     );
   }
   if ('error' in link)
     return (
-      <Alert tone="danger" title="Could not open it">
+      <Alert tone="danger" title={t('document.document.could_not_open_it', 'Could not open it')}>
         {link.error}
       </Alert>
     );
@@ -560,10 +613,13 @@ function Preview({
     <EmptyState
       icon={<icons.file />}
       title={doc.current.fileName}
-      description="This kind of file opens in its own app."
+      description={t(
+        'document.document.this_kind_of_file_opens_in',
+        'This kind of file opens in its own app.',
+      )}
       action={
         <Button asChild variant="secondary">
-          <a href={link.url}>Open</a>
+          <a href={link.url}>{t('document.document.open', 'Open')}</a>
         </Button>
       }
     />
@@ -581,7 +637,7 @@ function ProtectSwitch({
   return (
     <div className="flex flex-col gap-2">
       <Field orientation="horizontal">
-        <FieldLabel>Confidential</FieldLabel>
+        <FieldLabel>{t('document.document.confidential', 'Confidential')}</FieldLabel>
         <FieldControl>
           <Switch
             checked={doc.row.confidential}
@@ -593,9 +649,12 @@ function ProtectSwitch({
         </FieldControl>
       </Field>
       <p className="text-sm text-fg-muted">
-        A watermark, no download or print, and every open logged.
+        {t(
+          'document.document.a_watermark_no_download_or_print',
+          'A watermark, no download or print, and every open logged.',
+        )}
         {doc.confidentialBy === 'hr' || doc.confidentialBy === 'type'
-          ? ' Set by HR: only HR can lower it.'
+          ? ' ' + t('document.document.set_by_hr_only_hr_can', 'Set by HR: only HR can lower it.')
           : ''}
       </p>
       {write.error === null ? null : <Alert tone="danger">{write.error}</Alert>}
@@ -621,7 +680,7 @@ function Decide({
           write.run(() => onDecide?.(id, false) ?? Promise.resolve({ ok: true }));
         }}
       >
-        Refuse
+        {t('document.document.refuse', 'Refuse')}
       </Button>
       <Button
         size="sm"
@@ -631,7 +690,7 @@ function Decide({
           write.run(() => onDecide?.(id, true) ?? Promise.resolve({ ok: true }));
         }}
       >
-        Grant
+        {t('document.document.grant', 'Grant')}
       </Button>
     </div>
   );
@@ -655,7 +714,7 @@ function Acknowledge({
         write.run(() => onAcknowledge?.(id) ?? Promise.resolve({ ok: true }));
       }}
     >
-      I’ve read it
+      {t('document.document.ive_read_it', 'I’ve read it')}
     </Button>
   );
 }
@@ -680,14 +739,19 @@ function SendAsPolicy({
           setOpen(true);
         }}
       >
-        Ask everyone to acknowledge it
+        {t('document.document.ask_everyone_to_acknowledge_it', 'Ask everyone to acknowledge it')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Send for acknowledgement</DialogTitle>
+            <DialogTitle>
+              {t('document.document.send_for_acknowledgement', 'Send for acknowledgement')}
+            </DialogTitle>
             <DialogDescription>
-              Everyone at the company gets a task to read it and say so. New joiners are asked too.
+              {t(
+                'document.document.everyone_at_the_company_gets_a',
+                'Everyone at the company gets a task to read it and say so. New joiners are asked too.',
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -700,7 +764,7 @@ function SendAsPolicy({
                 setOpen(false);
               }}
             >
-              Cancel
+              {t('document.document.cancel', 'Cancel')}
             </Button>
             <Button
               variant="primary"
@@ -718,7 +782,7 @@ function SendAsPolicy({
                 );
               }}
             >
-              Send
+              {t('document.document.send', 'Send')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -748,21 +812,31 @@ function NewVersion({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New version</DialogTitle>
+          <DialogTitle>{t('document.document.new_version', 'New version')}</DialogTitle>
           <DialogDescription>
-            Everyone who can open it sees the new version; the old ones stay.
+            {t(
+              'document.document.everyone_who_can_open_it_sees',
+              'Everyone who can open it sees the new version; the old ones stay.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Dropzone
-            label={file === null ? 'Drop the new file, or choose it' : file.name}
+            label={
+              file === null
+                ? t(
+                    'document.document.drop_the_new_file_or_choose',
+                    'Drop the new file, or choose it',
+                  )
+                : file.name
+            }
             variant="inline"
             onFiles={(files) => {
               setFile(files[0] ?? null);
             }}
           />
           <Field>
-            <FieldLabel>What changed</FieldLabel>
+            <FieldLabel>{t('document.document.what_changed', 'What changed')}</FieldLabel>
             <FieldControl>
               <Input
                 value={note}
@@ -782,7 +856,7 @@ function NewVersion({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('document.document.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -804,7 +878,7 @@ function NewVersion({
               );
             }}
           >
-            Add version
+            {t('document.document.add_version', 'Add version')}
           </Button>
         </DialogFooter>
       </DialogContent>

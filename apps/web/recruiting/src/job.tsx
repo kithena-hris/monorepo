@@ -69,6 +69,7 @@ import { BenefitList } from './benefits';
 import { SaveQueue, hoursOf, useAnswered, useCommit, type Commit } from './job-terms';
 import { JobWizard, NewJobWizard, isSetupPart } from './job-wizard';
 import type { FormField, JobData, PlannedInterview, ScreenProps, Stage } from './types';
+import { t as tr } from './i18n';
 
 /**
  * R4–R7 and R14, a job's setup (design R4–R7): details, the hiring team,
@@ -84,38 +85,49 @@ const TARGETS: readonly {
 }[] = [
   {
     key: 'careers_page',
-    label: 'Careers page',
-    what: 'The company’s page on Kithena Jobs, and its embed',
+    label: tr('job.careers_page', 'Careers page'),
+    what: tr(
+      'job.the_companys_page_on_kithena_jobs',
+      'The company’s page on Kithena Jobs, and its embed',
+    ),
     available: true,
   },
   {
     key: 'kithena_jobs',
-    label: 'Kithena Jobs search',
-    what: 'The cross-company search, if the company opted in',
+    label: tr('job.kithena_jobs_search', 'Kithena Jobs search'),
+    what: tr(
+      'job.the_cross_company_search_if_the',
+      'The cross-company search, if the company opted in',
+    ),
     available: true,
   },
   {
     key: 'google_for_jobs',
-    label: 'Google for Jobs',
+    label: tr('job.google_for_jobs', 'Google for Jobs'),
     what: 'Structured data on the job page; Google crawls it',
     available: true,
   },
   {
     key: 'xml_feed',
-    label: 'Open XML feed',
-    what: 'For aggregators that read feeds',
+    label: tr('job.open_xml_feed', 'Open XML feed'),
+    what: tr('job.for_aggregators_that_read_feeds', 'For aggregators that read feeds'),
     available: true,
   },
   {
     key: 'internal_board',
-    label: 'Internal job board',
-    what: 'Members only, with refer and apply',
+    label: tr('job.internal_job_board', 'Internal job board'),
+    what: tr('job.members_only_with_refer_and_apply', 'Members only, with refer and apply'),
     available: true,
   },
-  { key: 'share_link', label: 'Share links', what: 'A tracked link per channel', available: true },
+  {
+    key: 'share_link',
+    label: tr('job.share_links', 'Share links'),
+    what: tr('job.a_tracked_link_per_channel', 'A tracked link per channel'),
+    available: true,
+  },
   {
     key: 'indeed',
-    label: 'Indeed',
+    label: tr('job.indeed', 'Indeed'),
     what: 'Glassdoor lists jobs from Indeed; needs the careers page first',
     available: false,
   },
@@ -171,11 +183,11 @@ function Details({
       <Refusal error={act.error} />
       <Card>
         <CardHeader>
-          <CardTitle level={2}>The job</CardTitle>
+          <CardTitle level={2}>{tr('job.the_job', 'The job')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           <Field required className="md:col-span-2">
-            <FieldLabel>Advertised title</FieldLabel>
+            <FieldLabel>{tr('job.advertised_title', 'Advertised title')}</FieldLabel>
             <FieldControl>
               <Input
                 value={job.title}
@@ -186,8 +198,13 @@ function Details({
             </FieldControl>
           </Field>
           <Field className="md:col-span-2">
-            <FieldLabel>Internal title</FieldLabel>
-            <FieldDescription>For the team only, when it differs from the ad.</FieldDescription>
+            <FieldLabel>{tr('job.internal_title', 'Internal title')}</FieldLabel>
+            <FieldDescription>
+              {tr(
+                'job.for_the_team_only_when_it',
+                'For the team only, when it differs from the ad.',
+              )}
+            </FieldDescription>
             <FieldControl>
               <Input
                 value={job.internalTitle}
@@ -198,12 +215,12 @@ function Details({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>Team</FieldLabel>
+            <FieldLabel>{tr('job.team', 'Team')}</FieldLabel>
             <FieldControl>
               <Combobox
-                label="Team"
+                label={tr('job.team', 'Team')}
                 clearable
-                placeholder="Choose a team"
+                placeholder={tr('job.choose_a_team', 'Choose a team')}
                 options={data.orgUnits.map((u) => ({ value: u.name, label: u.name }))}
                 value={job.department}
                 onChange={(v) => {
@@ -213,7 +230,7 @@ function Details({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>Level</FieldLabel>
+            <FieldLabel>{tr('job.level', 'Level')}</FieldLabel>
             <Select
               value={job.outline.seniority ?? 'none'}
               onValueChange={(v) => {
@@ -226,7 +243,7 @@ function Details({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="none">Not set</SelectItem>
+                <SelectItem value="none">{tr('job.not_set', 'Not set')}</SelectItem>
                 {['entry', 'mid', 'senior', 'lead', 'executive'].map((l) => (
                   <SelectItem key={l} value={l}>
                     {words(l)}
@@ -236,7 +253,7 @@ function Details({
             </Select>
           </Field>
           <NumberField
-            label="Openings"
+            label={tr('job.openings', 'Openings')}
             value={job.openings}
             min={1}
             onChange={(n) => {
@@ -244,10 +261,10 @@ function Details({
             }}
           />
           <Field>
-            <FieldLabel>Target start</FieldLabel>
+            <FieldLabel>{tr('job.target_start', 'Target start')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Target start"
+                label={tr('job.target_start', 'Target start')}
                 value={job.targetHireDate}
                 onChange={(d) => {
                   setJob({ ...job, targetHireDate: d });
@@ -259,13 +276,18 @@ function Details({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Visibility</CardTitle>
+          <CardTitle level={2}>{tr('job.visibility', 'Visibility')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <Field orientation="horizontal">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>Internal only</FieldLabel>
-              <FieldDescription>On the internal board, nowhere public.</FieldDescription>
+              <FieldLabel>{tr('job.internal_only', 'Internal only')}</FieldLabel>
+              <FieldDescription>
+                {tr(
+                  'job.on_the_internal_board_nowhere_public',
+                  'On the internal board, nowhere public.',
+                )}
+              </FieldDescription>
             </span>
             <FieldControl>
               <Switch
@@ -278,8 +300,10 @@ function Details({
           </Field>
           <Field orientation="horizontal">
             <span className="flex min-w-0 flex-col">
-              <FieldLabel>Confidential</FieldLabel>
-              <FieldDescription>The company is not named in the ad.</FieldDescription>
+              <FieldLabel>{tr('job.confidential', 'Confidential')}</FieldLabel>
+              <FieldDescription>
+                {tr('job.the_company_is_not_named_in', 'The company is not named in the ad.')}
+              </FieldDescription>
             </span>
             <FieldControl>
               <Switch
@@ -294,7 +318,7 @@ function Details({
       </Card>
       <div className="flex justify-end">
         <Button loading={act.pending} onClick={save}>
-          Save details
+          {tr('job.save_details', 'Save details')}
         </Button>
       </div>
     </div>
@@ -328,10 +352,29 @@ function useKeep(
 
 /** The four roles on a job, each with what it does: every one shown, whoever holds it listed. */
 const ROLE_ROWS = [
-  ['recruiter', 'Recruiters', 'Run the hiring: the ad, the screening, the bookings.'],
-  ['hiring_manager', 'Hiring manager', 'Decides who is hired. Needed before the setup moves on.'],
-  ['interviewer', 'Interviewers', 'Meet candidates and fill in their scorecards.'],
-  ['coordinator', 'Coordinators', 'Book interviews and keep the calendar.'],
+  [
+    'recruiter',
+    tr('job.recruiters', 'Recruiters'),
+    tr('job.run_the_hiring_the_ad_the', 'Run the hiring: the ad, the screening, the bookings.'),
+  ],
+  [
+    'hiring_manager',
+    tr('job.hiring_manager', 'Hiring manager'),
+    tr(
+      'job.decides_who_is_hired_needed_before',
+      'Decides who is hired. Needed before the setup moves on.',
+    ),
+  ],
+  [
+    'interviewer',
+    tr('job.interviewers', 'Interviewers'),
+    tr('job.meet_candidates_and_fill_in_their', 'Meet candidates and fill in their scorecards.'),
+  ],
+  [
+    'coordinator',
+    tr('job.coordinators', 'Coordinators'),
+    tr('job.book_interviews_and_keep_the_calendar', 'Book interviews and keep the calendar.'),
+  ],
 ] as const;
 
 const sameTeam = (
@@ -381,9 +424,12 @@ function Team({
               label={label}
               multiple
               chips
-              placeholder={`Choose ${label.toLowerCase()}`}
-              searchPlaceholder="Search people"
-              emptyMessage="Nobody by that name works here."
+              placeholder={tr('job.choose', 'Choose {{label}}', { label: label.toLowerCase() })}
+              searchPlaceholder={tr('job.search_people', 'Search people')}
+              emptyMessage={tr(
+                'job.nobody_by_that_name_works_here',
+                'Nobody by that name works here.',
+              )}
               options={data.members
                 .filter((m) => !team.some((t) => t.personId === m.personId && t.role !== role))
                 .map((m) => ({ value: m.personId, label: m.name }))}
@@ -408,7 +454,7 @@ function Team({
               void keep();
             }}
           >
-            Save team
+            {tr('job.save_team', 'Save team')}
           </Button>
         </div>
       ) : null}
@@ -417,8 +463,13 @@ function Team({
   return commit === undefined ? (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Hiring team</CardTitle>
-        <CardDescription>What each person may see follows their role on this job.</CardDescription>
+        <CardTitle level={2}>{tr('job.hiring_team', 'Hiring team')}</CardTitle>
+        <CardDescription>
+          {tr(
+            'job.what_each_person_may_see_follows',
+            'What each person may see follows their role on this job.',
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>
@@ -450,9 +501,11 @@ function CriterionInput({
       }}
     >
       <Input
-        aria-label={must ? 'A must-have' : 'A nice-to-have'}
+        aria-label={must ? tr('job.a_must_have', 'A must-have') : 'A nice-to-have'}
         placeholder={
-          must ? 'Five years building backend services' : 'Has run a team of three or more'
+          must
+            ? tr('job.five_years_building_backend_services', 'Five years building backend services')
+            : tr('job.has_run_a_team_of_three', 'Has run a team of three or more')
         }
         value={text}
         containerClassName="min-w-0 flex-1"
@@ -466,7 +519,7 @@ function CriterionInput({
         startIcon={<icons.add aria-hidden />}
         disabled={text.trim() === ''}
       >
-        Add
+        {tr('job.add', 'Add')}
       </Button>
     </form>
   );
@@ -512,7 +565,12 @@ function Criteria({
         </div>
         {list.length === 0 ? (
           <p className="text-sm text-fg-muted">
-            {must ? 'At least one, so the match has something to read.' : 'Optional.'}
+            {must
+              ? tr(
+                  'job.at_least_one_so_the_match',
+                  'At least one, so the match has something to read.',
+                )
+              : tr('job.optional', 'Optional.')}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -523,7 +581,10 @@ function Criteria({
                   <Button
                     variant="ghost"
                     size="xs"
-                    aria-label={`Move “${c.text}” to ${must ? 'nice to have' : 'must have'}`}
+                    aria-label={tr('job.move_to', 'Move “{{text}}” to {{value}}', {
+                      text: c.text,
+                      value: must ? 'nice to have' : 'must have',
+                    })}
                     startIcon={must ? <icons.down aria-hidden /> : <icons.up aria-hidden />}
                     onClick={() => {
                       setRows(rows.map((x) => (x.id === c.id ? { ...x, must: !must } : x)));
@@ -532,7 +593,7 @@ function Criteria({
                   <Button
                     variant="ghost"
                     size="xs"
-                    aria-label={`Remove “${c.text}”`}
+                    aria-label={tr('job.remove', 'Remove “{{text}}”', { text: c.text })}
                     startIcon={<icons.close aria-hidden />}
                     onClick={() => {
                       setRows(rows.filter((x) => x.id !== c.id));
@@ -560,8 +621,10 @@ function Criteria({
         {column(false)}
       </div>
       <p className="text-sm text-fg-muted">
-        One sentence a CV can show. With the match switched on, each candidate is read against every
-        line.
+        {tr(
+          'job.one_sentence_a_cv_can_show',
+          'One sentence a CV can show. With the match switched on, each candidate is read against every line.',
+        )}
       </p>
       {commit === undefined ? (
         <div className="flex justify-end">
@@ -572,7 +635,7 @@ function Criteria({
               void keep();
             }}
           >
-            Save criteria
+            {tr('job.save_criteria', 'Save criteria')}
           </Button>
         </div>
       ) : null}
@@ -581,8 +644,13 @@ function Criteria({
   return commit === undefined ? (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Criteria</CardTitle>
-        <CardDescription>What a candidate must bring, and what is a bonus.</CardDescription>
+        <CardTitle level={2}>{tr('job.criteria', 'Criteria')}</CardTitle>
+        <CardDescription>
+          {tr(
+            'job.what_a_candidate_must_bring_and',
+            'What a candidate must bring, and what is a bonus.',
+          )}
+        </CardDescription>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>
@@ -597,7 +665,9 @@ const LENGTHS = [15, 30, 45, 60, 90, 120] as const;
 const MEETS: ReadonlySet<string> = new Set(['screening', 'interview', 'assessment']);
 
 const lengthOf = (m: number): string =>
-  m < 60 || m % 60 !== 0 ? `${String(m)} min` : `${String(m / 60)} h`;
+  m < 60 || m % 60 !== 0
+    ? tr('job.min', '{{m}} min', { m: String(m) })
+    : tr('job.h', '{{value}} h', { value: String(m / 60) });
 
 /** The same steps, by name and kind, as a pipeline: how a job's copy is matched to its template. */
 const sameSteps = (a: readonly Stage[], b: readonly Stage[]): boolean => {
@@ -658,7 +728,7 @@ function InterviewCard({
     <Card variant="outline" padded className="flex flex-col gap-5">
       <div className="flex items-start gap-3">
         <Field className="min-w-0 flex-1">
-          <FieldLabel>Interview</FieldLabel>
+          <FieldLabel>{tr('job.interview', 'Interview')}</FieldLabel>
           <FieldControl>
             <Input
               value={interview.title}
@@ -673,14 +743,16 @@ function InterviewCard({
           variant="ghost"
           size="sm"
           className="mt-6"
-          aria-label={`Remove the interview from ${step.name}`}
+          aria-label={tr('job.remove_the_interview_from', 'Remove the interview from {{name}}', {
+            name: step.name,
+          })}
           startIcon={<icons.delete aria-hidden />}
           onClick={onRemove}
         />
       </div>
       <Field>
-        <FieldLabel>Length</FieldLabel>
-        <ChipRow aria-label={`${interview.title} length`}>
+        <FieldLabel>{tr('job.length', 'Length')}</FieldLabel>
+        <ChipRow aria-label={tr('job.length_2', '{{title}} length', { title: interview.title })}>
           {[...new Set([...LENGTHS, interview.minutes])]
             .toSorted((x, y) => x - y)
             .map((m) => (
@@ -697,14 +769,21 @@ function InterviewCard({
         </ChipRow>
       </Field>
       <Field required>
-        <FieldLabel>Who meets them</FieldLabel>
+        <FieldLabel>{tr('job.who_meets_them', 'Who meets them')}</FieldLabel>
         <FieldDescription>
-          From the hiring team; each gets the calendar invitation.
+          {tr(
+            'job.from_the_hiring_team_each_gets',
+            'From the hiring team; each gets the calendar invitation.',
+          )}
         </FieldDescription>
         {team.length === 0 ? (
-          <p className="text-sm text-fg-muted">Add the hiring team on the page before first.</p>
+          <p className="text-sm text-fg-muted">
+            {tr('job.add_the_hiring_team_on_the', 'Add the hiring team on the page before first.')}
+          </p>
         ) : (
-          <ChipRow aria-label={`Who runs ${interview.title}`}>
+          <ChipRow
+            aria-label={tr('job.who_runs', 'Who runs {{title}}', { title: interview.title })}
+          >
             {team.map((t) => {
               const on = interview.interviewerIds.includes(t.personId);
               return (
@@ -719,7 +798,10 @@ function InterviewCard({
                     });
                   }}
                 >
-                  {`${t.name ?? t.personId} · ${words(t.role).toLowerCase()}`}
+                  {tr('job.text', '{{value}} · {{role}}', {
+                    value: t.name ?? t.personId,
+                    role: words(t.role).toLowerCase(),
+                  })}
                 </Chip>
               );
             })}
@@ -727,9 +809,9 @@ function InterviewCard({
         )}
       </Field>
       <Field>
-        <FieldLabel>How the time is set</FieldLabel>
+        <FieldLabel>{tr('job.how_the_time_is_set', 'How the time is set')}</FieldLabel>
         <RadioGroup
-          aria-label="How the time is set"
+          aria-label={tr('job.how_the_time_is_set', 'How the time is set')}
           className="grid gap-2 md:grid-cols-2"
           value={mode}
           onValueChange={(v) => {
@@ -739,26 +821,32 @@ function InterviewCard({
           <RadioCard
             value="slots"
             icon={<icons.calendar aria-hidden />}
-            description="Picks from times that fit everyone’s calendars; you confirm one."
+            description={tr(
+              'job.picks_from_times_that_fit_everyones',
+              'Picks from times that fit everyone’s calendars; you confirm one.',
+            )}
           >
-            The candidate chooses
+            {tr('job.the_candidate_chooses', 'The candidate chooses')}
           </RadioCard>
           <RadioCard
             value="fixed"
             icon={<icons.scheduled aria-hidden />}
-            description="Everyone who reaches this step is invited to the same time."
+            description={tr(
+              'job.everyone_who_reaches_this_step_is',
+              'Everyone who reaches this step is invited to the same time.',
+            )}
           >
-            One set time
+            {tr('job.one_set_time', 'One set time')}
           </RadioCard>
         </RadioGroup>
       </Field>
       {mode === 'fixed' ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field required>
-            <FieldLabel>Date</FieldLabel>
+            <FieldLabel>{tr('job.date', 'Date')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Date"
+                label={tr('job.date', 'Date')}
                 value={when.date}
                 onChange={(d) => {
                   fix({ ...when, date: d });
@@ -767,10 +855,10 @@ function InterviewCard({
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>Time</FieldLabel>
+            <FieldLabel>{tr('job.time', 'Time')}</FieldLabel>
             <FieldControl>
               <TimePicker
-                label="Time"
+                label={tr('job.time', 'Time')}
                 step={15}
                 value={when.time}
                 onChange={(t) => {
@@ -782,9 +870,9 @@ function InterviewCard({
         </div>
       ) : null}
       <Field>
-        <FieldLabel>Where</FieldLabel>
+        <FieldLabel>{tr('job.where', 'Where')}</FieldLabel>
         <SegmentedControl
-          aria-label="Where"
+          aria-label={tr('job.where', 'Where')}
           value={where}
           onValueChange={(v) => {
             onChange(
@@ -796,17 +884,36 @@ function InterviewCard({
             );
           }}
         >
-          <SegmentedControlItem value="video">Video call</SegmentedControlItem>
-          <SegmentedControlItem value="place">In person</SegmentedControlItem>
-          <SegmentedControlItem value="link">Our own link</SegmentedControlItem>
+          <SegmentedControlItem value="video">
+            {tr('job.video_call', 'Video call')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="place">
+            {tr('job.in_person', 'In person')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="link">
+            {tr('job.our_own_link', 'Our own link')}
+          </SegmentedControlItem>
         </SegmentedControl>
         {where === 'video' ? (
-          <FieldDescription>A meeting link is made on the organiser’s calendar.</FieldDescription>
+          <FieldDescription>
+            {tr(
+              'job.a_meeting_link_is_made_on',
+              'A meeting link is made on the organiser’s calendar.',
+            )}
+          </FieldDescription>
         ) : (
           <FieldControl>
             <Input
-              aria-label={where === 'place' ? 'The address' : 'The meeting link'}
-              placeholder={where === 'place' ? 'Hauptstraße 1, Berlin, reception' : 'https://'}
+              aria-label={
+                where === 'place'
+                  ? tr('job.the_address', 'The address')
+                  : tr('job.the_meeting_link', 'The meeting link')
+              }
+              placeholder={
+                where === 'place'
+                  ? tr('job.hauptstra_e_1_berlin_reception', 'Hauptstraße 1, Berlin, reception')
+                  : 'https://'
+              }
               value={(where === 'place' ? interview.place : interview.videoUrl) ?? ''}
               onChange={(e) => {
                 onChange(
@@ -818,43 +925,77 @@ function InterviewCard({
         )}
       </Field>
       <Field>
-        <FieldLabel>Agenda</FieldLabel>
+        <FieldLabel>{tr('job.agenda', 'Agenda')}</FieldLabel>
         <FieldControl>
           <Textarea
             autoResize
             rows={2}
-            placeholder="Walk us through two projects; then your questions for us."
+            placeholder={tr(
+              'job.walk_us_through_two_projects_then',
+              'Walk us through two projects; then your questions for us.',
+            )}
             value={interview.agenda ?? ''}
             onChange={(e) => {
               onChange({ agenda: e.target.value });
             }}
           />
         </FieldControl>
-        <FieldDescription>In the invitation and on everyone’s calendar.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'job.in_the_invitation_and_on_everyones',
+            'In the invitation and on everyone’s calendar.',
+          )}
+        </FieldDescription>
       </Field>
       {/* What happens, said once, so nobody has to guess what moving a candidate sets off. */}
-      <IconList aria-label="When a candidate reaches this step">
+      <IconList
+        aria-label={tr(
+          'job.when_a_candidate_reaches_this_step',
+          'When a candidate reaches this step',
+        )}
+      >
         {mode === 'fixed' ? (
           <>
             <IconListItem icon={<icons.email aria-hidden />} tone="accent">
-              {`The candidate is invited for ${when.date === null || when.time === null ? 'the set time' : day(when.date)}${when.time === null ? '' : `, ${when.time}`}, with the agenda.`}
+              {tr(
+                'job.the_candidate_is_invited_for_with',
+                'The candidate is invited for {{value}}{{value2}}, with the agenda.',
+                {
+                  value: when.date === null || when.time === null ? 'the set time' : day(when.date),
+                  value2: when.time === null ? '' : `, ${when.time}`,
+                },
+              )}
             </IconListItem>
             <IconListItem icon={<icons.calendar aria-hidden />} tone="accent">
               {panel.length === 0
-                ? 'Whoever meets them gets the calendar invitation.'
-                : `${panel.map((p) => p.name ?? p.personId).join(', ')} get the calendar invitation.`}
+                ? tr(
+                    'job.whoever_meets_them_gets_the_calendar',
+                    'Whoever meets them gets the calendar invitation.',
+                  )
+                : tr('job.get_the_calendar_invitation', '{{join}} get the calendar invitation.', {
+                    join: panel.map((p) => p.name ?? p.personId).join(', '),
+                  })}
             </IconListItem>
           </>
         ) : (
           <>
             <IconListItem icon={<icons.email aria-hidden />} tone="accent">
-              The candidate is emailed to choose times that fit everyone, with the agenda.
+              {tr(
+                'job.the_candidate_is_emailed_to_choose',
+                'The candidate is emailed to choose times that fit everyone, with the agenda.',
+              )}
             </IconListItem>
             <IconListItem icon={<icons.inbox aria-hidden />} tone="accent">
-              Their times reach the recruiter’s Inbox and email; the recruiter confirms one.
+              {tr(
+                'job.their_times_reach_the_recruiters_inbox',
+                'Their times reach the recruiter’s Inbox and email; the recruiter confirms one.',
+              )}
             </IconListItem>
             <IconListItem icon={<icons.calendar aria-hidden />} tone="accent">
-              The team gets the calendar invitation; the candidate a confirmation.
+              {tr(
+                'job.the_team_gets_the_calendar_invitation',
+                'The team gets the calendar invitation; the candidate a confirmation.',
+              )}
             </IconListItem>
           </>
         )}
@@ -947,7 +1088,7 @@ function Steps({
     <div className="flex flex-col gap-6">
       <Refusal error={error ?? act.error} />
       <Field>
-        <FieldLabel>Pipeline</FieldLabel>
+        <FieldLabel>{tr('job.pipeline', 'Pipeline')}</FieldLabel>
         <Select value={current} onValueChange={choose}>
           <FieldControl>
             <SelectTrigger className="max-w-md">
@@ -955,19 +1096,28 @@ function Steps({
             </SelectTrigger>
           </FieldControl>
           <SelectContent>
-            {current === 'own' ? <SelectItem value="own">This job’s own steps</SelectItem> : null}
+            {current === 'own' ? (
+              <SelectItem value="own">
+                {tr('job.this_jobs_own_steps', 'This job’s own steps')}
+              </SelectItem>
+            ) : null}
             {pipelines.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.isDefault ? `${p.name} (the default)` : p.name}
+                {p.isDefault
+                  ? tr('job.the_default', '{{name}} (the default)', { name: p.name })
+                  : p.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <FieldDescription>
-          The company’s pipelines, from Settings. Choosing one gives this job its steps.
+          {tr(
+            'job.the_companys_pipelines_from_settings_choosing',
+            'The company’s pipelines, from Settings. Choosing one gives this job its steps.',
+          )}
         </FieldDescription>
       </Field>
-      <ol className="flex flex-col gap-4" aria-label="The steps">
+      <ol className="flex flex-col gap-4" aria-label={tr('job.the_steps', 'The steps')}>
         {stages.map((s, i) => {
           const interview = kept.find((p) => p.stageId === s.id);
           const meets = MEETS.has(s.category);
@@ -987,7 +1137,7 @@ function Steps({
                   <span className="text-sm text-fg-muted">{words(s.category)}</span>
                   {s.category === 'interview' && interview === undefined ? (
                     <Badge size="xs" tone="attention">
-                      Needs an interview
+                      {tr('job.needs_an_interview', 'Needs an interview')}
                     </Badge>
                   ) : null}
                 </div>
@@ -1036,7 +1186,7 @@ function Steps({
                         ]);
                       }}
                     >
-                      Add an interview
+                      {tr('job.add_an_interview', 'Add an interview')}
                     </Button>
                   </div>
                 ) : null}
@@ -1079,9 +1229,12 @@ function Ad({
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
       <Card>
         <CardHeader>
-          <CardTitle level={2}>The ad</CardTitle>
+          <CardTitle level={2}>{tr('job.the_ad', 'The ad')}</CardTitle>
           <CardDescription>
-            Each language is its own version. Salary and terms come from the job, not the text.
+            {tr(
+              'job.each_language_is_its_own_version',
+              'Each language is its own version. Salary and terms come from the job, not the text.',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -1101,7 +1254,7 @@ function Ad({
             ))}
           </div>
           <Field required>
-            <FieldLabel>Title</FieldLabel>
+            <FieldLabel>{tr('job.title', 'Title')}</FieldLabel>
             <FieldControl>
               <Input
                 value={title}
@@ -1113,16 +1266,20 @@ function Ad({
           </Field>
           <RichTextEditor
             key={`${language}:${String(drafted?.n ?? 0)}`}
-            label="Ad text"
+            label={tr('job.ad_text', 'Ad text')}
             value={drafted?.html ?? ad?.html ?? ''}
             onChangeJson={setDoc}
             minHeight="20rem"
           />
           <Field>
-            <FieldLabel>Draft with the assistant</FieldLabel>
+            <FieldLabel>
+              {tr('job.draft_with_the_assistant', 'Draft with the assistant')}
+            </FieldLabel>
             <FieldDescription>
-              What the role is about, in a few lines. The draft replaces the text above; nothing is
-              saved until you save it.
+              {tr(
+                'job.what_the_role_is_about_in',
+                'What the role is about, in a few lines. The draft replaces the text above; nothing is saved until you save it.',
+              )}
             </FieldDescription>
             <FieldControl>
               <Textarea
@@ -1143,13 +1300,16 @@ function Ad({
                 act.run('DraftAd', { jobId: data.job.id, input: { language, intake } }, take);
               }}
             >
-              Draft
+              {tr('job.draft', 'Draft')}
             </Button>
             {ad === undefined ? null : (
               <>
                 <Select value={to} onValueChange={setTo}>
-                  <SelectTrigger aria-label="Translate into" className="w-44">
-                    <SelectValue placeholder="Translate into" />
+                  <SelectTrigger
+                    aria-label={tr('job.translate_into', 'Translate into')}
+                    className="w-44"
+                  >
+                    <SelectValue placeholder={tr('job.translate_into', 'Translate into')} />
                   </SelectTrigger>
                   <SelectContent>
                     {['en', 'es', 'de', 'hi']
@@ -1176,7 +1336,7 @@ function Ad({
                     );
                   }}
                 >
-                  Translate
+                  {tr('job.translate', 'Translate')}
                 </Button>
               </>
             )}
@@ -1193,24 +1353,30 @@ function Ad({
                 });
               }}
             >
-              Save and check
+              {tr('job.save_and_check', 'Save and check')}
             </Button>
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Checks before publishing</CardTitle>
+          <CardTitle level={2}>
+            {tr('job.checks_before_publishing', 'Checks before publishing')}
+          </CardTitle>
           <CardDescription>
             {errors.length === 0
-              ? 'Nothing blocks publishing'
-              : `${String(errors.length)} block publishing`}
+              ? tr('job.nothing_blocks_publishing', 'Nothing blocks publishing')
+              : tr('job.block_publishing', '{{length}} block publishing', {
+                  length: String(errors.length),
+                })}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {(ad?.checks ?? []).length === 0 ? (
             <p className="text-sm text-fg-muted">
-              {ad === undefined ? 'Save the ad to check it.' : 'Every check passed.'}
+              {ad === undefined
+                ? tr('job.save_the_ad_to_check_it', 'Save the ad to check it.')
+                : tr('job.every_check_passed', 'Every check passed.')}
             </p>
           ) : null}
           {(ad?.checks ?? []).map((c, i) => (
@@ -1219,7 +1385,10 @@ function Ad({
               tone={c.severity === 'error' ? 'danger' : 'warning'}
               title={c.match === null ? words(c.code) : `“${c.match.text}”`}
             >
-              {`${c.message} (${c.source})`}
+              {tr('job.text_2', '{{message}} ({{source}})', {
+                message: c.message,
+                source: c.source,
+              })}
               {c.match === null ? null : hints[i] === undefined ? (
                 <Button
                   size="sm"
@@ -1241,10 +1410,15 @@ function Ad({
                     );
                   }}
                 >
-                  Why, and what instead?
+                  {tr('job.why_and_what_instead', 'Why, and what instead?')}
                 </Button>
               ) : (
-                <span className="mt-2 block">{`${hints[i].explanation} Try: “${hints[i].suggestion}”`}</span>
+                <span className="mt-2 block">
+                  {tr('job.try', '{{explanation}} Try: “{{suggestion}}”', {
+                    explanation: hints[i].explanation,
+                    suggestion: hints[i].suggestion,
+                  })}
+                </span>
               )}
             </Alert>
           ))}
@@ -1283,10 +1457,12 @@ function Form({
     >
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Apply form</CardTitle>
+          <CardTitle level={2}>{tr('job.apply_form', 'Apply form')}</CardTitle>
           <CardDescription>
-            The same definition renders the form on Kithena Jobs, checks the public API and types
-            the stored answer.
+            {tr(
+              'job.the_same_definition_renders_the_form',
+              'The same definition renders the form on Kithena Jobs, checks the public API and types the stored answer.',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -1294,9 +1470,9 @@ function Form({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Field</TableHead>
-                <TableHead>Required</TableHead>
-                <TableHead>Shown</TableHead>
+                <TableHead>{tr('job.field', 'Field')}</TableHead>
+                <TableHead>{tr('job.required', 'Required')}</TableHead>
+                <TableHead>{tr('job.shown', 'Shown')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1305,7 +1481,7 @@ function Form({
                   <TableCell>{f.label}</TableCell>
                   <TableCell>
                     <Switch
-                      aria-label={`${f.label} required`}
+                      aria-label={tr('job.required_2', '{{label}} required', { label: f.label })}
                       disabled={locked(f.key)}
                       checked={f.required}
                       onCheckedChange={(on) => {
@@ -1319,7 +1495,7 @@ function Form({
                   </TableCell>
                   <TableCell>
                     <Switch
-                      aria-label={`${f.label} shown`}
+                      aria-label={tr('job.shown_2', '{{label}} shown', { label: f.label })}
                       disabled={locked(f.key)}
                       checked={f.shown}
                       onCheckedChange={(on) => {
@@ -1336,7 +1512,7 @@ function Form({
             </TableBody>
           </Table>
           <Field>
-            <FieldLabel>Questionnaire</FieldLabel>
+            <FieldLabel>{tr('job.questionnaire', 'Questionnaire')}</FieldLabel>
             <Select value={questionnaire} onValueChange={setQuestionnaire}>
               <FieldControl>
                 <SelectTrigger>
@@ -1344,25 +1520,29 @@ function Form({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">{tr('job.none', 'None')}</SelectItem>
                 {data.questionnaires.map((q) => (
-                  <SelectItem
-                    key={q.id}
-                    value={q.id}
-                  >{`${q.name} · v${String(q.version)}`}</SelectItem>
+                  <SelectItem key={q.id} value={q.id}>
+                    {tr('job.v', '{{name}} · v{{version}}', {
+                      name: q.name,
+                      version: String(q.version),
+                    })}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <FieldDescription>
-              Screening questions asked on the apply form, written under Settings, Pipelines and
-              approvals.
+              {tr(
+                'job.screening_questions_asked_on_the_apply',
+                'Screening questions asked on the apply form, written under Settings, Pipelines and approvals.',
+              )}
             </FieldDescription>
           </Field>
-          <Alert tone="info" title="Knockout answers">
-            A knockout answer flags the application for the team. Where the questionnaire lets it
-            reject on its own, the application is rejected and the rejection email sent the next
-            working day at 09:00 in the candidate’s time zone, never the moment they apply. Until
-            then the team sees it flagged and can move it on instead.
+          <Alert tone="info" title={tr('job.knockout_answers', 'Knockout answers')}>
+            {tr(
+              'job.a_knockout_answer_flags_the_application',
+              'A knockout answer flags the application for the team. Where the questionnaire lets it reject on its own, the application is rejected and the rejection email sent the next working day at 09:00 in the candidate’s time zone, never the moment they apply. Until then the team sees it flagged and can move it on instead.',
+            )}
           </Alert>
           {commit === undefined ? (
             <div className="flex justify-end">
@@ -1373,7 +1553,7 @@ function Form({
                   void keep();
                 }}
               >
-                Save form
+                {tr('job.save_form', 'Save form')}
               </Button>
             </div>
           ) : null}
@@ -1381,20 +1561,22 @@ function Form({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Never asked</CardTitle>
-          <CardDescription>A Kithena rule, not a setting</CardDescription>
+          <CardTitle level={2}>{tr('job.never_asked', 'Never asked')}</CardTitle>
+          <CardDescription>
+            {tr('job.a_kithena_rule_not_a_setting', 'A Kithena rule, not a setting')}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-1.5">
           {[
-            'Date of birth',
-            'Photo',
-            'Marital status',
-            'Religion',
-            'Health',
-            'Pregnancy',
-            'Nationality',
-            'Trade union',
-            'Gender',
+            tr('job.date_of_birth', 'Date of birth'),
+            tr('job.photo', 'Photo'),
+            tr('job.marital_status', 'Marital status'),
+            tr('job.religion', 'Religion'),
+            tr('job.health', 'Health'),
+            tr('job.pregnancy', 'Pregnancy'),
+            tr('job.nationality', 'Nationality'),
+            tr('job.trade_union', 'Trade union'),
+            tr('job.gender', 'Gender'),
           ].map((x) => (
             <Badge key={x} size="sm">
               {x}
@@ -1420,26 +1602,31 @@ function Publishing({
     <div className="flex flex-col gap-4">
       <Refusal error={act.error} />
       {data.job.state !== 'open' ? (
-        <Alert tone="info" title="Open the job to publish it">
-          A draft or a job on hold is on no target.
+        <Alert
+          tone="info"
+          title={tr('job.open_the_job_to_publish_it', 'Open the job to publish it')}
+        >
+          {tr('job.a_draft_or_a_job_on', 'A draft or a job on hold is on no target.')}
         </Alert>
       ) : null}
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Where it’s published</CardTitle>
+          <CardTitle level={2}>{tr('job.where_its_published', 'Where it’s published')}</CardTitle>
           <CardDescription>
-            Each target has its own state, address and source tag, so every application is
-            attributed.
+            {tr(
+              'job.each_target_has_its_own_state',
+              'Each target has its own state, address and source tag, so every application is attributed.',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Target</TableHead>
-                <TableHead>State</TableHead>
+                <TableHead>{tr('job.target', 'Target')}</TableHead>
+                <TableHead>{tr('job.state', 'State')}</TableHead>
                 <TableHead>
-                  <span className="sr-only">Action</span>
+                  <span className="sr-only">{tr('job.action', 'Action')}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -1459,7 +1646,11 @@ function Publishing({
                     </TableCell>
                     <TableCell>
                       {held === undefined ? (
-                        <Badge size="sm">{available ? 'Not published' : 'Not available'}</Badge>
+                        <Badge size="sm">
+                          {available
+                            ? tr('job.not_published', 'Not published')
+                            : tr('job.not_available', 'Not available')}
+                        </Badge>
                       ) : (
                         <StateBadge state={held.state} />
                       )}
@@ -1478,7 +1669,7 @@ function Publishing({
                             act.run('PublishJob', { jobId: data.job.id, target: t.key });
                           }}
                         >
-                          Publish
+                          {tr('job.publish', 'Publish')}
                         </Button>
                       ) : null}
                     </TableCell>
@@ -1491,10 +1682,14 @@ function Publishing({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>How it looks on Kithena Jobs</CardTitle>
+          <CardTitle level={2}>
+            {tr('job.how_it_looks_on_kithena_jobs', 'How it looks on Kithena Jobs')}
+          </CardTitle>
           <CardDescription>
-            The ad as a candidate will see it, before and after publishing. The preview is the
-            team’s for a day; search engines never see it and nobody can apply from it.
+            {tr(
+              'job.the_ad_as_a_candidate_will',
+              'The ad as a candidate will see it, before and after publishing. The preview is the team’s for a day; search engines never see it and nobody can apply from it.',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -1502,23 +1697,29 @@ function Publishing({
             <div className="flex flex-wrap gap-2">
               <DialogTrigger asChild>
                 <Button variant="secondary" startIcon={<icons.visible aria-hidden />}>
-                  Preview the ad
+                  {tr('job.preview_the_ad', 'Preview the ad')}
                 </Button>
               </DialogTrigger>
               <Button asChild variant="ghost" startIcon={<icons.externalLink aria-hidden />}>
                 <a href={data.preview} target="_blank" rel="noreferrer">
-                  Open in a new tab
+                  {tr('job.open_in_a_new_tab', 'Open in a new tab')}
                 </a>
               </Button>
             </div>
             <DialogContent className="h-[90vh] w-[min(96vw,80rem)] max-w-none p-0">
               <DialogHeader className="px-6 pt-5">
-                <DialogTitle>Preview on Kithena Jobs</DialogTitle>
-                <DialogDescription>{`${data.job.title} · as a candidate sees it`}</DialogDescription>
+                <DialogTitle>
+                  {tr('job.preview_on_kithena_jobs', 'Preview on Kithena Jobs')}
+                </DialogTitle>
+                <DialogDescription>
+                  {tr('job.as_a_candidate_sees_it', '{{title}} · as a candidate sees it', {
+                    title: data.job.title,
+                  })}
+                </DialogDescription>
               </DialogHeader>
               <DialogBody className="min-h-0 flex-1 p-0">
                 <iframe
-                  title="Preview on Kithena Jobs"
+                  title={tr('job.preview_on_kithena_jobs', 'Preview on Kithena Jobs')}
                   src={data.preview}
                   className="size-full rounded-b-[inherit] border-0 bg-canvas"
                 />
@@ -1527,7 +1728,9 @@ function Publishing({
           </Dialog>
         </CardContent>
       </Card>
-      {share?.url == null ? null : <CopyField label="Share link" value={share.url} />}
+      {share?.url == null ? null : (
+        <CopyField label={tr('job.share_link', 'Share link')} value={share.url} />
+      )}
       {data.chat === null ? null : <ChatChannel data={data} props={props} />}
       <div className="flex justify-end">
         <Button
@@ -1538,7 +1741,7 @@ function Publishing({
             act.run('UnpublishJob', { jobId: data.job.id });
           }}
         >
-          Unpublish everywhere
+          {tr('job.unpublish_everywhere', 'Unpublish everywhere')}
         </Button>
       </div>
     </div>
@@ -1561,15 +1764,19 @@ function ChatChannel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>New applicants in Slack</CardTitle>
+        <CardTitle level={2}>
+          {tr('job.new_applicants_in_slack', 'New applicants in Slack')}
+        </CardTitle>
         <CardDescription>
-          Each morning, yesterday’s new applicants are posted to this channel. Invite Kithena to the
-          channel first.
+          {tr(
+            'job.each_morning_yesterdays_new_applicants_are',
+            'Each morning, yesterday’s new applicants are posted to this channel. Invite Kithena to the channel first.',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Field>
-          <FieldLabel>Channel ID</FieldLabel>
+          <FieldLabel>{tr('job.channel_id', 'Channel ID')}</FieldLabel>
           <FieldControl>
             <Input
               value={channel}
@@ -1580,7 +1787,10 @@ function ChatChannel({
             />
           </FieldControl>
           <FieldDescription>
-            In Slack, open the channel’s details; the ID is at the bottom.
+            {tr(
+              'job.in_slack_open_the_channels_details',
+              'In Slack, open the channel’s details; the ID is at the bottom.',
+            )}
           </FieldDescription>
         </Field>
         <div className="flex gap-2">
@@ -1592,7 +1802,7 @@ function ChatChannel({
               save(channel);
             }}
           >
-            Save
+            {tr('job.save', 'Save')}
           </Button>
           {data.chat?.channel == null ? null : (
             <Button
@@ -1604,7 +1814,7 @@ function ChatChannel({
                 save(null);
               }}
             >
-              Stop posting
+              {tr('job.stop_posting', 'Stop posting')}
             </Button>
           )}
         </div>
@@ -1617,29 +1827,29 @@ function ChatChannel({
 type Part = 'details' | 'team' | 'criteria' | 'plan' | 'ad' | 'form' | 'publishing';
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
-  details: 'Internal details',
-  team: 'Hiring team',
-  criteria: 'Criteria',
-  plan: 'Interview plan',
-  ad: 'Languages and checks',
-  form: 'Apply form',
-  publishing: 'Publishing',
+  details: tr('job.internal_details', 'Internal details'),
+  team: tr('job.hiring_team', 'Hiring team'),
+  criteria: tr('job.criteria', 'Criteria'),
+  plan: tr('job.interview_plan', 'Interview plan'),
+  ad: tr('job.languages_and_checks', 'Languages and checks'),
+  form: tr('job.apply_form', 'Apply form'),
+  publishing: tr('job.publishing', 'Publishing'),
 };
 
 const WEEKDAY: Readonly<Record<number, string>> = {
-  1: 'Mon',
-  2: 'Tue',
-  3: 'Wed',
-  4: 'Thu',
-  5: 'Fri',
-  6: 'Sat',
-  7: 'Sun',
+  1: tr('job.mon', 'Mon'),
+  2: tr('job.tue', 'Tue'),
+  3: tr('job.wed', 'Wed'),
+  4: tr('job.thu', 'Thu'),
+  5: tr('job.fri', 'Fri'),
+  6: tr('job.sat', 'Sat'),
+  7: tr('job.sun', 'Sun'),
 };
 
 const MODE: Readonly<Record<string, string>> = {
-  onsite: 'On site',
-  hybrid: 'Hybrid',
-  remote: 'Remote',
+  onsite: tr('job.on_site', 'On site'),
+  hybrid: tr('job.hybrid', 'Hybrid'),
+  remote: tr('job.remote', 'Remote'),
 };
 
 function PartBody({
@@ -1695,7 +1905,7 @@ function Region({
           className="after:absolute after:inset-0"
           onClick={onEdit}
         >
-          Edit
+          {tr('job.edit', 'Edit')}
         </Button>
       </div>
       {children}
@@ -1730,7 +1940,7 @@ function Editable({
         size="xs"
         variant="ghost"
         startIcon={<icons.edit aria-hidden />}
-        aria-label={`Edit ${label}`}
+        aria-label={tr('job.edit_2', 'Edit {{label}}', { label })}
         className="opacity-0 transition-opacity group-hover/edit:opacity-100 focus-visible:opacity-100 after:absolute after:inset-0 touch:opacity-100"
         onClick={onEdit}
       />
@@ -1776,7 +1986,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const pay =
           data.job.salary === null
             ? null
-            : `${range(data.job.salary.minMinor, data.job.salary.maxMinor, data.job.salary.currency)} a ${data.job.salary.period}`;
+            : tr('job.a', '{{range}} a {{period}}', {
+                range: range(
+                  data.job.salary.minMinor,
+                  data.job.salary.maxMinor,
+                  data.job.salary.currency,
+                ),
+                period: data.job.salary.period,
+              });
         const mode = `${MODE[data.job.workMode] ?? data.job.workMode}${
           data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null
             ? `, ${String(data.terms.hybridDaysOnsite)} days on site${
@@ -1791,7 +2008,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const hours =
           data.options.weeklyMinutes === null
             ? words(data.job.outline.hours)
-            : `${hoursOf(data.options.weeklyMinutes)} a week`;
+            : tr('job.a_week', '{{hoursOf}} a week', {
+                hoursOf: hoursOf(data.options.weeklyMinutes),
+              });
         const where = places.length === 0 ? null : places.map((l) => l.name).join(', ');
         // Each fact at the top of the ad, and the part of the setup that changes it.
         const facts: readonly {
@@ -1803,42 +2022,42 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         }[] = [
           {
             key: 'where',
-            label: 'the workplace',
+            label: tr('job.the_workplace', 'the workplace'),
             icon: <icons.location aria-hidden />,
             value: where,
-            missing: 'Add the workplace',
+            missing: tr('job.add_the_workplace', 'Add the workplace'),
           },
           {
             key: 'mode',
-            label: 'the work mode',
+            label: tr('job.the_work_mode', 'the work mode'),
             icon: <icons.home aria-hidden />,
             value: mode,
-            missing: 'Add the work mode',
+            missing: tr('job.add_the_work_mode', 'Add the work mode'),
           },
           {
             key: 'contract',
-            label: 'the contract',
+            label: tr('job.the_contract', 'the contract'),
             icon: <icons.agreement aria-hidden />,
             value: data.job.outline.contractType,
-            missing: 'Add the contract',
+            missing: tr('job.add_the_contract', 'Add the contract'),
           },
           {
             key: 'time',
-            label: 'the hours',
+            label: tr('job.the_hours', 'the hours'),
             icon: <icons.pending aria-hidden />,
             value: hours,
-            missing: 'Add the hours',
+            missing: tr('job.add_the_hours', 'Add the hours'),
           },
           {
             key: 'salary',
-            label: 'the pay',
+            label: tr('job.the_pay', 'the pay'),
             icon: <icons.payment aria-hidden />,
             value: pay === null ? null : data.job.salaryShown ? pay : `${pay}, not shown`,
-            missing: 'Add the pay',
+            missing: tr('job.add_the_pay', 'Add the pay'),
           },
           {
             key: 'level',
-            label: 'the team and level',
+            label: tr('job.the_team_and_level', 'the team and level'),
             icon: <icons.goal aria-hidden />,
             value:
               [
@@ -1847,16 +2066,19 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               ]
                 .filter((v) => v !== null)
                 .join(' · ') || null,
-            missing: 'Add the team and level',
+            missing: tr('job.add_the_team_and_level', 'Add the team and level'),
           },
         ];
         const rail = [
-          { label: 'Location', value: where ?? 'Not set' },
-          { label: 'Work mode', value: mode },
-          { label: 'Contract', value: data.job.outline.contractType ?? 'Not set' },
-          { label: 'Hours', value: hours },
+          { label: tr('job.location', 'Location'), value: where ?? 'Not set' },
+          { label: tr('job.work_mode', 'Work mode'), value: mode },
           {
-            label: 'Holiday',
+            label: tr('job.contract', 'Contract'),
+            value: data.job.outline.contractType ?? 'Not set',
+          },
+          { label: tr('job.hours', 'Hours'), value: hours },
+          {
+            label: tr('job.holiday', 'Holiday'),
             value:
               data.terms.vacationDays === null
                 ? 'Not set'
@@ -1883,8 +2105,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               meta={<StateBadge state={data.job.state} />}
               description={
                 live
-                  ? 'Live. Press any part of the ad to change it.'
-                  : 'The ad as candidates will read it. Press any part to change it, then publish.'
+                  ? tr(
+                      'job.live_press_any_part_of_the',
+                      'Live. Press any part of the ad to change it.',
+                    )
+                  : tr(
+                      'job.the_ad_as_candidates_will_read',
+                      'The ad as candidates will read it. Press any part to change it, then publish.',
+                    )
               }
               actions={
                 <>
@@ -1893,14 +2121,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     startIcon={<icons.people aria-hidden />}
                     onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`)}
                   >
-                    Pipeline
+                    {tr('job.pipeline', 'Pipeline')}
                   </Button>
                   <Button
                     variant="secondary"
                     startIcon={<icons.settings aria-hidden />}
                     onClick={() => props.onFilter?.({ setup: '1', step: null })}
                   >
-                    Guided setup
+                    {tr('job.guided_setup', 'Guided setup')}
                   </Button>
                   {data.job.state === 'open' ? (
                     <Button
@@ -1910,7 +2138,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                         act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
                       }}
                     >
-                      Put on hold
+                      {tr('job.put_on_hold', 'Put on hold')}
                     </Button>
                   ) : null}
                   {live ? (
@@ -1921,7 +2149,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                         edit('publishing');
                       }}
                     >
-                      Live on Kithena Jobs
+                      {tr('job.live_on_kithena_jobs', 'Live on Kithena Jobs')}
                     </Button>
                   ) : ad === undefined ? (
                     <Button
@@ -1930,7 +2158,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                         edit('description');
                       }}
                     >
-                      Write the description to publish
+                      {tr(
+                        'job.write_the_description_to_publish',
+                        'Write the description to publish',
+                      )}
                     </Button>
                   ) : blocking > 0 ? (
                     <Button
@@ -1939,7 +2170,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                         edit('ad');
                       }}
                     >
-                      {`Fix ${String(blocking)} ${blocking === 1 ? 'check' : 'checks'} to publish`}
+                      {tr('job.fix_to_publish', 'Fix {{blocking}} {{value}} to publish', {
+                        blocking: String(blocking),
+                        value: blocking === 1 ? 'check' : 'checks',
+                      })}
                     </Button>
                   ) : (
                     <Button
@@ -1947,7 +2181,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       loading={act.pending}
                       onClick={publish}
                     >
-                      Publish
+                      {tr('job.publish', 'Publish')}
                     </Button>
                   )}
                 </>
@@ -1969,7 +2203,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   <span className="font-semibold">{company.name}</span>
                 </div>
                 <Editable
-                  label="the title"
+                  label={tr('job.the_title', 'the title')}
                   onEdit={() => {
                     edit('title');
                   }}
@@ -1981,7 +2215,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 </Editable>
                 <ul
                   className="-mx-3 flex flex-wrap gap-x-1 gap-y-1 text-base"
-                  aria-label="At a glance"
+                  aria-label={tr('job.at_a_glance', 'At a glance')}
                 >
                   {facts.map((f) => (
                     <li key={f.key} className="mx-3">
@@ -2011,7 +2245,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               <div className="grid gap-10 px-5 py-10 sm:px-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-12">
                 <div className="flex min-w-0 flex-col gap-8">
                   <Editable
-                    label="the description"
+                    label={tr('job.the_description', 'the description')}
                     onEdit={() => {
                       edit('description');
                     }}
@@ -2019,24 +2253,32 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     {ad === undefined ? (
                       <EmptyState
                         icon={<icons.document aria-hidden />}
-                        title="No description yet"
-                        description="AI writes it from the job, its criteria and the interviews. Press to write it."
+                        title={tr('job.no_description_yet', 'No description yet')}
+                        description={tr(
+                          'job.ai_writes_it_from_the_job',
+                          'AI writes it from the job, its criteria and the interviews. Press to write it.',
+                        )}
                       />
                     ) : (
                       <RichTextContent sanitisedHtml={ad.html} className="job-ad" />
                     )}
                   </Editable>
                   <Editable
-                    label="the benefits"
+                    label={tr('job.the_benefits', 'the benefits')}
                     onEdit={() => {
                       edit('benefits');
                     }}
                   >
                     <section className="flex flex-col gap-5">
-                      <h3 className="text-2xl font-bold tracking-[-0.01em]">What we offer</h3>
+                      <h3 className="text-2xl font-bold tracking-[-0.01em]">
+                        {tr('job.what_we_offer', 'What we offer')}
+                      </h3>
                       {offered.length === 0 ? (
                         <p className="text-fg-muted">
-                          No benefits chosen yet. Press to choose them by category.
+                          {tr(
+                            'job.no_benefits_chosen_yet_press_to',
+                            'No benefits chosen yet. Press to choose them by category.',
+                          )}
                         </p>
                       ) : (
                         <BenefitList benefits={offered} categories={data.options.categories} />
@@ -2044,13 +2286,15 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     </section>
                   </Editable>
                   <Editable
-                    label="the interviews"
+                    label={tr('job.the_interviews', 'the interviews')}
                     onEdit={() => {
                       edit('interviews');
                     }}
                   >
                     <section className="flex flex-col gap-4">
-                      <h3 className="text-2xl font-bold tracking-[-0.01em]">How we hire</h3>
+                      <h3 className="text-2xl font-bold tracking-[-0.01em]">
+                        {tr('job.how_we_hire', 'How we hire')}
+                      </h3>
                       {/* The steps a candidate sees, each with its interview and how long it takes. */}
                       <Timeline>
                         {data.stages
@@ -2064,7 +2308,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                                 timestamp={
                                   meet === undefined
                                     ? undefined
-                                    : `${meet.title}, ${String(meet.minutes)} min`
+                                    : tr('job.min_2', '{{title}}, {{minutes}} min', {
+                                        title: meet.title,
+                                        minutes: String(meet.minutes),
+                                      })
                                 }
                                 tone={meet === undefined ? 'neutral' : 'accent'}
                                 icon={<Badge size="sm">{String(i + 1)}</Badge>}
@@ -2081,24 +2328,31 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 <aside className="flex min-w-0 flex-col lg:sticky lg:top-6 lg:self-start">
                   <Card variant="elevated" className="flex flex-col gap-4 p-5">
                     <Editable
-                      label="the pay"
+                      label={tr('job.the_pay', 'the pay')}
                       onEdit={() => {
                         edit('salary');
                       }}
                     >
                       {pay === null ? (
-                        <p className="text-lg font-semibold text-fg-muted">No pay yet</p>
+                        <p className="text-lg font-semibold text-fg-muted">
+                          {tr('job.no_pay_yet', 'No pay yet')}
+                        </p>
                       ) : (
                         <div className="flex flex-col">
                           <span className="text-sm text-fg-muted">
-                            {data.job.salaryShown ? 'Pays' : 'Pays, not shown to candidates'}
+                            {data.job.salaryShown
+                              ? tr('job.pays', 'Pays')
+                              : tr(
+                                  'job.pays_not_shown_to_candidates',
+                                  'Pays, not shown to candidates',
+                                )}
                           </span>
                           <span className="text-2xl font-bold tracking-[-0.01em]">{pay}</span>
                         </div>
                       )}
                     </Editable>
                     <Editable
-                      label="the apply form"
+                      label={tr('job.the_apply_form', 'the apply form')}
                       onEdit={() => {
                         edit('form');
                       }}
@@ -2111,12 +2365,19 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                           tabIndex={-1}
                           className="w-full"
                         >
-                          Apply now
+                          {tr('job.apply_now', 'Apply now')}
                         </Button>
                         <p className="text-sm text-fg-muted">
                           {asks.length === 0
-                            ? 'Asks for the name, email and CV.'
-                            : `Asks for the name, email, CV and ${asks.map((f) => f.label.toLowerCase()).join(', ')}.`}
+                            ? tr(
+                                'job.asks_for_the_name_email_and',
+                                'Asks for the name, email and CV.',
+                              )
+                            : tr(
+                                'job.asks_for_the_name_email_cv',
+                                'Asks for the name, email, CV and {{join}}.',
+                                { join: asks.map((f) => f.label.toLowerCase()).join(', ') },
+                              )}
                         </p>
                       </div>
                     </Editable>
@@ -2134,11 +2395,11 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
             {/* What candidates never see: who hires, on what, how many, and where the ad goes. */}
             <section className="flex flex-col gap-3" aria-labelledby="team-only">
               <h2 id="team-only" className="text-lg font-semibold">
-                Only your team sees this
+                {tr('job.only_your_team_sees_this', 'Only your team sees this')}
               </h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <Region
-                  title="Hiring team"
+                  title={tr('job.hiring_team', 'Hiring team')}
                   onEdit={() => {
                     edit('team');
                   }}
@@ -2152,7 +2413,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                           <dt className="text-xs font-medium text-fg-muted">{label}</dt>
                           <dd className="flex flex-wrap items-center gap-x-3 gap-y-1">
                             {held.length === 0 ? (
-                              <span className="text-fg-muted">Nobody yet</span>
+                              <span className="text-fg-muted">
+                                {tr('job.nobody_yet', 'Nobody yet')}
+                              </span>
                             ) : (
                               held.map((m) => (
                                 <span key={m.personId} className="flex items-center gap-1.5">
@@ -2168,13 +2431,15 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   </dl>
                 </Region>
                 <Region
-                  title="Interviews, by step"
+                  title={tr('job.interviews_by_step', 'Interviews, by step')}
                   onEdit={() => {
                     edit('interviews');
                   }}
                 >
                   {data.plan.every((p) => p.stageId == null) ? (
-                    <p className="text-sm text-fg-muted">No step has its interview yet.</p>
+                    <p className="text-sm text-fg-muted">
+                      {tr('job.no_step_has_its_interview_yet', 'No step has its interview yet.')}
+                    </p>
                   ) : (
                     <ol className="flex flex-col gap-3 text-sm">
                       {data.stages.flatMap((st) => {
@@ -2185,14 +2450,26 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                           .map((m) => m.name ?? m.personId);
                         return [
                           <li key={st.id} className="flex flex-col gap-0.5">
-                            <span className="font-medium">{`${st.name}: ${meet.title}`}</span>
+                            <span className="font-medium">
+                              {tr('job.text_3', '{{name}}: {{title}}', {
+                                name: st.name,
+                                title: meet.title,
+                              })}
+                            </span>
                             <span className="text-fg-muted">
                               {[
-                                `${String(meet.minutes)} min`,
+                                tr('job.min_3', '{{minutes}} min', {
+                                  minutes: String(meet.minutes),
+                                }),
                                 meet.mode === 'fixed' && meet.fixedAt != null
-                                  ? `at ${when(meet.fixedAt)}`
-                                  : 'the candidate chooses the time',
-                                panel.length === 0 ? 'nobody to meet them yet' : panel.join(', '),
+                                  ? tr('job.at', 'at {{fixedAt}}', { fixedAt: when(meet.fixedAt) })
+                                  : tr(
+                                      'job.the_candidate_chooses_the_time',
+                                      'the candidate chooses the time',
+                                    ),
+                                panel.length === 0
+                                  ? tr('job.nobody_to_meet_them_yet', 'nobody to meet them yet')
+                                  : panel.join(', '),
                               ].join(' · ')}
                             </span>
                           </li>,
@@ -2202,21 +2479,24 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   )}
                 </Region>
                 <Region
-                  title="What we look for"
+                  title={tr('job.what_we_look_for', 'What we look for')}
                   onEdit={() => {
                     edit('criteria');
                   }}
                 >
                   {data.criteria.length === 0 ? (
                     <p className="text-sm text-fg-muted">
-                      No criteria yet; the AI matrix needs them.
+                      {tr(
+                        'job.no_criteria_yet_the_ai_matrix',
+                        'No criteria yet; the AI matrix needs them.',
+                      )}
                     </p>
                   ) : (
                     <ul className="flex flex-col gap-1 text-sm">
                       {data.criteria.map((c) => (
                         <li key={c.id} className="flex items-start gap-2">
                           <Badge size="xs" tone={c.must ? 'accent' : 'neutral'}>
-                            {c.must ? 'Must' : 'Nice'}
+                            {c.must ? tr('job.must', 'Must') : tr('job.nice', 'Nice')}
                           </Badge>
                           <span>{c.text}</span>
                         </li>
@@ -2225,15 +2505,18 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   )}
                 </Region>
                 <Region
-                  title="Openings and start"
+                  title={tr('job.openings_and_start', 'Openings and start')}
                   onEdit={() => {
                     edit('openings');
                   }}
                 >
                   <KeyValues
                     items={[
-                      { label: 'Openings', value: String(data.job.openings) },
-                      { label: 'Target start', value: day(data.job.targetHireDate) },
+                      { label: tr('job.openings', 'Openings'), value: String(data.job.openings) },
+                      {
+                        label: tr('job.target_start', 'Target start'),
+                        value: day(data.job.targetHireDate),
+                      },
                     ]}
                     layout="aligned"
                     labelWidth="7rem"
@@ -2241,13 +2524,13 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   />
                 </Region>
                 <Region
-                  title="Where it is published"
+                  title={tr('job.where_it_is_published', 'Where it is published')}
                   onEdit={() => {
                     edit('publishing');
                   }}
                 >
                   {data.targets.filter((t) => t.state === 'live').length === 0 ? (
-                    <p className="text-sm text-fg-muted">Nowhere yet.</p>
+                    <p className="text-sm text-fg-muted">{tr('job.nowhere_yet', 'Nowhere yet.')}</p>
                   ) : (
                     <ul className="flex flex-col gap-1 text-sm">
                       {data.targets
@@ -2261,21 +2544,26 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   )}
                 </Region>
                 <Region
-                  title="Languages and checks"
+                  title={tr('job.languages_and_checks', 'Languages and checks')}
                   onEdit={() => {
                     edit('ad');
                   }}
                 >
                   <p className="text-sm text-fg-muted">
                     {ad === undefined
-                      ? 'No ad yet.'
+                      ? tr('job.no_ad_yet', 'No ad yet.')
                       : blocking > 0
-                        ? `${String(blocking)} ${blocking === 1 ? 'check blocks' : 'checks block'} publishing.`
-                        : `In ${data.ads.map((a) => a.language.toUpperCase()).join(', ')}. Every check passes.`}
+                        ? tr('job.publishing_2', '{{blocking}} {{value}} publishing.', {
+                            blocking: String(blocking),
+                            value: blocking === 1 ? 'check blocks' : 'checks block',
+                          })
+                        : tr('job.in_every_check_passes', 'In {{join}}. Every check passes.', {
+                            join: data.ads.map((a) => a.language.toUpperCase()).join(', '),
+                          })}
                   </p>
                 </Region>
                 <Region
-                  title="Internal details"
+                  title={tr('job.internal_details', 'Internal details')}
                   onEdit={() => {
                     edit('details');
                   }}
@@ -2283,12 +2571,18 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                   <KeyValues
                     items={[
                       {
-                        label: 'Internal title',
+                        label: tr('job.internal_title', 'Internal title'),
                         value:
                           data.job.internalTitle === '' ? 'Same as the ad' : data.job.internalTitle,
                       },
-                      { label: 'Internal only', value: data.job.internalOnly ? 'Yes' : 'No' },
-                      { label: 'Confidential', value: data.job.confidential ? 'Yes' : 'No' },
+                      {
+                        label: tr('job.internal_only', 'Internal only'),
+                        value: data.job.internalOnly ? 'Yes' : 'No',
+                      },
+                      {
+                        label: tr('job.confidential', 'Confidential'),
+                        value: data.job.confidential ? 'Yes' : 'No',
+                      },
                     ]}
                     layout="aligned"
                     labelWidth="7rem"

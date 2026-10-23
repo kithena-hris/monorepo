@@ -1,5 +1,6 @@
 import { PageHeader, Skeleton } from '@reach/ui';
 import type { ComponentType, JSX } from 'react';
+import { t } from './i18n';
 
 /**
  * A screen not built yet: its own title, under the host's frame (the trail
@@ -12,10 +13,10 @@ export function placeholder(title: string): ComponentType<object> {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title={title} />
-        <Skeleton shape="body" label={`Loading ${title}`} />
+        <Skeleton shape="body" label={t('placeholder.loading', 'Loading {{title}}', { title })} />
       </div>
     );
   }
-  Placeholder.displayName = `Placeholder(${title})`;
+  Placeholder.displayName = t('placeholder.placeholder', 'Placeholder({{title}})', { title });
   return Placeholder;
 }

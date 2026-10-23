@@ -59,6 +59,7 @@ import {
 } from '../attendance/time';
 import type { Loadable, Outcome } from '../load';
 import { checkOnce, insideFor, type Office } from './location';
+import { t } from '../i18n';
 
 /**
  * The clock in the top bar (T2, PRD §11.1), on every page of Kithena: a pill
@@ -102,9 +103,9 @@ export interface TopBarClockProps {
 }
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: 'Clocked in', tone: 'success' },
-  on_break: { label: 'On a break', tone: 'warning' },
-  out: { label: 'Not clocked in', tone: 'neutral' },
+  in: { label: t('clock.clock.clocked_in', 'Clocked in'), tone: 'success' },
+  on_break: { label: t('clock.clock.on_a_break', 'On a break'), tone: 'warning' },
+  out: { label: t('clock.clock.not_clocked_in', 'Not clocked in'), tone: 'neutral' },
 };
 
 const PUNCH_ICON: Record<PunchKind, { icon: IconName; tone: ChartTone }> = {
@@ -140,7 +141,9 @@ function Clock({
   const [open, setOpen] = useState(false);
   useScreenCommand({
     id: 'clock',
-    label: open ? 'Close the clock' : 'Open the clock',
+    label: open
+      ? t('clock.clock.close_the_clock', 'Close the clock')
+      : t('clock.clock.open_the_clock', 'Open the clock'),
     run: () => {
       setOpen((was) => !was);
     },
@@ -171,14 +174,16 @@ function Clock({
       <PopoverTrigger asChild>
         {state === 'out' ? (
           <Button size="sm" startIcon={icon('play')} shortcut="clock">
-            Clock in
+            {t('clock.clock.clock_in', 'Clock in')}
           </Button>
         ) : (
           <Button
             size="sm"
             variant="ghost"
             shortcut="clock"
-            aria-label={`The clock: ${STATE[state].label.toLowerCase()}`}
+            aria-label={t('clock.clock.the_clock', 'The clock: {{label}}', {
+              label: STATE[state].label.toLowerCase(),
+            })}
           >
             <Badge tone={STATE[state].tone} pulse>
               <Ticking
@@ -190,13 +195,20 @@ function Clock({
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" aria-label="The clock" className="flex w-100 flex-col gap-4">
+      <PopoverContent
+        align="end"
+        aria-label={t('clock.clock.the_clock_2', 'The clock')}
+        className="flex w-100 flex-col gap-4"
+      >
         <div ref={panel} className="flex flex-col gap-4">
           <div className="flex items-center gap-2.5">
             <Badge tone={STATE[state].tone} pulse={state !== 'out'} dot={state === 'out'}>
               {state === 'out' || last === undefined
                 ? STATE[state].label
-                : `${STATE[state].label} · ${WHERE[last.workModel]}`}
+                : t('clock.clock.text', '{{label}} · {{WHERE}}', {
+                    label: STATE[state].label,
+                    WHERE: WHERE[last.workModel],
+                  })}
             </Badge>
             {keys.length === 0 ? null : (
               <KbdShortcut keys={keys} className="ms-auto touch:hidden" />
@@ -209,24 +221,38 @@ function Clock({
             <Ticking punches={mine} since={since} show="worked" />
           </p>
           {day === undefined ? null : (
-            <DayBar label="Today" segments={day.segments} now={minuteOfDay(data.now, zone)} />
+            <DayBar
+              label={t('clock.clock.today', 'Today')}
+              segments={day.segments}
+              now={minuteOfDay(data.now, zone)}
+            />
           )}
           {mine.length === 0 ? (
             <p className="text-sm text-fg-muted">
               {day !== undefined && day.plannedMinutes > 0
-                ? `Your day is ${duration(day.plannedMinutes)}. Nothing punched yet today.`
-                : 'Nothing punched today.'}
+                ? t(
+                    'clock.clock.your_day_is_nothing_punched_yet',
+                    'Your day is {{plannedMinutes}}. Nothing punched yet today.',
+                    { plannedMinutes: duration(day.plannedMinutes) },
+                  )
+                : t('clock.clock.nothing_punched_today', 'Nothing punched today.')}
             </p>
           ) : (
-            <List aria-label="Today’s punches">
+            <List aria-label={t('clock.clock.todays_punches', 'Today’s punches')}>
               {mine.map((p) => (
                 <ListItem
                   key={p.id}
                   icon={icon(PUNCH_ICON[p.kind].icon)}
                   iconTone={PUNCH_ICON[p.kind].tone}
-                  description={`${SOURCE[p.source] ?? p.source} · ${WHERE[p.workModel]}`}
+                  description={t('clock.clock.text_2', '{{value}} · {{WHERE}}', {
+                    value: SOURCE[p.source] ?? p.source,
+                    WHERE: WHERE[p.workModel],
+                  })}
                 >
-                  {`${clockTime(minuteOfDay(p.at, zone))} ${PUNCHED[p.kind]}`}
+                  {t('clock.clock.text_3', '{{clockTime}} {{PUNCHED}}', {
+                    clockTime: clockTime(minuteOfDay(p.at, zone)),
+                    PUNCHED: PUNCHED[p.kind],
+                  })}
                 </ListItem>
               ))}
             </List>
@@ -250,7 +276,7 @@ function Clock({
                     press('in');
                   }}
                 >
-                  Clock in
+                  {t('clock.clock.clock_in', 'Clock in')}
                 </Button>
               }
             />
@@ -271,7 +297,7 @@ function Clock({
                       press('break_start');
                     }}
                   >
-                    Start break
+                    {t('clock.clock.start_break', 'Start break')}
                   </Button>
                 ) : (
                   <Button
@@ -282,7 +308,7 @@ function Clock({
                       press('break_end');
                     }}
                   >
-                    End break
+                    {t('clock.clock.end_break', 'End break')}
                   </Button>
                 )}
                 <Button
@@ -294,23 +320,29 @@ function Clock({
                     press('out');
                   }}
                 >
-                  Clock out
+                  {t('clock.clock.clock_out', 'Clock out')}
                 </Button>
               </div>
               <PopoverClose asChild>
                 <Button variant="ghost" className="hidden w-full touch:inline-flex">
-                  Keep working
+                  {t('clock.clock.keep_working', 'Keep working')}
                 </Button>
               </PopoverClose>
             </>
           )}
           {failed === null ? null : (
-            <Alert tone="danger" title="The clock did not change">
+            <Alert
+              tone="danger"
+              title={t('clock.clock.the_clock_did_not_change', 'The clock did not change')}
+            >
               {failed}
             </Alert>
           )}
           <p className="text-xs text-fg-muted">
-            One clock across the badge reader, the web and the app. Closing the tab doesn’t stop it.
+            {t(
+              'clock.clock.one_clock_across_the_badge_reader',
+              'One clock across the badge reader, the web and the app. Closing the tab doesn’t stop it.',
+            )}
           </p>
         </div>
       </PopoverContent>
@@ -347,7 +379,9 @@ function Ticking({
   }, [state]);
   const { worked, breakSince } = workedSeconds(punches, at);
   return show === 'break' && breakSince !== null
-    ? `Break · ${stopwatch((at - breakSince) / 1000).replace(/^0:/, '')}`
+    ? t('clock.clock.break', 'Break · {{replace}}', {
+        replace: stopwatch((at - breakSince) / 1000).replace(/^0:/, ''),
+      })
     : stopwatch(worked);
 }
 
@@ -384,14 +418,17 @@ function WorkingOn(): JSX.Element {
       >
         <Input
           name="working-on"
-          aria-label="What you are working on"
+          aria-label={t('clock.clock.what_you_are_working_on', 'What you are working on')}
           defaultValue={text}
           maxLength={80}
-          placeholder="For example, the billing release"
+          placeholder={t(
+            'clock.clock.for_example_the_billing_release',
+            'For example, the billing release',
+          )}
           className="flex-1"
         />
         <Button type="submit" size="sm">
-          Save
+          {t('clock.clock.save', 'Save')}
         </Button>
       </form>
     );
@@ -401,7 +438,10 @@ function WorkingOn(): JSX.Element {
       <ListItem
         icon={icon('edit')}
         iconTone="neutral"
-        description="Your own words, on this device"
+        description={t(
+          'clock.clock.your_own_words_on_this_device',
+          'Your own words, on this device',
+        )}
         trailing={
           <Button
             variant="ghost"
@@ -410,11 +450,13 @@ function WorkingOn(): JSX.Element {
               setEditing(true);
             }}
           >
-            {text === '' ? 'Add' : 'Change'}
+            {text === '' ? t('clock.clock.add', 'Add') : t('clock.clock.change', 'Change')}
           </Button>
         }
       >
-        {text === '' ? 'What are you working on?' : `Working on ${text}`}
+        {text === ''
+          ? t('clock.clock.what_are_you_working_on', 'What are you working on?')
+          : t('clock.clock.working_on', 'Working on {{text}}', { text })}
       </ListItem>
     </List>
   );
@@ -438,9 +480,9 @@ function DayNumbers({
       columns={3}
       className={className}
       items={[
-        { label: 'Worked', value: duration(day.workedMinutes ?? 0) },
-        { label: 'Break', value: duration(day.breakMinutes) },
-        { label: 'Overtime', value: duration(day.overtimeMinutes ?? 0) },
+        { label: t('clock.clock.worked', 'Worked'), value: duration(day.workedMinutes ?? 0) },
+        { label: t('clock.clock.break_2', 'Break'), value: duration(day.breakMinutes) },
+        { label: t('clock.clock.overtime', 'Overtime'), value: duration(day.overtimeMinutes ?? 0) },
       ]}
     />
   );
@@ -491,7 +533,7 @@ export function ClockIn({
     <div ref={ref} className={`flex flex-col gap-3 ${className ?? ''}`}>
       <SegmentedControl
         fullWidth
-        aria-label="Where you are working today"
+        aria-label={t('clock.clock.where_you_are_working_today', 'Where you are working today')}
         value={workModel}
         onValueChange={(next) => {
           onWorkModel(next as WorkModel);
@@ -499,30 +541,30 @@ export function ClockIn({
       >
         <SegmentedControlItem value="office">
           {icon('company')}
-          Office
+          {t('clock.clock.office', 'Office')}
         </SegmentedControlItem>
         <SegmentedControlItem value="remote">
           {icon('home')}
-          Remote
+          {t('clock.clock.remote', 'Remote')}
         </SegmentedControlItem>
         <SegmentedControlItem value="client">
           {icon('organisation')}
-          Client
+          {t('clock.clock.client', 'Client')}
         </SegmentedControlItem>
       </SegmentedControl>
       {found === null ? null : (
         <p className="flex items-center gap-2 text-sm">
           <span className="text-success-fg [&_svg]:size-4">{icon('location')}</span>
           <span className="flex-1">
-            You’re at <strong>{found.name}</strong>
+            {t('clock.clock.youre_at', 'You’re at')} <strong>{found.name}</strong>
           </span>
-          <Badge size="sm">Checked once</Badge>
+          <Badge size="sm">{t('clock.clock.checked_once', 'Checked once')}</Badge>
         </p>
       )}
       {desk}
       <Slider
         variant="confirm"
-        label="Slide to clock in"
+        label={t('clock.clock.slide_to_clock_in', 'Slide to clock in')}
         className="hidden touch:block"
         disabled={disabled}
         onConfirm={() => {
@@ -530,8 +572,10 @@ export function ClockIn({
         }}
       />
       <p className="hidden text-xs text-fg-muted touch:block">
-        Location is checked only at the moment you clock in, to fill in “Office”. Kithena never
-        tracks where you go.
+        {t(
+          'clock.clock.location_is_checked_only_at_the',
+          'Location is checked only at the moment you clock in, to fill in “Office”. Kithena never tracks where you go.',
+        )}
       </p>
     </div>
   );
@@ -561,10 +605,14 @@ export function ClockOutSheet({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent sheetOnTouch>
         <DialogHeader>
-          <DialogTitle>{`Clock out at ${clockTime(minute)}?`}</DialogTitle>
+          <DialogTitle>
+            {t('clock.clock.clock_out_at', 'Clock out at {{clockTime}}?', {
+              clockTime: clockTime(minute),
+            })}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
-          <DayBar label="Today" segments={day.segments} now={minute} />
+          <DayBar label={t('clock.clock.today', 'Today')} segments={day.segments} now={minute} />
           <DayNumbers day={day} />
         </DialogBody>
         <DialogFooter className="flex flex-col gap-2">
@@ -575,11 +623,11 @@ export function ClockOutSheet({
             disabled={disabled}
             onClick={onClockOut}
           >
-            Clock out
+            {t('clock.clock.clock_out', 'Clock out')}
           </Button>
           <DialogClose asChild>
             <Button variant="ghost" className="w-full">
-              Keep working
+              {t('clock.clock.keep_working', 'Keep working')}
             </Button>
           </DialogClose>
         </DialogFooter>

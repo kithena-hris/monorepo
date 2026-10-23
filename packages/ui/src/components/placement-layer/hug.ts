@@ -1,3 +1,4 @@
+import { t } from '../../lib/i18n';
 /**
  * Keeps each caption a page's 6pt under the ink of its box: now, when the
  * page is drawn at another size, and when a handwriting face arrives.
@@ -12,7 +13,10 @@ export function hug(
     const r = host.getBoundingClientRect();
     for (const [id, caption] of captions) {
       const bottom = inkBottom(boxes.get(id));
-      if (bottom > -Infinity) caption.style.top = `${String(bottom - r.top + r.width / 99)}px`;
+      if (bottom > -Infinity)
+        caption.style.top = t('components.placement-layer.hug.px', '{{value}}px', {
+          value: String(bottom - r.top + r.width / 99),
+        });
     }
   };
   place();
@@ -40,7 +44,16 @@ function inkBottom(box: HTMLElement | undefined): number {
   const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
   for (let node = walk.nextNode(); node?.parentElement; node = walk.nextNode()) {
     const face = getComputedStyle(node.parentElement);
-    ctx.font = `${face.fontStyle} ${face.fontWeight} ${face.fontSize} ${face.fontFamily}`;
+    ctx.font = t(
+      'components.placement-layer.hug.text',
+      '{{fontStyle}} {{fontWeight}} {{fontSize}} {{fontFamily}}',
+      {
+        fontStyle: face.fontStyle,
+        fontWeight: face.fontWeight,
+        fontSize: face.fontSize,
+        fontFamily: face.fontFamily,
+      },
+    );
     const m = ctx.measureText(node.textContent ?? '');
     range.selectNodeContents(node);
     // The line's foot less the face's descender is the baseline; the glyphs end below it by their own.

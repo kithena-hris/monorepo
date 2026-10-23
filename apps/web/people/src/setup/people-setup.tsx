@@ -24,6 +24,7 @@ import { useState, type JSX } from 'react';
 import { Loaded, type Loadable, type Outcome } from '../load';
 import { isMissing, type PendingValue, type RecordSection, type Values } from '../record/model';
 import { SectionForm } from '../record/section-form';
+import { t } from '../i18n';
 
 export interface PackSection {
   readonly key: string;
@@ -77,10 +78,10 @@ export interface PeopleSetupProps {
 }
 
 const STEPS = [
-  { id: 'entity', label: 'Legal entity' },
-  { id: 'pack', label: 'Country pack' },
-  { id: 'publish', label: 'Publish' },
-  { id: 'profile', label: 'Your profile' },
+  { id: 'entity', label: t('setup.people-setup.legal_entity', 'Legal entity') },
+  { id: 'pack', label: t('setup.people-setup.country_pack', 'Country pack') },
+  { id: 'publish', label: t('setup.people-setup.publish', 'Publish') },
+  { id: 'profile', label: t('setup.people-setup.your_profile', 'Your profile') },
 ] as const;
 
 /**
@@ -96,8 +97,11 @@ export function PeopleSetup(props: PeopleSetupProps): JSX.Element {
   return (
     <Stack gap={6}>
       <PageHeader
-        title="Set up the employee record"
-        description="What your company keeps about each person. You can change all of it later."
+        title={t('setup.people-setup.set_up_the_employee_record', 'Set up the employee record')}
+        description={t(
+          'setup.people-setup.what_your_company_keeps_about_each',
+          'What your company keeps about each person. You can change all of it later.',
+        )}
       />
       <Loaded load={props.load} what="the setup">
         {(state) => <Wizard {...props} state={state} />}
@@ -156,10 +160,20 @@ function Wizard({
 
   return (
     <Stack gap={6}>
-      <Stepper label="Setting up the employee record" steps={STEPS} current={step} />
+      <Stepper
+        label={t(
+          'setup.people-setup.setting_up_the_employee_record',
+          'Setting up the employee record',
+        )}
+        steps={STEPS}
+        current={step}
+      />
 
       {refused === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t('setup.people-setup.that_did_not_go_through', 'That did not go through')}
+        >
           {refused}
         </Alert>
       )}
@@ -167,9 +181,16 @@ function Wizard({
       {step === 0 ? (
         <PageSection
           surface
-          title={<>Confirm the legal entity</>}
+          title={
+            <>{t('setup.people-setup.confirm_the_legal_entity', 'Confirm the legal entity')}</>
+          }
           description={
-            <>The company that employs people. Its country decides which fields the law requires.</>
+            <>
+              {t(
+                'setup.people-setup.the_company_that_employs_people_its',
+                'The company that employs people. Its country decides which fields the law requires.',
+              )}
+            </>
           }
         >
           <form
@@ -192,7 +213,9 @@ function Wizard({
           >
             <Stack gap={4}>
               <Field required invalid={nameMissing}>
-                <FieldLabel>Registered name</FieldLabel>
+                <FieldLabel>
+                  {t('setup.people-setup.registered_name', 'Registered name')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={entity.name}
@@ -202,10 +225,15 @@ function Wizard({
                     }}
                   />
                 </FieldControl>
-                <FieldError>Give the entity's registered name.</FieldError>
+                <FieldError>
+                  {t(
+                    'setup.people-setup.give_the_entitys_registered_name',
+                    "Give the entity's registered name.",
+                  )}
+                </FieldError>
               </Field>
               <Field required>
-                <FieldLabel>Country</FieldLabel>
+                <FieldLabel>{t('setup.people-setup.country', 'Country')}</FieldLabel>
                 <Select
                   value={entity.country}
                   onValueChange={(value) => {
@@ -226,12 +254,20 @@ function Wizard({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  Where the entity is registered, not where people work.
+                  {t(
+                    'setup.people-setup.where_the_entity_is_registered_not',
+                    'Where the entity is registered, not where people work.',
+                  )}
                 </FieldDescription>
               </Field>
               <div>
-                <Button type="submit" variant="primary" loading={busy} loadingLabel="Confirming">
-                  Continue
+                <Button
+                  type="submit"
+                  variant="primary"
+                  loading={busy}
+                  loadingLabel={t('setup.people-setup.confirming', 'Confirming')}
+                >
+                  {t('setup.people-setup.continue', 'Continue')}
                 </Button>
               </div>
             </Stack>
@@ -242,27 +278,45 @@ function Wizard({
       {step === 1 ? (
         <Stack gap={4}>
           {pack === null ? (
-            <Alert tone="warning" title={`No country pack for ${countryName} yet`}>
-              You can still publish: the core fields every company needs are always there, and you
-              can add the rest yourself.
+            <Alert
+              tone="warning"
+              title={t(
+                'setup.people-setup.no_country_pack_for_yet',
+                'No country pack for {{countryName}} yet',
+                { countryName },
+              )}
+            >
+              {t(
+                'setup.people-setup.you_can_still_publish_the_core',
+                'You can still publish: the core fields every company needs are always there, and you can add the rest yourself.',
+              )}
             </Alert>
           ) : (
             <>
               <Alert tone="info">
-                The entity is registered in {pack.countryName}, so the {pack.countryName} pack is
-                selected. Fields its law requires are marked required and cannot be turned off.
+                {t(
+                  'setup.people-setup.the_entity_is_registered_in_so',
+                  'The entity is registered in {{countryName}}, so the {{countryName2}} pack is selected. Fields its law requires are marked required and cannot be turned off.',
+                  { countryName: pack.countryName, countryName2: pack.countryName },
+                )}
               </Alert>
               <PageSection
                 surface
                 title={
                   <>
-                    {pack.countryName}: {pack.sections.length} sections, {pack.fields} fields
+                    {pack.countryName}: {pack.sections.length}{' '}
+                    {t('setup.people-setup.sections_fields', 'sections, {{fields}} fields', {
+                      fields: pack.fields,
+                    })}
                   </>
                 }
                 description={
                   <>
-                    {pack.sections.reduce((n, s) => n + s.requiredByLaw, 0)} required by law · all
-                    editable later
+                    {pack.sections.reduce((n, s) => n + s.requiredByLaw, 0)}{' '}
+                    {t(
+                      'setup.people-setup.required_by_law_all_editable_later',
+                      'required by law · all editable later',
+                    )}
                   </>
                 }
               >
@@ -277,15 +331,27 @@ function Wizard({
                             <FieldLabel>{section.label}</FieldLabel>
                             <FieldDescription>
                               {section.summary}
-                              {locked ? ' The law requires this section.' : ''}
+                              {locked
+                                ? ' ' +
+                                  t(
+                                    'setup.people-setup.the_law_requires_this_section',
+                                    'The law requires this section.',
+                                  )
+                                : ''}
                             </FieldDescription>
                           </div>
                           <Badge tone={section.requiredByLaw > 0 ? 'warning' : 'neutral'} size="sm">
                             {section.requiredByLaw > 0
-                              ? `${String(section.requiredByLaw)} required by law`
+                              ? t(
+                                  'setup.people-setup.required_by_law',
+                                  '{{requiredByLaw}} required by law',
+                                  { requiredByLaw: String(section.requiredByLaw) },
+                                )
                               : on
-                                ? `${String(section.required)} required`
-                                : 'Off'}
+                                ? t('setup.people-setup.required', '{{required}} required', {
+                                    required: String(section.required),
+                                  })
+                                : t('setup.people-setup.off', 'Off')}
                           </Badge>
                           <FieldControl>
                             <Switch
@@ -310,7 +376,7 @@ function Wizard({
                 setStep(0);
               }}
             >
-              Back
+              {t('setup.people-setup.back', 'Back')}
             </Button>
             <Button
               variant="primary"
@@ -318,7 +384,7 @@ function Wizard({
                 setStep(2);
               }}
             >
-              Continue
+              {t('setup.people-setup.continue', 'Continue')}
             </Button>
           </div>
         </Stack>
@@ -327,10 +393,13 @@ function Wizard({
       {step === 2 ? (
         <PageSection
           surface
-          title={<>Publish version 1</>}
+          title={<>{t('setup.people-setup.publish_version_1', 'Publish version 1')}</>}
           description={
             <>
-              All forms, exports and integrations now use this version. Later changes create a new version.
+              {t(
+                'setup.people-setup.all_forms_exports_and_integrations_now',
+                'All forms, exports and integrations now use this version. Later changes create a new version.',
+              )}
             </>
           }
         >
@@ -339,7 +408,12 @@ function Wizard({
               {enabled.map((s) => (
                 <li key={s.key}>{s.label}</li>
               ))}
-              <li>The core fields every company has: name, work email, start date, manager.</li>
+              <li>
+                {t(
+                  'setup.people-setup.the_core_fields_every_company_has',
+                  'The core fields every company has: name, work email, start date, manager.',
+                )}
+              </li>
             </ul>
             <div className="flex flex-wrap gap-3">
               <Button
@@ -347,12 +421,12 @@ function Wizard({
                   setStep(1);
                 }}
               >
-                Back
+                {t('setup.people-setup.back', 'Back')}
               </Button>
               <Button
                 variant="primary"
                 loading={busy}
-                loadingLabel="Publishing version 1"
+                loadingLabel={t('setup.people-setup.publishing_version_1', 'Publishing version 1')}
                 onClick={() => {
                   void attempt(
                     () => onPublish({ country, sections: enabled.map((s) => s.key) }),
@@ -362,7 +436,7 @@ function Wizard({
                   );
                 }}
               >
-                Publish version 1
+                {t('setup.people-setup.publish_version_1', 'Publish version 1')}
               </Button>
             </div>
           </Stack>
@@ -371,14 +445,22 @@ function Wizard({
 
       {step === 3 ? (
         state.profile === null ? (
-          <Alert tone="info" title="Version 1 is published">
-            Your own profile will be ready in a moment.
+          <Alert
+            tone="info"
+            title={t('setup.people-setup.version_1_is_published', 'Version 1 is published')}
+          >
+            {t(
+              'setup.people-setup.your_own_profile_will_be_ready',
+              'Your own profile will be ready in a moment.',
+            )}
           </Alert>
         ) : (
           <Stack gap={4}>
             <Alert tone="info">
-              This is exactly what every employee will see. Anything confusing here will confuse
-              them too.
+              {t(
+                'setup.people-setup.this_is_exactly_what_every_employee',
+                'This is exactly what every employee will see. Anything confusing here will confuse them too.',
+              )}
             </Alert>
             {state.profile.sections.map((section) => (
               <PageSection key={section.key} surface title={section.label}>
@@ -394,10 +476,16 @@ function Wizard({
             ))}
             <div className="flex flex-wrap items-center gap-3">
               <Badge tone={missing === 0 ? 'success' : 'warning'}>
-                {missing === 0 ? 'Complete' : `${String(missing)} missing`}
+                {missing === 0
+                  ? t('setup.people-setup.complete', 'Complete')
+                  : t('setup.people-setup.missing', '{{missing}} missing', {
+                      missing: String(missing),
+                    })}
               </Badge>
               <Button variant="primary" onClick={onFinish}>
-                {missing === 0 ? 'Finish' : 'Finish later'}
+                {missing === 0
+                  ? t('setup.people-setup.finish', 'Finish')
+                  : t('setup.people-setup.finish_later', 'Finish later')}
               </Button>
             </div>
           </Stack>

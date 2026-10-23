@@ -15,6 +15,7 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import type { Outcome } from '../load';
 import { FORMAT_LABEL, firstName, listed, spokenDate, type ExportFormat } from './words';
+import { t } from '../i18n';
 
 type Person = { readonly accountId: string; readonly name: string | null };
 
@@ -97,13 +98,13 @@ function at(iso: string, now: string, zone: string | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso));
-  if (day(iso) === day(now)) return `at ${time}`;
+  if (day(iso) === day(now)) return t('export.export-done.at', 'at {{time}}', { time });
   const date = new Intl.DateTimeFormat('en-GB', {
     timeZone: zone,
     day: 'numeric',
     month: 'short',
   }).format(new Date(iso));
-  return `on ${date} at ${time}`;
+  return t('export.export-done.on_at', 'on {{date}} at {{time}}', { date, time });
 }
 
 /** A round mark beside a heading: what happened, in its tone. */
@@ -148,30 +149,53 @@ export function ExportDone({
   const [busy, setBusy] = useState(false);
   if (record.status === 'missing') {
     return (
-      <Alert tone="warning" title="This export is no longer available">
-        It was made for somebody else, or it no longer exists.
+      <Alert
+        tone="warning"
+        title={t(
+          'export.export-done.this_export_is_no_longer_available',
+          'This export is no longer available',
+        )}
+      >
+        {t(
+          'export.export-done.it_was_made_for_somebody_else',
+          'It was made for somebody else, or it no longer exists.',
+        )}
       </Alert>
     );
   }
   if (record.status === 'queued') {
-    return <Alert tone="info">Your export is still being prepared. Try again in a minute.</Alert>;
+    return (
+      <Alert tone="info">
+        {t(
+          'export.export-done.your_export_is_still_being_prepared',
+          'Your export is still being prepared. Try again in a minute.',
+        )}
+      </Alert>
+    );
   }
   const sentTo = record.sentTo;
   const lines = [
     record.approvedBy === null || record.approvedBy.at === null
       ? null
-      : `${record.approvedBy.name ?? 'A People administrator'} approved ${at(record.approvedBy.at, record.now, zone)}`,
+      : t('export.export-done.approved', '{{value}} approved {{at}}', {
+          value: record.approvedBy.name ?? 'A People administrator',
+          at: at(record.approvedBy.at, record.now, zone),
+        }),
     sentTo === null
       ? null
       : record.openedAt === null
-        ? 'not opened yet'
-        : `the link opened ${at(record.openedAt, record.now, zone)}`,
+        ? t('export.export-done.not_opened_yet', 'not opened yet')
+        : t('export.export-done.the_link_opened', 'the link opened {{at}}', {
+            at: at(record.openedAt, record.now, zone),
+          }),
   ].filter((l): l is string => l !== null);
   const title = !record.mine
-    ? `From ${record.requestedBy.name ?? 'a colleague'}`
+    ? t('export.export-done.from', 'From {{value}}', {
+        value: record.requestedBy.name ?? 'a colleague',
+      })
     : sentTo === null
-      ? 'Your export is ready'
-      : `Sent to ${sentTo.name ?? 'them'}`;
+      ? t('export.export-done.your_export_is_ready', 'Your export is ready')
+      : t('export.export-done.sent_to', 'Sent to {{value}}', { value: sentTo.name ?? 'them' });
   const expired = record.status === 'expired';
 
   return (
@@ -187,17 +211,33 @@ export function ExportDone({
               <p className="text-sm text-fg-muted">
                 {lines.length === 0
                   ? expired
-                    ? 'Its link has expired.'
-                    : `Its link works until ${spokenDate(record.expiresAt ?? record.now)}.`
+                    ? t('export.export-done.its_link_has_expired', 'Its link has expired.')
+                    : t(
+                        'export.export-done.its_link_works_until',
+                        'Its link works until {{spokenDate}}.',
+                        { spokenDate: spokenDate(record.expiresAt ?? record.now) },
+                      )
                   : lines.join(' · ').charAt(0).toUpperCase() + lines.join(' · ').slice(1)}
               </p>
             </div>
           </div>
           {expired ? (
-            <Alert tone="warning" title="This export is no longer available">
+            <Alert
+              tone="warning"
+              title={t(
+                'export.export-done.this_export_is_no_longer_available',
+                'This export is no longer available',
+              )}
+            >
               {sentTo === null
-                ? 'Exports are deleted 24 hours after they are made.'
-                : 'A file sent to somebody is deleted 7 days after it is made.'}
+                ? t(
+                    'export.export-done.exports_are_deleted_24_hours_after',
+                    'Exports are deleted 24 hours after they are made.',
+                  )
+                : t(
+                    'export.export-done.a_file_sent_to_somebody_is',
+                    'A file sent to somebody is deleted 7 days after it is made.',
+                  )}
             </Alert>
           ) : record.links.length === 0 ? null : (
             <div className="flex flex-wrap gap-2">
@@ -213,7 +253,12 @@ export function ExportDone({
           )}
           {record.about === null ? null : (
             <Card variant="outline" padded className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-fg-subtle">About · the file’s first sheet</p>
+              <p className="text-xs font-semibold text-fg-subtle">
+                {t(
+                  'export.export-done.about_the_files_first_sheet',
+                  'About · the file’s first sheet',
+                )}
+              </p>
               <h3 className="text-lg font-semibold text-fg">{record.about.title}</h3>
               {record.about.paragraphs.map((p) => (
                 <p key={p} className="text-sm text-fg">
@@ -226,25 +271,31 @@ export function ExportDone({
         </Stack>
       </PageSection>
       <Stack gap={4}>
-        <PageSection surface title="Recorded">
+        <PageSection surface title={t('export.export-done.recorded', 'Recorded')}>
           <KeyValues
             items={[
-              { label: 'Reason', value: record.reason ?? 'None given' },
-              { label: 'People', value: String(record.rowCount ?? 0) },
               {
-                label: 'Fields',
+                label: t('export.export-done.reason', 'Reason'),
+                value: record.reason ?? 'None given',
+              },
+              {
+                label: t('export.export-done.people', 'People'),
+                value: String(record.rowCount ?? 0),
+              },
+              {
+                label: t('export.export-done.fields', 'Fields'),
                 value: `${String(record.fields.length)}${record.sensitive === 0 ? '' : `, ${String(record.sensitive)} sensitive`}`,
               },
               ...(record.approvedBy === null
                 ? []
                 : [
                     {
-                      label: 'Approved by',
+                      label: t('export.export-done.approved_by', 'Approved by'),
                       value: record.approvedBy.name ?? 'A People administrator',
                     },
                   ]),
               {
-                label: 'Kept until',
+                label: t('export.export-done.kept_until', 'Kept until'),
                 value:
                   record.keptUntil === null ? 'No end date set yet' : spokenDate(record.keptUntil),
               },
@@ -257,7 +308,7 @@ export function ExportDone({
             fullWidth
             startIcon={<icons.scheduled aria-hidden />}
             loading={busy}
-            loadingLabel="Scheduling"
+            loadingLabel={t('export.export-done.scheduling', 'Scheduling')}
             disabled={scheduled?.ok === true}
             onClick={() => {
               setBusy(true);
@@ -267,17 +318,26 @@ export function ExportDone({
               });
             }}
           >
-            Make this a monthly schedule
+            {t('export.export-done.make_this_a_monthly_schedule', 'Make this a monthly schedule')}
           </Button>
         ) : null}
         {scheduled === null ? null : scheduled.ok ? (
-          <Alert tone="success" title="Scheduled">
-            It goes on the 1st of every month at 07:00
-            {sentTo === null ? '' : ` to ${firstName(sentTo.name)}`}, as{' '}
-            {sentTo === null ? 'you' : firstName(sentTo.name)} can see it that morning.
+          <Alert tone="success" title={t('export.export-done.scheduled', 'Scheduled')}>
+            {t(
+              'export.export-done.it_goes_on_the_1st_of',
+              'It goes on the 1st of every month at 07:00',
+            )}
+            {sentTo === null
+              ? ''
+              : ' ' +
+                t('export.export-done.to', 'to {{firstName}}', {
+                  firstName: firstName(sentTo.name),
+                })}
+            {t('export.export-done.as', ', as')} {sentTo === null ? 'you' : firstName(sentTo.name)}{' '}
+            {t('export.export-done.can_see_it_that_morning', 'can see it that morning.')}
           </Alert>
         ) : (
-          <Alert tone="danger" title="Not scheduled">
+          <Alert tone="danger" title={t('export.export-done.not_scheduled', 'Not scheduled')}>
             {scheduled.message}
           </Alert>
         )}
@@ -304,25 +364,60 @@ export function ShareWaiting({
   const [failed, setFailed] = useState<string | null>(null);
   if (share.state === 'missing') {
     return (
-      <Alert tone="warning" title="This request is not here">
-        It was made for somebody else, or it no longer exists.
+      <Alert
+        tone="warning"
+        title={t('export.export-done.this_request_is_not_here', 'This request is not here')}
+      >
+        {t(
+          'export.export-done.it_was_made_for_somebody_else',
+          'It was made for somebody else, or it no longer exists.',
+        )}
       </Alert>
     );
   }
   const them = firstName(share.recipient.name);
-  const decided = share.decidedBy?.name ?? 'A People administrator';
+  const decided =
+    share.decidedBy?.name ??
+    t('export.export-done.a_people_administrator', 'A People administrator');
   const heading =
     share.state === 'pending'
       ? share.canDecide
-        ? `${share.requestedBy.name ?? 'A colleague'} wants to send an export to ${share.recipient.name ?? them}`
+        ? t(
+            'export.export-done.wants_to_send_an_export_to',
+            '{{value}} wants to send an export to {{value2}}',
+            {
+              value: share.requestedBy.name ?? 'A colleague',
+              value2: share.recipient.name ?? them,
+            },
+          )
         : share.approvers.length === 0
-          ? `Waiting for approval to send it to ${share.recipient.name ?? them}`
-          : `Waiting for ${listed(share.approvers.map((a) => firstName(a.name)))} to approve sending it to ${share.recipient.name ?? them}`
+          ? t(
+              'export.export-done.waiting_for_approval_to_send_it',
+              'Waiting for approval to send it to {{value}}',
+              { value: share.recipient.name ?? them },
+            )
+          : t(
+              'export.export-done.waiting_for_to_approve_sending_it',
+              'Waiting for {{listed}} to approve sending it to {{value}}',
+              {
+                listed: listed(share.approvers.map((a) => firstName(a.name))),
+                value: share.recipient.name ?? them,
+              },
+            )
       : share.state === 'approved'
-        ? `Sent to ${share.recipient.name ?? them}`
+        ? t('export.export-done.sent_to', 'Sent to {{value}}', {
+            value: share.recipient.name ?? them,
+          })
         : share.state === 'rejected'
-          ? `${decided} didn’t approve sending it`
-          : 'Nobody approved it within 7 days';
+          ? t(
+              'export.export-done.didnt_approve_sending_it',
+              '{{decided}} didn’t approve sending it',
+              { decided },
+            )
+          : t(
+              'export.export-done.nobody_approved_it_within_7_days',
+              'Nobody approved it within 7 days',
+            );
   const decide = async (approve: boolean): Promise<void> => {
     if (onDecide === undefined) return;
     setBusy(approve ? 'approve' : 'reject');
@@ -357,39 +452,54 @@ export function ShareWaiting({
             <Alert
               tone="warning"
               icon={<icons.locked aria-hidden />}
-              title={`${them} can’t see all of it`}
+              title={t('export.export-done.cant_see_all_of_it', '{{them}} can’t see all of it', {
+                them,
+              })}
             >
               {listed(
-                share.gap.fields.map(
-                  (f) =>
-                    `${f.label} for ${String(f.people)} ${f.people === 1 ? 'person' : 'people'}`,
+                share.gap.fields.map((f) =>
+                  t('export.export-done.for', '{{label}} for {{people}} {{value}}', {
+                    label: f.label,
+                    people: String(f.people),
+                    value: f.people === 1 ? 'person' : 'people',
+                  }),
                 ),
               )}
               {share.gap.unlisted > 0
-                ? `, and ${String(share.gap.unlisted)} people ${them} can’t see at all`
+                ? t(
+                    'export.export-done.and_people_cant_see_at_all',
+                    ', and {{unlisted}} people {{them}} can’t see at all',
+                    { unlisted: String(share.gap.unlisted), them },
+                  )
                 : ''}
-              . Approving sends this one file, built as {firstName(share.requestedBy.name)} sees it;
-              it changes nothing else {them} can see.
+              {t(
+                'export.export-done.approving_sends_this_one_file_built',
+                '. Approving sends this one file, built as {{firstName}} sees it; it changes nothing else {{them}} can see.',
+                { firstName: firstName(share.requestedBy.name), them },
+              )}
             </Alert>
           )}
           <KeyValues
             layout="split"
             items={[
               {
-                label: 'Who',
+                label: t('export.export-done.who', 'Who'),
                 // "you" is the requester's word for themselves; said to anybody else, it is them.
                 value: (share.audience ?? 'Everybody you can see').replace(
                   /\byou\b/u,
                   share.mine ? 'you' : firstName(share.requestedBy.name),
                 ),
               },
-              { label: 'Fields', value: listed(share.fields) },
+              { label: t('export.export-done.fields', 'Fields'), value: listed(share.fields) },
               {
-                label: 'As of',
+                label: t('export.export-done.as_of', 'As of'),
                 value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
               },
-              { label: 'Format', value: FORMAT_LABEL[share.format] },
-              { label: 'Reason', value: share.reason },
+              {
+                label: t('export.export-done.format', 'Format'),
+                value: FORMAT_LABEL[share.format],
+              },
+              { label: t('export.export-done.reason', 'Reason'), value: share.reason },
             ]}
           />
           {share.state === 'rejected' && share.note !== null ? (
@@ -399,7 +509,7 @@ export function ShareWaiting({
             <div>
               <Button asChild variant="secondary" size="sm">
                 <a href={`/people/export?export=${encodeURIComponent(share.exportId)}`}>
-                  Open the sent export
+                  {t('export.export-done.open_the_sent_export', 'Open the sent export')}
                 </a>
               </Button>
             </div>
@@ -407,12 +517,15 @@ export function ShareWaiting({
           {share.canDecide && onDecide !== undefined ? (
             <Stack gap={3}>
               <Field>
-                <FieldLabel>Note</FieldLabel>
+                <FieldLabel>{t('export.export-done.note', 'Note')}</FieldLabel>
                 <FieldControl>
                   <Textarea
                     value={note}
                     maxLength={500}
-                    placeholder="Optional. Shown to whoever asked."
+                    placeholder={t(
+                      'export.export-done.optional_shown_to_whoever_asked',
+                      'Optional. Shown to whoever asked.',
+                    )}
                     onChange={(e) => {
                       setNote(e.target.value);
                     }}
@@ -424,28 +537,31 @@ export function ShareWaiting({
                   variant="secondary"
                   className="flex-1"
                   loading={busy === 'reject'}
-                  loadingLabel="Rejecting"
+                  loadingLabel={t('export.export-done.rejecting', 'Rejecting')}
                   onClick={() => {
                     void decide(false);
                   }}
                 >
-                  Reject
+                  {t('export.export-done.reject', 'Reject')}
                 </Button>
                 <Button
                   variant="primary"
                   className="flex-1"
                   startIcon={<icons.send aria-hidden />}
                   loading={busy === 'approve'}
-                  loadingLabel="Approving"
+                  loadingLabel={t('export.export-done.approving', 'Approving')}
                   onClick={() => {
                     void decide(true);
                   }}
                 >
-                  Approve and send
+                  {t('export.export-done.approve_and_send', 'Approve and send')}
                 </Button>
               </div>
               {failed === null ? null : (
-                <Alert tone="danger" title="Nothing was decided">
+                <Alert
+                  tone="danger"
+                  title={t('export.export-done.nothing_was_decided', 'Nothing was decided')}
+                >
                   {failed}
                 </Alert>
               )}
@@ -453,13 +569,22 @@ export function ShareWaiting({
           ) : null}
         </Stack>
       </PageSection>
-      <PageSection surface title="Recorded">
+      <PageSection surface title={t('export.export-done.recorded', 'Recorded')}>
         <KeyValues
           items={[
-            { label: 'Asked by', value: share.requestedBy.name ?? 'A colleague' },
-            { label: 'For', value: share.recipient.name ?? 'A colleague' },
             {
-              label: share.state === 'pending' ? 'Waits until' : 'Decided',
+              label: t('export.export-done.asked_by', 'Asked by'),
+              value: share.requestedBy.name ?? 'A colleague',
+            },
+            {
+              label: t('export.export-done.for_2', 'For'),
+              value: share.recipient.name ?? 'A colleague',
+            },
+            {
+              label:
+                share.state === 'pending'
+                  ? t('export.export-done.waits_until', 'Waits until')
+                  : t('export.export-done.decided', 'Decided'),
               value:
                 share.state === 'pending'
                   ? spokenDate(share.expiresAt)

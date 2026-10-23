@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type JSX } from 'react';
 import { encode } from 'uqr';
 
 import { Loaded, type Loadable, type Outcome } from '../load';
+import { t } from '../i18n';
 
 /**
  * My kiosk code (PRD §11.9): the QR a member's phone shows the kiosk at the
@@ -47,7 +48,12 @@ function qrPath(text: string): { path: string; size: number } {
       }
       const start = x;
       while (row[x]) x++;
-      path += `M${String(start)} ${String(y)}h${String(x - start)}v1h-${String(x - start)}z`;
+      path += t('kiosk.code.m_h_v1h_z', 'M{{start}} {{y}}h{{value}}v1h-{{value2}}z', {
+        start: String(start),
+        y: String(y),
+        value: String(x - start),
+        value2: String(x - start),
+      });
     }
   });
   return { path, size };
@@ -62,7 +68,9 @@ export function KioskCode({
   if (load.status === 'loading') return <KioskCodeSkeleton />;
   return (
     <div className="@container flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title="My kiosk code" /> : null}
+      {load.status === 'error' ? (
+        <PageHeader title={t('kiosk.code.my_kiosk_code', 'My kiosk code')} />
+      ) : null}
       <Loaded load={load} what="your kiosk code">
         {(data) => <Ready data={data} onRefresh={onRefresh} onSavePin={onSavePin} now={now} />}
       </Loaded>
@@ -102,14 +110,17 @@ function Ready({
   return (
     <>
       <PageHeader
-        title="My kiosk code"
-        description="Show this at the kiosk by the door to clock in or out."
+        title={t('kiosk.code.my_kiosk_code', 'My kiosk code')}
+        description={t(
+          'kiosk.code.show_this_at_the_kiosk_by',
+          'Show this at the kiosk by the door to clock in or out.',
+        )}
       />
       <div className="grid gap-5 @min-[48rem]:grid-cols-2">
         <Card padded className="flex flex-col items-center gap-3">
           <svg
             role="img"
-            aria-label="Your kiosk code"
+            aria-label={t('kiosk.code.your_kiosk_code', 'Your kiosk code')}
             viewBox={`0 0 ${String(qr.size)} ${String(qr.size)}`}
             shapeRendering="crispEdges"
             className="aspect-square w-full max-w-72 rounded-md bg-white"
@@ -118,11 +129,15 @@ function Ready({
           </svg>
           <p className="text-sm text-fg-muted" aria-live="polite">
             {left > 0
-              ? `Works for another ${String(left)} seconds, then a new one appears.`
-              : 'Getting a new code…'}
+              ? t(
+                  'kiosk.code.works_for_another_seconds_then_a',
+                  'Works for another {{left}} seconds, then a new one appears.',
+                  { left: String(left) },
+                )
+              : t('kiosk.code.getting_a_new_code', 'Getting a new code…')}
           </p>
         </Card>
-        <PageSection title="Or use a PIN">
+        <PageSection title={t('kiosk.code.or_use_a_pin', 'Or use a PIN')}>
           <form
             className="flex flex-col items-start gap-4"
             onSubmit={(event) => {
@@ -137,8 +152,11 @@ function Ready({
             }}
           >
             <PinInput
-              label="Your kiosk PIN"
-              hint="Six digits nobody else at work has. You type it at the kiosk instead of the code."
+              label={t('kiosk.code.your_kiosk_pin', 'Your kiosk PIN')}
+              hint={t(
+                'kiosk.code.six_digits_nobody_else_at_work',
+                'Six digits nobody else at work has. You type it at the kiosk instead of the code.',
+              )}
               value={pin}
               onChange={setPin}
               length={PIN_LENGTH}
@@ -150,12 +168,18 @@ function Ready({
               loading={saving}
               disabled={pin.length !== PIN_LENGTH}
             >
-              Save PIN
+              {t('kiosk.code.save_pin', 'Save PIN')}
             </Button>
             {outcome === null ? null : outcome.ok ? (
-              <Alert tone="success" title="Your PIN is saved" />
+              <Alert
+                tone="success"
+                title={t('kiosk.code.your_pin_is_saved', 'Your PIN is saved')}
+              />
             ) : (
-              <Alert tone="danger" title="Your PIN was not saved">
+              <Alert
+                tone="danger"
+                title={t('kiosk.code.your_pin_was_not_saved', 'Your PIN was not saved')}
+              >
                 {outcome.message}
               </Alert>
             )}
@@ -169,9 +193,11 @@ function Ready({
 export function KioskCodeSkeleton(): JSX.Element {
   return (
     <div className="@container flex flex-col gap-6">
-      <PageHeader title="My kiosk code" description={' '} />
+      <PageHeader title={t('kiosk.code.my_kiosk_code', 'My kiosk code')} description={' '} />
       <div role="status" className="grid gap-5 @min-[48rem]:grid-cols-2">
-        <span className="sr-only">Loading your kiosk code</span>
+        <span className="sr-only">
+          {t('kiosk.code.loading_your_kiosk_code', 'Loading your kiosk code')}
+        </span>
         <Skeleton className="aspect-square w-full max-w-80 rounded-lg" />
         <Skeleton className="h-40 rounded-lg" />
       </div>

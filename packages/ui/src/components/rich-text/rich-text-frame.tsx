@@ -5,6 +5,7 @@ import { useId, type JSX, type ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { fieldHintClass, fieldLabelClass } from '../field/field-styles';
+import { t } from '../../lib/i18n';
 
 /*
  * What the rich text field and its editor share: the props, and the field
@@ -174,10 +175,18 @@ export function RichTextFrame({
           )}
         >
           {characterLimit !== undefined
-            ? `${String(used)} / ${String(characterLimit)}`
+            ? t('components.rich-text.rich-text-frame.text', '{{used}} / {{characterLimit}}', {
+                used: String(used),
+                characterLimit: String(characterLimit),
+              })
             : countUnit === 'words'
-              ? `${String(words)} ${words === 1 ? 'word' : 'words'}`
-              : `${String(used)} characters`}
+              ? t('components.rich-text.rich-text-frame.text_2', '{{words}} {{value}}', {
+                  words: String(words),
+                  value: words === 1 ? 'word' : 'words',
+                })
+              : t('components.rich-text.rich-text-frame.characters', '{{used}} characters', {
+                  used: String(used),
+                })}
         </p>
       ) : null}
     </div>

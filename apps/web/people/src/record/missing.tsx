@@ -1,5 +1,6 @@
 import { Badge, Button, Tooltip } from '@reach/ui';
 import type { JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * "Missing": a required detail that is empty, or how many are.
@@ -18,7 +19,9 @@ export function MissingMark({
 }): JSX.Element {
   return (
     <Badge tone="attention" size={size}>
-      {count === undefined ? 'Missing' : `${String(count)} missing`}
+      {count === undefined
+        ? t('record.missing.missing', 'Missing')
+        : t('record.missing.missing_2', '{{count}} missing', { count: String(count) })}
     </Badge>
   );
 }
@@ -37,12 +40,16 @@ export function MissingJump({
 }): JSX.Element {
   const named = labels.join(', ');
   return (
-    <Tooltip content={`Missing: ${named}`}>
+    <Tooltip content={t('record.missing.missing_3', 'Missing: {{named}}', { named })}>
       <Button
         size="sm"
         variant="ghost"
         className="h-auto p-0"
-        aria-label={`${String(labels.length)} missing: ${named}. Go to the first`}
+        aria-label={t(
+          'record.missing.missing_go_to_the_first',
+          '{{length}} missing: {{named}}. Go to the first',
+          { length: String(labels.length), named },
+        )}
         onClick={onJump}
       >
         <MissingMark count={labels.length} size="md" />

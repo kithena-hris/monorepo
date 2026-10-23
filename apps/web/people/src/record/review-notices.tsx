@@ -1,5 +1,6 @@
 import { Alert, Button, Stack } from '@reach/ui';
 import type { JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * A person's doubted identifiers still open (PEO-125), as the record shows
@@ -39,29 +40,52 @@ export function ReviewNotices({
           <Alert
             key={r.key}
             tone="warning"
-            title={`HR could not accept your ${r.label}`}
+            title={t(
+              'record.review-notices.hr_could_not_accept_your',
+              'HR could not accept your {{label}}',
+              { label: r.label },
+            )}
             action={
               onCorrect === undefined ? undefined : (
                 <Button
                   size="sm"
-                  aria-label={`Correct ${r.label}`}
+                  aria-label={t('record.review-notices.correct', 'Correct {{label}}', {
+                    label: r.label,
+                  })}
                   onClick={() => {
                     onCorrect(r.key);
                   }}
                 >
-                  Correct it
+                  {t('record.review-notices.correct_it', 'Correct it')}
                 </Button>
               )
             }
           >
             {r.note === null
-              ? 'Please check it against the original document and correct it.'
-              : `${sentence(r.note)} Please correct it.`}{' '}
+              ? t(
+                  'record.review-notices.please_check_it_against_the_original',
+                  'Please check it against the original document and correct it.',
+                )
+              : t('record.review-notices.please_correct_it', '{{sentence}} Please correct it.', {
+                  sentence: sentence(r.note),
+                })}{' '}
             {r.findings.map((f) => f.message).join(' ')}
           </Alert>
         ) : (
-          <Alert key={r.key} tone="info" title={`${r.label} is with HR for review`}>
-            {r.findings.map((f) => f.message).join(' ')} Whatever HR decides is final.
+          <Alert
+            key={r.key}
+            tone="info"
+            title={t(
+              'record.review-notices.is_with_hr_for_review',
+              '{{label}} is with HR for review',
+              { label: r.label },
+            )}
+          >
+            {r.findings.map((f) => f.message).join(' ')}{' '}
+            {t(
+              'record.review-notices.whatever_hr_decides_is_final',
+              'Whatever HR decides is final.',
+            )}
           </Alert>
         ),
       )}

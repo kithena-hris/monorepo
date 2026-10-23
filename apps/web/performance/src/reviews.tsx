@@ -74,6 +74,7 @@ import type {
   Score,
   Suggestion,
 } from './types';
+import { t } from './i18n';
 
 /**
  * Reviews (PRD §10, §13; design PF10–PF13, PF20, PF9b–c): what a person
@@ -145,7 +146,7 @@ function reviewColumns(
   return [
     {
       id: 'review',
-      header: 'Review',
+      header: t('reviews.review', 'Review'),
       sortBy: (r) => r.title,
       cell: (r) => (
         <>
@@ -153,29 +154,36 @@ function reviewColumns(
             {r.title}
           </To>
           {r.savedAt === null ? null : (
-            <span className="block text-xs text-fg-muted">{`Saved ${when(r.savedAt)}`}</span>
+            <span className="block text-xs text-fg-muted">
+              {t('reviews.saved', 'Saved {{savedAt}}', { savedAt: when(r.savedAt) })}
+            </span>
           )}
         </>
       ),
     },
     {
       id: 'about',
-      header: 'About',
+      header: t('reviews.about', 'About'),
       sortBy: (r) => r.about,
       cell: (r) => <Person name={r.about} sub={r.aboutTitle} />,
     },
     {
       id: 'cycle',
-      header: 'Cycle',
+      header: t('reviews.cycle', 'Cycle'),
       hideOnCard: true,
       sortBy: (r) => r.cycle ?? '',
       cell: (r) => <span className="text-sm text-fg-muted">{r.cycle ?? '—'}</span>,
     },
-    { id: 'kind', header: 'Kind', sortBy: (r) => r.kind, cell: (r) => <KindBadge kind={r.kind} /> },
-    { id: 'due', header: 'Due', sortBy: (r) => r.due, cell: (r) => day(r.due) },
+    {
+      id: 'kind',
+      header: t('reviews.kind', 'Kind'),
+      sortBy: (r) => r.kind,
+      cell: (r) => <KindBadge kind={r.kind} />,
+    },
+    { id: 'due', header: t('reviews.due', 'Due'), sortBy: (r) => r.due, cell: (r) => day(r.due) },
     {
       id: 'state',
-      header: 'State',
+      header: t('reviews.state', 'State'),
       cardTrailing: true,
       sortBy: (r) => r.state,
       cell: (r) => <ReviewBadge state={r.state} />,
@@ -189,15 +197,20 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="My reviews"
-            description="Every review you write, across cycles, and what is written about you."
+            title={t('reviews.my_reviews', 'My reviews')}
+            description={t(
+              'reviews.every_review_you_write_across_cycles',
+              'Every review you write, across cycles, and what is written about you.',
+            )}
           />
           {/* Peers to pick or approve are things to do, so they sit with the
               reviews to write rather than behind a tab of their own. */}
           {data.tab === 'write' && data.nominations.length > 0 ? (
             <Card>
               <CardContent className="flex flex-col gap-2">
-                <h2 className="font-semibold">Peers to pick or approve</h2>
+                <h2 className="font-semibold">
+                  {t('reviews.peers_to_pick_or_approve', 'Peers to pick or approve')}
+                </h2>
                 <List>
                   {data.nominations.map((n) => (
                     <ListItem
@@ -208,14 +221,22 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
                       description={`${n.cycle}${n.due === null ? '' : ` · due ${day(n.due)}`}`}
                       trailing={
                         <Badge size="sm" tone={n.kind === 'approve' ? 'accent' : 'neutral'}>
-                          {n.kind === 'approve' ? 'To review' : 'To pick'}
+                          {n.kind === 'approve'
+                            ? t('reviews.to_review', 'To review')
+                            : t('reviews.to_pick', 'To pick')}
                         </Badge>
                       }
                     >
                       <a href={`/performance/nominations/${n.id}`}>
                         {n.kind === 'nominate'
-                          ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
-                          : `Approve ${n.subject}’s peers`}
+                          ? t(
+                              'reviews.pick_to_peers_for',
+                              'Pick {{min}} to {{max}} peers for {{subject}}',
+                              { min: String(n.min), max: String(n.max), subject: n.subject },
+                            )
+                          : t('reviews.approve_s_peers', 'Approve {{subject}}’s peers', {
+                              subject: n.subject,
+                            })}
                       </a>
                     </ListItem>
                   ))}
@@ -230,12 +251,19 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
               {data.rows.length === 0 ? (
                 <EmptyState
                   icon={<icons.review aria-hidden />}
-                  title={data.tab === 'written' ? 'Nothing written yet' : 'No reviews to write'}
-                  description="When a cycle asks you for a review, it shows here and in your Inbox."
+                  title={
+                    data.tab === 'written'
+                      ? t('reviews.nothing_written_yet', 'Nothing written yet')
+                      : t('reviews.no_reviews_to_write', 'No reviews to write')
+                  }
+                  description={t(
+                    'reviews.when_a_cycle_asks_you_for',
+                    'When a cycle asks you for a review, it shows here and in your Inbox.',
+                  )}
                 />
               ) : (
                 <DataTable<ReviewRow>
-                  label="Reviews"
+                  label={t('reviews.reviews', 'Reviews')}
                   rows={data.rows}
                   rowId={reviewId}
                   describeRow={reviewTitle}
@@ -244,10 +272,17 @@ export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
                 />
               )}
               {data.tab === 'write' ? (
-                <Alert tone="info" title="Upward and peer reviews are confidential">
-                  Your manager sees upward answers only once enough of their reports have answered,
-                  and never your name. People you review as a peer see your answers without your
-                  name; their managers see it.
+                <Alert
+                  tone="info"
+                  title={t(
+                    'reviews.upward_and_peer_reviews_are_confidential',
+                    'Upward and peer reviews are confidential',
+                  )}
+                >
+                  {t(
+                    'reviews.your_manager_sees_upward_answers_only',
+                    'Your manager sees upward answers only once enough of their reports have answered, and never your name. People you review as a peer see your answers without your name; their managers see it.',
+                  )}
                 </Alert>
               ) : null}
             </>
@@ -271,8 +306,11 @@ function AboutMe({
         <CardContent>
           <EmptyState
             icon={<icons.review aria-hidden />}
-            title="Nothing about you yet"
-            description="Reviews about you appear here once they are released to you."
+            title={t('reviews.nothing_about_you_yet', 'Nothing about you yet')}
+            description={t(
+              'reviews.reviews_about_you_appear_here_once',
+              'Reviews about you appear here once they are released to you.',
+            )}
           />
         </CardContent>
       </Card>
@@ -285,7 +323,7 @@ function AboutMe({
             <CardTitle level={2}>{c.cycle}</CardTitle>
             {c.manager?.acknowledged ? (
               <Badge size="sm" tone="success">
-                Acknowledged
+                {t('reviews.acknowledged', 'Acknowledged')}
               </Badge>
             ) : (
               <CycleBadge state={c.state} />
@@ -299,12 +337,12 @@ function AboutMe({
                   ? []
                   : [
                       {
-                        label: 'Your self review',
+                        label: t('reviews.your_self_review', 'Your self review'),
                         value: (
                           <span className="flex items-center gap-2">
                             <ReviewBadge state={c.self.state} />
                             <To href={`/performance/reviews/${c.self.id}`} onNavigate={onNavigate}>
-                              Open
+                              {t('reviews.open', 'Open')}
                             </To>
                           </span>
                         ),
@@ -314,7 +352,7 @@ function AboutMe({
                   ? []
                   : [
                       {
-                        label: 'Peers you nominated',
+                        label: t('reviews.peers_you_nominated', 'Peers you nominated'),
                         value: `${c.nominated.join(', ')}${c.nomination === 'approved' ? ' · approved' : ''}`,
                       },
                     ]),
@@ -322,7 +360,7 @@ function AboutMe({
                   ? []
                   : [
                       {
-                        label: 'Performance score',
+                        label: t('reviews.performance_score', 'Performance score'),
                         value: `${c.score.display} · ${c.score.label}${c.score.final ? '' : ', before calibration'}`,
                       },
                     ]),
@@ -330,7 +368,7 @@ function AboutMe({
                   ? []
                   : [
                       {
-                        label: 'Manager review',
+                        label: t('reviews.manager_review', 'Manager review'),
                         value:
                           c.manager.released === null ? (
                             c.manager.writing ? (
@@ -352,7 +390,7 @@ function AboutMe({
                   ? []
                   : [
                       {
-                        label: 'Peer reviews',
+                        label: t('reviews.peer_reviews', 'Peer reviews'),
                         value:
                           c.peers.count === 0 ? (
                             'Not enough responses to share confidentially'
@@ -367,7 +405,12 @@ function AboutMe({
                       },
                     ]),
                 ...(c.manager?.comment
-                  ? [{ label: 'Your comment', value: `“${c.manager.comment}”` }]
+                  ? [
+                      {
+                        label: t('reviews.your_comment', 'Your comment'),
+                        value: `“${c.manager.comment}”`,
+                      },
+                    ]
                   : []),
               ]}
             />
@@ -601,7 +644,11 @@ function Writing({
   const writing = data.may.write;
   // No longer the subject's manager (§8.8): kept to read or delete, never submitted.
   const former = data.review.formerManager ?? null;
-  const noLongerTheirs = `You are no longer ${data.review.subject.name}’s manager, so this review cannot be submitted. ${former?.to ?? 'Their new manager'} writes theirs.`;
+  const noLongerTheirs = t(
+    'reviews.you_are_no_longer_s_manager',
+    'You are no longer {{name}}’s manager, so this review cannot be submitted. {{value}} writes theirs.',
+    { name: data.review.subject.name, value: former?.to ?? 'Their new manager' },
+  );
   // The panel's summary fills itself once it is on screen, never on a button.
   const asked = useRef({ summary: false });
   const savedRevision = saving.state === 'saved' ? saving.revision : null;
@@ -712,17 +759,23 @@ function Writing({
   const unconfirmed = Object.entries(data.suggestions).filter(([, s]) => !s.confirmed);
   const badge =
     saving.state === 'saving'
-      ? 'Saving…'
+      ? t('reviews.saving', 'Saving…')
       : saving.state === 'saved'
         ? saving.at === null
-          ? 'Not saved yet'
-          : `Saved ${time(saving.at)} · revision ${String(saving.revision)}`
-        : 'Not saved';
+          ? t('reviews.not_saved_yet', 'Not saved yet')
+          : t('reviews.saved_revision', 'Saved {{at}} · revision {{revision}}', {
+              at: time(saving.at),
+              revision: String(saving.revision),
+            })
+        : t('reviews.not_saved', 'Not saved');
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title={`${data.review.title}${data.review.kind === 'self' ? '' : `: ${data.review.subject.name}`}`}
-        description={`${data.review.cycle?.name ?? 'Detached review'} · due ${day(data.review.due)}`}
+        description={t('reviews.due_2', '{{value}} · due {{due}}', {
+          value: data.review.cycle?.name ?? 'Detached review',
+          due: day(data.review.due),
+        })}
         actions={
           <>
             {data.may.decline ? (
@@ -732,7 +785,7 @@ function Writing({
                   setDialog('decline');
                 }}
               >
-                Decline
+                {t('reviews.decline', 'Decline')}
               </Button>
             ) : null}
             {data.may.unlock ? (
@@ -742,7 +795,7 @@ function Writing({
                   setDialog('unlock');
                 }}
               >
-                Request unlock
+                {t('reviews.request_unlock', 'Request unlock')}
               </Button>
             ) : null}
             {data.may.withdraw ? (
@@ -753,7 +806,7 @@ function Writing({
                   act.run('WithdrawPerformanceUnlock', { id: data.review.id });
                 }}
               >
-                Withdraw unlock request
+                {t('reviews.withdraw_unlock_request', 'Withdraw unlock request')}
               </Button>
             ) : null}
             {writing && data.ai['prefill'] === true ? (
@@ -765,7 +818,7 @@ function Writing({
                   ai('PrefillPerformanceReview');
                 }}
               >
-                Prefill with AI
+                {t('reviews.prefill_with_ai', 'Prefill with AI')}
               </Button>
             ) : null}
           </>
@@ -783,7 +836,7 @@ function Writing({
               sub={[
                 kindLabel(data.review.kind),
                 data.review.subject.title,
-                `due ${day(data.review.due)}`,
+                t('reviews.due_3', 'due {{due}}', { due: day(data.review.due) }),
               ]
                 .filter((x) => x !== '')
                 .join(' · ')}
@@ -794,7 +847,11 @@ function Writing({
                 {badge}
               </span>
               {unconfirmed.length > 0 ? (
-                <Badge tone="accent">{`${plural(unconfirmed.length, 'suggestion')} to confirm`}</Badge>
+                <Badge tone="accent">
+                  {t('reviews.to_confirm', '{{length}} to confirm', {
+                    length: plural(unconfirmed.length, 'suggestion'),
+                  })}
+                </Badge>
               ) : null}
               {checks ? (
                 <ReadsChip
@@ -815,17 +872,21 @@ function Writing({
                   setPanelOpen((open) => !open);
                 }}
               >
-                Details
+                {t('reviews.details', 'Details')}
               </Button>
               {writing && former !== null ? (
                 // Theirs no longer to submit: the reason one press away.
                 <span className="flex items-center gap-1">
-                  <Button disabled>Submit</Button>
+                  <Button disabled>{t('reviews.submit', 'Submit')}</Button>
                   <Tooltip content={noLongerTheirs}>
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label={`Why Submit is off: ${noLongerTheirs}`}
+                      aria-label={t(
+                        'reviews.why_submit_is_off',
+                        'Why Submit is off: {{noLongerTheirs}}',
+                        { noLongerTheirs },
+                      )}
                       startIcon={<icons.info aria-hidden />}
                     />
                   </Tooltip>
@@ -838,7 +899,7 @@ function Writing({
                     });
                   }}
                 >
-                  Submit
+                  {t('reviews.submit', 'Submit')}
                 </Button>
               ) : null}
             </div>
@@ -849,7 +910,10 @@ function Writing({
       {saving.state === 'stale' ? (
         <Alert
           tone="warning"
-          title="This review changed in another tab"
+          title={t(
+            'reviews.this_review_changed_in_another_tab',
+            'This review changed in another tab',
+          )}
           action={
             <Button
               size="sm"
@@ -857,7 +921,7 @@ function Writing({
                 props.onRefresh?.();
               }}
             >
-              Load the newer revision
+              {t('reviews.load_the_newer_revision', 'Load the newer revision')}
             </Button>
           }
         >
@@ -865,7 +929,7 @@ function Writing({
         </Alert>
       ) : null}
       {saving.state === 'failed' ? (
-        <Alert tone="danger" title="Not saved">
+        <Alert tone="danger" title={t('reviews.not_saved', 'Not saved')}>
           {saving.message}
         </Alert>
       ) : null}
@@ -880,7 +944,11 @@ function Writing({
       {former === null ? null : (
         <Alert
           tone="warning"
-          title={`You are no longer ${data.review.subject.name}’s manager`}
+          title={t(
+            'reviews.you_are_no_longer_s_manager_2',
+            'You are no longer {{name}}’s manager',
+            { name: data.review.subject.name },
+          )}
           action={
             writing ? (
               <Button
@@ -890,27 +958,51 @@ function Writing({
                   setDialog('discard');
                 }}
               >
-                Delete this review
+                {t('reviews.delete_this_review', 'Delete this review')}
               </Button>
             ) : undefined
           }
         >
-          {`${subject} reports to ${former.to ?? 'someone else'} now, so this review can no longer be submitted; ${former.to ?? 'their new manager'} writes theirs. It stays here for you to read until you delete it.`}
+          {`${subject} reports to ${former.to ?? t('reviews.someone_else', 'someone else')} now, so this review can no longer be submitted; ${former.to ?? t('reviews.their_new_manager', 'their new manager')} writes theirs. It stays here for you to read until you delete it.`}
         </Alert>
       )}
       {data.review.handover === null ? null : (
-        <Alert tone="info" title={`Handed over from ${data.review.handover.from}`}>
-          {data.review.handover.note ?? 'Their draft came with the review.'}
+        <Alert
+          tone="info"
+          title={t('reviews.handed_over_from', 'Handed over from {{from}}', {
+            from: data.review.handover.from,
+          })}
+        >
+          {data.review.handover.note ??
+            t('reviews.their_draft_came_with_the_review', 'Their draft came with the review.')}
         </Alert>
       )}
       {data.review.status === 'unlock_requested' ? (
-        <Alert tone="info" title="Waiting for HR to unlock it">
-          {`You asked: “${data.review.unlock?.reason ?? ''}”. Until HR decides, the review stays submitted.`}
+        <Alert
+          tone="info"
+          title={t('reviews.waiting_for_hr_to_unlock_it', 'Waiting for HR to unlock it')}
+        >
+          {t(
+            'reviews.you_asked_until_hr_decides_the',
+            'You asked: “{{value}}”. Until HR decides, the review stays submitted.',
+            { value: data.review.unlock?.reason ?? '' },
+          )}
         </Alert>
       ) : null}
       {data.review.kind === 'peer' || data.review.kind === 'upward' ? (
-        <Alert tone="info" title={`Confidential to ${subject}`}>
-          {`${subject} sees your answers ${data.review.cycle?.names === 'shown' ? 'with' : 'without'} your name, and only once at least ${String(data.review.cycle?.minimum ?? 3)} have answered. Their manager and HR see your name.`}
+        <Alert
+          tone="info"
+          title={t('reviews.confidential_to', 'Confidential to {{subject}}', { subject })}
+        >
+          {t(
+            'reviews.sees_your_answers_your_name_and',
+            '{{subject}} sees your answers {{value}} your name, and only once at least {{value2}} have answered. Their manager and HR see your name.',
+            {
+              subject,
+              value: data.review.cycle?.names === 'shown' ? 'with' : 'without',
+              value2: String(data.review.cycle?.minimum ?? 3),
+            },
+          )}
         </Alert>
       ) : null}
       {/* Wide enough for a five-point scale's labels on one row (four, then one, at 3xl). */}
@@ -968,19 +1060,19 @@ function Writing({
           }}
         >
           <SheetHeader>
-            <SheetTitle>Details</SheetTitle>
+            <SheetTitle>{t('reviews.details', 'Details')}</SheetTitle>
           </SheetHeader>
           <SheetBody className="flex flex-col gap-3">
             {aiHelp ? (
               <TertiaryNav
-                label="Details"
+                label={t('reviews.details', 'Details')}
                 orientation="horizontal"
                 variant="line"
                 activeId={tab}
                 onSelect={setTab}
                 items={[
-                  { id: 'context', label: 'Context' },
-                  { id: 'ai', label: 'AI help' },
+                  { id: 'context', label: t('reviews.context', 'Context') },
+                  { id: 'ai', label: t('reviews.ai_help', 'AI help') },
                 ]}
               />
             ) : null}
@@ -989,18 +1081,28 @@ function Writing({
                 <Context data={data} />
                 <Card>
                   <CardHeader>
-                    <CardTitle level={3}>Earlier reviews</CardTitle>
+                    <CardTitle level={3}>
+                      {t('reviews.earlier_reviews', 'Earlier reviews')}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
                     {data.panel.earlier.length === 0 ? (
-                      <p className="text-sm text-fg-muted">No earlier reviews you may read.</p>
+                      <p className="text-sm text-fg-muted">
+                        {t(
+                          'reviews.no_earlier_reviews_you_may_read',
+                          'No earlier reviews you may read.',
+                        )}
+                      </p>
                     ) : (
                       data.panel.earlier.map((e) => (
                         <KeyValues
                           key={e.id}
                           layout="split"
                           items={[
-                            { label: e.cycle ?? 'Review', value: `${e.by} · ${score(e.score)}` },
+                            {
+                              label: e.cycle ?? t('reviews.review', 'Review'),
+                              value: `${e.by} · ${score(e.score)}`,
+                            },
                           ]}
                         />
                       ))
@@ -1012,7 +1114,9 @@ function Writing({
             {tab === 'ai' && data.ai['summaries'] === true ? (
               <Card>
                 <CardHeader>
-                  <CardTitle level={3}>Summary of what others said</CardTitle>
+                  <CardTitle level={3}>
+                    {t('reviews.summary_of_what_others_said', 'Summary of what others said')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {summary === null ? (
@@ -1022,7 +1126,12 @@ function Writing({
                       error={aiError}
                     />
                   ) : summary.sentences.length === 0 ? (
-                    <p className="text-sm text-fg-muted">Nobody else has written about them yet.</p>
+                    <p className="text-sm text-fg-muted">
+                      {t(
+                        'reviews.nobody_else_has_written_about_them',
+                        'Nobody else has written about them yet.',
+                      )}
+                    </p>
                   ) : (
                     <>
                       <p>
@@ -1032,11 +1141,19 @@ function Writing({
                       </p>
                       <ul className="flex flex-col gap-1 text-sm text-fg-muted">
                         {summary.sources.map((s) => (
-                          <li key={s.id}>{`${s.id}: ${s.label}`}</li>
+                          <li key={s.id}>
+                            {t('reviews.text', '{{id}}: {{label}}', { id: s.id, label: s.label })}
+                          </li>
                         ))}
                       </ul>
                       {summary.dropped > 0 ? (
-                        <p className="text-sm text-fg-muted">{`${plural(summary.dropped, 'sentence')} without a source left out.`}</p>
+                        <p className="text-sm text-fg-muted">
+                          {t(
+                            'reviews.without_a_source_left_out',
+                            '{{dropped}} without a source left out.',
+                            { dropped: plural(summary.dropped, 'sentence') },
+                          )}
+                        </p>
                       ) : null}
                     </>
                   )}
@@ -1089,8 +1206,12 @@ function Writing({
           onClose={() => {
             setDialog(null);
           }}
-          title="Delete this review?"
-          description={`What you wrote about ${subject} is deleted, and nobody sees it. This cannot be undone.`}
+          title={t('reviews.delete_this_review_2', 'Delete this review?')}
+          description={t(
+            'reviews.what_you_wrote_about_is_deleted',
+            'What you wrote about {{subject}} is deleted, and nobody sees it. This cannot be undone.',
+            { subject },
+          )}
           footer={
             <>
               <Button
@@ -1099,7 +1220,7 @@ function Writing({
                   setDialog(null);
                 }}
               >
-                Keep it
+                {t('reviews.keep_it', 'Keep it')}
               </Button>
               <Button
                 variant="danger"
@@ -1110,7 +1231,7 @@ function Writing({
                   });
                 }}
               >
-                Delete
+                {t('reviews.delete', 'Delete')}
               </Button>
             </>
           }
@@ -1206,7 +1327,7 @@ function ReadFlags({
                     onUse(f);
                   }}
                 >
-                  Use the rewrite
+                  {t('reviews.use_the_rewrite', 'Use the rewrite')}
                 </Button>
               )}
               <Button
@@ -1216,7 +1337,7 @@ function ReadFlags({
                   onKeep(f);
                 }}
               >
-                Keep as is
+                {t('reviews.keep_as_is', 'Keep as is')}
               </Button>
             </span>
           }
@@ -1226,15 +1347,21 @@ function ReadFlags({
             {f.advice === null ? null : <span className="text-fg-muted">{f.advice}</span>}
             {f.rewrite === null ? null : (
               <span className="text-fg">
-                {`Instead: “${f.rewrite}”`}
+                {t('reviews.instead', 'Instead: “{{rewrite}}”', { rewrite: f.rewrite })}
                 {/\[[^\]]+\]/u.test(f.rewrite) ? (
-                  <span className="text-fg-muted"> Fill in the parts in brackets.</span>
+                  <span className="text-fg-muted">
+                    {' '}
+                    {t('reviews.fill_in_the_parts_in_brackets', 'Fill in the parts in brackets.')}
+                  </span>
                 ) : null}
               </span>
             )}
             {notFound === f.sentence ? (
               <span className="text-fg-muted">
-                That sentence has changed since it was read: edit it by hand.
+                {t(
+                  'reviews.that_sentence_has_changed_since_it',
+                  'That sentence has changed since it was read: edit it by hand.',
+                )}
               </span>
             ) : null}
           </span>
@@ -1261,11 +1388,13 @@ function ReadsChip({
   if (reading === 'failed')
     return (
       <Button size="sm" variant="ghost" startIcon={<icons.refresh aria-hidden />} onClick={onRetry}>
-        Retry reading it
+        {t('reviews.retry_reading_it', 'Retry reading it')}
       </Button>
     );
   if (reads === null || reads.reads === null)
-    return reading === 'reading' ? <Spinner size="sm" label="Reading your draft" /> : null;
+    return reading === 'reading' ? (
+      <Spinner size="sm" label={t('reviews.reading_your_draft', 'Reading your draft')} />
+    ) : null;
   const position = reads.sentiment?.position ?? null;
   return (
     <Popover>
@@ -1273,12 +1402,17 @@ function ReadsChip({
         <Button
           size="sm"
           variant="ghost"
-          aria-label={`How it will read to ${subject}`}
+          aria-label={t('reviews.how_it_will_read_to', 'How it will read to {{subject}}', {
+            subject,
+          })}
           loading={reading === 'reading'}
         >
           {position === null
-            ? 'How it reads'
-            : `${FACES[Math.min(4, Math.floor(position / 20))] ?? ''} ${toneWord(position)}`}
+            ? t('reviews.how_it_reads', 'How it reads')
+            : t('reviews.text_2', '{{value}} {{toneWord}}', {
+                value: FACES[Math.min(4, Math.floor(position / 20))] ?? '',
+                toneWord: toneWord(position),
+              })}
           {flags === 0 ? null : (
             <Badge size="sm" tone="warning" className="ml-1.5">
               {String(flags)}
@@ -1287,13 +1421,19 @@ function ReadsChip({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-80 flex-col gap-3">
-        <p className="text-sm font-semibold">{`How it will read to ${subject}`}</p>
+        <p className="text-sm font-semibold">
+          {t('reviews.how_it_will_read_to', 'How it will read to {{subject}}', { subject })}
+        </p>
         {position === null || reads.sentiment === null ? null : (
           <Tone position={position} counts={reads.sentiment.counts} />
         )}
         <p className="text-sm">{reads.reads}</p>
         {flags === 0 ? null : (
-          <p className="text-sm text-fg-muted">{`${plural(flags, 'suggestion')} under your answers.`}</p>
+          <p className="text-sm text-fg-muted">
+            {t('reviews.under_your_answers', '{{flags}} under your answers.', {
+              flags: plural(flags, 'suggestion'),
+            })}
+          </p>
         )}
       </PopoverContent>
     </Popover>
@@ -1323,14 +1463,14 @@ function Asking({
 const FACES = ['😟', '😕', '😐', '🙂', '😄'] as const;
 const toneWord = (v: number): string =>
   v < 30
-    ? 'Critical'
+    ? t('reviews.critical', 'Critical')
     : v < 45
-      ? 'Guarded'
+      ? t('reviews.guarded', 'Guarded')
       : v < 60
-        ? 'Balanced'
+        ? t('reviews.balanced', 'Balanced')
         : v < 80
-          ? 'Encouraging'
-          : 'Glowing';
+          ? t('reviews.encouraging', 'Encouraging')
+          : t('reviews.glowing', 'Glowing');
 
 /** The draft's tone (§13.6): where the domain put it, with the sentences behind it. */
 function Tone({
@@ -1344,21 +1484,35 @@ function Tone({
     <div className="flex flex-col gap-2">
       <Slider
         variant="meter"
-        label="Tone of your draft"
+        label={t('reviews.tone_of_your_draft', 'Tone of your draft')}
         value={[position]}
         knob={(v) => FACES[Math.min(4, Math.floor(v / 20))]}
         tip={toneWord}
-        labels={['Critical', 'Balanced', 'Encouraging']}
+        labels={[
+          t('reviews.critical', 'Critical'),
+          t('reviews.balanced', 'Balanced'),
+          t('reviews.encouraging', 'Encouraging'),
+        ]}
       />
       <p className="text-sm text-fg-muted">
         {[
-          counts.positive > 0 ? `${String(counts.positive)} encouraging` : '',
-          counts.neutral > 0 ? `${String(counts.neutral)} neutral` : '',
-          counts.negative > 0 ? `${String(counts.negative)} critical` : '',
+          counts.positive > 0
+            ? t('reviews.encouraging_2', '{{positive}} encouraging', {
+                positive: String(counts.positive),
+              })
+            : '',
+          counts.neutral > 0
+            ? t('reviews.neutral', '{{neutral}} neutral', { neutral: String(counts.neutral) })
+            : '',
+          counts.negative > 0
+            ? t('reviews.critical_2', '{{negative}} critical', {
+                negative: String(counts.negative),
+              })
+            : '',
         ]
           .filter((x) => x !== '')
-          .join(' · ')}
-        {' sentences'}
+          .join(' · ')}{' '}
+        {t('reviews.sentences', 'sentences')}
       </p>
     </div>
   );
@@ -1390,17 +1544,20 @@ function AnswerProgress({
         ) : null}
         <span key={done} className="tabular-nums motion-safe:animate-pop-in">
           {total === 0
-            ? 'No required questions'
+            ? t('reviews.no_required_questions', 'No required questions')
             : complete
-              ? 'Every required question answered'
-              : `${String(done)} of ${String(total)} required answered`}
+              ? t('reviews.every_required_question_answered', 'Every required question answered')
+              : t('reviews.of_required_answered', '{{done}} of {{total}} required answered', {
+                  done: String(done),
+                  total: String(total),
+                })}
         </span>
       </span>
       <Progress
         className="w-full"
         tone={complete ? 'success' : 'accent'}
         value={total === 0 ? 100 : Math.round((done / total) * 100)}
-        label="Required questions answered"
+        label={t('reviews.required_questions_answered', 'Required questions answered')}
       />
     </div>
   );
@@ -1412,21 +1569,29 @@ function Context({ data }: { readonly data: WriteData }): JSX.Element {
     <div className="flex flex-col gap-3">
       <Card>
         <CardHeader>
-          <CardTitle level={3}>Goals</CardTitle>
+          <CardTitle level={3}>{t('reviews.goals', 'Goals')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2.5">
           {p.goals.length === 0 ? (
-            <p className="text-sm text-fg-muted">No goals this period.</p>
+            <p className="text-sm text-fg-muted">
+              {t('reviews.no_goals_this_period', 'No goals this period.')}
+            </p>
           ) : (
             p.goals.map((g) => (
               <div key={g.id} className="flex flex-col gap-1">
                 <span className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate">{g.title}</span>
                   <Badge size="sm" tone={CONFIDENCE[g.confidence]?.[1] ?? 'success'}>
-                    {CONFIDENCE[g.confidence]?.[0] ?? 'On track'}
+                    {CONFIDENCE[g.confidence]?.[0] ?? t('reviews.on_track', 'On track')}
                   </Badge>
                 </span>
-                <Progress value={g.progress} label={`${g.title}: ${String(g.progress)}%`} />
+                <Progress
+                  value={g.progress}
+                  label={t('reviews.text_3', '{{title}}: {{progress}}%', {
+                    title: g.title,
+                    progress: String(g.progress),
+                  })}
+                />
               </div>
             ))
           )}
@@ -1435,7 +1600,11 @@ function Context({ data }: { readonly data: WriteData }): JSX.Element {
       {p.reviews.length === 0 ? null : (
         <Card>
           <CardHeader>
-            <CardTitle level={3}>{`Reviews in · ${String(p.reviews.length)}`}</CardTitle>
+            <CardTitle level={3}>
+              {t('reviews.reviews_in', 'Reviews in · {{length}}', {
+                length: String(p.reviews.length),
+              })}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {p.reviews.map((r) => (
@@ -1443,7 +1612,14 @@ function Context({ data }: { readonly data: WriteData }): JSX.Element {
                 <Person name={r.by} sub={`${r.title}${r.at === null ? '' : ` · ${day(r.at)}`}`} />
                 {r.ratings.length === 0 ? null : (
                   <p className="text-sm text-fg-muted">
-                    {r.ratings.map((x) => `${x.question}: ${x.label ?? '—'}`).join(' · ')}
+                    {r.ratings
+                      .map((x) =>
+                        t('reviews.text_4', '{{question}}: {{value}}', {
+                          question: x.question,
+                          value: x.label ?? '—',
+                        }),
+                      )
+                      .join(' · ')}
                   </p>
                 )}
                 {r.excerpt === null || r.excerpt === '' ? null : (
@@ -1456,31 +1632,46 @@ function Context({ data }: { readonly data: WriteData }): JSX.Element {
       )}
       <Card>
         <CardHeader>
-          <CardTitle level={3}>{`Feedback · ${String(p.feedback.length)}`}</CardTitle>
+          <CardTitle level={3}>
+            {t('reviews.feedback', 'Feedback · {{length}}', { length: String(p.feedback.length) })}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {p.feedback.length === 0 ? (
-            <p className="text-sm text-fg-muted">No feedback you may read.</p>
+            <p className="text-sm text-fg-muted">
+              {t('reviews.no_feedback_you_may_read', 'No feedback you may read.')}
+            </p>
           ) : (
-            p.feedback
-              .slice(0, 6)
-              .map((f) => (
-                <p key={f.id} className="text-sm">{`“${f.text}” — ${f.from}, ${day(f.at)}`}</p>
-              ))
+            p.feedback.slice(0, 6).map((f) => (
+              <p key={f.id} className="text-sm">
+                {t('reviews.text_5', '“{{text}}” — {{from}}, {{at}}', {
+                  text: f.text,
+                  from: f.from,
+                  at: day(f.at),
+                })}
+              </p>
+            ))
           )}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={3}>Your notes</CardTitle>
+          <CardTitle level={3}>{t('reviews.your_notes', 'Your notes')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {p.notes.length === 0 ? (
             <p className="text-sm text-fg-muted">
-              Notes you keep about them show here, for you alone.
+              {t(
+                'reviews.notes_you_keep_about_them_show',
+                'Notes you keep about them show here, for you alone.',
+              )}
             </p>
           ) : (
-            p.notes.map((n) => <p key={n.id} className="text-sm">{`${n.title}: ${n.text}`}</p>)
+            p.notes.map((n) => (
+              <p key={n.id} className="text-sm">
+                {t('reviews.text_6', '{{title}}: {{text}}', { title: n.title, text: n.text })}
+              </p>
+            ))
           )}
         </CardContent>
       </Card>
@@ -1532,12 +1723,20 @@ function SubmitDialog({
     <Modal
       open
       onClose={onClose}
-      title={`Submit ${data.review.kind === 'self' ? 'your self review' : `${subject}’s ${kindLabel(data.review.kind).toLowerCase()}`}?`}
-      description="After submitting you can’t edit. HR can unlock it if you ask."
+      title={t('reviews.submit_2', 'Submit {{value}}?', {
+        value:
+          data.review.kind === 'self'
+            ? 'your self review'
+            : `${subject}’s ${kindLabel(data.review.kind).toLowerCase()}`,
+      })}
+      description={t(
+        'reviews.after_submitting_you_cant_edit_hr',
+        'After submitting you can’t edit. HR can unlock it if you ask.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Keep writing
+            {t('reviews.keep_writing', 'Keep writing')}
           </Button>
           <Button
             disabled={missing.length > 0 || left > 0}
@@ -1558,7 +1757,11 @@ function SubmitDialog({
               });
             }}
           >
-            {left > 0 ? `Confirm ${String(left)} more to submit` : 'Submit'}
+            {left > 0
+              ? t('reviews.confirm_more_to_submit', 'Confirm {{left}} more to submit', {
+                  left: String(left),
+                })
+              : t('reviews.submit', 'Submit')}
           </Button>
         </>
       }
@@ -1567,30 +1770,40 @@ function SubmitDialog({
       {missing.length > 0 ? (
         <Alert
           tone="warning"
-          title={`${plural(missing.length, 'required question')} without an answer`}
+          title={t('reviews.without_an_answer', '{{length}} without an answer', {
+            length: plural(missing.length, t('reviews.required_question', 'required question')),
+          })}
         >
           {missing.map((q) => prompts.get(q) ?? q).join(' · ')}
         </Alert>
       ) : (
-        <Alert tone="success" title="Every required question is answered" />
+        <Alert
+          tone="success"
+          title={t(
+            'reviews.every_required_question_is_answered',
+            'Every required question is answered',
+          )}
+        />
       )}
       {check === null ? null : (
         // How it will read, last before it is sent: the tone always, a change
         // only where one is worth making.
         <div className="flex flex-col gap-2">
-          <p className="font-medium">{`How it will read to ${subject}`}</p>
+          <p className="font-medium">
+            {t('reviews.how_it_will_read_to', 'How it will read to {{subject}}', { subject })}
+          </p>
           {check.reading === 'reading' ? (
             <Asking busy what="Reading your draft…" error={null} />
           ) : check.reading === 'failed' ? (
             <span className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
-              It could not be read just now.
+              {t('reviews.it_could_not_be_read_just', 'It could not be read just now.')}
               <Button
                 size="sm"
                 variant="secondary"
                 startIcon={<icons.refresh aria-hidden />}
                 onClick={check.onRead}
               >
-                Retry
+                {t('reviews.retry', 'Retry')}
               </Button>
             </span>
           ) : check.reads === null || check.reads.reads === null ? null : (
@@ -1606,7 +1819,11 @@ function SubmitDialog({
               ) : (
                 <>
                   <p className="text-sm text-fg-muted">
-                    {`${plural(check.flags.length, 'change')} worth making before you submit:`}
+                    {t(
+                      'reviews.worth_making_before_you_submit',
+                      '{{length}} worth making before you submit:',
+                      { length: plural(check.flags.length, 'change') },
+                    )}
                   </p>
                   {check.list(check.flags)}
                 </>
@@ -1617,7 +1834,9 @@ function SubmitDialog({
       )}
       {pending.length === 0 ? null : (
         <div className="flex flex-col gap-2">
-          <p className="font-medium">Confirm each AI suggestion</p>
+          <p className="font-medium">
+            {t('reviews.confirm_each_ai_suggestion', 'Confirm each AI suggestion')}
+          </p>
           {pending.map(([q, x]) => (
             <Field key={q} orientation="horizontal">
               <FieldControl>
@@ -1631,7 +1850,12 @@ function SubmitDialog({
                 />
               </FieldControl>
               <span className="flex flex-col">
-                <FieldLabel>{`${prompts.get(q) ?? q}: ${String(x.value)}`}</FieldLabel>
+                <FieldLabel>
+                  {t('reviews.text_7', '{{value}}: {{value2}}', {
+                    value: prompts.get(q) ?? q,
+                    value2: String(x.value),
+                  })}
+                </FieldLabel>
                 <FieldDescription>{x.reason}</FieldDescription>
               </span>
             </Field>
@@ -1644,7 +1868,7 @@ function SubmitDialog({
                 setConfirmed(pending.map(([q]) => q));
               }}
             >
-              Confirm all
+              {t('reviews.confirm_all', 'Confirm all')}
             </Button>
           ) : null}
         </div>
@@ -1654,7 +1878,7 @@ function SubmitDialog({
           layout="split"
           items={[
             {
-              label: 'Performance score',
+              label: t('reviews.performance_score', 'Performance score'),
               value: `${s.display} · ${s.label}, computed from ${String(s.rated)} answers`,
             },
           ]}
@@ -1670,11 +1894,16 @@ function SubmitDialog({
               }}
             />
           </FieldControl>
-          <FieldLabel>{`Don’t show my name to ${subject}`}</FieldLabel>
+          <FieldLabel>
+            {t('reviews.dont_show_my_name_to', 'Don’t show my name to {{subject}}', { subject })}
+          </FieldLabel>
         </Field>
       ) : null}
       <p className="text-sm text-fg-muted">
-        The score is worked out by Kithena from the confirmed answers; the AI never sets it.
+        {t(
+          'reviews.the_score_is_worked_out_by',
+          'The score is worked out by Kithena from the confirmed answers; the AI never sets it.',
+        )}
       </p>
     </Modal>
   );
@@ -1696,12 +1925,12 @@ function UnlockDialog({
     <Modal
       open
       onClose={onClose}
-      title="Ask HR to unlock this review?"
-      description={`About ${subject}`}
+      title={t('reviews.ask_hr_to_unlock_this_review', 'Ask HR to unlock this review?')}
+      description={t('reviews.about_2', 'About {{subject}}', { subject })}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('reviews.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={reason.trim().length < 10}
@@ -1710,14 +1939,14 @@ function UnlockDialog({
               act.run('RequestPerformanceUnlock', { id, input: { reason } }, onClose);
             }}
           >
-            Send request
+            {t('reviews.send_request', 'Send request')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field required>
-        <FieldLabel>Why</FieldLabel>
+        <FieldLabel>{t('reviews.why', 'Why')}</FieldLabel>
         <Textarea
           autoResize
           value={reason}
@@ -1726,8 +1955,10 @@ function UnlockDialog({
           }}
         />
         <FieldDescription>
-          At least 10 characters. HR gets an Inbox task; until they decide, the review stays
-          submitted.
+          {t(
+            'reviews.at_least_10_characters_hr_gets',
+            'At least 10 characters. HR gets an Inbox task; until they decide, the review stays submitted.',
+          )}
         </FieldDescription>
       </Field>
     </Modal>
@@ -1750,12 +1981,17 @@ function DeclineDialog({
     <Modal
       open
       onClose={onClose}
-      title={`Decline the peer review of ${subject}?`}
-      description="Whoever nominated you is told and can pick someone else."
+      title={t('reviews.decline_the_peer_review_of', 'Decline the peer review of {{subject}}?', {
+        subject,
+      })}
+      description={t(
+        'reviews.whoever_nominated_you_is_told_and',
+        'Whoever nominated you is told and can pick someone else.',
+      )}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('reviews.cancel', 'Cancel')}
           </Button>
           <Button
             variant="danger"
@@ -1767,14 +2003,14 @@ function DeclineDialog({
               });
             }}
           >
-            Decline
+            {t('reviews.decline', 'Decline')}
           </Button>
         </>
       }
     >
       <Refusal error={act.error} />
       <Field required>
-        <FieldLabel>Why</FieldLabel>
+        <FieldLabel>{t('reviews.why', 'Why')}</FieldLabel>
         <Input
           value={reason}
           onChange={(e) => {
@@ -1801,7 +2037,10 @@ function Detached({
   return (
     <Alert
       tone="warning"
-      title="This review is not part of its cycle any more"
+      title={t(
+        'reviews.this_review_is_not_part_of',
+        'This review is not part of its cycle any more',
+      )}
       action={
         keep === null ? (
           <span className="flex gap-2">
@@ -1812,7 +2051,7 @@ function Detached({
                 act.run('KeepPerformanceDetached', { id: reviewId, input: { keep: true } });
               }}
             >
-              Keep it
+              {t('reviews.keep_it', 'Keep it')}
             </Button>
             <Button
               size="sm"
@@ -1823,7 +2062,7 @@ function Detached({
                 });
               }}
             >
-              Delete it
+              {t('reviews.delete_it', 'Delete it')}
             </Button>
           </span>
         ) : undefined
@@ -1876,9 +2115,12 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
             title={
               data.review.cycle === null
                 ? data.review.title
-                : `${data.review.title}, ${data.review.cycle}`
+                : t('reviews.text_8', '{{title}}, {{cycle}}', {
+                    title: data.review.title,
+                    cycle: data.review.cycle,
+                  })
             }
-            description={`${data.review.by === null ? 'Names hidden' : `From ${data.review.by}`}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${(data.review.helpedBy ?? []).join(' and ')}`}`}
+            description={`${data.review.by === null ? t('reviews.names_hidden', 'Names hidden') : t('reviews.from', 'From {{by}}', { by: data.review.by })}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${(data.review.helpedBy ?? []).join(' and ')}`}`}
             actions={
               <Button
                 variant="secondary"
@@ -1890,7 +2132,7 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                   });
                 }}
               >
-                Download PDF
+                {t('reviews.download_pdf', 'Download PDF')}
               </Button>
             }
           />
@@ -1919,17 +2161,25 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
             {data.may.acknowledge || data.review.acknowledged !== null ? (
               <Card>
                 <CardHeader>
-                  <CardTitle level={2}>Acknowledge</CardTitle>
+                  <CardTitle level={2}>{t('reviews.acknowledge', 'Acknowledge')}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   {data.review.acknowledged === null ? (
                     <>
                       <p className="text-sm text-fg-muted">
-                        Acknowledging says you’ve read it. It doesn’t say you agree.
+                        {t(
+                          'reviews.acknowledging_says_youve_read_it_it',
+                          'Acknowledging says you’ve read it. It doesn’t say you agree.',
+                        )}
                       </p>
                       {data.may.comment ? (
                         <Field>
-                          <FieldLabel>Comment for your manager and HR (optional)</FieldLabel>
+                          <FieldLabel>
+                            {t(
+                              'reviews.comment_for_your_manager_and_hr',
+                              'Comment for your manager and HR (optional)',
+                            )}
+                          </FieldLabel>
                           <Textarea
                             autoResize
                             value={comment}
@@ -1949,16 +2199,18 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                           });
                         }}
                       >
-                        Acknowledge
+                        {t('reviews.acknowledge', 'Acknowledge')}
                       </Button>
                     </>
                   ) : (
                     <Alert
                       tone="success"
-                      title={`Acknowledged ${day(data.review.acknowledged.at)}`}
+                      title={t('reviews.acknowledged_2', 'Acknowledged {{at}}', {
+                        at: day(data.review.acknowledged.at),
+                      })}
                     >
                       {data.review.acknowledged.comment === null
-                        ? 'No comment.'
+                        ? t('reviews.no_comment', 'No comment.')
                         : `“${data.review.acknowledged.comment}”`}
                     </Alert>
                   )}
@@ -2022,7 +2274,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={`${data.subject.name}’s reviews`}
+              title={t('reviews.s_reviews', '{{name}}’s reviews', { name: data.subject.name })}
               description={data.cycle.name}
               actions={
                 data.documents === true && data.release.manager?.at != null ? (
@@ -2041,7 +2293,9 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                       );
                     }}
                   >
-                    {filed ? 'Filed to Documents' : 'File to Documents'}
+                    {filed
+                      ? t('reviews.filed_to_documents', 'Filed to Documents')
+                      : t('reviews.file_to_documents', 'File to Documents')}
                   </Button>
                 ) : null
               }
@@ -2050,7 +2304,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="flex flex-col gap-3">
                 <TertiaryNav
-                  label="Reviews"
+                  label={t('reviews.reviews', 'Reviews')}
                   orientation="horizontal"
                   variant="line"
                   activeId={kinds.includes(kind) ? kind : (kinds[0] ?? '')}
@@ -2061,11 +2315,18 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                   }))}
                 />
                 {shown.length === 0 ? (
-                  <EmptyState title="Nothing submitted yet" />
+                  <EmptyState title={t('reviews.nothing_submitted_yet', 'Nothing submitted yet')} />
                 ) : (
                   shown.map((r) => (
                     <div key={r.id} className="flex flex-col gap-2">
-                      <Person name={r.by} sub={r.at === null ? null : `Submitted ${day(r.at)}`} />
+                      <Person
+                        name={r.by}
+                        sub={
+                          r.at === null
+                            ? null
+                            : t('reviews.submitted', 'Submitted {{at}}', { at: day(r.at) })
+                        }
+                      />
                       {r.kind === 'peer' && shown.length > 1 ? (
                         <RatingBars reviews={shown} />
                       ) : null}
@@ -2079,22 +2340,28 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                   ))
                 )}
                 {kind === 'peer' ? (
-                  <p className="text-sm text-fg-muted">{`You see peer names. ${data.subject.name.split(' ')[0] ?? ''} won’t.`}</p>
+                  <p className="text-sm text-fg-muted">
+                    {t('reviews.you_see_peer_names_wont', 'You see peer names. {{value}} won’t.', {
+                      value: data.subject.name.split(' ')[0] ?? '',
+                    })}
+                  </p>
                 ) : null}
               </div>
               <div className="flex flex-col gap-3">
                 <Card>
                   <CardHeader>
-                    <CardTitle
-                      level={2}
-                    >{`Release to ${data.subject.name.split(' ')[0] ?? ''}`}</CardTitle>
+                    <CardTitle level={2}>
+                      {t('reviews.release_to', 'Release to {{value}}', {
+                        value: data.subject.name.split(' ')[0] ?? '',
+                      })}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-3">
                     <KeyValues
                       layout="split"
                       items={[
                         {
-                          label: 'Manager review',
+                          label: t('reviews.manager_review', 'Manager review'),
                           value:
                             data.release.manager === null
                               ? 'Not submitted'
@@ -2103,7 +2370,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                                 : `Released ${day(data.release.manager.released)}`,
                         },
                         {
-                          label: 'Peer summary',
+                          label: t('reviews.peer_summary', 'Peer summary'),
                           value: data.release.peerSummary
                             ? `${plural(data.peers, 'answer')}, no names`
                             : `Held back: under ${String(data.cycle.minimum)}`,
@@ -2120,7 +2387,9 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                             }}
                           />
                         </FieldControl>
-                        <FieldLabel>Ask for an acknowledgement</FieldLabel>
+                        <FieldLabel>
+                          {t('reviews.ask_for_an_acknowledgement', 'Ask for an acknowledgement')}
+                        </FieldLabel>
                       </Field>
                     ) : null}
                     <Button
@@ -2140,14 +2409,22 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                       }}
                     >
                       {data.release.manager?.released
-                        ? 'Released'
-                        : `Release to ${data.subject.name.split(' ')[0] ?? ''}`}
+                        ? t('reviews.released', 'Released')
+                        : t('reviews.release_to', 'Release to {{value}}', {
+                            value: data.subject.name.split(' ')[0] ?? '',
+                          })}
                     </Button>
                   </CardContent>
                 </Card>
                 {data.release.beforeCalibration ? (
-                  <Alert tone="neutral" title="Not final until calibration">
-                    Released now, the score shows as “before calibration”.
+                  <Alert
+                    tone="neutral"
+                    title={t('reviews.not_final_until_calibration', 'Not final until calibration')}
+                  >
+                    {t(
+                      'reviews.released_now_the_score_shows_as',
+                      'Released now, the score shows as “before calibration”.',
+                    )}
                   </Alert>
                 ) : null}
               </div>
@@ -2197,24 +2474,30 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title="Unlock requests"
-            description="Only HR decides. An unlocked review keeps its submitted revision until it’s submitted again."
+            title={t('reviews.unlock_requests', 'Unlock requests')}
+            description={t(
+              'reviews.only_hr_decides_an_unlocked_review',
+              'Only HR decides. An unlocked review keeps its submitted revision until it’s submitted again.',
+            )}
           />
           <Refusal error={act.error} />
           <Card>
             <CardContent className="overflow-x-auto">
               {data.rows.length === 0 ? (
-                <EmptyState icon={<icons.unlocked aria-hidden />} title="No unlock requests" />
+                <EmptyState
+                  icon={<icons.unlocked aria-hidden />}
+                  title={t('reviews.no_unlock_requests', 'No unlock requests')}
+                />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Asked by</TableHead>
-                      <TableHead>Review</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>When</TableHead>
+                      <TableHead>{t('reviews.asked_by', 'Asked by')}</TableHead>
+                      <TableHead>{t('reviews.review', 'Review')}</TableHead>
+                      <TableHead>{t('reviews.reason', 'Reason')}</TableHead>
+                      <TableHead>{t('reviews.when', 'When')}</TableHead>
                       <TableHead>
-                        <span className="sr-only">Decision</span>
+                        <span className="sr-only">{t('reviews.decision', 'Decision')}</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -2239,7 +2522,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                                   setDeclining(u.reviewId);
                                 }}
                               >
-                                Decline
+                                {t('reviews.decline', 'Decline')}
                               </Button>
                               <Button
                                 size="xs"
@@ -2251,7 +2534,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                                   });
                                 }}
                               >
-                                Unlock
+                                {t('reviews.unlock', 'Unlock')}
                               </Button>
                             </span>
                           ) : (
@@ -2272,7 +2555,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
             onClose={() => {
               setDeclining(null);
             }}
-            title="Decline this unlock request?"
+            title={t('reviews.decline_this_unlock_request', 'Decline this unlock request?')}
             footer={
               <>
                 <Button
@@ -2281,7 +2564,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                     setDeclining(null);
                   }}
                 >
-                  Cancel
+                  {t('reviews.cancel', 'Cancel')}
                 </Button>
                 <Button
                   disabled={note.trim() === ''}
@@ -2298,13 +2581,13 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                       );
                   }}
                 >
-                  Decline
+                  {t('reviews.decline', 'Decline')}
                 </Button>
               </>
             }
           >
             <Field required>
-              <FieldLabel>A note for the writer</FieldLabel>
+              <FieldLabel>{t('reviews.a_note_for_the_writer', 'A note for the writer')}</FieldLabel>
               <Input
                 value={note}
                 onChange={(e) => {
@@ -2391,7 +2674,7 @@ function Picker({
               selected={picked.includes(p.personId)}
               leading={
                 <Checkbox
-                  aria-label={`Pick ${p.name}`}
+                  aria-label={t('reviews.pick', 'Pick {{name}}', { name: p.name })}
                   checked={picked.includes(p.personId)}
                   onCheckedChange={(on) => {
                     toggle(p.personId, on === true);
@@ -2409,15 +2692,25 @@ function Picker({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={`Pick ${String(data.bounds.min)} to ${String(data.bounds.max)} peers`}
-        description={`${data.cycle} · for ${data.nomination.subject}. ${data.approver} approves.`}
+        title={t('reviews.pick_to_peers', 'Pick {{min}} to {{max}} peers', {
+          min: String(data.bounds.min),
+          max: String(data.bounds.max),
+        })}
+        description={t(
+          'reviews.for_approves',
+          '{{cycle}} · for {{subject}}. {{approver}} approves.',
+          { cycle: data.cycle, subject: data.nomination.subject, approver: data.approver },
+        )}
       />
       <Refusal error={act.error} />
       <Card>
         <CardContent className="flex flex-col gap-4">
           <SearchField
-            label="Search everyone"
-            placeholder="Search everyone at the company"
+            label={t('reviews.search_everyone', 'Search everyone')}
+            placeholder={t(
+              'reviews.search_everyone_at_the_company',
+              'Search everyone at the company',
+            )}
             value={q}
             onValueChange={setQ}
             onSearch={(v) => {
@@ -2432,19 +2725,25 @@ function Picker({
                 onRemove={() => {
                   toggle(id, false);
                 }}
-                removeLabel={`Remove ${known.get(id)?.name ?? ''}`}
+                removeLabel={t('reviews.remove', 'Remove {{value}}', {
+                  value: known.get(id)?.name ?? '',
+                })}
               >
                 {known.get(id)?.name ??
                   data.nomination.nominees.find((n) => n.personId === id)?.name ??
-                  'Someone'}
+                  t('reviews.someone', 'Someone')}
               </Badge>
             ))}
           </div>
-          {group('Search results', data.found)}
-          {group('Their team', data.team)}
-          {group('People they work with', data.worksWith)}
+          {group(t('reviews.search_results', 'Search results'), data.found)}
+          {group(t('reviews.their_team', 'Their team'), data.team)}
+          {group(t('reviews.people_they_work_with', 'People they work with'), data.worksWith)}
           <Field>
-            <FieldLabel>{`Note to ${data.approver} (optional)`}</FieldLabel>
+            <FieldLabel>
+              {t('reviews.note_to_optional', 'Note to {{approver}} (optional)', {
+                approver: data.approver,
+              })}
+            </FieldLabel>
             <Input
               value={note}
               onChange={(e) => {
@@ -2452,7 +2751,17 @@ function Picker({
               }}
             />
           </Field>
-          <p className="text-sm text-fg-muted">{`${plural(picked.length, 'person', 'people')} picked. You can’t pick ${data.nomination.subject}. Each reviewer writes at most ${String(data.bounds.perReviewer)} peer reviews in a cycle.`}</p>
+          <p className="text-sm text-fg-muted">
+            {t(
+              'reviews.picked_you_cant_pick_each_reviewer',
+              '{{length}} picked. You can’t pick {{subject}}. Each reviewer writes at most {{perReviewer}} peer reviews in a cycle.',
+              {
+                length: plural(picked.length, 'person', 'people'),
+                subject: data.nomination.subject,
+                perReviewer: String(data.bounds.perReviewer),
+              },
+            )}
+          </p>
           <div>
             <Button
               disabled={picked.length < data.bounds.min || picked.length > data.bounds.max}
@@ -2470,7 +2779,9 @@ function Picker({
                 );
               }}
             >
-              {`Send ${plural(picked.length, 'nomination')}`}
+              {t('reviews.send', 'Send {{length}}', {
+                length: plural(picked.length, 'nomination'),
+              })}
             </Button>
           </div>
         </CardContent>
@@ -2489,8 +2800,14 @@ function Approve({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title={`Approve ${data.nomination.subject}’s peers?`}
-        description={`${data.cycle} · ${String(data.bounds.min)} to ${String(data.bounds.max)} peers`}
+        title={t('reviews.approve_s_peers_2', 'Approve {{subject}}’s peers?', {
+          subject: data.nomination.subject,
+        })}
+        description={t('reviews.to_peers', '{{cycle}} · {{min}} to {{max}} peers', {
+          cycle: data.cycle,
+          min: String(data.bounds.min),
+          max: String(data.bounds.max),
+        })}
       />
       <Refusal error={act.error} />
       <Card>
@@ -2519,12 +2836,16 @@ function Approve({
                       }}
                     />
                   </FieldControl>
-                  <FieldLabel>Decline</FieldLabel>
+                  <FieldLabel>{t('reviews.decline', 'Decline')}</FieldLabel>
                 </Field>
               </span>
               {n.personId in declined ? (
                 <Field required>
-                  <FieldLabel>{`Why decline ${n.name.split(' ')[0] ?? ''}`}</FieldLabel>
+                  <FieldLabel>
+                    {t('reviews.why_decline', 'Why decline {{value}}', {
+                      value: n.name.split(' ')[0] ?? '',
+                    })}
+                  </FieldLabel>
                   <Input
                     value={declined[n.personId] ?? ''}
                     onChange={(e) => {
@@ -2537,7 +2858,7 @@ function Approve({
           ))}
           {Object.keys(declined).length > 0 ? (
             <Field>
-              <FieldLabel>Replace with</FieldLabel>
+              <FieldLabel>{t('reviews.replace_with', 'Replace with')}</FieldLabel>
               <div className="flex flex-wrap gap-1.5">
                 {[...data.team, ...data.worksWith]
                   .filter((p) => !data.nomination.nominees.some((x) => x.personId === p.personId))
@@ -2555,7 +2876,13 @@ function Approve({
                     </Button>
                   ))}
               </div>
-              <FieldDescription>{`Or leave it to ${data.nomination.subject.split(' ')[0] ?? ''}: they get an Inbox task to pick someone else.`}</FieldDescription>
+              <FieldDescription>
+                {t(
+                  'reviews.or_leave_it_to_they_get',
+                  'Or leave it to {{value}}: they get an Inbox task to pick someone else.',
+                  { value: data.nomination.subject.split(' ')[0] ?? '' },
+                )}
+              </FieldDescription>
             </Field>
           ) : null}
           <div>
@@ -2582,7 +2909,9 @@ function Approve({
                 );
               }}
             >
-              {Object.keys(declined).length > 0 ? 'Approve with changes' : 'Approve'}
+              {Object.keys(declined).length > 0
+                ? t('reviews.approve_with_changes', 'Approve with changes')
+                : t('reviews.approve', 'Approve')}
             </Button>
           </div>
         </CardContent>

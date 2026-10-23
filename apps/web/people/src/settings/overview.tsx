@@ -14,6 +14,7 @@ import {
 import type { JSX, ReactNode } from 'react';
 
 import { Loaded, type Loadable } from '../load';
+import { t } from '../i18n';
 
 /**
  * People's settings, read back before anybody opens one (the Settings page's
@@ -62,15 +63,22 @@ export interface PeopleSettingsProps {
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 
-const plural = (n: number, one: string, many = `${one}s`): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
+const plural = (
+  n: number,
+  one: string,
+  many = t('settings.overview.s', '{{one}}s', { one }),
+): string =>
+  t('settings.overview.text', '{{n}} {{value}}', { n: String(n), value: n === 1 ? one : many });
 
 export function PeopleSettings({ load }: PeopleSettingsProps): JSX.Element {
   return (
     <Stack gap={6}>
       <PageHeader
-        title="People settings"
-        description="How People works for everybody here. Open a setting to change it."
+        title={t('settings.overview.people_settings', 'People settings')}
+        description={t(
+          'settings.overview.how_people_works_for_everybody_here',
+          'How People works for everybody here. Open a setting to change it.',
+        )}
       />
       <Loaded load={load} what="People settings">
         {(data) => <Cards data={data} />}
@@ -89,8 +97,11 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
         key="fields"
         href="/settings/people/fields"
         icon={<icons.document aria-hidden />}
-        title="Employee fields"
-        description="The details People keeps on each person: what they are, who sees them, and when they are asked."
+        title={t('settings.overview.employee_fields', 'Employee fields')}
+        description={t(
+          'settings.overview.the_details_people_keeps_on_each',
+          'The details People keeps on each person: what they are, who sees them, and when they are asked.',
+        )}
         items={[
           { label: 'Fields', value: String(fields.length) },
           {
@@ -124,8 +135,11 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
         key="organisation"
         href="/settings/people/organisation"
         icon={<icons.organisation aria-hidden />}
-        title="Organisation"
-        description="Legal entities, work locations, employee numbering, the default time zone and retention."
+        title={t('settings.overview.organisation', 'Organisation')}
+        description={t(
+          'settings.overview.legal_entities_work_locations_employee_numbering',
+          'Legal entities, work locations, employee numbering, the default time zone and retention.',
+        )}
         items={[
           { label: 'Legal entities', value: String(live(o.legalEntities)) },
           { label: 'Work locations', value: String(live(o.locations)) },
@@ -165,8 +179,11 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
         key="roles"
         href="/settings/people/roles"
         icon={<icons.people aria-hidden />}
-        title="Roles"
-        description="Who is an HR member, a People administrator or in finance here."
+        title={t('settings.overview.roles', 'Roles')}
+        description={t(
+          'settings.overview.who_is_an_hr_member_a',
+          'Who is an HR member, a People administrator or in finance here.',
+        )}
         items={[
           { label: 'People administrators', value: String(holding('people_admin')) },
           { label: 'HR members', value: String(holding('hr')) },
@@ -184,8 +201,11 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
         key="integrations"
         href="/settings/people/integrations"
         icon={<icons.link aria-hidden />}
-        title="Integrations"
-        description="Webhooks that tell other systems about changes, and provisioning from an identity provider."
+        title={t('settings.overview.integrations', 'Integrations')}
+        description={t(
+          'settings.overview.webhooks_that_tell_other_systems_about',
+          'Webhooks that tell other systems about changes, and provisioning from an identity provider.',
+        )}
         items={[
           {
             label: 'Webhooks',
@@ -211,8 +231,14 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
   if (cards.length === 0) {
     return (
       <EmptyState
-        title="Nothing here for you to change"
-        description="People's settings are for its administrators and HR. Ask one of them if something needs changing."
+        title={t(
+          'settings.overview.nothing_here_for_you_to_change',
+          'Nothing here for you to change',
+        )}
+        description={t(
+          'settings.overview.peoples_settings_are_for_its_administrators',
+          "People's settings are for its administrators and HR. Ask one of them if something needs changing.",
+        )}
       />
     );
   }
@@ -248,7 +274,11 @@ function SettingCard({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <KeyValues items={items} columns={2} aria-label={`${title}, now`} />
+        <KeyValues
+          items={items}
+          columns={2}
+          aria-label={t('settings.overview.now', '{{title}}, now', { title })}
+        />
       </CardContent>
     </Card>
   );

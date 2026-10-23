@@ -1,5 +1,6 @@
 import { icons, type IconName } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
+import { t as tr } from '../i18n';
 
 /**
  * The words and looks the manager's screens share (approvals, delegation,
@@ -151,7 +152,7 @@ export const amount = (value: string): string =>
 /** "5 days", "1 day", "0.5 days". */
 export function dayCount(value: string): string {
   const n = amount(value);
-  return `${n} ${n === '1' ? 'day' : 'days'}`;
+  return tr('approvals.words.text', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
 }
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
@@ -201,7 +202,10 @@ export function spanLabel(from: string, to: string): string {
   if (from === to) return dayMonth(from);
   return from.slice(0, 7) === to.slice(0, 7)
     ? `${format({ day: 'numeric' }).format(asDate(from))}–${dayMonth(to)}`
-    : `${dayMonth(from)} – ${dayMonth(to)}`;
+    : tr('approvals.words.text_2', '{{dayMonth}} – {{dayMonth2}}', {
+        dayMonth: dayMonth(from),
+        dayMonth2: dayMonth(to),
+      });
 }
 
 /** "19, 20, 22, 23 and 26 Oct": days in one list, the month said once where it can be. */
@@ -214,8 +218,16 @@ export function daysLabel(dates: readonly string[]): string {
   const list =
     each.length === 1
       ? (each[0] ?? '')
-      : `${each.slice(0, -1).join(', ')} and ${each.at(-1) ?? ''}`;
-  return sameMonth ? `${list} ${format({ month: 'short' }).format(asDate(dates[0] ?? ''))}` : list;
+      : tr('approvals.words.and', '{{join}} and {{value}}', {
+          join: each.slice(0, -1).join(', '),
+          value: each.at(-1) ?? '',
+        });
+  return sameMonth
+    ? tr('approvals.words.text_3', '{{list}} {{format}}', {
+        list,
+        format: format({ month: 'short' }).format(asDate(dates[0] ?? '')),
+      })
+    : list;
 }
 
 /** When something was sent, from where the server stood: "Today 08:10", "Sent yesterday". */
@@ -230,9 +242,11 @@ export function sentLabel(at: string, now: string, zone = 'Europe/Madrid'): stri
       minute: '2-digit',
       hourCycle: 'h23',
     }).format(new Date(at));
-    return `Today ${time}`;
+    return tr('approvals.words.today', 'Today {{time}}', { time });
   }
-  return days === 1 ? 'Sent yesterday' : `${String(days)} days ago`;
+  return days === 1
+    ? tr('approvals.words.sent_yesterday', 'Sent yesterday')
+    : tr('approvals.words.days_ago', '{{days}} days ago', { days: String(days) });
 }
 
 /** The weekday `n` working days after `date`. ponytail: Monday to Friday, until the member's pattern crosses. */
@@ -253,5 +267,8 @@ export const firstName = (displayName: string): string => displayName.split(' ')
 export function listOf(parts: readonly string[]): string {
   return parts.length <= 1
     ? (parts[0] ?? '')
-    : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1) ?? ''}`;
+    : tr('approvals.words.and', '{{join}} and {{value}}', {
+        join: parts.slice(0, -1).join(', '),
+        value: parts.at(-1) ?? '',
+      });
 }

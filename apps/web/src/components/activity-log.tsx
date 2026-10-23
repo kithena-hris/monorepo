@@ -46,6 +46,7 @@ import {
 } from '../lib/activity';
 import { noteInAddress, withQuery } from '../lib/url-state';
 import { Waking } from './waking';
+import { t } from '../lib/t';
 
 /**
  * Settings › Activity (`docs/audit.md`): who did what, and when, across the
@@ -204,10 +205,20 @@ export function ActivityLog({
   const own =
     filters.module !== null && filters.module !== 'people' && filters.module !== 'identity';
   const areas = own ? AREAS.filter((a) => MODULE_AREAS.includes(a.value)) : AREAS;
-  const title = filters.module === null ? 'Activity' : `${moduleName(filters.module)} activity`;
-  const actorName = filters.actor === null ? null : (named[filters.actor]?.name ?? 'one person');
+  const title =
+    filters.module === null
+      ? t('components.activity-log.activity', 'Activity')
+      : t('components.activity-log.activity_2', '{{moduleName}} activity', {
+          moduleName: moduleName(filters.module),
+        });
+  const actorName =
+    filters.actor === null
+      ? null
+      : (named[filters.actor]?.name ?? t('components.activity-log.one_person', 'one person'));
   const subjectName =
-    filters.subject === null ? null : (named[filters.subject]?.name ?? 'one record');
+    filters.subject === null
+      ? null
+      : (named[filters.subject]?.name ?? t('components.activity-log.one_record', 'one record'));
 
   return (
     <Stack gap={6}>
@@ -216,17 +227,23 @@ export function ActivityLog({
           <Breadcrumb className="touch:hidden">
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/settings">Settings</BreadcrumbLink>
+                <BreadcrumbLink href="/settings">
+                  {t('components.activity-log.settings', 'Settings')}
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               {filters.module === null ? (
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Activity</BreadcrumbPage>
+                  <BreadcrumbPage>
+                    {t('components.activity-log.activity', 'Activity')}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               ) : (
                 <>
                   <BreadcrumbItem>
-                    <BreadcrumbLink href="/settings/activity">Activity</BreadcrumbLink>
+                    <BreadcrumbLink href="/settings/activity">
+                      {t('components.activity-log.activity', 'Activity')}
+                    </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator />
                   <BreadcrumbItem>
@@ -240,16 +257,26 @@ export function ActivityLog({
         title={title}
         description={
           filters.module === null
-            ? 'Who did what, and when, across your company’s workspace. Never the values themselves.'
-            : `Who did what in ${moduleName(filters.module)}, and when. Never the values themselves.`
+            ? t(
+                'components.activity-log.who_did_what_and_when_across',
+                'Who did what, and when, across your company’s workspace. Never the values themselves.',
+              )
+            : t(
+                'components.activity-log.who_did_what_in_and_when',
+                'Who did what in {{moduleName}}, and when. Never the values themselves.',
+                { moduleName: moduleName(filters.module) },
+              )
         }
       />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <SearchField
             size="sm"
-            label="Search the activity"
-            placeholder="Search actions, names and reasons"
+            label={t('components.activity-log.search_the_activity', 'Search the activity')}
+            placeholder={t(
+              'components.activity-log.search_actions_names_and_reasons',
+              'Search actions, names and reasons',
+            )}
             value={query}
             onValueChange={setQuery}
             containerClassName="w-full max-w-[22rem]"
@@ -258,8 +285,8 @@ export function ActivityLog({
             className="w-64 touch:w-full"
             mode="range"
             size="sm"
-            label="When"
-            placeholder="Any time"
+            label={t('components.activity-log.when', 'When')}
+            placeholder={t('components.activity-log.any_time', 'Any time')}
             value={
               filters.from === null && filters.to === null
                 ? null
@@ -273,7 +300,7 @@ export function ActivityLog({
           <ChipGroup
             type="single"
             scroll
-            aria-label="Who"
+            aria-label={t('components.activity-log.who', 'Who')}
             value={filters.by ?? 'anyone'}
             onValueChange={(v) => {
               go({ by: v === '' || v === 'anyone' ? null : v });
@@ -281,7 +308,7 @@ export function ActivityLog({
             className="min-w-0 gap-1.5"
           >
             <ChipGroupItem value="anyone" variant="view">
-              Anyone
+              {t('components.activity-log.anyone', 'Anyone')}
             </ChipGroupItem>
             {WHO.map((w) => (
               <ChipGroupItem key={w.value} value={w.value} variant="view">
@@ -293,7 +320,7 @@ export function ActivityLog({
         <ChipGroup
           type="single"
           scroll
-          aria-label="Module"
+          aria-label={t('components.activity-log.module', 'Module')}
           value={filters.module ?? 'any'}
           onValueChange={(v) => {
             // A module's areas are not another's: the area filter starts again.
@@ -302,7 +329,7 @@ export function ActivityLog({
           className="min-w-0 gap-1.5"
         >
           <ChipGroupItem value="any" variant="view">
-            Every module
+            {t('components.activity-log.every_module', 'Every module')}
           </ChipGroupItem>
           {MODULES.map((m) => (
             <ChipGroupItem key={m.value} value={m.value} variant="view">
@@ -313,7 +340,7 @@ export function ActivityLog({
         <ChipGroup
           type="multiple"
           scroll
-          aria-label="Areas"
+          aria-label={t('components.activity-log.areas', 'Areas')}
           value={[...filters.areas]}
           onValueChange={(v: string[]) => {
             go({ area: v.length === 0 ? null : v.join(',') });
@@ -333,9 +360,13 @@ export function ActivityLog({
                 onRemove={() => {
                   go({ actor: null });
                 }}
-                removeLabel={`Show everybody’s, not only ${actorName}’s`}
+                removeLabel={t(
+                  'components.activity-log.show_everybodys_not_only_s',
+                  'Show everybody’s, not only {{actorName}}’s',
+                  { actorName },
+                )}
               >
-                By {actorName}
+                {t('components.activity-log.by', 'By')} {actorName}
               </Chip>
             )}
             {subjectName === null ? null : (
@@ -343,9 +374,13 @@ export function ActivityLog({
                 onRemove={() => {
                   go({ subject: null });
                 }}
-                removeLabel={`Show every record, not only ${subjectName}`}
+                removeLabel={t(
+                  'components.activity-log.show_every_record_not_only',
+                  'Show every record, not only {{subjectName}}',
+                  { subjectName },
+                )}
               >
-                About {subjectName}
+                {t('components.activity-log.about', 'About')} {subjectName}
               </Chip>
             )}
           </div>
@@ -355,14 +390,26 @@ export function ActivityLog({
         {load.status === 'waking' ? null : load.status === 'forbidden' ? (
           <EmptyState
             icon={<icons.locked />}
-            title="The activity log is for administrators and HR"
-            description="Ask one of your People administrators if you need to know who changed something."
+            title={t(
+              'components.activity-log.the_activity_log_is_for_administrators',
+              'The activity log is for administrators and HR',
+            )}
+            description={t(
+              'components.activity-log.ask_one_of_your_people_administrators',
+              'Ask one of your People administrators if you need to know who changed something.',
+            )}
           />
         ) : load.status === 'unavailable' ? (
           <EmptyState
             icon={<icons.history />}
-            title="The activity log isn’t available yet"
-            description="It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready."
+            title={t(
+              'components.activity-log.the_activity_log_isnt_available_yet',
+              'The activity log isn’t available yet',
+            )}
+            description={t(
+              'components.activity-log.it_is_still_being_set_up',
+              'It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready.',
+            )}
           />
         ) : (
           <Entries
@@ -444,7 +491,7 @@ function Entries({
     () => [
       {
         id: 'when',
-        header: 'When',
+        header: t('components.activity-log.when', 'When'),
         width: '9.5rem',
         cell: (e) => (
           <time dateTime={e.occurredAt} title={e.occurredAt} className="tabular-nums">
@@ -454,7 +501,7 @@ function Entries({
       },
       {
         id: 'who',
-        header: 'Who',
+        header: t('components.activity-log.who', 'Who'),
         cell: (e) => {
           const actor = who(e, named);
           return (
@@ -467,7 +514,7 @@ function Entries({
       },
       {
         id: 'what',
-        header: 'What',
+        header: t('components.activity-log.what', 'What'),
         cell: (e) => {
           const target = whom(e, named);
           return (
@@ -482,12 +529,12 @@ function Entries({
               </span>
               {e.outcome === 'refused' ? (
                 <Badge size="sm" tone="danger">
-                  Refused
+                  {t('components.activity-log.refused', 'Refused')}
                 </Badge>
               ) : null}
               {e.ai ? (
                 <Badge size="sm" tone="assistant">
-                  AI
+                  {t('components.activity-log.ai', 'AI')}
                 </Badge>
               ) : null}
             </span>
@@ -496,12 +543,15 @@ function Entries({
       },
       {
         id: 'area',
-        header: 'Area',
+        header: t('components.activity-log.area', 'Area'),
         cardTrailing: true,
         cell: (e) => (
           <Badge>
             {everyModule && e.module !== 'people'
-              ? `${moduleName(e.module)} · ${AREA_NAME[e.area] ?? e.area}`
+              ? t('components.activity-log.text', '{{moduleName}} · {{value}}', {
+                  moduleName: moduleName(e.module),
+                  value: AREA_NAME[e.area] ?? e.area,
+                })
               : (AREA_NAME[e.area] ?? e.area)}
           </Badge>
         ),
@@ -514,21 +564,27 @@ function Entries({
     return filtered ? (
       <EmptyState
         icon={<icons.filter />}
-        title="Nothing matches"
-        description="Nothing recorded matches these filters. Remove one to see more."
+        title={t('components.activity-log.nothing_matches', 'Nothing matches')}
+        description={t(
+          'components.activity-log.nothing_recorded_matches_these_filters_remove',
+          'Nothing recorded matches these filters. Remove one to see more.',
+        )}
       />
     ) : (
       <EmptyState
         icon={<icons.history />}
-        title="Nothing recorded yet"
-        description="Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins are listed here as they happen."
+        title={t('components.activity-log.nothing_recorded_yet', 'Nothing recorded yet')}
+        description={t(
+          'components.activity-log.settings_changes_imports_and_exports_sensitive',
+          'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins are listed here as they happen.',
+        )}
       />
     );
   }
   return (
     <>
       <DataTable<ActivityEntry>
-        label="Activity"
+        label={t('components.activity-log.activity', 'Activity')}
         rows={pages.items}
         rowId={entryId}
         // Infinite: the table is the page's one scroll, older entries load
@@ -553,7 +609,10 @@ function Entries({
             <DialogHeader>
               <DialogTitle>{opened.action}</DialogTitle>
               <DialogDescription>
-                {`${who(opened, named).name} · ${when(opened.occurredAt)}`}
+                {t('components.activity-log.text_2', '{{name}} · {{occurredAt}}', {
+                  name: who(opened, named).name,
+                  occurredAt: when(opened.occurredAt),
+                })}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
@@ -580,12 +639,20 @@ function Detail({
   const changed = e.detail === null ? null : changesIn(e.detail);
   const actor = who(e, named).name;
   const record =
-    e.subjectKind === 'person' && e.subjectId !== null ? (whom(e, named) ?? 'this person') : null;
+    e.subjectKind === 'person' && e.subjectId !== null
+      ? (whom(e, named) ?? t('components.activity-log.this_person', 'this person'))
+      : null;
   return (
     <Stack gap={3}>
       {changed === null ? (
         e.detail === null && (e.reason !== null || e.actorKind === 'support') ? null : (
-          <p className="text-sm text-fg-muted">{e.detail ?? 'No more detail was recorded.'}</p>
+          <p className="text-sm text-fg-muted">
+            {e.detail ??
+              t(
+                'components.activity-log.no_more_detail_was_recorded',
+                'No more detail was recorded.',
+              )}
+          </p>
         )
       ) : (
         <ChangeDiff
@@ -594,19 +661,33 @@ function Detail({
       )}
       {e.reason === null ? null : (
         <p className="text-sm">
-          <span className="font-semibold">Reason:</span> {e.reason}
+          <span className="font-semibold">{t('components.activity-log.reason', 'Reason:')}</span>{' '}
+          {e.reason}
         </p>
       )}
       {e.outcome === 'refused' ? (
         <p className="text-sm text-fg-muted">
-          {moduleName(e.module)} refused it: nothing was changed.
+          {moduleName(e.module)}{' '}
+          {t(
+            'components.activity-log.refused_it_nothing_was_changed',
+            'refused it: nothing was changed.',
+          )}
         </p>
       ) : null}
       {e.via === null && !e.ai ? null : (
         <p className="text-sm text-fg-muted">
           {[
-            e.via === null ? null : `From ${e.via === 'Kithena' ? 'Kithena itself' : e.via}.`,
-            e.ai ? 'Proposed by AI and confirmed by them.' : null,
+            e.via === null
+              ? null
+              : t('components.activity-log.from', 'From {{value}}.', {
+                  value: e.via === 'Kithena' ? 'Kithena itself' : e.via,
+                }),
+            e.ai
+              ? t(
+                  'components.activity-log.proposed_by_ai_and_confirmed_by',
+                  'Proposed by AI and confirmed by them.',
+                )
+              : null,
           ]
             .filter((x) => x !== null)
             .join(' ')}
@@ -615,12 +696,21 @@ function Detail({
       {e.actorKind === 'support' ? (
         <p className="text-sm text-fg-muted">
           {e.area === 'sign_in'
-            ? 'Signed in from the Kithena back office'
+            ? t(
+                'components.activity-log.signed_in_from_the_kithena_back',
+                'Signed in from the Kithena back office',
+              )
             : e.supportSignIn === null
               ? 'By Kithena support; the sign-in it came from is not in the log'
-              : `During Kithena support’s sign-in at ${when(e.supportSignIn.at)}${
-                  e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`
-                }`}
+              : t(
+                  'components.activity-log.during_kithena_supports_sign_in_at',
+                  'During Kithena support’s sign-in at {{at}}{{value}}',
+                  {
+                    at: when(e.supportSignIn.at),
+                    value:
+                      e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`,
+                  },
+                )}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -632,7 +722,7 @@ function Detail({
               onFilter({ actor: e.actorAccountId, by: null });
             }}
           >
-            Only what {actor} did
+            {t('components.activity-log.only_what_did', 'Only what {{actor}} did', { actor })}
           </Button>
         ) : null}
         {e.actorKind === 'person' ? null : (
@@ -643,7 +733,8 @@ function Detail({
               onFilter({ by: e.actorKind, actor: null });
             }}
           >
-            Only {WHO.find((w) => w.value === e.actorKind)?.label ?? actor}
+            {t('components.activity-log.only', 'Only')}{' '}
+            {WHO.find((w) => w.value === e.actorKind)?.label ?? actor}
           </Button>
         )}
         {e.subjectId === null ||
@@ -651,7 +742,11 @@ function Detail({
         OPENS[e.module]?.[e.subjectKind] === undefined ? null : (
           <Button size="sm" variant="ghost" asChild>
             <a href={`${OPENS[e.module]?.[e.subjectKind] ?? ''}${e.subjectId}`}>
-              Open {e.subjectLabel ?? `the ${e.subjectKind}`}
+              {t('components.activity-log.open', 'Open')}{' '}
+              {e.subjectLabel ??
+                t('components.activity-log.the', 'the {{subjectKind}}', {
+                  subjectKind: e.subjectKind,
+                })}
             </a>
           </Button>
         )}
@@ -664,10 +759,12 @@ function Detail({
                 onFilter({ subject: e.subjectId });
               }}
             >
-              Only {record}’s record
+              {t('components.activity-log.only_s_record', 'Only {{record}}’s record', { record })}
             </Button>
             <Button size="sm" variant="ghost" asChild>
-              <a href={`/people/${e.subjectId}`}>Open {record}</a>
+              <a href={`/people/${e.subjectId}`}>
+                {t('components.activity-log.open', 'Open')} {record}
+              </a>
             </Button>
           </>
         )}

@@ -28,6 +28,7 @@ import { useState, type JSX } from 'react';
 import type { Outcome } from '../load';
 import { keyOf } from './add-leave-type';
 import { Toggle, shortDate } from './shared';
+import { t } from '../i18n';
 
 /**
  * One holiday calendar, new or changed (T36's "Add calendar", TOF-099a): its
@@ -88,19 +89,30 @@ export function HolidayCalendar({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{layer === null ? 'Add a calendar' : layer.name}</DialogTitle>
+          <DialogTitle>
+            {layer === null
+              ? t('settings.holiday-calendar.add_a_calendar', 'Add a calendar')
+              : layer.name}
+          </DialogTitle>
           <DialogDescription>
-            {`Its days in ${String(year)}. A location keeps it once it is ticked there.`}
+            {t(
+              'settings.holiday-calendar.its_days_in_a_location_keeps',
+              'Its days in {{year}}. A location keeps it once it is ticked there.',
+              { year: String(year) },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('settings.holiday-calendar.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={name}
                 maxLength={200}
-                placeholder="For example, Valencia city"
+                placeholder={t(
+                  'settings.holiday-calendar.for_example_valencia_city',
+                  'For example, Valencia city',
+                )}
                 onChange={(e) => {
                   setName(e.target.value);
                 }}
@@ -108,7 +120,7 @@ export function HolidayCalendar({
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>Level</FieldLabel>
+            <FieldLabel>{t('settings.holiday-calendar.level', 'Level')}</FieldLabel>
             <Select
               value={level}
               onValueChange={(l) => {
@@ -121,22 +133,37 @@ export function HolidayCalendar({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                <SelectItem value="national">National</SelectItem>
-                <SelectItem value="regional">Regional</SelectItem>
-                <SelectItem value="city">City</SelectItem>
+                <SelectItem value="national">
+                  {t('settings.holiday-calendar.national', 'National')}
+                </SelectItem>
+                <SelectItem value="regional">
+                  {t('settings.holiday-calendar.regional', 'Regional')}
+                </SelectItem>
+                <SelectItem value="city">{t('settings.holiday-calendar.city', 'City')}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
           <Toggle
             kind="checkbox"
-            label="A holiday on a Sunday moves to Monday"
+            label={t(
+              'settings.holiday-calendar.a_holiday_on_a_sunday_moves',
+              'A holiday on a Sunday moves to Monday',
+            )}
             checked={moves}
             onChange={setMoves}
           />
           {shown.length === 0 ? (
-            <p className="text-sm text-fg-muted">{`No days in ${String(year)} yet.`}</p>
+            <p className="text-sm text-fg-muted">
+              {t('settings.holiday-calendar.no_days_in_yet', 'No days in {{year}} yet.', {
+                year: String(year),
+              })}
+            </p>
           ) : (
-            <List aria-label={`Days in ${String(year)}`}>
+            <List
+              aria-label={t('settings.holiday-calendar.days_in', 'Days in {{year}}', {
+                year: String(year),
+              })}
+            >
               {shown.map((d) => (
                 <ListItem
                   key={`${d.date} ${d.name}`}
@@ -144,7 +171,9 @@ export function HolidayCalendar({
                   trailing={
                     <Button
                       variant="ghost"
-                      aria-label={`Remove ${d.name}`}
+                      aria-label={t('settings.holiday-calendar.remove', 'Remove {{name}}', {
+                        name: d.name,
+                      })}
                       startIcon={<icons.delete aria-hidden />}
                       onClick={() => {
                         setDays(days.filter((x) => x !== d));
@@ -158,12 +187,14 @@ export function HolidayCalendar({
             </List>
           )}
           <fieldset className="flex min-w-0 flex-col gap-3">
-            <legend className="mb-1 text-sm font-medium">Add a day</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t('settings.holiday-calendar.add_a_day', 'Add a day')}
+            </legend>
             <Field>
-              <FieldLabel>Date</FieldLabel>
+              <FieldLabel>{t('settings.holiday-calendar.date', 'Date')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label="Date"
+                  label={t('settings.holiday-calendar.date', 'Date')}
                   min={`${String(year)}-01-01`}
                   max={`${String(year)}-12-31`}
                   value={date === '' ? null : date}
@@ -174,7 +205,7 @@ export function HolidayCalendar({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Holiday</FieldLabel>
+              <FieldLabel>{t('settings.holiday-calendar.holiday', 'Holiday')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={dayName}
@@ -184,7 +215,12 @@ export function HolidayCalendar({
                   }}
                 />
               </FieldControl>
-              <FieldDescription>As people will read it on their calendar.</FieldDescription>
+              <FieldDescription>
+                {t(
+                  'settings.holiday-calendar.as_people_will_read_it_on',
+                  'As people will read it on their calendar.',
+                )}
+              </FieldDescription>
             </Field>
             <div>
               <Button
@@ -198,12 +234,12 @@ export function HolidayCalendar({
                   setDayName('');
                 }}
               >
-                Add day
+                {t('settings.holiday-calendar.add_day', 'Add day')}
               </Button>
             </div>
           </fieldset>
           {refused === null ? null : (
-            <Alert tone="danger" title="Not saved">
+            <Alert tone="danger" title={t('settings.holiday-calendar.not_saved', 'Not saved')}>
               {refused}
             </Alert>
           )}
@@ -218,16 +254,16 @@ export function HolidayCalendar({
                 act(() => onRemove(layer.key));
               }}
             >
-              Remove calendar
+              {t('settings.holiday-calendar.remove_calendar', 'Remove calendar')}
             </Button>
           )}
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('settings.holiday-calendar.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<icons.confirm aria-hidden />}
             disabled={key === '' || name.trim() === ''}
             loading={busy}
-            loadingLabel="Saving"
+            loadingLabel={t('settings.holiday-calendar.saving', 'Saving')}
             onClick={() => {
               act(() =>
                 onSave(key, {
@@ -239,7 +275,7 @@ export function HolidayCalendar({
               );
             }}
           >
-            Save calendar
+            {t('settings.holiday-calendar.save_calendar', 'Save calendar')}
           </Button>
         </DialogFooter>
       </DialogContent>

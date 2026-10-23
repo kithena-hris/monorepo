@@ -1,0 +1,2226 @@
+{
+  "app.sign.[token].sign-by-link.adopt_your_signature": {
+    "text": "Adopt your signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.adopting_a_signature_you_agree_it": {
+    "text": "Adopting a signature, you agree it is the legal equivalent of your handwritten one.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <p>."
+  },
+  "app.sign.[token].sign-by-link.adopting_a_signature_you_agree_it_2": {
+    "text": "Adopting a signature, you agree it is the legal equivalent of your handwritten one. At Finish we email you a code to confirm it is you.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <p>."
+  },
+  "app.sign.[token].sign-by-link.change_your_signature": {
+    "text": "Change your signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.confirm_its_you": {
+    "text": "Confirm it’s you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <DialogTitle>."
+  },
+  "app.sign.[token].sign-by-link.decline": {
+    "text": "Decline",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.decline_to_sign": {
+    "text": "Decline to sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.everybody_has_signed": {
+    "text": "Everybody has signed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <Alert>."
+  },
+  "app.sign.[token].sign-by-link.everything_is_filled_in_finish_under": {
+    "text": "Everything is filled in. Finish, under the document, signs it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <p>."
+  },
+  "app.sign.[token].sign-by-link.from_at": {
+    "text": "From {{sender}} at {{company}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the description of <PageHeader>. Filled in: {{sender}}, {{company}}."
+  },
+  "app.sign.[token].sign-by-link.it_may_have_been_replaced_by": {
+    "text": "It may have been replaced by a newer email, cancelled or signed already.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the description of <EmptyState>."
+  },
+  "app.sign.[token].sign-by-link.kithena_could_not_open_this_just": {
+    "text": "Kithena could not open this just now",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <EmptyState>."
+  },
+  "app.sign.[token].sign-by-link.not_your_turn_yet": {
+    "text": "Not your turn yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <Alert>."
+  },
+  "app.sign.[token].sign-by-link.reload_the_page_in_a_moment": {
+    "text": "{{problem}} Reload the page in a moment.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the description of <EmptyState>. Filled in: {{problem}}."
+  },
+  "app.sign.[token].sign-by-link.s_signature": {
+    "text": "{{name}}’s signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: the label of <Signature>. Filled in: {{name}}."
+  },
+  "app.sign.[token].sign-by-link.says": {
+    "text": "{{sender}} says",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: the title of <Alert>. Filled in: {{sender}}."
+  },
+  "app.sign.[token].sign-by-link.send_a_new_code": {
+    "text": "Send a new code",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.signed": {
+    "text": "Signed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <Alert>."
+  },
+  "app.sign.[token].sign-by-link.start_under_the_document_takes_you": {
+    "text": "Start, under the document, takes you to each place to sign.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <p>."
+  },
+  "app.sign.[token].sign-by-link.the_document_could_not_be_opened": {
+    "text": "The document could not be opened.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Alert>."
+  },
+  "app.sign.[token].sign-by-link.this_link_does_not_open_anything": {
+    "text": "This link does not open anything",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <EmptyState>."
+  },
+  "app.sign.[token].sign-by-link.this_request_was": {
+    "text": "This request was {{status}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: the title of <Alert>. Filled in: {{status}}."
+  },
+  "app.sign.[token].sign-by-link.we_are_emailing_you_a_six": {
+    "text": "We are emailing you a six-digit code.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <DialogDescription>."
+  },
+  "app.sign.[token].sign-by-link.we_emailed_a_six_digit_code": {
+    "text": "We emailed a six-digit code to {{sentTo}}. It works for ten minutes.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <DialogDescription>. Filled in: {{sentTo}}."
+  },
+  "app.sign.[token].sign-by-link.why_you_decline": {
+    "text": "Why you decline",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <FieldLabel>."
+  },
+  "app.sign.[token].sign-by-link.you_can_close_this_page": {
+    "text": "You can close this page.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: text inside <Alert>."
+  },
+  "app.sign.[token].sign-by-link.you_get_an_email_when_it": {
+    "text": "You get an email when it is your turn to sign.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignByLink: text inside <Alert>."
+  },
+  "app.sign.[token].sign-by-link.your_code": {
+    "text": "Your code",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: the label of <PinInput>."
+  },
+  "app.sign.[token].sign-by-link.your_part": {
+    "text": "Your part",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <CardTitle>."
+  },
+  "components.activity-log.about": {
+    "text": "About",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <Chip>."
+  },
+  "components.activity-log.activity": {
+    "text": "Activity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text built in code."
+  },
+  "components.activity-log.activity_2": {
+    "text": "{{moduleName}} activity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text built in code. Filled in: {{moduleName}}."
+  },
+  "components.activity-log.ai": {
+    "text": "AI",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: text inside <Badge>."
+  },
+  "components.activity-log.any_time": {
+    "text": "Any time",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the placeholder of <DatePicker>."
+  },
+  "components.activity-log.anyone": {
+    "text": "Anyone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <ChipGroupItem>."
+  },
+  "components.activity-log.area": {
+    "text": "Area",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: a \"header\" value."
+  },
+  "components.activity-log.areas": {
+    "text": "Areas",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the aria-label of <ChipGroup>."
+  },
+  "components.activity-log.ask_one_of_your_people_administrators": {
+    "text": "Ask one of your People administrators if you need to know who changed something.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <EmptyState>."
+  },
+  "components.activity-log.by": {
+    "text": "By",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <Chip>."
+  },
+  "components.activity-log.during_kithena_supports_sign_in_at": {
+    "text": "During Kithena support’s sign-in at {{at}}{{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{at}}, {{value}}."
+  },
+  "components.activity-log.every_module": {
+    "text": "Every module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <ChipGroupItem>."
+  },
+  "components.activity-log.from": {
+    "text": "From {{value}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{value}}."
+  },
+  "components.activity-log.it_is_still_being_set_up": {
+    "text": "It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <EmptyState>."
+  },
+  "components.activity-log.module": {
+    "text": "Module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the aria-label of <ChipGroup>."
+  },
+  "components.activity-log.no_more_detail_was_recorded": {
+    "text": "No more detail was recorded.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
+  },
+  "components.activity-log.nothing_matches": {
+    "text": "Nothing matches",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: the title of <EmptyState>."
+  },
+  "components.activity-log.nothing_recorded_matches_these_filters_remove": {
+    "text": "Nothing recorded matches these filters. Remove one to see more.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: the description of <EmptyState>."
+  },
+  "components.activity-log.nothing_recorded_yet": {
+    "text": "Nothing recorded yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: the title of <EmptyState>."
+  },
+  "components.activity-log.one_person": {
+    "text": "one person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text built in code."
+  },
+  "components.activity-log.one_record": {
+    "text": "one record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text built in code."
+  },
+  "components.activity-log.only": {
+    "text": "Only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <Button>."
+  },
+  "components.activity-log.only_s_record": {
+    "text": "Only {{record}}’s record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <Button>. Filled in: {{record}}."
+  },
+  "components.activity-log.only_what_did": {
+    "text": "Only what {{actor}} did",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <Button>. Filled in: {{actor}}."
+  },
+  "components.activity-log.open": {
+    "text": "Open",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <a>."
+  },
+  "components.activity-log.proposed_by_ai_and_confirmed_by": {
+    "text": "Proposed by AI and confirmed by them.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
+  },
+  "components.activity-log.reason": {
+    "text": "Reason:",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <span>."
+  },
+  "components.activity-log.refused": {
+    "text": "Refused",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: text inside <Badge>."
+  },
+  "components.activity-log.refused_it_nothing_was_changed": {
+    "text": "refused it: nothing was changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
+  },
+  "components.activity-log.search_actions_names_and_reasons": {
+    "text": "Search actions, names and reasons",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the placeholder of <SearchField>."
+  },
+  "components.activity-log.search_the_activity": {
+    "text": "Search the activity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the label of <SearchField>."
+  },
+  "components.activity-log.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the breadcrumb of <BreadcrumbLink>."
+  },
+  "components.activity-log.settings_changes_imports_and_exports_sensitive": {
+    "text": "Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins are listed here as they happen.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: the description of <EmptyState>."
+  },
+  "components.activity-log.show_every_record_not_only": {
+    "text": "Show every record, not only {{subjectName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the removeLabel of <Chip>. Filled in: {{subjectName}}."
+  },
+  "components.activity-log.show_everybodys_not_only_s": {
+    "text": "Show everybody’s, not only {{actorName}}’s",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the removeLabel of <Chip>. Filled in: {{actorName}}."
+  },
+  "components.activity-log.signed_in_from_the_kithena_back": {
+    "text": "Signed in from the Kithena back office",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
+  },
+  "components.activity-log.text": {
+    "text": "{{moduleName}} · {{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: text inside <Badge>. Filled in: {{moduleName}}, {{value}}."
+  },
+  "components.activity-log.text_2": {
+    "text": "{{name}} · {{occurredAt}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: text inside <DialogDescription>. Filled in: {{name}}, {{occurredAt}}."
+  },
+  "components.activity-log.the": {
+    "text": "the {{subjectKind}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <a>. Filled in: {{subjectKind}}."
+  },
+  "components.activity-log.the_activity_log_is_for_administrators": {
+    "text": "The activity log is for administrators and HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the title of <EmptyState>."
+  },
+  "components.activity-log.the_activity_log_isnt_available_yet": {
+    "text": "The activity log isn’t available yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the title of <EmptyState>."
+  },
+  "components.activity-log.this_person": {
+    "text": "this person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text built in code."
+  },
+  "components.activity-log.what": {
+    "text": "What",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: a \"header\" value."
+  },
+  "components.activity-log.when": {
+    "text": "When",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the label of <DatePicker>."
+  },
+  "components.activity-log.who": {
+    "text": "Who",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the aria-label of <ChipGroup>."
+  },
+  "components.activity-log.who_did_what_and_when_across": {
+    "text": "Who did what, and when, across your company’s workspace. Never the values themselves.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <PageHeader>."
+  },
+  "components.activity-log.who_did_what_in_and_when": {
+    "text": "Who did what in {{moduleName}}, and when. Never the values themselves.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <PageHeader>. Filled in: {{moduleName}}."
+  },
+  "components.app-shell.account": {
+    "text": "Account",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
+  },
+  "components.app-shell.administrator": {
+    "text": "Administrator",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.areas": {
+    "text": "Areas",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
+  },
+  "components.app-shell.collapse_or_expand_the_sidebar": {
+    "text": "Collapse or expand the sidebar",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
+  },
+  "components.app-shell.create": {
+    "text": "Create… {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value. Filled in: {{label}}."
+  },
+  "components.app-shell.dark_mode": {
+    "text": "Dark mode",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, ThemeChoice: text inside <DropdownMenuCheckboxItem>."
+  },
+  "components.app-shell.end_viewing_as": {
+    "text": "End viewing as",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
+  },
+  "components.app-shell.export_people": {
+    "text": "Export people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
+  },
+  "components.app-shell.finance": {
+    "text": "Finance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
+  },
+  "components.app-shell.home": {
+    "text": "{{companyName}}, home",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the aria-label of <Link>. Filled in: {{companyName}}."
+  },
+  "components.app-shell.home_2": {
+    "text": "Home",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+  },
+  "components.app-shell.in": {
+    "text": "In {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"description\" value. Filled in: {{label}}."
+  },
+  "components.app-shell.inbox": {
+    "text": "Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+  },
+  "components.app-shell.keyboard_shortcuts": {
+    "text": "Keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
+  },
+  "components.app-shell.language": {
+    "text": "Language",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, LanguageChoice: text inside <DropdownMenuLabel>."
+  },
+  "components.app-shell.main_compact": {
+    "text": "Main, compact",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: the label of <TabBar>."
+  },
+  "components.app-shell.me": {
+    "text": "Me",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+  },
+  "components.app-shell.my_profile": {
+    "text": "My profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <Link>."
+  },
+  "components.app-shell.my_time_off": {
+    "text": "My time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <Link>."
+  },
+  "components.app-shell.nobody_and_nothing_by_that_name": {
+    "text": "Nobody and nothing by that name.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: the empty of <CommandPalette>."
+  },
+  "components.app-shell.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+  },
+  "components.app-shell.preferences": {
+    "text": "Preferences",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuSubTrigger>."
+  },
+  "components.app-shell.search": {
+    "text": "Search",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <Nav>."
+  },
+  "components.app-shell.search_people_and_pages": {
+    "text": "Search people and pages",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: the label of <CommandPalette>."
+  },
+  "components.app-shell.sections": {
+    "text": "{{label}} sections",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the label of <PeopleSubnav>. Filled in: {{label}}."
+  },
+  "components.app-shell.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the sidebar of <Link>."
+  },
+  "components.app-shell.show_keyboard_shortcuts": {
+    "text": "Show keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
+  },
+  "components.app-shell.sign_out": {
+    "text": "Sign out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
+  },
+  "components.app-shell.switch_company": {
+    "text": "Switch company",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuSubTrigger>."
+  },
+  "components.app-shell.switch_to_dark_mode": {
+    "text": "Switch to dark mode",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
+  },
+  "components.app-shell.switch_to_light_mode": {
+    "text": "Switch to light mode",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value."
+  },
+  "components.app-shell.time_off": {
+    "text": "Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+  },
+  "components.app-shell.viewing_as_read_only": {
+    "text": "Viewing as {{value}} · read-only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the subtitle of <PersonMenu>. Filled in: {{value}}."
+  },
+  "components.app-shell.your_account": {
+    "text": "Your account",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AccountSheet: the aria-label of <Button>."
+  },
+  "components.app-shell.your_companies": {
+    "text": "Your companies",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuLabel>."
+  },
+  "components.assistant-panel.answers_with_only_what_you_can": {
+    "text": "Answers with only what you can see",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the subtitle of <AssistantPanel>."
+  },
+  "components.assistant-panel.ask_about_your_inbox": {
+    "text": "Ask about your inbox…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the placeholder of <AssistantComposer>."
+  },
+  "components.assistant-panel.ask_about_your_people": {
+    "text": "Ask about your people…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the placeholder of <AssistantComposer>."
+  },
+  "components.assistant-panel.ask_kithena": {
+    "text": "Ask Kithena",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the title of <AssistantPanel>."
+  },
+  "components.assistant-panel.from_your_inbox": {
+    "text": "From your Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, InboxAnswer: the aria-label of <ChipRow>."
+  },
+  "components.assistant-panel.hi_ask_me_about_the_people": {
+    "text": "Hi! Ask me about the people in your company: who is in a team, who reports to whom, how many people work where, or what is waiting for you.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: text inside <p>."
+  },
+  "components.assistant-panel.nudged": {
+    "text": "Nudged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, InboxAnswer: the onClick of <Chip>."
+  },
+  "components.assistant-panel.people_in_this_answer": {
+    "text": "People in this answer",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, Mentioned: the aria-label of <ul>."
+  },
+  "components.assistant-panel.read_only_sees_your_question_and": {
+    "text": "Read-only. Sees your question and field names, never values.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the disclaimer of <span>."
+  },
+  "components.assistant-panel.text": {
+    "text": "{{title}} · {{hint}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, InboxAnswer: text inside <Link>. Filled in: {{title}}, {{hint}}."
+  },
+  "components.assistant-panel.try_asking": {
+    "text": "Try asking",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the aria-label of <ChipRow>."
+  },
+  "components.assistant.ask_kithena": {
+    "text": "Ask Kithena",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant.tsx, Assistant: the label of <AssistantLauncher>."
+  },
+  "components.assistant.sorry_i_couldnt_reach_kithena_just": {
+    "text": "Sorry, I couldn’t reach Kithena just now. Could you try again in a moment?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant.tsx, Assistant: a \"text\" value."
+  },
+  "components.assistant.sorry_i_couldnt_read_your_inbox": {
+    "text": "Sorry, I couldn’t read your Inbox just now.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant.tsx, Assistant: a \"text\" value."
+  },
+  "components.company-panel.sign_in_to_your_account": {
+    "text": "Sign in to your account.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/company-panel.tsx, CompanyPanel: text inside <p>."
+  },
+  "components.google-sign-in.sign_in_with_google": {
+    "text": "Sign in with Google",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/google-sign-in.tsx, GoogleSignIn: text inside <a>."
+  },
+  "components.inbox.bell.open": {
+    "text": "Open",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/bell.tsx, Arrivals: a \"label\" value."
+  },
+  "components.inbox.bell.to_do": {
+    "text": "{{todo}} to do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/bell.tsx, CountBadge: the aria-label of <Badge>. Filled in: {{todo}}."
+  },
+  "components.inbox.bell.unread_updates": {
+    "text": "Unread updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/bell.tsx, CountBadge: the aria-label of <Badge>."
+  },
+  "components.inbox.dated-dialogs.approvals_go_to_someone_else_for": {
+    "text": "Approvals go to someone else for these dates. People waiting see who has them.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: the description of <Frame>."
+  },
+  "components.inbox.dated-dialogs.at": {
+    "text": "At",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dated-dialogs.cancel": {
+    "text": "Cancel",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: the footer of <Button>."
+  },
+  "components.inbox.dated-dialogs.change": {
+    "text": "Change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, DueDialog: the footer of <Button>."
+  },
+  "components.inbox.dated-dialogs.change_the_due_date": {
+    "text": "Change the due date",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, DueDialog: the title of <Frame>."
+  },
+  "components.inbox.dated-dialogs.due": {
+    "text": "Due",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, DueDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dated-dialogs.for_everyone_who_still_has_it": {
+    "text": "For everyone who still has it. Reminders follow the new date.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, DueDialog: the description of <Frame>."
+  },
+  "components.inbox.dated-dialogs.from": {
+    "text": "From",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dated-dialogs.hand_over": {
+    "text": "Hand over",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: the footer of <Button>."
+  },
+  "components.inbox.dated-dialogs.hand_over_while_youre_away": {
+    "text": "Hand over while you’re away",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: the title of <Frame>."
+  },
+  "components.inbox.dated-dialogs.hand_to": {
+    "text": "Hand to",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: the aria-label of <RadioGroup>."
+  },
+  "components.inbox.dated-dialogs.has_them_from_to": {
+    "text": "{{delegateName}} has them from {{from}} to {{to}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: text inside <Alert>. Filled in: {{delegateName}}, {{from}}, {{to}}."
+  },
+  "components.inbox.dated-dialogs.it_comes_back_by_the_day": {
+    "text": "It comes back by the day it’s due, {{due}}, at the latest.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: the description of <Frame>. Filled in: {{due}}."
+  },
+  "components.inbox.dated-dialogs.it_comes_back_to_to_do": {
+    "text": "It comes back to To do then.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: the description of <Frame>."
+  },
+  "components.inbox.dated-dialogs.remind_me": {
+    "text": "Remind me",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: the title of <Frame>."
+  },
+  "components.inbox.dated-dialogs.stop_handing_to": {
+    "text": "Stop handing to {{delegateName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: the footer of <Button>. Filled in: {{delegateName}}."
+  },
+  "components.inbox.dated-dialogs.time_off_approvals_are_handed_over": {
+    "text": "Time off approvals are handed over; People’s Review stays with HR.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: text inside <p>."
+  },
+  "components.inbox.dated-dialogs.until": {
+    "text": "Until",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, HandOverDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dated-dialogs.when": {
+    "text": "When",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.detail-people.a_change_to_this_goes_to": {
+    "text": "A change to this goes to HR before it is on your record.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: text inside <FieldDescription>."
+  },
+  "components.inbox.detail-people.add_to_my_record": {
+    "text": "Add to my record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
+  },
+  "components.inbox.detail-people.all_done": {
+    "text": "All done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the valueLabel of <Progress>."
+  },
+  "components.inbox.detail-people.ask": {
+    "text": "Ask {{sender}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.at": {
+    "text": "at {{takenAt}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{takenAt}}."
+  },
+  "components.inbox.detail-people.cancel_for_everyone": {
+    "text": "Cancel for everyone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>."
+  },
+  "components.inbox.detail-people.cancel_this_for": {
+    "text": "Cancel this for {{name}}?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the title of <NoteDialog>. Filled in: {{name}}."
+  },
+  "components.inbox.detail-people.cancel_this_for_everyone": {
+    "text": "Cancel this for everyone?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the title of <ConfirmDialog>."
+  },
+  "components.inbox.detail-people.cancelled_this": {
+    "text": "{{value}} cancelled this{{value2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the title of <Alert>. Filled in: {{value}}, {{value2}}."
+  },
+  "components.inbox.detail-people.change_due_date": {
+    "text": "Change due date",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>."
+  },
+  "components.inbox.detail-people.choose": {
+    "text": "Choose",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: the placeholder of <SelectValue>."
+  },
+  "components.inbox.detail-people.countersign": {
+    "text": "Countersign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
+  },
+  "components.inbox.detail-people.countersigned": {
+    "text": "Countersigned",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.countersigned_by": {
+    "text": "Countersigned by",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.document": {
+    "text": "Document",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the aria-label of <List>."
+  },
+  "components.inbox.detail-people.done": {
+    "text": "{{length}} done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <span>. Filled in: {{length}}."
+  },
+  "components.inbox.detail-people.download": {
+    "text": "Download",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
+  },
+  "components.inbox.detail-people.failed_times_in_a_row": {
+    "text": "Failed {{attempts}} times in a row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the title of <Alert>. Filled in: {{attempts}}."
+  },
+  "components.inbox.detail-people.failing_since": {
+    "text": "Failing since",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.fill_in": {
+    "text": "Fill in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <a>."
+  },
+  "components.inbox.detail-people.fill_this_in_on_your_profile": {
+    "text": "Fill this in on your profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: text inside <a>."
+  },
+  "components.inbox.detail-people.finish_more_step": {
+    "text": "Finish {{value}} more step{{value2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>. Filled in: {{value}}, {{value2}}."
+  },
+  "components.inbox.detail-people.from": {
+    "text": "From {{join}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: the description of <ListItem>. Filled in: {{join}}."
+  },
+  "components.inbox.detail-people.go_to_review": {
+    "text": "Go to Review",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: the hint of <span>."
+  },
+  "components.inbox.detail-people.hr_and_your_manager_can_see": {
+    "text": "HR and your manager can see how far you are",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.hr_stops_seeing_it_and_the": {
+    "text": "HR stops seeing it and the record keeps {{shown}}. You can ask again any time.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the description of <ConfirmDialog>. Filled in: {{shown}}."
+  },
+  "components.inbox.detail-people.i_cant_do_this": {
+    "text": "I can’t do this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
+  },
+  "components.inbox.detail-people.i_cant_sign_this": {
+    "text": "I can’t sign this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
+  },
+  "components.inbox.detail-people.it_goes_on_your_record_straight": {
+    "text": "It goes on your record straight away.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <p>."
+  },
+  "components.inbox.detail-people.it_leaves_your_to_do_gets": {
+    "text": "It leaves your To do. {{sender}} gets an update with your reason.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <NoteDialog>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.it_moves_on_its_own_at": {
+    "text": "It moves on its own at midnight",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.ive_read_it": {
+    "text": "I’ve read it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
+  },
+  "components.inbox.detail-people.kb": {
+    "text": "{{max}} KB",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{max}}."
+  },
+  "components.inbox.detail-people.kept_in": {
+    "text": "Kept in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.mark_done": {
+    "text": "Mark done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <Button>."
+  },
+  "components.inbox.detail-people.mb": {
+    "text": "{{value}} MB",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.move_to_done": {
+    "text": "Move to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
+  },
+  "components.inbox.detail-people.no": {
+    "text": "No",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code."
+  },
+  "components.inbox.detail-people.note": {
+    "text": "Note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the label of <NoteDialog>."
+  },
+  "components.inbox.detail-people.note_for": {
+    "text": "Note for {{sender}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the label of <NoteDialog>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.nothing_changes_on_the_record_until": {
+    "text": "Nothing changes on the record until HR decides. It takes effect from {{effectiveFrom}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: text inside <p>. Filled in: {{effectiveFrom}}."
+  },
+  "components.inbox.detail-people.nothing_to_do": {
+    "text": "Nothing to do.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Alert>."
+  },
+  "components.inbox.detail-people.nudge_hr": {
+    "text": "Nudge HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: text inside <Button>."
+  },
+  "components.inbox.detail-people.nudge_once": {
+    "text": "Nudge once",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.of": {
+    "text": "{{count}} of {{length}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the valueLabel of <Progress>. Filled in: {{count}}, {{length}}."
+  },
+  "components.inbox.detail-people.of_done": {
+    "text": "{{done}} of {{total}} done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the label of <Progress>. Filled in: {{done}}, {{total}}."
+  },
+  "components.inbox.detail-people.on": {
+    "text": "on {{closedAt}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the title of <Alert>. Filled in: {{closedAt}}."
+  },
+  "components.inbox.detail-people.open": {
+    "text": "Open",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <a>."
+  },
+  "components.inbox.detail-people.open_in": {
+    "text": "Open in {{openIn}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Plain: text inside <a>. Filled in: {{openIn}}."
+  },
+  "components.inbox.detail-people.open_in_integrations": {
+    "text": "Open in Integrations",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <a>."
+  },
+  "components.inbox.detail-people.open_it_first": {
+    "text": "Open it first",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.open_it_where_it_lives_instead": {
+    "text": "Open it where it lives instead.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Missing: text inside <Alert>."
+  },
+  "components.inbox.detail-people.open_onboarding": {
+    "text": "Open onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <a>."
+  },
+  "components.inbox.detail-people.open_review": {
+    "text": "Open Review",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <a>."
+  },
+  "components.inbox.detail-people.preview": {
+    "text": "Preview",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
+  },
+  "components.inbox.detail-people.question": {
+    "text": "{{replies}} question{{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <ListItem>. Filled in: {{replies}}, {{value}}."
+  },
+  "components.inbox.detail-people.questions": {
+    "text": "Questions",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the aria-label of <section>."
+  },
+  "components.inbox.detail-people.questions_on_this_task": {
+    "text": "Questions on this task",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the label of <ChatLog>."
+  },
+  "components.inbox.detail-people.remind": {
+    "text": "Remind",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the trailing of <Button>."
+  },
+  "components.inbox.detail-people.remind_the": {
+    "text": "Remind the {{length}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>. Filled in: {{length}}."
+  },
+  "components.inbox.detail-people.reply_to": {
+    "text": "Reply to {{sender}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the label of <ChatComposer>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.reply_to_2": {
+    "text": "Reply to {{sender}}…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the placeholder of <ChatComposer>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.review_items_keep_their_own_tools": {
+    "text": "Review items keep their own tools: compare, the reasons for a flag, history. They aren’t copied here, so the two can’t disagree.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <p>."
+  },
+  "components.inbox.detail-people.s_note": {
+    "text": "{{value}}’s note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the items of <KeyValues>. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.sees_that_you_have_it_now": {
+    "text": "{{value}} sees that you have it now.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the description of <NoteDialog>. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.send_this_back_to": {
+    "text": "Send this back to {{sender}}?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the title of <NoteDialog>. Filled in: {{sender}}."
+  },
+  "components.inbox.detail-people.send_to_hr": {
+    "text": "Send to HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: text inside <Button>."
+  },
+  "components.inbox.detail-people.sending_is_switched_off": {
+    "text": "Sending is switched off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the title of <Alert>."
+  },
+  "components.inbox.detail-people.sent_by": {
+    "text": "Sent by",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.sent_it_back": {
+    "text": "{{name}} sent it back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the items of <KeyValues>. Filled in: {{name}}."
+  },
+  "components.inbox.detail-people.sign": {
+    "text": "Sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
+  },
+  "components.inbox.detail-people.signed": {
+    "text": "Signed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.some_of_this_goes_to_hr": {
+    "text": "Some of this goes to HR first.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <p>."
+  },
+  "components.inbox.detail-people.steps": {
+    "text": "Steps",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the aria-label of <List>."
+  },
+  "components.inbox.detail-people.still_to_do_it": {
+    "text": "Still to do it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the aria-label of <List>."
+  },
+  "components.inbox.detail-people.submit": {
+    "text": "Submit",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the hint of <span>."
+  },
+  "components.inbox.detail-people.take_it": {
+    "text": "Take it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Button>."
+  },
+  "components.inbox.detail-people.take_it_over": {
+    "text": "Take it over",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Button>."
+  },
+  "components.inbox.detail-people.take_it_over_2": {
+    "text": "Take it over?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the title of <NoteDialog>."
+  },
+  "components.inbox.detail-people.taking_it_tells_the_other_admins": {
+    "text": "Taking it tells the other admins you’re on it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.text": {
+    "text": "{{text}} {{text2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{text}}, {{text2}}."
+  },
+  "components.inbox.detail-people.text_2": {
+    "text": "{{size}} · {{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>. Filled in: {{size}}, {{value}}."
+  },
+  "components.inbox.detail-people.the_check_passes_hr_still_checks": {
+    "text": "The check passes. HR still checks it against your document.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: text built in code."
+  },
+  "components.inbox.detail-people.the_fields_lock_for_everyone_still": {
+    "text": "The fields lock for everyone still asked, and it leaves their To do.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <ConfirmDialog>."
+  },
+  "components.inbox.detail-people.the_fields_lock_it_stops_counting": {
+    "text": "The fields lock, it stops counting for them, and they see your note.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <NoteDialog>."
+  },
+  "components.inbox.detail-people.the_last_answer_was_nothing_new": {
+    "text": "The last answer was {{value}}. Nothing new reaches it until it is fixed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Alert>. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.this_cant_be_shown_here": {
+    "text": "This can’t be shown here",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Missing: the title of <Alert>."
+  },
+  "components.inbox.detail-people.to_go": {
+    "text": "{{length}} to go",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the valueLabel of <Progress>. Filled in: {{length}}."
+  },
+  "components.inbox.detail-people.took_it": {
+    "text": "{{value}} took it{{value2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{value}}, {{value2}}."
+  },
+  "components.inbox.detail-people.waiting_in_review": {
+    "text": "Waiting in Review",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: the aria-label of <List>."
+  },
+  "components.inbox.detail-people.waiting_to_send": {
+    "text": "Waiting to send",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.what_the_check_found": {
+    "text": "What the check found",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: the title of <Alert>."
+  },
+  "components.inbox.detail-people.where_it_is": {
+    "text": "Where it is",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the label of <Stepper>."
+  },
+  "components.inbox.detail-people.who_sees_this": {
+    "text": "Who sees this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.with_a_reason_to_whoever_asked": {
+    "text": "With a reason, to whoever asked.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Alert>."
+  },
+  "components.inbox.detail-people.withdraw": {
+    "text": "Withdraw",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: text inside <Button>."
+  },
+  "components.inbox.detail-people.withdraw_your_change": {
+    "text": "Withdraw your {{label}} change?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the title of <ConfirmDialog>. Filled in: {{label}}."
+  },
+  "components.inbox.detail-people.yes": {
+    "text": "Yes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code."
+  },
+  "components.inbox.detail-people.you": {
+    "text": "You",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the author of <ChatMessage>."
+  },
+  "components.inbox.detail-people.you_can_nudge_from": {
+    "text": "You can nudge from {{from}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the hint of <Actions>. Filled in: {{from}}."
+  },
+  "components.inbox.detail-people.you_nudged_hr": {
+    "text": "You nudged HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.you_sent_it_back": {
+    "text": "You sent it back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the title of <Alert>."
+  },
+  "components.inbox.detail-people.youll_get_an_update_when_hr": {
+    "text": "You’ll get an update when HR accepts it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.your_checklist": {
+    "text": "Your checklist",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the label of <Progress>."
+  },
+  "components.inbox.detail-people.your_part": {
+    "text": "Your part",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the label of <Progress>."
+  },
+  "components.inbox.detail-people.youre_on_it": {
+    "text": "You’re on it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
+  },
+  "components.inbox.detail-recruiting.agenda": {
+    "text": "Agenda",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.book_and_send_the_invitation": {
+    "text": "Book and send the invitation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.candidate": {
+    "text": "Candidate",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.interview": {
+    "text": "Interview",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.none_works_ask_for_more_times": {
+    "text": "None works: ask for more times",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Button>."
+  },
+  "components.inbox.detail-recruiting.open_in_recruiting": {
+    "text": "Open in Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, RecruitingBody: text inside <a>."
+  },
+  "components.inbox.detail-recruiting.open_it_in_recruiting_instead": {
+    "text": "Open it in Recruiting instead.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Alert>."
+  },
+  "components.inbox.detail-recruiting.role": {
+    "text": "Role",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.text": {
+    "text": "{{format}} – {{format2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <RadioCard>. Filled in: {{format}}, {{format2}}."
+  },
+  "components.inbox.detail-recruiting.the_times_the_candidate_gave": {
+    "text": "The times the candidate gave",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the aria-label of <RadioGroup>."
+  },
+  "components.inbox.detail-recruiting.this_cant_be_shown_here": {
+    "text": "This can’t be shown here",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the title of <Alert>."
+  },
+  "components.inbox.detail-recruiting.times_in": {
+    "text": "Times in {{zone}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the hint of <Actions>. Filled in: {{zone}}."
+  },
+  "components.inbox.detail-recruiting.where": {
+    "text": "Where",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.approve": {
+    "text": "Approve",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <Button>."
+  },
+  "components.inbox.detail-timeoff.asked_first_for": {
+    "text": "Asked first for",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.calendar": {
+    "text": "Calendar",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Holidays: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.dates": {
+    "text": "Dates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Dates: the label of <Stat>."
+  },
+  "components.inbox.detail-timeoff.decline": {
+    "text": "Decline",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <Button>."
+  },
+  "components.inbox.detail-timeoff.declined": {
+    "text": "Declined",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <Dates>."
+  },
+  "components.inbox.detail-timeoff.each_day": {
+    "text": "Each day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the aria-label of <List>."
+  },
+  "components.inbox.detail-timeoff.first_one": {
+    "text": "First one",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Holidays: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.has_left_after_this": {
+    "text": "{{who}} has left after this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the items of <KeyValues>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-timeoff.instead_of": {
+    "text": "Instead of",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.left_after_this": {
+    "text": "Left after this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.left_this_year": {
+    "text": "Left this year",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.nobody_else_out": {
+    "text": "Nobody else out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the description of <ListItem>."
+  },
+  "components.inbox.detail-timeoff.note_to": {
+    "text": "Note to {{who}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <FieldLabel>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-timeoff.nudge": {
+    "text": "Nudge {{holder}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: text inside <Button>. Filled in: {{holder}}."
+  },
+  "components.inbox.detail-timeoff.nudge_once": {
+    "text": "Nudge once",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the hint of <Actions>."
+  },
+  "components.inbox.detail-timeoff.open_in_time_off": {
+    "text": "Open in Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <a>."
+  },
+  "components.inbox.detail-timeoff.open_it_in_time_off_instead": {
+    "text": "Open it in Time off instead.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Missing: text inside <Alert>."
+  },
+  "components.inbox.detail-timeoff.optional": {
+    "text": "Optional",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the placeholder of <Input>."
+  },
+  "components.inbox.detail-timeoff.plan_time_off": {
+    "text": "Plan time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Expiring: text inside <a>."
+  },
+  "components.inbox.detail-timeoff.public_holidays": {
+    "text": "Public holidays",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Holidays: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.request_other_dates": {
+    "text": "Request other dates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <a>."
+  },
+  "components.inbox.detail-timeoff.s_note": {
+    "text": "{{who}}’s note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the items of <KeyValues>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-timeoff.s_note_2": {
+    "text": "{{by}}’s note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: the items of <KeyValues>. Filled in: {{by}}."
+  },
+  "components.inbox.detail-timeoff.stops_seeing_it_you_can_ask": {
+    "text": "{{holder}} stops seeing it. You can ask again any time.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the description of <ConfirmDialog>. Filled in: {{holder}}."
+  },
+  "components.inbox.detail-timeoff.that_week": {
+    "text": "{{value}} that week{{value2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>. Filled in: {{value}}, {{value2}}."
+  },
+  "components.inbox.detail-timeoff.this_cant_be_shown_here": {
+    "text": "This can’t be shown here",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Missing: the title of <Alert>."
+  },
+  "components.inbox.detail-timeoff.use_them_by": {
+    "text": "Use them by",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Expiring: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.what_you_asked_for_instead": {
+    "text": "What you asked for instead",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: the aria-label of <List>."
+  },
+  "components.inbox.detail-timeoff.where_it_is": {
+    "text": "Where it is",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the label of <Stepper>."
+  },
+  "components.inbox.detail-timeoff.who_else_is_out": {
+    "text": "Who else is out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the aria-label of <section>."
+  },
+  "components.inbox.detail-timeoff.with": {
+    "text": "With",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.with_2": {
+    "text": "With {{holder}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: the description of <ListItem>. Filled in: {{holder}}."
+  },
+  "components.inbox.detail-timeoff.withdraw": {
+    "text": "Withdraw",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: text inside <Button>."
+  },
+  "components.inbox.detail-timeoff.withdraw_your_time_off_request": {
+    "text": "Withdraw your time-off request?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the title of <ConfirmDialog>."
+  },
+  "components.inbox.detail-timeoff.you_asked_for_instead": {
+    "text": "You asked for {{label}} instead",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <a>. Filled in: {{label}}."
+  },
+  "components.inbox.detail-timeoff.you_can_nudge_after_48_hours": {
+    "text": "You can nudge after 48 hours, from {{from}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the hint of <Actions>. Filled in: {{from}}."
+  },
+  "components.inbox.detail-timeoff.you_nudged": {
+    "text": "You nudged {{holder}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the hint of <Actions>. Filled in: {{holder}}."
+  },
+  "components.inbox.detail-timeoff.your_approver": {
+    "text": "Your approver",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text built in code."
+  },
+  "components.inbox.detail.ask_a_question": {
+    "text": "Ask {{value}} a question",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>. Filled in: {{value}}."
+  },
+  "components.inbox.detail.copy_link": {
+    "text": "Copy link",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.i_cant_do_this": {
+    "text": "I can’t do this",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.kithena": {
+    "text": "Kithena · {{at}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Who: text built in code. Filled in: {{at}}."
+  },
+  "components.inbox.detail.kithena_2": {
+    "text": "Kithena",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the author of <ChatMessage>."
+  },
+  "components.inbox.detail.link_copied": {
+    "text": "Link copied",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: a \"title\" value."
+  },
+  "components.inbox.detail.mark_read": {
+    "text": "Mark read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.mark_unread": {
+    "text": "Mark unread",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.message": {
+    "text": "{{value}} message",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the label of <ChatLog>. Filled in: {{value}}."
+  },
+  "components.inbox.detail.monday": {
+    "text": "Monday",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx: a \"label\" value."
+  },
+  "components.inbox.detail.more": {
+    "text": "More",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the aria-label of <Button>."
+  },
+  "components.inbox.detail.move_to_done": {
+    "text": "Move to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.mute_updates_like_this": {
+    "text": "Mute updates like this…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.open_in": {
+    "text": "Open in {{openIn}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <a>. Filled in: {{openIn}}."
+  },
+  "components.inbox.detail.pick_a_date_and_time": {
+    "text": "Pick a date and time…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.remind_me_later": {
+    "text": "Remind me later",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuSubTrigger>."
+  },
+  "components.inbox.detail.text": {
+    "text": "{{moduleName}} › {{area}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <Badge>. Filled in: {{moduleName}}, {{area}}."
+  },
+  "components.inbox.detail.text_2": {
+    "text": "{{name}} · {{at}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Who: text built in code. Filled in: {{name}}, {{at}}."
+  },
+  "components.inbox.detail.that_did_not_work": {
+    "text": "That did not work",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the title of <Alert>."
+  },
+  "components.inbox.detail.this_afternoon": {
+    "text": "This afternoon",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx: a \"label\" value."
+  },
+  "components.inbox.detail.tomorrow_morning": {
+    "text": "Tomorrow morning",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx: a \"label\" value."
+  },
+  "components.inbox.detail.wake_it_now": {
+    "text": "Wake it now",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.what_happened": {
+    "text": "What happened",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Activity: the aria-label of <section>."
+  },
+  "components.inbox.detail.you_asked_on": {
+    "text": "You asked on {{at}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Who: text built in code. Filled in: {{at}}."
+  },
+  "components.inbox.dialogs.a_signed_copy_is_kept_in": {
+    "text": "A signed copy is kept in the profile under Documents.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the description of <Frame>."
+  },
+  "components.inbox.dialogs.cancel": {
+    "text": "Cancel",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, ConfirmDialog: text built in code."
+  },
+  "components.inbox.dialogs.countersign": {
+    "text": "Countersign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the footer of <Button>."
+  },
+  "components.inbox.dialogs.draw": {
+    "text": "Draw",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <SegmentedControlItem>."
+  },
+  "components.inbox.dialogs.draw_your_signature": {
+    "text": "Draw your signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the label of <SignaturePad>."
+  },
+  "components.inbox.dialogs.email": {
+    "text": "Email",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <fieldset>."
+  },
+  "components.inbox.dialogs.everything_from": {
+    "text": "Everything from {{moduleName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <RadioGroupItem>. Filled in: {{moduleName}}."
+  },
+  "components.inbox.dialogs.from": {
+    "text": "{{area}} from {{moduleName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <RadioGroupItem>. Filled in: {{area}}, {{moduleName}}."
+  },
+  "components.inbox.dialogs.how_to_sign": {
+    "text": "How to sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the aria-label of <SegmentedControl>."
+  },
+  "components.inbox.dialogs.i_agree_this_is_my_signature": {
+    "text": "I agree this is my signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dialogs.i_dont_have_this_information": {
+    "text": "I don’t have this information",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <RadioGroupItem>."
+  },
+  "components.inbox.dialogs.inbox_too": {
+    "text": "Inbox, too",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <fieldset>."
+  },
+  "components.inbox.dialogs.it_leaves_your_to_do_gets": {
+    "text": "It leaves your To do. {{sender}} gets an update with your reason and can ask again or cancel it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the description of <Frame>. Filled in: {{sender}}."
+  },
+  "components.inbox.dialogs.mute": {
+    "text": "Mute",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the footer of <Button>."
+  },
+  "components.inbox.dialogs.mute_on": {
+    "text": "Mute on",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <legend>."
+  },
+  "components.inbox.dialogs.mute_updates_like_this": {
+    "text": "Mute updates like this?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the title of <Frame>."
+  },
+  "components.inbox.dialogs.note_for": {
+    "text": "Note for {{sender}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <FieldLabel>. Filled in: {{sender}}."
+  },
+  "components.inbox.dialogs.note_to_all": {
+    "text": "Note to all",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dialogs.note_to_both": {
+    "text": "Note to both",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.dialogs.optional": {
+    "text": "{{label}} (optional)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, NoteDialog: text inside <FieldLabel>. Filled in: {{label}}."
+  },
+  "components.inbox.dialogs.optional_2": {
+    "text": "Optional",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the placeholder of <Input>."
+  },
+  "components.inbox.dialogs.phone": {
+    "text": "Phone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: text inside <fieldset>."
+  },
+  "components.inbox.dialogs.requests": {
+    "text": "Requests",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the aria-label of <List>."
+  },
+  "components.inbox.dialogs.send_back": {
+    "text": "Send back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the footer of <Button>."
+  },
+  "components.inbox.dialogs.send_this_back_to": {
+    "text": "Send this back to {{sender}}?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the title of <Frame>. Filled in: {{sender}}."
+  },
+  "components.inbox.dialogs.sign": {
+    "text": "Sign",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the footer of <Button>."
+  },
+  "components.inbox.dialogs.something_else": {
+    "text": "Something else",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <RadioGroupItem>."
+  },
+  "components.inbox.dialogs.text": {
+    "text": "{{value}} {{documentName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the title of <Frame>. Filled in: {{value}}, {{documentName}}."
+  },
+  "components.inbox.dialogs.text_2": {
+    "text": "{{value}} {{n}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{value}}, {{n}}."
+  },
+  "components.inbox.dialogs.the_time_the_place_your_company": {
+    "text": "The time, the place your company works from and your name are recorded in the document’s history.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <p>."
+  },
+  "components.inbox.dialogs.this_doesnt_apply_to_me": {
+    "text": "This doesn’t apply to me",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <RadioGroupItem>."
+  },
+  "components.inbox.dialogs.time_off_requests": {
+    "text": "{{value}} {{n}} time-off requests?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{value}}, {{n}}."
+  },
+  "components.inbox.dialogs.type": {
+    "text": "Type",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <SegmentedControlItem>."
+  },
+  "components.inbox.dialogs.undo_in_settings_notifications": {
+    "text": "Undo in Settings › Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the footer of <span>."
+  },
+  "components.inbox.dialogs.what_to_mute": {
+    "text": "What to mute",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the aria-label of <RadioGroup>."
+  },
+  "components.inbox.dialogs.why": {
+    "text": "Why",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the aria-label of <RadioGroup>."
+  },
+  "components.inbox.dialogs.youll_still_find_them_in_done": {
+    "text": "You’ll still find them in Done. Tasks are never muted.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the description of <Frame>."
+  },
+  "components.inbox.dialogs.your_full_name": {
+    "text": "Your full name",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <FieldLabel>."
+  },
+  "components.inbox.format.day": {
+    "text": "{{shown}} day{{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{shown}}, {{value}}."
+  },
+  "components.inbox.format.decide_by": {
+    "text": "Decide by",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code."
+  },
+  "components.inbox.format.decide_by_tomorrow": {
+    "text": "Decide by tomorrow",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
+  },
+  "components.inbox.format.decide_today": {
+    "text": "Decide today",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
+  },
+  "components.inbox.format.due": {
+    "text": "Due",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code."
+  },
+  "components.inbox.format.due_today": {
+    "text": "Due today",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
+  },
+  "components.inbox.format.due_tomorrow": {
+    "text": "Due tomorrow",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
+  },
+  "components.inbox.format.overdue_day": {
+    "text": "Overdue {{value}} day{{value2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{value}}, {{value2}}."
+  },
+  "components.inbox.format.text": {
+    "text": "{{slice}} {{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{slice}}, {{value}}."
+  },
+  "components.inbox.format.text_2": {
+    "text": "{{shortDay}}, {{time}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{shortDay}}, {{time}}."
+  },
+  "components.inbox.format.text_3": {
+    "text": "{{word}} {{shortDay}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{word}}, {{shortDay}}."
+  },
+  "components.inbox.format.text_4": {
+    "text": "{{long}} – {{long2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{long}}, {{long2}}."
+  },
+  "components.inbox.format.text_5": {
+    "text": "{{moduleName}} › {{area}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{moduleName}}, {{area}}."
+  },
+  "components.inbox.format.to": {
+    "text": "{{name}} to {{name2}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{name}}, {{name2}}."
+  },
+  "components.inbox.home-card.my_requests": {
+    "text": "My requests",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, Cards: text inside <a>."
+  },
+  "components.inbox.home-card.new_tasks_from_every_module_appear": {
+    "text": "New tasks from every module appear here.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, Cards: the description of <EmptyState>."
+  },
+  "components.inbox.home-card.nothing_needs_you": {
+    "text": "Nothing needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, Cards: the title of <EmptyState>."
+  },
+  "components.inbox.home-card.open_inbox": {
+    "text": "Open Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, Cards: text inside <a>."
+  },
+  "components.inbox.home-card.to_do": {
+    "text": "To do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, HomeInbox: the label of <Skeleton>."
+  },
+  "components.inbox.home-card.waiting_on_others": {
+    "text": "Waiting on others",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/home-card.tsx, Cards: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.all_day_at_weekends": {
+    "text": "All day at weekends",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <FieldLabel>."
+  },
+  "components.inbox.notification-settings.always_in_your_inbox_choose_where": {
+    "text": "Always in your Inbox. Choose where else they reach you.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardDescription>."
+  },
+  "components.inbox.notification-settings.by_email": {
+    "text": "{{label}} by email",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the label of <EmailSelect>. Filled in: {{label}}."
+  },
+  "components.inbox.notification-settings.daily_digest": {
+    "text": "Daily digest",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.everything_from": {
+    "text": "Everything from {{moduleName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <ListItem>. Filled in: {{moduleName}}."
+  },
+  "components.inbox.notification-settings.everything_you_havent_opened_once_a": {
+    "text": "Everything you haven’t opened, once a day.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardDescription>."
+  },
+  "components.inbox.notification-settings.from": {
+    "text": "From",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <FieldLabel>."
+  },
+  "components.inbox.notification-settings.hold_phone_notifications": {
+    "text": "Hold phone notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <FieldLabel>."
+  },
+  "components.inbox.notification-settings.inbox": {
+    "text": "Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the trailing of <Badge>."
+  },
+  "components.inbox.notification-settings.muted": {
+    "text": "Muted",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.news_never_something_owed_switch_each": {
+    "text": "News, never something owed. Switch each kind on or off.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardDescription>."
+  },
+  "components.inbox.notification-settings.nothing_muted_mute_updates_from_any": {
+    "text": "Nothing muted. Mute updates from any update’s menu.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <p>."
+  },
+  "components.inbox.notification-settings.notifications": {
+    "text": "Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the breadcrumb of <BreadcrumbPage>."
+  },
+  "components.inbox.notification-settings.phone": {
+    "text": "Phone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the trailing of <FieldLabel>."
+  },
+  "components.inbox.notification-settings.quiet_hours": {
+    "text": "Quiet hours",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.saving": {
+    "text": "Saving",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the meta of <Badge>."
+  },
+  "components.inbox.notification-settings.sent_at": {
+    "text": "Sent at",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <FieldLabel>."
+  },
+  "components.inbox.notification-settings.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the breadcrumb of <BreadcrumbLink>."
+  },
+  "components.inbox.notification-settings.tasks": {
+    "text": "Tasks",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.tasks_due_today_still_come_through": {
+    "text": "Tasks due today still come through.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardDescription>."
+  },
+  "components.inbox.notification-settings.text": {
+    "text": "{{moduleName}} · {{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <ListItem>. Filled in: {{moduleName}}, {{value}}."
+  },
+  "components.inbox.notification-settings.that_did_not_save": {
+    "text": "That did not save",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: a \"title\" value."
+  },
+  "components.inbox.notification-settings.unmute": {
+    "text": "Unmute",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the trailing of <Button>."
+  },
+  "components.inbox.notification-settings.until": {
+    "text": "Until",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <FieldLabel>."
+  },
+  "components.inbox.notification-settings.updates": {
+    "text": "Updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.where_your_tasks_and_updates_reach": {
+    "text": "Where your tasks and updates reach you. The Inbox always has everything.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the description of <PageHeader>."
+  },
+  "components.inbox.rows.for": {
+    "text": "For {{role}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{role}}."
+  },
+  "components.inbox.rows.is_on_it": {
+    "text": "{{value}} is on it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{value}}."
+  },
+  "components.inbox.rows.new": {
+    "text": "New",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
+  "components.inbox.rows.repl": {
+    "text": "{{replies}} repl{{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{replies}}, {{value}}."
+  },
+  "components.inbox.rows.select": {
+    "text": "Select {{title}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, InboxRow: the aria-label of <Checkbox>. Filled in: {{title}}."
+  },
+  "components.inbox.rows.snoozed": {
+    "text": "Snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
+  "components.inbox.rows.text": {
+    "text": "{{moduleName}} › {{area}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{moduleName}}, {{area}}."
+  },
+  "components.inbox.rows.you_are_on_it": {
+    "text": "You are on it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
+  "components.inbox.screen.all_outcomes": {
+    "text": "All outcomes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <SelectItem>."
+  },
+  "components.inbox.screen.all_sources": {
+    "text": "All sources",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <SelectItem>."
+  },
+  "components.inbox.screen.approve": {
+    "text": "Approve {{length}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{length}}."
+  },
+  "components.inbox.screen.back_to": {
+    "text": "Back to {{LABEL}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the backLabel of <ListDetail>. Filled in: {{LABEL}}."
+  },
+  "components.inbox.screen.choose_something_from_the_list": {
+    "text": "Choose something from the list",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
+  "components.inbox.screen.decline": {
+    "text": "Decline",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.done": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <InboxRow>."
+  },
+  "components.inbox.screen.done_selecting": {
+    "text": "Done selecting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.finished_tasks_decided_requests_and_older": {
+    "text": "Finished tasks, decided requests and older updates stay here, for as long as your record does.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.hand_over": {
+    "text": "Hand over",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the actions of <Button>."
+  },
+  "components.inbox.screen.inbox": {
+    "text": "Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <TertiaryNav>."
+  },
+  "components.inbox.screen.it_opens_here": {
+    "text": "It opens here.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.mark_all_read": {
+    "text": "Mark all read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
+  },
+  "components.inbox.screen.mark_read": {
+    "text": "Mark read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.move_to_done": {
+    "text": "Move to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.new_tasks_appear_here_and_on": {
+    "text": "New tasks appear here and on the red number. You have {{updates}} unread update{{value}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{updates}}, {{value}}."
+  },
+  "components.inbox.screen.new_tasks_appear_here_and_on_2": {
+    "text": "New tasks appear here and on the red number.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.news_from_every_module_you_use": {
+    "text": "News from every module you use lands here. Nothing is owed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.nothing_in": {
+    "text": "Nothing in {{LABEL}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>. Filled in: {{LABEL}}."
+  },
+  "components.inbox.screen.nothing_matches": {
+    "text": "Nothing matches",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
+  "components.inbox.screen.nothing_needs_you": {
+    "text": "Nothing needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
+  "components.inbox.screen.notifications": {
+    "text": "Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the actions of <a>."
+  },
+  "components.inbox.screen.only_time_off_approvals_can_be": {
+    "text": "Only time-off approvals can be decided together",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>."
+  },
+  "components.inbox.screen.outcome": {
+    "text": "Outcome",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SelectTrigger>."
+  },
+  "components.inbox.screen.read": {
+    "text": "Read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <InboxRow>."
+  },
+  "components.inbox.screen.search": {
+    "text": "Search",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <SearchField>."
+  },
+  "components.inbox.screen.search_done": {
+    "text": "Search done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <SearchField>."
+  },
+  "components.inbox.screen.see_updates": {
+    "text": "See updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <a>."
+  },
+  "components.inbox.screen.select": {
+    "text": "Select",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.selected": {
+    "text": "{{length}} selected",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>. Filled in: {{length}}."
+  },
+  "components.inbox.screen.snoozed": {
+    "text": "{{length}} snoozed{{value}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{length}}, {{value}}."
+  },
+  "components.inbox.screen.source": {
+    "text": "Source",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SelectTrigger>."
+  },
+  "components.inbox.screen.the_team": {
+    "text": "the team",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: a \"team\" value."
+  },
+  "components.inbox.screen.try_another_search_or_source": {
+    "text": "Try another search or source.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.unread": {
+    "text": "Unread",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <InboxRow>."
+  },
+  "components.inbox.screen.up_to_of_people_in_would": {
+    "text": "Up to {{out}} of {{of}} people in {{team}} would be out at once.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{out}}, {{of}}, {{team}}."
+  },
+  "components.inbox.screen.what_you_ask_for_appears_here": {
+    "text": "What you ask for appears here until it is decided. Decided requests move to Done, and you get an update.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.kiosk-shell.hr_may_have_revoked_it_register": {
+    "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: text inside <Alert>."
+  },
+  "components.kiosk-shell.kiosk_token": {
+    "text": "Kiosk token",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: text inside <FieldLabel>."
+  },
+  "components.kiosk-shell.set_up_this_kiosk": {
+    "text": "Set up this kiosk",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: text inside <h1>."
+  },
+  "components.kiosk-shell.shown_once_to_hr_when_the": {
+    "text": "Shown once to HR when the kiosk was registered. It starts with kk_.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: text inside <FieldDescription>."
+  },
+  "components.kiosk-shell.start_the_kiosk": {
+    "text": "Start the kiosk",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: text inside <Button>."
+  },
+  "components.kiosk-shell.starting_the_kiosk": {
+    "text": "Starting the kiosk",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: the label of <Spinner>."
+  },
+  "components.kiosk-shell.this_kiosks_token_no_longer_works": {
+    "text": "This kiosk’s token no longer works",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/kiosk-shell.tsx, KioskShell: the title of <Alert>."
+  },
+  "components.passkey-sign-in.enter_the_work_address_you_were": {
+    "text": "Enter the work address you were invited with.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text built in code."
+  },
+  "components.passkey-sign-in.set_up_a_new_passkey": {
+    "text": "Set up a new passkey",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <a>."
+  },
+  "components.passkey-sign-in.sign_in_with_a_passkey": {
+    "text": "Sign in with a passkey",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <Button>."
+  },
+  "components.passkey-sign-in.that_did_not_work": {
+    "text": "That did not work",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: the title of <Alert>."
+  },
+  "components.passkey-sign-in.the_address_your_hr_team_invited": {
+    "text": "The address your HR team invited you with.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <FieldDescription>."
+  },
+  "components.passkey-sign-in.use_the_passkey_you_set_up": {
+    "text": "Use the passkey you set up for this company. If you have not set one up yet, use the link your HR team sent you.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <Alert>."
+  },
+  "components.passkey-sign-in.waiting_for_your_device": {
+    "text": "Waiting for your device…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <Button>."
+  },
+  "components.passkey-sign-in.work_email_address": {
+    "text": "Work email address",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <FieldLabel>."
+  },
+  "components.people-nav.fields_and_roles_are_in": {
+    "text": "Fields and roles are in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSections: the footer of <span>."
+  },
+  "components.people-nav.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSections: text built in code."
+  },
+  "components.people-nav.people_sections": {
+    "text": "People sections",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSubnav: text built in code."
+  },
+  "components.people-nav.search_people": {
+    "text": "Search people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the label of <SearchField>."
+  },
+  "components.people-nav.search_people_2": {
+    "text": "Search {{toLocaleString}} people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the placeholder of <SearchField>. Filled in: {{toLocaleString}}."
+  },
+  "components.people-nav.sections": {
+    "text": "{{title}} sections",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSections: the label of <Nav>. Filled in: {{title}}."
+  },
+  "components.people-nav.settings_people": {
+    "text": "Settings › People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSections: the footer of <Link>."
+  },
+  "components.people-nav.waiting": {
+    "text": "waiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, Count: text inside <span>."
+  },
+  "components.people-nav.waiting_for_you": {
+    "text": "{{n}} waiting for you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: text inside <span>. Filled in: {{n}}."
+  },
+  "components.people-nav.your_own_profile_is_in_the": {
+    "text": "Your own profile is in the Me tab.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: text inside <p>."
+  },
+  "components.people-screen.a_schedule_takes_a_saved_view": {
+    "text": "A schedule takes a saved view or simple filters. Save this group as a view in the Directory first.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.people-screen.already_in_documents": {
+    "text": "Already in Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"label\" value."
+  },
+  "components.people-screen.choose_the_file_again": {
+    "text": "Choose the file again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.people-screen.importing": {
+    "text": "Importing",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"label\" value."
+  },
+  "components.people-screen.is_connected_choose_below_what_it": {
+    "text": "{{search}} is connected. Choose below what it sends.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value. Filled in: {{search}}."
+  },
+  "components.people-screen.kept_confidential_to_hr_in_documents": {
+    "text": "Kept Confidential to HR in Documents, and deleted after 90 days.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"description\" value."
+  },
+  "components.people-screen.save_to_documents": {
+    "text": "Save to Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"label\" value."
+  },
+  "components.people-screen.setting_up_the_fields": {
+    "text": "Setting up the fields",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"step\" value."
+  },
+  "components.people-screen.that_document_could_not_be_opened": {
+    "text": "That document could not be opened",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.people-screen.that_file_could_not_be_read": {
+    "text": "That file could not be read.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx: a \"message\" value."
+  },
+  "components.people-screen.the_pdf_could_not_be_made": {
+    "text": "The PDF could not be made",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.remote-screen.is_unavailable": {
+    "text": "{{area}} is unavailable",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/remote-screen.tsx, Unavailable: the title of <Alert>. Filled in: {{area}}."
+  },
+  "components.remote-screen.loading": {
+    "text": "Loading {{area}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/remote-screen.tsx, RemoteScreen: the label of <Spinner>. Filled in: {{area}}."
+  },
+  "components.remote-screen.this_part_of_the_app_could": {
+    "text": "This part of the app could not be loaded. The rest still works; try again in a minute.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/remote-screen.tsx, Unavailable: text inside <Alert>."
+  },
+  "components.request-setup-link.check_your_email": {
+    "text": "Check your email",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: the title of <Alert>."
+  },
+  "components.request-setup-link.email_me_a_setup_link": {
+    "text": "Email me a setup link",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <Button>."
+  },
+  "components.request-setup-link.enter_the_work_address_your_account": {
+    "text": "Enter the work address your account uses.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text built in code."
+  },
+  "components.request-setup-link.if_that_address_has_an_account": {
+    "text": "If that address has an account, a link is on its way. It works once and expires, so use it on the device you want to sign in with from now on.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <Alert>."
+  },
+  "components.request-setup-link.sending": {
+    "text": "Sending…",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <Button>."
+  },
+  "components.request-setup-link.that_could_not_be_sent": {
+    "text": "That could not be sent",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: the title of <Alert>."
+  },
+  "components.request-setup-link.the_address_your_hr_team_set": {
+    "text": "The address your HR team set your account up with.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <FieldDescription>."
+  },
+  "components.request-setup-link.try_again_in_a_moment_or": {
+    "text": "Try again in a moment, or ask your HR team to send you a new link.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <Alert>."
+  },
+  "components.request-setup-link.work_email_address": {
+    "text": "Work email address",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <FieldLabel>."
+  },
+  "components.settings-index.find_a_setting": {
+    "text": "Find a setting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the label of <SearchField>."
+  },
+  "components.settings-index.find_a_setting_like_numbering_or": {
+    "text": "Find a setting, like “numbering” or “Slack”",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the placeholder of <SearchField>."
+  },
+  "components.settings-index.how_your_companys_workspace_works_open": {
+    "text": "How your company’s workspace works. Open a setting to see it in full and change it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the description of <PageHeader>."
+  },
+  "components.settings-index.no_setting_matches": {
+    "text": "No setting matches “{{query}}”",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the title of <EmptyState>. Filled in: {{query}}."
+  },
+  "components.settings-index.nothing_here_for_you_to_change": {
+    "text": "Nothing here for you to change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the title of <EmptyState>."
+  },
+  "components.settings-index.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the title of <PageHeader>."
+  },
+  "components.settings-index.settings_are_for_your_companys_administrators": {
+    "text": "Settings are for your company’s administrators and HR. Ask one of them if something needs changing.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the description of <EmptyState>."
+  },
+  "components.settings-index.settings_areas": {
+    "text": "Settings areas",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the label of <TertiaryNav>."
+  },
+  "components.settings-index.try_another_word_or_browse_the": {
+    "text": "Try another word, or browse the areas on the left.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the description of <EmptyState>."
+  },
+  "components.shortcut-settings.always_this_key": {
+    "text": "Always this key",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: text inside <span>."
+  },
+  "components.shortcut-settings.keyboard_shortcuts": {
+    "text": "Keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: the breadcrumb of <BreadcrumbPage>."
+  },
+  "components.shortcut-settings.keys_without_or_ctrl_like_g": {
+    "text": "Keys without ⌘ or Ctrl, like G then D or /. Turn them off if they get in the way of a screen reader or speech input.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: text inside <FieldDescription>."
+  },
+  "components.shortcut-settings.not_in_your_workspace_there_is": {
+    "text": "Not in your workspace: there is no {{label}} for you to open yet.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: text inside <FieldDescription>. Filled in: {{label}}."
+  },
+  "components.shortcut-settings.press_a_shortcut_to_record_new": {
+    "text": "Press a shortcut to record new keys for it: one key, or two in a row. Yours alone, and they follow you to any device you sign in on.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: the description of <PageHeader>."
+  },
+  "components.shortcut-settings.reset": {
+    "text": "Reset",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: text inside <Button>."
+  },
+  "components.shortcut-settings.reset_2": {
+    "text": "Reset {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: the aria-label of <Button>. Filled in: {{label}}."
+  },
+  "components.shortcut-settings.reset_all_to_the_defaults": {
+    "text": "Reset all to the defaults",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: the actions of <Button>."
+  },
+  "components.shortcut-settings.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: the breadcrumb of <BreadcrumbLink>."
+  },
+  "components.shortcut-settings.single_key_shortcuts": {
+    "text": "Single-key shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcut-settings.tsx, ShortcutSettings: text inside <FieldLabel>."
+  },
+  "components.shortcuts.change_shortcuts": {
+    "text": "Change shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the footer of <Link>."
+  },
+  "components.shortcuts.press_g_then_a_letter_to": {
+    "text": "Press G, then a letter, to go somewhere. Not while you are typing in a field.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
+  },
+  "components.shortcuts.single_key_shortcuts": {
+    "text": "Single-key shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the footer of <FieldLabel>."
+  },
+  "components.shortcuts.single_key_shortcuts_are_off_those": {
+    "text": "Single-key shortcuts are off. Those with ⌘ or Ctrl still work.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/shortcuts.tsx, ShortcutsHelp: the description of <ShortcutsDialog>."
+  },
+  "components.signature-settings.add_a_field_of_the_type": {
+    "text": "Add a field of the type “A signature” in Settings › Employee fields, and choose when people are asked for it: at sign-up, during onboarding, or any time.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <Alert>."
+  },
+  "components.signature-settings.not_saved": {
+    "text": "Not saved",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the title of <Alert>."
+  },
+  "components.signature-settings.saving": {
+    "text": "Saving",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the meta of <Badge>."
+  },
+  "components.signature-settings.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the breadcrumb of <BreadcrumbLink>."
+  },
+  "components.signature-settings.the_signature_your_documents_are_signed": {
+    "text": "The signature your documents are signed with. It is changed here, never while signing.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the description of <PageHeader>."
+  },
+  "components.signature-settings.typed_in_a_handwriting_style_or": {
+    "text": "Typed in a handwriting style, or drawn. Every box you sign takes it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <CardDescription>."
+  },
+  "components.signature-settings.waiting_for_hr": {
+    "text": "Waiting for HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the title of <Alert>."
+  },
+  "components.signature-settings.you_adopt_one_each_time_you": {
+    "text": "You adopt one each time you sign a document.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <Alert>."
+  },
+  "components.signature-settings.your_company_keeps_no_signature_on": {
+    "text": "Your company keeps no signature on file",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the title of <Alert>."
+  },
+  "components.signature-settings.your_new_signature_is_used_once": {
+    "text": "Your new signature is used once HR approves it; until then you sign with the one shown.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <Alert>."
+  },
+  "components.signature-settings.your_signature": {
+    "text": "Your signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the breadcrumb of <BreadcrumbPage>."
+  },
+  "components.since.h": {
+    "text": "{{hours}}h",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/since.ts: text built in code. Filled in: {{hours}}."
+  },
+  "components.since.m": {
+    "text": "{{max}}m",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/since.ts: text built in code. Filled in: {{max}}."
+  },
+  "components.since.yesterday": {
+    "text": "Yesterday",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/since.ts: text built in code."
+  },
+  "components.timeoff-screen.from_documents": {
+    "text": "From Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/timeoff-screen.tsx, TimeOffScreen: a \"label\" value."
+  },
+  "components.waking.is_ready": {
+    "text": "{{area}} is ready",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: text inside <p>. Filled in: {{area}}."
+  },
+  "components.waking.it_may_still_be_starting_try": {
+    "text": "It may still be starting. Try again, and if it stays like this, ask whoever runs your Kithena workspace.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: text inside <Alert>."
+  },
+  "components.waking.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, WakingHeader: a \"label\" value."
+  },
+  "components.waking.tabs": {
+    "text": "{{value}} tabs",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, WakingHeader: the label of <TertiaryNav>. Filled in: {{value}}."
+  },
+  "components.waking.text": {
+    "text": "{{section}}: {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, WakingHeader: the breadcrumb of <BreadcrumbPage>. Filled in: {{section}}, {{label}}."
+  },
+  "components.waking.the_server_sleeps_when_nobody_is": {
+    "text": "The server sleeps when nobody is using it, to keep costs down. This page appears by itself when it is ready.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the description of <EmptyState>."
+  },
+  "components.waking.this_is_taking_longer_than_usual": {
+    "text": "This is taking longer than usual",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the title of <Alert>."
+  },
+  "components.waking.try_again": {
+    "text": "Try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the action of <Button>."
+  },
+  "components.waking.waiting": {
+    "text": "Waiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the description of <span>."
+  },
+  "components.waking.waking_up_usually_under_a_minute": {
+    "text": "Waking up {{area}}, usually under a minute",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the title of <EmptyState>. Filled in: {{area}}."
+  }
+}

@@ -7,6 +7,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { safeImageUrl } from '../../lib/safe-url';
+import { t } from '../../lib/i18n';
 
 // Not `overflow-hidden`: the status dot sits across the edge. The image and
 // the fallback take the radius themselves instead.
@@ -231,7 +232,9 @@ export function AvatarGroup({
           )}
         >
           <span aria-hidden="true">+{overflow}</span>
-          <span className="sr-only">and {overflow} more</span>
+          <span className="sr-only">
+            {t('components.avatar.avatar.and_more', 'and {{overflow}} more', { overflow })}
+          </span>
         </span>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 import { TimelineChart, type TimelineEntry, type TimelineMove, type TimelineRow } from '@reach/ui';
 import type { JSX } from 'react';
+import { t } from '../i18n';
 
 /**
  * What the parental screens share (T8–T11, MT11, MT12): the plan's shape as
@@ -88,7 +89,10 @@ export const longDate = (date: string): string =>
   format({ day: 'numeric', month: 'short', year: 'numeric' }).format(asDate(date));
 /** "Thu 14 Jan 2027" */
 export const dayDate = (date: string): string =>
-  `${format({ weekday: 'short', day: 'numeric', month: 'short' }).format(asDate(date))} ${date.slice(0, 4)}`;
+  t('parental.shared.text', '{{format}} {{slice}}', {
+    format: format({ weekday: 'short', day: 'numeric', month: 'short' }).format(asDate(date)),
+    slice: date.slice(0, 4),
+  });
 /** "14 Jan" */
 export const shortDate = (date: string): string =>
   format({ day: 'numeric', month: 'short' }).format(asDate(date));
@@ -98,29 +102,36 @@ export function spanLabel(from: string, to: string): string {
   if (from === to) return shortDate(from);
   return from.slice(0, 7) === to.slice(0, 7)
     ? `${format({ day: 'numeric' }).format(asDate(from))}–${shortDate(to)}`
-    : `${shortDate(from)} – ${shortDate(to)}`;
+    : t('parental.shared.text_2', '{{from}} – {{to}}', {
+        from: shortDate(from),
+        to: shortDate(to),
+      });
 }
 /** "6 weeks", "4 days" */
 export function duration(from: string, to: string): string {
   const days = length(from, to);
-  if (days % 7 === 0) return days === 7 ? '1 week' : `${String(days / 7)} weeks`;
-  return days === 1 ? '1 day' : `${String(days)} days`;
+  if (days % 7 === 0)
+    return days === 7
+      ? '1 week'
+      : t('parental.shared.weeks', '{{value}} weeks', { value: String(days / 7) });
+  return days === 1 ? '1 day' : t('parental.shared.days', '{{days}} days', { days: String(days) });
 }
-export const weeks = (n: number): string => (n === 1 ? '1 week' : `${String(n)} weeks`);
+export const weeks = (n: number): string =>
+  n === 1 ? '1 week' : t('parental.shared.weeks_2', '{{n}} weeks', { n: String(n) });
 
 /* -------------------------------------------------------------- words -- */
 
 export const PAYER: Record<string, string> = {
-  social_security: 'Social Security',
-  employer: 'Your company',
+  social_security: t('parental.shared.social_security', 'Social Security'),
+  employer: t('parental.shared.your_company', 'Your company'),
 };
 
 export const LANE: Record<BlockKind, string> = {
-  mandatory: 'Mandatory',
-  flexible: 'Flexible',
-  vacation: 'Vacation',
-  company: 'Company weeks',
-  later: 'Later weeks',
+  mandatory: t('parental.shared.mandatory', 'Mandatory'),
+  flexible: t('parental.shared.flexible', 'Flexible'),
+  vacation: t('parental.shared.vacation', 'Vacation'),
+  company: t('parental.shared.company_weeks', 'Company weeks'),
+  later: t('parental.shared.later_weeks', 'Later weeks'),
 };
 
 const TONE: Record<BlockKind, NonNullable<TimelineEntry['tone']>> = {
@@ -181,7 +192,10 @@ export function PlanTrack({
       .filter(({ b }) => b.kind === kind)
       .map(({ b, i }) => ({
         id: String(i),
-        label: `${duration(b.from, b.to)} · ${spanLabel(b.from, b.to)}`,
+        label: t('parental.shared.text_3', '{{from}} · {{spanLabel}}', {
+          from: duration(b.from, b.to),
+          spanLabel: spanLabel(b.from, b.to),
+        }),
         start: b.from,
         end: b.to,
         tone: TONE[kind],
@@ -216,16 +230,28 @@ export function PlanTrack({
       date: plan.childDate,
       label:
         plan.birth === null
-          ? `Due ${shortDate(plan.childDate)}`
-          : `Born ${shortDate(plan.childDate)}`,
+          ? t('parental.shared.due', 'Due {{childDate}}', { childDate: shortDate(plan.childDate) })
+          : t('parental.shared.born', 'Born {{childDate}}', {
+              childDate: shortDate(plan.childDate),
+            }),
     },
-    ...(back === null ? [] : [{ date: back, label: `Back ${shortDate(back)}` }]),
-    { date: addDays(e.flexibleBefore, -1), label: 'Flexible weeks end' },
+    ...(back === null
+      ? []
+      : [
+          {
+            date: back,
+            label: t('parental.shared.back', 'Back {{back}}', { back: shortDate(back) }),
+          },
+        ]),
+    {
+      date: addDays(e.flexibleBefore, -1),
+      label: t('parental.shared.flexible_weeks_end', 'Flexible weeks end'),
+    },
   ];
   return (
     <TimelineChart
       variant="track"
-      label="Your plan"
+      label={t('parental.shared.your_plan', 'Your plan')}
       rows={rows}
       domain={domain}
       snapDays={7}

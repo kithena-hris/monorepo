@@ -1,4 +1,5 @@
 import { addDays, parseIsoDate, type IsoDate } from '../calendar/calendar';
+import { t } from '../../lib/i18n';
 
 /**
  * The scheduler's arithmetic, apart from React so it can be tested as data.
@@ -108,6 +109,12 @@ export function dayColumns(from: IsoDate, count: number, locale?: string): DayCo
     const at = parseIsoDate(id);
     const short = weekday.format(at);
     const date = day.format(at);
-    return { id, label: `${short} ${date}`, weekday: short, day: date, fullLabel: full.format(at) };
+    return {
+      id,
+      label: t('components.scheduler.scheduler-model.text', '{{short}} {{date}}', { short, date }),
+      weekday: short,
+      day: date,
+      fullLabel: full.format(at),
+    };
   });
 }

@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
 import { useCoarsePointer } from '../../lib/use-media-query';
+import { t } from '../../lib/i18n';
 
 /**
  * Where this record sits, and how to get back up.
@@ -55,7 +56,13 @@ import { useCoarsePointer } from '../../lib/use-media-query';
  */
 
 export function Breadcrumb({ className, ...props }: ComponentPropsWithoutRef<'nav'>): JSX.Element {
-  return <nav aria-label="Breadcrumb" className={cn('@container min-w-0', className)} {...props} />;
+  return (
+    <nav
+      aria-label={t('components.breadcrumb.breadcrumb.breadcrumb', 'Breadcrumb')}
+      className={cn('@container min-w-0', className)}
+      {...props}
+    />
+  );
 }
 
 export function BreadcrumbList({
@@ -182,7 +189,9 @@ export function BreadcrumbEllipsis({
       {...props}
     >
       {children ?? <Ellipsis className="size-4" aria-hidden />}
-      <span className="sr-only">Collapsed levels</span>
+      <span className="sr-only">
+        {t('components.breadcrumb.breadcrumb.collapsed_levels', 'Collapsed levels')}
+      </span>
     </span>
   );
 }
@@ -325,7 +334,10 @@ export function BreadcrumbMenu({
     <button
       type="button"
       aria-current={current ? 'page' : undefined}
-      aria-label={`${label}, ${menuLabel}`}
+      aria-label={t('components.breadcrumb.breadcrumb.text', '{{label}}, {{menuLabel}}', {
+        label,
+        menuLabel,
+      })}
       className={cn(
         'relative tap-target inline-flex items-center gap-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-border-focus',
         variant === 'title'
@@ -361,8 +373,10 @@ export function BreadcrumbMenu({
             <input
               type="search"
               value={query}
-              aria-label={`Filter ${menuLabel.toLowerCase()}`}
-              placeholder="Filter"
+              aria-label={t('components.breadcrumb.breadcrumb.filter', 'Filter {{menuLabel}}', {
+                menuLabel: menuLabel.toLowerCase(),
+              })}
+              placeholder={t('components.breadcrumb.breadcrumb.filter_2', 'Filter')}
               onChange={(event) => {
                 setQuery(event.target.value);
               }}
@@ -385,7 +399,9 @@ export function BreadcrumbMenu({
           </div>
         ) : null}
         {shown.length === 0 ? (
-          <p className="px-2.5 py-2 text-sm text-fg-muted">Nothing matches.</p>
+          <p className="px-2.5 py-2 text-sm text-fg-muted">
+            {t('components.breadcrumb.breadcrumb.nothing_matches', 'Nothing matches.')}
+          </p>
         ) : null}
         {shown.map((group, index) => (
           <Fragment key={group.label}>

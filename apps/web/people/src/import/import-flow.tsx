@@ -60,6 +60,7 @@ import {
   type ColumnProposal,
   type NewFieldsView,
 } from './new-fields';
+import { t } from '../i18n';
 
 export interface ImportFile {
   readonly name: string;
@@ -194,9 +195,9 @@ export interface ImportFlowProps {
 }
 
 const STEPS = [
-  { id: 'map', label: 'Upload and map' },
-  { id: 'decide', label: 'Decide what’s new' },
-  { id: 'plan', label: 'Approve and run' },
+  { id: 'map', label: t('import.import-flow.upload_and_map', 'Upload and map') },
+  { id: 'decide', label: t('import.import-flow.decide_whats_new', 'Decide what’s new') },
+  { id: 'plan', label: t('import.import-flow.approve_and_run', 'Approve and run') },
 ] as const;
 
 const IGNORE = '__ignore';
@@ -232,7 +233,10 @@ const NO_FILE: Extract<ImportStage, { step: 'map' }> = {
 
 function Header({
   current,
-  description = 'Nothing is written until you approve the plan.',
+  description = t(
+    'import.import-flow.nothing_is_written_until_you_approve',
+    'Nothing is written until you approve the plan.',
+  ),
   actions,
   phoneBar,
 }: {
@@ -250,17 +254,23 @@ function Header({
   return (
     <>
       <PageHeader
-        title={bar === null ? 'Import' : <span className="sr-only">Import</span>}
+        title={
+          bar === null ? (
+            t('import.import-flow.import', 'Import')
+          ) : (
+            <span className="sr-only">{t('import.import-flow.import', 'Import')}</span>
+          )
+        }
         {...(bar === null
           ? { description }
           : {
               breadcrumb: (
                 <nav
-                  aria-label="Back"
+                  aria-label={t('import.import-flow.back', 'Back')}
                   className="-mt-1 grid min-h-12 grid-cols-[6rem_minmax(0,1fr)_6rem] items-center gap-2"
                 >
                   <AppBarBack className="justify-self-start" onClick={bar.onBack}>
-                    Import
+                    {t('import.import-flow.import', 'Import')}
                   </AppBarBack>
                   <span className="truncate text-center text-md font-semibold">{bar.title}</span>
                   <span />
@@ -270,7 +280,11 @@ function Header({
         {...(actions === null || actions === undefined ? {} : { actions })}
       />
       <div className={bar === null ? 'max-w-245' : 'hidden'}>
-        <Stepper label="Importing people" steps={STEPS} current={current} />
+        <Stepper
+          label={t('import.import-flow.importing_people', 'Importing people')}
+          steps={STEPS}
+          current={current}
+        />
       </div>
     </>
   );
@@ -292,8 +306,14 @@ function Upload({ onUpload }: { readonly onUpload: ImportFlowProps['onUpload'] }
   };
   return (
     <FileUploader
-      label="Drop a spreadsheet, or choose one"
-      hint="CSV or Excel, up to 50,000 rows or 100 MB. A file exported from here imports back without mapping."
+      label={t(
+        'import.import-flow.drop_a_spreadsheet_or_choose_one',
+        'Drop a spreadsheet, or choose one',
+      )}
+      hint={t(
+        'import.import-flow.csv_or_excel_up_to_50',
+        'CSV or Excel, up to 50,000 rows or 100 MB. A file exported from here imports back without mapping.',
+      )}
       accept={['.csv', '.tsv', '.xlsx']}
       maxSize={MAX_IMPORT_BYTES}
       maxFiles={1}
@@ -351,7 +371,7 @@ function Kept({
                     });
                   }}
                 >
-                  Import
+                  {t('import.import-flow.import', 'Import')}
                 </Button>
               }
             >
@@ -369,17 +389,20 @@ function confidence(column: ProposedColumn): JSX.Element | string {
   if (column.status === 'refused')
     return (
       <Badge tone="danger" size="sm">
-        Refused
+        {t('import.import-flow.refused', 'Refused')}
       </Badge>
     );
-  if (column.source === 'system') return column.reason === null ? 'Exact' : '—';
-  if (column.source === 'key' || column.source === 'label') return 'Exact';
-  if (column.source === 'alias') return 'Usual name';
-  if (column.source === 'manual') return 'You chose';
+  if (column.source === 'system')
+    return column.reason === null ? t('import.import-flow.exact', 'Exact') : '—';
+  if (column.source === 'key' || column.source === 'label')
+    return t('import.import-flow.exact', 'Exact');
+  if (column.source === 'alias') return t('import.import-flow.usual_name', 'Usual name');
+  if (column.source === 'manual') return t('import.import-flow.you_chose', 'You chose');
   if (column.confidence === null) return '—';
   return column.status === 'review' ? (
     <Badge tone="warning" size="sm">
-      {column.confidence.toFixed(2)}, check this
+      {column.confidence.toFixed(2)}
+      {t('import.import-flow.check_this', ', check this')}
     </Badge>
   ) : (
     column.confidence.toFixed(2)
@@ -573,7 +596,9 @@ function Steps({
   const addsNote = (c: ProposedColumn): string | null =>
     c.adds == null || c.adds.length === 0 || chosen(c) !== c.key
       ? null
-      : `Adds ${c.adds.join(', ')} to the list`;
+      : t('import.import-flow.adds_to_the_list', 'Adds {{join}} to the list', {
+          join: c.adds.join(', '),
+        });
 
   const columns: DataColumn<ProposedColumn>[] = [
     { id: 'header', header: 'In your file', cell: (c) => c.header },
@@ -600,7 +625,9 @@ function Steps({
               }}
             >
               <SelectTrigger
-                aria-label={`${c.header} goes to`}
+                aria-label={t('import.import-flow.goes_to', '{{header}} goes to', {
+                  header: c.header,
+                })}
                 aria-describedby={
                   addsNote(c) === null ? undefined : `${whyId}-adds-${String(c.index)}`
                 }
@@ -651,11 +678,11 @@ function Steps({
     refused === null ? null : (
       <Alert
         tone="danger"
-        title="That did not go through"
+        title={t('import.import-flow.that_did_not_go_through', 'That did not go through')}
         action={
           refusedLink === null ? undefined : (
             <Button asChild size="sm">
-              <a href={refusedLink}>See the import</a>
+              <a href={refusedLink}>{t('import.import-flow.see_the_import', 'See the import')}</a>
             </Button>
           )
         }
@@ -671,8 +698,12 @@ function Steps({
   const placesHint =
     placesMissing.length === 0 ? null : (
       <p id={`${whyId}-places`} role="status" className="text-sm text-warning-fg">
-        Give {placesMissing.map((w) => `“${w.value}”`).join(', ')} a name, a country and a time
-        zone, or leave {placesMissing.length === 1 ? 'it' : 'them'} empty.
+        {t('import.import-flow.give', 'Give')} {placesMissing.map((w) => `“${w.value}”`).join(', ')}{' '}
+        {t(
+          'import.import-flow.a_name_a_country_and_a',
+          'a name, a country and a time zone, or leave',
+        )}{' '}
+        {placesMissing.length === 1 ? 'it' : 'them'} {t('import.import-flow.empty', 'empty.')}
       </p>
     );
 
@@ -680,10 +711,12 @@ function Steps({
   const cancel =
     props.onDone === undefined ? null : (
       <Button variant="ghost" size="sm" onClick={props.onDone}>
-        Cancel import
+        {t('import.import-flow.cancel_import', 'Cancel import')}
       </Button>
     );
-  const backButton = (onClick: () => void): JSX.Element => <Button onClick={onClick}>Back</Button>;
+  const backButton = (onClick: () => void): JSX.Element => (
+    <Button onClick={onClick}>{t('import.import-flow.back', 'Back')}</Button>
+  );
   const toDecide = (
     <Button
       variant="primary"
@@ -691,10 +724,16 @@ function Steps({
       disabled={undecided.length > 0}
       aria-describedby={undecided.length > 0 ? `${whyId}-map` : undefined}
       loading={busy}
-      loadingLabel={mapsPlaces || unplaced ? 'Reading what’s new' : 'Checking every row'}
+      loadingLabel={
+        mapsPlaces || unplaced
+          ? t('import.import-flow.reading_whats_new', 'Reading what’s new')
+          : t('import.import-flow.checking_every_row', 'Checking every row')
+      }
       onClick={next}
     >
-      {coarse ? 'Next' : 'Next: decide what’s new'}
+      {coarse
+        ? t('import.import-flow.next', 'Next')
+        : t('import.import-flow.next_decide_whats_new', 'Next: decide what’s new')}
     </Button>
   );
   const toReview = (
@@ -704,12 +743,12 @@ function Steps({
       disabled={!placesDone}
       aria-describedby={placesMissing.length === 0 ? undefined : `${whyId}-places`}
       loading={busy}
-      loadingLabel="Checking every row"
+      loadingLabel={t('import.import-flow.checking_every_row', 'Checking every row')}
       onClick={() => {
         void toPlan(proposals);
       }}
     >
-      Next: review the plan
+      {t('import.import-flow.next_review_the_plan', 'Next: review the plan')}
     </Button>
   );
 
@@ -731,15 +770,21 @@ function Steps({
             ? {}
             : {
                 description: isRunning(run)
-                  ? 'Approved. Kithena is importing the file.'
+                  ? t(
+                      'import.import-flow.approved_kithena_is_importing_the_file',
+                      'Approved. Kithena is importing the file.',
+                    )
                   : run.status === 'failed'
-                    ? 'The import stopped before it finished.'
-                    : 'Approved and imported.',
+                    ? t(
+                        'import.import-flow.the_import_stopped_before_it_finished',
+                        'The import stopped before it finished.',
+                      )
+                    : t('import.import-flow.approved_and_imported', 'Approved and imported.'),
               })}
           actions={
             done !== null && props.onDone !== undefined ? (
               <Button variant="secondary" onClick={props.onDone}>
-                Done
+                {t('import.import-flow.done', 'Done')}
               </Button>
             ) : given.step === 'upload' ? (
               cancel
@@ -749,8 +794,14 @@ function Steps({
         {given.step === 'upload' ? (
           running !== null ? (
             <div className="flex flex-col gap-3">
-              <Alert tone="info" title="An import is running">
-                Only one import runs at a time. This file can be imported once it has finished.
+              <Alert
+                tone="info"
+                title={t('import.import-flow.an_import_is_running', 'An import is running')}
+              >
+                {t(
+                  'import.import-flow.only_one_import_runs_at_a',
+                  'Only one import runs at a time. This file can be imported once it has finished.',
+                )}
               </Alert>
               <ImportBusy id={busyId} run={running} />
             </div>
@@ -760,10 +811,17 @@ function Steps({
               {props.kept === undefined ? null : <Kept kept={props.kept} />}
             </>
           ) : (
-            <Alert tone="info" title="An administrator imports the first file">
-              Nothing is set up yet. A People administrator imports the first file: approving its
-              plan sets up the employee record, with the fields the law requires and the new ones
-              your file brings. Then HR imports here.
+            <Alert
+              tone="info"
+              title={t(
+                'import.import-flow.an_administrator_imports_the_first_file',
+                'An administrator imports the first file',
+              )}
+            >
+              {t(
+                'import.import-flow.nothing_is_set_up_yet_a',
+                'Nothing is set up yet. A People administrator imports the first file: approving its plan sets up the employee record, with the fields the law requires and the new ones your file brings. Then HR imports here.',
+              )}
             </Alert>
           )
         ) : done !== null ? (
@@ -773,36 +831,48 @@ function Steps({
         ) : run !== null && run.status === 'failed' ? (
           <Alert
             tone="danger"
-            title="Import failed"
+            title={t('import.import-flow.import_failed', 'Import failed')}
             className="max-w-180"
             action={
               <div className="flex flex-wrap gap-2">
                 <Button asChild size="sm">
-                  <a href="/people/import">Start again</a>
+                  <a href="/people/import">{t('import.import-flow.start_again', 'Start again')}</a>
                 </Button>
                 <Button asChild size="sm" variant="ghost">
-                  <a href="/people/import-export">Import & export</a>
+                  <a href="/people/import-export">
+                    {t('import.import-flow.import_export', 'Import & export')}
+                  </a>
                 </Button>
               </div>
             }
           >
-            {run.failure ?? 'The import stopped before it finished.'}
+            {run.failure ??
+              t(
+                'import.import-flow.the_import_stopped_before_it_finished',
+                'The import stopped before it finished.',
+              )}
           </Alert>
         ) : (
           // Imported longer ago than its report is kept: what it did, in a line.
           <Alert
             tone="success"
-            title="Imported"
+            title={t('import.import-flow.imported', 'Imported')}
             className="max-w-180"
             action={
               <Button asChild size="sm">
-                <a href="/people/import-export">Import & export</a>
+                <a href="/people/import-export">
+                  {t('import.import-flow.import_export', 'Import & export')}
+                </a>
               </Button>
             }
           >
-            Imported {(run?.people.done ?? 0).toLocaleString('en-GB')}{' '}
-            {run?.people.done === 1 ? 'person' : 'people'}. Its full report is kept for a week after
-            it finishes.
+            {t('import.import-flow.imported', 'Imported')}{' '}
+            {(run?.people.done ?? 0).toLocaleString('en-GB')}{' '}
+            {run?.people.done === 1 ? 'person' : 'people'}
+            {t(
+              'import.import-flow.its_full_report_is_kept_for',
+              '. Its full report is kept for a week after it finishes.',
+            )}
           </Alert>
         )}
       </Stack>
@@ -835,7 +905,7 @@ function Steps({
                 goTo(view === null && !hasPlaces ? 'map' : 'decide');
               }}
             >
-              Change something
+              {t('import.import-flow.change_something', 'Change something')}
             </Button>
           ) : coarse ? null : (
             cancel
@@ -844,14 +914,17 @@ function Steps({
         phoneBar={
           phoneCards && proposals.length > 0
             ? {
-                title: `New fields · ${String(Math.min(card + 1, proposals.length))} of ${String(proposals.length)}`,
+                title: t('import.import-flow.new_fields_of', 'New fields · {{min}} of {{length}}', {
+                  min: String(Math.min(card + 1, proposals.length)),
+                  length: String(proposals.length),
+                }),
                 onBack: () => {
                   goTo('map');
                 },
               }
             : coarse && step === 'review'
               ? {
-                  title: 'Review plan',
+                  title: t('import.import-flow.review_plan', 'Review plan'),
                   onBack: () => {
                     goTo(view === null && !hasPlaces ? 'map' : 'decide');
                   },
@@ -867,12 +940,15 @@ function Steps({
             const mappingBody = (
               <Stack gap={3}>
                 <p className="text-sm text-fg-muted">
-                  {stage.file.name} · {stage.file.rows.toLocaleString('en-GB')} rows
-                  {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped} of{' '}
-                  {stage.columns.length} columns mapped
+                  {stage.file.name} · {stage.file.rows.toLocaleString('en-GB')}{' '}
+                  {t('import.import-flow.rows', 'rows')}
+                  {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped}{' '}
+                  {t('import.import-flow.of_columns_mapped', 'of {{length}} columns mapped', {
+                    length: stage.columns.length,
+                  })}
                 </p>
                 <DataTable
-                  label="Columns"
+                  label={t('import.import-flow.columns', 'Columns')}
                   rows={stage.columns}
                   columns={columns}
                   rowId={(c) => String(c.index)}
@@ -883,7 +959,11 @@ function Steps({
             return coarse ? (
               mappingBody
             ) : (
-              <PageSection surface title="Columns" className="min-w-0">
+              <PageSection
+                surface
+                title={t('import.import-flow.columns', 'Columns')}
+                className="min-w-0"
+              >
                 {mappingBody}
               </PageSection>
             );
@@ -893,21 +973,32 @@ function Steps({
               <Alert
                 id={`${whyId}-map`}
                 tone="warning"
-                title={`${String(undecided.length)} ${undecided.length === 1 ? 'column needs' : 'columns need'} a decision`}
+                title={t('import.import-flow.a_decision', '{{length}} {{value}} a decision', {
+                  length: String(undecided.length),
+                  value: undecided.length === 1 ? 'column needs' : 'columns need',
+                })}
               >
-                {undecided.map((c) => c.header).join(', ')}. A column is never dropped quietly.
+                {undecided.map((c) => c.header).join(', ')}
+                {t(
+                  'import.import-flow.a_column_is_never_dropped_quietly',
+                  '. A column is never dropped quietly.',
+                )}
               </Alert>
             ) : null}
             <AssistantCard
               level={2}
-              title="How columns were matched"
-              note="Rows match people already here by work email only."
+              title={t('import.import-flow.how_columns_were_matched', 'How columns were matched')}
+              note={t(
+                'import.import-flow.rows_match_people_already_here_by',
+                'Rows match people already here by work email only.',
+              )}
               className="touch:hidden"
             >
               <p className="text-sm text-fg-muted">
-                Exact names and usual aliases first. For the rest, Kithena read only the headers and
-                your fields, never a cell, and mapped anything at 0.9 or above. Columns that match
-                nothing are proposed as new fields next.
+                {t(
+                  'import.import-flow.exact_names_and_usual_aliases_first',
+                  'Exact names and usual aliases first. For the rest, Kithena read only the headers and your fields, never a cell, and mapped anything at 0.9 or above. Columns that match nothing are proposed as new fields next.',
+                )}
               </p>
             </AssistantCard>
             {refusedAlert}
@@ -939,16 +1030,16 @@ function Steps({
                     meta={
                       placesDone ? (
                         <Badge size="sm" tone="success">
-                          Decided
+                          {t('import.import-flow.decided', 'Decided')}
                         </Badge>
                       ) : (
                         <Badge size="sm" tone="warning">
-                          {placesMissing.length} to decide
+                          {placesMissing.length} {t('import.import-flow.to_decide', 'to decide')}
                         </Badge>
                       )
                     }
                   >
-                    Work locations
+                    {t('import.import-flow.work_locations', 'Work locations')}
                   </AccordionTrigger>
                   <AccordionContent>
                     <WorkLocationsStep
@@ -974,15 +1065,22 @@ function Steps({
                     description={
                       proposals.length === 1
                         ? '1 column isn’t a field yet. Here’s what I’d create.'
-                        : `${String(proposals.length)} columns aren’t fields yet. Here’s what I’d create.`
+                        : t(
+                            'import.import-flow.columns_arent_fields_yet_heres_what',
+                            '{{length}} columns aren’t fields yet. Here’s what I’d create.',
+                            { length: String(proposals.length) },
+                          )
                     }
                     meta={
                       <Badge size="sm">
-                        {kept.length} of {proposals.length} kept
+                        {kept.length}{' '}
+                        {t('import.import-flow.of_kept', 'of {{length}} kept', {
+                          length: proposals.length,
+                        })}
                       </Badge>
                     }
                   >
-                    New fields
+                    {t('import.import-flow.new_fields', 'New fields')}
                   </AccordionTrigger>
                   <AccordionContent>
                     <NewFieldsStep
@@ -1003,14 +1101,17 @@ function Steps({
                 <AccordionItem value="without">
                   <AccordionTrigger
                     level={2}
-                    description="For people the file doesn’t reach, their own details are asked of them and employment details go to HR."
+                    description={t(
+                      'import.import-flow.for_people_the_file_doesnt_reach',
+                      'For people the file doesn’t reach, their own details are asked of them and employment details go to HR.',
+                    )}
                     meta={
                       <Badge size="sm">
                         {deciding.length} {deciding.length === 1 ? 'field' : 'fields'}
                       </Badge>
                     }
                   >
-                    People without a value
+                    {t('import.import-flow.people_without_a_value', 'People without a value')}
                   </AccordionTrigger>
                   <AccordionContent>
                     <ExistingStep
@@ -1065,7 +1166,7 @@ function Steps({
                   setPlacesSeen(true);
                 }}
               >
-                Next: new fields
+                {t('import.import-flow.next_new_fields', 'Next: new fields')}
               </Button>
             ) : (
               toReview
@@ -1108,12 +1209,12 @@ function Steps({
                     variant="primary"
                     className="col-span-2"
                     loading={busy}
-                    loadingLabel="Checking every row"
+                    loadingLabel={t('import.import-flow.checking_every_row', 'Checking every row')}
                     onClick={() => {
                       advance(proposals);
                     }}
                   >
-                    Next
+                    {t('import.import-flow.next', 'Next')}
                   </Button>
                 );
               }
@@ -1125,18 +1226,18 @@ function Steps({
                       advance(set(false));
                     }}
                   >
-                    Skip
+                    {t('import.import-flow.skip', 'Skip')}
                   </Button>
                   <Button
                     variant="primary"
                     loading={busy}
-                    loadingLabel="Checking every row"
+                    loadingLabel={t('import.import-flow.checking_every_row', 'Checking every row')}
                     onClick={() => {
                       change(p.column, { include: true });
                       advance(set(true));
                     }}
                   >
-                    Create field
+                    {t('import.import-flow.create_field', 'Create field')}
                   </Button>
                 </>
               );
@@ -1172,7 +1273,7 @@ function Steps({
                   void toPlan(proposals, null);
                 }}
               >
-                Work out the plan again
+                {t('import.import-flow.work_out_the_plan_again', 'Work out the plan again')}
               </Button>
             ) : null}
             <Button
@@ -1182,10 +1283,14 @@ function Steps({
               disabled={plan === null || phoneNotYet.length > 0}
               aria-describedby={phoneNotYet.length > 0 ? whyId : undefined}
               loading={busy}
-              loadingLabel={plan === null ? 'Working out the plan' : 'Starting the import'}
+              loadingLabel={
+                plan === null
+                  ? t('import.import-flow.working_out_the_plan', 'Working out the plan')
+                  : t('import.import-flow.starting_the_import', 'Starting the import')
+              }
               onClick={approve}
             >
-              Approve and run
+              {t('import.import-flow.approve_and_run', 'Approve and run')}
             </Button>
           </div>
         </>
@@ -1224,7 +1329,10 @@ function PhonePlan({
         >
           <h2 id={`without-${p.key}`} className="font-display text-xl font-bold">
             {missingOf(p).toLocaleString('en-GB')}{' '}
-            {missingOf(p) === 1 ? 'person has' : 'people have'} no {p.field.label}
+            {missingOf(p) === 1
+              ? t('import.import-flow.person_has', 'person has')
+              : t('import.import-flow.people_have', 'people have')}{' '}
+            {t('import.import-flow.no', 'no')} {p.field.label}
           </h2>
           <ExistingChoices
             proposal={p}
@@ -1247,9 +1355,12 @@ function PhonePlan({
         </section>
       ))}
       {refused}
-      <AssistantCard level={2} title="The plan">
+      <AssistantCard level={2} title={t('import.import-flow.the_plan', 'The plan')}>
         {plan === null ? (
-          <Spinner size="sm" label="Working out the plan" />
+          <Spinner
+            size="sm"
+            label={t('import.import-flow.working_out_the_plan', 'Working out the plan')}
+          />
         ) : (
           <>
             <p className="text-base">{plan.short}</p>

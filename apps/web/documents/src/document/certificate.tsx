@@ -3,6 +3,7 @@ import { useState, type JSX } from 'react';
 
 import { shortDate } from '../shared';
 import type { Read } from '../types';
+import { t } from '../i18n';
 
 /**
  * A certificate that unlocks leave (J4): the event it records and its date,
@@ -45,11 +46,23 @@ export function Certificate({
           void onCertificateLeave(documentId).then(setRead);
         }}
       >
-        Leave this certificate entitles you to
+        {t(
+          'document.certificate.leave_this_certificate_entitles_you_to',
+          'Leave this certificate entitles you to',
+        )}
       </Button>
     );
   }
-  if (read === 'reading') return <Spinner size="sm" label="Kithena is reading the certificate" />;
+  if (read === 'reading')
+    return (
+      <Spinner
+        size="sm"
+        label={t(
+          'document.certificate.kithena_is_reading_the_certificate',
+          'Kithena is reading the certificate',
+        )}
+      />
+    );
   if (!read.ok) return <p className="text-sm text-danger-fg">{read.message}</p>;
   const { event, date, page, leaveType } = read.data;
   const href =
@@ -57,14 +70,32 @@ export function Certificate({
       ? null
       : `/time-off/request?type=${encodeURIComponent(leaveType.key)}${date === null ? '' : `&from=${date}`}`;
   return (
-    <AssistantCard title="What this certificate unlocks" level={2} note="Read for you alone.">
+    <AssistantCard
+      title={t(
+        'document.certificate.what_this_certificate_unlocks',
+        'What this certificate unlocks',
+      )}
+      level={2}
+      note={t('document.certificate.read_for_you_alone', 'Read for you alone.')}
+    >
       <p className="text-sm">
-        {event === null ? 'It does not say what it records.' : event}
+        {event === null
+          ? t('document.certificate.it_does_not_say_what_it', 'It does not say what it records.')
+          : event}
         {date === null ? '' : ` · ${shortDate(date)}`}{' '}
-        {page === null ? null : <Badge size="sm" tone="neutral">{`p. ${String(page)}`}</Badge>}
+        {page === null ? null : (
+          <Badge size="sm" tone="neutral">
+            {t('document.certificate.p', 'p. {{page}}', { page: String(page) })}
+          </Badge>
+        )}
       </p>
       {href === null || leaveType === null ? (
-        <p className="text-sm text-fg-muted">None of your leave types is for it.</p>
+        <p className="text-sm text-fg-muted">
+          {t(
+            'document.certificate.none_of_your_leave_types_is',
+            'None of your leave types is for it.',
+          )}
+        </p>
       ) : (
         <Button variant="primary" size="sm" className="self-start" asChild>
           <a
@@ -75,7 +106,10 @@ export function Certificate({
               onNavigate(href);
             }}
           >
-            {`Request ${leaveType.name}${date === null ? '' : ` from ${shortDate(date)}`}`}
+            {t('document.certificate.request', 'Request {{name}}{{value}}', {
+              name: leaveType.name,
+              value: date === null ? '' : ` from ${shortDate(date)}`,
+            })}
           </a>
         </Button>
       )}

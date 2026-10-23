@@ -2,6 +2,7 @@ import { Avatar, Badge, icons } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import type { FileRef, Kind, Outcome, Row, StartUpload, Tone } from './types';
+import { t } from './i18n';
 
 /**
  * What every Documents screen draws the same way: a document's icon, its
@@ -50,7 +51,7 @@ export function AccessBadge({
     return (
       <Badge tone="warning" size="sm">
         <icons.sensitive aria-hidden />
-        Confidential
+        {t('shared.confidential', 'Confidential')}
       </Badge>
     );
   }
@@ -58,19 +59,19 @@ export function AccessBadge({
     return (
       <Badge tone="info" size="sm">
         <icons.company aria-hidden />
-        Everyone
+        {t('shared.everyone', 'Everyone')}
       </Badge>
     );
   }
   return row.level === 'shared' ? (
     <Badge tone="info" size="sm">
       <icons.people aria-hidden />
-      Shared
+      {t('shared.shared', 'Shared')}
     </Badge>
   ) : (
     <Badge tone="neutral" size="sm">
       <icons.locked aria-hidden />
-      Private
+      {t('shared.private', 'Private')}
     </Badge>
   );
 }
@@ -103,11 +104,17 @@ export function shortDate(iso: string, today?: string): string {
 
 /** "1 page", "6 pages". */
 export const pages = (n: number | null): string | null =>
-  n === null ? null : `${String(n)} page${n === 1 ? '' : 's'}`;
+  n === null
+    ? null
+    : t('shared.page', '{{n}} page{{value}}', { n: String(n), value: n === 1 ? '' : 's' });
 
 /** "Contract · 6 pages", what a row says under its name. */
 export const meta = (row: Pick<Row, 'typeName' | 'pages' | 'subject'>): string =>
-  [row.typeName ?? 'Your document', pages(row.pages), row.subject?.name ?? null]
+  [
+    row.typeName ?? t('shared.your_document', 'Your document'),
+    pages(row.pages),
+    row.subject?.name ?? null,
+  ]
     .filter(Boolean)
     .join(' · ');
 
@@ -127,9 +134,22 @@ export async function putFile(
   const { put } = started;
   try {
     const sent = await fetch(put.url, { method: put.method, headers: put.headers, body: file });
-    if (!sent.ok) return { ok: false, message: 'The file could not be uploaded. Try again.' };
+    if (!sent.ok)
+      return {
+        ok: false,
+        message: t(
+          'shared.the_file_could_not_be_uploaded',
+          'The file could not be uploaded. Try again.',
+        ),
+      };
   } catch {
-    return { ok: false, message: 'The file could not be uploaded. Check your connection.' };
+    return {
+      ok: false,
+      message: t(
+        'shared.the_file_could_not_be_uploaded_2',
+        'The file could not be uploaded. Check your connection.',
+      ),
+    };
   }
   return { ok: true, ref: { uploadId: put.uploadId, name: file.name, mediaType } };
 }

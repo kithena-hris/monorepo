@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 
 import { Loaded, type Loadable } from '../load';
 import { nextWorkingDay, shortDate, spanLabel } from '../words';
+import { t } from '../i18n';
 
 /**
  * HR's parental cases (TOF-099c): every plan a parent has sent, those
@@ -27,7 +28,7 @@ export interface ParentalCasesProps {
   readonly load: Loadable<ParentalCasesData>;
 }
 
-const TITLE = 'Parental leave';
+const TITLE = t('parental.cases.parental_leave', 'Parental leave');
 
 export function ParentalCases({ load }: ParentalCasesProps): JSX.Element {
   if (load.status === 'loading') return <ParentalCasesSkeleton />;
@@ -49,14 +50,26 @@ function Ready({ data }: { readonly data: ParentalCasesData }): JSX.Element {
         title={TITLE}
         description={
           data.cases.length === 0
-            ? 'Plans parents send come here'
-            : `${String(waiting)} waiting for you · ${String(data.cases.length - waiting)} approved`
+            ? t('parental.cases.plans_parents_send_come_here', 'Plans parents send come here')
+            : t(
+                'parental.cases.waiting_for_you_approved',
+                '{{waiting}} waiting for you · {{value}} approved',
+                { waiting: String(waiting), value: String(data.cases.length - waiting) },
+              )
         }
       />
       {data.cases.length === 0 ? (
-        <p className="text-sm text-fg-muted">Nobody has sent a parental leave plan yet.</p>
+        <p className="text-sm text-fg-muted">
+          {t(
+            'parental.cases.nobody_has_sent_a_parental_leave',
+            'Nobody has sent a parental leave plan yet.',
+          )}
+        </p>
       ) : (
-        <List navigable aria-label="Parental leave plans">
+        <List
+          navigable
+          aria-label={t('parental.cases.parental_leave_plans', 'Parental leave plans')}
+        >
           {data.cases.map((c) => (
             <ListItem
               key={c.planId}
@@ -66,19 +79,28 @@ function Ready({ data }: { readonly data: ParentalCasesData }): JSX.Element {
                 c.teamName,
                 c.from === null || c.to === null
                   ? null
-                  : `${spanLabel(c.from, c.to)}, back ${shortDate(nextWorkingDay(c.to))}`,
+                  : t('parental.cases.back', '{{spanLabel}}, back {{nextWorkingDay}}', {
+                      spanLabel: spanLabel(c.from, c.to),
+                      nextWorkingDay: shortDate(nextWorkingDay(c.to)),
+                    }),
               ]
                 .filter(Boolean)
                 .join(' · ')}
-              meta={c.sentAt === null ? undefined : `Sent ${shortDate(c.sentAt.slice(0, 10))}`}
+              meta={
+                c.sentAt === null
+                  ? undefined
+                  : t('parental.cases.sent', 'Sent {{slice}}', {
+                      slice: shortDate(c.sentAt.slice(0, 10)),
+                    })
+              }
               trailing={
                 c.status === 'submitted' ? (
                   <Badge size="sm" tone="warning" dot>
-                    Waiting for you
+                    {t('parental.cases.waiting_for_you', 'Waiting for you')}
                   </Badge>
                 ) : (
                   <Badge size="sm" tone="success">
-                    Approved
+                    {t('parental.cases.approved', 'Approved')}
                   </Badge>
                 )
               }
@@ -99,7 +121,9 @@ export function ParentalCasesSkeleton(): JSX.Element {
     <div className="flex flex-col gap-6">
       <PageHeader title={TITLE} description={' '} />
       <div role="status" className="flex flex-col gap-px overflow-hidden rounded-[1.125rem]">
-        <span className="sr-only">Loading the parental cases</span>
+        <span className="sr-only">
+          {t('parental.cases.loading_the_parental_cases', 'Loading the parental cases')}
+        </span>
         {[0, 1, 2, 3].map((n) => (
           <Skeleton key={n} className="h-[4.5rem] rounded-none" />
         ))}

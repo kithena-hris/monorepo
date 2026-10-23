@@ -37,6 +37,7 @@ import type {
   StartUpload,
   TypeOption,
 } from './types';
+import { t as tr } from './i18n';
 
 /**
  * Adding a document (C1, MD2): drop a file, name it, and — for HR — say what
@@ -159,14 +160,21 @@ export function UploadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a document</DialogTitle>
+          <DialogTitle>{tr('upload.add_a_document', 'Add a document')}</DialogTitle>
           <DialogDescription>
-            It starts Private. PDFs, images, Office files and CSV, up to 100 MB.
+            {tr(
+              'upload.it_starts_private_pdfs_images_office',
+              'It starts Private. PDFs, images, Office files and CSV, up to 100 MB.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
           <Dropzone
-            label={file === null ? 'Drop a file, or choose one' : file.name}
+            label={
+              file === null
+                ? tr('upload.drop_a_file_or_choose_one', 'Drop a file, or choose one')
+                : file.name
+            }
             accept={ACCEPT}
             variant="inline"
             onFiles={(files) => {
@@ -180,14 +188,20 @@ export function UploadDialog({
             }}
           />
           {reading === 'reading' ? (
-            <Spinner size="sm" label="Kithena is reading the file" />
+            <Spinner
+              size="sm"
+              label={tr('upload.kithena_is_reading_the_file', 'Kithena is reading the file')}
+            />
           ) : reading === 'read' ? (
             <Alert tone="info" icon={<icons.assistant />}>
-              Kithena filled in what it read. Check each before adding.
+              {tr(
+                'upload.kithena_filled_in_what_it_read',
+                'Kithena filled in what it read. Check each before adding.',
+              )}
             </Alert>
           ) : null}
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('upload.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 value={title}
@@ -200,7 +214,7 @@ export function UploadDialog({
           </Field>
           {hr && !fixed ? (
             <Field>
-              <FieldLabel>Type</FieldLabel>
+              <FieldLabel>{tr('upload.type', 'Type')}</FieldLabel>
               <Select value={typeKey} onValueChange={setTypeKey}>
                 <FieldControl>
                   <SelectTrigger>
@@ -208,7 +222,9 @@ export function UploadDialog({
                   </SelectTrigger>
                 </FieldControl>
                 <SelectContent>
-                  <SelectItem value={PERSONAL}>My own document</SelectItem>
+                  <SelectItem value={PERSONAL}>
+                    {tr('upload.my_own_document', 'My own document')}
+                  </SelectItem>
                   {types.map((t) => (
                     <SelectItem key={t.key} value={t.key}>
                       {t.name}
@@ -217,16 +233,18 @@ export function UploadDialog({
                 </SelectContent>
               </Select>
               {type?.confidential === true ? (
-                <FieldDescription>Confidential, as its type says.</FieldDescription>
+                <FieldDescription>
+                  {tr('upload.confidential_as_its_type_says', 'Confidential, as its type says.')}
+                </FieldDescription>
               ) : null}
             </Field>
           ) : null}
           {hr && needsPerson && !fixed ? (
             <Field required>
-              <FieldLabel>About</FieldLabel>
+              <FieldLabel>{tr('upload.about', 'About')}</FieldLabel>
               <FieldControl>
                 <Combobox
-                  label="About"
+                  label={tr('upload.about', 'About')}
                   options={people.map((p) => ({
                     value: p.personId,
                     label: p.name,
@@ -236,27 +254,29 @@ export function UploadDialog({
                   onChange={(v) => {
                     setSubject(typeof v === 'string' ? v : null);
                   }}
-                  placeholder="Who it is about"
-                  searchPlaceholder="Find someone"
-                  emptyMessage="Nobody by that name"
+                  placeholder={tr('upload.who_it_is_about', 'Who it is about')}
+                  searchPlaceholder={tr('upload.find_someone', 'Find someone')}
+                  emptyMessage={tr('upload.nobody_by_that_name', 'Nobody by that name')}
                 />
               </FieldControl>
             </Field>
           ) : null}
           <Field>
-            <FieldLabel>Expires</FieldLabel>
+            <FieldLabel>{tr('upload.expires', 'Expires')}</FieldLabel>
             <FieldControl>
               <DatePicker
-                label="Expires"
-                placeholder="Never"
+                label={tr('upload.expires', 'Expires')}
+                placeholder={tr('upload.never', 'Never')}
                 value={expiresOn}
                 onChange={setExpiresOn}
               />
             </FieldControl>
-            <FieldDescription>Kithena reminds before it does.</FieldDescription>
+            <FieldDescription>
+              {tr('upload.kithena_reminds_before_it_does', 'Kithena reminds before it does.')}
+            </FieldDescription>
           </Field>
           {write.error === null ? null : (
-            <Alert tone="danger" title="Not added">
+            <Alert tone="danger" title={tr('upload.not_added', 'Not added')}>
               {write.error}
             </Alert>
           )}
@@ -268,7 +288,7 @@ export function UploadDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {tr('upload.cancel', 'Cancel')}
           </Button>
           <Button
             variant="primary"
@@ -276,7 +296,7 @@ export function UploadDialog({
             disabled={file === null || reading === 'reading' || (needsPerson && subject === null)}
             onClick={send}
           >
-            Add
+            {tr('upload.add', 'Add')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -316,13 +336,21 @@ export function ShareQuestion({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>It’s private</DialogTitle>
-          <DialogDescription>Only you can see {title}. Do you want to share it?</DialogDescription>
+          <DialogTitle>{tr('upload.its_private', 'It’s private')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'upload.only_you_can_see_do_you',
+              'Only you can see {{title}}. Do you want to share it?',
+              { title },
+            )}
+          </DialogDescription>
         </DialogHeader>
         {onStopAsking === undefined ? null : (
           <DialogBody>
             <Field orientation="horizontal">
-              <FieldLabel>Don’t ask me after uploads</FieldLabel>
+              <FieldLabel>
+                {tr('upload.dont_ask_me_after_uploads', 'Don’t ask me after uploads')}
+              </FieldLabel>
               <FieldControl>
                 <Checkbox
                   checked={stop}
@@ -341,7 +369,7 @@ export function ShareQuestion({
               close(false);
             }}
           >
-            Keep it private
+            {tr('upload.keep_it_private', 'Keep it private')}
           </Button>
           <Button
             variant="primary"
@@ -349,7 +377,7 @@ export function ShareQuestion({
               close(true);
             }}
           >
-            Share
+            {tr('upload.share', 'Share')}
           </Button>
         </DialogFooter>
       </DialogContent>

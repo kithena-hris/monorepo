@@ -17,6 +17,7 @@ import { nudgeItem } from '../app/(app)/inbox/actions';
 import type { AssistantReply } from '../lib/assistant';
 import type { InboxReply } from '../lib/inbox/ask';
 import { Link } from '../lib/link';
+import { t as tr } from '../lib/t';
 
 /**
  * Ask Kithena's window (`assistant.tsx`), in a chunk of its own: the shell
@@ -84,15 +85,21 @@ export default function AssistantWindow({
       }}
     >
       <AssistantPanel
-        title="Ask Kithena"
-        subtitle="Answers with only what you can see"
+        title={tr('components.assistant-panel.ask_kithena', 'Ask Kithena')}
+        subtitle={tr(
+          'components.assistant-panel.answers_with_only_what_you_can',
+          'Answers with only what you can see',
+        )}
         busy={busy}
         {...(turns.length === 0 ? {} : { onNewChat: newChat })}
         onMinimize={minimise}
         onClose={close}
         composer={
           <>
-            <ChipRow aria-label="Try asking" className="px-4 pt-2">
+            <ChipRow
+              aria-label={tr('components.assistant-panel.try_asking', 'Try asking')}
+              className="px-4 pt-2"
+            >
               {(onInbox ? INBOX_SUGGESTIONS : SUGGESTIONS).map((text) => (
                 <Chip
                   key={text}
@@ -111,13 +118,20 @@ export default function AssistantWindow({
               onSubmit={ask}
               streaming={busy}
               onStop={stop}
-              placeholder={onInbox ? 'Ask about your inbox…' : 'Ask about your people…'}
+              placeholder={
+                onInbox
+                  ? tr('components.assistant-panel.ask_about_your_inbox', 'Ask about your inbox…')
+                  : tr('components.assistant-panel.ask_about_your_people', 'Ask about your people…')
+              }
               disclaimer={
                 <span className="inline-flex items-center gap-1.5 [&_svg]:size-3">
                   <icons.assistant aria-hidden />
                   {onInbox
                     ? 'Opens tasks for you; never finishes one on its own.'
-                    : 'Read-only. Sees your question and field names, never values.'}
+                    : tr(
+                        'components.assistant-panel.read_only_sees_your_question_and',
+                        'Read-only. Sees your question and field names, never values.',
+                      )}
                 </span>
               }
             />
@@ -126,8 +140,10 @@ export default function AssistantWindow({
       >
         <AssistantMessage from="assistant">
           <p>
-            Hi! Ask me about the people in your company: who is in a team, who reports to whom, how
-            many people work where, or what is waiting for you.
+            {tr(
+              'components.assistant-panel.hi_ask_me_about_the_people',
+              'Hi! Ask me about the people in your company: who is in a team, who reports to whom, how many people work where, or what is waiting for you.',
+            )}
           </p>
         </AssistantMessage>
         {turns.map((t) => (
@@ -157,14 +173,19 @@ function InboxAnswer({
   if (reply.items.length === 0 && reply.nudge === null) return null;
   const nudge = reply.nudge;
   return (
-    <ChipRow aria-label="From your Inbox">
+    <ChipRow aria-label={tr('components.assistant-panel.from_your_inbox', 'From your Inbox')}>
       {reply.items.map((i) => (
         <Button key={i.id} asChild size="xs" variant="secondary">
           <Link
             href={`/inbox/${i.lane}?item=${encodeURIComponent(i.id)}` as Route}
             onClick={onOpen}
           >
-            {i.hint === null ? i.title : `${i.title} · ${i.hint}`}
+            {i.hint === null
+              ? i.title
+              : tr('components.assistant-panel.text', '{{title}} · {{hint}}', {
+                  title: i.title,
+                  hint: i.hint,
+                })}
           </Link>
         </Button>
       ))}
@@ -173,7 +194,7 @@ function InboxAnswer({
           disabled={nudged !== null}
           onClick={() => {
             void nudgeItem(nudge.itemId).then((done) => {
-              setNudged(done.ok ? 'Nudged' : done.message);
+              setNudged(done.ok ? tr('components.assistant-panel.nudged', 'Nudged') : done.message);
             });
           }}
         >
@@ -194,7 +215,10 @@ function Mentioned({
 }): JSX.Element {
   const shown = people.slice(0, 8);
   return (
-    <ul className="flex flex-wrap gap-1.5" aria-label="People in this answer">
+    <ul
+      className="flex flex-wrap gap-1.5"
+      aria-label={tr('components.assistant-panel.people_in_this_answer', 'People in this answer')}
+    >
       {shown.map((p) => (
         <li key={p.id}>
           <Button asChild size="sm" variant="ghost">

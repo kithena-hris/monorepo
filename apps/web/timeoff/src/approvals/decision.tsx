@@ -36,6 +36,7 @@ import {
   type Span,
   type Written,
 } from './words';
+import { t } from '../i18n';
 
 /**
  * Deciding one request (T17, MT16): everything needed on one screen. The
@@ -143,12 +144,25 @@ export function Decision({
       <div className="flex flex-wrap items-center gap-3">
         <Avatar name={member.displayName} size="xl" />
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-bold">{`${member.displayName} · ${look.name.toLowerCase()}`}</h2>
+          <h2 className="text-lg font-bold">
+            {t('approvals.decision.text', '{{displayName}} · {{name}}', {
+              displayName: member.displayName,
+              name: look.name.toLowerCase(),
+            })}
+          </h2>
           <p className="text-sm text-fg-muted">
-            {`${sentLabel(request.requestedAt, now, member.timeZone)} · decide by ${shortDate(due)}`}
+            {t('approvals.decision.decide_by', '{{sentLabel}} · decide by {{due}}', {
+              sentLabel: sentLabel(request.requestedAt, now, member.timeZone),
+              due: shortDate(due),
+            })}
           </p>
         </div>
-        <Badge size="lg">{`${span} · ${dayCount(request.workingDays)}`}</Badge>
+        <Badge size="lg">
+          {t('approvals.decision.text_2', '{{span}} · {{dayCount}}', {
+            span,
+            dayCount: dayCount(request.workingDays),
+          })}
+        </Badge>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -157,7 +171,7 @@ export function Decision({
         ) : (
           <Stat
             inset
-            label={`${look.name} balance`}
+            label={t('approvals.decision.balance', '{{name}} balance', { name: look.name })}
             from={amount(data.balance.before)}
             value={amount(data.balance.after)}
             unit="days"
@@ -166,7 +180,7 @@ export function Decision({
         )}
         <Stat
           inset
-          label="Last time off"
+          label={t('approvals.decision.last_time_off', 'Last time off')}
           value={
             data.lastTaken === null ? 'None yet' : spanLabel(data.lastTaken.from, data.lastTaken.to)
           }
@@ -181,7 +195,10 @@ export function Decision({
             types={types}
             from={range.desk.from}
             to={range.desk.to}
-            label={`${member.teamName ?? 'The team'} around ${span}`}
+            label={t('approvals.decision.around', '{{value}} around {{span}}', {
+              value: member.teamName ?? 'The team',
+              span,
+            })}
             highlight={member.personId}
           />
           <TeamTimeline
@@ -190,7 +207,10 @@ export function Decision({
             types={types}
             from={range.phone.from}
             to={range.phone.to}
-            label={`${member.teamName ?? 'The team'}, the week of ${shortDate(range.phone.from)}`}
+            label={t('approvals.decision.the_week_of', '{{value}}, the week of {{from}}', {
+              value: member.teamName ?? 'The team',
+              from: shortDate(range.phone.from),
+            })}
             highlight={member.personId}
           />
         </>
@@ -199,13 +219,20 @@ export function Decision({
       <WhatToKnow data={data} />
 
       {swap === undefined || swap.swapped === null || !data.canDecide ? null : (
-        <Alert tone="info" title={`Suggest: swap ${swapWords(swap.swapped)}`}>
-          {`${firstName(member.displayName)} can accept in one tap.`}
+        <Alert
+          tone="info"
+          title={t('approvals.decision.suggest_swap', 'Suggest: swap {{swapWords}}', {
+            swapWords: swapWords(swap.swapped),
+          })}
+        >
+          {t('approvals.decision.can_accept_in_one_tap', '{{firstName}} can accept in one tap.', {
+            firstName: firstName(member.displayName),
+          })}
         </Alert>
       )}
 
       {failed === null ? null : (
-        <Alert tone="danger" title="Nothing changed">
+        <Alert tone="danger" title={t('approvals.decision.nothing_changed', 'Nothing changed')}>
           {failed}
         </Alert>
       )}
@@ -220,11 +247,13 @@ export function Decision({
               decide('decline');
             }}
           >
-            Decline
+            {t('approvals.decision.decline', 'Decline')}
           </Button>
           <span className="ms-auto flex gap-2">
             <Button asChild startIcon={<icons.calendar aria-hidden />}>
-              <a href={suggestHref}>Suggest other dates</a>
+              <a href={suggestHref}>
+                {t('approvals.decision.suggest_other_dates', 'Suggest other dates')}
+              </a>
             </Button>
             <Button
               variant="primary"
@@ -235,18 +264,28 @@ export function Decision({
                 decide('approve');
               }}
             >
-              Approve
+              {t('approvals.decision.approve', 'Approve')}
             </Button>
           </span>
         </div>
       ) : (
         <Alert
           tone="neutral"
-          title={request.waitingOn === 'hr' ? 'Waiting on HR' : 'Not yours to decide'}
+          title={
+            request.waitingOn === 'hr'
+              ? t('approvals.decision.waiting_on_hr', 'Waiting on HR')
+              : t('approvals.decision.not_yours_to_decide', 'Not yours to decide')
+          }
         >
           {request.waitingOn === 'hr'
-            ? 'You approved your part. HR decides the rest.'
-            : 'Somebody else decides this request.'}
+            ? t(
+                'approvals.decision.you_approved_your_part_hr_decides',
+                'You approved your part. HR decides the rest.',
+              )
+            : t(
+                'approvals.decision.somebody_else_decides_this_request',
+                'Somebody else decides this request.',
+              )}
         </Alert>
       )}
     </div>
@@ -257,14 +296,17 @@ export function Decision({
 export function AiTag(): JSX.Element {
   return (
     <Badge tone="assistant" size="sm">
-      AI
+      {t('approvals.decision.ai', 'AI')}
     </Badge>
   );
 }
 
 /** "Wed 21 for Mon 26". */
 export const swapWords = (swapped: NonNullable<Alternative['swapped']>): string =>
-  `${listOf(swapped.out.map(dayName))} for ${listOf(swapped.in.map(dayName))}`;
+  t('approvals.decision.for', '{{listOf}} for {{listOf2}}', {
+    listOf: listOf(swapped.out.map(dayName)),
+    listOf2: listOf(swapped.in.map(dayName)),
+  });
 
 /**
  * What to know (T17's card): the days the team falls short and who is off
@@ -281,9 +323,12 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
   const after = data.balance === null ? null : Number(data.balance.after);
   return (
     <AssistantCard
-      title="What to know"
+      title={t('approvals.decision.what_to_know', 'What to know')}
       action={data.whatToKnow.ai ? <AiTag /> : undefined}
-      note="Written from the balance and the team calendar. The decision is yours."
+      note={t(
+        'approvals.decision.written_from_the_balance_and_the',
+        'Written from the balance and the team calendar. The decision is yours.',
+      )}
     >
       <IconList>
         {data.belowMinimum.map((day) => {
@@ -293,9 +338,23 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
               key={day.date}
               icon={<icons.people />}
               tone="warning"
-              description={`${names.length === 0 ? 'Others are' : `${listOf(names)} ${names.length === 1 ? 'is' : 'are'}`} off. The team asks for ${String(day.required)}.`}
+              description={t(
+                'approvals.decision.off_the_team_asks_for',
+                '{{value}} off. The team asks for {{required}}.',
+                {
+                  value:
+                    names.length === 0
+                      ? 'Others are'
+                      : `${listOf(names)} ${names.length === 1 ? 'is' : 'are'}`,
+                  required: String(day.required),
+                },
+              )}
             >
-              {`${dayName(day.date)}: ${String(day.in)} of ${String(day.of)} in`}
+              {t('approvals.decision.of_in', '{{dayName}}: {{in}} of {{of}} in', {
+                dayName: dayName(day.date),
+                in: String(day.in),
+                of: String(day.of),
+              })}
             </IconListItem>
           );
         })}
@@ -303,17 +362,33 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
           <IconListItem
             icon={<icons.warning />}
             tone="warning"
-            description="Below zero needs HR after you."
+            description={t(
+              'approvals.decision.below_zero_needs_hr_after_you',
+              'Below zero needs HR after you.',
+            )}
           >
-            {`Takes ${who} to ${amount(data.balance.after)} days`}
+            {t('approvals.decision.takes_to_days', 'Takes {{who}} to {{after}} days', {
+              who,
+              after: amount(data.balance.after),
+            })}
           </IconListItem>
         ) : (
           <IconListItem
             icon={<icons.success />}
             tone="success"
-            description={`${amount(data.balance.after)} days left after this.${data.lastTaken === null ? '' : ` Last time off ${spanLabel(data.lastTaken.from, data.lastTaken.to)}.`}`}
+            description={t(
+              'approvals.decision.days_left_after_this',
+              '{{after}} days left after this.{{value}}',
+              {
+                after: amount(data.balance.after),
+                value:
+                  data.lastTaken === null
+                    ? ''
+                    : ` Last time off ${spanLabel(data.lastTaken.from, data.lastTaken.to)}.`,
+              },
+            )}
           >
-            Enough balance
+            {t('approvals.decision.enough_balance', 'Enough balance')}
           </IconListItem>
         )}
       </IconList>

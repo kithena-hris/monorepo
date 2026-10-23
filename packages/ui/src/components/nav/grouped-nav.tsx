@@ -17,6 +17,7 @@ import { cn } from '../../lib/cn';
 import { EmptyState } from '../feedback/feedback';
 import { Kbd } from '../kbd/kbd';
 import { SearchField } from '../typed-fields/typed-fields';
+import { t } from '../../lib/i18n';
 
 /**
  * A long list of destinations in labelled groups: settings, admin,
@@ -310,13 +311,13 @@ export function GroupedNav({
         {item.pinned ? (
           <>
             <Pin aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-            <span className="sr-only">, pinned</span>
+            <span className="sr-only">{t('components.nav.grouped-nav.pinned', ', pinned')}</span>
           </>
         ) : null}
         {item.locked ? (
           <>
             <Lock aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-            <span className="sr-only">, locked</span>
+            <span className="sr-only">{t('components.nav.grouped-nav.locked', ', locked')}</span>
           </>
         ) : null}
         {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
@@ -399,7 +400,7 @@ export function GroupedNav({
         <div className="mb-1.5 touch:mb-0">
           <SearchField
             size="sm"
-            label={`Search ${label}`}
+            label={t('components.nav.grouped-nav.search', 'Search {{label}}', { label })}
             placeholder={searchPlaceholder}
             value={query}
             onValueChange={setQuery}
@@ -426,7 +427,7 @@ export function GroupedNav({
             {collapsible && !isOpen ? (
               <span className="tabular-nums">
                 {group.items.length}
-                <span className="sr-only"> items</span>
+                <span className="sr-only"> {t('components.nav.grouped-nav.items', 'items')}</span>
               </span>
             ) : null}
             {collapsible ? (
@@ -487,7 +488,9 @@ export function GroupedNav({
         results === 0 ? (
           <EmptyState
             icon={<SearchX />}
-            title={`No matches for “${query.trim()}”`}
+            title={t('components.nav.grouped-nav.no_matches_for', 'No matches for “{{query}}”', {
+              query: query.trim(),
+            })}
             description={noResults}
             className="border-0 px-2 py-6"
           />
@@ -495,7 +498,7 @@ export function GroupedNav({
           <p aria-hidden className="flex items-center gap-1 px-2.5 py-2.5 text-xs text-fg-subtle">
             {results} {results === 1 ? 'result' : 'results'}
             <span className="flex items-center gap-1 touch:hidden">
-              · <Kbd>↵</Kbd> opens the first
+              · <Kbd>↵</Kbd> {t('components.nav.grouped-nav.opens_the_first', 'opens the first')}
             </span>
           </p>
         )
@@ -504,7 +507,12 @@ export function GroupedNav({
         // Mounted before the first keystroke: a live region that appears with
         // its message is, to most screen readers, not live yet.
         <p aria-live="polite" className="sr-only">
-          {searching ? `${String(results)} ${results === 1 ? 'result' : 'results'}` : ''}
+          {searching
+            ? t('components.nav.grouped-nav.text', '{{results}} {{value}}', {
+                results: String(results),
+                value: results === 1 ? 'result' : 'results',
+              })
+            : ''}
         </p>
       ) : null}
     </nav>
