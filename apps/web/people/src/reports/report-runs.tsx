@@ -159,10 +159,18 @@ function Runs({
                       <li key={r.accountId ?? i}>
                         {r.accountId === null
                           ? why(r.outcome)
-                          : t('reports.report-runs.text', '{{value}}: {{why}}', {
-                              value: r.name ?? 'Somebody who has left',
-                              why: why(r.outcome),
-                            })}
+                          : r.name === null
+                            ? t(
+                                'reports.report-runs.somebody_who_has_left',
+                                'Somebody who has left: {{why}}',
+                                {
+                                  why: why(r.outcome),
+                                },
+                              )
+                            : t('reports.report-runs.text', '{{value}}: {{why}}', {
+                                value: r.name,
+                                why: why(r.outcome),
+                              })}
                       </li>
                     ))}
                   </ul>

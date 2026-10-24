@@ -15,8 +15,10 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   IconList,
   IconListItem,
+  icons,
   KeyValues,
   PageHeader,
   PageSection,
@@ -31,7 +33,6 @@ import {
   TertiaryNav,
   Textarea,
   TimePicker,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -288,13 +289,18 @@ function Ready({
                 : t('attendance.timesheet.this_month', 'This month')
             }
             value={duration(worked)}
-            description={t('attendance.timesheet.of', 'Of {{planned}}{{value}}', {
-              planned: duration(planned),
-              value:
-                open.length === 0
-                  ? ''
-                  : `, not counting ${open.map((o) => weekdayName(o.date)).join(' and ')}`,
-            })}
+            description={
+              open.length === 0
+                ? t('attendance.timesheet.of', 'Of {{planned}}', { planned: duration(planned) })
+                : t(
+                    'attendance.timesheet.of_not_counting',
+                    'Of {{planned}}, not counting {{days}}',
+                    {
+                      planned: duration(planned),
+                      days: formatList(open.map((o) => weekdayName(o.date))),
+                    },
+                  )
+            }
           />
           <Overtime data={data} today={today} />
           <Kept />
@@ -674,10 +680,18 @@ function FixClockOut({
                     'attendance.timesheet.after_your_last_punch_on_the',
                     'After your last punch, on the same day.',
                   )
-                : t('attendance.timesheet.worked_2', '{{worked}} worked{{value}}', {
-                    worked: duration(worked),
-                    value: overtime > 0 ? `, ${duration(overtime)} overtime` : '',
-                  })}
+                : overtime > 0
+                  ? t(
+                      'attendance.timesheet.worked_overtime',
+                      '{{worked}} worked, {{overtime}} overtime',
+                      {
+                        worked: duration(worked),
+                        overtime: duration(overtime),
+                      },
+                    )
+                  : t('attendance.timesheet.worked_2', '{{worked}} worked', {
+                      worked: duration(worked),
+                    })}
             </FieldDescription>
           </Field>
           <Field>

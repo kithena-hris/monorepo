@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   ChangeDiff,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -21,15 +22,16 @@ import {
   HorizontalBarChart,
   IconList,
   IconListItem,
+  icons,
   List,
   ListItem,
+  numberFormat,
   PageSection,
   PINNED_BAR,
   Stack,
   Stat,
   Switch,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
@@ -198,7 +200,7 @@ function compact(value: AttributeValue): string | null {
   const major = Number(
     value.amountMinor.slice(0, Math.max(0, value.amountMinor.length - digits)) || '0',
   );
-  return new Intl.NumberFormat('en-GB', {
+  return numberFormat({
     style: 'currency',
     currency: value.currency,
     notation: 'compact',
@@ -208,7 +210,7 @@ function compact(value: AttributeValue): string | null {
     .replace(/K$/u, 'k');
 }
 
-const shortDate = new Intl.DateTimeFormat('en-GB', {
+const shortDate = dateFormat({
   day: 'numeric',
   month: 'short',
   timeZone: 'UTC',
@@ -266,10 +268,11 @@ function daysLeft(expiresAt: string, now: number): string {
   const days = Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 86_400_000));
   return days === 0
     ? t('approvals.approvals.expires_today', 'Expires today')
-    : t('approvals.approvals.left', '{{days}} {{value}} left', {
-        days: String(days),
-        value: days === 1 ? 'day' : 'days',
-      });
+    : t(
+        'approvals.approvals.left',
+        { one: '{{count}} day left', other: '{{count}} days left' },
+        { count: days },
+      );
 }
 
 /** "Nora" from "Nora Becker"; "the requester" when it is not a name. */
@@ -733,10 +736,12 @@ function Questions({
                 ? q.canAnswer
                   ? null
                   : t('approvals.approvals.not_answered_yet', 'Not answered yet.')
-                : t('approvals.approvals.text_4', '{{value}}: “{{answer}}”', {
-                    value: item.requestedBy === 'You' ? 'You' : item.requestedBy,
-                    answer: q.answer,
-                  })
+                : item.requestedBy === 'You'
+                  ? t('approvals.approvals.your_answer', 'You: “{{answer}}”', { answer: q.answer })
+                  : t('approvals.approvals.text_4', '{{value}}: “{{answer}}”', {
+                      value: item.requestedBy,
+                      answer: q.answer,
+                    })
             }
           >
             {q.askedBy} {t('approvals.approvals.asked', 'asked: “')}

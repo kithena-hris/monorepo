@@ -605,11 +605,11 @@ export function DuplicateDetail({
                   ? t('review.duplicates.no_values_are_copied', 'No values are copied.')
                   : t(
                       'review.duplicates.copied_each_correctable_afterwards',
-                      '{{size}} {{value}} copied, each correctable afterwards.',
                       {
-                        size: String(take.size),
-                        value: take.size === 1 ? 'value is' : 'values are',
+                        one: '{{count}} value is copied, each correctable afterwards.',
+                        other: '{{count}} values are copied, each correctable afterwards.',
                       },
+                      { count: take.size },
                     )}
               </DialogDescription>
             </DialogHeader>

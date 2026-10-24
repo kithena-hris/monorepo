@@ -3,15 +3,15 @@ import {
   Button,
   Card,
   EmptyState,
+  icons,
   KeyValues,
   OrgChart as Chart,
+  type OrgNode,
   PageHeader,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
-  icons,
   useCoarsePointer,
-  type OrgNode,
 } from '@reach/ui';
 import { useMemo, type JSX } from 'react';
 
@@ -133,15 +133,26 @@ function Body({
     <Stack gap={5}>
       <PageHeader
         title={t('org-chart.org-chart.directory', 'Directory')}
-        description={t(
-          'org-chart.org-chart.people_managers',
-          '{{toLocaleString}} people · {{size}} managers{{value}}',
-          {
-            toLocaleString: state.people.length.toLocaleString('en-GB'),
-            size: String(managers.size),
-            value: state.truncated ? ' · the first pages of the directory' : '',
-          },
-        )}
+        description={[
+          t(
+            'org-chart.org-chart.count_people',
+            { one: '{{count}} person', other: '{{count}} people' },
+            { count: state.people.length },
+          ),
+          t(
+            'org-chart.org-chart.count_managers',
+            { one: '{{count}} manager', other: '{{count}} managers' },
+            { count: managers.size },
+          ),
+          ...(state.truncated
+            ? [
+                t(
+                  'org-chart.org-chart.the_first_pages_of_the_directory',
+                  'the first pages of the directory',
+                ),
+              ]
+            : []),
+        ].join(' · ')}
         actions={
           onViewChange === undefined ? undefined : (
             <ViewSwitch view="org-chart" onChange={onViewChange} />

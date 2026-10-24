@@ -74,7 +74,11 @@ const ICON: Record<
 const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-hidden': true });
 const monthLabel = (month: string): string => monthName(`${month}-01`);
 const people = (n: number): string =>
-  n === 1 ? '1 person' : t('attendance.exceptions.people', '{{n}} people', { n: String(n) });
+  t(
+    'attendance.exceptions.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 
 type Item = ExceptionsData['items'][number];
 
@@ -129,10 +133,14 @@ function words(kind: ExceptionKind, restMinutes: number) {
       title: t('attendance.exceptions.worked_on_a_holiday', 'Worked on a holiday'),
       why: t('attendance.exceptions.a_day_in_lieu_is_owed', 'A day in lieu is owed for each one.'),
       line: (i: Item) =>
-        t('attendance.exceptions.text', '{{date}} · {{value}}', {
-          date: shortDate(i.date),
-          value: i.holiday ?? 'Holiday',
-        }),
+        i.holiday === null
+          ? t('attendance.exceptions.date_holiday', '{{date}} · Holiday', {
+              date: shortDate(i.date),
+            })
+          : t('attendance.exceptions.text', '{{date}} · {{value}}', {
+              date: shortDate(i.date),
+              value: i.holiday,
+            }),
     },
   }[kind];
 }

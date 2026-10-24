@@ -111,12 +111,11 @@ function Ready({
           manages
             ? t(
                 'attendance.requests.overtime_to_decide_late',
-                '{{length}} overtime to decide, {{length2}} late {{value}}',
                 {
-                  length: String(overtime.length),
-                  length2: String(corrections.length),
-                  value: corrections.length === 1 ? 'correction' : 'corrections',
+                  one: '{{length}} overtime to decide, {{count}} late correction',
+                  other: '{{length}} overtime to decide, {{count}} late corrections',
                 },
+                { count: corrections.length, length: String(overtime.length) },
               )
             : t(
                 'attendance.requests.your_overtime_and_where_it_stands',
@@ -186,11 +185,23 @@ function Ready({
                   </Button>
                 }
               >
-                {t('attendance.requests.text', '{{displayName}} · {{weekdayName}} {{value}}', {
-                  displayName: n.displayName,
-                  weekdayName: weekdayName(n.date),
-                  value: n.punch?.kind === 'in' ? 'clock-in' : 'clock-out',
-                })}
+                {n.punch?.kind === 'in'
+                  ? t(
+                      'attendance.requests.name_weekday_clock_in',
+                      '{{displayName}} · {{weekdayName}} clock-in',
+                      {
+                        displayName: n.displayName,
+                        weekdayName: weekdayName(n.date),
+                      },
+                    )
+                  : t(
+                      'attendance.requests.name_weekday_clock_out',
+                      '{{displayName}} · {{weekdayName}} clock-out',
+                      {
+                        displayName: n.displayName,
+                        weekdayName: weekdayName(n.date),
+                      },
+                    )}
               </ListItem>
             ))}
           </List>

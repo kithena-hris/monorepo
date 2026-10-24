@@ -581,10 +581,15 @@ function Criteria({
                   <Button
                     variant="ghost"
                     size="xs"
-                    aria-label={tr('job.move_to', 'Move “{{text}}” to {{value}}', {
-                      text: c.text,
-                      value: must ? 'nice to have' : 'must have',
-                    })}
+                    aria-label={
+                      must
+                        ? tr('job.move_to_nice_to_have', 'Move “{{text}}” to nice to have', {
+                            text: c.text,
+                          })
+                        : tr('job.move_to_must_have', 'Move “{{text}}” to must have', {
+                            text: c.text,
+                          })
+                    }
                     startIcon={must ? <icons.down aria-hidden /> : <icons.up aria-hidden />}
                     onClick={() => {
                       setRows(rows.map((x) => (x.id === c.id ? { ...x, must: !must } : x)));
@@ -957,14 +962,16 @@ function InterviewCard({
         {mode === 'fixed' ? (
           <>
             <IconListItem icon={<icons.email aria-hidden />} tone="accent">
-              {tr(
-                'job.the_candidate_is_invited_for_with',
-                'The candidate is invited for {{value}}{{value2}}, with the agenda.',
-                {
-                  value: when.date === null || when.time === null ? 'the set time' : day(when.date),
-                  value2: when.time === null ? '' : `, ${when.time}`,
-                },
-              )}
+              {when.date === null || when.time === null
+                ? tr(
+                    'job.the_candidate_is_invited_for_the_set_time',
+                    'The candidate is invited for the set time, with the agenda.',
+                  )
+                : tr(
+                    'job.the_candidate_is_invited_for_with',
+                    'The candidate is invited for {{day}}, {{time}}, with the agenda.',
+                    { day: day(when.date), time: when.time },
+                  )}
             </IconListItem>
             <IconListItem icon={<icons.calendar aria-hidden />} tone="accent">
               {panel.length === 0
@@ -2170,10 +2177,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                         edit('ad');
                       }}
                     >
-                      {tr('job.fix_to_publish', 'Fix {{blocking}} {{value}} to publish', {
-                        blocking: String(blocking),
-                        value: blocking === 1 ? 'check' : 'checks',
-                      })}
+                      {tr(
+                        'job.fix_to_publish',
+                        {
+                          one: 'Fix {{count}} check to publish',
+                          other: 'Fix {{count}} checks to publish',
+                        },
+                        { count: blocking },
+                      )}
                     </Button>
                   ) : (
                     <Button
@@ -2553,10 +2564,14 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                     {ad === undefined
                       ? tr('job.no_ad_yet', 'No ad yet.')
                       : blocking > 0
-                        ? tr('job.publishing_2', '{{blocking}} {{value}} publishing.', {
-                            blocking: String(blocking),
-                            value: blocking === 1 ? 'check blocks' : 'checks block',
-                          })
+                        ? tr(
+                            'job.publishing_2',
+                            {
+                              one: '{{count}} check blocks publishing.',
+                              other: '{{count}} checks block publishing.',
+                            },
+                            { count: blocking },
+                          )
                         : tr('job.in_every_check_passes', 'In {{join}}. Every check passes.', {
                             join: data.ads.map((a) => a.language.toUpperCase()).join(', '),
                           })}

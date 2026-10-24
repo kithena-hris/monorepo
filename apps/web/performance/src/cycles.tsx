@@ -99,7 +99,6 @@ import {
   day,
   download,
   kindLabel,
-  plural,
   score,
   useAct,
   words,
@@ -343,9 +342,9 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                   onClick={() => {
                     const source = data.rows.find((c) => c.id === from);
                     create(
-                      tr('cycles.copy_of', 'Copy of {{value}}', {
-                        value: source?.name ?? 'a cycle',
-                      }),
+                      source?.name == null
+                        ? tr('cycles.copy_of_a_cycle', 'Copy of a cycle')
+                        : tr('cycles.copy_of', 'Copy of {{value}}', { value: source.name }),
                       from,
                     );
                   }}
@@ -1382,7 +1381,11 @@ function Participants({
           <Search
             label={tr('cycles.search_who_is_in', 'Search who is in')}
             placeholder={tr('cycles.search', 'Search {{count}}', {
-              count: plural(p.count, 'person', 'people'),
+              count: tr(
+                'cycles.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: p.count },
+              ),
             })}
             initial={q}
             onSearch={(next) => {
@@ -1437,9 +1440,17 @@ function Participants({
         }
       />
       <p className="text-sm text-fg-muted" aria-live="polite">
-        <span className="font-semibold text-fg">{plural(p.count, 'person', 'people')}</span>
+        <span className="font-semibold text-fg">
+          {tr(
+            'cycles.count_people',
+            { one: '{{count}} person', other: '{{count}} people' },
+            { count: p.count },
+          )}
+        </span>
         {` · ${String(p.fromFilter)} from the filters, ${String(p.included)} added by name, ${String(p.excluded)} left out`}
-        {q === '' ? '' : ` · ${plural(p.total ?? p.rows.length, 'match', 'matches')} “${q}”`}
+        {q === ''
+          ? ''
+          : ` · ${tr('cycles.count_matches', { one: '{{count}} match', other: '{{count}} matches' }, { count: p.total ?? p.rows.length })} “${q}”`}
       </p>
       {/* A page at a time, only the rows in view drawn; the next page comes at 70%. */}
       <DataTable
@@ -1457,7 +1468,11 @@ function Participants({
         {...(pages.items.length > 0 && pages.loadMore === undefined
           ? {
               endLabel: tr('cycles.thats_everyone', 'That’s everyone · {{plural}}', {
-                plural: plural(p.total ?? p.rows.length, 'person', 'people'),
+                plural: tr(
+                  'cycles.count_people',
+                  { one: '{{count}} person', other: '{{count}} people' },
+                  { count: p.total ?? p.rows.length },
+                ),
               }),
             }
           : {})}
@@ -1642,7 +1657,11 @@ function Reviews({
                             {tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
                               name: t.name,
                               value: String(t.published ?? 1),
-                              questions: plural(t.questions, 'question'),
+                              questions: tr(
+                                'cycles.count_questions',
+                                { one: '{{count}} question', other: '{{count}} questions' },
+                                { count: t.questions },
+                              ),
                             })}
                           </SelectItem>
                         ))}
@@ -1650,9 +1669,11 @@ function Reviews({
                     </Select>
                   </Field>
                   <NumberField
-                    label={tr('cycles.due_after', 'Due after {{value}}', {
-                      value: d.from === 'nominations' ? 'nominations close' : 'the start',
-                    })}
+                    label={
+                      d.from === 'nominations'
+                        ? tr('cycles.due_after_nominations_close', 'Due after nominations close')
+                        : tr('cycles.due_after_the_start', 'Due after the start')
+                    }
                     hint={tr('cycles.works_out_to', 'Works out to {{resolveDue}}', {
                       resolveDue: day(resolveDue(c, d)),
                     })}
@@ -2022,16 +2043,13 @@ function CyclePlan({
     if (setup === null) return;
     open({
       title: tr('cycles.when_are_due', 'When are {{name}} due?', { name: name(k).toLowerCase() }),
-      description: tr(
-        'cycles.counted_from_so_it_moves_with',
-        'Counted from {{value}}, so it moves with it.',
-        {
-          value:
-            setup.c.activities[k as Kind].due.from === 'nominations'
-              ? 'when nominations close'
-              : 'the start',
-        },
-      ),
+      description:
+        setup.c.activities[k as Kind].due.from === 'nominations'
+          ? tr(
+              'cycles.counted_from_nominations_close',
+              'Counted from when nominations close, so it moves with it.',
+            )
+          : tr('cycles.counted_from_the_start', 'Counted from the start, so it moves with it.'),
       confirm: tr('cycles.change_the_due_date', 'Change the due date'),
       date: to,
       run: (d) => {
@@ -2375,10 +2393,20 @@ const kindTone = (kind: string): (typeof TONES)[number] =>
 const dueAfter = (d: Deadline): string =>
   d.kind === 'exact'
     ? tr('cycles.on_a_set_date', 'on a set date')
-    : tr('cycles.after', '{{plural}} after {{value}}', {
-        plural: plural(d.days ?? 0, 'day'),
-        value: d.from === 'nominations' ? 'nominations close' : 'the start',
-      });
+    : d.from === 'nominations'
+      ? tr(
+          'cycles.days_after_nominations_close',
+          {
+            one: '{{count}} day after nominations close',
+            other: '{{count}} days after nominations close',
+          },
+          { count: d.days ?? 0 },
+        )
+      : tr(
+          'cycles.days_after_the_start',
+          { one: '{{count}} day after the start', other: '{{count}} days after the start' },
+          { count: d.days ?? 0 },
+        );
 
 const PICKER: Readonly<Record<string, string>> = {
   subject: tr('cycles.the_person_2', 'the person'),
@@ -2405,7 +2433,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
       : tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
           name: t.name,
           value: String(t.published ?? 1),
-          questions: plural(t.questions, 'question'),
+          questions: tr(
+            'cycles.count_questions',
+            { one: '{{count}} question', other: '{{count}} questions' },
+            { count: t.questions },
+          ),
         });
   };
   return (
@@ -2417,10 +2449,23 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               ? data.action === 'schedule'
                 ? tr('cycles.ready_to_schedule', 'Ready to schedule')
                 : tr('cycles.ready_to_launch', 'Ready to launch')
-              : tr('cycles.to_fix_before_it_can', '{{blocks}} to fix before it can {{value}}', {
-                  blocks: plural(blocks, 'thing'),
-                  value: data.action === 'schedule' ? 'be scheduled' : 'launch',
-                })}
+              : data.action === 'schedule'
+                ? tr(
+                    'cycles.things_to_fix_before_scheduled',
+                    {
+                      one: '{{count}} thing to fix before it can be scheduled',
+                      other: '{{count}} things to fix before it can be scheduled',
+                    },
+                    { count: blocks },
+                  )
+                : tr(
+                    'cycles.things_to_fix_before_launch',
+                    {
+                      one: '{{count}} thing to fix before it can launch',
+                      other: '{{count}} things to fix before it can launch',
+                    },
+                    { count: blocks },
+                  )}
           </CardTitle>
           <p className="text-sm text-fg-muted">
             {blocks === 0 && warns === 0
@@ -2430,7 +2475,13 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                 : tr(
                     'cycles.to_read_warnings_dont_stop_it',
                     '{{warns}} to read. Warnings don’t stop it.',
-                    { warns: plural(warns, 'warning') },
+                    {
+                      warns: tr(
+                        'cycles.count_warnings',
+                        { one: '{{count}} warning', other: '{{count}} warnings' },
+                        { count: warns },
+                      ),
+                    },
                   )}
           </p>
         </CardHeader>
@@ -2494,7 +2545,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               icon={<icons.flagged aria-hidden />}
               iconPosition="start"
               value={last === undefined ? '—' : day(last)}
-              description={plural(on.length, 'review')}
+              description={tr(
+                'cycles.count_reviews',
+                { one: '{{count}} review', other: '{{count}} reviews' },
+                { count: on.length },
+              )}
             />
           </div>
           {on.length === 0 ? (
@@ -2599,7 +2654,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               },
               {
                 label: tr('cycles.response_minimum', 'Response minimum'),
-                value: plural(v.minimum, 'answer'),
+                value: tr(
+                  'cycles.count_answers',
+                  { one: '{{count}} answer', other: '{{count}} answers' },
+                  { count: v.minimum },
+                ),
               },
             ]}
           />
@@ -2892,7 +2951,11 @@ function CycleSettings({
                 )}
               >
                 {tr('cycles.at_least_2', 'At least {{minimum}}', {
-                  minimum: plural(st.visibility.minimum, 'answer'),
+                  minimum: tr(
+                    'cycles.count_answers',
+                    { one: '{{count}} answer', other: '{{count}} answers' },
+                    { count: st.visibility.minimum },
+                  ),
                 })}
               </IconListItem>
               {c.kinds.includes('peer') ? (
@@ -2996,18 +3059,30 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
         description={[
           tr('cycles.of_in', '{{submitted}} of {{total}} in', {
             submitted: String(got.status.submitted),
-            total: plural(total, 'review'),
+            total: tr(
+              'cycles.count_reviews',
+              { one: '{{count}} review', other: '{{count}} reviews' },
+              { count: total },
+            ),
           }),
           got.status.overdue > 0
             ? tr('cycles.overdue_2', '{{overdue}} overdue', { overdue: String(got.status.overdue) })
             : tr('cycles.none_overdue', 'none overdue'),
           next === undefined || left === null
             ? null
-            : tr('cycles.s_due', '{{kindLabel}}s due {{due}}{{value}}', {
-                kindLabel: kindLabel(next.kind),
-                due: day(next.due),
-                value: left === 0 ? ', today' : `, in ${plural(left, 'day')}`,
-              }),
+            : left === 0
+              ? tr('cycles.kind_due_today', '{{kindLabel}} due {{due}}, today', {
+                  kindLabel: kindLabel(next.kind),
+                  due: day(next.due),
+                })
+              : tr(
+                  'cycles.kind_due_in_days',
+                  {
+                    one: '{{kindLabel}} due {{due}}, in {{count}} day',
+                    other: '{{kindLabel}} due {{due}}, in {{count}} days',
+                  },
+                  { kindLabel: kindLabel(next.kind), due: day(next.due), count: left },
+                ),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
@@ -3060,7 +3135,13 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
             tone: x.tone,
             values: got.byDepartment.map((d) => d[x.key]),
           }))}
-          format={(v) => plural(Math.round(v), 'review')}
+          format={(v) =>
+            tr(
+              'cycles.count_reviews',
+              { one: '{{count}} review', other: '{{count}} reviews' },
+              { count: Math.round(v) },
+            )
+          }
         />
       </ChartCard>
     </div>
@@ -3240,7 +3321,13 @@ function PeopleToolbar({
         }
         actions={
           <span className="flex items-center gap-2">
-            <span className="text-sm text-fg-muted">{plural(data.total, 'person', 'people')}</span>
+            <span className="text-sm text-fg-muted">
+              {tr(
+                'cycles.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: data.total },
+              )}
+            </span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
@@ -3468,7 +3555,11 @@ function OverviewTable({
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
       endLabel={tr('cycles.thats_everyone_2', 'That’s everyone · {{total}}', {
-        total: plural(data.total, 'person', 'people'),
+        total: tr(
+          'cycles.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: data.total },
+        ),
       })}
       {...(data.hr
         ? {
@@ -3959,7 +4050,14 @@ function ExtendDialog({
 }): JSX.Element {
   const [kind, setKind] = useState(preset?.kind ?? kinds.find((k) => k !== 'goals') ?? 'self');
   const [due, setDue] = useState(preset?.due ?? '');
-  const who = people.length === 0 ? 'everyone' : plural(people.length, 'person', 'people');
+  const who =
+    people.length === 0
+      ? 'everyone'
+      : tr(
+          'cycles.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: people.length },
+        );
   const [reason, setReason] = useState('');
   return (
     <Modal
@@ -3982,9 +4080,15 @@ function ExtendDialog({
               );
             }}
           >
-            {tr('cycles.extend_for', 'Extend for {{value}}', {
-              value: people.length === 0 ? 'everyone' : String(people.length),
-            })}
+            {people.length === 0
+              ? tr('cycles.extend_for_everyone', 'Extend for everyone')
+              : tr(
+                  'cycles.extend_for',
+                  { one: 'Extend for {{count}} person', other: 'Extend for {{count}} people' },
+                  {
+                    count: people.length,
+                  },
+                )}
           </Button>
         </>
       }
@@ -4326,9 +4430,13 @@ function RemoveDialog({
     <Modal
       open
       onClose={onDone}
-      title={tr('cycles.remove_from_the_cycle_2', 'Remove {{value}} from the cycle?', {
-        value: person?.name ?? 'them',
-      })}
+      title={
+        person?.name == null
+          ? tr('cycles.remove_them_from_the_cycle', 'Remove them from the cycle?')
+          : tr('cycles.remove_from_the_cycle_2', 'Remove {{value}} from the cycle?', {
+              value: person.name,
+            })
+      }
       description={tr(
         'cycles.started_reviews_about_them_become_detached',
         'Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are cancelled.',

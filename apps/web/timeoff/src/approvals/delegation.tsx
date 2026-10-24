@@ -206,11 +206,16 @@ function Ready({
             tone="info"
             title={t('approvals.delegation.requests_never_get_stuck', 'Requests never get stuck')}
           >
-            {t(
-              'approvals.delegation.if_neither_of_you_decides_in',
-              'If neither of you decides in 3 working days, it goes to {{value}}.',
-              { value: data.escalatesTo?.displayName ?? 'HR' },
-            )}
+            {data.escalatesTo?.displayName == null
+              ? t(
+                  'approvals.delegation.if_neither_decides_goes_to_hr',
+                  'If neither of you decides in 3 working days, it goes to HR.',
+                )
+              : t(
+                  'approvals.delegation.if_neither_of_you_decides_in',
+                  'If neither of you decides in 3 working days, it goes to {{value}}.',
+                  { value: data.escalatesTo.displayName },
+                )}
           </Alert>
           {said === null ? null : (
             <Alert

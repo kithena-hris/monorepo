@@ -5,13 +5,9 @@ import {
   Badge,
   Button,
   Calendar,
-  Field,
-  FieldControl,
-  FieldLabel,
-  List,
-  ListItem,
-  RadioCard,
-  RadioGroup,
+  type CalendarDayStyle,
+  type CalendarMarker,
+  type DateRange,
   Dialog,
   DialogBody,
   DialogContent,
@@ -19,16 +15,21 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Field,
+  FieldControl,
+  FieldLabel,
+  formatList,
+  icons,
+  List,
+  ListItem,
+  RadioCard,
+  RadioGroup,
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
   Stat,
   Textarea,
-  icons,
   useCoarsePointer,
-  type CalendarDayStyle,
-  type CalendarMarker,
-  type DateRange,
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
@@ -476,7 +477,7 @@ function sendTo(preview: RequestData['preview']): string {
   );
   return names.length === 0
     ? tr('request.request.send', 'Send')
-    : tr('request.request.send_to', 'Send to {{join}}', { join: names.join(' and ') });
+    : tr('request.request.send_to', 'Send to {{join}}', { join: formatList(names) });
 }
 
 /* --------------------------------------------------------------- type -- */
@@ -737,11 +738,16 @@ function Consequences({
             <Textarea
               value={note}
               rows={2}
-              placeholder={tr(
-                'request.request.anything_should_know',
-                'Anything {{value}} should know',
-                { value: approver ?? 'your approver' },
-              )}
+              placeholder={
+                approver === null || approver === undefined
+                  ? tr(
+                      'request.request.anything_your_approver_should_know',
+                      'Anything your approver should know',
+                    )
+                  : tr('request.request.anything_should_know', 'Anything {{value}} should know', {
+                      value: approver,
+                    })
+              }
               onChange={(e) => {
                 onNote(e.target.value);
               }}
@@ -786,10 +792,11 @@ function offOn(data: RequestData, date: string): string {
           at: String(names.at(-1)),
         });
   return (
-    tr('request.request.already_off_that_day', '{{list}} {{value}} already off that day.', {
-      list: String(list),
-      value: names.length === 1 ? 'is' : 'are',
-    }) + ' '
+    tr(
+      'request.request.already_off_that_day',
+      { one: '{{list}} is already off that day.', other: '{{list}} are already off that day.' },
+      { count: names.length, list: String(list) },
+    ) + ' '
   );
 }
 
@@ -812,11 +819,11 @@ function BelowZero({
   const { negative, span } = preview;
   const below = preview.balance === null ? '' : amount(preview.balance.after).replace(/^-/, '');
   const nextYear = String(Number(span.from.slice(0, 4)) + 1);
-  const who = negative.approvers
-    .map((r) =>
+  const who = formatList(
+    negative.approvers.map((r) =>
       r === 'manager' ? (approver ?? tr('request.request.your_manager_2', 'Your manager')) : 'HR',
-    )
-    .join(' and ');
+    ),
+  );
   const choices: ReactNode[] = [];
   if (negative.kind === 'borrow') {
     choices.push(

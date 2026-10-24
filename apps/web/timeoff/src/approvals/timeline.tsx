@@ -1,7 +1,8 @@
 import {
   Avatar,
-  Scheduler,
   dayColumns,
+  locale,
+  Scheduler,
   type SchedulerColumn,
   type SchedulerEvent,
 } from '@reach/ui';
@@ -114,7 +115,7 @@ export function TeamTimeline({
  * many are in.
  */
 export function calendarColumns(view: CalendarView, from: string, to: string): SchedulerColumn[] {
-  return dayColumns(from, daysBetween(from, to) + 1, 'en-GB').map((day) => {
+  return dayColumns(from, daysBetween(from, to) + 1, locale()).map((day) => {
     const holidays = [
       ...new Set(view.holidays.filter((h) => h.date === day.id).map((h) => h.name)),
     ];

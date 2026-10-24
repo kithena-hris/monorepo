@@ -18,6 +18,9 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
+  formatNumber,
+  icons,
   Input,
   List,
   ListItem,
@@ -30,7 +33,6 @@ import {
   SelectValue,
   Skeleton,
   Switch,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -105,15 +107,29 @@ export function sentence(t: DocumentType & { readonly retentionWords: string }):
     t.filedTo === 'person'
       ? tr('settings.settings.filed_to_each_person', 'Filed to each person')
       : tr('settings.settings.a_company_document', 'A company document'),
-    tr('settings.settings.it', '{{AUDIENCE}} {{value}} it{{value2}}', {
-      AUDIENCE: AUDIENCE[t.audience],
-      value: t.audience === 'everyone' ? 'sees' : 'see',
-      value2: t.confidential ? tr('settings.settings.confidential_suffix', ', Confidential') : '',
-    }),
+    t.audience === 'everyone'
+      ? t.confidential
+        ? tr('settings.settings.everyone_sees_it_confidential', 'Everyone sees it, Confidential')
+        : tr('settings.settings.everyone_sees_it', 'Everyone sees it')
+      : t.confidential
+        ? tr(
+            'settings.settings.audience_see_it_confidential',
+            '{{AUDIENCE}} see it, Confidential',
+            {
+              AUDIENCE: AUDIENCE[t.audience],
+            },
+          )
+        : tr('settings.settings.it', '{{AUDIENCE}} see it', { AUDIENCE: AUDIENCE[t.audience] }),
     t.signers.length === 0
       ? null
       : tr('settings.settings.signed_by', 'Signed by {{join}}', {
-          join: t.signers.map((s) => (s === 'subject' ? 'them' : 'HR')).join(', then '),
+          join: t.signers
+            .map((s) =>
+              s === 'subject'
+                ? tr('settings.settings.signer_them', 'them')
+                : tr('settings.settings.signer_hr', 'HR'),
+            )
+            .join(tr('settings.settings.then_separator', ', then ')),
         }),
     t.acknowledge
       ? tr(
@@ -123,15 +139,24 @@ export function sentence(t: DocumentType & { readonly retentionWords: string }):
       : null,
     t.requiredFor === null
       ? null
-      : tr('settings.settings.required_for', 'Required for {{value}}', {
-          value: t.requiredFor === 'new_starters' ? 'new starters, before day one' : 'everyone',
-        }),
+      : t.requiredFor === 'new_starters'
+        ? tr(
+            'settings.settings.required_for_new_starters',
+            'Required for new starters, before day one',
+          )
+        : tr('settings.settings.required_for_everyone', 'Required for everyone'),
     t.expiryReminders.length === 0
       ? null
       : tr(
           'settings.settings.reminders_days_before_it_expires',
-          'Reminders {{join}} days before it expires',
-          { join: t.expiryReminders.join(' and ') },
+          {
+            one: 'Reminders {{join}} day before it expires',
+            other: 'Reminders {{join}} days before it expires',
+          },
+          {
+            count: t.expiryReminders.at(-1) ?? 0,
+            join: formatList(t.expiryReminders.map((d) => formatNumber(d))),
+          },
         ),
     tr('settings.settings.kept', 'Kept {{charAt}}{{slice}}', {
       charAt: t.retentionWords.charAt(0).toLowerCase(),
@@ -904,13 +929,11 @@ export function RetentionSettings({
                       iconTone="danger"
                       description={tr(
                         'settings.settings.document_2',
-                        '{{setBy}} · {{setAt}} · {{count}} document{{value}}',
                         {
-                          setBy: h.setBy,
-                          setAt: shortDate(h.setAt),
-                          count: String(h.count),
-                          value: h.count === 1 ? '' : 's',
+                          one: '{{setBy}} · {{setAt}} · {{count}} document',
+                          other: '{{setBy}} · {{setAt}} · {{count}} documents',
                         },
+                        { count: h.count, setBy: h.setBy, setAt: shortDate(h.setAt) },
                       )}
                       trailing={data.hr ? <Lift id={h.id} onLift={onLift} /> : null}
                     >

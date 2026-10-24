@@ -1,4 +1,4 @@
-import { icons, type IsoDate } from '@reach/ui';
+import { dateFormat, formatList, icons, type IsoDate } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
 import { t } from '../i18n';
 
@@ -28,7 +28,7 @@ export const FORMAT_LABEL: Record<ExportFormat, string> = {
 
 /** "30 June 2026": a calendar date as people say it. */
 export const spokenDate = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeZone: 'UTC' }).format(
+  dateFormat({ dateStyle: 'long', timeZone: 'UTC' }).format(
     new Date(`${date.slice(0, 10)}T00:00:00Z`),
   );
 
@@ -38,12 +38,7 @@ export const firstName = (name: string | null | undefined): string =>
 
 /** "a, b and c". */
 export const listed = (items: readonly string[]): string =>
-  items.length <= 1
-    ? (items[0] ?? '')
-    : t('export.words.and', '{{join}} and {{value}}', {
-        join: items.slice(0, -1).join(', '),
-        value: items.at(-1) ?? '',
-      });
+  items.length <= 1 ? (items[0] ?? '') : formatList(items);
 
 /**
  * Who asked, for a row that counts several requests: "Sofia Lindqvist",
@@ -56,14 +51,14 @@ export function whoOf(names: readonly string[], more = false): string | null {
   if (more) return t('export.words.and_others', '{{first}} and others', { first });
   if (second === undefined) return first;
   return names.length === 2
-    ? t('export.words.and_2', '{{first}} and {{replace}}', {
-        first,
-        replace: second.replace(/^You$/u, 'you'),
-      })
-    : t('export.words.and_others_2', '{{first}} and {{value}} others', {
-        first,
-        value: String(names.length - 1),
-      });
+    ? second === 'You'
+      ? t('export.words.name_and_you', '{{first}} and you', { first })
+      : formatList([first, second])
+    : t(
+        'export.words.and_others_2',
+        { one: '{{first}} and {{count}} other', other: '{{first}} and {{count}} others' },
+        { first, count: names.length - 1 },
+      );
 }
 
 /** A small muted line with a shield: the rule a panel works under. */

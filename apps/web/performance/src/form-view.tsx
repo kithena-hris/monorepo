@@ -560,9 +560,14 @@ export function QuestionBlock({
           ) : null}
           {q.private ? (
             <Badge size="sm" tone="warning">
-              {tr('form-view.private_hidden_from', 'Private: hidden from {{value}}', {
-                value: subject ?? 'the subject',
-              })}
+              {subject === null || subject === undefined
+                ? tr(
+                    'form-view.private_hidden_from_the_subject',
+                    'Private: hidden from the subject',
+                  )
+                : tr('form-view.private_hidden_from', 'Private: hidden from {{value}}', {
+                    value: subject,
+                  })}
             </Badge>
           ) : null}
           {isDrafted ? (

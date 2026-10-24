@@ -94,11 +94,17 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
         <div className="flex flex-col gap-5">
           <PageHeader
             title={tr('home.performance', 'Performance')}
-            description={tr(
-              'home.reviews_feedback_goals_and_learning',
-              'Reviews, feedback, goals and learning.{{value}}',
-              { value: data.hr ? ' As HR.' : '' },
-            )}
+            description={
+              data.hr
+                ? tr(
+                    'home.reviews_feedback_goals_and_learning_as_hr',
+                    'Reviews, feedback, goals and learning. As HR.',
+                  )
+                : tr(
+                    'home.reviews_feedback_goals_and_learning',
+                    'Reviews, feedback, goals and learning.',
+                  )
+            }
             actions={
               <>
                 <Button variant="secondary" asChild>
@@ -216,13 +222,20 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                       {data.owed.map((o) => (
                         <ListItem
                           key={o.id}
-                          description={tr('home.text', '{{cycle}} · {{value}}', {
-                            cycle: o.cycle,
-                            value:
-                              o.released === null
-                                ? 'You see it when it is released'
-                                : `Released ${day(o.released)}`,
-                          })}
+                          description={
+                            o.released === null
+                              ? tr(
+                                  'home.cycle_seen_when_released',
+                                  '{{cycle}} · You see it when it is released',
+                                  {
+                                    cycle: o.cycle,
+                                  },
+                                )
+                              : tr('home.cycle_released', '{{cycle}} · Released {{day}}', {
+                                  cycle: o.cycle,
+                                  day: day(o.released),
+                                })
+                          }
                           trailing={<ReviewBadge state={o.state} />}
                         >
                           {`${kindLabel(o.kind)}${o.from === null ? '' : ` · ${o.from}`}`}

@@ -53,7 +53,6 @@ import {
   To,
   day,
   kindLabel,
-  plural,
   useAct,
   when,
   type Act,
@@ -231,13 +230,21 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                           <TableCell className="text-sm">
                             {tr('templates.text', '{{version}} · {{questions}}', {
                               version: r.version,
-                              questions: plural(r.questions, 'question'),
+                              questions: tr(
+                                'templates.count_questions',
+                                { one: '{{count}} question', other: '{{count}} questions' },
+                                { count: r.questions },
+                              ),
                             })}
                           </TableCell>
                           <TableCell className="text-sm text-fg-muted">
                             {r.inCycles === 0
                               ? tr('templates.none', 'None')
-                              : plural(r.inCycles, 'cycle')}
+                              : tr(
+                                  'templates.count_cycles',
+                                  { one: '{{count}} cycle', other: '{{count}} cycles' },
+                                  { count: r.inCycles },
+                                )}
                           </TableCell>
                           <TableCell className="text-sm text-fg-muted">
                             {day(r.updatedAt)}
@@ -377,7 +384,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                   <Alert
                     tone="warning"
                     title={tr('templates.used_by', 'Used by {{inCycles}}', {
-                      inCycles: plural(archiving.inCycles, 'cycle'),
+                      inCycles: tr(
+                        'templates.count_cycles',
+                        { one: '{{count}} cycle', other: '{{count}} cycles' },
+                        { count: archiving.inCycles },
+                      ),
                     })}
                   >
                     {tr(
@@ -535,7 +546,7 @@ function NewTemplate({
             {draft.sections.map((s) => (
               <p key={s.id} className="text-sm">
                 <span className="font-semibold">{s.title}</span>
-                {` · ${plural(s.questions.length, 'question')}`}
+                {` · ${tr('templates.count_questions', { one: '{{count}} question', other: '{{count}} questions' }, { count: s.questions.length })}`}
               </p>
             ))}
           </div>
@@ -826,7 +837,11 @@ function Building({
             issues.length === 0
               ? tr('templates.nothing_to_change', 'Nothing to change')
               : tr('templates.from_the_check', '{{length}} from the check', {
-                  length: plural(issues.length, 'suggestion'),
+                  length: tr(
+                    'templates.count_suggestions',
+                    { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                    { count: issues.length },
+                  ),
                 })
           }
         >
@@ -877,9 +892,11 @@ function Building({
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                   <SortableList
-                    label={tr('templates.questions_in', 'Questions in {{value}}', {
-                      value: s.title || 'this section',
-                    })}
+                    label={
+                      s.title === ''
+                        ? tr('templates.questions_in_this_section', 'Questions in this section')
+                        : tr('templates.questions_in', 'Questions in {{value}}', { value: s.title })
+                    }
                     items={s.questions.map((q) => ({
                       id: q.id,
                       locked: q.type === 'performance_score',
@@ -1510,9 +1527,10 @@ export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
             <Alert
               tone="info"
               title={tr('templates.hidden_from_the_subject', '{{length}} hidden from the subject', {
-                length: plural(
-                  data.removed.length,
-                  tr('templates.private_question', 'private question'),
+                length: tr(
+                  'templates.count_private_questions',
+                  { one: '{{count}} private question', other: '{{count}} private questions' },
+                  { count: data.removed.length },
                 ),
               })}
             >

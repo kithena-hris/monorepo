@@ -83,13 +83,19 @@ export function Answers({
         asked > 0
           ? t(
               'answers.hr_is_waiting_for_detail_from',
-              'HR is waiting for {{asked}} detail{{value}} from you',
-              { asked: String(asked), value: asked === 1 ? '' : 's' },
+              {
+                one: 'HR is waiting for {{count}} detail from you',
+                other: 'HR is waiting for {{count}} details from you',
+              },
+              { count: asked },
             )
           : t(
               'answers.your_record_is_missing_detail',
-              'Your record is missing {{length}} detail{{value}}',
-              { length: String(waiting.length), value: waiting.length === 1 ? '' : 's' },
+              {
+                one: 'Your record is missing {{count}} detail',
+                other: 'Your record is missing {{count}} details',
+              },
+              { count: waiting.length },
             )
       }
       level={2}

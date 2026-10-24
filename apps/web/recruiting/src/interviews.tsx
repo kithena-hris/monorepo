@@ -80,8 +80,8 @@ export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
               tone="warning"
               title={tr(
                 'interviews.scorecard_to_submit',
-                '{{length}} scorecard{{value}} to submit',
-                { length: String(data.owed.length), value: data.owed.length === 1 ? '' : 's' },
+                { one: '{{count}} scorecard to submit', other: '{{count}} scorecards to submit' },
+                { count: data.owed.length },
               )}
             >
               {tr(
@@ -292,10 +292,15 @@ function Connections({
               <Button
                 size="sm"
                 variant={on ? 'secondary' : 'primary'}
-                aria-label={tr('interviews.text', '{{value}} {{value2}}', {
-                  value: on ? 'Disconnect' : 'Connect',
-                  value2: PROVIDER[kind] ?? kind,
-                })}
+                aria-label={
+                  on
+                    ? tr('interviews.disconnect_provider', 'Disconnect {{provider}}', {
+                        provider: PROVIDER[kind] ?? kind,
+                      })
+                    : tr('interviews.connect_provider', 'Connect {{provider}}', {
+                        provider: PROVIDER[kind] ?? kind,
+                      })
+                }
                 disabled={act.pending}
                 onClick={() => {
                   if (on) act.run('DisconnectRecruitingCalendar', { kind }, load);
@@ -658,21 +663,24 @@ function AskRow({
   const tone = ask.state === 'open' ? 'warning' : ask.state === 'answered' ? 'success' : 'neutral';
   const title =
     ask.kind === 'slots'
-      ? tr('interviews.offered_for_the', '{{value}} offered for the {{label}}', {
-          value: ask.times.length === 1 ? 'A time' : `${String(ask.times.length)} times`,
-          label: ask.label.toLowerCase(),
-        })
+      ? tr(
+          'interviews.offered_for_the',
+          {
+            one: 'A time offered for the {{label}}',
+            other: '{{count}} times offered for the {{label}}',
+          },
+          { count: ask.times.length, label: ask.label.toLowerCase() },
+        )
       : ask.kind === 'info'
         ? tr('interviews.asked', 'Asked: {{label}}', { label: ask.label })
         : ask.kind === 'availability'
           ? tr(
               'interviews.candidate_offered_time_for_the',
-              'Candidate offered {{length}} time{{value}} for the {{label}}',
               {
-                length: String(ask.times.length),
-                value: ask.times.length === 1 ? '' : 's',
-                label: ask.label.toLowerCase(),
+                one: 'Candidate offered {{count}} time for the {{label}}',
+                other: 'Candidate offered {{count}} times for the {{label}}',
               },
+              { count: ask.times.length, label: ask.label.toLowerCase() },
             )
           : tr('interviews.candidate_asks_to_move_the', 'Candidate asks to move the {{label}}', {
               label: ask.label.toLowerCase(),
@@ -1015,25 +1023,37 @@ function ScheduleBody({
               <Card key={a.id}>
                 <CardHeader>
                   <CardTitle level={2}>
-                    {tr('interviews.offered_time', '{{name}} offered {{length}} time{{value}}', {
-                      name: data.candidate.name,
-                      length: String(a.times.length),
-                      value: a.times.length === 1 ? '' : 's',
-                    })}
+                    {tr(
+                      'interviews.offered_time',
+                      {
+                        one: '{{name}} offered {{count}} time',
+                        other: '{{name}} offered {{count}} times',
+                      },
+                      { count: a.times.length, name: data.candidate.name },
+                    )}
                   </CardTitle>
                   <CardDescription>
-                    {tr(
-                      'interviews.pick_one_and_book_it_the',
-                      'Pick one and book it: the invitation goes with {{value}}{{value2}}. None works? Ask for more and these are left out.',
-                      {
-                        value: a.videoUrl ?? a.place ?? 'a Google Meet link',
-                        value2:
-                          a.agenda === null
-                            ? ''
-                            : ' ' +
-                              tr('interviews.and_the_agenda_you_wrote', 'and the agenda you wrote'),
-                      },
-                    )}
+                    {a.agenda === null
+                      ? tr(
+                          'interviews.pick_one_and_book_it_the',
+                          'Pick one and book it: the invitation goes with {{value}}. None works? Ask for more and these are left out.',
+                          {
+                            value:
+                              a.videoUrl ??
+                              a.place ??
+                              tr('interviews.a_google_meet_link', 'a Google Meet link'),
+                          },
+                        )
+                      : tr(
+                          'interviews.pick_one_and_book_it_with_agenda',
+                          'Pick one and book it: the invitation goes with {{value}} and the agenda you wrote. None works? Ask for more and these are left out.',
+                          {
+                            value:
+                              a.videoUrl ??
+                              a.place ??
+                              tr('interviews.a_google_meet_link', 'a Google Meet link'),
+                          },
+                        )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -1114,13 +1134,18 @@ function ScheduleBody({
                       <RadioCard
                         key={p.key}
                         value={p.key}
-                        description={tr('interviews.min', '{{minutes}} min{{value}}', {
-                          minutes: String(p.minutes),
-                          value:
-                            p.competencies.length === 0
-                              ? ''
-                              : ` · ${String(p.competencies.length)} to assess`,
-                        })}
+                        description={
+                          p.competencies.length === 0
+                            ? tr('interviews.min', '{{minutes}} min', { minutes: p.minutes })
+                            : tr(
+                                'interviews.min_to_assess',
+                                {
+                                  one: '{{minutes}} min · {{count}} to assess',
+                                  other: '{{minutes}} min · {{count}} to assess',
+                                },
+                                { minutes: p.minutes, count: p.competencies.length },
+                              )
+                        }
                       >
                         {p.title}
                       </RadioCard>
@@ -1401,9 +1426,14 @@ function ScheduleBody({
                     );
                   }}
                 >
-                  {tr('interviews.send_to_the_candidate', 'Send {{value}} to the candidate', {
-                    value: picked.length === 1 ? 'this time' : `${String(picked.length)} times`,
-                  })}
+                  {tr(
+                    'interviews.send_to_the_candidate',
+                    {
+                      one: 'Send this time to the candidate',
+                      other: 'Send {{count}} times to the candidate',
+                    },
+                    { count: picked.length },
+                  )}
                 </Button>
               ) : (
                 <Button

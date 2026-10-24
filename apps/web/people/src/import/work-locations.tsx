@@ -8,7 +8,10 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   Input,
+  locale,
   RadioCard,
   RadioGroup,
   Select,
@@ -16,7 +19,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  icons,
 } from '@reach/ui';
 import { useId, type JSX } from 'react';
 import { t } from '../i18n';
@@ -70,13 +72,6 @@ export interface PlacesHere {
 }
 
 export type PlaceChoices = Readonly<Record<string, PlaceChoice>>;
-
-const plural = (n: number, one: string, many: string): string =>
-  t('import.work-locations.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? one : many,
-  });
-
 /** Every zone the browser knows, as Organisation's own picker lists them. */
 const ZONES = [...new Set(['Etc/UTC', ...Intl.supportedValuesOf('timeZone')])].map((z) => ({
   value: z,
@@ -129,15 +124,14 @@ export function WorkLocationsStep({
   const intro = (
     <AssistantCard
       level={2}
-      title={
-        n === 1
-          ? '1 work location in this file. Here’s how it maps.'
-          : t(
-              'import.work-locations.work_locations_in_this_file_heres',
-              '{{n}} work locations in this file. Here’s how each maps.',
-              { n: String(n) },
-            )
-      }
+      title={t(
+        'import.work-locations.work_locations_in_this_file_heres',
+        {
+          one: '{{count}} work location in this file. Here’s how it maps.',
+          other: '{{count}} work locations in this file. Here’s how each maps.',
+        },
+        { count: n },
+      )}
     >
       <p className="text-sm text-fg-muted">
         {t(
@@ -204,10 +198,11 @@ export function placesSummary(
       ? t('import.work-locations.to_add', '{{added}} to add', { added: String(counts.added) })
       : null,
     counts.left > 0
-      ? t('import.work-locations.left_empty', '{{left}} {{value}} left empty', {
-          left: String(counts.left),
-          value: counts.left === 1 ? 'person' : 'people',
-        })
+      ? t(
+          'import.work-locations.left_empty',
+          { one: '{{count}} person left empty', other: '{{count}} people left empty' },
+          { count: counts.left },
+        )
       : null,
   ].filter((x) => x !== null);
   return t('import.work-locations.in_this_file', '{{length}} in this file{{value}}', {
@@ -243,7 +238,11 @@ function WorkLocationCard({
   readonly onChange: (choice: PlaceChoice) => void;
 }): JSX.Element {
   const id = useId();
-  const people = plural(w.rows, 'person', 'people');
+  const people = t(
+    'import.work-locations.count_people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: w.rows },
+  );
   const [entity] = here.entities;
   const added: Extract<PlaceChoice, { kind: 'add' }> =
     choice.kind === 'add'
@@ -302,12 +301,22 @@ function WorkLocationCard({
         {/* Left empty, the people are the table below: named once. */}
         {choice.kind === 'leave' || w.people.length === 0
           ? t('import.work-locations.in_the_file', '{{people}} in the file', { people })
-          : t('import.work-locations.in_the_file_2', '{{people}} in the file: {{join}}{{value}}', {
-              people,
-              join: w.people.join(', '),
-              value:
-                w.rows > w.people.length ? ` and ${String(w.rows - w.people.length)} more` : '',
-            })}
+          : w.rows > w.people.length
+            ? t('import.work-locations.in_the_file_and_more', '{{people}} in the file: {{join}}', {
+                people,
+                join: formatList([
+                  ...w.people,
+                  t(
+                    'import.work-locations.more_people',
+                    { one: '{{count}} more', other: '{{count}} more' },
+                    { count: w.rows - w.people.length },
+                  ),
+                ]),
+              })
+            : t('import.work-locations.in_the_file_2', '{{people}} in the file: {{join}}', {
+                people,
+                join: formatList(w.people, 'unit', 'short'),
+              })}
       </p>
       <RadioGroup
         aria-label={t('import.work-locations.what_happens_to', 'What happens to “{{value}}”', {

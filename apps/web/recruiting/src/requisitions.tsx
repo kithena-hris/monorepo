@@ -496,15 +496,23 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
               title={t('requisitions.approve_requisition', 'Approve requisition: {{title}}', {
                 title: r.title,
               })}
-              description={t(
-                'requisitions.asked_by_step_of',
-                'Asked by {{value}} · step {{step}} of {{steps}}',
-                {
-                  value: r.hiringManager ?? 'the hiring manager',
-                  step: String(r.approval.step),
-                  steps: String(r.approval.steps),
-                },
-              )}
+              description={
+                r.hiringManager === null || r.hiringManager === undefined
+                  ? t(
+                      'requisitions.asked_by_hiring_manager_step_of',
+                      'Asked by the hiring manager · step {{step}} of {{steps}}',
+                      { step: r.approval.step, steps: r.approval.steps },
+                    )
+                  : t(
+                      'requisitions.asked_by_step_of',
+                      'Asked by {{value}} · step {{step}} of {{steps}}',
+                      {
+                        value: r.hiringManager,
+                        step: r.approval.step,
+                        steps: r.approval.steps,
+                      },
+                    )
+              }
               meta={<Badge tone="warning">{t('requisitions.waiting', 'Waiting')}</Badge>}
             />
             <Refusal error={act.error} />

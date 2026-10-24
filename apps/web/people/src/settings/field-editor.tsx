@@ -1172,10 +1172,11 @@ export function FieldEditor({
                         meta={
                           draft.visibilityRules.length === 0
                             ? t('settings.field-editor.no_exceptions', 'No exceptions')
-                            : t('settings.field-editor.text', '{{length}} {{value}}', {
-                                length: String(draft.visibilityRules.length),
-                                value: draft.visibilityRules.length === 1 ? 'rule' : 'rules',
-                              })
+                            : t(
+                                'settings.field-editor.text',
+                                { one: '{{count}} rule', other: '{{count}} rules' },
+                                { count: draft.visibilityRules.length },
+                              )
                         }
                       >
                         {t(

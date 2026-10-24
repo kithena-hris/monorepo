@@ -587,9 +587,11 @@ export function AttributeInput({
   const gap =
     field.missing === true && isMissing(value)
       ? field.readOnly
-        ? t('record.attribute-input.fills_this_in', '{{value}} fills this in.', {
-            value: field.ownedBy ?? 'HR',
-          })
+        ? field.ownedBy === null || field.ownedBy === undefined
+          ? t('record.attribute-input.hr_fills_this_in', 'HR fills this in.')
+          : t('record.attribute-input.fills_this_in', '{{value}} fills this in.', {
+              value: field.ownedBy,
+            })
         : t(
             'record.attribute-input.required_and_not_provided_yet',
             'Required, and not provided yet.',

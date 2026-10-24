@@ -3,15 +3,18 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AppBarBack,
   Alert,
+  AppBarBack,
   AssistantCard,
   Badge,
   Button,
+  type DataColumn,
   DataTable,
   FileUploader,
+  icons,
   List,
   ListItem,
+  locale,
   PageHeader,
   PageSection,
   PINNED_BAR,
@@ -23,10 +26,8 @@ import {
   Spinner,
   Stack,
   Stepper,
-  icons,
-  useCoarsePointer,
-  type DataColumn,
   type UploadItem,
+  useCoarsePointer,
 } from '@reach/ui';
 import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -867,7 +868,7 @@ function Steps({
             }
           >
             {t('import.import-flow.imported', 'Imported')}{' '}
-            {(run?.people.done ?? 0).toLocaleString('en-GB')}{' '}
+            {(run?.people.done ?? 0).toLocaleString(locale())}{' '}
             {run?.people.done === 1 ? 'person' : 'people'}
             {t(
               'import.import-flow.its_full_report_is_kept_for',
@@ -940,7 +941,7 @@ function Steps({
             const mappingBody = (
               <Stack gap={3}>
                 <p className="text-sm text-fg-muted">
-                  {stage.file.name} · {stage.file.rows.toLocaleString('en-GB')}{' '}
+                  {stage.file.name} · {stage.file.rows.toLocaleString(locale())}{' '}
                   {t('import.import-flow.rows', 'rows')}
                   {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped}{' '}
                   {t('import.import-flow.of_columns_mapped', 'of {{length}} columns mapped', {
@@ -973,10 +974,14 @@ function Steps({
               <Alert
                 id={`${whyId}-map`}
                 tone="warning"
-                title={t('import.import-flow.a_decision', '{{length}} {{value}} a decision', {
-                  length: String(undecided.length),
-                  value: undecided.length === 1 ? 'column needs' : 'columns need',
-                })}
+                title={t(
+                  'import.import-flow.a_decision',
+                  {
+                    one: '{{count}} column needs a decision',
+                    other: '{{count}} columns need a decision',
+                  },
+                  { count: undecided.length },
+                )}
               >
                 {undecided.map((c) => c.header).join(', ')}
                 {t(
@@ -1062,15 +1067,14 @@ function Steps({
                 <AccordionItem value="fields">
                   <AccordionTrigger
                     level={2}
-                    description={
-                      proposals.length === 1
-                        ? '1 column isn’t a field yet. Here’s what I’d create.'
-                        : t(
-                            'import.import-flow.columns_arent_fields_yet_heres_what',
-                            '{{length}} columns aren’t fields yet. Here’s what I’d create.',
-                            { length: String(proposals.length) },
-                          )
-                    }
+                    description={t(
+                      'import.import-flow.columns_arent_fields_yet_heres_what',
+                      {
+                        one: '{{count}} column isn’t a field yet. Here’s what I’d create.',
+                        other: '{{count}} columns aren’t fields yet. Here’s what I’d create.',
+                      },
+                      { count: proposals.length },
+                    )}
                     meta={
                       <Badge size="sm">
                         {kept.length}{' '}
@@ -1328,7 +1332,7 @@ function PhonePlan({
           className="flex flex-col gap-3"
         >
           <h2 id={`without-${p.key}`} className="font-display text-xl font-bold">
-            {missingOf(p).toLocaleString('en-GB')}{' '}
+            {missingOf(p).toLocaleString(locale())}{' '}
             {missingOf(p) === 1
               ? t('import.import-flow.person_has', 'person has')
               : t('import.import-flow.people_have', 'people have')}{' '}

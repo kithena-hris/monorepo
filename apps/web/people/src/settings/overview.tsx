@@ -62,14 +62,6 @@ export interface PeopleSettingsProps {
 
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
-
-const plural = (
-  n: number,
-  one: string,
-  many = t('settings.overview.s', '{{one}}s', { one }),
-): string =>
-  t('settings.overview.text', '{{n}} {{value}}', { n: String(n), value: n === 1 ? one : many });
-
 export function PeopleSettings({ load }: PeopleSettingsProps): JSX.Element {
   return (
     <Stack gap={6}>
@@ -117,7 +109,13 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
               unpublishedChanges === 0 ? (
                 'None'
               ) : (
-                <Badge tone="attention">{plural(unpublishedChanges, 'change')}</Badge>
+                <Badge tone="attention">
+                  {t(
+                    'settings.overview.count_changes',
+                    { one: '{{count}} change', other: '{{count}} changes' },
+                    { count: unpublishedChanges },
+                  )}
+                </Badge>
               ),
           },
         ]}
@@ -155,7 +153,11 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
           },
           {
             label: 'Smallest group reported',
-            value: plural(o.settings.cohortMinimum, 'person', 'people'),
+            value: t(
+              'settings.overview.count_people',
+              { one: '{{count}} person', other: '{{count}} people' },
+              { count: o.settings.cohortMinimum },
+            ),
           },
           {
             label: 'Retention periods',
@@ -220,7 +222,10 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
               live.length === 0
                 ? 'Not connected'
                 : live
-                    .map((c) => `${c.system}, ${plural(c.linked, 'person', 'people')} linked`)
+                    .map(
+                      (c) =>
+                        `${c.system}, ${t('settings.overview.count_people', { one: '{{count}} person', other: '{{count}} people' }, { count: c.linked })} linked`,
+                    )
                     .join('; '),
           },
         ]}

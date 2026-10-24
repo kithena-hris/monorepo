@@ -6,25 +6,27 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
+  type DataColumn,
+  DataTable,
   EmptyState,
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   KeyValues,
   ListDetail,
   ListItem,
+  locale,
   PageHeader,
   PageSection,
   PINNED_BAR,
+  type RowAction,
   Stack,
-  DataTable,
-  type DataColumn,
   Textarea,
-  VirtualList,
-  icons,
   useCoarsePointer,
   usePages,
-  type RowAction,
+  VirtualList,
   type VirtualListHandle,
   type VirtualRowProps,
 } from '@reach/ui';
@@ -278,13 +280,10 @@ const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body:
 
 /** "6 people", "1 person". */
 const peopleCount = (n: number): string =>
-  t('review.review.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? 'person' : 'people',
-  });
+  t('review.review.text', { one: '{{count}} person', other: '{{count}} people' }, { count: n });
 
 const shortDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /* -------------------------------------------------------------- rows -- */
 
@@ -311,9 +310,10 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
-  by: t('review.review.asked_by', 'Asked by {{value}}', {
-    value: item.requestedBy === 'You' ? 'you' : item.requestedBy,
-  }),
+  by:
+    item.requestedBy === 'You'
+      ? t('review.review.asked_by_you', 'Asked by you')
+      : t('review.review.asked_by', 'Asked by {{value}}', { value: item.requestedBy }),
   at: item.requestedAt,
   flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
@@ -331,9 +331,9 @@ const idRow = (item: ReviewItem): Row => ({
   by:
     item.enteredBy == null
       ? null
-      : t('review.review.entered_by', 'Entered by {{value}}', {
-          value: item.enteredBy === 'You' ? 'you' : item.enteredBy,
-        }),
+      : item.enteredBy === 'You'
+        ? t('review.review.entered_by_you', 'Entered by you')
+        : t('review.review.entered_by', 'Entered by {{value}}', { value: item.enteredBy }),
   badge: verdictOf(item),
 });
 
@@ -369,7 +369,7 @@ const shareRow = (share: ShareRequest): Row => ({
   avatarUrl: share.requestedBy.avatarUrl ?? null,
   // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
   summary: t('review.review.export_to', 'Export to {{value}} · {{value2}}', {
-    value: share.recipient.name ?? 'a colleague',
+    value: share.recipient.name ?? t('review.review.a_colleague', 'a colleague'),
     value2: share.people == null ? share.reason : peopleCount(share.people),
   }),
   at: share.requestedAt,
@@ -723,12 +723,12 @@ function Queue({
       >
         <ChipGroupItem value="all">
           {t('review.review.all', 'All')}{' '}
-          <span className="opacity-60 tabular-nums">{total.toLocaleString('en-GB')}</span>
+          <span className="opacity-60 tabular-nums">{total.toLocaleString(locale())}</span>
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
             {CHIP[k]}{' '}
-            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
+            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString(locale())}</span>
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -1161,7 +1161,7 @@ function Detail({
       return (
         <Card padded className="flex flex-col items-start gap-3">
           <h2 className="text-md font-bold">
-            {pair?.names.join(' and ') ?? row.name}
+            {pair === undefined ? row.name : formatList(pair.names)}
             <span className="font-normal text-fg-muted">
               {' '}
               {t('review.review.possible_duplicate', '· Possible duplicate')}
@@ -1290,13 +1290,11 @@ function ExportDetail({
             share.gap.fields.map((f) =>
               t(
                 'review.review.is_outside_what_can_see_for',
-                '{{label}} is outside what {{them}} can see for {{people}} {{value}}',
                 {
-                  label: f.label,
-                  them,
-                  people: String(f.people),
-                  value: f.people === 1 ? 'person' : 'people',
+                  one: '{{label}} is outside what {{them}} can see for {{count}} person',
+                  other: '{{label}} is outside what {{them}} can see for {{count}} people',
                 },
+                { count: f.people, label: f.label, them },
               ),
             ),
           )}

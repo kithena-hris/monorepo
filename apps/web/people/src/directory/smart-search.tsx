@@ -373,15 +373,6 @@ export function Understood({
     </div>
   );
 }
-
-/* ---------------------------------------------------------- the cards -- */
-
-const people = (n: number): string =>
-  t('directory.smart-search.text', '{{n}} {{value}}', {
-    n: String(n),
-    value: n === 1 ? 'person' : 'people',
-  });
-
 /** A part of the "needs you" card: a heading, and what to do about it. */
 interface Part {
   readonly title: string;
@@ -414,10 +405,11 @@ function clarifyPart({
           count: String(r.count),
         });
   return {
-    title: t('directory.smart-search.what_does_mean', 'What does “{{phrase}}” mean{{value}}?', {
-      phrase,
-      value: coarse ? '' : ' here',
-    }),
+    title: coarse
+      ? t('directory.smart-search.what_does_mean', 'What does “{{phrase}}” mean?', { phrase })
+      : t('directory.smart-search.what_does_mean_here', 'What does “{{phrase}}” mean here?', {
+          phrase,
+        }),
     label: t('directory.smart-search.what_does_mean_2', 'What does “{{phrase}}” mean?', { phrase }),
     body: coarse ? (
       <div className="flex flex-col gap-2">
@@ -499,18 +491,25 @@ function refusedPart({
                 {r.why}{' '}
                 {r.instead === null
                   ? t('directory.smart-search.i_left_it_out', 'I left it out.')
-                  : t(
-                      'directory.smart-search.i_can_search_the_field_for',
-                      'I can search the {{label}} field for “{{subject}}” instead{{value}}',
-                      {
-                        label: r.instead.label,
-                        subject: r.instead.subject,
-                        value:
-                          r.instead.count === null
-                            ? '.'
-                            : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`,
-                      },
-                    )}
+                  : r.instead.count === null
+                    ? t(
+                        'directory.smart-search.i_can_search_the_field_for',
+                        'I can search the {{label}} field for “{{subject}}” instead.',
+                        { label: r.instead.label, subject: r.instead.subject },
+                      )
+                    : t(
+                        'directory.smart-search.i_can_search_the_field_for_listed',
+                        {
+                          one: 'I can search the {{label}} field for “{{subject}}” instead, which {{count}} person has listed.',
+                          other:
+                            'I can search the {{label}} field for “{{subject}}” instead, which {{count}} people have listed.',
+                        },
+                        {
+                          label: r.instead.label,
+                          subject: r.instead.subject,
+                          count: r.instead.count,
+                        },
+                      )}
               </span>
             </p>
             <div className="flex flex-wrap gap-2">

@@ -31,10 +31,13 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  formatList,
   FormSaveBar,
+  icons,
   Input,
   List,
   ListItem,
+  type ListItemProps,
   PageHeader,
   Reveal,
   Select,
@@ -42,6 +45,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  staggerStyle,
   Switch,
   Table,
   TableBody,
@@ -51,9 +55,6 @@ import {
   TableRow,
   TagsInput,
   Textarea,
-  icons,
-  staggerStyle,
-  type ListItemProps,
   type UploadedImage,
 } from '@reach/ui';
 import { useState, type CSSProperties, type JSX, type ReactNode } from 'react';
@@ -566,19 +567,31 @@ function AboutField({
               : tr('settings.started_by_ai_edited_by_you', 'Started by AI, edited by you')}
           </Badge>
           <span>
-            {tr(
-              'settings.from_check_every_line_before_saving',
-              'From {{value}}{{value2}}. Check every line before saving.',
-              {
-                value:
-                  hosts.length === 0
-                    ? `what the AI knows of ${g.companyName}`
-                    : [...new Set(hosts)].join(', '),
-                value2: drafted.searched
-                  ? ' ' + tr('settings.and_a_web_search', 'and a web search')
-                  : '',
-              },
-            )}
+            {hosts.length === 0
+              ? drafted.searched
+                ? tr(
+                    'settings.from_what_the_ai_knows_and_search',
+                    'From what the AI knows of {{company}} and a web search. Check every line before saving.',
+                    { company: g.companyName },
+                  )
+                : tr(
+                    'settings.from_what_the_ai_knows',
+                    'From what the AI knows of {{company}}. Check every line before saving.',
+                    { company: g.companyName },
+                  )
+              : drafted.searched
+                ? tr(
+                    'settings.from_hosts_and_search',
+                    'From {{hosts}} and a web search. Check every line before saving.',
+                    { hosts: formatList([...new Set(hosts)], 'unit', 'short') },
+                  )
+                : tr(
+                    'settings.from_check_every_line_before_saving',
+                    'From {{hosts}}. Check every line before saving.',
+                    {
+                      hosts: formatList([...new Set(hosts)], 'unit', 'short'),
+                    },
+                  )}
           </span>
         </div>
       )}
@@ -1552,11 +1565,14 @@ const Questionnaires: Body = ({ data, props }) => {
                 setQuestionnaire(q);
               }}
               icon={<icons.document aria-hidden />}
-              description={tr('settings.version', '{{length}} {{value}} · version {{version}}', {
-                length: String(q.questions.length),
-                value: q.questions.length === 1 ? 'question' : 'questions',
-                version: String(q.version),
-              })}
+              description={tr(
+                'settings.version',
+                {
+                  one: '{{count}} question · version {{version}}',
+                  other: '{{count}} questions · version {{version}}',
+                },
+                { count: q.questions.length, version: String(q.version) },
+              )}
               {...(q.worksCouncilConsentVersion === q.version
                 ? {
                     meta: (
@@ -1946,9 +1962,13 @@ function ScorecardEditor({
                     size="xs"
                     variant="ghost"
                     className="mt-6"
-                    aria-label={tr('settings.remove_4', 'Remove {{value}}', {
-                      value: c.name === '' ? `competency ${String(i + 1)}` : c.name,
-                    })}
+                    aria-label={
+                      c.name === ''
+                        ? tr('settings.remove_competency_n', 'Remove competency {{n}}', {
+                            n: i + 1,
+                          })
+                        : tr('settings.remove_4', 'Remove {{value}}', { value: c.name })
+                    }
                     startIcon={<icons.remove aria-hidden />}
                     onClick={() => {
                       setCompetencies(competencies.filter((x) => x.id !== c.id));

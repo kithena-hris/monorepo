@@ -8,6 +8,7 @@ import {
   CardTitle,
   Chip,
   ChipRow,
+  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -20,14 +21,14 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  icons,
   List,
   ListItem,
+  locale,
   RadioCard,
   RadioGroup,
   Switch,
   Textarea,
-  icons,
-  DatePicker,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -456,7 +457,7 @@ export function Documents({
                 key={d.id}
                 icon={<icons.file aria-hidden />}
                 description={[
-                  new Date(d.sentAt).toLocaleDateString('en-GB', {
+                  new Date(d.sentAt).toLocaleDateString(locale(), {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',

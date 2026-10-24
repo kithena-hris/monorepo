@@ -127,16 +127,26 @@ export function Envelopes({
                   key={r.id}
                   icon={<icons.edit />}
                   iconTone={r.needsYou ? 'accent' : 'neutral'}
-                  description={tr(
-                    'envelopes.envelopes.of_signed',
-                    '{{signed}} of {{of}} signed{{value}}{{value2}}',
-                    {
-                      signed: String(r.signed),
-                      of: String(r.of),
-                      value: r.waitingOn === null ? '' : ` · waiting for ${r.waitingOn}`,
-                      value2: r.dueOn === null ? '' : ` · due ${shortDate(r.dueOn)}`,
-                    },
-                  )}
+                  description={[
+                    tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                      signed: r.signed,
+                      of: r.of,
+                    }),
+                    ...(r.waitingOn === null
+                      ? []
+                      : [
+                          tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
+                            who: r.waitingOn,
+                          }),
+                        ]),
+                    ...(r.dueOn === null
+                      ? []
+                      : [
+                          tr('envelopes.envelopes.due', 'due {{date}}', {
+                            date: shortDate(r.dueOn),
+                          }),
+                        ]),
+                  ].join(' · ')}
                   meta={
                     <Badge tone={r.needsYou ? 'accent' : ENVELOPE[r.status][1]} size="sm" dot>
                       {r.needsYou
@@ -356,10 +366,13 @@ function SendSteps({
                   }
                   meta={
                     <Badge size="sm">
-                      {tr('envelopes.envelopes.signs', 'Signs {{value}}{{value2}}', {
-                        value: String(i + 1),
-                        value2: i === 0 ? 'st' : i === 1 ? 'nd' : 'th',
-                      })}
+                      {i === 0
+                        ? tr('envelopes.envelopes.signs_first', 'Signs first')
+                        : i === 1
+                          ? tr('envelopes.envelopes.signs_second', 'Signs second')
+                          : tr('envelopes.envelopes.signs_in_position', 'Signs in position {{n}}', {
+                              n: i + 1,
+                            })}
                     </Badge>
                   }
                   trailing={
@@ -750,11 +763,22 @@ function EnvelopePage({
     <>
       <PageHeader
         title={env.title}
-        description={tr('envelopes.envelopes.from', 'From {{sender}} · {{createdAt}}{{value}}', {
-          sender: env.sender,
-          createdAt: shortDate(env.createdAt),
-          value: env.dueOn === null ? '' : ` · due ${shortDate(env.dueOn)}`,
-        })}
+        description={
+          env.dueOn === null
+            ? tr('envelopes.envelopes.from', 'From {{sender}} · {{createdAt}}', {
+                sender: env.sender,
+                createdAt: shortDate(env.createdAt),
+              })
+            : tr(
+                'envelopes.envelopes.from_due',
+                'From {{sender}} · {{createdAt}} · due {{dueOn}}',
+                {
+                  sender: env.sender,
+                  createdAt: shortDate(env.createdAt),
+                  dueOn: shortDate(env.dueOn),
+                },
+              )
+        }
         actions={
           env.follows && env.status === 'sent' ? <SenderMenu env={env} {...props} /> : undefined
         }
@@ -952,8 +976,12 @@ export function SignPanel({
               )
             : tr(
                 'envelopes.envelopes.to_fill_in_start_under_the',
-                '{{length}} {{value}} to fill in. Start, under the document, takes you to each one.',
-                { length: String(left.length), value: left.length === 1 ? 'place' : 'places' },
+                {
+                  one: '{{count}} place to fill in. Start, under the document, takes you to each one.',
+                  other:
+                    '{{count}} places to fill in. Start, under the document, takes you to each one.',
+                },
+                { count: left.length },
               )}
         </p>
         {mark === null ? null : (

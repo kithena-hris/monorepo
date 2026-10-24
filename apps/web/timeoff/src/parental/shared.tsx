@@ -1,4 +1,10 @@
-import { TimelineChart, type TimelineEntry, type TimelineMove, type TimelineRow } from '@reach/ui';
+import {
+  dateFormat,
+  TimelineChart,
+  type TimelineEntry,
+  type TimelineMove,
+  type TimelineRow,
+} from '@reach/ui';
 import type { JSX } from 'react';
 import { t } from '../i18n';
 
@@ -70,8 +76,7 @@ export interface Member {
 /* -------------------------------------------------------------- dates -- */
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
-const format = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+const format = (options: Intl.DateTimeFormatOptions) => dateFormat({ ...options, timeZone: 'UTC' });
 const asDate = (date: string): Date => new Date(`${date.slice(0, 10)}T00:00:00Z`);
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
 
@@ -89,10 +94,9 @@ export const longDate = (date: string): string =>
   format({ day: 'numeric', month: 'short', year: 'numeric' }).format(asDate(date));
 /** "Thu 14 Jan 2027" */
 export const dayDate = (date: string): string =>
-  t('parental.shared.text', '{{format}} {{slice}}', {
-    format: format({ weekday: 'short', day: 'numeric', month: 'short' }).format(asDate(date)),
-    slice: date.slice(0, 4),
-  });
+  format({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
+    asDate(date),
+  );
 /** "14 Jan" */
 export const shortDate = (date: string): string =>
   format({ day: 'numeric', month: 'short' }).format(asDate(date));
@@ -114,10 +118,14 @@ export function duration(from: string, to: string): string {
     return days === 7
       ? '1 week'
       : t('parental.shared.weeks', '{{value}} weeks', { value: String(days / 7) });
-  return days === 1 ? '1 day' : t('parental.shared.days', '{{days}} days', { days: String(days) });
+  return t(
+    'parental.shared.days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    { count: days },
+  );
 }
 export const weeks = (n: number): string =>
-  n === 1 ? '1 week' : t('parental.shared.weeks_2', '{{n}} weeks', { n: String(n) });
+  t('parental.shared.weeks_2', { one: '{{count}} week', other: '{{count}} weeks' }, { count: n });
 
 /* -------------------------------------------------------------- words -- */
 

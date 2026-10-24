@@ -7,17 +7,24 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  type DataColumn,
+  DataTable,
   EmptyState,
-  List,
-  ListItem,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   HorizontalBarChart,
+  icons,
   Input,
   KeyValues,
+  List,
+  ListItem,
   PageHeader,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Progress,
   SearchField,
   Sheet,
@@ -25,13 +32,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Slider,
   Spinner,
-  DataTable,
-  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -41,7 +43,6 @@ import {
   TertiaryNav,
   Textarea,
   Tooltip,
-  icons,
 } from '@reach/ui';
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 
@@ -59,7 +60,6 @@ import {
   day,
   download,
   kindLabel,
-  plural,
   score,
   time,
   useAct,
@@ -399,7 +399,7 @@ function AboutMe({
                               href={`/performance/released/${c.peers.ids[0] ?? ''}`}
                               onNavigate={onNavigate}
                             >
-                              {`${plural(c.peers.count, 'review')}, names hidden`}
+                              {`${t('reviews.count_reviews', { one: '{{count}} review', other: '{{count}} reviews' }, { count: c.peers.count })}, names hidden`}
                             </To>
                           ),
                       },
@@ -644,11 +644,18 @@ function Writing({
   const writing = data.may.write;
   // No longer the subject's manager (§8.8): kept to read or delete, never submitted.
   const former = data.review.formerManager ?? null;
-  const noLongerTheirs = t(
-    'reviews.you_are_no_longer_s_manager',
-    'You are no longer {{name}}’s manager, so this review cannot be submitted. {{value}} writes theirs.',
-    { name: data.review.subject.name, value: former?.to ?? 'Their new manager' },
-  );
+  const noLongerTheirs =
+    former?.to == null
+      ? t(
+          'reviews.no_longer_manager_new_manager_writes',
+          'You are no longer {{name}}’s manager, so this review cannot be submitted. Their new manager writes theirs.',
+          { name: data.review.subject.name },
+        )
+      : t(
+          'reviews.you_are_no_longer_s_manager',
+          'You are no longer {{name}}’s manager, so this review cannot be submitted. {{value}} writes theirs.',
+          { name: data.review.subject.name, value: former.to },
+        );
   // The panel's summary fills itself once it is on screen, never on a button.
   const asked = useRef({ summary: false });
   const savedRevision = saving.state === 'saved' ? saving.revision : null;
@@ -772,10 +779,16 @@ function Writing({
     <div className="flex flex-col gap-4">
       <PageHeader
         title={`${data.review.title}${data.review.kind === 'self' ? '' : `: ${data.review.subject.name}`}`}
-        description={t('reviews.due_2', '{{value}} · due {{due}}', {
-          value: data.review.cycle?.name ?? 'Detached review',
-          due: day(data.review.due),
-        })}
+        description={
+          data.review.cycle?.name == null
+            ? t('reviews.detached_review_due', 'Detached review · due {{due}}', {
+                due: day(data.review.due),
+              })
+            : t('reviews.due_2', '{{value}} · due {{due}}', {
+                value: data.review.cycle.name,
+                due: day(data.review.due),
+              })
+        }
         actions={
           <>
             {data.may.decline ? (
@@ -849,7 +862,11 @@ function Writing({
               {unconfirmed.length > 0 ? (
                 <Badge tone="accent">
                   {t('reviews.to_confirm', '{{length}} to confirm', {
-                    length: plural(unconfirmed.length, 'suggestion'),
+                    length: t(
+                      'reviews.count_suggestions',
+                      { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                      { count: unconfirmed.length },
+                    ),
                   })}
                 </Badge>
               ) : null}
@@ -994,15 +1011,17 @@ function Writing({
           tone="info"
           title={t('reviews.confidential_to', 'Confidential to {{subject}}', { subject })}
         >
-          {t(
-            'reviews.sees_your_answers_your_name_and',
-            '{{subject}} sees your answers {{value}} your name, and only once at least {{value2}} have answered. Their manager and HR see your name.',
-            {
-              subject,
-              value: data.review.cycle?.names === 'shown' ? 'with' : 'without',
-              value2: String(data.review.cycle?.minimum ?? 3),
-            },
-          )}
+          {data.review.cycle?.names === 'shown'
+            ? t(
+                'reviews.sees_your_answers_with_your_name',
+                '{{subject}} sees your answers with your name, and only once at least {{minimum}} have answered. Their manager and HR see your name.',
+                { subject, minimum: data.review.cycle.minimum ?? 3 },
+              )
+            : t(
+                'reviews.sees_your_answers_without_your_name',
+                '{{subject}} sees your answers without your name, and only once at least {{minimum}} have answered. Their manager and HR see your name.',
+                { subject, minimum: data.review.cycle?.minimum ?? 3 },
+              )}
         </Alert>
       ) : null}
       {/* Wide enough for a five-point scale's labels on one row (four, then one, at 3xl). */}
@@ -1151,7 +1170,13 @@ function Writing({
                           {t(
                             'reviews.without_a_source_left_out',
                             '{{dropped}} without a source left out.',
-                            { dropped: plural(summary.dropped, 'sentence') },
+                            {
+                              dropped: t(
+                                'reviews.count_sentences',
+                                { one: '{{count}} sentence', other: '{{count}} sentences' },
+                                { count: summary.dropped },
+                              ),
+                            },
                           )}
                         </p>
                       ) : null}
@@ -1431,7 +1456,11 @@ function ReadsChip({
         {flags === 0 ? null : (
           <p className="text-sm text-fg-muted">
             {t('reviews.under_your_answers', '{{flags}} under your answers.', {
-              flags: plural(flags, 'suggestion'),
+              flags: t(
+                'reviews.count_suggestions',
+                { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                { count: flags },
+              ),
             })}
           </p>
         )}
@@ -1723,12 +1752,14 @@ function SubmitDialog({
     <Modal
       open
       onClose={onClose}
-      title={t('reviews.submit_2', 'Submit {{value}}?', {
-        value:
-          data.review.kind === 'self'
-            ? 'your self review'
-            : `${subject}’s ${kindLabel(data.review.kind).toLowerCase()}`,
-      })}
+      title={
+        data.review.kind === 'self'
+          ? t('reviews.submit_your_self_review', 'Submit your self review?')
+          : t('reviews.submit_their_review', 'Submit {{subject}}’s {{kind}}?', {
+              subject,
+              kind: kindLabel(data.review.kind).toLowerCase(),
+            })
+      }
       description={t(
         'reviews.after_submitting_you_cant_edit_hr',
         'After submitting you can’t edit. HR can unlock it if you ask.',
@@ -1771,7 +1802,11 @@ function SubmitDialog({
         <Alert
           tone="warning"
           title={t('reviews.without_an_answer', '{{length}} without an answer', {
-            length: plural(missing.length, t('reviews.required_question', 'required question')),
+            length: t(
+              'reviews.count_required_questions',
+              { one: '{{count}} required question', other: '{{count}} required questions' },
+              { count: missing.length },
+            ),
           })}
         >
           {missing.map((q) => prompts.get(q) ?? q).join(' · ')}
@@ -1822,7 +1857,13 @@ function SubmitDialog({
                     {t(
                       'reviews.worth_making_before_you_submit',
                       '{{length}} worth making before you submit:',
-                      { length: plural(check.flags.length, 'change') },
+                      {
+                        length: t(
+                          'reviews.count_changes',
+                          { one: '{{count}} change', other: '{{count}} changes' },
+                          { count: check.flags.length },
+                        ),
+                      },
                     )}
                   </p>
                   {check.list(check.flags)}
@@ -2120,7 +2161,7 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                     cycle: data.review.cycle,
                   })
             }
-            description={`${data.review.by === null ? t('reviews.names_hidden', 'Names hidden') : t('reviews.from', 'From {{by}}', { by: data.review.by })}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${(data.review.helpedBy ?? []).join(' and ')}`}`}
+            description={`${data.review.by === null ? t('reviews.names_hidden', 'Names hidden') : t('reviews.from', 'From {{by}}', { by: data.review.by })}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${formatList(data.review.helpedBy ?? [])}`}`}
             actions={
               <Button
                 variant="secondary"
@@ -2372,7 +2413,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                         {
                           label: t('reviews.peer_summary', 'Peer summary'),
                           value: data.release.peerSummary
-                            ? `${plural(data.peers, 'answer')}, no names`
+                            ? `${t('reviews.count_answers', { one: '{{count}} answer', other: '{{count}} answers' }, { count: data.peers })}, no names`
                             : `Held back: under ${String(data.cycle.minimum)}`,
                         },
                       ]}
@@ -2756,7 +2797,11 @@ function Picker({
               'reviews.picked_you_cant_pick_each_reviewer',
               '{{length}} picked. You can’t pick {{subject}}. Each reviewer writes at most {{perReviewer}} peer reviews in a cycle.',
               {
-                length: plural(picked.length, 'person', 'people'),
+                length: t(
+                  'reviews.count_people',
+                  { one: '{{count}} person', other: '{{count}} people' },
+                  { count: picked.length },
+                ),
                 subject: data.nomination.subject,
                 perReviewer: String(data.bounds.perReviewer),
               },
@@ -2780,7 +2825,11 @@ function Picker({
               }}
             >
               {t('reviews.send', 'Send {{length}}', {
-                length: plural(picked.length, 'nomination'),
+                length: t(
+                  'reviews.count_nominations',
+                  { one: '{{count}} nomination', other: '{{count}} nominations' },
+                  { count: picked.length },
+                ),
               })}
             </Button>
           </div>

@@ -150,7 +150,11 @@ export function ScreenFrame({
       tabs={
         tabs.length === 0 ? undefined : (
           <TertiaryNav
-            label={tr('frame.tabs', '{{value}} tabs', { value: section ?? 'Page' })}
+            label={
+              section === null || section === undefined
+                ? tr('frame.page_tabs', 'Page tabs')
+                : tr('frame.tabs', '{{value}} tabs', { value: section })
+            }
             orientation="horizontal"
             variant="line"
             current="page"

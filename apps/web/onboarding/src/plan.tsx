@@ -295,13 +295,18 @@ function PlanBody({
           <CardHeader>
             <CardTitle level={2}>{tr('plan.probation_review', 'Probation review')}</CardTitle>
             <CardDescription>
-              {tr('plan.ends', 'Ends {{probationEnd}}{{value}}', {
-                probationEnd: day(p.probationEnd),
-                value:
-                  p.allowedExtensionMonths === null || p.allowedExtensionMonths === 0
-                    ? ' · no extension allowed'
-                    : ` · may be extended by up to ${String(p.allowedExtensionMonths)} months`,
-              })}
+              {p.allowedExtensionMonths === null || p.allowedExtensionMonths === 0
+                ? tr('plan.ends_no_extension', 'Ends {{probationEnd}} · no extension allowed', {
+                    probationEnd: day(p.probationEnd),
+                  })
+                : tr(
+                    'plan.ends_may_be_extended',
+                    {
+                      one: 'Ends {{probationEnd}} · may be extended by up to {{count}} month',
+                      other: 'Ends {{probationEnd}} · may be extended by up to {{count}} months',
+                    },
+                    { probationEnd: day(p.probationEnd), count: p.allowedExtensionMonths },
+                  )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">

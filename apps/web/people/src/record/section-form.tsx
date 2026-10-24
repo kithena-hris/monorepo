@@ -1,4 +1,4 @@
-import { Alert, Button, PINNED_BAR, Stack } from '@reach/ui';
+import { Alert, Button, formatList, PINNED_BAR, Stack } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import type { Checked, IdentifierFinding, Outcome } from '../load';
@@ -224,7 +224,7 @@ export function SectionForm({
             {t(
               'record.section-form.please_look_again_at_if_it',
               'Please look again at {{join}}. If it is right as it is, save anyway: HR will review it, and what they decide is final.',
-              { join: labels.join(' and ') },
+              { join: formatList(labels) },
             )}
           </Alert>
         )}
@@ -237,7 +237,7 @@ export function SectionForm({
             )}
           >
             {t('record.section-form.our_checks_doubted', 'Our checks doubted')}{' '}
-            {[...new Set(reviewed.map((f) => f.label))].join(' and ')}
+            {formatList([...new Set(reviewed.map((f) => f.label))])}
             {t(
               'record.section-form.hr_will_look_at_it_you',
               '. HR will look at it; you will see here if they ask you to correct it.',
@@ -249,7 +249,7 @@ export function SectionForm({
             tone="info"
             title={t('record.section-form.sent_to_hr_for_approval', 'Sent to HR for approval')}
           >
-            {held.join(' and ')} {held.length === 1 ? 'is' : 'are'}{' '}
+            {formatList(held)} {held.length === 1 ? 'is' : 'are'}{' '}
             {t(
               'record.section-form.not_changed_until_hr_approves_until',
               'not changed until HR approves; until then the record keeps what it had. You can withdraw the change while it waits.',

@@ -4,20 +4,22 @@ import {
   Badge,
   Button,
   Card,
+  type DataColumn,
+  DataTable,
+  dateFormat,
   EmptyState,
+  icons,
+  ListItem,
+  locale,
   PageHeader,
+  Progress,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
-  Progress,
   Stack,
-  DataTable,
-  type DataColumn,
-  ListItem,
+  usePages,
   VirtualList,
   type VirtualListProps,
-  usePages,
-  icons,
 } from '@reach/ui';
 import { useCallback, useId, useMemo, useState, type JSX, type ReactNode } from 'react';
 
@@ -150,7 +152,7 @@ export function resultOf(e: TransferEntry): {
     const { created, updated, blocked } = e.imported;
     // Imported: the word every import is said with once it is over.
     const lead = e.run == null ? '' : t('import.import-export.imported', 'Imported ·') + ' ';
-    const n = (count: number): string => count.toLocaleString('en-GB');
+    const n = (count: number): string => count.toLocaleString(locale());
     if (blocked === 0) {
       return {
         text: t('import.import-export.created_or_updated', '{{lead}}{{n}} created or updated', {
@@ -169,10 +171,11 @@ export function resultOf(e: TransferEntry): {
   }
   if (e.exported !== null) {
     const { rows } = e.exported;
-    const people = t('import.import-export.text', '{{toLocaleString}} {{value}}', {
-      toLocaleString: rows.toLocaleString('en-GB'),
-      value: rows === 1 ? 'person' : 'people',
-    });
+    const people = t(
+      'import.import-export.text',
+      { one: '{{count}} person', other: '{{count}} people' },
+      { count: rows },
+    );
     const format = e.exported.format === null ? undefined : FORMAT[e.exported.format];
     return {
       text:
@@ -211,7 +214,7 @@ export const hrefOf = (e: TransferEntry): string | null =>
 export function whenOf(at: string, now: string, zone: string | undefined): string {
   const day = (iso: string) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: zone, dateStyle: 'short' }).format(new Date(iso));
-  const time = new Intl.DateTimeFormat('en-GB', {
+  const time = dateFormat({
     timeZone: zone,
     hour: '2-digit',
     minute: '2-digit',
@@ -219,23 +222,10 @@ export function whenOf(at: string, now: string, zone: string | undefined): strin
   if (day(at) === day(now)) return t('import.import-export.today', 'Today {{time}}', { time });
   const days = (Date.parse(day(now)) - Date.parse(day(at))) / 86_400_000;
   if (days > 0 && days < 7) {
-    const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'short' }).format(
-      new Date(at),
-    );
-    return t('import.import-export.text_3', '{{weekday}} {{time}}', { weekday, time });
+    const weekday = dateFormat({ timeZone: zone, weekday: 'short' }).format(new Date(at));
+    return t('import.import-export.weekday_time', '{{weekday}} {{time}}', { weekday, time });
   }
-  // "15 Sep": en-GB now abbreviates September as "Sept", so the parts are put together here.
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone,
-    day: 'numeric',
-    month: 'short',
-  }).formatToParts(new Date(at));
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? '';
-  return t('import.import-export.text_4', '{{part}} {{part2}}', {
-    part: part('day'),
-    part2: part('month'),
-  });
+  return dateFormat({ timeZone: zone, day: 'numeric', month: 'short' }).format(new Date(at));
 }
 
 /** The history under its switch and its search: a file, a person or a reason. */

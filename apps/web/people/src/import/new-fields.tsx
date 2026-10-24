@@ -8,13 +8,17 @@ import {
   Carousel,
   ChipGroup,
   ChipGroupItem,
+  type DataColumn,
   DataTable,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   KeyValues,
+  locale,
   PageSection,
   RadioCard,
   RadioGroup,
@@ -25,8 +29,6 @@ import {
   SelectValue,
   Switch,
   TagsInput,
-  icons,
-  type DataColumn,
 } from '@reach/ui';
 import { useId, useState, type JSX } from 'react';
 
@@ -163,13 +165,6 @@ export function handlingOf(f: NewField): readonly {
       : []),
   ];
 }
-
-const plural = (n: number, one: string, many: string): string =>
-  tr('import.new-fields.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? one : many,
-  });
-
 const TYPES: readonly DataType[] = [
   'text',
   'long_text',
@@ -340,14 +335,18 @@ export function ProposedFieldCard({
         <span>
           {counts === undefined
             ? tr('import.new-fields.in_the_file', '{{rows}} in the file', {
-                rows: plural(rows, 'row', 'rows'),
+                rows: tr(
+                  'import.new-fields.count_rows',
+                  { one: '{{count}} row', other: '{{count}} rows' },
+                  { count: rows },
+                ),
               })
             : tr('import.new-fields.of_a_value', '{{toLocaleString}} of {{rows}} a value', {
-                toLocaleString: counts.have.toLocaleString('en-GB'),
-                rows: plural(
-                  rows,
-                  tr('import.new-fields.row_has', 'row has'),
-                  tr('import.new-fields.rows_have', 'rows have'),
+                toLocaleString: counts.have.toLocaleString(locale()),
+                rows: tr(
+                  'import.new-fields.count_rows_have',
+                  { one: '{{count}} row has', other: '{{count}} rows have' },
+                  { count: rows },
                 ),
               })}
         </span>
@@ -824,16 +823,16 @@ export function FileFactsCard({
                 'Draft version {{version}}. Nothing is published until you approve the plan.',
                 { version: String(view.version) },
               )
-            : tr(
-                'import.new-fields.theyre_published_with_as_version_1',
-                'They’re published with {{value}} as version 1. Nothing is published until you approve the plan.',
-                {
-                  value:
-                    view.setup.countryName === null
-                      ? 'the fields every company has'
-                      : `the ${view.setup.countryName} pack`,
-                },
-              )}
+            : view.setup.countryName === null
+              ? tr(
+                  'import.new-fields.published_with_every_company',
+                  'They’re published with the fields every company has as version 1. Nothing is published until you approve the plan.',
+                )
+              : tr(
+                  'import.new-fields.published_with_the_pack',
+                  'They’re published with the {{country}} pack as version 1. Nothing is published until you approve the plan.',
+                  { country: view.setup.countryName },
+                )}
         </Alert>
       )}
     </div>
@@ -920,23 +919,41 @@ function impactOf(kind: ForExisting['kind'], n: number): string {
       return tr(
         'import.new-fields.asked_incomplete_until_they_answer',
         '{{n}} asked · incomplete until they answer',
-        { n: plural(n, 'person', 'people') },
+        {
+          n: tr(
+            'import.new-fields.count_people',
+            { one: '{{count}} person', other: '{{count}} people' },
+            { count: n },
+          ),
+        },
       );
     case 'hr':
-      return tr('import.new-fields.for_hr', '{{n}} for HR', { n: plural(n, 'cell', 'cells') });
+      return tr('import.new-fields.for_hr', '{{n}} for HR', {
+        n: tr(
+          'import.new-fields.count_cells',
+          { one: '{{count}} cell', other: '{{count}} cells' },
+          { count: n },
+        ),
+      });
     case 'new':
       return tr('import.new-fields.nobody_asked_today', 'Nobody asked today');
     case 'leave':
       return tr('import.new-fields.nobody_asked', 'Nobody asked');
     case 'default':
-      return tr('import.new-fields.written', '{{n}} written', { n: plural(n, 'value', 'values') });
+      return tr('import.new-fields.written', '{{n}} written', {
+        n: tr(
+          'import.new-fields.count_values',
+          { one: '{{count}} value', other: '{{count}} values' },
+          { count: n },
+        ),
+      });
   }
 }
 
 /** The same on a phone (MA9): a count and a word, beside the one-line meaning. */
 function shortImpactOf(kind: ForExisting['kind'], n: number): string {
   if (n === 0) return tr('import.new-fields.nothing_to_do', 'Nothing to do');
-  const count = n.toLocaleString('en-GB');
+  const count = n.toLocaleString(locale());
   switch (kind) {
     case 'ask':
       return tr('import.new-fields.incomplete', '{{count}} incomplete', { count });
@@ -956,7 +973,11 @@ export function planWord(p: ColumnProposal, missing: number): string {
   switch (p.forExisting.kind) {
     case 'ask':
       return tr('import.new-fields.ask_the', 'Ask the {{missing}}', {
-        missing: plural(missing, 'person', 'people'),
+        missing: tr(
+          'import.new-fields.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: missing },
+        ),
       });
     case 'hr':
       return tr('import.new-fields.hr_fills_it_in', 'HR fills it in');
@@ -998,7 +1019,11 @@ export function ExistingChoices({
     'leave',
     ...(recommended === 'default' || single !== null ? (['default'] as const) : []),
   ];
-  const n = plural(missing, 'person', 'people');
+  const n = tr(
+    'import.new-fields.count_people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: missing },
+  );
   const shown = compact ? kinds.filter((k) => k !== 'hr' || recommended === 'hr') : kinds;
   return (
     <RadioGroup
@@ -1023,7 +1048,7 @@ export function ExistingChoices({
           key={kind}
           value={kind}
           description={
-            compact ? CHOICE[kind].shortMeans : CHOICE[kind].means(missing.toLocaleString('en-GB'))
+            compact ? CHOICE[kind].shortMeans : CHOICE[kind].means(missing.toLocaleString(locale()))
           }
           impact={compact ? shortImpactOf(kind, missing) : impactOf(kind, missing)}
           {...(kind === recommended
@@ -1036,7 +1061,7 @@ export function ExistingChoices({
               }
             : {})}
         >
-          {compact ? CHOICE[kind].short : CHOICE[kind].label(n, missing.toLocaleString('en-GB'))}
+          {compact ? CHOICE[kind].short : CHOICE[kind].label(n, missing.toLocaleString(locale()))}
         </RadioCard>
       ))}
     </RadioGroup>
@@ -1062,10 +1087,10 @@ export function WithoutValue({
   const rest = [
     inFile > 0
       ? tr('import.new-fields.in_the_file_2', '{{inFile}} in the file', {
-          inFile: plural(
-            inFile,
-            tr('import.new-fields.more_person', 'more person'),
-            tr('import.new-fields.more_people', 'more people'),
+          inFile: tr(
+            'import.new-fields.count_more_people',
+            { one: '{{count}} more person', other: '{{count}} more people' },
+            { count: inFile },
           ),
         })
       : null,
@@ -1073,7 +1098,13 @@ export function WithoutValue({
       ? tr(
           'import.new-fields.already_here_whom_the_file_doesnt',
           '{{here}} already here, whom the file doesn’t reach',
-          { here: plural(here, 'person', 'people') },
+          {
+            here: tr(
+              'import.new-fields.count_people',
+              { one: '{{count}} person', other: '{{count}} people' },
+              { count: here },
+            ),
+          },
         )
       : null,
   ].filter((x) => x !== null);
@@ -1093,7 +1124,7 @@ export function WithoutValue({
       {rest.length > 0 ? (
         <p className="text-sm text-fg-muted">
           {names.length === 0 ? '' : tr('import.new-fields.and', 'And') + ' '}
-          {rest.join(', and ')}.
+          {formatList(rest)}.
         </p>
       ) : null}
     </div>
@@ -1139,7 +1170,7 @@ export function ExistingStep({
     {
       id: 'have',
       header: 'Have it',
-      cell: (p) => `${haveOf(p).toLocaleString('en-GB')} of ${total.toLocaleString('en-GB')}`,
+      cell: (p) => `${haveOf(p).toLocaleString(locale())} of ${total.toLocaleString(locale())}`,
     },
     {
       id: 'missing',
@@ -1149,7 +1180,7 @@ export function ExistingStep({
           <span className="text-fg-subtle">—</span>
         ) : (
           <span className="font-medium text-warning-fg">
-            {missingOf(p).toLocaleString('en-GB')} {tr('import.new-fields.missing', 'missing')}
+            {missingOf(p).toLocaleString(locale())} {tr('import.new-fields.missing', 'missing')}
           </span>
         ),
     },
@@ -1200,7 +1231,11 @@ export function ExistingStep({
             '{{label}} · {{missingOf}} without a value',
             {
               label: current.field.label,
-              missingOf: plural(missingOf(current), 'person', 'people'),
+              missingOf: tr(
+                'import.new-fields.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: missingOf(current) },
+              ),
             },
           )}
         >

@@ -388,8 +388,11 @@ function Withheld({ buckets }: { readonly buckets: readonly Bucket[] }): JSX.Ele
     <p className="text-xs text-fg-muted">
       {tr(
         'analytics.group_under_five_people_withheld',
-        '{{n}} group{{value}} under five people withheld.',
-        { n: String(n), value: n === 1 ? '' : 's' },
+        {
+          one: '{{count}} group under five people withheld.',
+          other: '{{count}} groups under five people withheld.',
+        },
+        { count: n },
       )}
     </p>
   );

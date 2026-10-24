@@ -4,6 +4,8 @@ import {
   Badge,
   Button,
   Card,
+  type DataColumn,
+  DataTable,
   Dialog,
   DialogBody,
   DialogContent,
@@ -20,6 +22,8 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   List,
   ListItem,
@@ -34,9 +38,6 @@ import {
   SelectValue,
   Skeleton,
   Spinner,
-  DataTable,
-  type DataColumn,
-  icons,
 } from '@reach/ui';
 import { useMemo, useState, type JSX } from 'react';
 
@@ -218,8 +219,11 @@ function Ready({
               )
             : tr(
                 'library.library.document_you_can_open',
-                '{{total}} document{{value}} you can open',
-                { total: String(data.total), value: data.total === 1 ? '' : 's' },
+                {
+                  one: '{{count}} document you can open',
+                  other: '{{count}} documents you can open',
+                },
+                { count: data.total },
               )
         }
         actions={
@@ -1154,9 +1158,14 @@ function RowActions({
               ? tr('library.library.reminder_sent_to', 'Reminder sent to {{join}}', {
                   join: signing.waitingOn.join(', '),
                 })
-              : tr('library.library.send_reminder_email_to', 'Send reminder email to {{value}}', {
-                  value: signing.waitingOn.join(', ') || 'the next signer',
-                })}
+              : signing.waitingOn.length === 0
+                ? tr(
+                    'library.library.send_reminder_to_next_signer',
+                    'Send reminder email to the next signer',
+                  )
+                : tr('library.library.send_reminder_email_to', 'Send reminder email to {{value}}', {
+                    value: formatList(signing.waitingOn),
+                  })}
           </DropdownMenuItem>
         ) : null}
         {mine.length === 0 ? null : <DropdownMenuSeparator />}

@@ -2166,16 +2166,28 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
                 <TableCell>
                   {f.status === 'reviewed' ? (
                     <Badge tone="success">
-                      {tr('settings.organisation.reviewed_by', 'Reviewed by {{value}}{{value2}}', {
-                        value: f.reviewedBy ?? 'counsel',
-                        value2:
-                          f.reviewedOn === null
-                            ? ''
-                            : ' ' +
-                              tr('settings.organisation.on', 'on {{reviewedOn}}', {
+                      {f.reviewedBy === null
+                        ? f.reviewedOn === null
+                          ? tr('settings.organisation.reviewed_by_counsel', 'Reviewed by counsel')
+                          : tr(
+                              'settings.organisation.reviewed_by_counsel_on',
+                              'Reviewed by counsel on {{reviewedOn}}',
+                              {
                                 reviewedOn: f.reviewedOn,
-                              }),
-                      })}
+                              },
+                            )
+                        : f.reviewedOn === null
+                          ? tr('settings.organisation.reviewed_by', 'Reviewed by {{value}}', {
+                              value: f.reviewedBy,
+                            })
+                          : tr(
+                              'settings.organisation.reviewed_by_on',
+                              'Reviewed by {{value}} on {{reviewedOn}}',
+                              {
+                                value: f.reviewedBy,
+                                reviewedOn: f.reviewedOn,
+                              },
+                            )}
                     </Badge>
                   ) : (
                     <Badge tone="warning">

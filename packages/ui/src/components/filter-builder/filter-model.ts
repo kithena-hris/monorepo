@@ -1,4 +1,5 @@
 import { t } from '../../lib/i18n';
+import { formatList } from '../../lib/intl';
 /**
  * A filter as data: conditions joined by all or any and, one level down,
  * groups of their own. Every change is a pure function from one filter to the
@@ -223,7 +224,10 @@ export function describeFilter(root: FilterGroup, fields: readonly FilterField[]
       case 'none':
         return '';
       case 'options':
-        return values.map((value) => labelOf(field, value)).join(' or ');
+        return formatList(
+          values.map((value) => labelOf(field, value)),
+          'or',
+        );
       case 'date-range': {
         // An open end reads as an ellipsis: "1 Jan – …" is on or after.
         const [from = '', to = ''] = values;

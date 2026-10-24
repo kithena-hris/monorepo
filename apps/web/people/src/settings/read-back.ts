@@ -123,12 +123,19 @@ export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3
             'The employee is asked for their {{label}} {{when}}.',
             { label, when: COLLECT_LABEL[field.collectAt].when },
           )
-        : t('settings.read-back.in', '{{opening}} {{value}} in {{label}} {{when}}.', {
-            opening: opening(listed(others)),
-            value: others.length === 1 ? 'fills' : 'fill',
-            label,
-            when: COLLECT_LABEL[field.collectAt].when,
-          });
+        : t(
+            'settings.read-back.in',
+            {
+              one: '{{opening}} fills in {{label}} {{when}}.',
+              other: '{{opening}} fill in {{label}} {{when}}.',
+            },
+            {
+              count: others.length,
+              opening: opening(listed(others)),
+              label,
+              when: COLLECT_LABEL[field.collectAt].when,
+            },
+          );
   const required = {
     never: t('settings.read-back.it_is_optional', 'It is optional.'),
     always: t('settings.read-back.it_is_required_for_everyone', 'It is required for everyone.'),
@@ -153,10 +160,17 @@ export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3
           'settings.read-back.nobody_sees_it_except_through_its',
           'Nobody sees it except through its rules.',
         )
-      : t('settings.read-back.can_see_it_2', '{{opening}} can see it{{value}}.', {
-          opening: opening(listed(readers)),
-          value: field.rules > 0 ? ', and others on some records' : '',
-        });
+      : field.rules > 0
+        ? t(
+            'settings.read-back.can_see_it_and_others',
+            '{{opening}} can see it, and others on some records.',
+            {
+              opening: opening(listed(readers)),
+            },
+          )
+        : t('settings.read-back.can_see_it_2', '{{opening}} can see it.', {
+            opening: opening(listed(readers)),
+          });
   const kind =
     field.classification === null
       ? 'How sensitive it is is still to be chosen'

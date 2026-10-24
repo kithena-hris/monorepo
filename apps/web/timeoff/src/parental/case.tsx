@@ -102,9 +102,12 @@ function step(
       };
     case 'manager_told':
       return {
-        title: t('parental.case.told', '{{value}} told', {
-          value: managerName?.split(' ')[0] ?? 'The manager',
-        }),
+        title:
+          managerName == null
+            ? t('parental.case.the_manager_told', 'The manager told')
+            : t('parental.case.told', '{{value}} told', {
+                value: managerName.split(' ')[0] ?? managerName,
+              }),
         detail:
           plan.sentAt === null
             ? t('parental.case.when_the_plan_is_sent', 'When the plan is sent.')

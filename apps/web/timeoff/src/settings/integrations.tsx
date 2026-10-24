@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   CopyField,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -14,6 +15,8 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  type IconName,
+  icons,
   Input,
   List,
   ListItem,
@@ -25,8 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-  icons,
-  type IconName,
 } from '@reach/ui';
 import { createElement, useState, type JSX, type ReactNode } from 'react';
 
@@ -152,9 +153,7 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
 const region = new Intl.DisplayNames(['en'], { type: 'region' });
 
 const shortDay = (iso: string): string =>
-  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
-    new Date(iso),
-  );
+  dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso));
 
 export function Integrations(props: IntegrationsProps): JSX.Element {
   const { load } = props;

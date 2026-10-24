@@ -240,10 +240,11 @@ function Described({
               {u.leaveTypeName ?? tr('request.describe.time_off', 'Time off')}
             </Chip>
             <Chip field="Length">
-              {tr('request.describe.about', 'About {{days}} {{value}}', {
-                days: String(u.days),
-                value: u.days === 1 ? 'day' : 'days',
-              })}
+              {tr(
+                'request.describe.about',
+                { one: 'About {{count}} day', other: 'About {{count}} days' },
+                { count: u.days },
+              )}
             </Chip>
             {u.month === null ? null : (
               <Chip
@@ -324,10 +325,11 @@ function Described({
                     .toSorted((a, b) => a - b)
                     .map((n) => (
                       <SelectItem key={n} value={String(n)}>
-                        {tr('request.describe.about_2', 'About {{n}} {{value}}', {
-                          n: String(n),
-                          value: n === 1 ? 'day' : 'days',
-                        })}
+                        {tr(
+                          'request.describe.about_2',
+                          { one: 'About {{count}} day', other: 'About {{count}} days' },
+                          { count: n },
+                        )}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -431,16 +433,31 @@ function Described({
         )}
         {picked?.leftAfter == null ? null : (
           <p className="text-sm text-fg-muted">
-            {tr(
-              'request.describe.after_days',
-              '{{value}} after {{spanLabel}}: {{leftAfter}} days{{value2}}',
-              {
-                value: u.leaveTypeName ?? 'Balance',
-                spanLabel: spanLabel(picked.from, picked.to),
-                leftAfter: amount(picked.leftAfter),
-                value2: picked.fits ? '' : tr('request.describe.below_zero', ', below zero'),
-              },
-            )}
+            {picked.fits
+              ? tr(
+                  'request.describe.after_days',
+                  {
+                    one: '{{value}} after {{spanLabel}}: {{count}} day',
+                    other: '{{value}} after {{spanLabel}}: {{count}} days',
+                  },
+                  {
+                    value: u.leaveTypeName ?? tr('request.describe.balance', 'Balance'),
+                    spanLabel: spanLabel(picked.from, picked.to),
+                    count: Number(amount(picked.leftAfter)),
+                  },
+                )
+              : tr(
+                  'request.describe.after_days_below_zero',
+                  {
+                    one: '{{value}} after {{spanLabel}}: {{count}} day, below zero',
+                    other: '{{value}} after {{spanLabel}}: {{count}} days, below zero',
+                  },
+                  {
+                    value: u.leaveTypeName ?? tr('request.describe.balance', 'Balance'),
+                    spanLabel: spanLabel(picked.from, picked.to),
+                    count: Number(amount(picked.leftAfter)),
+                  },
+                )}
           </p>
         )}
       </DialogBody>

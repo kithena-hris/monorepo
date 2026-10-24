@@ -17,7 +17,10 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  formatList,
+  icons,
   KeyValues,
+  locale,
   PageSection,
   PINNED_BAR,
   Stack,
@@ -28,7 +31,6 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -96,7 +98,7 @@ export const stateOf = (r: FullValuesRequest): { readonly tone: Tone; readonly t
   STATE[r.state] ?? { tone: 'neutral', text: r.state };
 
 const day = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** Who asked, as a decider reads it. */
 export const askedBy = (r: FullValuesRequest): string =>
@@ -127,8 +129,7 @@ export function AccessDetail({
             {who}
             <span className="font-normal text-fg-muted">
               {' '}
-              {t('export.full-values.wants_to_see', '· wants to see')}{' '}
-              {request.fields.join(' and ')}
+              {t('export.full-values.wants_to_see', '· wants to see')} {formatList(request.fields)}
             </span>
           </h2>
           <p className="text-sm text-fg-muted">
@@ -433,11 +434,16 @@ function Decide({
                   '{{join}} in full, one download for the requester, within 24 hours.',
                   { join: request.fields.join(', ') },
                 )
-              : t(
-                  'export.full-values.nothing_is_issued_sees_your_note',
-                  'Nothing is issued. {{value}} sees your note.',
-                  { value: request.requestedBy ?? 'The requester' },
-                )}
+              : request.requestedBy === null
+                ? t(
+                    'export.full-values.nothing_is_issued_requester_sees',
+                    'Nothing is issued. The requester sees your note.',
+                  )
+                : t(
+                    'export.full-values.nothing_is_issued_sees_your_note',
+                    'Nothing is issued. {{value}} sees your note.',
+                    { value: request.requestedBy },
+                  )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

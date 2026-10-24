@@ -1,9 +1,9 @@
 import {
-  Chip,
-  ChipRow,
   Alert,
   Badge,
   Button,
+  Chip,
+  ChipRow,
   Combobox,
   CurrencyField,
   Dialog,
@@ -18,8 +18,12 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   NumberField,
+  RadioCard,
+  RadioGroup,
   Select,
   SelectContent,
   SelectItem,
@@ -28,10 +32,7 @@ import {
   SortableList,
   Switch,
   TagsInput,
-  RadioCard,
-  RadioGroup,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -932,9 +933,10 @@ export const chainSentence = (
     c.when.legalEntityIds === undefined || c.when.legalEntityIds.length === 0
       ? null
       : tr('settings-editors.at', 'at {{join}}', {
-          join: c.when.legalEntityIds
-            .map((id) => data.entities.find((e) => e.id === id)?.name ?? '—')
-            .join(' or '),
+          join: formatList(
+            c.when.legalEntityIds.map((id) => data.entities.find((e) => e.id === id)?.name ?? '—'),
+            'or',
+          ),
         }),
   ].filter(Boolean);
   const what =
@@ -2366,10 +2368,11 @@ export function InWords({
                     void apply();
                   }}
                 >
-                  {tr('settings-editors.apply_change', 'Apply {{length}} change{{value}}', {
-                    length: String(plan.changes.length),
-                    value: plan.changes.length === 1 ? '' : 's',
-                  })}
+                  {tr(
+                    'settings-editors.apply_change',
+                    { one: 'Apply {{count}} change', other: 'Apply {{count}} changes' },
+                    { count: plan.changes.length },
+                  )}
                 </Button>
                 <Button
                   size="sm"

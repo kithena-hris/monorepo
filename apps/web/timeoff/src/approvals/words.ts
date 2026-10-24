@@ -1,4 +1,4 @@
-import { icons, type IconName } from '@reach/ui';
+import { dateFormat, formatList, type IconName, icons } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
 import { t as tr } from '../i18n';
 
@@ -152,12 +152,15 @@ export const amount = (value: string): string =>
 /** "5 days", "1 day", "0.5 days". */
 export function dayCount(value: string): string {
   const n = amount(value);
-  return tr('approvals.words.text', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
+  return tr(
+    'approvals.words.count_days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    { count: Number(n) },
+  );
 }
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
-const format = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+const format = (options: Intl.DateTimeFormatOptions) => dateFormat({ ...options, timeZone: 'UTC' });
 export const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 export const isoOf = (at: Date): string => at.toISOString().slice(0, 10);
 
@@ -215,15 +218,9 @@ export function daysLabel(dates: readonly string[]): string {
   const each = dates.map((d) =>
     sameMonth ? format({ day: 'numeric' }).format(asDate(d)) : dayMonth(d),
   );
-  const list =
-    each.length === 1
-      ? (each[0] ?? '')
-      : tr('approvals.words.and', '{{join}} and {{value}}', {
-          join: each.slice(0, -1).join(', '),
-          value: each.at(-1) ?? '',
-        });
+  const list = each.length === 1 ? (each[0] ?? '') : formatList(each);
   return sameMonth
-    ? tr('approvals.words.text_3', '{{list}} {{format}}', {
+    ? tr('approvals.words.days_in_month', '{{list}} {{format}}', {
         list,
         format: format({ month: 'short' }).format(asDate(dates[0] ?? '')),
       })
@@ -236,7 +233,7 @@ export function sentLabel(at: string, now: string, zone = 'Europe/Madrid'): stri
     new Intl.DateTimeFormat('en-CA', { timeZone: zone, dateStyle: 'short' }).format(new Date(iso));
   const days = daysBetween(local(at), local(now));
   if (days <= 0) {
-    const time = new Intl.DateTimeFormat('en-GB', {
+    const time = dateFormat({
       timeZone: zone,
       hour: '2-digit',
       minute: '2-digit',
@@ -265,10 +262,5 @@ export function workingDaysAfter(date: string, n: number): string {
 export const firstName = (displayName: string): string => displayName.split(' ')[0] ?? displayName;
 
 export function listOf(parts: readonly string[]): string {
-  return parts.length <= 1
-    ? (parts[0] ?? '')
-    : tr('approvals.words.and', '{{join}} and {{value}}', {
-        join: parts.slice(0, -1).join(', '),
-        value: parts.at(-1) ?? '',
-      });
+  return parts.length <= 1 ? (parts[0] ?? '') : formatList(parts);
 }

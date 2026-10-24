@@ -222,9 +222,9 @@ function terms(t: LeaveTypeRow['definition']): string {
   return [
     PAID[t.paid],
     t.tracked
-      ? tr('settings.leave-types.tracked_in', 'tracked in {{value}}', {
-          value: t.unit === 'hour' ? 'hours' : 'days',
-        })
+      ? t.unit === 'hour'
+        ? tr('settings.leave-types.tracked_in_hours', 'tracked in hours')
+        : tr('settings.leave-types.tracked_in_days', 'tracked in days')
       : tr('settings.leave-types.no_balance', 'no balance'),
     t.requiresNote === null
       ? null
@@ -251,13 +251,24 @@ function Ready({ data }: { readonly data: LeaveTypesData }): JSX.Element {
               icon={leaveIcon(t.icon)}
               iconTone={chartTone(t.colorToken)}
               description={terms(t)}
-              supporting={tr('settings.leave-types.text', '{{appliesToLabel}} · {{value}}', {
-                appliesToLabel: appliesToLabel(t.appliesTo),
-                value:
-                  rule === undefined
-                    ? 'No approval rule'
-                    : `${approversLabel(rule.approvers)} approves`,
-              })}
+              supporting={
+                rule === undefined
+                  ? tr(
+                      'settings.leave-types.no_approval_rule',
+                      '{{appliesToLabel}} · No approval rule',
+                      {
+                        appliesToLabel: appliesToLabel(t.appliesTo),
+                      },
+                    )
+                  : tr(
+                      'settings.leave-types.approver_approves',
+                      '{{appliesToLabel}} · {{approvers}} approves',
+                      {
+                        appliesToLabel: appliesToLabel(t.appliesTo),
+                        approvers: approversLabel(rule.approvers),
+                      },
+                    )
+              }
               trailing={
                 hidden ? (
                   <Badge size="sm" variant="outline">

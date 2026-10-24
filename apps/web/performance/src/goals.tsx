@@ -33,18 +33,7 @@ import { useState, type JSX } from 'react';
 
 import { CONFIDENCE } from './home';
 import { Loaded } from './load';
-import {
-  Choose,
-  Modal,
-  Refusal,
-  StepDialog,
-  SwitchRow,
-  To,
-  day,
-  plural,
-  useAct,
-  type Act,
-} from './shared';
+import { Choose, Modal, Refusal, StepDialog, SwitchRow, To, day, useAct, type Act } from './shared';
 import type { ScreenProps } from './types';
 import { t } from './i18n';
 
@@ -255,7 +244,11 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
               <Alert
                 tone="info"
                 title={t('goals.due', '{{length}} due', {
-                  length: plural(data.due.length, 'check-in'),
+                  length: t(
+                    'goals.count_check_ins',
+                    { one: '{{count}} check-in', other: '{{count}} check-ins' },
+                    { count: data.due.length },
+                  ),
                 })}
               >
                 {data.due.map((g) => g.title).join(' · ')}
@@ -724,11 +717,13 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
           <div className="flex flex-col gap-4">
             <PageHeader
               title={g.title}
-              description={t('goals.text_3', '{{owner}} · {{value}}{{value2}}', {
-                owner: g.owner,
-                value: data.period?.name ?? '',
-                value2: g.alignedTo === null ? '' : ` · aligned to ${g.alignedTo}`,
-              })}
+              description={[
+                g.owner,
+                ...(data.period?.name ? [data.period.name] : []),
+                ...(g.alignedTo === null
+                  ? []
+                  : [t('goals.aligned_to', 'aligned to {{goal}}', { goal: g.alignedTo })]),
+              ].join(' · ')}
               actions={
                 <>
                   {data.may.checkIn ? (

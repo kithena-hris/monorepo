@@ -15,6 +15,7 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   PageSection,
   Stack,
   Switch,
@@ -344,11 +345,7 @@ function Notices({
           : t(
               'settings.integrations.chat-apps.of_on_sent_to_as_a',
               '{{count}} of {{length}} on, sent to {{join}} as a direct message to the person it is for, as well as by email.',
-              {
-                count: String(count),
-                length: String(notices.length),
-                join: connected.join(' and '),
-              },
+              { count, length: notices.length, join: formatList(connected) },
             )
       }
     >

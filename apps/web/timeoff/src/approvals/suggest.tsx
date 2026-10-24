@@ -205,8 +205,11 @@ function describe(option: Alternative): string {
     const n = option.dates.length;
     return t(
       'approvals.suggest.the_same_swapping',
-      'The same {{n}} {{value}}, swapping {{swapWords}}.',
-      { n: String(n), value: n === 1 ? 'day' : 'days', swapWords: swapWords(option.swapped) },
+      {
+        one: 'The same {{count}} day, swapping {{swapWords}}.',
+        other: 'The same {{count}} days, swapping {{swapWords}}.',
+      },
+      { count: n, swapWords: swapWords(option.swapped) },
     );
   }
   return t(
@@ -227,12 +230,14 @@ export function impactOf(coverage: readonly CoverageDay[]): string {
         in: String(worst.in),
         of: String(worst.of),
       })
-    : t('approvals.suggest.of_in_on', '{{in}} of {{of}} in on {{short}} {{value}}', {
-        in: String(worst.in),
-        of: String(worst.of),
-        short: String(short),
-        value: short === 1 ? 'day' : 'days',
-      });
+    : t(
+        'approvals.suggest.of_in_on',
+        {
+          one: '{{in}} of {{of}} in on {{count}} day',
+          other: '{{in}} of {{of}} in on {{count}} days',
+        },
+        { count: short, in: String(worst.in), of: String(worst.of) },
+      );
 }
 
 /** The message for dates Time Off sent none for: what changes, and why. */
@@ -255,8 +260,11 @@ function draft(
       : ' ' +
         t(
           'approvals.suggest.out_on_the_day_you_asked',
-          '{{listOf}} {{value}} out on the day you asked.',
-          { listOf: listOf(off), value: off.length === 1 ? 'is' : 'are' },
+          {
+            one: '{{listOf}} is out on the day you asked.',
+            other: '{{listOf}} are out on the day you asked.',
+          },
+          { count: off.length, listOf: listOf(off) },
         );
   if (picked?.swapped != null) {
     return t(

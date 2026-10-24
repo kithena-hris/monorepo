@@ -383,10 +383,11 @@ function Ready({
           to={`${String(data.year)}-12-31`}
           data={(data.days ?? []).map((d) => ({ date: d.date, value: d.off }))}
           describe={(value) =>
-            tr('calendar.calendar.off', '{{value}} {{value2}} off', {
-              value: String(value),
-              value2: value === 1 ? 'person' : 'people',
-            })
+            tr(
+              'calendar.calendar.off',
+              { one: '{{count}} person off', other: '{{count}} people off' },
+              { count: value },
+            )
           }
           summary={tr(
             'calendar.calendar.how_many_people_are_off_each',

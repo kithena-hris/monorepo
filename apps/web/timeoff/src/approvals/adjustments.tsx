@@ -101,11 +101,21 @@ const sized = (unit: 'day' | 'hour', value: string): string => {
   const sign = value.startsWith('-') ? '−' : '+';
   return unit === 'hour'
     ? `${sign}${n}h`
-    : tr('approvals.adjustments.text', '{{sign}}{{n}} {{value}}', {
-        sign,
-        n,
-        value: n === '1' ? 'day' : 'days',
-      });
+    : value.startsWith('-')
+      ? tr(
+          'approvals.adjustments.minus_days',
+          { one: '−{{count}} day', other: '−{{count}} days' },
+          {
+            count: Number(n),
+          },
+        )
+      : tr(
+          'approvals.adjustments.plus_days',
+          { one: '+{{count}} day', other: '+{{count}} days' },
+          {
+            count: Number(n),
+          },
+        );
 };
 
 export function Adjustments(props: AdjustmentsProps): JSX.Element {

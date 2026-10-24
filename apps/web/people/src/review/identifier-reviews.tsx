@@ -16,6 +16,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  locale,
   MaskedValue,
   PINNED_BAR,
   Stack,
@@ -125,7 +126,7 @@ export function verdictOf(item: ReviewItem): {
 }
 
 const day = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', {
+  new Date(iso).toLocaleDateString(locale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

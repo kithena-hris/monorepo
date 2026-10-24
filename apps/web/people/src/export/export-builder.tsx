@@ -432,10 +432,11 @@ function Built({
     .map((f) => f.label);
   const sensitive = preview?.sensitive.length ?? 0;
   const count = preview?.people ?? audience?.count ?? 0;
-  const people = t('export.export-builder.text', '{{count}} {{value}}', {
-    count: String(count),
-    value: count === 1 ? 'person' : 'people',
-  });
+  const people = t(
+    'export.export-builder.text',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: count },
+  );
   const adjust = (
     <Button
       variant="ghost"
@@ -458,10 +459,11 @@ function Built({
     [
       t('export.export-builder.fields', 'Fields'),
       listed(labels),
-      t('export.export-builder.text_2', '{{length}} {{value}}', {
-        length: String(labels.length),
-        value: labels.length === 1 ? 'field' : 'fields',
-      }),
+      t(
+        'export.export-builder.text_2',
+        { one: '{{count}} field', other: '{{count}} fields' },
+        { count: labels.length },
+      ),
     ],
     [
       t('export.export-builder.as_of', 'As of'),
@@ -649,11 +651,11 @@ function Gap({
     ) ?? [];
   const title =
     fields.length > 0
-      ? t('export.export-builder.s_access', '{{listed}} {{value}} {{them}}’s access', {
-          listed: listed(fields),
-          value: fields.length === 1 ? 'needs' : 'need',
-          them,
-        })
+      ? t(
+          'export.export-builder.s_access',
+          { one: '{{listed}} needs {{them}}’s access', other: '{{listed}} need {{them}}’s access' },
+          { count: fields.length, listed: listed(fields), them },
+        )
       : t(
           'export.export-builder.cant_see_of_these_people',
           '{{them}} can’t see {{unlisted}} of these people',
@@ -669,15 +671,12 @@ function Gap({
           )
         : t(
             'export.export-builder.you_can_export_it_but_sending',
-            'You can export it, but sending it to {{them}} means {{them2}} would see {{label}} for {{people}} {{value}} {{them3}} can’t see it for in People.',
             {
-              them,
-              them2: them,
-              label: top.label.toLowerCase(),
-              people: String(top.people),
-              value: top.people === 1 ? 'person' : 'people',
-              them3: them,
+              one: 'You can export it, but sending it to {{them}} means {{them2}} would see {{label}} for {{count}} person {{them3}} can’t see it for in People.',
+              other:
+                'You can export it, but sending it to {{them}} means {{them2}} would see {{label}} for {{count}} people {{them3}} can’t see it for in People.',
             },
+            { count: top.people, them, them2: them, label: top.label.toLowerCase(), them3: them },
           )}
       {gap.unlisted > 0 && top !== undefined
         ? ' ' +

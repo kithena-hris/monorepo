@@ -1,5 +1,6 @@
 import {
   AdoptSignatureDialog,
+  allRequiredFilled,
   Button,
   Dialog,
   DialogBody,
@@ -10,16 +11,16 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   Input,
+  isFilled,
+  nextToFill,
   PdfPages,
   PinnedBar,
   PlacementLayer,
-  Signature,
-  icons,
-  allRequiredFilled,
-  isFilled,
-  nextToFill,
   readingOrder,
+  Signature,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -45,12 +46,7 @@ export const SIGNED: ReadonlySet<FieldKind> = new Set(['signature', 'initials', 
 
 /** "Lahari", "Lahari and Omar", "Lahari, Omar and Ada". */
 const andList = (names: readonly string[]): string =>
-  names.length <= 1
-    ? (names[0] ?? '')
-    : t('envelopes.sign-view.and', '{{join}} and {{value}}', {
-        join: names.slice(0, -1).join(', '),
-        value: names.at(-1) ?? '',
-      });
+  names.length <= 1 ? (names[0] ?? '') : formatList(names);
 
 /** What a signer is told at Finish (K7): where it went next, and that their copy is on its way. */
 export function doneMessage(completed: boolean, next: readonly string[]): string {
@@ -427,10 +423,13 @@ export function DocumentToSign({
                   <Signature
                     value={live.mark}
                     initials={f.kind === 'initials'}
-                    label={t('envelopes.sign-view.s', '{{name}}’s {{value}}', {
-                      name,
-                      value: f.kind === 'initials' ? 'initials' : 'signature',
-                    })}
+                    label={
+                      f.kind === 'initials'
+                        ? t('envelopes.sign-view.persons_initials', '{{name}}’s initials', { name })
+                        : t('envelopes.sign-view.persons_signature', '{{name}}’s signature', {
+                            name,
+                          })
+                    }
                   />
                 );
                 // Framed as the sealed file stamps it: a thin rule, "Signed by"
@@ -528,10 +527,11 @@ function StepBar({
   const at = steps.findIndex((f) => f.id === focus);
   const focused = at === -1 ? undefined : steps[at];
   const total = steps.length;
-  const place = t('envelopes.sign-view.text', '{{total}} {{value}}', {
-    total: String(total),
-    value: total === 1 ? 'place' : 'places',
-  });
+  const place = t(
+    'envelopes.sign-view.text',
+    { one: '{{count}} place', other: '{{count}} places' },
+    { count: total },
+  );
   // How far through they are, said and drawn on the bar: "1 of 4 done".
   const doneCount = steps.filter((f) => isFilled(filled[f.id])).length;
   const progress = { value: doneCount, max: total };

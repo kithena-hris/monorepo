@@ -383,15 +383,17 @@ function Schedule({
       <p className="text-sm text-fg-muted">
         {to === null
           ? t('export.send-panel.pick_who_gets_it', 'Pick who gets it.')
-          : t(
-              'export.send-panel.on_the_1st_of_every_month',
-              'On the 1st of every month, {{value}} this export as {{value2}} can see it that morning: that day’s values, not {{spokenDate}}’s.',
-              {
-                value: to === 'you' ? 'you get' : `${to} gets`,
-                value2: to === 'you' ? 'you' : to,
-                spokenDate: spokenDate(choice.asOf),
-              },
-            )}
+          : to === 'you'
+            ? t(
+                'export.send-panel.on_the_1st_you_get',
+                'On the 1st of every month, you get this export as you can see it that morning: that day’s values, not {{spokenDate}}’s.',
+                { spokenDate: spokenDate(choice.asOf) },
+              )
+            : t(
+                'export.send-panel.on_the_1st_of_every_month',
+                'On the 1st of every month, {{to}} gets this export as {{to}} can see it that morning: that day’s values, not {{spokenDate}}’s.',
+                { to, spokenDate: spokenDate(choice.asOf) },
+              )}
       </p>
       {csv ? (
         <Alert tone="info">

@@ -45,17 +45,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import {
-  Choose,
-  Modal,
-  PersonPicker,
-  Refusal,
-  day,
-  download,
-  plural,
-  useAct,
-  when,
-} from './shared';
+import { Choose, Modal, PersonPicker, Refusal, day, download, useAct, when } from './shared';
 import type { ScaleOption, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
@@ -906,7 +896,11 @@ function Body({
                   key={p.name}
                   description={
                     p.connected
-                      ? plural(p.items, 'course')
+                      ? tr(
+                          'settings.count_courses',
+                          { one: '{{count}} course', other: '{{count}} courses' },
+                          { count: p.items },
+                        )
                       : tr('settings.not_connected_yet', 'Not connected yet')
                   }
                   trailing={
@@ -1442,9 +1436,11 @@ function AccessSettings({
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={tr('settings.remove_2', 'Remove {{value}}', {
-                      value: named[id] ?? 'this person',
-                    })}
+                    aria-label={
+                      named[id] === undefined
+                        ? tr('settings.remove_this_person', 'Remove this person')
+                        : tr('settings.remove_2', 'Remove {{value}}', { value: named[id] })
+                    }
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       ui.set(
@@ -1530,9 +1526,11 @@ function Scale({
           </Field>
           <Button
             variant="ghost"
-            aria-label={tr('settings.remove_2', 'Remove {{value}}', {
-              value: o.label || 'this level',
-            })}
+            aria-label={
+              o.label === ''
+                ? tr('settings.remove_this_level', 'Remove this level')
+                : tr('settings.remove_2', 'Remove {{value}}', { value: o.label })
+            }
             startIcon={<icons.delete aria-hidden />}
             disabled={disabled || value.length <= 2}
             onClick={() => {
@@ -1745,10 +1743,11 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
                                   }),
                               s.at === null
                                 ? null
-                                : tr('settings.since', '{{value}} since {{at}}', {
-                                    value: s.on ? 'On' : 'Off',
-                                    at: when(s.at),
-                                  }),
+                                : s.on
+                                  ? tr('settings.on_since', 'On since {{at}}', { at: when(s.at) })
+                                  : tr('settings.off_since', 'Off since {{at}}', {
+                                      at: when(s.at),
+                                    }),
                             ]
                               .filter((x) => x !== null)
                               .join(' · ')
@@ -2012,7 +2011,11 @@ function RetentionPage({
                 {chosen.length === 0
                   ? tr('settings.delete', 'Delete')
                   : tr('settings.delete_records', 'Delete {{length}} records', {
-                      length: plural(chosen.length, 'person’s', 'people’s'),
+                      length: tr(
+                        'settings.count_peoples',
+                        { one: '{{count}} person’s', other: '{{count}} people’s' },
+                        { count: chosen.length },
+                      ),
                     })}
               </Button>
             </>
@@ -2370,7 +2373,10 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                             ? tr('settings.none_yet', 'None yet')
                             : tr('settings.text_2', '{{at}} · {{value}}', {
                                 at: when(r.last.at),
-                                value: r.last.status === 0 ? 'no answer' : String(r.last.status),
+                                value:
+                                  r.last.status === 0
+                                    ? tr('settings.no_answer', 'no answer')
+                                    : String(r.last.status),
                               })}
                         </TableCell>
                         <TableCell>

@@ -692,10 +692,11 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
               <icons.loading aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
             )}
             <span>
-              {tr('job-wizard.text_2', '{{value}}: “{{text}}”', {
-                value: asked.done ? 'Done' : 'Working on it',
-                text: asked.text,
-              })}
+              {asked.done
+                ? tr('job-wizard.done_text', 'Done: “{{text}}”', { text: asked.text })
+                : tr('job-wizard.working_on_it_text', 'Working on it: “{{text}}”', {
+                    text: asked.text,
+                  })}
             </span>
           </p>
         )}
@@ -1650,9 +1651,11 @@ export function JobWizard({
     <JobDraftContext value={jobDraft}>
       <WizardFrame
         open={open}
-        label={tr('job-wizard.set_up_2', 'Set up {{value}}', {
-          value: title.value.trim() === '' ? 'a job' : title.value,
-        })}
+        label={
+          title.value.trim() === ''
+            ? tr('job-wizard.set_up_a_job', 'Set up a job')
+            : tr('job-wizard.set_up_2', 'Set up {{value}}', { value: title.value })
+        }
         title={
           // On the page that asks for the title the bar shows it as it is typed: one place to type it.
           page.key === ROLE.key ? (

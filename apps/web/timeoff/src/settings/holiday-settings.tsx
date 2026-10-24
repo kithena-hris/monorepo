@@ -594,10 +594,11 @@ function DraftCard({
           loading={pending}
           onClick={save}
         >
-          {t('settings.holiday-settings.save_confirmed', 'Save {{length}} confirmed {{value}}', {
-            length: String(confirmed.length),
-            value: confirmed.length === 1 ? 'day' : 'days',
-          })}
+          {t(
+            'settings.holiday-settings.save_confirmed',
+            { one: 'Save {{count}} confirmed day', other: 'Save {{count}} confirmed days' },
+            { count: confirmed.length },
+          )}
         </Button>
         <Button
           onClick={() => {
@@ -611,8 +612,11 @@ function DraftCard({
         <p className="text-sm text-fg-muted">
           {t(
             'settings.holiday-settings.left_for_you_to_confirm_and',
-            '{{toConfirm}} {{value}} left for you to confirm and add.',
-            { toConfirm: String(toConfirm), value: toConfirm === 1 ? 'day is' : 'days are' },
+            {
+              one: '{{count}} day is left for you to confirm and add.',
+              other: '{{count}} days are left for you to confirm and add.',
+            },
+            { count: toConfirm },
           )}
         </p>
       )}

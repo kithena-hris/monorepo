@@ -678,27 +678,83 @@ function Rules({
 const milli = (s: string): number => Math.round(Number(s) * 1000);
 const fromMilli = (n: number): string => amount((n / 1000).toFixed(3));
 
-/** "1 more day", "1 to 3 more days". */
-function range(deltas: readonly number[], more: string, unit: string): string {
-  const low = fromMilli(Math.min(...deltas));
-  const high = fromMilli(Math.max(...deltas));
-  const n = low === high ? low : t('settings.leave-type.to', '{{low}} to {{high}}', { low, high });
-  return t('settings.leave-type.text_2', '{{n}} {{more}} {{value}}', {
-    n,
-    more,
-    value: high === '1' ? unit.replace(/s$/, '') : unit,
-  });
+/** "1 more day", "1 to 3 more days": a whole phrase per direction and unit, so each language words it. */
+function range(deltas: readonly number[], more: 'more' | 'fewer', unit: string): string {
+  const low = Number(fromMilli(Math.min(...deltas)));
+  const high = Number(fromMilli(Math.max(...deltas)));
+  const hours = unit === 'hours';
+  const vars = { count: high, low, high };
+  if (low === high) {
+    if (more === 'more')
+      return hours
+        ? t(
+            'settings.leave-type.count_more_hours',
+            { one: '{{count}} more hour', other: '{{count}} more hours' },
+            vars,
+          )
+        : t(
+            'settings.leave-type.count_more_days',
+            { one: '{{count}} more day', other: '{{count}} more days' },
+            vars,
+          );
+    return hours
+      ? t(
+          'settings.leave-type.count_fewer_hours',
+          { one: '{{count}} fewer hour', other: '{{count}} fewer hours' },
+          vars,
+        )
+      : t(
+          'settings.leave-type.count_fewer_days',
+          { one: '{{count}} fewer day', other: '{{count}} fewer days' },
+          vars,
+        );
+  }
+  if (more === 'more')
+    return hours
+      ? t(
+          'settings.leave-type.range_more_hours',
+          { one: '{{low}} to {{high}} more hour', other: '{{low}} to {{high}} more hours' },
+          vars,
+        )
+      : t(
+          'settings.leave-type.range_more_days',
+          { one: '{{low}} to {{high}} more day', other: '{{low}} to {{high}} more days' },
+          vars,
+        );
+  return hours
+    ? t(
+        'settings.leave-type.range_fewer_hours',
+        { one: '{{low}} to {{high}} fewer hour', other: '{{low}} to {{high}} fewer hours' },
+        vars,
+      )
+    : t(
+        'settings.leave-type.range_fewer_days',
+        { one: '{{low}} to {{high}} fewer day', other: '{{low}} to {{high}} fewer days' },
+        vars,
+      );
 }
 
-const people = (n: number): string =>
-  n === 1 ? '1 person' : t('settings.leave-type.people', '{{n}} people', { n: String(n) });
+const people = (count: number): string =>
+  t(
+    'settings.leave-type.count_people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count },
+  );
+
 /** Thousandths as "1 day", "2.5 days". */
 const counted = (thousandths: number, unit: string): string => {
-  const n = fromMilli(thousandths);
-  return t('settings.leave-type.text_3', '{{n}} {{value}}', {
-    n,
-    value: n === '1' ? unit.replace(/s$/, '') : unit,
-  });
+  const count = Number(fromMilli(thousandths));
+  return unit === 'hours'
+    ? t(
+        'settings.leave-type.count_hours',
+        { one: '{{count}} hour', other: '{{count}} hours' },
+        { count },
+      )
+    : t(
+        'settings.leave-type.count_days',
+        { one: '{{count}} day', other: '{{count}} days' },
+        { count },
+      );
 };
 
 function ChangePreview({
@@ -753,15 +809,19 @@ function ChangePreview({
               { longDate: longDate(preview.effectiveFrom) },
             )}
           >
-            {t('settings.leave-type.text_4', '{{people}} {{value}} {{range}}', {
-              people: people(gain.length),
-              value: gain.length === 1 ? 'gets' : 'get',
-              range: range(
-                gain.map((m) => delta(m.allowance)),
-                'more',
-                unit,
-              ),
-            })}
+            {t(
+              'settings.leave-type.text_4',
+              { one: '{{people}} gets {{range}}', other: '{{people}} get {{range}}' },
+              {
+                count: gain.length,
+                people: people(gain.length),
+                range: range(
+                  gain.map((m) => delta(m.allowance)),
+                  'more',
+                  unit,
+                ),
+              },
+            )}
           </IconListItem>
         )}
         {loss.length === 0 ? null : (
@@ -774,15 +834,19 @@ function ChangePreview({
               { longDate: longDate(preview.effectiveFrom) },
             )}
           >
-            {t('settings.leave-type.text_4', '{{people}} {{value}} {{range}}', {
-              people: people(loss.length),
-              value: loss.length === 1 ? 'gets' : 'get',
-              range: range(
-                loss.map((m) => -delta(m.allowance)),
-                'fewer',
-                unit,
-              ),
-            })}
+            {t(
+              'settings.leave-type.text_4',
+              { one: '{{people}} gets {{range}}', other: '{{people}} get {{range}}' },
+              {
+                count: loss.length,
+                people: people(loss.length),
+                range: range(
+                  loss.map((m) => -delta(m.allowance)),
+                  'fewer',
+                  unit,
+                ),
+              },
+            )}
           </IconListItem>
         )}
         {lose.length === 0 ? null : (
@@ -1025,16 +1089,25 @@ function ShadowRun({
               'settings.leave-type.run_the_draft_beside_the_policy',
               'Run the draft beside the policy in effect for a month, and compare balances before anyone sees them.',
             )
-          : t(
-              'settings.leave-type.to_balances_as_of_only_hr',
-              '{{value}} {{longDate}} to {{longDate2}} · balances as of {{longDate3}}. Only HR sees this.',
-              {
-                value: over ? 'Ran' : 'Running',
-                longDate: longDate(shadow.from),
-                longDate2: longDate(shadow.to),
-                longDate3: longDate(shadow.asOf),
-              },
-            )
+          : over
+            ? t(
+                'settings.leave-type.ran_balances_as_of_only_hr',
+                'Ran {{longDate}} to {{longDate2}} · balances as of {{longDate3}}. Only HR sees this.',
+                {
+                  longDate: longDate(shadow.from),
+                  longDate2: longDate(shadow.to),
+                  longDate3: longDate(shadow.asOf),
+                },
+              )
+            : t(
+                'settings.leave-type.running_balances_as_of_only_hr',
+                'Running {{longDate}} to {{longDate2}} · balances as of {{longDate3}}. Only HR sees this.',
+                {
+                  longDate: longDate(shadow.from),
+                  longDate2: longDate(shadow.to),
+                  longDate3: longDate(shadow.asOf),
+                },
+              )
       }
       actions={
         onShadow === undefined ? undefined : (

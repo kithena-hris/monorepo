@@ -9,11 +9,13 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  icons,
   KeyValues,
   NumberField,
+  numberFormat,
   RadioCard,
-  RangeBar,
   RadioGroup,
+  RangeBar,
   Reveal,
   SegmentedControl,
   SegmentedControlItem,
@@ -23,10 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
   Slider,
+  staggerStyle,
   Switch,
   TimePicker,
-  icons,
-  staggerStyle,
 } from '@reach/ui';
 import {
   createContext,
@@ -331,10 +332,11 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
             >
               {[1, 2, 3, 4].map((n) => (
                 <SegmentedControlItem key={n} value={String(n)}>
-                  {tr('job-terms.day', '{{n}} day{{value}}', {
-                    n: String(n),
-                    value: n === 1 ? '' : 's',
-                  })}
+                  {tr(
+                    'job-terms.day',
+                    { one: '{{count}} day', other: '{{count}} days' },
+                    { count: n },
+                  )}
                 </SegmentedControlItem>
               ))}
             </SegmentedControl>
@@ -805,7 +807,7 @@ const major = (minor: number): number => Math.round(minor / 100);
 
 /** "€62k": the band's axis, where the full figure would crowd. */
 const short = (value: number, currency: string): string =>
-  new Intl.NumberFormat('en-GB', {
+  numberFormat({
     style: 'currency',
     currency,
     notation: 'compact',
@@ -848,16 +850,25 @@ function PayBand({
         domain={[from, to]}
         now={median}
         format={(v) => short(v, estimate.currency)}
-        summary={tr(
-          'job-terms.the_market_pays_to_in_the',
-          'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{value}}.',
-          {
-            low: money(low),
-            high: money(high),
-            median: money(median),
-            value: kind === 'fixed' ? money(min) : `${money(min)} to ${money(max)}`,
-          },
-        )}
+        summary={
+          kind === 'fixed'
+            ? tr(
+                'job-terms.the_market_pays_this_job_pays',
+                'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{value}}.',
+                { low: money(low), high: money(high), median: money(median), value: money(min) },
+              )
+            : tr(
+                'job-terms.the_market_pays_this_job_pays_range',
+                'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{min}} to {{max}}.',
+                {
+                  low: money(low),
+                  high: money(high),
+                  median: money(median),
+                  min: money(min),
+                  max: money(max),
+                },
+              )
+        }
         segments={[
           {
             start: low,
@@ -924,9 +935,7 @@ function PayBand({
 }
 
 const amount = (value: number, currency: string): string =>
-  new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
-    value,
-  );
+  numberFormat({ style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
 
 /**
  * Pay: one figure, or a range from and to, yearly, in the entity's currency.
@@ -1093,17 +1102,24 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
                 )
               : estimate === null || suggested === null
                 ? tr('job-terms.no_estimate_yet', 'No estimate yet.')
-                : tr(
-                    'job-terms.ai_estimate_a_year_confidence',
-                    'AI estimate: {{value}} a year · {{confidence}} confidence',
-                    {
-                      value:
-                        kind === 'fixed'
-                          ? amount(suggested[0], estimate.currency)
-                          : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`,
-                      confidence: estimate.confidence,
-                    },
-                  )}
+                : kind === 'fixed'
+                  ? tr(
+                      'job-terms.ai_estimate_a_year_confidence',
+                      'AI estimate: {{value}} a year · {{confidence}} confidence',
+                      {
+                        value: amount(suggested[0], estimate.currency),
+                        confidence: estimate.confidence,
+                      },
+                    )
+                  : tr(
+                      'job-terms.ai_estimate_range_a_year_confidence',
+                      'AI estimate: {{min}} to {{max}} a year · {{confidence}} confidence',
+                      {
+                        min: amount(suggested[0], estimate.currency),
+                        max: amount(suggested[1], estimate.currency),
+                        confidence: estimate.confidence,
+                      },
+                    )}
           </span>
           <span className="flex gap-1">
             {changed && estimate !== null ? (

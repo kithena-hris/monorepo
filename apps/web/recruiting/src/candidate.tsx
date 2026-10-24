@@ -295,11 +295,16 @@ function ReadCv({
                     })}
                   </span>
                   <span className="block text-sm text-fg-muted">
-                    {tr('candidate.text_2', '{{value}} – {{value2}} · “{{passage}}”', {
-                      value: w.from.value,
-                      value2: w.to?.value ?? 'now',
-                      passage: w.employer.passage,
-                    })}
+                    {w.to === null || w.to === undefined
+                      ? tr('candidate.from_to_now', '{{value}} – now · “{{passage}}”', {
+                          value: w.from.value,
+                          passage: w.employer.passage,
+                        })
+                      : tr('candidate.text_2', '{{value}} – {{value2}} · “{{passage}}”', {
+                          value: w.from.value,
+                          value2: w.to.value,
+                          passage: w.employer.passage,
+                        })}
                   </span>
                 </li>
               ))}

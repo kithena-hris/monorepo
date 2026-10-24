@@ -83,10 +83,11 @@ export function CountryPacks({
             cell: (p) => (
               <span className="whitespace-normal">
                 {p.sections.map((s) => s.label).join(', ')} ·{' '}
-                {t('settings.country-packs.text', '{{fields}} {{value}}', {
-                  fields: String(p.fields),
-                  value: p.fields === 1 ? 'field' : 'fields',
-                })}
+                {t(
+                  'settings.country-packs.text',
+                  { one: '{{count}} field', other: '{{count}} fields' },
+                  { count: p.fields },
+                )}
               </span>
             ),
           },

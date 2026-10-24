@@ -106,10 +106,12 @@ export function Certificate({
               onNavigate(href);
             }}
           >
-            {t('document.certificate.request', 'Request {{name}}{{value}}', {
-              name: leaveType.name,
-              value: date === null ? '' : ` from ${shortDate(date)}`,
-            })}
+            {date === null
+              ? t('document.certificate.request', 'Request {{name}}', { name: leaveType.name })
+              : t('document.certificate.request_from', 'Request {{name}} from {{date}}', {
+                  name: leaveType.name,
+                  date: shortDate(date),
+                })}
           </a>
         </Button>
       )}

@@ -1,6 +1,4 @@
 import {
-  FieldControl,
-  DatePicker,
   Alert,
   Badge,
   BarChart,
@@ -9,16 +7,20 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  type DataColumn,
+  DataTable,
+  DatePicker,
   EmptyState,
+  Field,
+  FieldControl,
+  FieldLabel,
+  formatList,
+  icons,
+  Input,
   List,
   ListItem,
-  Field,
-  FieldLabel,
-  Input,
   NumberField,
   PageHeader,
-  DataTable,
-  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -26,7 +28,6 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -39,7 +40,6 @@ import {
   StepDialog,
   To,
   day,
-  plural,
   score,
   useAct,
   type Act,
@@ -324,7 +324,11 @@ function NewSession({
               {
                 cycleName,
                 value: department === '' ? '' : `, ${department}`,
-                length: plural(calibrators.length, 'calibrator'),
+                length: t(
+                  'calibration.count_calibrators',
+                  { one: '{{count}} calibrator', other: '{{count}} calibrators' },
+                  { count: calibrators.length },
+                ),
               },
             )}
           </Alert>
@@ -384,7 +388,11 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
               title={data.session.name}
               description={t('calibration.text', '{{cycle}} · {{value}} · {{value2}}', {
                 cycle: data.cycle,
-                value: data.session.calibrators.map((c) => c.name).join(', ') || 'HR',
+                value:
+                  formatList(
+                    data.session.calibrators.map((c) => c.name),
+                    'unit',
+                  ) || t('calibration.hr', 'HR'),
                 value2: STATE[data.session.state] ?? data.session.state,
               })}
               actions={
@@ -429,7 +437,13 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                     : t(
                         'calibration.for_you_to_accept_or_leave',
                         '{{length}}, for you to accept or leave',
-                        { length: plural(proposals.length, 'proposal') },
+                        {
+                          length: t(
+                            'calibration.count_proposals',
+                            { one: '{{count}} proposal', other: '{{count}} proposals' },
+                            { count: proposals.length },
+                          ),
+                        },
                       )
                 }
               >
@@ -540,7 +554,13 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
                     {t(
                       'calibration.changed_in_this_session',
                       '{{changed}} changed in this session',
-                      { changed: plural(changed, 'score') },
+                      {
+                        changed: t(
+                          'calibration.count_scores',
+                          { one: '{{count}} score', other: '{{count}} scores' },
+                          { count: changed },
+                        ),
+                      },
                     )}
                   </p>
                 </CardContent>
@@ -667,8 +687,16 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
               >
                 <p className="text-sm">
                   {t('calibration.changed_2', '{{length}}, {{changed}} changed.', {
-                    length: plural(data.rows.length, 'person', 'people'),
-                    changed: plural(changed, 'score'),
+                    length: t(
+                      'calibration.count_people',
+                      { one: '{{count}} person', other: '{{count}} people' },
+                      { count: data.rows.length },
+                    ),
+                    changed: t(
+                      'calibration.count_scores',
+                      { one: '{{count}} score', other: '{{count}} scores' },
+                      { count: changed },
+                    ),
                   })}
                 </p>
               </Modal>

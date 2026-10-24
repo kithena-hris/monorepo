@@ -9,6 +9,7 @@ import type {
   WriterRole,
 } from './model';
 import { t } from '../i18n';
+import { formatList } from '@reach/ui';
 
 /** How each term reads to an HR administrator, not to the schema. */
 
@@ -352,8 +353,5 @@ export function inSentence(name: string): string {
 /** "HR, the employee and their manager": a list the way a sentence says it. */
 export function listed(items: readonly string[]): string {
   if (items.length <= 1) return items[0] ?? '';
-  return t('settings.words.and', '{{join}} and {{value}}', {
-    join: items.slice(0, -1).join(', '),
-    value: items.at(-1) ?? '',
-  });
+  return formatList(items);
 }

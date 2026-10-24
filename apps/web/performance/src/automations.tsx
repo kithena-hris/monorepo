@@ -9,6 +9,8 @@ import {
   EmptyState,
   Field,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   NumberField,
   PageHeader,
@@ -21,7 +23,6 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -35,7 +36,6 @@ import {
   To,
   day,
   kindLabel,
-  plural,
   useAct,
   type Act,
 } from './shared';
@@ -154,7 +154,11 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
                       automation: o.automation,
                       from: day(o.from),
                       cycle: o.cycle,
-                      people: plural(o.people, 'person', 'people'),
+                      people: tr(
+                        'automations.count_people',
+                        { one: '{{count}} person', other: '{{count}} people' },
+                        { count: o.people },
+                      ),
                     },
                   ),
                 )
@@ -201,9 +205,15 @@ export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
                         <TableCell className="text-sm">
                           {a.next[0] === undefined
                             ? '—'
-                            : `${day(a.next[0].start)}${a.next[0].people === null ? '' : ` · ${plural(a.next[0].people.length, 'person', 'people')}`}`}
+                            : `${day(a.next[0].start)}${a.next[0].people === null ? '' : ` · ${tr('automations.count_people', { one: '{{count}} person', other: '{{count}} people' }, { count: a.next[0].people.length })}`}`}
                         </TableCell>
-                        <TableCell className="text-sm">{plural(a.created, 'cycle')}</TableCell>
+                        <TableCell className="text-sm">
+                          {tr(
+                            'automations.count_cycles',
+                            { one: '{{count}} cycle', other: '{{count}} cycles' },
+                            { count: a.created },
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge size="sm" tone={a.paused ? 'neutral' : 'success'}>
                             {a.paused
@@ -243,33 +253,68 @@ const sentence = (a: AutomationBody): string => {
           'Every {{every}}, starting in month {{startMonth}}',
           { every: t.every, startMonth: String(t.startMonth) },
         )
-      : tr('automations.days_after', '{{offsetDays}} days after {{value}}{{value2}}{{value3}}', {
-          offsetDays: String(t.offsetDays),
-          value:
-            t.event === 'hired'
-              ? 'someone starts'
-              : t.event === 'probation_end'
-                ? 'probation ends'
-                : 'their anniversary',
-          value2:
-            t.times > 1
+      : [
+          t.event === 'hired'
+            ? tr(
+                'automations.days_after_someone_starts',
+                {
+                  one: '{{count}} day after someone starts',
+                  other: '{{count}} days after someone starts',
+                },
+                { count: t.offsetDays },
+              )
+            : t.event === 'probation_end'
               ? tr(
-                  'automations.then_every_days_times_in_all',
-                  ', then every {{repeatDays}} days, {{times}} times in all',
-                  { repeatDays: String(t.repeatDays), times: String(t.times) },
+                  'automations.days_after_probation_ends',
+                  {
+                    one: '{{count}} day after probation ends',
+                    other: '{{count}} days after probation ends',
+                  },
+                  { count: t.offsetDays },
                 )
-              : '',
-          value3:
-            t.group === 'week' ? tr('automations.one_cycle_per_week_suffix', ', one cycle per week') : '',
-        });
-  return tr('automations.text', '{{when}}: {{join}}{{value}}.', {
-    when,
-    join: a.activities.map((k) => kindLabel(k).toLowerCase()).join(', '),
-    value:
-      a.skip.length === 0
-        ? ''
-        : `; leaves out people ${a.skip.map((s) => SKIP.find(([v]) => v === s)?.[1].toLowerCase() ?? s).join(', ')}`,
-  });
+              : tr(
+                  'automations.days_after_their_anniversary',
+                  {
+                    one: '{{count}} day after their anniversary',
+                    other: '{{count}} days after their anniversary',
+                  },
+                  { count: t.offsetDays },
+                ),
+          ...(t.times > 1
+            ? [
+                tr(
+                  'automations.then_every_days_times_in_all',
+                  {
+                    one: 'then every {{count}} day, {{times}} times in all',
+                    other: 'then every {{count}} days, {{times}} times in all',
+                  },
+                  { count: t.repeatDays, times: t.times },
+                ),
+              ]
+            : []),
+          ...(t.group === 'week'
+            ? [tr('automations.one_cycle_per_week', 'one cycle per week')]
+            : []),
+        ].join(', ');
+  return a.skip.length === 0
+    ? tr('automations.text', '{{when}}: {{join}}.', {
+        when,
+        join: formatList(
+          a.activities.map((k) => kindLabel(k).toLowerCase()),
+          'unit',
+        ),
+      })
+    : tr('automations.text_leaves_out', '{{when}}: {{join}}; leaves out people {{skip}}.', {
+        when,
+        join: formatList(
+          a.activities.map((k) => kindLabel(k).toLowerCase()),
+          'unit',
+        ),
+        skip: formatList(
+          a.skip.map((s) => SKIP.find(([v]) => v === s)?.[1].toLowerCase() ?? s),
+          'unit',
+        ),
+      });
 };
 
 /** PF16b v2: Schedule · Participants · Activities · Release · Preview. */

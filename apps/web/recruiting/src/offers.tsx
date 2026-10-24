@@ -581,11 +581,19 @@ function Composer({
         <CardHeader>
           <CardTitle level={2}>{STEP_LABEL[step] ?? words(step)}</CardTitle>
           <CardDescription>
-            {tr('offers.pack', '{{country}} pack {{version}}{{value}}', {
-              country: c.country,
-              version: c.version,
-              value: c.reviewed ? '' : ' · awaiting a country reviewer',
-            })}
+            {c.reviewed
+              ? tr('offers.pack', '{{country}} pack {{version}}', {
+                  country: c.country,
+                  version: c.version,
+                })
+              : tr(
+                  'offers.pack_awaiting_reviewer',
+                  '{{country}} pack {{version}} · awaiting a country reviewer',
+                  {
+                    country: c.country,
+                    version: c.version,
+                  },
+                )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
