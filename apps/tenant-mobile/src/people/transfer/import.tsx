@@ -19,6 +19,7 @@ import {
   Switch,
   Text,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { FileSpreadsheet, Sparkles } from 'lucide-react-native';
@@ -41,6 +42,7 @@ import {
   type PlanView,
   type ProposedColumn,
 } from './model';
+import { t } from '../../i18n';
 
 /** Where the flow is: the three steps the design names, and the file before them. */
 type Step = 'pick' | 'map' | 'fields' | 'plan';
@@ -97,7 +99,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
     setProblem(null);
     const body = await blobOf(asset.uri);
     if (body.size > 100 * 1024 * 1024) {
-      fail('A file can be up to 100 MB.');
+      fail(t('people.transfer.import.a_file_can_be_up_to', 'A file can be up to 100 MB.'));
       return;
     }
     const target = await ask<Target>(signed, 'StartImportUpload', {
@@ -109,7 +111,12 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
       return;
     }
     if (!(await put(target.data, body))) {
-      fail('The upload did not go through; try again.');
+      fail(
+        t(
+          'people.transfer.import.the_upload_did_not_go_through',
+          'The upload did not go through; try again.',
+        ),
+      );
       return;
     }
     const done = await ask<MapStage>(signed, 'CompleteImportUpload', {
@@ -138,7 +145,12 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
     }
     const view = parsed(answer.data) as NewFieldsView | null;
     if (view === null) {
-      fail('People answered in a way this screen cannot read.');
+      fail(
+        t(
+          'people.transfer.import.people_answered_in_a_way_this',
+          'People answered in a way this screen cannot read.',
+        ),
+      );
       return;
     }
     setFields(view);
@@ -162,7 +174,12 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
     }
     const view = parsed(answer.data) as PlanView | null;
     if (view === null) {
-      fail('People answered in a way this screen cannot read.');
+      fail(
+        t(
+          'people.transfer.import.people_answered_in_a_way_this',
+          'People answered in a way this screen cannot read.',
+        ),
+      );
       return;
     }
     setPlan(view);
@@ -189,16 +206,21 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
     }
     const ran = parsed(answer.data) as { runId?: string } | null;
     if (typeof ran?.runId !== 'string') {
-      fail('The import did not start. Try again.');
+      fail(
+        t(
+          'people.transfer.import.the_import_did_not_start_try',
+          'The import did not start. Try again.',
+        ),
+      );
       return;
     }
     navigation.replace('ImportRun', { id: ran.runId });
   };
 
   const steps = [
-    { id: 'map', label: 'Upload and map' },
-    { id: 'fields', label: 'Decide' },
-    { id: 'plan', label: 'Approve' },
+    { id: 'map', label: t('people.transfer.import.upload_and_map', 'Upload and map') },
+    { id: 'fields', label: t('people.transfer.import.decide', 'Decide') },
+    { id: 'plan', label: t('people.transfer.import.approve', 'Approve') },
   ];
   const current = step === 'pick' || step === 'map' ? 0 : step === 'fields' ? 1 : 2;
   const proposal = proposals[at];
@@ -220,7 +242,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
             setStep('pick');
           }}
         >
-          Back
+          {t('people.transfer.import.back', 'Back')}
         </Button>
         <Button
           className="flex-1"
@@ -229,7 +251,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
           loading={busy}
           onPress={() => void propose()}
         >
-          Next
+          {t('people.transfer.import.next', 'Next')}
         </Button>
       </>
     ) : step === 'fields' && proposal !== undefined ? (
@@ -243,7 +265,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
             else void makePlan(proposals.map((x, i) => (i === at ? { ...x, include: false } : x)));
           }}
         >
-          Skip
+          {t('people.transfer.import.skip', 'Skip')}
         </Button>
         <Button
           className="flex-1"
@@ -258,7 +280,9 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
             else void makePlan(next);
           }}
         >
-          {fields?.canCreate === false ? 'Next' : 'Create field'}
+          {fields?.canCreate === false
+            ? t('people.transfer.import.next', 'Next')
+            : t('people.transfer.import.create_field', 'Create field')}
         </Button>
       </>
     ) : step === 'plan' && plan !== null ? (
@@ -270,7 +294,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
         disabled={plan.blocked !== null}
         onPress={() => void run()}
       >
-        Approve and run
+        {t('people.transfer.import.approve_and_run', 'Approve and run')}
       </Button>
     ) : undefined;
 
@@ -278,17 +302,23 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
     <Page
       title={
         step === 'fields'
-          ? `New fields · ${String(at + 1)} of ${String(proposals.length)}`
+          ? t('people.transfer.import.new_fields_of', 'New fields · {{String}} of {{String2}}', {
+              String: String(at + 1),
+              String2: String(proposals.length),
+            })
           : step === 'plan'
-            ? 'Review plan'
-            : 'Import'
+            ? t('people.transfer.import.review_plan', 'Review plan')
+            : t('people.transfer.import.import', 'Import')
       }
-      back={{ label: 'Import & export', onPress: navigation.goBack }}
+      back={{
+        label: t('people.transfer.import.import_export', 'Import & export'),
+        onPress: navigation.goBack,
+      }}
       {...(foot === undefined ? {} : { foot })}
     >
       {step === 'pick' ? null : (
         <Stepper
-          label="Import steps"
+          label={t('people.transfer.import.import_steps', 'Import steps')}
           orientation="horizontal"
           steps={steps.map((s, i) => ({
             label: s.label,
@@ -297,7 +327,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
         />
       )}
       {problem === null ? null : (
-        <Alert tone="danger" title="That did not work">
+        <Alert
+          tone="danger"
+          title={t('people.transfer.import.that_did_not_work', 'That did not work')}
+        >
           <Stack gap={2}>
             <Text>{problem}</Text>
             {link === null ? null : (
@@ -307,7 +340,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                   navigation.navigate('ImportExport');
                 }}
               >
-                See the import that is running
+                {t(
+                  'people.transfer.import.see_the_import_that_is_running',
+                  'See the import that is running',
+                )}
               </Button>
             )}
           </Stack>
@@ -317,16 +353,19 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
       {step === 'pick' ? (
         <EmptyState
           icon={FileSpreadsheet}
-          title="Choose a file"
-          description="An Excel or CSV file of people, one row each, up to 100 MB. Nothing is written until you approve the plan."
+          title={t('people.transfer.import.choose_a_file', 'Choose a file')}
+          description={t(
+            'people.transfer.import.an_excel_or_csv_file_of',
+            'An Excel or CSV file of people, one row each, up to 100 MB. Nothing is written until you approve the plan.',
+          )}
           action={
             <Button
               variant="primary"
               loading={busy}
-              loadingLabel="Uploading"
+              loadingLabel={t('people.transfer.import.uploading', 'Uploading')}
               onPress={() => void pick()}
             >
-              Choose a file
+              {t('people.transfer.import.choose_a_file', 'Choose a file')}
             </Button>
           }
         />
@@ -335,14 +374,32 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
       {step === 'map' && stage !== null ? (
         <>
           <Text tone="muted">
-            {`${stage.file.rows.toLocaleString('en-GB')} rows · ${String(decided)} of ${String(stage.columns.length)} columns mapped`}
+            {t(
+              'people.transfer.import.rows_of_columns_mapped',
+              '{{toLocaleString}} rows · {{String}} of {{String2}} columns mapped',
+              {
+                toLocaleString: stage.file.rows.toLocaleString(locale()),
+                String: String(decided),
+                String2: String(stage.columns.length),
+              },
+            )}
           </Text>
           {pending.length === 0 ? null : (
             <Alert
               tone="warning"
-              title={`${String(pending.length)} ${pending.length === 1 ? 'column needs' : 'columns need'} a decision`}
+              title={t(
+                'people.transfer.import.a_decision',
+                {
+                  one: '{{count}} column needs a decision',
+                  other: '{{count}} columns need a decision',
+                },
+                { count: pending.length },
+              )}
             >
-              A column is never dropped quietly.
+              {t(
+                'people.transfer.import.a_column_is_never_dropped_quietly',
+                'A column is never dropped quietly.',
+              )}
             </Alert>
           )}
           <Card>
@@ -351,13 +408,19 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                 <Stack key={c.index} gap={1}>
                   <Inline gap={2} justify="between">
                     <Text variant="subhead" tone="muted" className="flex-1">
-                      {c.header === '' ? `Column ${String(c.index + 1)}` : c.header}
+                      {c.header === ''
+                        ? t('people.transfer.import.column', 'Column {{String}}', {
+                            String: String(c.index + 1),
+                          })
+                        : c.header}
                     </Text>
                     {c.confidence === null ? null : (
                       <Badge size="sm" tone={c.confidence >= 0.9 ? 'success' : 'warning'}>
                         {c.confidence >= 0.9
                           ? c.confidence.toFixed(2)
-                          : `${c.confidence.toFixed(2)}, check this`}
+                          : t('people.transfer.import.check_this', '{{toFixed}}, check this', {
+                              toFixed: c.confidence.toFixed(2),
+                            })}
                       </Badge>
                     )}
                   </Inline>
@@ -367,14 +430,26 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                       setMapping((m) => ({ ...m, [c.index]: next === IGNORE ? null : next }));
                     }}
                   >
-                    <SelectTrigger accessibilityLabel={`Field for ${c.header}`}>
+                    <SelectTrigger
+                      accessibilityLabel={t(
+                        'people.transfer.import.field_for',
+                        'Field for {{header}}',
+                        { header: c.header },
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={IGNORE}>Leave this column out</SelectItem>
+                      <SelectItem value={IGNORE}>
+                        {t('people.transfer.import.leave_this_column_out', 'Leave this column out')}
+                      </SelectItem>
                       {stage.fields.map((f) => (
                         <SelectItem key={f.key} value={f.key}>
-                          {f.sensitive === true ? `${f.label} (sensitive)` : f.label}
+                          {f.sensitive === true
+                            ? t('people.transfer.import.sensitive', '{{label}} (sensitive)', {
+                                label: f.label,
+                              })
+                            : f.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -397,15 +472,29 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
             <Card>
               <Inline gap={2}>
                 <Sparkles size={16} />
-                <Text weight="semibold">These columns aren’t fields yet</Text>
+                <Text weight="semibold">
+                  {t(
+                    'people.transfer.import.these_columns_arent_fields_yet',
+                    'These columns aren’t fields yet',
+                  )}
+                </Text>
               </Inline>
               <Text variant="subhead" tone="muted">
-                Each is designed from the shape of the data, never a value.
+                {t(
+                  'people.transfer.import.each_is_designed_from_the_shape',
+                  'Each is designed from the shape of the data, never a value.',
+                )}
               </Text>
             </Card>
           ) : null}
           {fields?.blocked == null ? null : (
-            <Alert tone="warning" title="Only a People administrator creates fields">
+            <Alert
+              tone="warning"
+              title={t(
+                'people.transfer.import.only_a_people_administrator_creates_fields',
+                'Only a People administrator creates fields',
+              )}
+            >
               {fields.blocked}
             </Alert>
           )}
@@ -427,7 +516,9 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                           'sectionKey' in proposal.placement &&
                           s.key === proposal.placement.sectionKey,
                       )?.label ?? proposal.placement.sectionKey)
-                    : `New section: ${proposal.placement.newSection}`}
+                    : t('people.transfer.import.new_section', 'New section: {{newSection}}', {
+                        newSection: proposal.placement.newSection,
+                      })}
                 </Badge>
                 <Badge size="sm" tone={proposal.sensitive == null ? 'neutral' : 'warning'}>
                   {proposal.field.classification}
@@ -435,12 +526,22 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
               </Inline>
               <Text>{proposal.why}</Text>
               <Text variant="footnote" tone="muted">
-                {`${proposal.confidence === 'high' ? 'High' : 'Medium'} confidence · ${proposal.shape}`}
+                {t('people.transfer.import.confidence', '{{value}} confidence · {{shape}}', {
+                  value: proposal.confidence === 'high' ? 'High' : 'Medium',
+                  shape: proposal.shape,
+                })}
               </Text>
               {proposal.counts === undefined || proposal.counts.existingWithout === 0 ? null : (
                 <Stack gap={2}>
                   <Text weight="semibold">
-                    {`${proposal.counts.existingWithout.toLocaleString('en-GB')} people already here have no ${proposal.field.label}`}
+                    {t(
+                      'people.transfer.import.people_already_here_have_no',
+                      '{{toLocaleString}} people already here have no {{label}}',
+                      {
+                        toLocaleString: proposal.counts.existingWithout.toLocaleString(locale()),
+                        label: proposal.field.label,
+                      },
+                    )}
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <Inline gap={2} wrap={false}>
@@ -481,7 +582,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
       {step === 'plan' && plan !== null ? (
         <>
           {plan.blocked === null ? null : (
-            <Alert tone="danger" title="This can’t run yet">
+            <Alert
+              tone="danger"
+              title={t('people.transfer.import.this_cant_run_yet', 'This can’t run yet')}
+            >
               {plan.blocked}
             </Alert>
           )}
@@ -493,7 +597,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
           <Card>
             <Inline gap={2}>
               <Sparkles size={16} />
-              <Text weight="semibold">The plan</Text>
+              <Text weight="semibold">{t('people.transfer.import.the_plan', 'The plan')}</Text>
             </Inline>
             <Text>{plan.short}</Text>
           </Card>
@@ -507,12 +611,24 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
           <Card>
             <KeyValues
               items={[
-                { label: 'New people', value: String(plan.review.dryRun.counts.create) },
-                { label: 'Updated', value: String(plan.review.dryRun.counts.update) },
-                { label: 'Unchanged', value: String(plan.review.dryRun.counts.unchanged) },
-                { label: 'Skipped', value: String(plan.review.dryRun.counts.blocked) },
                 {
-                  label: 'Possible duplicates',
+                  label: t('people.transfer.import.new_people', 'New people'),
+                  value: String(plan.review.dryRun.counts.create),
+                },
+                {
+                  label: t('people.transfer.import.updated', 'Updated'),
+                  value: String(plan.review.dryRun.counts.update),
+                },
+                {
+                  label: t('people.transfer.import.unchanged', 'Unchanged'),
+                  value: String(plan.review.dryRun.counts.unchanged),
+                },
+                {
+                  label: t('people.transfer.import.skipped', 'Skipped'),
+                  value: String(plan.review.dryRun.counts.blocked),
+                },
+                {
+                  label: t('people.transfer.import.possible_duplicates', 'Possible duplicates'),
                   value: String(plan.review.dryRun.counts.duplicate),
                 },
               ]}
@@ -521,7 +637,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
           {(plan.review.dryRun.blocked ?? []).length === 0 ? null : (
             <Stack gap={2}>
               <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-                Rows that will be skipped
+                {t('people.transfer.import.rows_that_will_be_skipped', 'Rows that will be skipped')}
               </Text>
               <List>
                 {(plan.review.dryRun.blocked ?? []).slice(0, 20).map((b) => (
@@ -529,7 +645,8 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                     key={`${String(b.row)}-${b.cell}`}
                     description={`${b.cell} · ${b.problem}`}
                   >
-                    {b.name ?? `Row ${String(b.row)}`}
+                    {b.name ??
+                      t('people.transfer.import.row', 'Row {{String}}', { String: String(b.row) })}
                   </ListItem>
                 ))}
               </List>
@@ -538,7 +655,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                   size="sm"
                   onPress={() => void WebBrowser.openBrowserAsync(plan.review.blockedUrl ?? '')}
                 >
-                  Download the skipped rows
+                  {t(
+                    'people.transfer.import.download_the_skipped_rows',
+                    'Download the skipped rows',
+                  )}
                 </Button>
               )}
             </Stack>
@@ -546,7 +666,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
           {workplaces.length === 0 || here === null ? null : (
             <Stack gap={2}>
               <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-                Work locations in the file
+                {t(
+                  'people.transfer.import.work_locations_in_the_file',
+                  'Work locations in the file',
+                )}
               </Text>
               {workplaces.map((w) => {
                 const choice = places[w.key] ?? w.proposed;
@@ -558,7 +681,13 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                       : '#leave';
                 return (
                   <Card key={w.key}>
-                    <Text weight="semibold">{`${w.value} · ${String(w.rows)} ${w.rows === 1 ? 'row' : 'rows'}`}</Text>
+                    <Text weight="semibold">
+                      {t(
+                        'people.transfer.import.rows',
+                        { one: '{{value}} · {{count}} row', other: '{{value}} · {{count}} rows' },
+                        { count: w.rows, value: w.value },
+                      )}
+                    </Text>
                     {w.note === null ? null : (
                       <Text variant="footnote" tone="muted">
                         {w.note}
@@ -583,7 +712,13 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                         setPlaces((p) => ({ ...p, [w.key]: picked }));
                       }}
                     >
-                      <SelectTrigger accessibilityLabel={`Location for ${w.value}`}>
+                      <SelectTrigger
+                        accessibilityLabel={t(
+                          'people.transfer.import.location_for',
+                          'Location for {{value}}',
+                          { value: w.value },
+                        )}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -592,15 +727,23 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                             {l.name}
                           </SelectItem>
                         ))}
-                        <SelectItem value="#add">{`Add “${w.value}” as a location`}</SelectItem>
-                        <SelectItem value="#leave">Leave it empty</SelectItem>
+                        <SelectItem value="#add">
+                          {t(
+                            'people.transfer.import.add_as_a_location',
+                            'Add “{{value}}” as a location',
+                            { value: w.value },
+                          )}
+                        </SelectItem>
+                        <SelectItem value="#leave">
+                          {t('people.transfer.import.leave_it_empty', 'Leave it empty')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </Card>
                 );
               })}
               <Button size="sm" loading={busy} onPress={() => void makePlan()}>
-                Update the plan
+                {t('people.transfer.import.update_the_plan', 'Update the plan')}
               </Button>
             </Stack>
           )}
@@ -610,22 +753,34 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
               <Inline gap={3} justify="between" wrap={false}>
                 <Stack gap={1} className="flex-1">
                   <Text weight="semibold">
-                    {`${String(plan.review.dryRun.sensitive.values)} sensitive values`}
+                    {t('people.transfer.import.sensitive_values', '{{String}} sensitive values', {
+                      String: String(plan.review.dryRun.sensitive.values),
+                    })}
                   </Text>
                   <Text variant="footnote" tone="muted">
-                    {`${plan.review.dryRun.sensitive.fields.join(', ')}. They wait for approval unless you apply them now.`}
+                    {t(
+                      'people.transfer.import.they_wait_for_approval_unless_you',
+                      '{{join}}. They wait for approval unless you apply them now.',
+                      { join: plan.review.dryRun.sensitive.fields.join(', ') },
+                    )}
                   </Text>
                 </Stack>
                 <Switch
                   checked={withoutApproval}
                   onCheckedChange={setWithoutApproval}
-                  accessibilityLabel="Apply sensitive values without approval"
+                  accessibilityLabel={t(
+                    'people.transfer.import.apply_sensitive_values_without_approval',
+                    'Apply sensitive values without approval',
+                  )}
                 />
               </Inline>
             </Card>
           )}
           <Text variant="footnote" tone="muted">
-            Nobody is invited. Invite each person from their record.
+            {t(
+              'people.transfer.import.nobody_is_invited_invite_each_person',
+              'Nobody is invited. Invite each person from their record.',
+            )}
           </Text>
         </>
       ) : null}

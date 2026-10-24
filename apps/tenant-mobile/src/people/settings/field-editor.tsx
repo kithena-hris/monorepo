@@ -82,6 +82,7 @@ import {
   type RegistrySection,
   type ViewerScope,
 } from './fields-model';
+import { t as tr } from '../../i18n';
 
 const OPERANDS = [
   'country',
@@ -149,8 +150,14 @@ function PredicateEditor({
               onChange({ ...value, combine: combine === 'any' ? 'any' : 'all' });
             },
             [
-              { value: 'all', label: 'All of these hold' },
-              { value: 'any', label: 'Any of these holds' },
+              {
+                value: 'all',
+                label: tr('people.settings.field-editor.all_of_these_hold', 'All of these hold'),
+              },
+              {
+                value: 'any',
+                label: tr('people.settings.field-editor.any_of_these_holds', 'Any of these holds'),
+              },
             ],
           )
         : null}
@@ -181,7 +188,9 @@ function PredicateEditor({
                   size="sm"
                   variant="ghost"
                   startIcon={<Icon icon={Trash2} />}
-                  accessibilityLabel={`Remove ${n}`}
+                  accessibilityLabel={tr('people.settings.field-editor.remove', 'Remove {{n}}', {
+                    n,
+                  })}
                   disabled={value.clauses.length === 1}
                   onPress={() => {
                     onChange({ ...value, clauses: value.clauses.filter((_, i) => i !== index) });
@@ -197,7 +206,7 @@ function PredicateEditor({
                       set(index, { ...clause, key, equals: clause.is === 'equals' ? '' : null });
                     },
                     fields.map((f) => ({ value: f.key, label: f.label })),
-                    'Choose a field',
+                    tr('people.settings.field-editor.choose_a_field', 'Choose a field'),
                   )}
                   {select(
                     `${n}: how it is compared`,
@@ -210,8 +219,14 @@ function PredicateEditor({
                       });
                     },
                     [
-                      { value: 'set', label: 'is filled in' },
-                      { value: 'equals', label: 'equals' },
+                      {
+                        value: 'set',
+                        label: tr('people.settings.field-editor.is_filled_in', 'is filled in'),
+                      },
+                      {
+                        value: 'equals',
+                        label: tr('people.settings.field-editor.equals', 'equals'),
+                      },
                     ],
                   )}
                   {clause.is !== 'equals' ? null : named !== undefined &&
@@ -228,7 +243,11 @@ function PredicateEditor({
                   ) : (
                     <Input
                       size="sm"
-                      accessibilityLabel={`${n}: the value`}
+                      accessibilityLabel={tr(
+                        'people.settings.field-editor.the_value',
+                        '{{n}}: the value',
+                        { n },
+                      )}
                       maxLength={200}
                       value={clause.equals ?? ''}
                       onChange={(equals) => {
@@ -239,10 +258,10 @@ function PredicateEditor({
                 </>
               ) : (
                 <Combobox
-                  label={`${n}: is one of`}
+                  label={tr('people.settings.field-editor.is_one_of', '{{n}}: is one of', { n })}
                   multiple
                   size="sm"
-                  placeholder="Choose values"
+                  placeholder={tr('people.settings.field-editor.choose_values', 'Choose values')}
                   options={listed(clause.operand)}
                   value={clause.in}
                   onChange={(next) => {
@@ -269,7 +288,7 @@ function PredicateEditor({
             onChange({ ...value, clauses: [...value.clauses, { operand: 'country', in: [] }] });
           }}
         >
-          Add a condition
+          {tr('people.settings.field-editor.add_a_condition', 'Add a condition')}
         </Button>
       ) : null}
     </Stack>
@@ -352,7 +371,7 @@ export function FieldEditor({
   const editing = field !== null;
   const builtIn = field !== null && field.origin !== 'tenant';
   const others = registry.fields.filter((f) => f.key !== draft.key);
-  const problems = PARTS.map((_, i) =>
+  const problems = PARTS().map((_, i) =>
     problemsIn(i, draft, (key) => !editing && registry.fields.some((f) => f.key === key), others),
   );
   const set = (patch: Partial<Draft>): void => {
@@ -427,14 +446,29 @@ export function FieldEditor({
   const canSeal = field === null ? SEALABLE.has(draft.dataType) : field.encryptable === true;
   const sealLocked = forced || wasSealed || !canSeal;
   const sealWhy = forced
-    ? 'Always on for financial details and ID numbers.'
+    ? tr(
+        'people.settings.field-editor.always_on_for_financial_details_and',
+        'Always on for financial details and ID numbers.',
+      )
     : wasSealed
-      ? 'On. Encryption can’t be turned off.'
+      ? tr(
+          'people.settings.field-editor.on_encryption_cant_be_turned_off',
+          'On. Encryption can’t be turned off.',
+        )
       : !canSeal
-        ? 'Not available for this field type.'
+        ? tr(
+            'people.settings.field-editor.not_available_for_this_field_type',
+            'Not available for this field type.',
+          )
         : draft.encrypted && field !== null
-          ? 'Existing values are encrypted when you publish. This can’t be undone.'
-          : 'Only the last four characters are shown. Never searchable or shared.';
+          ? tr(
+              'people.settings.field-editor.existing_values_are_encrypted_when_you',
+              'Existing values are encrypted when you publish. This can’t be undone.',
+            )
+          : tr(
+              'people.settings.field-editor.only_the_last_four_characters_are',
+              'Only the last four characters are shown. Never searchable or shared.',
+            );
   const approval = draft.requiresApproval ?? sealed;
   const floor = judged !== null && judged.kind !== 'protect' ? judged.floor : null;
   const show = shown ? (problems[part] ?? {}) : {};
@@ -443,7 +477,7 @@ export function FieldEditor({
     !sealed && (draft.classification === 'public' || draft.classification === 'internal');
   const sharedBefore = field === null ? shareable : field.aiEligible === true;
   const shared = shareable && (sharing ?? sharedBefore);
-  const last = part === PARTS.length - 1;
+  const last = part === PARTS().length - 1;
   const everyone = seenByEveryone(draft.visibility);
 
   const save = (): void => {
@@ -471,7 +505,9 @@ export function FieldEditor({
         ),
         editing: field?.key ?? null,
       },
-      editing ? 'Saved to the draft' : 'Added to the draft',
+      editing
+        ? tr('people.settings.field-editor.saved_to_the_draft', 'Saved to the draft')
+        : tr('people.settings.field-editor.added_to_the_draft', 'Added to the draft'),
     ).then(async (done) => {
       if (done === null) return;
       if (shareable && shared !== sharedBefore) {
@@ -503,21 +539,29 @@ export function FieldEditor({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? field.label : 'New field'}</DialogTitle>
+          <DialogTitle>
+            {editing ? field.label : tr('people.settings.field-editor.new_field', 'New field')}
+          </DialogTitle>
           <DialogDescription>{`${section.label}${builtIn ? ' · built in: type and key are fixed' : ''}`}</DialogDescription>
         </DialogHeader>
         <DialogBody>
           <View className="gap-2.5">
             <StepperProgress
               step={part + 1}
-              count={PARTS.length}
-              label="Parts of the field"
-              segments={PARTS.map((label, i) => ({
+              count={PARTS().length}
+              label={tr('people.settings.field-editor.parts_of_the_field', 'Parts of the field')}
+              segments={PARTS().map((label, i) => ({
                 label,
                 ...(shown && Object.keys(problems[i] ?? {}).length > 0
                   ? { status: 'failed' as const }
                   : drafted.has(i) && i !== part
-                    ? { status: 'todo' as const, description: 'Drafted for you to check' }
+                    ? {
+                        status: 'todo' as const,
+                        description: tr(
+                          'people.settings.field-editor.drafted_for_you_to_check',
+                          'Drafted for you to check',
+                        ),
+                      }
                     : {}),
                 // Editing, any step opens; a new field goes back only.
                 ...(editing || i < part
@@ -529,15 +573,23 @@ export function FieldEditor({
                   : {}),
               }))}
             />
-            <Text variant="headline">{PARTS[part]}</Text>
+            <Text variant="headline">{PARTS()[part]}</Text>
           </View>
           <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4 pb-2">
             {part === 0 ? (
               <>
                 {builtIn ? (
-                  <Alert tone="info" title="Built into Kithena">
-                    You can change its name, description and access. Its type is fixed, and
-                    protection can only be increased.
+                  <Alert
+                    tone="info"
+                    title={tr(
+                      'people.settings.field-editor.built_into_kithena',
+                      'Built into Kithena',
+                    )}
+                  >
+                    {tr(
+                      'people.settings.field-editor.you_can_change_its_name_description',
+                      'You can change its name, description and access. Its type is fixed, and protection can only be increased.',
+                    )}
                   </Alert>
                 ) : null}
                 {editing ? null : (
@@ -545,25 +597,39 @@ export function FieldEditor({
                     <View className="flex-row items-center gap-2">
                       <Icon icon={Sparkles} size={16} tone="accent" />
                       <Text weight="semibold" tone="accent">
-                        Describe it
+                        {tr('people.settings.field-editor.describe_it', 'Describe it')}
                       </Text>
                     </View>
                     <Textarea
                       value={description}
                       maxLength={500}
-                      placeholder="T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it."
-                      accessibilityLabel="Describe the field"
+                      placeholder={tr(
+                        'people.settings.field-editor.t_shirt_size_for_the_offsite',
+                        'T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it.',
+                      )}
+                      accessibilityLabel={tr(
+                        'people.settings.field-editor.describe_the_field',
+                        'Describe the field',
+                      )}
                       onChange={describe}
                     />
                     <Text variant="footnote" tone="muted">
                       {drafted.size > 0
-                        ? 'Filled in the name, options and steps 2 to 4. Check each one.'
-                        : 'Kithena fills in the rest from it. A rule, not a model.'}
+                        ? tr(
+                            'people.settings.field-editor.filled_in_the_name_options_and',
+                            'Filled in the name, options and steps 2 to 4. Check each one.',
+                          )
+                        : tr(
+                            'people.settings.field-editor.kithena_fills_in_the_rest_from',
+                            'Kithena fills in the rest from it. A rule, not a model.',
+                          )}
                     </Text>
                   </Card>
                 )}
                 <Field required invalid={show['label'] !== undefined}>
-                  <FieldLabel>Field name</FieldLabel>
+                  <FieldLabel>
+                    {tr('people.settings.field-editor.field_name', 'Field name')}
+                  </FieldLabel>
                   <Input
                     size="sm"
                     value={draft.label}
@@ -576,14 +642,17 @@ export function FieldEditor({
                 </Field>
                 {registry.sections.length > 1 ? (
                   <Field>
-                    <FieldLabel>Section</FieldLabel>
+                    <FieldLabel>{tr('people.settings.field-editor.section', 'Section')}</FieldLabel>
                     <Select
                       value={draft.sectionKey}
                       onValueChange={(sectionKey) => {
                         set({ sectionKey });
                       }}
                     >
-                      <SelectTrigger size="sm" accessibilityLabel="Section">
+                      <SelectTrigger
+                        size="sm"
+                        accessibilityLabel={tr('people.settings.field-editor.section', 'Section')}
+                      >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -599,7 +668,9 @@ export function FieldEditor({
                   </Field>
                 ) : null}
                 <Field>
-                  <FieldLabel>Type of answer</FieldLabel>
+                  <FieldLabel>
+                    {tr('people.settings.field-editor.type_of_answer', 'Type of answer')}
+                  </FieldLabel>
                   <Select
                     value={draft.dataType}
                     disabled={builtIn}
@@ -607,7 +678,13 @@ export function FieldEditor({
                       set({ dataType });
                     }}
                   >
-                    <SelectTrigger size="sm" accessibilityLabel="Type of answer">
+                    <SelectTrigger
+                      size="sm"
+                      accessibilityLabel={tr(
+                        'people.settings.field-editor.type_of_answer',
+                        'Type of answer',
+                      )}
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -621,21 +698,24 @@ export function FieldEditor({
                 </Field>
                 {WITH_OPTIONS.has(draft.dataType) ? (
                   <Field required invalid={show['options'] !== undefined}>
-                    <FieldLabel>Options</FieldLabel>
+                    <FieldLabel>{tr('people.settings.field-editor.options', 'Options')}</FieldLabel>
                     <TagsInput
                       value={[...draft.options]}
                       onChange={(options) => {
                         set({ options });
                       }}
-                      label="Options"
-                      placeholder="Add an option"
+                      label={tr('people.settings.field-editor.options', 'Options')}
+                      placeholder={tr(
+                        'people.settings.field-editor.add_an_option',
+                        'Add an option',
+                      )}
                     />
                     <FieldError>{show['options'] ?? ''}</FieldError>
                   </Field>
                 ) : null}
                 {WITH_DECIMALS.has(draft.dataType) ? (
                   <NumberField
-                    label="Decimal places"
+                    label={tr('people.settings.field-editor.decimal_places', 'Decimal places')}
                     size="sm"
                     value={draft.decimals}
                     min={0}
@@ -647,52 +727,75 @@ export function FieldEditor({
                 ) : null}
                 {draft.dataType === 'money' ? (
                   <Field invalid={show['currency'] !== undefined}>
-                    <FieldLabel>Currency</FieldLabel>
+                    <FieldLabel>
+                      {tr('people.settings.field-editor.currency', 'Currency')}
+                    </FieldLabel>
                     <Input
                       size="sm"
                       maxLength={3}
                       autoCapitalize="characters"
-                      placeholder="Any"
+                      placeholder={tr('people.settings.field-editor.any', 'Any')}
                       value={draft.currency}
                       onChange={(currency) => {
                         set({ currency: currency.toUpperCase() });
                       }}
                     />
-                    <FieldDescription>Empty: each record’s own currency.</FieldDescription>
+                    <FieldDescription>
+                      {tr(
+                        'people.settings.field-editor.empty_each_records_own_currency',
+                        'Empty: each record’s own currency.',
+                      )}
+                    </FieldDescription>
                     <FieldError>{show['currency'] ?? ''}</FieldError>
                   </Field>
                 ) : null}
                 {draft.dataType === 'date' ? (
                   <List>
                     <ListItem
-                      description="Offers “No end date” beside the date, for a permanent contract."
+                      description={tr(
+                        'people.settings.field-editor.offers_no_end_date_beside_the',
+                        'Offers “No end date” beside the date, for a permanent contract.',
+                      )}
                       trailing={
                         <Switch
                           checked={draft.openEnded}
-                          accessibilityLabel="Can be indefinite"
+                          accessibilityLabel={tr(
+                            'people.settings.field-editor.can_be_indefinite',
+                            'Can be indefinite',
+                          )}
                           onCheckedChange={(openEnded) => {
                             set({ openEnded });
                           }}
                         />
                       }
                     >
-                      Can be indefinite
+                      {tr('people.settings.field-editor.can_be_indefinite', 'Can be indefinite')}
                     </ListItem>
                   </List>
                 ) : null}
                 <Field>
-                  <FieldLabel>Help text</FieldLabel>
+                  <FieldLabel>
+                    {tr('people.settings.field-editor.help_text', 'Help text')}
+                  </FieldLabel>
                   <Textarea
                     value={draft.description}
                     maxLength={500}
-                    placeholder="Optional. What to enter, and why."
+                    placeholder={tr(
+                      'people.settings.field-editor.optional_what_to_enter_and_why',
+                      'Optional. What to enter, and why.',
+                    )}
                     onChange={(text) => {
                       set({ description: text });
                     }}
                   />
                 </Field>
                 <Field required invalid={show['key'] !== undefined}>
-                  <FieldLabel>Key for integrations</FieldLabel>
+                  <FieldLabel>
+                    {tr(
+                      'people.settings.field-editor.key_for_integrations',
+                      'Key for integrations',
+                    )}
+                  </FieldLabel>
                   <Input
                     size="sm"
                     value={draft.key}
@@ -704,7 +807,10 @@ export function FieldEditor({
                     }}
                   />
                   <FieldDescription>
-                    How integrations and imports name it. Fixed once saved.
+                    {tr(
+                      'people.settings.field-editor.how_integrations_and_imports_name_it',
+                      'How integrations and imports name it. Fixed once saved.',
+                    )}
                   </FieldDescription>
                   <FieldError>{show['key'] ?? ''}</FieldError>
                 </Field>
@@ -715,18 +821,27 @@ export function FieldEditor({
               <>
                 <ListItem
                   listitem={false}
-                  description="Ticks every See box"
+                  description={tr(
+                    'people.settings.field-editor.ticks_every_see_box',
+                    'Ticks every See box',
+                  )}
                   trailing={
                     <Switch
                       checked={everyone}
-                      accessibilityLabel="Everyone at the company can see it"
+                      accessibilityLabel={tr(
+                        'people.settings.field-editor.everyone_at_the_company_can_see',
+                        'Everyone at the company can see it',
+                      )}
                       onCheckedChange={(on) => {
                         set({ visibility: withEveryone(on, draft.visibility) });
                       }}
                     />
                   }
                 >
-                  Everyone at the company can see it
+                  {tr(
+                    'people.settings.field-editor.everyone_at_the_company_can_see',
+                    'Everyone at the company can see it',
+                  )}
                 </ListItem>
                 <AccessMatrix
                   audiences={GROUPS}
@@ -737,7 +852,10 @@ export function FieldEditor({
                   }}
                 />
                 <Text variant="footnote" tone="muted">
-                  Anyone ticked under Change can also see it.
+                  {tr(
+                    'people.settings.field-editor.anyone_ticked_under_change_can_also',
+                    'Anyone ticked under Change can also see it.',
+                  )}
                 </Text>
                 {show['ownership'] === undefined ? null : (
                   <Alert tone="danger">{show['ownership']}</Alert>
@@ -745,18 +863,30 @@ export function FieldEditor({
                 {show['visibility'] === undefined ? null : (
                   <Alert tone="danger">{show['visibility']}</Alert>
                 )}
-                <Text weight="semibold">Also visible when</Text>
+                <Text weight="semibold">
+                  {tr('people.settings.field-editor.also_visible_when', 'Also visible when')}
+                </Text>
                 <Text variant="footnote" tone="muted">
-                  Rules show the field to more people on the records a condition holds for.
+                  {tr(
+                    'people.settings.field-editor.rules_show_the_field_to_more',
+                    'Rules show the field to more people on the records a condition holds for.',
+                  )}
                 </Text>
                 {draft.visibilityRules.map((rule, i) => (
                   <Card key={i} variant="outline">
                     <Stack gap={3}>
                       <Combobox
-                        label={`Rule ${String(i + 1)}: who also sees it`}
+                        label={tr(
+                          'people.settings.field-editor.rule_who_also_sees_it',
+                          'Rule {{String}}: who also sees it',
+                          { String: String(i + 1) },
+                        )}
                         multiple
                         size="sm"
-                        placeholder="Who also sees it"
+                        placeholder={tr(
+                          'people.settings.field-editor.who_also_sees_it',
+                          'Who also sees it',
+                        )}
                         options={AUDIENCES.map((a) => ({ value: a.id, label: a.label }))}
                         value={rule.scopes}
                         onChange={(nextScopes) => {
@@ -790,7 +920,7 @@ export function FieldEditor({
                           set({ visibilityRules: draft.visibilityRules.filter((_, j) => j !== i) });
                         }}
                       >
-                        Remove this rule
+                        {tr('people.settings.field-editor.remove_this_rule', 'Remove this rule')}
                       </Button>
                     </Stack>
                   </Card>
@@ -810,7 +940,7 @@ export function FieldEditor({
                       });
                     }}
                   >
-                    Add a rule
+                    {tr('people.settings.field-editor.add_a_rule', 'Add a rule')}
                   </Button>
                 ) : null}
               </>
@@ -819,7 +949,10 @@ export function FieldEditor({
             {part === 2 ? (
               <>
                 <RadioGroup
-                  accessibilityLabel="When it’s asked"
+                  accessibilityLabel={tr(
+                    'people.settings.field-editor.when_its_asked',
+                    'When it’s asked',
+                  )}
                   value={draft.collectAt}
                   onValueChange={(v) => {
                     set({ collectAt: v as Draft['collectAt'] });
@@ -836,12 +969,17 @@ export function FieldEditor({
                     </RadioCard>
                   ))}
                 </RadioGroup>
-                <Text weight="semibold">Is it required?</Text>
+                <Text weight="semibold">
+                  {tr('people.settings.field-editor.is_it_required', 'Is it required?')}
+                </Text>
                 <SegmentedControl
                   fullWidth
                   size="sm"
                   value={draft.requiredness}
-                  accessibilityLabel="Is it required?"
+                  accessibilityLabel={tr(
+                    'people.settings.field-editor.is_it_required',
+                    'Is it required?',
+                  )}
                   onValueChange={(v) => {
                     set({ requiredness: v as Draft['requiredness'] });
                   }}
@@ -854,7 +992,7 @@ export function FieldEditor({
                 </SegmentedControl>
                 {draft.requiredness === 'conditional' ? (
                   <PredicateEditor
-                    legend="Required when"
+                    legend={tr('people.settings.field-editor.required_when', 'Required when')}
                     value={draft.requiredWhen}
                     registry={registry}
                     fields={others}
@@ -875,20 +1013,43 @@ export function FieldEditor({
             {part === 3 ? (
               <>
                 {advice === 'asking' ? (
-                  <Spinner label="Judging what kind of data this is" />
+                  <Spinner
+                    label={tr(
+                      'people.settings.field-editor.judging_what_kind_of_data_this',
+                      'Judging what kind of data this is',
+                    )}
+                  />
                 ) : advice === 'failed' ? (
-                  <Alert tone="warning">No suggestion could be made. Choose below.</Alert>
+                  <Alert tone="warning">
+                    {tr(
+                      'people.settings.field-editor.no_suggestion_could_be_made_choose',
+                      'No suggestion could be made. Choose below.',
+                    )}
+                  </Alert>
                 ) : judged === null ? null : (
-                  <Alert tone={judged.kind === 'protect' ? 'warning' : 'info'} title="Suggested">
+                  <Alert
+                    tone={judged.kind === 'protect' ? 'warning' : 'info'}
+                    title={tr('people.settings.field-editor.suggested', 'Suggested')}
+                  >
                     {judged.kind === 'choose'
                       ? judged.options.map((o) => o.reason).join(' ')
                       : judged.kind === 'fallback'
-                        ? 'The section’s default, as no judgment was available.'
-                        : `${judged.reason} A Kithena rule, not a model.`}
+                        ? tr(
+                            'people.settings.field-editor.the_sections_default_as_no_judgment',
+                            'The section’s default, as no judgment was available.',
+                          )
+                        : tr(
+                            'people.settings.field-editor.a_kithena_rule_not_a_model',
+                            '{{reason}} A Kithena rule, not a model.',
+                            { reason: judged.reason },
+                          )}
                   </Alert>
                 )}
                 <RadioGroup
-                  accessibilityLabel="What kind of data this is"
+                  accessibilityLabel={tr(
+                    'people.settings.field-editor.what_kind_of_data_this_is',
+                    'What kind of data this is',
+                  )}
                   value={draft.classification ?? undefined}
                   onValueChange={(v) => {
                     set({ classification: v as Draft['classification'], confirmedSpecial: false });
@@ -917,14 +1078,20 @@ export function FieldEditor({
                     leading={
                       <Checkbox
                         checked={draft.confirmedSpecial}
-                        accessibilityLabel="I confirm this is special-category data"
+                        accessibilityLabel={tr(
+                          'people.settings.field-editor.i_confirm_this_is_special_category',
+                          'I confirm this is special-category data',
+                        )}
                         onCheckedChange={(on) => {
                           set({ confirmedSpecial: on });
                         }}
                       />
                     }
                   >
-                    I confirm this is special-category data
+                    {tr(
+                      'people.settings.field-editor.i_confirm_this_is_special_category',
+                      'I confirm this is special-category data',
+                    )}
                   </ListItem>
                 ) : null}
                 {show['kind'] === undefined ? null : <Alert tone="danger">{show['kind']}</Alert>}
@@ -935,45 +1102,66 @@ export function FieldEditor({
                       <Switch
                         checked={sealed}
                         disabled={sealLocked}
-                        accessibilityLabel="Store it encrypted"
+                        accessibilityLabel={tr(
+                          'people.settings.field-editor.store_it_encrypted',
+                          'Store it encrypted',
+                        )}
                         onCheckedChange={(encrypted) => {
                           set({ encrypted });
                         }}
                       />
                     }
                   >
-                    Store it encrypted
+                    {tr('people.settings.field-editor.store_it_encrypted', 'Store it encrypted')}
                   </ListItem>
                   <ListItem
-                    description="The old value stays until someone else approves."
+                    description={tr(
+                      'people.settings.field-editor.the_old_value_stays_until_someone',
+                      'The old value stays until someone else approves.',
+                    )}
                     trailing={
                       <Switch
                         checked={approval}
-                        accessibilityLabel="Second HR approval"
+                        accessibilityLabel={tr(
+                          'people.settings.field-editor.second_hr_approval',
+                          'Second HR approval',
+                        )}
                         onCheckedChange={(requiresApproval) => {
                           set({ requiresApproval });
                         }}
                       />
                     }
                   >
-                    Second HR approval
+                    {tr('people.settings.field-editor.second_hr_approval', 'Second HR approval')}
                   </ListItem>
                   <ListItem
                     description={
                       shareable
-                        ? 'Its name, never values'
-                        : 'Never, for confidential or encrypted data'
+                        ? tr(
+                            'people.settings.field-editor.its_name_never_values',
+                            'Its name, never values',
+                          )
+                        : tr(
+                            'people.settings.field-editor.never_for_confidential_or_encrypted_data',
+                            'Never, for confidential or encrypted data',
+                          )
                     }
                     trailing={
                       <Switch
                         checked={shared}
                         disabled={!shareable}
-                        accessibilityLabel="Shared with the assistant"
+                        accessibilityLabel={tr(
+                          'people.settings.field-editor.shared_with_the_assistant',
+                          'Shared with the assistant',
+                        )}
                         onCheckedChange={setSharing}
                       />
                     }
                   >
-                    Shared with the assistant
+                    {tr(
+                      'people.settings.field-editor.shared_with_the_assistant',
+                      'Shared with the assistant',
+                    )}
                   </ListItem>
                 </List>
               </>
@@ -983,7 +1171,10 @@ export function FieldEditor({
               <>
                 <Card variant="fill" className="gap-2">
                   <Text variant="caption" tone="muted">
-                    How it looks on a form
+                    {tr(
+                      'people.settings.field-editor.how_it_looks_on_a_form',
+                      'How it looks on a form',
+                    )}
                   </Text>
                   <Preview draft={draft} approval={approval} />
                 </Card>
@@ -991,25 +1182,25 @@ export function FieldEditor({
                   {[
                     {
                       step: 0,
-                      label: 'The field',
+                      label: tr('people.settings.field-editor.the_field', 'The field'),
                       value: `${DATA_TYPE_LABEL[draft.dataType] ?? draft.dataType} · ${registry.sections.find((s) => s.key === draft.sectionKey)?.label ?? section.label}`,
                     },
                     {
                       step: 1,
-                      label: 'Access',
+                      label: tr('people.settings.field-editor.access', 'Access'),
                       value: `${fieldSentence(draft).who} change it; ${everyone ? 'everyone sees it' : `${fieldSentence(draft).see.charAt(0).toLowerCase()}${fieldSentence(draft).see.slice(1)} see it`}.`,
                     },
                     {
                       step: 2,
-                      label: 'When it’s asked',
+                      label: tr('people.settings.field-editor.when_its_asked', 'When it’s asked'),
                       value: `${COLLECT.find((c) => c.value === draft.collectAt)?.label ?? ''} · ${REQUIREDNESS.find((r) => r.value === draft.requiredness)?.label.toLowerCase() ?? ''}`,
                     },
                     {
                       step: 3,
-                      label: 'Sensitivity',
+                      label: tr('people.settings.field-editor.sensitivity', 'Sensitivity'),
                       value: [
                         CLASSIFICATION.find((c) => c.value === draft.classification)?.label ??
-                          'Still to choose',
+                          tr('people.settings.field-editor.still_to_choose', 'Still to choose'),
                         sealed ? 'encrypted' : null,
                         approval ? 'second approval' : null,
                         shared ? 'shared with the assistant' : null,
@@ -1026,12 +1217,16 @@ export function FieldEditor({
                         <Button
                           size="sm"
                           variant="link"
-                          accessibilityLabel={`Change ${row.label.toLowerCase()}`}
+                          accessibilityLabel={tr(
+                            'people.settings.field-editor.change_2',
+                            'Change {{toLowerCase}}',
+                            { toLowerCase: row.label.toLowerCase() },
+                          )}
                           onPress={() => {
                             goTo(row.step);
                           }}
                         >
-                          Change
+                          {tr('people.settings.field-editor.change', 'Change')}
                         </Button>
                       }
                     >
@@ -1040,7 +1235,10 @@ export function FieldEditor({
                   ))}
                 </List>
                 <Text variant="footnote" tone="muted">
-                  Nothing changes for anybody until you publish.
+                  {tr(
+                    'people.settings.field-editor.nothing_changes_for_anybody_until_you',
+                    'Nothing changes for anybody until you publish.',
+                  )}
                 </Text>
               </>
             ) : null}
@@ -1054,16 +1252,20 @@ export function FieldEditor({
                 goTo(part - 1);
               }}
             >
-              Back
+              {tr('people.settings.field-editor.back', 'Back')}
             </Button>
           ) : (
             <Button className="flex-1" onPress={onClose}>
-              Cancel
+              {tr('people.settings.field-editor.cancel', 'Cancel')}
             </Button>
           )}
           {last ? null : (
             <Button className="flex-1" variant={editing ? 'secondary' : 'primary'} onPress={next}>
-              {editing ? 'Next' : `Next: ${PARTS[part + 1] ?? ''}`}
+              {editing
+                ? tr('people.settings.field-editor.next', 'Next')
+                : tr('people.settings.field-editor.next_2', 'Next: {{value}}', {
+                    value: PARTS()[part + 1] ?? '',
+                  })}
             </Button>
           )}
           {editing || last ? (
@@ -1074,7 +1276,9 @@ export function FieldEditor({
               loading={busy === 'SaveDraftField' || busy === 'SetFieldAssistant'}
               onPress={save}
             >
-              {editing ? 'Save' : 'Add field'}
+              {editing
+                ? tr('people.settings.field-editor.save', 'Save')
+                : tr('people.settings.field-editor.add_field', 'Add field')}
             </Button>
           ) : null}
         </DialogFooter>
@@ -1092,7 +1296,10 @@ function Preview({ draft, approval }: { draft: Draft; approval: boolean }): Reac
   if (draft.dataType === 'document_ref' || draft.dataType === 'image') {
     return (
       <Text variant="footnote" tone="muted">
-        Uploaded on the profile rather than typed into a form.
+        {tr(
+          'people.settings.field-editor.uploaded_on_the_profile_rather_than',
+          'Uploaded on the profile rather than typed into a form.',
+        )}
       </Text>
     );
   }
@@ -1100,7 +1307,10 @@ function Preview({ draft, approval }: { draft: Draft; approval: boolean }): Reac
     <AttributeInput
       field={{
         key: 'preview',
-        label: draft.label.trim() === '' ? 'Your new field' : draft.label.trim(),
+        label:
+          draft.label.trim() === ''
+            ? tr('people.settings.field-editor.your_new_field', 'Your new field')
+            : draft.label.trim(),
         description: draft.description.trim() === '' ? null : draft.description.trim(),
         dataType: draft.dataType,
         options: draft.options.map((o) => ({ value: o, label: o })),

@@ -6,6 +6,7 @@ import { AppState } from 'react-native';
 import type { Signed } from '../people/api';
 import { changeInbox, readInbox, readNotifications } from './api';
 import { whatToSay, type Settings } from './say';
+import { t as tr } from '../i18n';
 
 /**
  * The phone's notifications for the Inbox (INB-051, M:A2): a task one by one,
@@ -45,10 +46,14 @@ async function ready(): Promise<boolean> {
   const granted = current.granted || (await Notifications.requestPermissionsAsync()).granted;
   if (!granted) return false;
   await Notifications.setNotificationCategoryAsync(CATEGORY, [
-    { identifier: 'open', buttonTitle: 'Open', options: { opensAppToForeground: true } },
+    {
+      identifier: 'open',
+      buttonTitle: tr('inbox.notify.open', 'Open'),
+      options: { opensAppToForeground: true },
+    },
     {
       identifier: 'tomorrow',
-      buttonTitle: 'Remind me tomorrow',
+      buttonTitle: tr('inbox.notify.remind_me_tomorrow', 'Remind me tomorrow'),
       options: { opensAppToForeground: false },
     },
   ]);
@@ -94,11 +99,19 @@ async function check(signed: Signed): Promise<void> {
     if (newest !== undefined) {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: updates.length === 1 ? 'An update' : `${String(updates.length)} updates`,
+          title:
+            updates.length === 1
+              ? tr('inbox.notify.an_update', 'An update')
+              : tr('inbox.notify.updates', '{{String}} updates', {
+                  String: String(updates.length),
+                }),
           body:
             updates.length === 1
               ? newest.title
-              : `${newest.title}, and ${String(updates.length - 1)} more`,
+              : tr('inbox.notify.and_more', '{{title}}, and {{String}} more', {
+                  title: newest.title,
+                  String: String(updates.length - 1),
+                }),
           data: { id: newest.id },
         },
         trigger: null,

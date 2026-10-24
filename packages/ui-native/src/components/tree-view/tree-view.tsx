@@ -10,6 +10,7 @@ import { CheckboxBox, type CheckedState } from '../checkbox/checkbox.tsx';
 import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Nested items (folders, departments, cost centres), as the web's
@@ -263,11 +264,30 @@ export function TreeView({
                   ...(checkable ? { checked: state === 'indeterminate' ? 'mixed' : state } : {}),
                 },
                 accessibilityActions: [
-                  ...(branch ? [{ name: 'expand', label: open ? 'Close' : 'Open' }] : []),
-                  ...(checkable
-                    ? [{ name: 'check', label: state === true ? 'Uncheck' : 'Check' }]
+                  ...(branch
+                    ? [
+                        {
+                          name: 'expand',
+                          label: open
+                            ? t('components.tree-view.tree-view.close', 'Close')
+                            : t('components.tree-view.tree-view.open', 'Open'),
+                        },
+                      ]
                     : []),
-                  ...(onMove && !branch ? [{ name: 'move', label: 'Move' }] : []),
+                  ...(checkable
+                    ? [
+                        {
+                          name: 'check',
+                          label:
+                            state === true
+                              ? t('components.tree-view.tree-view.uncheck', 'Uncheck')
+                              : t('components.tree-view.tree-view.check', 'Check'),
+                        },
+                      ]
+                    : []),
+                  ...(onMove && !branch
+                    ? [{ name: 'move', label: t('components.tree-view.tree-view.move', 'Move') }]
+                    : []),
                 ],
                 onAccessibilityAction: (e: AccessibilityActionEvent) => {
                   if (e.nativeEvent.actionName === 'expand') toggle(n);

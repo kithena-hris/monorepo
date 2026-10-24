@@ -22,6 +22,7 @@ import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { changeInbox, readNotifications, saveNotifications, useInbox } from './api';
 import { moduleName } from './model';
+import { t } from '../i18n';
 
 /**
  * Me › Settings › Notifications (M:I1): tasks are always in the Inbox (the
@@ -49,22 +50,42 @@ interface Notifications {
   readonly digestAt: string;
 }
 
-const TASKS = [
-  ['asked', 'Someone asks you to do something'],
-  ['reminders', 'Reminders before a task is due'],
-  ['handedOver', 'Tasks handed to you while someone is away'],
-] as const;
-const UPDATES = [
-  ['decided', 'Your requests are decided'],
-  ['documents', 'Documents shared with you'],
-  ['team', 'Someone joins or leaves your team'],
-  ['calendars', 'Calendars and balances'],
-] as const;
-const EMAIL: Readonly<Record<Email, string>> = {
-  now: 'Right away',
-  digest: 'Daily digest',
-  off: 'Off',
-};
+const TASKS = () =>
+  [
+    [
+      'asked',
+      t('inbox.notifications.someone_asks_you_to_do_something', 'Someone asks you to do something'),
+    ],
+    [
+      'reminders',
+      t('inbox.notifications.reminders_before_a_task_is_due', 'Reminders before a task is due'),
+    ],
+    [
+      'handedOver',
+      t(
+        'inbox.notifications.tasks_handed_to_you_while_someone',
+        'Tasks handed to you while someone is away',
+      ),
+    ],
+  ] as const;
+const UPDATES = () =>
+  [
+    ['decided', t('inbox.notifications.your_requests_are_decided', 'Your requests are decided')],
+    ['documents', t('inbox.notifications.documents_shared_with_you', 'Documents shared with you')],
+    [
+      'team',
+      t(
+        'inbox.notifications.someone_joins_or_leaves_your_team',
+        'Someone joins or leaves your team',
+      ),
+    ],
+    ['calendars', t('inbox.notifications.calendars_and_balances', 'Calendars and balances')],
+  ] as const;
+const EMAIL = (): Readonly<Record<Email, string>> => ({
+  now: t('inbox.notifications.right_away', 'Right away'),
+  digest: t('inbox.notifications.daily_digest', 'Daily digest'),
+  off: t('inbox.notifications.off', 'Off'),
+});
 
 function EmailPick({
   value,
@@ -85,10 +106,10 @@ function EmailPick({
       <SelectTrigger size="sm" accessibilityLabel={label}>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent title="Email">
+      <SelectContent title={t('inbox.notifications.email', 'Email')}>
         {(['now', 'digest', 'off'] as const).map((k) => (
           <SelectItem key={k} value={k}>
-            {EMAIL[k]}
+            {EMAIL()[k]}
           </SelectItem>
         ))}
       </SelectContent>
@@ -116,12 +137,14 @@ export function NotificationSettings({
       live = false;
     };
   }, [signed]);
-  const back = { label: 'Back', onPress: navigation.goBack };
+  const back = { label: t('inbox.notifications.back', 'Back'), onPress: navigation.goBack };
   if (n === null) {
     return (
-      <Page title="Notifications" back={back}>
+      <Page title={t('inbox.notifications.notifications', 'Notifications')} back={back}>
         {failed === null ? (
-          <Loading label="Loading your settings" />
+          <Loading
+            label={t('inbox.notifications.loading_your_settings', 'Loading your settings')}
+          />
         ) : (
           <Failed
             message={failed}
@@ -137,10 +160,14 @@ export function NotificationSettings({
     setN(next);
     void saveNotifications(signed, next).then((refused) => {
       if (refused !== null)
-        toast({ title: 'That did not save', description: refused, tone: 'danger' });
+        toast({
+          title: t('inbox.notifications.that_did_not_save', 'That did not save'),
+          description: refused,
+          tone: 'danger',
+        });
     });
   };
-  const kinds = TASKS.map(([key]) => key);
+  const kinds = TASKS().map(([key]) => key);
   const allPhone = kinds.every((k) => n.tasks[k].phone);
   const allEmail = kinds.every((k) => n.tasks[k].email !== 'off');
   const setTasks = (patch: Partial<Channels>): void => {
@@ -163,58 +190,74 @@ export function NotificationSettings({
     </Card>
   );
   return (
-    <Page title="Notifications" back={back}>
+    <Page title={t('inbox.notifications.notifications', 'Notifications')} back={back}>
       {/* Tasks always arrive; updates mute by kind; quiet hours hold both (v3 S18). */}
       {card(
         'Tasks',
-        'Things you need to do. They can’t be muted.',
+        t(
+          'inbox.notifications.things_you_need_to_do_they',
+          'Things you need to do. They can’t be muted.',
+        ),
         <>
           <ListItem
             listitem={false}
             trailing={
               <Badge size="sm" variant="outline" icon={Lock}>
-                Always on
+                {t('inbox.notifications.always_on', 'Always on')}
               </Badge>
             }
           >
-            In the Inbox
+            {t('inbox.notifications.in_the_inbox', 'In the Inbox')}
           </ListItem>
           <ListItem
             listitem={false}
-            description="Each task, as it arrives"
+            description={t(
+              'inbox.notifications.each_task_as_it_arrives',
+              'Each task, as it arrives',
+            )}
             trailing={
               <Switch
                 checked={allPhone}
-                accessibilityLabel="Tasks on your phone"
+                accessibilityLabel={t(
+                  'inbox.notifications.tasks_on_your_phone',
+                  'Tasks on your phone',
+                )}
                 onCheckedChange={(phone) => {
                   setTasks({ phone });
                 }}
               />
             }
           >
-            On your phone
+            {t('inbox.notifications.on_your_phone', 'On your phone')}
           </ListItem>
           <ListItem
             listitem={false}
-            description={`A daily digest at ${n.digestAt}`}
+            description={t(
+              'inbox.notifications.a_daily_digest_at',
+              'A daily digest at {{digestAt}}',
+              { digestAt: n.digestAt },
+            )}
             trailing={
               <Switch
                 checked={allEmail}
-                accessibilityLabel="Tasks by email"
+                accessibilityLabel={t('inbox.notifications.tasks_by_email', 'Tasks by email')}
                 onCheckedChange={(on) => {
                   setTasks({ email: on ? 'digest' : 'off' });
                 }}
               />
             }
           >
-            Email
+            {t('inbox.notifications.email', 'Email')}
           </ListItem>
         </>,
       )}
       {card(
         'Updates',
-        'Things you should know. Mute any kind.',
-        UPDATES.map(([key, label]) => {
+        t(
+          'inbox.notifications.things_you_should_know_mute_any',
+          'Things you should know. Mute any kind.',
+        ),
+        UPDATES().map(([key, label]) => {
           const c = n.updates[key];
           return (
             <ListItem
@@ -246,24 +289,34 @@ export function NotificationSettings({
         }),
       )}
       {card(
-        'Quiet hours',
-        'Nothing reaches your phone while they hold.',
+        t('inbox.notifications.quiet_hours', 'Quiet hours'),
+        t(
+          'inbox.notifications.nothing_reaches_your_phone_while_they',
+          'Nothing reaches your phone while they hold.',
+        ),
         <>
           <ListItem
             listitem={false}
-            description="Tasks due today still come through"
+            description={t(
+              'inbox.notifications.tasks_due_today_still_come_through',
+              'Tasks due today still come through',
+            )}
             wrap
             trailing={
               <Switch
                 checked={n.quiet.on}
-                accessibilityLabel="Quiet hours"
+                accessibilityLabel={t('inbox.notifications.quiet_hours', 'Quiet hours')}
                 onCheckedChange={(on) => {
                   save({ ...n, quiet: { ...n.quiet, on } });
                 }}
               />
             }
           >
-            {`Hold everything outside ${n.quiet.to}–${n.quiet.from}`}
+            {t(
+              'inbox.notifications.hold_everything_outside',
+              'Hold everything outside {{to}}–{{from}}',
+              { to: n.quiet.to, from: n.quiet.from },
+            )}
           </ListItem>
           <ListItem
             listitem={false}
@@ -271,14 +324,16 @@ export function NotificationSettings({
             trailing={
               <Switch
                 checked={n.quiet.weekends}
-                accessibilityLabel="Hold weekends"
+                accessibilityLabel={t('inbox.notifications.hold_weekends', 'Hold weekends')}
                 onCheckedChange={(weekends) => {
                   save({ ...n, quiet: { ...n.quiet, weekends } });
                 }}
               />
             }
           >
-            {n.quiet.weekends ? 'Hold until Monday' : 'Like any other day'}
+            {n.quiet.weekends
+              ? t('inbox.notifications.hold_until_monday', 'Hold until Monday')
+              : t('inbox.notifications.like_any_other_day', 'Like any other day')}
           </ListItem>
         </>,
       )}
@@ -288,13 +343,15 @@ export function NotificationSettings({
           setEach((e) => !e);
         }}
       >
-        {each ? 'Hide each kind' : 'Each kind of task and update'}
+        {each
+          ? t('inbox.notifications.hide_each_kind', 'Hide each kind')
+          : t('inbox.notifications.each_kind_of_task_and_update', 'Each kind of task and update')}
       </Button>
       {each ? (
         <>
-          <Text variant="headline">Tasks</Text>
+          <Text variant="headline">{t('inbox.notifications.tasks', 'Tasks')}</Text>
           <List>
-            {TASKS.map(([key, label]) => {
+            {TASKS().map(([key, label]) => {
               const c = n.tasks[key];
               return (
                 <ListItem
@@ -307,10 +364,10 @@ export function NotificationSettings({
                           save({ ...n, tasks: { ...n.tasks, [key]: { ...c, phone } } });
                         }}
                       >
-                        Phone
+                        {t('inbox.notifications.phone', 'Phone')}
                       </Switch>
                       <EmailPick
-                        label={`${label} by email`}
+                        label={t('inbox.notifications.by_email', '{{label}} by email', { label })}
                         value={c.email}
                         onChange={(email) => {
                           save({ ...n, tasks: { ...n.tasks, [key]: { ...c, email } } });
@@ -324,9 +381,9 @@ export function NotificationSettings({
               );
             })}
           </List>
-          <Text variant="headline">Updates</Text>
+          <Text variant="headline">{t('inbox.notifications.updates', 'Updates')}</Text>
           <List>
-            {UPDATES.map(([key, label]) => {
+            {UPDATES().map(([key, label]) => {
               const c = n.updates[key];
               const set = (next: typeof c) => {
                 save({ ...n, updates: { ...n.updates, [key]: next } });
@@ -342,7 +399,7 @@ export function NotificationSettings({
                           set({ ...c, inbox: inboxOn });
                         }}
                       >
-                        Inbox
+                        {t('inbox.notifications.inbox', 'Inbox')}
                       </Switch>
                       <Switch
                         checked={c.phone}
@@ -350,10 +407,10 @@ export function NotificationSettings({
                           set({ ...c, phone });
                         }}
                       >
-                        Phone
+                        {t('inbox.notifications.phone', 'Phone')}
                       </Switch>
                       <EmailPick
-                        label={`${label} by email`}
+                        label={t('inbox.notifications.by_email', '{{label}} by email', { label })}
                         value={c.email}
                         onChange={(email) => {
                           set({ ...c, email });
@@ -371,7 +428,7 @@ export function NotificationSettings({
       ) : null}
       {inbox === null || inbox.muted.length === 0 ? null : (
         <>
-          <Text variant="headline">Muted</Text>
+          <Text variant="headline">{t('inbox.notifications.muted', 'Muted')}</Text>
           <List>
             {inbox.muted.map((m) => (
               <ListItem
@@ -384,13 +441,15 @@ export function NotificationSettings({
                       void changeInbox(signed, { kind: 'unmute', what: m.what });
                     }}
                   >
-                    Unmute
+                    {t('inbox.notifications.unmute', 'Unmute')}
                   </Button>
                 }
               >
                 {m.what.includes('.')
                   ? `${moduleName(m.what.split('.')[0] ?? '')} · ${m.what.split('.')[1] ?? ''}`
-                  : `Everything from ${moduleName(m.what)}`}
+                  : t('inbox.notifications.everything_from', 'Everything from {{moduleName}}', {
+                      moduleName: moduleName(m.what),
+                    })}
               </ListItem>
             ))}
           </List>

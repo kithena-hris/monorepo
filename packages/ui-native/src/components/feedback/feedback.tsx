@@ -27,6 +27,7 @@ import { PaintedSvg } from '../../lib/painted-svg.tsx';
 import { useReducedMotion } from '../../provider.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t as tr } from '../../lib/i18n';
 
 const WEB = Platform.OS === 'web';
 
@@ -148,7 +149,7 @@ export function Alert({
   action,
   actions,
   onDismiss,
-  dismissLabel = 'Dismiss',
+  dismissLabel = tr('components.feedback.feedback.dismiss', 'Dismiss'),
   className,
 }: AlertProps): React.JSX.Element {
   const t = tone ?? 'info';

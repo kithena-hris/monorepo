@@ -68,10 +68,30 @@ const TABS = ['profile', 'process', 'messages'] as const;
 type Tab = (typeof TABS)[number];
 
 const VERDICT: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' }>> = {
-  met: { label: tr('candidate.met', 'Met'), tone: 'success' },
-  partly_met: { label: tr('candidate.partly_met', 'Partly met'), tone: 'info' },
-  not_met: { label: tr('candidate.not_met', 'Not met'), tone: 'neutral' },
-  not_evidenced: { label: tr('candidate.not_evidenced', 'Not evidenced'), tone: 'neutral' },
+  met: {
+    get label(): string {
+      return tr('candidate.met', 'Met');
+    },
+    tone: 'success',
+  },
+  partly_met: {
+    get label(): string {
+      return tr('candidate.partly_met', 'Partly met');
+    },
+    tone: 'info',
+  },
+  not_met: {
+    get label(): string {
+      return tr('candidate.not_met', 'Not met');
+    },
+    tone: 'neutral',
+  },
+  not_evidenced: {
+    get label(): string {
+      return tr('candidate.not_evidenced', 'Not evidenced');
+    },
+    tone: 'neutral',
+  },
 };
 
 /**
@@ -685,7 +705,10 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                               poolId,
                               input: {
                                 candidateId: data.candidate.id,
-                                reason: 'Added from the profile',
+                                reason: tr(
+                                  'candidate.added_from_the_profile',
+                                  'Added from the profile',
+                                ),
                               },
                             },
                             () => {
@@ -961,7 +984,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                   },
                                   {
                                     label: tr('candidate.adjustments', 'Adjustments'),
-                                    value: chosen.adjustments ?? 'None asked',
+                                    value:
+                                      chosen.adjustments ??
+                                      tr('candidate.none_asked', 'None asked'),
                                   },
                                 ]}
                               />

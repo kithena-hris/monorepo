@@ -95,11 +95,36 @@ const counts = 'grid grid-cols-4 gap-3 @max-[40rem]/now:grid-cols-2';
 type Now = 'in' | 'break' | 'waiting' | 'away' | 'done';
 
 const NOW: Record<Now, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: t('attendance.team-now.in', 'In'), tone: 'success' },
-  break: { label: t('attendance.team-now.on_a_break', 'On a break'), tone: 'warning' },
-  waiting: { label: t('attendance.team-now.not_in_yet', 'Not in yet'), tone: 'neutral' },
-  away: { label: t('attendance.team-now.away', 'Away'), tone: 'neutral' },
-  done: { label: t('attendance.team-now.clocked_out', 'Clocked out'), tone: 'neutral' },
+  in: {
+    get label(): string {
+      return t('attendance.team-now.in', 'In');
+    },
+    tone: 'success',
+  },
+  break: {
+    get label(): string {
+      return t('attendance.team-now.on_a_break', 'On a break');
+    },
+    tone: 'warning',
+  },
+  waiting: {
+    get label(): string {
+      return t('attendance.team-now.not_in_yet', 'Not in yet');
+    },
+    tone: 'neutral',
+  },
+  away: {
+    get label(): string {
+      return t('attendance.team-now.away', 'Away');
+    },
+    tone: 'neutral',
+  },
+  done: {
+    get label(): string {
+      return t('attendance.team-now.clocked_out', 'Clocked out');
+    },
+    tone: 'neutral',
+  },
 };
 
 const WHERE_ICON: Record<WorkModel, IconName> = {

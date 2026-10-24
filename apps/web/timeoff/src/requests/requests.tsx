@@ -169,9 +169,15 @@ const body =
   'flex flex-col gap-5 @min-[56rem]/requests:grid @min-[56rem]/requests:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] @min-[56rem]/requests:items-start';
 
 const EMPTY: Record<Tab, string> = {
-  upcoming: t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.'),
-  past: t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.'),
-  cancelled: t('requests.requests.nothing_cancelled', 'Nothing cancelled.'),
+  get upcoming(): string {
+    return t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.');
+  },
+  get past(): string {
+    return t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.');
+  },
+  get cancelled(): string {
+    return t('requests.requests.nothing_cancelled', 'Nothing cancelled.');
+  },
 };
 
 function Ready({ data, ...actions }: { readonly data: RequestsData } & RequestsProps): JSX.Element {
@@ -247,7 +253,9 @@ const iconFor = (r: RequestItem): string | undefined => CATEGORY_ICON[r.category
 /* ------------------------------------------------------------- detail -- */
 
 const ROLE: Record<string, string> = {
-  manager: t('requests.requests.your_manager', 'your manager'),
+  get manager(): string {
+    return t('requests.requests.your_manager', 'your manager');
+  },
   hr: 'HR',
 };
 const role = (r: string | undefined): string =>
@@ -388,68 +396,113 @@ function steps(detail: RequestDetailData, today: string): ReactNode {
   chain.forEach((r, i) => {
     const id = `step${String(i)}`;
     if (i < decided) {
-      out.push({ id, title: `Approved by ${role(r)}`, tone: 'success', icon: <icons.approve /> });
+      out.push({
+        id,
+        title: t('requests.requests.approved_by', 'Approved by {{role}}', { role: role(r) }),
+        tone: 'success',
+        icon: <icons.approve />,
+      });
     } else if (i === step && s === 'declined') {
       out.push({
         id,
-        title: `Declined by ${role(r)}`,
+        title: t('requests.requests.declined_by', 'Declined by {{role}}', { role: role(r) }),
         tone: 'danger',
         icon: <icons.reject />,
-        children: 'The days went back to your balance.',
+        children: t(
+          'requests.requests.the_days_went_back_to_your',
+          'The days went back to your balance.',
+        ),
       });
     } else if (i === step && s === 'pending') {
       out.push({
         id,
-        title: `Waiting for ${role(r)}`,
+        title: t('requests.requests.waiting_for', 'Waiting for {{role}}', { role: role(r) }),
         tone: 'warning',
         status: 'current',
         icon: <icons.pending />,
         children: detail.escalated
-          ? 'Escalated: nobody answered in time.'
-          : 'The days are booked while it waits.',
+          ? t(
+              'requests.requests.escalated_nobody_answered_in_time',
+              'Escalated: nobody answered in time.',
+            )
+          : t(
+              'requests.requests.the_days_are_booked_while_it',
+              'The days are booked while it waits.',
+            ),
       });
     } else if (i > step && (s === 'pending' || s === 'counter_proposed')) {
-      out.push({ id, title: `Then ${role(r)}`, status: 'upcoming', icon: <icons.approve /> });
+      out.push({
+        id,
+        title: t('requests.requests.then', 'Then {{role}}', { role: role(r) }),
+        status: 'upcoming',
+        icon: <icons.approve />,
+      });
     }
   });
   if (s === 'counter_proposed') {
     out.push({
       id: 'suggested',
-      title: `${capital(role(chain[step]))} suggested other dates`,
+      title: t('requests.requests.suggested_other_dates', '{{capital}} suggested other dates', {
+        capital: capital(role(chain[step])),
+      }),
       tone: 'info',
       status: 'current',
       icon: <icons.calendar />,
-      children: 'Take one, or keep yours and it goes back to them.',
+      children: t(
+        'requests.requests.take_one_or_keep_yours_and',
+        'Take one, or keep yours and it goes back to them.',
+      ),
     });
   }
   if (s === 'change_pending' && detail.pendingChange !== null) {
     out.push({
       id: 'change',
-      title: `You asked to move it to ${spanLabel(detail.pendingChange.from, detail.pendingChange.to)}`,
+      title: t(
+        'requests.requests.you_asked_to_move_it_to',
+        'You asked to move it to {{spanLabel}}',
+        { spanLabel: spanLabel(detail.pendingChange.from, detail.pendingChange.to) },
+      ),
       tone: 'warning',
       status: 'current',
       icon: <icons.pending />,
-      children: 'Your old dates stay booked until the new ones are approved.',
+      children: t(
+        'requests.requests.your_old_dates_stay_booked_until',
+        'Your old dates stay booked until the new ones are approved.',
+      ),
     });
   }
   if (s === 'cancelled' || s === 'withdrawn') {
     out.push({
       id: 'cancelled',
-      title: s === 'withdrawn' ? 'Withdrawn' : 'Cancelled',
+      title:
+        s === 'withdrawn'
+          ? t('requests.requests.withdrawn', 'Withdrawn')
+          : t('requests.requests.cancelled', 'Cancelled'),
       icon: <icons.close />,
-      children: 'The days went back to your balance.',
+      children: t(
+        'requests.requests.the_days_went_back_to_your',
+        'The days went back to your balance.',
+      ),
     });
   }
   if (s === 'taken' || (s === 'approved' && request.span.to < today)) {
-    out.push({ id: 'taken', title: 'Taken', tone: 'success', icon: <icons.success /> });
+    out.push({
+      id: 'taken',
+      title: t('requests.requests.taken', 'Taken'),
+      tone: 'success',
+      icon: <icons.success />,
+    });
   }
   if (request.category === 'annual_leave' && !['declined', 'cancelled', 'withdrawn'].includes(s)) {
     out.push({
       id: 'pay',
-      title: 'No payroll change',
+      title: t('requests.requests.no_payroll_change', 'No payroll change'),
       status: 'upcoming',
       icon: <icons.payroll />,
-      children: 'Paid vacation, so your pay stays the same.',
+      children: t(
+        'requests.requests.paid_vacation_so_your_pay_stays',
+        'Paid vacation, so your pay stays the same.',
+      ),
     });
   }
   return out.map(({ id, ...item }, i) => (

@@ -14,199 +14,379 @@ import { formatList } from '@reach/ui';
 /** How each term reads to an HR administrator, not to the schema. */
 
 export const DATA_TYPE_LABEL: Record<DataType, string> = {
-  text: t('settings.words.short_text', 'Short text'),
-  long_text: t('settings.words.long_text', 'Long text'),
-  number: t('settings.words.whole_number', 'Whole number'),
-  decimal: t('settings.words.decimal', 'Decimal'),
-  percentage: t('settings.words.percentage', 'Percentage'),
-  money: t('settings.words.money', 'Money'),
-  boolean: t('settings.words.yes_or_no', 'Yes or no'),
-  date: t('settings.words.date', 'Date'),
-  datetime: t('settings.words.date_and_time', 'Date and time'),
-  duration: t('settings.words.duration', 'Duration'),
-  select: t('settings.words.one_of_a_list', 'One of a list'),
-  multi_select: t('settings.words.several_of_a_list', 'Several of a list'),
-  tags: t('settings.words.tags', 'Tags'),
-  email: t('settings.words.email_address', 'Email address'),
-  phone: t('settings.words.phone_number', 'Phone number'),
-  url: t('settings.words.web_address', 'Web address'),
-  country: t('settings.words.country', 'Country'),
-  currency: 'Currency',
-  language: t('settings.words.language', 'Language'),
-  time_zone: t('settings.words.time_zone', 'Time zone'),
-  address: t('settings.words.postal_address', 'Postal address'),
-  national_id: t('settings.words.national_identifier', 'National identifier'),
-  bank_account: t('settings.words.bank_account', 'Bank account'),
-  person_ref: t('settings.words.a_person', 'A person'),
-  org_unit_ref: t('settings.words.a_team_or_department', 'A team or department'),
-  legal_entity_ref: t('settings.words.a_legal_entity', 'A legal entity'),
-  location_ref: t('settings.words.a_work_location', 'A work location'),
-  document_ref: t('settings.words.a_document', 'A document'),
-  image: t('settings.words.an_image', 'An image'),
-  signature: t('settings.words.a_signature', 'A signature'),
+  get text(): string {
+    return t('settings.words.short_text', 'Short text');
+  },
+  get long_text(): string {
+    return t('settings.words.long_text', 'Long text');
+  },
+  get number(): string {
+    return t('settings.words.whole_number', 'Whole number');
+  },
+  get decimal(): string {
+    return t('settings.words.decimal', 'Decimal');
+  },
+  get percentage(): string {
+    return t('settings.words.percentage', 'Percentage');
+  },
+  get money(): string {
+    return t('settings.words.money', 'Money');
+  },
+  get boolean(): string {
+    return t('settings.words.yes_or_no', 'Yes or no');
+  },
+  get date(): string {
+    return t('settings.words.date', 'Date');
+  },
+  get datetime(): string {
+    return t('settings.words.date_and_time', 'Date and time');
+  },
+  get duration(): string {
+    return t('settings.words.duration', 'Duration');
+  },
+  get select(): string {
+    return t('settings.words.one_of_a_list', 'One of a list');
+  },
+  get multi_select(): string {
+    return t('settings.words.several_of_a_list', 'Several of a list');
+  },
+  get tags(): string {
+    return t('settings.words.tags', 'Tags');
+  },
+  get email(): string {
+    return t('settings.words.email_address', 'Email address');
+  },
+  get phone(): string {
+    return t('settings.words.phone_number', 'Phone number');
+  },
+  get url(): string {
+    return t('settings.words.web_address', 'Web address');
+  },
+  get country(): string {
+    return t('settings.words.country', 'Country');
+  },
+  get currency(): string {
+    return t('settings.words.currency', 'Currency');
+  },
+  get language(): string {
+    return t('settings.words.language', 'Language');
+  },
+  get time_zone(): string {
+    return t('settings.words.time_zone', 'Time zone');
+  },
+  get address(): string {
+    return t('settings.words.postal_address', 'Postal address');
+  },
+  get national_id(): string {
+    return t('settings.words.national_identifier', 'National identifier');
+  },
+  get bank_account(): string {
+    return t('settings.words.bank_account', 'Bank account');
+  },
+  get person_ref(): string {
+    return t('settings.words.a_person', 'A person');
+  },
+  get org_unit_ref(): string {
+    return t('settings.words.a_team_or_department', 'A team or department');
+  },
+  get legal_entity_ref(): string {
+    return t('settings.words.a_legal_entity', 'A legal entity');
+  },
+  get location_ref(): string {
+    return t('settings.words.a_work_location', 'A work location');
+  },
+  get document_ref(): string {
+    return t('settings.words.a_document', 'A document');
+  },
+  get image(): string {
+    return t('settings.words.an_image', 'An image');
+  },
+  get signature(): string {
+    return t('settings.words.a_signature', 'A signature');
+  },
 };
 
 /** What each type holds, in one line with an example. */
 export const DATA_TYPE_HINT: Record<DataType, string> = {
-  text: t(
-    'settings.words.a_word_or_a_short_line',
-    'A word or a short line. A nickname, a badge number.',
-  ),
-  long_text: t(
-    'settings.words.a_paragraph_or_more_notes_a',
-    'A paragraph or more. Notes, a short biography.',
-  ),
-  number: t(
-    'settings.words.a_count_with_no_decimals_number',
-    'A count with no decimals. Number of dependants.',
-  ),
-  decimal: t(
-    'settings.words.a_number_that_may_have_decimals',
-    'A number that may have decimals. Weekly hours, 37.5.',
-  ),
-  percentage: t(
-    'settings.words.a_share_out_of_100_time',
-    'A share out of 100. Time on a project, 40%.',
-  ),
-  money: t(
-    'settings.words.an_amount_in_a_currency_stored',
-    'An amount in a currency, stored exactly. A signing bonus.',
-  ),
-  boolean: t(
-    'settings.words.a_switch_that_is_on_or',
-    'A switch that is on or off. Has a company car.',
-  ),
-  date: t(
-    'settings.words.a_calendar_day_with_no_time',
-    'A calendar day with no time. Visa expiry.',
-  ),
-  datetime: t(
-    'settings.words.a_day_and_a_time_when',
-    'A day and a time. When the badge was issued.',
-  ),
-  duration: t(
-    'settings.words.a_length_of_time_a_notice',
-    'A length of time. A notice period of 3 months.',
-  ),
-  select: t(
-    'settings.words.exactly_one_of_the_options_you',
-    'Exactly one of the options you list. T-shirt size.',
-  ),
-  multi_select: t(
-    'settings.words.any_number_of_the_options_you',
-    'Any number of the options you list. Languages spoken at work.',
-  ),
-  tags: t(
-    'settings.words.free_words_people_type_themselves_skills',
-    'Free words people type themselves. Skills.',
-  ),
-  email: t(
-    'settings.words.an_email_address_checked_as_one',
-    'An email address, checked as one. A personal email.',
-  ),
-  phone: t(
-    'settings.words.a_phone_number_with_its_country',
-    'A phone number with its country code. An emergency contact’s phone.',
-  ),
-  url: t(
-    'settings.words.a_web_link_a_portfolio_or_linkedin',
-    'A web link. A portfolio or LinkedIn page.',
-  ),
-  country: t(
-    'settings.words.a_country_from_the_standard_list_nationality',
-    'A country from the standard list. Nationality.',
-  ),
-  currency: 'A currency from the standard list. Currency they are paid in.',
-  language: t(
-    'settings.words.a_language_from_the_standard_list_preferred',
-    'A language from the standard list. Preferred language.',
-  ),
-  time_zone: t(
-    'settings.words.a_time_zone_from_the_standard',
-    'A time zone from the standard list. Where they usually work from.',
-  ),
-  address: t(
-    'settings.words.a_postal_address_over_several_lines',
-    'A postal address over several lines. A home address.',
-  ),
-  national_id: t(
-    'settings.words.an_identity_number_stored_encrypted_screens_show',
-    'An identity number. Stored encrypted; screens show only its last characters.',
-  ),
-  bank_account: t(
-    'settings.words.an_iban_or_account_number_stored_encrypted',
-    'An IBAN or account number. Stored encrypted; screens show only its last characters.',
-  ),
-  person_ref: t(
-    'settings.words.somebody_else_in_kithena_a_buddy',
-    'Somebody else in Kithena. A buddy or a mentor.',
-  ),
-  org_unit_ref: t(
-    'settings.words.a_team_or_department_in_your',
-    'A team or department in your organisation.',
-  ),
-  legal_entity_ref: t('settings.words.one_of_your_legal_entities', 'One of your legal entities.'),
-  location_ref: t('settings.words.one_of_your_work_locations', 'One of your work locations.'),
-  document_ref: t(
-    'settings.words.a_pdf_or_a_scan_uploaded',
-    'A PDF or a scan, uploaded: a signed contract, a certificate.',
-  ),
-  image: t(
-    'settings.words.a_picture_uploaded_a_png_or',
-    'A picture, uploaded: a PNG or a JPEG, shown on the profile.',
-  ),
-  signature: t(
-    'settings.words.their_own_signature_typed_in_a',
-    'Their own signature, typed in a handwriting style or drawn. Documents uses it wherever they sign.',
-  ),
+  get text(): string {
+    return t(
+      'settings.words.a_word_or_a_short_line',
+      'A word or a short line. A nickname, a badge number.',
+    );
+  },
+  get long_text(): string {
+    return t(
+      'settings.words.a_paragraph_or_more_notes_a',
+      'A paragraph or more. Notes, a short biography.',
+    );
+  },
+  get number(): string {
+    return t(
+      'settings.words.a_count_with_no_decimals_number',
+      'A count with no decimals. Number of dependants.',
+    );
+  },
+  get decimal(): string {
+    return t(
+      'settings.words.a_number_that_may_have_decimals',
+      'A number that may have decimals. Weekly hours, 37.5.',
+    );
+  },
+  get percentage(): string {
+    return t(
+      'settings.words.a_share_out_of_100_time',
+      'A share out of 100. Time on a project, 40%.',
+    );
+  },
+  get money(): string {
+    return t(
+      'settings.words.an_amount_in_a_currency_stored',
+      'An amount in a currency, stored exactly. A signing bonus.',
+    );
+  },
+  get boolean(): string {
+    return t(
+      'settings.words.a_switch_that_is_on_or',
+      'A switch that is on or off. Has a company car.',
+    );
+  },
+  get date(): string {
+    return t(
+      'settings.words.a_calendar_day_with_no_time',
+      'A calendar day with no time. Visa expiry.',
+    );
+  },
+  get datetime(): string {
+    return t(
+      'settings.words.a_day_and_a_time_when',
+      'A day and a time. When the badge was issued.',
+    );
+  },
+  get duration(): string {
+    return t(
+      'settings.words.a_length_of_time_a_notice',
+      'A length of time. A notice period of 3 months.',
+    );
+  },
+  get select(): string {
+    return t(
+      'settings.words.exactly_one_of_the_options_you',
+      'Exactly one of the options you list. T-shirt size.',
+    );
+  },
+  get multi_select(): string {
+    return t(
+      'settings.words.any_number_of_the_options_you',
+      'Any number of the options you list. Languages spoken at work.',
+    );
+  },
+  get tags(): string {
+    return t(
+      'settings.words.free_words_people_type_themselves_skills',
+      'Free words people type themselves. Skills.',
+    );
+  },
+  get email(): string {
+    return t(
+      'settings.words.an_email_address_checked_as_one',
+      'An email address, checked as one. A personal email.',
+    );
+  },
+  get phone(): string {
+    return t(
+      'settings.words.a_phone_number_with_its_country',
+      'A phone number with its country code. An emergency contact’s phone.',
+    );
+  },
+  get url(): string {
+    return t(
+      'settings.words.a_web_link_a_portfolio_or_linkedin',
+      'A web link. A portfolio or LinkedIn page.',
+    );
+  },
+  get country(): string {
+    return t(
+      'settings.words.a_country_from_the_standard_list_nationality',
+      'A country from the standard list. Nationality.',
+    );
+  },
+  get currency(): string {
+    return t(
+      'settings.words.a_currency_from_the_standard_list',
+      'A currency from the standard list. Currency they are paid in.',
+    );
+  },
+  get language(): string {
+    return t(
+      'settings.words.a_language_from_the_standard_list_preferred',
+      'A language from the standard list. Preferred language.',
+    );
+  },
+  get time_zone(): string {
+    return t(
+      'settings.words.a_time_zone_from_the_standard',
+      'A time zone from the standard list. Where they usually work from.',
+    );
+  },
+  get address(): string {
+    return t(
+      'settings.words.a_postal_address_over_several_lines',
+      'A postal address over several lines. A home address.',
+    );
+  },
+  get national_id(): string {
+    return t(
+      'settings.words.an_identity_number_stored_encrypted_screens_show',
+      'An identity number. Stored encrypted; screens show only its last characters.',
+    );
+  },
+  get bank_account(): string {
+    return t(
+      'settings.words.an_iban_or_account_number_stored_encrypted',
+      'An IBAN or account number. Stored encrypted; screens show only its last characters.',
+    );
+  },
+  get person_ref(): string {
+    return t(
+      'settings.words.somebody_else_in_kithena_a_buddy',
+      'Somebody else in Kithena. A buddy or a mentor.',
+    );
+  },
+  get org_unit_ref(): string {
+    return t(
+      'settings.words.a_team_or_department_in_your',
+      'A team or department in your organisation.',
+    );
+  },
+  get legal_entity_ref(): string {
+    return t('settings.words.one_of_your_legal_entities', 'One of your legal entities.');
+  },
+  get location_ref(): string {
+    return t('settings.words.one_of_your_work_locations', 'One of your work locations.');
+  },
+  get document_ref(): string {
+    return t(
+      'settings.words.a_pdf_or_a_scan_uploaded',
+      'A PDF or a scan, uploaded: a signed contract, a certificate.',
+    );
+  },
+  get image(): string {
+    return t(
+      'settings.words.a_picture_uploaded_a_png_or',
+      'A picture, uploaded: a PNG or a JPEG, shown on the profile.',
+    );
+  },
+  get signature(): string {
+    return t(
+      'settings.words.their_own_signature_typed_in_a',
+      'Their own signature, typed in a handwriting style or drawn. Documents uses it wherever they sign.',
+    );
+  },
 };
 
 /** The type picker's groups, so 30 types read as nine short lists. */
 export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly DataType[] }[] = [
-  { label: t('settings.words.text', 'Text'), types: ['text', 'long_text'] },
   {
-    label: t('settings.words.choices', 'Choices'),
+    get label(): string {
+      return t('settings.words.text', 'Text');
+    },
+    types: ['text', 'long_text'],
+  },
+  {
+    get label(): string {
+      return t('settings.words.choices', 'Choices');
+    },
     types: ['select', 'multi_select', 'tags', 'boolean'],
   },
   {
-    label: t('settings.words.numbers_and_money', 'Numbers and money'),
+    get label(): string {
+      return t('settings.words.numbers_and_money', 'Numbers and money');
+    },
     types: ['number', 'decimal', 'percentage', 'money'],
   },
   {
-    label: t('settings.words.dates_and_time', 'Dates and time'),
+    get label(): string {
+      return t('settings.words.dates_and_time', 'Dates and time');
+    },
     types: ['date', 'datetime', 'duration'],
   },
-  { label: t('settings.words.contact', 'Contact'), types: ['email', 'phone', 'url', 'address'] },
   {
-    label: t('settings.words.standard_lists', 'Standard lists'),
+    get label(): string {
+      return t('settings.words.contact', 'Contact');
+    },
+    types: ['email', 'phone', 'url', 'address'],
+  },
+  {
+    get label(): string {
+      return t('settings.words.standard_lists', 'Standard lists');
+    },
     types: ['country', 'currency', 'language', 'time_zone'],
   },
   {
-    label: t('settings.words.in_your_organisation', 'In your organisation'),
+    get label(): string {
+      return t('settings.words.in_your_organisation', 'In your organisation');
+    },
     types: ['person_ref', 'org_unit_ref', 'legal_entity_ref', 'location_ref'],
   },
-  { label: t('settings.words.protected', 'Protected'), types: ['national_id', 'bank_account'] },
-  { label: t('settings.words.files', 'Files'), types: ['document_ref', 'image'] },
-  { label: t('settings.words.signing', 'Signing'), types: ['signature'] },
+  {
+    get label(): string {
+      return t('settings.words.protected', 'Protected');
+    },
+    types: ['national_id', 'bank_account'],
+  },
+  {
+    get label(): string {
+      return t('settings.words.files', 'Files');
+    },
+    types: ['document_ref', 'image'],
+  },
+  {
+    get label(): string {
+      return t('settings.words.signing', 'Signing');
+    },
+    types: ['signature'],
+  },
 ];
 
 export const WRITER_LABEL: Record<WriterRole, string> = {
-  employee: t('settings.words.the_employee', 'The employee'),
-  manager: t('settings.words.their_manager', 'Their manager'),
+  get employee(): string {
+    return t('settings.words.the_employee', 'The employee');
+  },
+  get manager(): string {
+    return t('settings.words.their_manager', 'Their manager');
+  },
   hr: 'HR',
-  finance: t('settings.words.finance', 'Finance'),
-  system: t('settings.words.a_connected_system', 'A connected system'),
-  external: t('settings.words.an_external_hr_system', 'An external HR system'),
+  get finance(): string {
+    return t('settings.words.finance', 'Finance');
+  },
+  get system(): string {
+    return t('settings.words.a_connected_system', 'A connected system');
+  },
+  get external(): string {
+    return t('settings.words.an_external_hr_system', 'An external HR system');
+  },
 };
 
 export const SCOPE_LABEL: Record<ViewerScope, string> = {
-  self: t('settings.words.the_employee', 'The employee'),
-  manager: t('settings.words.their_manager', 'Their manager'),
-  manager_chain: t('settings.words.managers_above_them', 'Managers above them'),
+  get self(): string {
+    return t('settings.words.the_employee', 'The employee');
+  },
+  get manager(): string {
+    return t('settings.words.their_manager', 'Their manager');
+  },
+  get manager_chain(): string {
+    return t('settings.words.managers_above_them', 'Managers above them');
+  },
   hr: 'HR',
-  finance: t('settings.words.finance', 'Finance'),
-  admin: t('settings.words.administrators', 'Administrators'),
-  directory: t('settings.words.everyone_in_the_directory', 'Everyone, in the directory'),
+  get finance(): string {
+    return t('settings.words.finance', 'Finance');
+  },
+  get admin(): string {
+    return t('settings.words.administrators', 'Administrators');
+  },
+  get directory(): string {
+    return t('settings.words.everyone_in_the_directory', 'Everyone, in the directory');
+  },
 };
 
 /**
@@ -225,136 +405,221 @@ export const COLLECT_LABEL: Record<
   { label: string; short: string; when: string; description: string; example: string }
 > = {
   signup: {
-    label: t('settings.words.at_sign_up', 'At sign-up'),
-    short: t('settings.words.at_sign_up', 'At sign-up'),
-    when: t('settings.words.when_they_first_set_up_their', 'when they first set up their account'),
-    description: t(
-      'settings.words.asked_when_the_person_first_sets',
-      'Asked when the person first sets up their account (and when they recover it, if it is still missing), before they create their passkey.',
-    ),
-    example: t('settings.words.suits_preferred_name_pronouns', 'Suits: preferred name, pronouns.'),
+    get label(): string {
+      return t('settings.words.at_sign_up', 'At sign-up');
+    },
+    get short(): string {
+      return t('settings.words.at_sign_up', 'At sign-up');
+    },
+    get when(): string {
+      return t(
+        'settings.words.when_they_first_set_up_their',
+        'when they first set up their account',
+      );
+    },
+    get description(): string {
+      return t(
+        'settings.words.asked_when_the_person_first_sets',
+        'Asked when the person first sets up their account (and when they recover it, if it is still missing), before they create their passkey.',
+      );
+    },
+    get example(): string {
+      return t('settings.words.suits_preferred_name_pronouns', 'Suits: preferred name, pronouns.');
+    },
   },
   enrolment: {
-    label: t(
-      'settings.words.when_they_accept_their_invitation',
-      'When they accept their invitation',
-    ),
-    short: t('settings.words.on_invitation', 'On invitation'),
-    when: t(
-      'settings.words.when_they_accept_their_invitation_2',
-      'when they accept their invitation',
-    ),
-    description: t(
-      'settings.words.asked_on_the_account_setup_page',
-      'Asked on the account setup page when somebody HR invited follows their invitation link, before they can use Kithena.',
-    ),
-    example: t(
-      'settings.words.suits_a_personal_email_a_preferred',
-      'Suits: a personal email, a preferred language.',
-    ),
+    get label(): string {
+      return t(
+        'settings.words.when_they_accept_their_invitation',
+        'When they accept their invitation',
+      );
+    },
+    get short(): string {
+      return t('settings.words.on_invitation', 'On invitation');
+    },
+    get when(): string {
+      return t(
+        'settings.words.when_they_accept_their_invitation_2',
+        'when they accept their invitation',
+      );
+    },
+    get description(): string {
+      return t(
+        'settings.words.asked_on_the_account_setup_page',
+        'Asked on the account setup page when somebody HR invited follows their invitation link, before they can use Kithena.',
+      );
+    },
+    get example(): string {
+      return t(
+        'settings.words.suits_a_personal_email_a_preferred',
+        'Suits: a personal email, a preferred language.',
+      );
+    },
   },
   onboarding: {
-    label: t('settings.words.during_onboarding', 'During onboarding'),
-    short: t('settings.words.onboarding', 'Onboarding'),
-    when: t('settings.words.during_onboarding_2', 'during onboarding'),
-    description: t(
-      'settings.words.asked_in_the_checklist_a_new',
-      'Asked in the checklist a new starter works through after first signing in, one section at a time. If required, it counts as missing from the day they are hired.',
-    ),
-    example: t(
-      'settings.words.suits_emergency_contact_t_shirt_size',
-      'Suits: emergency contact, T-shirt size, bank details.',
-    ),
+    get label(): string {
+      return t('settings.words.during_onboarding', 'During onboarding');
+    },
+    get short(): string {
+      return t('settings.words.onboarding', 'Onboarding');
+    },
+    get when(): string {
+      return t('settings.words.during_onboarding_2', 'during onboarding');
+    },
+    get description(): string {
+      return t(
+        'settings.words.asked_in_the_checklist_a_new',
+        'Asked in the checklist a new starter works through after first signing in, one section at a time. If required, it counts as missing from the day they are hired.',
+      );
+    },
+    get example(): string {
+      return t(
+        'settings.words.suits_emergency_contact_t_shirt_size',
+        'Suits: emergency contact, T-shirt size, bank details.',
+      );
+    },
   },
   anytime: {
-    label: t('settings.words.any_time_on_their_profile', 'Any time, on their profile'),
-    short: t('settings.words.any_time', 'Any time'),
-    when: t(
-      'settings.words.on_their_profile_whenever_it_changes',
-      'on their profile, whenever it changes',
-    ),
-    description: t(
-      'settings.words.nobody_is_chased_before_first_day',
-      'Nobody is chased for it before their first day. It sits on their profile to fill in or update whenever it changes; if required, it counts as missing from their start date.',
-    ),
-    example: t(
-      'settings.words.suits_a_home_address_after_a',
-      'Suits: a home address after a move, a second phone number.',
-    ),
+    get label(): string {
+      return t('settings.words.any_time_on_their_profile', 'Any time, on their profile');
+    },
+    get short(): string {
+      return t('settings.words.any_time', 'Any time');
+    },
+    get when(): string {
+      return t(
+        'settings.words.on_their_profile_whenever_it_changes',
+        'on their profile, whenever it changes',
+      );
+    },
+    get description(): string {
+      return t(
+        'settings.words.nobody_is_chased_before_first_day',
+        'Nobody is chased for it before their first day. It sits on their profile to fill in or update whenever it changes; if required, it counts as missing from their start date.',
+      );
+    },
+    get example(): string {
+      return t(
+        'settings.words.suits_a_home_address_after_a',
+        'Suits: a home address after a move, a second phone number.',
+      );
+    },
   },
   hr_only: {
-    label: t('settings.words.only_hr_fills_it_in', 'Only HR fills it in'),
-    short: t('settings.words.hr_only', 'HR only'),
+    get label(): string {
+      return t('settings.words.only_hr_fills_it_in', 'Only HR fills it in');
+    },
+    get short(): string {
+      return t('settings.words.hr_only', 'HR only');
+    },
     when: '',
-    description: t(
-      'settings.words.the_employee_never_sees_a_form',
-      'The employee never sees a form for it: not in onboarding and not on their own profile. If required, HR sees it as missing from the start date.',
-    ),
-    example: t(
-      'settings.words.suits_laptop_serial_number_cost_centre',
-      'Suits: laptop serial number, cost centre, internal grade.',
-    ),
+    get description(): string {
+      return t(
+        'settings.words.the_employee_never_sees_a_form',
+        'The employee never sees a form for it: not in onboarding and not on their own profile. If required, HR sees it as missing from the start date.',
+      );
+    },
+    get example(): string {
+      return t(
+        'settings.words.suits_laptop_serial_number_cost_centre',
+        'Suits: laptop serial number, cost centre, internal grade.',
+      );
+    },
   },
 };
 
 export const CLASSIFICATION_LABEL: Record<Classification, { label: string; description: string }> =
   {
     public: {
-      label: t(
-        'settings.words.fine_for_everyone_at_the_company',
-        'Fine for everyone at the company',
-      ),
-      description: t(
-        'settings.words.could_appear_in_the_directory_a_job',
-        'Could appear in the directory. A job title, a work phone.',
-      ),
+      get label(): string {
+        return t(
+          'settings.words.fine_for_everyone_at_the_company',
+          'Fine for everyone at the company',
+        );
+      },
+      get description(): string {
+        return t(
+          'settings.words.could_appear_in_the_directory_a_job',
+          'Could appear in the directory. A job title, a work phone.',
+        );
+      },
     },
     internal: {
-      label: t(
-        'settings.words.ordinary_information_about_the_job',
-        'Ordinary information about the job',
-      ),
-      description: t(
-        'settings.words.business_data_nobody_would_mind_hr_and',
-        'Business data nobody would mind HR and managers seeing.',
-      ),
+      get label(): string {
+        return t(
+          'settings.words.ordinary_information_about_the_job',
+          'Ordinary information about the job',
+        );
+      },
+      get description(): string {
+        return t(
+          'settings.words.business_data_nobody_would_mind_hr_and',
+          'Business data nobody would mind HR and managers seeing.',
+        );
+      },
     },
     confidential: {
-      label: t(
-        'settings.words.would_harm_or_embarrass_someone_if_it',
-        'Would harm or embarrass someone if it leaked',
-      ),
-      description: t(
-        'settings.words.pay_home_address_performance_kept_out_of',
-        'Pay, home address, performance. Kept out of logs and AI.',
-      ),
+      get label(): string {
+        return t(
+          'settings.words.would_harm_or_embarrass_someone_if_it',
+          'Would harm or embarrass someone if it leaked',
+        );
+      },
+      get description(): string {
+        return t(
+          'settings.words.pay_home_address_performance_kept_out_of',
+          'Pay, home address, performance. Kept out of logs and AI.',
+        );
+      },
     },
     'special-category': {
-      label: t(
-        'settings.words.health_beliefs_ethnicity_or_similar',
-        'Health, beliefs, ethnicity or similar',
-      ),
-      description: t(
-        'settings.words.protected_by_law_gdpr_article_9_never',
-        'Protected by law (GDPR Article 9). Never sent to AI, never carried on an event, never exported without a reason.',
-      ),
+      get label(): string {
+        return t(
+          'settings.words.health_beliefs_ethnicity_or_similar',
+          'Health, beliefs, ethnicity or similar',
+        );
+      },
+      get description(): string {
+        return t(
+          'settings.words.protected_by_law_gdpr_article_9_never',
+          'Protected by law (GDPR Article 9). Never sent to AI, never carried on an event, never exported without a reason.',
+        );
+      },
     },
   };
 
 export const REQUIREDNESS_LABEL: Record<RequirednessMode, string> = {
-  always: t('settings.words.required', 'Required'),
-  conditional: t('settings.words.required_sometimes', 'Required sometimes'),
-  never: t('settings.words.optional', 'Optional'),
+  get always(): string {
+    return t('settings.words.required', 'Required');
+  },
+  get conditional(): string {
+    return t('settings.words.required_sometimes', 'Required sometimes');
+  },
+  get never(): string {
+    return t('settings.words.optional', 'Optional');
+  },
 };
 
 /** A predicate's facts, as a condition reads them (PEO-065). */
 export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
-  legalEntity: t('settings.words.legal_entity', 'Legal entity'),
-  country: t('settings.words.country', 'Country'),
-  employmentType: t('settings.words.employment_type', 'Employment type'),
-  workModel: t('settings.words.work_model', 'Work model'),
-  status: 'Status',
-  attribute: t('settings.words.another_field', 'Another field'),
+  get legalEntity(): string {
+    return t('settings.words.legal_entity', 'Legal entity');
+  },
+  get country(): string {
+    return t('settings.words.country', 'Country');
+  },
+  get employmentType(): string {
+    return t('settings.words.employment_type', 'Employment type');
+  },
+  get workModel(): string {
+    return t('settings.words.work_model', 'Work model');
+  },
+  get status(): string {
+    return t('settings.words.status', 'Status');
+  },
+  get attribute(): string {
+    return t('settings.words.another_field', 'Another field');
+  },
 };
 
 /**
@@ -363,13 +628,48 @@ export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
  */
 export const FACT_VALUES: Record<'status', readonly Choice[]> = {
   status: [
-    { value: 'provisional', label: 'Provisional' },
-    { value: 'pre_hire', label: 'Pre-hire' },
-    { value: 'active', label: 'Active' },
-    { value: 'on_leave', label: 'On leave' },
-    { value: 'notice', label: 'On notice' },
-    { value: 'terminated', label: 'Left' },
-    { value: 'discarded', label: 'Discarded' },
+    {
+      value: 'provisional',
+      get label(): string {
+        return t('settings.words.provisional', 'Provisional');
+      },
+    },
+    {
+      value: 'pre_hire',
+      get label(): string {
+        return t('settings.words.pre_hire', 'Pre-hire');
+      },
+    },
+    {
+      value: 'active',
+      get label(): string {
+        return t('settings.words.active', 'Active');
+      },
+    },
+    {
+      value: 'on_leave',
+      get label(): string {
+        return t('settings.words.on_leave', 'On leave');
+      },
+    },
+    {
+      value: 'notice',
+      get label(): string {
+        return t('settings.words.on_notice', 'On notice');
+      },
+    },
+    {
+      value: 'terminated',
+      get label(): string {
+        return t('settings.words.left', 'Left');
+      },
+    },
+    {
+      value: 'discarded',
+      get label(): string {
+        return t('settings.words.discarded', 'Discarded');
+      },
+    },
   ],
 };
 

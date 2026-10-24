@@ -4,9 +4,10 @@
  */
 
 import { numberParts } from '../../lib/intl-parts.ts';
+import { locale as readerLocale } from '@reach/ui/intl';
 
 function separators(locale: string | undefined): { group: string; decimal: string } {
-  const parts = numberParts(new Intl.NumberFormat(locale), 12345.6);
+  const parts = numberParts(new Intl.NumberFormat(locale ?? readerLocale()), 12345.6);
   return {
     group: parts.find((p) => p.type === 'group')?.value ?? ',',
     decimal: parts.find((p) => p.type === 'decimal')?.value ?? '.',
@@ -16,7 +17,7 @@ function separators(locale: string | undefined): { group: string; decimal: strin
 /** `0.8` as `0,8` in German, `92000` as `92 000,00` in French with two places. */
 export function formatNumber(value: number | null, locale?: string, precision?: number): string {
   if (value === null) return '';
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(locale ?? readerLocale(), {
     minimumFractionDigits: precision ?? 0,
     maximumFractionDigits: precision ?? 20,
   }).format(value);

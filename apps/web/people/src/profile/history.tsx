@@ -438,7 +438,9 @@ function Change({
             ? t('profile.history.done_automatically', 'Done automatically')
             : t('profile.history.by', 'By {{by}}', { by: change.by })}
           {dated && change.effectiveFrom !== recordedDay
-            ? ` · effective ${longDate(change.effectiveFrom)}`
+            ? t('profile.history.effective', ' · effective {{longDate}}', {
+                longDate: longDate(change.effectiveFrom),
+              })
             : null}
         </p>
         {sealed ? (

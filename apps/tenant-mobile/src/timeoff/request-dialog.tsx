@@ -22,6 +22,7 @@ import { View } from 'react-native';
 import { useAct } from '../people/act';
 import { keptAnswer, read, useSigned } from '../people/api';
 import { amount, longSpan } from './words';
+import { t as tr } from '../i18n';
 
 interface LeaveType {
   readonly key: string;
@@ -129,12 +130,23 @@ export function RequestDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Request time off</DialogTitle>
-          {to === null ? null : <DialogDescription>{`${to} approves.`}</DialogDescription>}
+          <DialogTitle>
+            {tr('timeoff.request-dialog.request_time_off', 'Request time off')}
+          </DialogTitle>
+          {to === null ? null : (
+            <DialogDescription>
+              {tr('timeoff.request-dialog.approves', '{{to}} approves.', { to })}
+            </DialogDescription>
+          )}
         </DialogHeader>
         <DialogBody>
           {types === null ? (
-            <Spinner label="Loading your leave types" />
+            <Spinner
+              label={tr(
+                'timeoff.request-dialog.loading_your_leave_types',
+                'Loading your leave types',
+              )}
+            />
           ) : (
             <>
               <View>
@@ -142,7 +154,7 @@ export function RequestDialog({
                   type="single"
                   value={type ?? ''}
                   onValueChange={setType}
-                  accessibilityLabel="Type"
+                  accessibilityLabel={tr('timeoff.request-dialog.type', 'Type')}
                   scroll
                 >
                   {offered.map((t) => (
@@ -152,13 +164,23 @@ export function RequestDialog({
                   ))}
                 </ChipGroup>
               </View>
-              <Calendar mode="range" label="Dates" selected={range} onSelect={setRange} />
+              <Calendar
+                mode="range"
+                label={tr('timeoff.request-dialog.dates', 'Dates')}
+                selected={range}
+                onSelect={setRange}
+              />
               {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
               {preview === null ? null : (
                 <Card variant="fill">
                   <View className="flex-row items-center gap-3">
                     <View className="flex-1 gap-0.5">
-                      <Text weight="semibold">{`${amount(preview.span.workingDays)} working ${preview.span.workingDays === '1' ? 'day' : 'days'}`}</Text>
+                      <Text weight="semibold">
+                        {tr('timeoff.request-dialog.working', '{{amount}} working {{value}}', {
+                          amount: amount(preview.span.workingDays),
+                          value: preview.span.workingDays === '1' ? 'day' : 'days',
+                        })}
+                      </Text>
                       <Text variant="footnote" tone="muted">
                         {longSpan(preview.span.from, preview.span.to)}
                       </Text>
@@ -167,12 +189,23 @@ export function RequestDialog({
                       <Text
                         weight="semibold"
                         tone={Number(preview.balance.after) < 0 ? 'danger' : 'default'}
-                      >{`${amount(preview.balance.after)} left after`}</Text>
+                      >
+                        {tr('timeoff.request-dialog.left_after', '{{amount}} left after', {
+                          amount: amount(preview.balance.after),
+                        })}
+                      </Text>
                     )}
                   </View>
                   {preview.belowMinimum.length === 0 ? null : (
                     <Text variant="footnote" tone="warning">
-                      {`The team would be short on ${String(preview.belowMinimum.length)} ${preview.belowMinimum.length === 1 ? 'day' : 'days'}.`}
+                      {tr(
+                        'timeoff.request-dialog.the_team_would_be_short_on',
+                        {
+                          one: 'The team would be short on {{count}} day.',
+                          other: 'The team would be short on {{count}} days.',
+                        },
+                        { count: preview.belowMinimum.length },
+                      )}
                     </Text>
                   )}
                 </Card>
@@ -182,7 +215,7 @@ export function RequestDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.request-dialog.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -216,7 +249,9 @@ export function RequestDialog({
               });
             }}
           >
-            {to === null ? 'Send' : `Send to ${to}`}
+            {to === null
+              ? tr('timeoff.request-dialog.send', 'Send')
+              : tr('timeoff.request-dialog.send_to', 'Send to {{to}}', { to })}
           </Button>
         </DialogFooter>
       </DialogContent>

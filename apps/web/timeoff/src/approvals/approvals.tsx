@@ -103,10 +103,11 @@ const tabOf = (path: string | undefined): ApprovalsTab =>
       ? 'decided'
       : 'waiting';
 
-const DESCRIPTION = t(
-  'approvals.approvals.time_off_waiting_for_you_coming_up',
-  'Time off waiting for you, coming up and decided.',
-);
+const DESCRIPTION = (): string =>
+  t(
+    'approvals.approvals.time_off_waiting_for_you_coming_up',
+    'Time off waiting for you, coming up and decided.',
+  );
 
 export function Approvals({
   load,
@@ -122,7 +123,10 @@ export function Approvals({
     return <ApprovalsSkeleton tab={tabOf(path)} opened={id !== null} />;
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader title={t('approvals.approvals.requests', 'Requests')} description={DESCRIPTION} />
+      <PageHeader
+        title={t('approvals.approvals.requests', 'Requests')}
+        description={DESCRIPTION()}
+      />
       <Loaded load={load} what="requests">
         {(data) =>
           data.tab !== 'waiting' ? (
@@ -468,13 +472,40 @@ const STATUS: Record<
   string,
   { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' | 'info' }
 > = {
-  approved: { label: t('approvals.approvals.approved', 'Approved'), tone: 'success' },
-  taken: { label: t('approvals.approvals.taken', 'Taken'), tone: 'neutral' },
-  declined: { label: t('approvals.approvals.declined', 'Declined'), tone: 'danger' },
-  cancelled: { label: t('approvals.approvals.cancelled', 'Cancelled'), tone: 'neutral' },
-  pending: { label: t('approvals.approvals.waiting', 'Waiting'), tone: 'warning' },
+  approved: {
+    get label(): string {
+      return t('approvals.approvals.approved', 'Approved');
+    },
+    tone: 'success',
+  },
+  taken: {
+    get label(): string {
+      return t('approvals.approvals.taken', 'Taken');
+    },
+    tone: 'neutral',
+  },
+  declined: {
+    get label(): string {
+      return t('approvals.approvals.declined', 'Declined');
+    },
+    tone: 'danger',
+  },
+  cancelled: {
+    get label(): string {
+      return t('approvals.approvals.cancelled', 'Cancelled');
+    },
+    tone: 'neutral',
+  },
+  pending: {
+    get label(): string {
+      return t('approvals.approvals.waiting', 'Waiting');
+    },
+    tone: 'warning',
+  },
   counter_proposed: {
-    label: t('approvals.approvals.new_dates_suggested', 'New dates suggested'),
+    get label(): string {
+      return t('approvals.approvals.new_dates_suggested', 'New dates suggested');
+    },
     tone: 'info',
   },
 };
@@ -590,7 +621,10 @@ export function ApprovalsSkeleton({
 }): JSX.Element {
   return (
     <div className="@container/approvals flex flex-col gap-6">
-      <PageHeader title={t('approvals.approvals.requests', 'Requests')} description={DESCRIPTION} />
+      <PageHeader
+        title={t('approvals.approvals.requests', 'Requests')}
+        description={DESCRIPTION()}
+      />
       <div role="status" className="flex flex-col gap-4">
         <span className="sr-only">
           {t('approvals.approvals.loading_requests', 'Loading requests')}

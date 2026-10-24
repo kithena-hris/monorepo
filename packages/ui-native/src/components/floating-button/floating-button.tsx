@@ -14,6 +14,7 @@ import { flatStyle, InertOutside, usePresence } from '../../lib/overlay.tsx';
 import { usePlatform } from '../../provider.tsx';
 import { BackGuard } from '../dialog/dialog.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /*
  * The mobile design's floating button: 40, 56 or 96 across, the icon 18, 24
@@ -212,7 +213,7 @@ export type SpeedDialProps = {
 export function SpeedDial({
   actions,
   accessibilityLabel,
-  closeLabel = 'Close',
+  closeLabel = t('components.floating-button.floating-button.close', 'Close'),
   icon = Plus,
   open: controlled,
   defaultOpen = false,

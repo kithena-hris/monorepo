@@ -191,11 +191,28 @@ export interface AnalyticsProps {
 const percent = (n: number): string => `${n.toFixed(1)}%`;
 
 const EXPIRY: Readonly<Record<string, { readonly label: string; readonly tone: ChartTone }>> = {
-  work_permit: { label: t('analytics.analytics.work_permit', 'Work permit'), tone: 'danger' },
-  fixed_term: { label: t('analytics.analytics.contract_ends', 'Contract ends'), tone: 'warning' },
-  probation: { label: t('analytics.analytics.probation_ends', 'Probation ends'), tone: 'info' },
+  work_permit: {
+    get label(): string {
+      return t('analytics.analytics.work_permit', 'Work permit');
+    },
+    tone: 'danger',
+  },
+  fixed_term: {
+    get label(): string {
+      return t('analytics.analytics.contract_ends', 'Contract ends');
+    },
+    tone: 'warning',
+  },
+  probation: {
+    get label(): string {
+      return t('analytics.analytics.probation_ends', 'Probation ends');
+    },
+    tone: 'info',
+  },
   certification: {
-    label: t('analytics.analytics.certification', 'Certification'),
+    get label(): string {
+      return t('analytics.analytics.certification', 'Certification');
+    },
     tone: 'neutral',
   },
 };
@@ -352,7 +369,7 @@ export function SchedulesRow({
             size="lg"
             shape="rounded"
             tone="neutral"
-            name="Scheduled reports"
+            name={t('analytics.analytics.scheduled_reports', 'Scheduled reports')}
             fallback={<icons.scheduled aria-hidden />}
           />
         }
@@ -397,7 +414,7 @@ function Workforce({
           ? {}
           : {
               delta: `${headcount.change > 0 ? '+' : ''}${String(headcount.change)}`,
-              deltaLabel: 'since last month',
+              deltaLabel: t('analytics.analytics.since_last_month', 'since last month'),
               direction:
                 headcount.change > 0
                   ? ('up' as const)
@@ -459,7 +476,9 @@ function Workforce({
         >
           <TrendChart
             label={t('analytics.analytics.headcount_by_month', 'Headcount by month')}
-            series={[{ label: 'Headcount', data: headcount.trend }]}
+            series={[
+              { label: t('analytics.analytics.headcount', 'Headcount'), data: headcount.trend },
+            ]}
             area
             showLastPoint
           />
@@ -477,21 +496,37 @@ function Workforce({
             { period: movement.period },
           )}
           numbers={[
-            ['Opening', movement.opening],
-            ['Joiners', movement.joiners],
-            ['Internal moves', movement.moves],
-            ['Leavers', -movement.leavers],
-            ['Closing', movement.closing],
+            [t('analytics.analytics.opening', 'Opening'), movement.opening],
+            [t('analytics.analytics.joiners', 'Joiners'), movement.joiners],
+            [t('analytics.analytics.internal_moves', 'Internal moves'), movement.moves],
+            [t('analytics.analytics.leavers', 'Leavers'), -movement.leavers],
+            [t('analytics.analytics.closing', 'Closing'), movement.closing],
           ]}
         >
           <WaterfallChart
             label={t('analytics.analytics.headcount_movement', 'Headcount movement')}
             data={[
-              { label: 'Opening', value: movement.opening, total: true },
-              { label: 'Joiners', value: movement.joiners, tone: 'success' },
-              { label: 'Moves', value: movement.moves },
-              { label: 'Leavers', value: -movement.leavers, tone: 'danger' },
-              { label: 'Closing', value: movement.closing, total: true },
+              {
+                label: t('analytics.analytics.opening', 'Opening'),
+                value: movement.opening,
+                total: true,
+              },
+              {
+                label: t('analytics.analytics.joiners', 'Joiners'),
+                value: movement.joiners,
+                tone: 'success',
+              },
+              { label: t('analytics.analytics.moves', 'Moves'), value: movement.moves },
+              {
+                label: t('analytics.analytics.leavers', 'Leavers'),
+                value: -movement.leavers,
+                tone: 'danger',
+              },
+              {
+                label: t('analytics.analytics.closing', 'Closing'),
+                value: movement.closing,
+                total: true,
+              },
             ]}
           />
         </ChartSection>,
@@ -594,7 +629,13 @@ function Workforce({
               'analytics.analytics.attrition_rolling_12_months',
               'Attrition, rolling 12 months',
             )}
-            series={[{ label: 'Attrition', tone: 'danger', data: attrition.trend }]}
+            series={[
+              {
+                label: t('analytics.analytics.attrition_series', 'Attrition'),
+                tone: 'danger',
+                data: attrition.trend,
+              },
+            ]}
             format={percent}
           />
         </ChartSection>,
@@ -620,11 +661,18 @@ function Workforce({
             categories={tenure.map((b) => b.label)}
             series={[
               {
-                label: 'Left in the last 12 months',
+                label: t(
+                  'analytics.analytics.left_in_the_last_12_months',
+                  'Left in the last 12 months',
+                ),
                 tone: 'danger',
                 values: tenure.map((b) => b.leavers),
               },
-              { label: 'Here now', tone: 'accent', values: tenure.map((b) => b.headcount) },
+              {
+                label: t('analytics.analytics.here_now', 'Here now'),
+                tone: 'accent',
+                values: tenure.map((b) => b.headcount),
+              },
             ]}
           />
         </ChartSection>,

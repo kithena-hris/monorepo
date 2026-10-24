@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   DayTiles,
-  SearchField,
   Dialog,
   DialogBody,
   DialogContent,
@@ -18,13 +17,15 @@ import {
   ListItem,
   Progress,
   RangeBar,
+  type RangeBarSegment,
+  SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
   Stat,
   Text,
-  type RangeBarSegment,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import {
   Baby,
   ChartColumn,
@@ -65,6 +66,7 @@ import { insideFor, type Office } from './office-area';
 import { ChangeOrCancel } from './requests';
 import { clockTime, duration, localDate, minuteOfDay, stopwatch, todayHere } from './time';
 import { addDays, amount, asDate, longDate, shortDate, spanLabel, statusOf } from './words';
+import { t as tr } from '../i18n';
 
 type ClockState = 'out' | 'in' | 'on_break';
 type WorkModel = 'office' | 'remote' | 'client';
@@ -148,24 +150,31 @@ interface Punched {
   readonly since: number;
 }
 
-const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: 'Clocked in', tone: 'success' },
-  on_break: { label: 'On a break', tone: 'warning' },
-  out: { label: 'Not clocked in', tone: 'neutral' },
-};
-const WHERE: Record<WorkModel, string> = {
-  office: 'Office',
-  remote: 'Remote',
-  client: 'At a client',
-};
-const SEGMENT: Record<string, Omit<RangeBarSegment, 'start' | 'end'>> = {
-  worked: { label: 'Worked', tone: 'success' },
-  live: { label: 'Working now', tone: 'success', pattern: 'hatched' },
-  break: { label: 'Break', tone: 'warning', size: 'thin' },
-  overtime: { label: 'Overtime', tone: 'chart-4' },
-  missing: { label: 'Missing', tone: 'danger', pattern: 'hatched' },
-  planned: { label: 'Planned', tone: 'neutral' },
-};
+const STATE = (): Record<
+  ClockState,
+  { label: string; tone: 'success' | 'warning' | 'neutral' }
+> => ({
+  in: { label: tr('timeoff.today.clocked_in', 'Clocked in'), tone: 'success' },
+  on_break: { label: tr('timeoff.today.on_a_break', 'On a break'), tone: 'warning' },
+  out: { label: tr('timeoff.today.not_clocked_in', 'Not clocked in'), tone: 'neutral' },
+});
+const WHERE = (): Record<WorkModel, string> => ({
+  office: tr('timeoff.today.office', 'Office'),
+  remote: tr('timeoff.today.remote', 'Remote'),
+  client: tr('timeoff.today.at_a_client', 'At a client'),
+});
+const SEGMENT = (): Record<string, Omit<RangeBarSegment, 'start' | 'end'>> => ({
+  worked: { label: tr('timeoff.today.worked', 'Worked'), tone: 'success' },
+  live: {
+    label: tr('timeoff.today.working_now', 'Working now'),
+    tone: 'success',
+    pattern: 'hatched',
+  },
+  break: { label: tr('timeoff.today.break', 'Break'), tone: 'warning', size: 'thin' },
+  overtime: { label: tr('timeoff.today.overtime', 'Overtime'), tone: 'chart-4' },
+  missing: { label: tr('timeoff.today.missing', 'Missing'), tone: 'danger', pattern: 'hatched' },
+  planned: { label: tr('timeoff.today.planned', 'Planned'), tone: 'neutral' },
+});
 /** 07:00 to 19:00, in minutes after midnight, as the design's day bar. */
 const DAY: readonly [number, number] = [420, 1140];
 
@@ -204,7 +213,7 @@ function dayBar(
 ) {
   return (
     <RangeBar
-      label="Today"
+      label={tr('timeoff.today.today', 'Today')}
       domain={DAY}
       ticks={[420, 600, 780, 960, 1140]}
       format={clockTime}
@@ -212,7 +221,7 @@ function dayBar(
       segments={segments.map((s) => ({
         start: s.from,
         end: s.to,
-        ...(SEGMENT[s.kind] ?? { label: s.kind }),
+        ...(SEGMENT()[s.kind] ?? { label: s.kind }),
       }))}
     />
   );
@@ -274,21 +283,26 @@ function ClockCard({
   };
   const sub =
     state === 'in'
-      ? `In since ${clockTime(first?.from ?? minute)} · ${duration(left)} to go`
+      ? tr('timeoff.today.in_since_to_go', 'In since {{clockTime}} · {{duration}} to go', {
+          clockTime: clockTime(first?.from ?? minute),
+          duration: duration(left),
+        })
       : state === 'on_break'
         ? `${duration(worked)} worked of ${duration(today.plannedMinutes)}`
         : worked > 0
           ? `${duration(worked)} worked today`
           : today.plannedMinutes > 0
-            ? `Your day is ${duration(today.plannedMinutes)}`
-            : 'Not a working day';
+            ? tr('timeoff.today.your_day_is', 'Your day is {{duration}}', {
+                duration: duration(today.plannedMinutes),
+              })
+            : tr('timeoff.today.not_a_working_day', 'Not a working day');
   return (
     <Card>
       <Stack gap={3}>
         {/* Compact (v3 T1): the time worked, since when and where, and the two buttons. */}
         <View className="flex-row items-center gap-3">
           <View
-            accessibilityLabel={STATE[state].label}
+            accessibilityLabel={STATE()[state].label}
             className={
               state === 'in'
                 ? 'size-2.5 rounded-full bg-success'
@@ -300,14 +314,14 @@ function ClockCard({
           <View className="flex-1">
             <Timer worked={worked} running={state === 'in'} since={since} />
             <Text variant="footnote" tone="muted">
-              {workModel === null || state === 'out' ? sub : `${sub} · ${WHERE[workModel]}`}
+              {workModel === null || state === 'out' ? sub : `${sub} · ${WHERE()[workModel]}`}
             </Text>
           </View>
           {state === 'in' ? (
             <>
               <Button
                 startIcon={<Icon icon={Coffee} />}
-                accessibilityLabel="Start break"
+                accessibilityLabel={tr('timeoff.today.start_break', 'Start break')}
                 onPress={() => {
                   punch('break_start');
                 }}
@@ -318,7 +332,7 @@ function ClockCard({
                   setClosing(Date.now());
                 }}
               >
-                Clock out
+                {tr('timeoff.today.clock_out', 'Clock out')}
               </Button>
             </>
           ) : state === 'on_break' ? (
@@ -329,7 +343,7 @@ function ClockCard({
                 punch('break_end');
               }}
             >
-              End break
+              {tr('timeoff.today.end_break', 'End break')}
             </Button>
           ) : null}
         </View>
@@ -338,14 +352,23 @@ function ClockCard({
             <SegmentedControl
               fullWidth
               value={where}
-              accessibilityLabel="Where you are working"
+              accessibilityLabel={tr(
+                'timeoff.today.where_you_are_working',
+                'Where you are working',
+              )}
               onValueChange={(v) => {
                 setWhere(v as WorkModel);
               }}
             >
-              <SegmentedControlItem value="office">Office</SegmentedControlItem>
-              <SegmentedControlItem value="remote">Remote</SegmentedControlItem>
-              <SegmentedControlItem value="client">Client</SegmentedControlItem>
+              <SegmentedControlItem value="office">
+                {tr('timeoff.today.office', 'Office')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="remote">
+                {tr('timeoff.today.remote', 'Remote')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="client">
+                {tr('timeoff.today.client', 'Client')}
+              </SegmentedControlItem>
             </SegmentedControl>
             {/* ponytail: a button, not the design's slide; a slide-to-confirm belongs in Reach first. */}
             <Button
@@ -356,7 +379,7 @@ function ClockCard({
                 punch('in', where);
               }}
             >
-              {`Clock in · ${WHERE[where]}`}
+              {tr('timeoff.today.clock_in', 'Clock in · {{value}}', { value: WHERE()[where] })}
             </Button>
           </>
         ) : null}
@@ -370,16 +393,28 @@ function ClockCard({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`Clock out at ${clockTime(minuteOfDay(closing, zone))}?`}</DialogTitle>
+              <DialogTitle>
+                {tr('timeoff.today.clock_out_at', 'Clock out at {{clockTime}}?', {
+                  clockTime: clockTime(minuteOfDay(closing, zone)),
+                })}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody>
               {dayBar(today.segments, minuteOfDay(closing, zone))}
               <View className="flex-row gap-2">
-                <Stat className="flex-1" label="Worked" value={duration(workedBy(closing))} />
-                <Stat className="flex-1" label="Break" value={duration(today.breakMinutes)} />
                 <Stat
                   className="flex-1"
-                  label="Overtime"
+                  label={tr('timeoff.today.worked', 'Worked')}
+                  value={duration(workedBy(closing))}
+                />
+                <Stat
+                  className="flex-1"
+                  label={tr('timeoff.today.break', 'Break')}
+                  value={duration(today.breakMinutes)}
+                />
+                <Stat
+                  className="flex-1"
+                  label={tr('timeoff.today.overtime', 'Overtime')}
                   value={duration(Math.max(0, workedBy(closing) - today.plannedMinutes))}
                 />
               </View>
@@ -394,7 +429,7 @@ function ClockCard({
                   punch('out');
                 }}
               >
-                Clock out
+                {tr('timeoff.today.clock_out', 'Clock out')}
               </Button>
               <Button
                 variant="ghost"
@@ -403,7 +438,7 @@ function ClockCard({
                   setClosing(null);
                 }}
               >
-                Keep working
+                {tr('timeoff.today.keep_working', 'Keep working')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -476,7 +511,7 @@ function BalanceCard({
               onDetails(main);
             }}
           >
-            Details
+            {tr('timeoff.today.details', 'Details')}
           </Button>
         </View>
         <View className="flex-row items-baseline gap-2">
@@ -485,21 +520,34 @@ function BalanceCard({
           </Text>
           <Text tone="muted">
             {hours
-              ? 'hours banked'
+              ? tr('timeoff.today.hours_banked', 'hours banked')
               : main.yearly === null
-                ? 'days left'
-                : `days left of ${amount(main.yearly)}`}
+                ? tr('timeoff.today.days_left', 'days left')
+                : tr('timeoff.today.days_left_of', 'days left of {{amount}}', {
+                    amount: amount(main.yearly),
+                  })}
           </Text>
         </View>
         {main.yearly === null ? null : (
           <>
             <Progress
-              label={`${amount(main.used)} used, ${amount(main.booked)} booked`}
+              label={tr('timeoff.today.used_booked', '{{amount}} used, {{amount2}} booked', {
+                amount: amount(main.used),
+                amount2: amount(main.booked),
+              })}
               value={Number(main.used) + Number(main.booked)}
               max={Number(main.yearly)}
             />
             <Text variant="footnote" tone="muted">
-              {`${amount(main.used)} used · ${amount(main.booked)} booked · ${amount(main.left)} left`}
+              {tr(
+                'timeoff.today.used_booked_left',
+                '{{amount}} used · {{amount2}} booked · {{amount3}} left',
+                {
+                  amount: amount(main.used),
+                  amount2: amount(main.booked),
+                  amount3: amount(main.left),
+                },
+              )}
             </Text>
           </>
         )}
@@ -510,7 +558,9 @@ function BalanceCard({
             <Pressable
               key={b.leaveTypeKey}
               accessibilityRole="button"
-              accessibilityLabel={`${b.name}: where it went`}
+              accessibilityLabel={tr('timeoff.today.where_it_went', '{{name}}: where it went', {
+                name: b.name,
+              })}
               onPress={() => {
                 onDetails(b);
               }}
@@ -521,10 +571,10 @@ function BalanceCard({
               </Text>
               <Text weight="semibold">
                 {b.unit === 'hour'
-                  ? `${amount(b.left)}h banked`
+                  ? tr('timeoff.today.h_banked', '{{amount}}h banked', { amount: amount(b.left) })
                   : b.yearly === null && Number(b.left) === 0
-                    ? 'No limit'
-                    : `${amount(b.left)} left`}
+                    ? tr('timeoff.today.no_limit', 'No limit')
+                    : tr('timeoff.today.left', '{{amount}} left', { amount: amount(b.left) })}
               </Text>
             </Pressable>
           ))}
@@ -534,7 +584,7 @@ function BalanceCard({
   );
 }
 
-const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
+const WEEKDAY = dateFormat({ weekday: 'short', timeZone: 'UTC' });
 
 /**
  * The Time off tab (design v3 T1, T2, T8): everything in one scroll and no
@@ -619,22 +669,22 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         setOpen({ kind: 'request' });
       }}
     >
-      Request
+      {tr('timeoff.today.request', 'Request')}
     </Button>
   );
 
   // What was already showing stays; only an empty screen says it failed.
   if (failed !== null && data === null) {
     return (
-      <Page large="Time off" trailing={request}>
+      <Page large={tr('timeoff.today.time_off', 'Time off')} trailing={request}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   }
   if (data === null) {
     return (
-      <Page large="Time off" trailing={request}>
-        <Loading label="Loading your time off" />
+      <Page large={tr('timeoff.today.time_off', 'Time off')} trailing={request}>
+        <Loading label={tr('timeoff.today.loading_your_time_off', 'Loading your time off')} />
       </Page>
     );
   }
@@ -655,7 +705,9 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         : {
             trailing: (
               <Badge size="sm" tone="warning">
-                {`${String(row.count)} to look at`}
+                {tr('timeoff.today.to_look_at', '{{String}} to look at', {
+                  String: String(row.count),
+                })}
               </Badge>
             ),
           })}
@@ -705,7 +757,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
               holiday !== undefined ? (
                 'Holiday'
               ) : out.length === 0 ? (
-                'All in'
+                tr('timeoff.today.all_in', 'All in')
               ) : (
                 <AvatarGroup size={22} max={2}>
                   {out.map((n) => (
@@ -718,7 +770,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
 
   return (
     <Page
-      large="Time off"
+      large={tr('timeoff.today.time_off', 'Time off')}
       trailing={request}
       {...(answer !== null && answer.preview !== null
         ? {
@@ -738,7 +790,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                     });
                   }}
                 >
-                  Change
+                  {tr('timeoff.today.change', 'Change')}
                 </Button>
                 <Button
                   className="flex-1"
@@ -755,8 +807,10 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   }}
                 >
                   {approversOf(answer.preview) === null
-                    ? 'Send'
-                    : `Send to ${approversOf(answer.preview) ?? ''}`}
+                    ? tr('timeoff.today.send', 'Send')
+                    : tr('timeoff.today.send_to', 'Send to {{value}}', {
+                        value: approversOf(answer.preview) ?? '',
+                      })}
                 </Button>
               </>
             ),
@@ -812,18 +866,31 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       ) : null}
 
       {overview.member === null ? (
-        <Alert tone="info" title="Nothing here for you yet">
-          Time Off does not have you as an employee yet, so there are no balances to show or time
-          off to request. There will be once HR hires you in People.
+        <Alert
+          tone="info"
+          title={tr('timeoff.today.nothing_here_for_you_yet', 'Nothing here for you yet')}
+        >
+          {tr(
+            'timeoff.today.time_off_does_not_have_you',
+            'Time Off does not have you as an employee yet, so there are no balances to show or time off to request. There will be once HR hires you in People.',
+          )}
         </Alert>
       ) : null}
 
       {approvals.length === 0 || inbox === null ? null : (
         <>
           <Alert tone="accent" variant="summary">
-            {`${approvals.length === 1 ? 'One request waits' : `${String(approvals.length)} requests wait`} for you.${approvals.some((a) => shortOf(a).length > 0) ? ' One would leave the team below its minimum.' : ' None leaves the team short.'}`}
+            {tr('timeoff.today.for_you', '{{value}} for you.{{value2}}', {
+              value:
+                approvals.length === 1
+                  ? 'One request waits'
+                  : `${String(approvals.length)} requests wait`,
+              value2: approvals.some((a) => shortOf(a).length > 0)
+                ? ' One would leave the team below its minimum.'
+                : ' None leaves the team short.',
+            })}
           </Alert>
-          <Heading title="Waiting for you" />
+          <Heading title={tr('timeoff.today.waiting_for_you', 'Waiting for you')} />
           {approvals.map((item) => (
             <TaskCard
               key={item.id}
@@ -859,8 +926,14 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           onSearch={(value) => {
             setSentence(value.trim() === '' ? null : value.trim());
           }}
-          placeholder="Describe it: “Friday and the Monday after”"
-          label="Describe the time off you want"
+          placeholder={tr(
+            'timeoff.today.describe_it_friday_and_the_monday',
+            'Describe it: “Friday and the Monday after”',
+          )}
+          label={tr(
+            'timeoff.today.describe_the_time_off_you_want',
+            'Describe the time off you want',
+          )}
         />
       )}
       {answer === null ? null : (
@@ -868,15 +941,15 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       )}
 
       <Heading
-        title="Coming up"
-        action="All"
+        title={tr('timeoff.today.coming_up', 'Coming up')}
+        action={tr('timeoff.today.all', 'All')}
         onAction={() => {
           navigation.navigate('TimeOffRequests');
         }}
       />
       {overview.comingUp.length === 0 ? (
         <Text tone="muted" className="px-1">
-          Nothing booked yet.
+          {tr('timeoff.today.nothing_booked_yet', 'Nothing booked yet.')}
         </Text>
       ) : (
         <List>
@@ -891,9 +964,9 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                 trailing={
                   <Badge size="sm" tone={status.tone} dot>
                     {r.waitingOn === 'manager'
-                      ? 'With your manager'
+                      ? tr('timeoff.today.with_your_manager', 'With your manager')
                       : r.waitingOn === 'hr'
-                        ? 'With HR'
+                        ? tr('timeoff.today.with_hr', 'With HR')
                         : status.label}
                   </Badge>
                 }
@@ -911,8 +984,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       {days.length === 0 ? null : (
         <>
           <Heading
-            title="Team this week"
-            action="Calendar"
+            title={tr('timeoff.today.team_this_week', 'Team this week')}
+            action={tr('timeoff.today.calendar', 'Calendar')}
             onAction={() => {
               navigation.navigate('TimeOffCalendar');
             }}
@@ -926,39 +999,48 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
         </>
       )}
 
-      <Heading title="More" />
+      <Heading title={tr('timeoff.today.more', 'More')} />
       <List>
         {[
           ...(overview.member === null
             ? []
             : [
                 go({
-                  label: 'Plan parental leave',
-                  line: 'Kithena drafts the plan from the law where you work',
+                  label: tr('timeoff.today.plan_parental_leave', 'Plan parental leave'),
+                  line: tr(
+                    'timeoff.today.kithena_drafts_the_plan_from_the',
+                    'Kithena drafts the plan from the law where you work',
+                  ),
                   icon: Baby,
                   open: () => {
                     navigation.navigate('TimeOffParental');
                   },
                 }),
                 go({
-                  label: 'My timesheet',
-                  line: 'Your week, worked against planned',
+                  label: tr('timeoff.today.my_timesheet', 'My timesheet'),
+                  line: tr(
+                    'timeoff.today.your_week_worked_against_planned',
+                    'Your week, worked against planned',
+                  ),
                   icon: Clock3,
                   open: () => {
                     navigation.navigate('TimeOffTimesheet');
                   },
                 }),
                 go({
-                  label: 'Your requests',
-                  line: 'Coming up, past and cancelled',
+                  label: tr('timeoff.today.your_requests', 'Your requests'),
+                  line: tr(
+                    'timeoff.today.coming_up_past_and_cancelled',
+                    'Coming up, past and cancelled',
+                  ),
                   icon: ListChecks,
                   open: () => {
                     navigation.navigate('TimeOffRequests');
                   },
                 }),
                 go({
-                  label: 'My kiosk code',
-                  line: 'Clock in at the door',
+                  label: tr('timeoff.today.my_kiosk_code', 'My kiosk code'),
+                  line: tr('timeoff.today.clock_in_at_the_door', 'Clock in at the door'),
                   icon: QrCode,
                   open: () => {
                     navigation.navigate('TimeOffKioskCode');
@@ -968,8 +1050,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           ...(viewer?.approves === true
             ? [
                 go({
-                  label: 'Time off to approve',
-                  line: 'Clear to approve and look closer',
+                  label: tr('timeoff.today.time_off_to_approve', 'Time off to approve'),
+                  line: tr(
+                    'timeoff.today.clear_to_approve_and_look_closer',
+                    'Clear to approve and look closer',
+                  ),
                   icon: CheckCheck,
                   count: viewer.counts.requestsWaiting,
                   open: () => {
@@ -977,8 +1062,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   },
                 }),
                 go({
-                  label: 'Team right now',
-                  line: 'Who is in, on a break or away',
+                  label: tr('timeoff.today.team_right_now', 'Team right now'),
+                  line: tr('timeoff.today.who_is_in_on_a_break', 'Who is in, on a break or away'),
                   icon: Users,
                   open: () => {
                     navigation.navigate('TimeOffTeamNow');
@@ -988,8 +1073,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   ? []
                   : [
                       go({
-                        label: 'Balance adjustments',
-                        line: 'Add or take away days, saying why; HR approves',
+                        label: tr('timeoff.today.balance_adjustments', 'Balance adjustments'),
+                        line: tr(
+                          'timeoff.today.add_or_take_away_days_saying',
+                          'Add or take away days, saying why; HR approves',
+                        ),
                         icon: Scale,
                         open: () => {
                           navigation.navigate('TimeOffAdjustments');
@@ -997,8 +1085,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                       }),
                     ]),
                 go({
-                  label: 'Overtime and corrections',
-                  line: 'To decide, and your own',
+                  label: tr('timeoff.today.overtime_and_corrections', 'Overtime and corrections'),
+                  line: tr('timeoff.today.to_decide_and_your_own', 'To decide, and your own'),
                   icon: TimerIcon,
                   open: () => {
                     navigation.navigate('TimeOffAttendanceRequests');
@@ -1007,8 +1095,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
               ]
             : [
                 go({
-                  label: 'Your overtime',
-                  line: 'How each day was decided',
+                  label: tr('timeoff.today.your_overtime', 'Your overtime'),
+                  line: tr('timeoff.today.how_each_day_was_decided', 'How each day was decided'),
                   icon: TimerIcon,
                   open: () => {
                     navigation.navigate('TimeOffAttendanceRequests');
@@ -1018,8 +1106,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
           ...(viewer?.hrAdmin === true
             ? [
                 go({
-                  label: 'Exceptions',
-                  line: 'Missing clock-outs, short rests, long days',
+                  label: tr('timeoff.today.exceptions', 'Exceptions'),
+                  line: tr(
+                    'timeoff.today.missing_clock_outs_short_rests_long',
+                    'Missing clock-outs, short rests, long days',
+                  ),
                   icon: TriangleAlert,
                   count: viewer.counts.attendanceExceptions,
                   open: () => {
@@ -1027,8 +1118,11 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   },
                 }),
                 go({
-                  label: 'Balance adjustments',
-                  line: 'Waiting for you, and the last 30 days',
+                  label: tr('timeoff.today.balance_adjustments', 'Balance adjustments'),
+                  line: tr(
+                    'timeoff.today.waiting_for_you_and_the_last',
+                    'Waiting for you, and the last 30 days',
+                  ),
                   icon: Scale,
                   count: adjustmentsWaiting,
                   open: () => {
@@ -1036,24 +1130,30 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   },
                 }),
                 go({
-                  label: 'Pay period',
-                  line: 'What goes to payroll, and closing the month',
+                  label: tr('timeoff.today.pay_period', 'Pay period'),
+                  line: tr(
+                    'timeoff.today.what_goes_to_payroll_and_closing',
+                    'What goes to payroll, and closing the month',
+                  ),
                   icon: Wallet,
                   open: () => {
                     navigation.navigate('TimeOffPayPeriod');
                   },
                 }),
                 go({
-                  label: 'Parental leave plans',
-                  line: 'Plans sent to HR',
+                  label: tr('timeoff.today.parental_leave_plans', 'Parental leave plans'),
+                  line: tr('timeoff.today.plans_sent_to_hr', 'Plans sent to HR'),
                   icon: Baby,
                   open: () => {
                     navigation.navigate('TimeOffParentalCases');
                   },
                 }),
                 go({
-                  label: 'Insights',
-                  line: 'Absence, balances and nudges',
+                  label: tr('timeoff.today.insights', 'Insights'),
+                  line: tr(
+                    'timeoff.today.absence_balances_and_nudges',
+                    'Absence, balances and nudges',
+                  ),
                   icon: ChartColumn,
                   open: () => {
                     navigation.navigate('TimeOffInsights');
@@ -1067,8 +1167,8 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
       {ahead.length === 0 ? null : (
         <>
           <Heading
-            title={`Holidays in ${city}`}
-            action="All"
+            title={tr('timeoff.today.holidays_in', 'Holidays in {{city}}', { city })}
+            action={tr('timeoff.today.all', 'All')}
             onAction={() => {
               navigation.navigate('TimeOffHolidays');
             }}

@@ -21,6 +21,7 @@ import { parsed } from '../review/load';
 import { useRoles } from '../roles';
 import type { PeopleScreen } from '../routes';
 import type { RunStatus } from './model';
+import { t } from '../../i18n';
 
 interface Entry {
   readonly id: string;
@@ -108,28 +109,36 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
     });
   }, [navigation, signed]);
 
-  const back = { label: 'People', onPress: navigation.goBack };
+  const back = { label: t('people.transfer.hub.people', 'People'), onPress: navigation.goBack };
   if (failed !== null)
     return (
-      <Page title="Import & export" back={back}>
+      <Page title={t('people.transfer.hub.import_export', 'Import & export')} back={back}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   if (items === null)
     return (
-      <Page title="Import & export" back={back}>
-        <Loading label="Loading imports and exports" />
+      <Page title={t('people.transfer.hub.import_export', 'Import & export')} back={back}>
+        <Loading
+          label={t(
+            'people.transfer.hub.loading_imports_and_exports',
+            'Loading imports and exports',
+          )}
+        />
       </Page>
     );
 
   return (
-    <Page title="Import & export" back={back}>
+    <Page title={t('people.transfer.hub.import_export', 'Import & export')} back={back}>
       <Inline gap={2} wrap={false}>
         {hr ? (
           <Pressable
             className="flex-1"
             accessibilityRole="button"
-            accessibilityLabel="Import people from a file"
+            accessibilityLabel={t(
+              'people.transfer.hub.import_people_from_a_file',
+              'Import people from a file',
+            )}
             onPress={() => {
               if (active === null) navigation.navigate('Import');
               else navigation.navigate('ImportRun', { id: active.id });
@@ -138,11 +147,15 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
             <Card>
               <Stack gap={2}>
                 <ArrowDownToLine size={22} />
-                <Text variant="title3">Import</Text>
+                <Text variant="title3">{t('people.transfer.hub.import', 'Import')}</Text>
                 <Text variant="footnote" tone="muted">
                   {active === null
-                    ? 'From Excel or CSV'
-                    : `Importing… ${String(active.people.done)}${active.people.total === null ? '' : ` of ${String(active.people.total)}`}`}
+                    ? t('people.transfer.hub.from_excel_or_csv', 'From Excel or CSV')
+                    : t('people.transfer.hub.importing', 'Importing… {{String}}{{value}}', {
+                        String: String(active.people.done),
+                        value:
+                          active.people.total === null ? '' : ` of ${String(active.people.total)}`,
+                      })}
                 </Text>
               </Stack>
             </Card>
@@ -151,7 +164,10 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
         <Pressable
           className="flex-1"
           accessibilityRole="button"
-          accessibilityLabel="Export people to a file"
+          accessibilityLabel={t(
+            'people.transfer.hub.export_people_to_a_file',
+            'Export people to a file',
+          )}
           onPress={() => {
             navigation.navigate('Export');
           }}
@@ -159,9 +175,9 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
           <Card>
             <Stack gap={2}>
               <ArrowUpFromLine size={22} />
-              <Text variant="title3">Export</Text>
+              <Text variant="title3">{t('people.transfer.hub.export', 'Export')}</Text>
               <Text variant="footnote" tone="muted">
-                With a reason
+                {t('people.transfer.hub.with_a_reason', 'With a reason')}
               </Text>
             </Stack>
           </Card>
@@ -174,7 +190,7 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
             <Progress
               value={active.people.total === null ? null : active.people.done}
               max={active.people.total ?? 1}
-              label="People imported"
+              label={t('people.transfer.hub.people_imported', 'People imported')}
             />
             <Button
               size="sm"
@@ -182,20 +198,23 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
                 navigation.navigate('ImportRun', { id: active.id });
               }}
             >
-              Follow it
+              {t('people.transfer.hub.follow_it', 'Follow it')}
             </Button>
           </Stack>
         </Alert>
       )}
 
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        History
+        {t('people.transfer.hub.history', 'History')}
       </Text>
       {items.length === 0 ? (
         <EmptyState
           icon={History}
-          title="Nothing yet"
-          description="Imports and exports appear here."
+          title={t('people.transfer.hub.nothing_yet', 'Nothing yet')}
+          description={t(
+            'people.transfer.hub.imports_and_exports_appear_here',
+            'Imports and exports appear here.',
+          )}
         />
       ) : (
         <List>
@@ -212,7 +231,10 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
                 else navigation.navigate('ImportRun', { id: e.id });
               }}
             >
-              {e.title ?? (e.kind === 'import' ? 'An import' : 'An export')}
+              {e.title ??
+                (e.kind === 'import'
+                  ? t('people.transfer.hub.an_import', 'An import')
+                  : t('people.transfer.hub.an_export', 'An export'))}
             </ListItem>
           ))}
         </List>
@@ -232,7 +254,7 @@ export function ImportExport({ navigation }: PeopleScreen<'ImportExport'>): Reac
             });
           }}
         >
-          Show older
+          {t('people.transfer.hub.show_older', 'Show older')}
         </Button>
       )}
     </Page>

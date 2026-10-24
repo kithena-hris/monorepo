@@ -4,6 +4,7 @@ import { Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { usePlatform } from '../../provider.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A keyboard key, as the web's: `mod` is ⌘ on iOS and Ctrl on Android, and a named key is read by its name, since "⌘" is read as
@@ -45,35 +46,66 @@ const glyph: Record<KeyName, { apple: string; other: string }> = {
   space: { apple: 'Space', other: 'Space' },
 };
 
-const spoken: Record<KeyName, string> = {
-  mod: 'Command or Control',
-  shift: 'Shift',
-  alt: 'Alt',
-  ctrl: 'Control',
-  enter: 'Enter',
-  esc: 'Escape',
-  tab: 'Tab',
-  backspace: 'Backspace',
-  up: 'Arrow up',
-  down: 'Arrow down',
-  left: 'Arrow left',
-  right: 'Arrow right',
-  space: 'Space',
+/** Each key's spoken name, in the reader's language: read when spoken, not when loaded. */
+const spoken = (key: KeyName): string => {
+  switch (key) {
+    case 'mod':
+      return t('components.kbd.kbd.key_command_or_control', 'Command or Control');
+    case 'shift':
+      return t('components.kbd.kbd.key_shift', 'Shift');
+    case 'alt':
+      return t('components.kbd.kbd.key_alt', 'Alt');
+    case 'ctrl':
+      return t('components.kbd.kbd.key_control', 'Control');
+    case 'enter':
+      return t('components.kbd.kbd.key_enter', 'Enter');
+    case 'esc':
+      return t('components.kbd.kbd.key_escape', 'Escape');
+    case 'tab':
+      return t('components.kbd.kbd.key_tab', 'Tab');
+    case 'backspace':
+      return t('components.kbd.kbd.key_backspace', 'Backspace');
+    case 'up':
+      return t('components.kbd.kbd.key_arrow_up', 'Arrow up');
+    case 'down':
+      return t('components.kbd.kbd.key_arrow_down', 'Arrow down');
+    case 'left':
+      return t('components.kbd.kbd.key_arrow_left', 'Arrow left');
+    case 'right':
+      return t('components.kbd.kbd.key_arrow_right', 'Arrow right');
+    case 'space':
+      return t('components.kbd.kbd.key_space', 'Space');
+  }
 };
 
 /** A glyph typed literally is read by its name too. */
-const SYMBOLS: Record<string, string> = {
-  '⌘': 'Command',
-  '⌥': 'Option',
-  '⇧': 'Shift',
-  '⌃': 'Control',
-  '↵': 'Enter',
-  '⌫': 'Backspace',
-  '⇥': 'Tab',
-  '↑': 'Arrow up',
-  '↓': 'Arrow down',
-  '←': 'Arrow left',
-  '→': 'Arrow right',
+const symbolName = (glyph: string): string | undefined => {
+  switch (glyph) {
+    case '⌘':
+      return t('components.kbd.kbd.key_command', 'Command');
+    case '⌥':
+      return t('components.kbd.kbd.key_option', 'Option');
+    case '⇧':
+      return t('components.kbd.kbd.key_shift', 'Shift');
+    case '⌃':
+      return t('components.kbd.kbd.key_control', 'Control');
+    case '↵':
+      return t('components.kbd.kbd.key_enter', 'Enter');
+    case '⌫':
+      return t('components.kbd.kbd.key_backspace', 'Backspace');
+    case '⇥':
+      return t('components.kbd.kbd.key_tab', 'Tab');
+    case '↑':
+      return t('components.kbd.kbd.key_arrow_up', 'Arrow up');
+    case '↓':
+      return t('components.kbd.kbd.key_arrow_down', 'Arrow down');
+    case '←':
+      return t('components.kbd.kbd.key_arrow_left', 'Arrow left');
+    case '→':
+      return t('components.kbd.kbd.key_arrow_right', 'Arrow right');
+    default:
+      return undefined;
+  }
 };
 
 const NAMES = new Set<string>(Object.keys(glyph));
@@ -130,7 +162,7 @@ export function Kbd({
   const children = keyName ?? text;
   const named = isName(children);
   const label = named ? (apple ? glyph[children].apple : glyph[children].other) : children;
-  const name = named ? spoken[children] : SYMBOLS[children];
+  const name = named ? spoken(children) : symbolName(children);
   return (
     <View
       {...(name ? { accessibilityLabel: name, accessible: true } : {})}

@@ -77,14 +77,14 @@ export interface HomeData {
   }[];
 }
 
-export const CONFIDENCE: Readonly<
+export const CONFIDENCE = (): Readonly<
   Record<string, readonly [string, 'success' | 'warning' | 'danger' | 'accent']>
-> = {
+> => ({
   on_track: [tr('home.on_track', 'On track'), 'success'],
   at_risk: [tr('home.at_risk', 'At risk'), 'warning'],
   off_track: [tr('home.off_track', 'Off track'), 'danger'],
   done: [tr('home.done', 'Done'), 'accent'],
-};
+});
 
 export function Home(props: ScreenProps<HomeData>): JSX.Element {
   const act = useAct(props);
@@ -119,7 +119,13 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                       // Straight into setup: its Basics step names the cycle and sets its start.
                       act.run(
                         'CreatePerformanceCycle',
-                        { input: { name: 'New cycle', start: null, copyFrom: null } },
+                        {
+                          input: {
+                            name: tr('home.new_cycle', 'New cycle'),
+                            start: null,
+                            copyFrom: null,
+                          },
+                        },
                         (d) => {
                           props.onNavigate?.(
                             `/performance/cycles/${(d as { id: string }).id}/setup`,
@@ -259,7 +265,7 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                     </p>
                   ) : (
                     data.goals.map((g) => {
-                      const [label, tone] = CONFIDENCE[g.confidence] ?? [
+                      const [label, tone] = CONFIDENCE()[g.confidence] ?? [
                         tr('home.on_track', 'On track'),
                         'success',
                       ];

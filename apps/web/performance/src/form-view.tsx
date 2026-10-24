@@ -158,16 +158,17 @@ export interface FormViewProps {
 }
 
 /** The tones an answer can be rephrased in, several at once (the server's `REPHRASE_TONES`). */
-const TONES = [
-  ['clearer', tr('form-view.clearer', 'Clearer')],
-  ['concise', tr('form-view.more_concise', 'More concise')],
-  ['specific', tr('form-view.more_specific', 'More specific')],
-  ['warmer', tr('form-view.warmer', 'Warmer')],
-  ['direct', tr('form-view.more_direct', 'More direct')],
-  ['formal', tr('form-view.more_formal', 'More formal')],
-  ['constructive', tr('form-view.more_constructive', 'More constructive')],
-  ['confident', tr('form-view.more_confident', 'More confident')],
-] as const;
+const TONES = () =>
+  [
+    ['clearer', tr('form-view.clearer', 'Clearer')],
+    ['concise', tr('form-view.more_concise', 'More concise')],
+    ['specific', tr('form-view.more_specific', 'More specific')],
+    ['warmer', tr('form-view.warmer', 'Warmer')],
+    ['direct', tr('form-view.more_direct', 'More direct')],
+    ['formal', tr('form-view.more_formal', 'More formal')],
+    ['constructive', tr('form-view.more_constructive', 'More constructive')],
+    ['confident', tr('form-view.more_confident', 'More confident')],
+  ] as const;
 
 /**
  * Rephrase, at the end of a text answer's toolbar: choose one tone or several,
@@ -247,7 +248,7 @@ function Rephrase({
           </p>
         </div>
         <ChipRow aria-label={tr('form-view.tones', 'Tones')}>
-          {TONES.map(([v, l]) => (
+          {TONES().map(([v, l]) => (
             <Chip
               key={v}
               selected={tones.includes(v)}

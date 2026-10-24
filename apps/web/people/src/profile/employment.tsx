@@ -111,20 +111,51 @@ export interface PlacementState {
 }
 
 const STATUS: Record<string, string> = {
-  provisional: t('profile.employment.provisional', 'Provisional'),
-  pre_hire: t('profile.employment.starting_soon', 'Starting soon'),
-  active: t('profile.employment.active', 'Active'),
-  on_leave: t('profile.employment.on_leave', 'On leave'),
-  notice: t('profile.employment.on_notice', 'On notice'),
-  terminated: t('profile.employment.left', 'Left'),
-  discarded: t('profile.employment.discarded', 'Discarded'),
-  merged: t('profile.employment.merged_into_another_record', 'Merged into another record'),
+  get provisional(): string {
+    return t('profile.employment.provisional', 'Provisional');
+  },
+  get pre_hire(): string {
+    return t('profile.employment.starting_soon', 'Starting soon');
+  },
+  get active(): string {
+    return t('profile.employment.active', 'Active');
+  },
+  get on_leave(): string {
+    return t('profile.employment.on_leave', 'On leave');
+  },
+  get notice(): string {
+    return t('profile.employment.on_notice', 'On notice');
+  },
+  get terminated(): string {
+    return t('profile.employment.left', 'Left');
+  },
+  get discarded(): string {
+    return t('profile.employment.discarded', 'Discarded');
+  },
+  get merged(): string {
+    return t('profile.employment.merged_into_another_record', 'Merged into another record');
+  },
 };
 
 const REASONS: readonly { readonly value: LeavingReason; readonly label: string }[] = [
-  { value: 'resigned', label: t('profile.employment.resigned', 'Resigned') },
-  { value: 'dismissed', label: t('profile.employment.dismissed', 'Dismissed') },
-  { value: 'end_of_contract', label: t('profile.employment.end_of_contract', 'End of contract') },
+  {
+    value: 'resigned',
+    get label(): string {
+      return t('profile.employment.resigned', 'Resigned');
+    },
+  },
+  {
+    value: 'dismissed',
+    get label(): string {
+      return t('profile.employment.dismissed', 'Dismissed');
+    },
+  },
+  {
+    value: 'end_of_contract',
+    get label(): string {
+      return t('profile.employment.end_of_contract', 'End of contract');
+    },
+  },
 ];
 
 const reasonLabel = (r: LeavingReason | null): string =>
@@ -150,15 +181,33 @@ const OFFERED: Record<string, readonly Asking[]> = {
 };
 
 const LABEL: Record<Asking, string> = {
-  giveNotice: t('profile.employment.give_notice', 'Give notice'),
-  withdrawNotice: t('profile.employment.withdraw_notice', 'Withdraw notice'),
-  terminate: t('profile.employment.terminate', 'Terminate'),
-  endAccess: t('profile.employment.end_access_now', 'End access now'),
-  startLeave: t('profile.employment.start_leave', 'Start leave'),
-  endLeave: t('profile.employment.end_leave', 'End leave'),
-  discard: t('profile.employment.discard_record', 'Discard record'),
-  rehire: t('profile.employment.rehire', 'Rehire'),
-  hire: t('profile.employment.hire', 'Hire'),
+  get giveNotice(): string {
+    return t('profile.employment.give_notice', 'Give notice');
+  },
+  get withdrawNotice(): string {
+    return t('profile.employment.withdraw_notice', 'Withdraw notice');
+  },
+  get terminate(): string {
+    return t('profile.employment.terminate', 'Terminate');
+  },
+  get endAccess(): string {
+    return t('profile.employment.end_access_now', 'End access now');
+  },
+  get startLeave(): string {
+    return t('profile.employment.start_leave', 'Start leave');
+  },
+  get endLeave(): string {
+    return t('profile.employment.end_leave', 'End leave');
+  },
+  get discard(): string {
+    return t('profile.employment.discard_record', 'Discard record');
+  },
+  get rehire(): string {
+    return t('profile.employment.rehire', 'Rehire');
+  },
+  get hire(): string {
+    return t('profile.employment.hire', 'Hire');
+  },
 };
 
 /** The status in words: "Provisional", "On notice". */

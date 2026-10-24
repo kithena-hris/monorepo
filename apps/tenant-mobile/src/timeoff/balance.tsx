@@ -23,6 +23,7 @@ import { todayHere } from './time';
 import { useTimeOff } from './api';
 import { leaveIcon } from './icons';
 import { amount, monthName, shortDate, signed } from './words';
+import { t } from '../i18n';
 
 export interface Balance {
   readonly leaveTypeKey: string;
@@ -53,16 +54,22 @@ interface Entry {
 function what(e: Entry): string {
   const year = Number(e.effectiveOn.slice(0, 4));
   const label: Record<string, string> = {
-    grant: `Allowance for ${String(year)}`,
-    accrual: `Earned in ${monthName(e.effectiveOn)}`,
-    carry_over: `Carried over from ${String(year - 1)}`,
-    expiry: 'Lost, not used in time',
+    grant: t('timeoff.balance.allowance_for', 'Allowance for {{String}}', { String: String(year) }),
+    accrual: t('timeoff.balance.earned_in', 'Earned in {{monthName}}', {
+      monthName: monthName(e.effectiveOn),
+    }),
+    carry_over: t('timeoff.balance.carried_over_from', 'Carried over from {{String}}', {
+      String: String(year - 1),
+    }),
+    expiry: t('timeoff.balance.lost_not_used_in_time', 'Lost, not used in time'),
     booking: 'Booked',
     taken: 'Taken',
-    release: 'Given back',
-    borrow: `Borrowed from ${String(year + 1)}`,
-    adjustment: 'Corrected by HR',
-    comp_earned: 'Overtime banked',
+    release: t('timeoff.balance.given_back', 'Given back'),
+    borrow: t('timeoff.balance.borrowed_from', 'Borrowed from {{String}}', {
+      String: String(year + 1),
+    }),
+    adjustment: t('timeoff.balance.corrected_by_hr', 'Corrected by HR'),
+    comp_earned: t('timeoff.balance.overtime_banked', 'Overtime banked'),
   };
   const said = label[e.kind] ?? e.kind;
   return e.supersedes === null || e.kind === 'adjustment' ? said : `${said} (corrected)`;
@@ -80,14 +87,14 @@ export function TimeOffBalance({
   const { load, reload } = useTimeOff<{ balance: Balance; entries: Entry[] }>('TimeOffBalance', {
     leaveTypeKey: route.params.leaveTypeKey,
   });
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: t('timeoff.balance.time_off', 'Time off'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
       <Page title={route.params.name} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the balance" />
+          <Loading label={t('timeoff.balance.loading_the_balance', 'Loading the balance')} />
         )}
       </Page>
     );
@@ -112,24 +119,48 @@ export function TimeOffBalance({
           : {
               chart: (
                 <Progress
-                  label={`${amount(balance.used)} used, ${amount(balance.booked)} booked`}
+                  label={t('timeoff.balance.used_booked', '{{amount}} used, {{amount2}} booked', {
+                    amount: amount(balance.used),
+                    amount2: amount(balance.booked),
+                  })}
                   value={Number(balance.used) + Number(balance.booked)}
                   max={Number(balance.yearly)}
                 />
               ),
-              description: `${amount(balance.used)} used · ${amount(balance.booked)} booked · ${amount(balance.yearly)} a year`,
+              description: t(
+                'timeoff.balance.used_booked_a_year',
+                '{{amount}} used · {{amount2}} booked · {{amount3}} a year',
+                {
+                  amount: amount(balance.used),
+                  amount2: amount(balance.booked),
+                  amount3: amount(balance.yearly),
+                },
+              ),
             })}
       />
       {expiring.map((e) => (
         <Alert key={e.entryId} tone="warning" icon={Hourglass}>
-          {`${amount(e.amount.replace('-', ''))} ${hours ? 'hours' : 'days'} will be lost on ${shortDate(e.effectiveOn)} unless you book them.`}
+          {t(
+            'timeoff.balance.will_be_lost_on_unless_you',
+            '{{amount}} {{value}} will be lost on {{shortDate}} unless you book them.',
+            {
+              amount: amount(e.amount.replace('-', '')),
+              value: hours ? 'hours' : 'days',
+              shortDate: shortDate(e.effectiveOn),
+            },
+          )}
         </Alert>
       ))}
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Every change
+        {t('timeoff.balance.every_change', 'Every change')}
       </Text>
       {lines.length === 0 ? (
-        <Text tone="muted">Nothing has changed this balance yet.</Text>
+        <Text tone="muted">
+          {t(
+            'timeoff.balance.nothing_has_changed_this_balance_yet',
+            'Nothing has changed this balance yet.',
+          )}
+        </Text>
       ) : (
         <List>
           {lines.map((e) => {
@@ -186,7 +217,8 @@ export function BalanceDialog({
   let foot: React.ReactNode = null;
   let about: string | null = null;
   if (load.status === 'error') body = <Failed message={load.message} onRetry={reload} />;
-  else if (load.status === 'loading') body = <Loading label="Loading the balance" />;
+  else if (load.status === 'loading')
+    body = <Loading label={t('timeoff.balance.loading_the_balance', 'Loading the balance')} />;
   else {
     const { balance, entries } = load.data;
     const hours = balance.unit === 'hour';
@@ -201,7 +233,12 @@ export function BalanceDialog({
     body = (
       <ScrollView style={{ flexGrow: 0, maxHeight: 400 }}>
         {lines.length === 0 ? (
-          <Text tone="muted">Nothing has changed this balance yet.</Text>
+          <Text tone="muted">
+            {t(
+              'timeoff.balance.nothing_has_changed_this_balance_yet',
+              'Nothing has changed this balance yet.',
+            )}
+          </Text>
         ) : (
           lines.map((e, i) => (
             <View
@@ -226,9 +263,11 @@ export function BalanceDialog({
     );
     foot = (
       <View className="flex-1 flex-row items-baseline justify-between">
-        <Text weight="semibold">Left</Text>
+        <Text weight="semibold">{t('timeoff.balance.left', 'Left')}</Text>
         <Text variant="title2" weight="bold" className="tabular-nums">
-          {hours ? `${amount(balance.left)}h` : `${amount(balance.left)} days`}
+          {hours
+            ? `${amount(balance.left)}h`
+            : t('timeoff.balance.days', '{{amount}} days', { amount: amount(balance.left) })}
         </Text>
       </View>
     );
@@ -242,7 +281,11 @@ export function BalanceDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Where your ${name.toLowerCase()} went`}</DialogTitle>
+          <DialogTitle>
+            {t('timeoff.balance.where_your_went', 'Where your {{toLowerCase}} went', {
+              toLowerCase: name.toLowerCase(),
+            })}
+          </DialogTitle>
           {about === null ? null : <DialogDescription>{about}</DialogDescription>}
         </DialogHeader>
         <DialogBody>{body}</DialogBody>

@@ -6,6 +6,7 @@ import type { OperationName } from './people-operations';
 import { VIEWS } from './people-views';
 import { exportAddressOf, shareChoiceOf } from './export-address';
 import { conditionsOf, directoryQuery } from './url-state';
+import { t } from './t';
 
 /**
  * The data each People screen is drawn from, fetched here, on the server,
@@ -306,7 +307,10 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
             }
           : null;
       const answered = (answer: PeopleAnswer<string>) =>
-        answer.ok ? (jsonOf(answer) ?? 'People could not be asked') : answer.message;
+        answer.ok
+          ? (jsonOf(answer) ??
+            t('lib.people-screens.people_could_not_be_asked', 'People could not be asked'))
+          : answer.message;
       const [summary, schedules, followUp, draft] = await Promise.all([
         orBare(period, (asked) => read('WhatChanged', asked, json())),
         read('ReportSchedules'),
@@ -698,7 +702,10 @@ async function organisation(): Promise<ScreenLoad> {
       },
       packs: setup.status === 'ready' ? (setup.data as { packs: unknown[] }).packs : null,
       reminders: {
-        cadence: 'The day a detail goes missing, then once a week',
+        cadence: t(
+          'lib.people-screens.the_day_a_detail_goes_missing',
+          'The day a detail goes missing, then once a week',
+        ),
         window: '09:00 to 18:00, on their own clock',
         inChat,
       },

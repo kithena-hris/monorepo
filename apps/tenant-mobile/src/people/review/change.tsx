@@ -32,6 +32,7 @@ import { DisplayValue, longDate } from '../display';
 import type { PeopleScreen } from '../routes';
 import { approvalsOf } from './load';
 import { daysLeft, firstName, isClosed, isFlagged, type ApprovalItem } from './model';
+import { t } from '../../i18n';
 
 /** Enough of a field to draw a value: a pending value carries no options or type. */
 export const asField = (item: ApprovalItem): RecordField => ({
@@ -72,20 +73,32 @@ export function AskDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Ask ${to} about this change`}</DialogTitle>
+          <DialogTitle>
+            {t('people.review.change.ask_about_this_change', 'Ask {{to}} about this change', {
+              to,
+            })}
+          </DialogTitle>
           <DialogDescription>
-            {`${to === 'the requester' ? 'They see' : `${to} sees`} your question on ${item.name}’s ${item.label.toLowerCase()} change, and answers there. Nothing is decided meanwhile.`}
+            {t(
+              'people.review.change.your_question_on_s_change_and',
+              '{{value}} your question on {{name}}’s {{toLowerCase}} change, and answers there. Nothing is decided meanwhile.',
+              {
+                value: to === 'the requester' ? 'They see' : `${to} sees`,
+                name: item.name,
+                toLowerCase: item.label.toLowerCase(),
+              },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field>
-            <FieldLabel>Question</FieldLabel>
+            <FieldLabel>{t('people.review.change.question', 'Question')}</FieldLabel>
             <Textarea value={question} onChange={setQuestion} maxLength={500} />
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.review.change.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -96,7 +109,7 @@ export function AskDialog({
               void act(
                 'AskAboutPendingChange',
                 { id: item.id, question: question.trim() },
-                'Question sent',
+                t('people.review.change.question_sent', 'Question sent'),
               ).then((done) => {
                 if (done === null) return;
                 onClose();
@@ -104,7 +117,7 @@ export function AskDialog({
               });
             }}
           >
-            Send question
+            {t('people.review.change.send_question', 'Send question')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -121,14 +134,19 @@ function Questions({ item, onDone }: { item: ApprovalItem; onDone: () => void })
   return (
     <Stack gap={2}>
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Questions
+        {t('people.review.change.questions', 'Questions')}
       </Text>
       {questions.map((q) => (
         <Card key={q.id}>
           <Stack gap={2}>
             <Inline gap={2}>
               <Icon icon={MessageCircle} size={16} tone="info" />
-              <Text variant="subhead">{`${q.askedBy} asked: “${q.question}”`}</Text>
+              <Text variant="subhead">
+                {t('people.review.change.asked', '{{askedBy}} asked: “{{question}}”', {
+                  askedBy: q.askedBy,
+                  question: q.question,
+                })}
+              </Text>
             </Inline>
             {q.answer === null ? (
               q.canAnswer ? (
@@ -143,18 +161,18 @@ function Questions({ item, onDone }: { item: ApprovalItem; onDone: () => void })
                       void act(
                         'AnswerApprovalQuestion',
                         { id: q.id, answer: answer.trim() },
-                        'Answer sent',
+                        t('people.review.change.answer_sent', 'Answer sent'),
                       ).then((done) => {
                         if (done !== null) onDone();
                       });
                     }}
                   >
-                    Send answer
+                    {t('people.review.change.send_answer', 'Send answer')}
                   </Button>
                 </>
               ) : (
                 <Text variant="footnote" tone="muted">
-                  Not answered yet.
+                  {t('people.review.change.not_answered_yet', 'Not answered yet.')}
                 </Text>
               )
             ) : (
@@ -187,11 +205,14 @@ export function ReviewChange({
   const [needsNote, setNeedsNote] = useState(false);
   const [asking, setAsking] = useState(false);
 
-  const back = { label: 'All items', onPress: navigation.goBack };
+  const back = {
+    label: t('people.review.change.all_items', 'All items'),
+    onPress: navigation.goBack,
+  };
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading the change" />
+        <Loading label={t('people.review.change.loading_the_change', 'Loading the change')} />
       </Page>
     );
   if (load.status === 'error')
@@ -206,8 +227,11 @@ export function ReviewChange({
   if (item === null) {
     return (
       <Page back={back}>
-        <Alert tone="info" title="Already decided">
-          This change is no longer waiting.
+        <Alert tone="info" title={t('people.review.change.already_decided', 'Already decided')}>
+          {t(
+            'people.review.change.this_change_is_no_longer_waiting',
+            'This change is no longer waiting.',
+          )}
         </Alert>
       </Page>
     );
@@ -253,7 +277,7 @@ export function ReviewChange({
         ).then(after);
       }}
     >
-      Approve it yourself
+      {t('people.review.change.approve_it_yourself', 'Approve it yourself')}
     </Button>
   ) : item.canDecide ? (
     <>
@@ -265,7 +289,7 @@ export function ReviewChange({
           decide(false);
         }}
       >
-        Reject
+        {t('people.review.change.reject', 'Reject')}
       </Button>
       {item.awaitingReview === true ? null : (
         <Button
@@ -278,7 +302,7 @@ export function ReviewChange({
           }}
         >
           {/* The note field says it is required; a half-width button has no room to. */}
-          Approve
+          {t('people.review.change.approve', 'Approve')}
         </Button>
       )}
     </>
@@ -291,7 +315,7 @@ export function ReviewChange({
         void act('WithdrawPendingChange', { id: item.id }, 'Withdrawn').then(after);
       }}
     >
-      Withdraw
+      {t('people.review.change.withdraw', 'Withdraw')}
     </Button>
   ) : undefined;
 
@@ -302,15 +326,16 @@ export function ReviewChange({
         <Stack gap={1} className="flex-1">
           <Text variant="title3">{`${item.name} · ${item.label}`}</Text>
           <Text variant="footnote" tone="muted">
-            {`Asked by ${item.requestedBy} · ${
-              decided
+            {t('people.review.change.asked_by', 'Asked by {{requestedBy}} · {{value}}', {
+              requestedBy: item.requestedBy,
+              value: decided
                 ? item.state === 'lapsed'
                   ? 'lapsed, nobody decided in 7 days'
                   : item.state === 'withdrawn'
                     ? 'withdrawn'
                     : `${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}`
-                : daysLeft(item.expiresAt, Date.now()).toLowerCase()
-            }`}
+                : daysLeft(item.expiresAt, Date.now()).toLowerCase(),
+            })}
           </Text>
         </Stack>
       </Inline>
@@ -319,7 +344,11 @@ export function ReviewChange({
         <Card>
           <Stack gap={2}>
             <Text variant="footnote" tone="muted">
-              {item.kind === 'correction' ? `${item.label} (correction)` : item.label}
+              {item.kind === 'correction'
+                ? t('people.review.change.correction', '{{label}} (correction)', {
+                    label: item.label,
+                  })
+                : item.label}
             </Text>
             {decided ? null : (
               <DisplayValue
@@ -330,19 +359,31 @@ export function ReviewChange({
             )}
             <DisplayValue field={field} value={item.value} />
             <Text variant="footnote" tone="muted">
-              {`Effective ${longDate(item.effectiveFrom)}`}
+              {t('people.review.change.effective', 'Effective {{longDate}}', {
+                longDate: longDate(item.effectiveFrom),
+              })}
             </Text>
           </Stack>
         </Card>
       ) : (
         <Text tone="muted">
-          {`You can’t view this field. Decide based on who asked and why. It takes effect from ${longDate(item.effectiveFrom)}.`}
+          {t(
+            'people.review.change.you_cant_view_this_field_decide',
+            'You can’t view this field. Decide based on who asked and why. It takes effect from {{longDate}}.',
+            { longDate: longDate(item.effectiveFrom) },
+          )}
         </Text>
       )}
 
       {item.reason === null ? null : <Text>{`“${item.reason}”`}</Text>}
       {item.awaitingReview === true ? (
-        <Alert tone="warning" title="Check this ID under ID checks first">
+        <Alert
+          tone="warning"
+          title={t(
+            'people.review.change.check_this_id_under_id_checks',
+            'Check this ID under ID checks first',
+          )}
+        >
           {(item.findings ?? []).map((f) => f.message).join(' ')}
         </Alert>
       ) : null}
@@ -353,10 +394,12 @@ export function ReviewChange({
             <Inline gap={2} justify="between">
               <Inline gap={2}>
                 <Icon icon={Sparkles} size={16} tone="accent" />
-                <Text weight="semibold">Why this is flagged</Text>
+                <Text weight="semibold">
+                  {t('people.review.change.why_this_is_flagged', 'Why this is flagged')}
+                </Text>
               </Inline>
               <Badge size="sm" tone="assistant">
-                AI
+                {t('people.review.change.ai', 'AI')}
               </Badge>
             </Inline>
             {(item.flags ?? []).map((f) => (
@@ -374,7 +417,10 @@ export function ReviewChange({
             ))}
             {(item.comparisons ?? []).length === 0 ? null : (
               <HorizontalBarChart
-                label="This change against the raises it was compared with"
+                label={t(
+                  'people.review.change.this_change_against_the_raises_it',
+                  'This change against the raises it was compared with',
+                )}
                 data={(item.comparisons ?? []).map((c) => ({
                   label: c.label,
                   value: Number(c.percent),
@@ -388,7 +434,10 @@ export function ReviewChange({
               </Text>
             )}
             <Text variant="footnote" tone="muted">
-              Flags never decide anything.
+              {t(
+                'people.review.change.flags_never_decide_anything',
+                'Flags never decide anything.',
+              )}
             </Text>
           </Stack>
         </Card>
@@ -397,17 +446,21 @@ export function ReviewChange({
         <Inline gap={1}>
           <Icon icon={Flag} size={14} tone="warning" />
           <Text variant="footnote" tone="warning">
-            {`Flagged when decided: ${item.flagSummary ?? ''}`}
+            {t('people.review.change.flagged_when_decided', 'Flagged when decided: {{value}}', {
+              value: item.flagSummary ?? '',
+            })}
           </Text>
         </Inline>
       ) : null}
-      {decided && item.note !== null ? <Text>{`Note: “${item.note}”`}</Text> : null}
+      {decided && item.note !== null ? (
+        <Text>{t('people.review.change.note', 'Note: “{{note}}”', { note: item.note })}</Text>
+      ) : null}
 
       <Questions item={item} onDone={reload} />
 
       {item.canDecide && !decided ? (
         <Field invalid={needsNote}>
-          <FieldLabel>Note</FieldLabel>
+          <FieldLabel>{t('people.review.change.note_2', 'Note')}</FieldLabel>
           <Textarea
             value={note}
             onChange={(text) => {
@@ -415,12 +468,31 @@ export function ReviewChange({
               if (text.trim() !== '') setNeedsNote(false);
             }}
             maxLength={500}
-            placeholder={flagged ? 'Required to approve something flagged' : 'Optional'}
+            placeholder={
+              flagged
+                ? t(
+                    'people.review.change.required_to_approve_something_flagged',
+                    'Required to approve something flagged',
+                  )
+                : t('people.review.change.optional', 'Optional')
+            }
           />
           <FieldDescription>
-            {flagged ? 'Required when you approve something flagged.' : 'Kept with the decision.'}
+            {flagged
+              ? t(
+                  'people.review.change.required_when_you_approve_something_flagged',
+                  'Required when you approve something flagged.',
+                )
+              : t('people.review.change.kept_with_the_decision', 'Kept with the decision.')}
           </FieldDescription>
-          {needsNote ? <FieldError>Add a note to approve something flagged.</FieldError> : null}
+          {needsNote ? (
+            <FieldError>
+              {t(
+                'people.review.change.add_a_note_to_approve_something',
+                'Add a note to approve something flagged.',
+              )}
+            </FieldError>
+          ) : null}
         </Field>
       ) : null}
 
@@ -432,14 +504,16 @@ export function ReviewChange({
               variant="ghost"
               loading={busy === 'MarkPendingChangeNotUnusual'}
               onPress={() => {
-                void act('MarkPendingChangeNotUnusual', { id: item.id }, 'Marked not unusual').then(
-                  (done) => {
-                    if (done !== null) reload();
-                  },
-                );
+                void act(
+                  'MarkPendingChangeNotUnusual',
+                  { id: item.id },
+                  t('people.review.change.marked_not_unusual', 'Marked not unusual'),
+                ).then((done) => {
+                  if (done !== null) reload();
+                });
               }}
             >
-              Not unusual
+              {t('people.review.change.not_unusual', 'Not unusual')}
             </Button>
           ) : null}
           {item.canAsk === true ? (
@@ -450,12 +524,15 @@ export function ReviewChange({
                 setAsking(true);
               }}
             >
-              {`Ask ${requester}`}
+              {t('people.review.change.ask', 'Ask {{requester}}', { requester })}
             </Button>
           ) : null}
           {!item.canDecide && !item.mine ? (
             <Text variant="footnote" tone="muted">
-              This change is about you, so someone else decides.
+              {t(
+                'people.review.change.this_change_is_about_you_so',
+                'This change is about you, so someone else decides.',
+              )}
             </Text>
           ) : null}
         </Inline>

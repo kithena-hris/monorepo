@@ -28,6 +28,7 @@ import { useAct } from '../act';
 import { ask, useSigned } from '../api';
 import { ReasonDialog } from '../employment';
 import type { PeopleScreen } from '../routes';
+import { t } from '../../i18n';
 
 type Role = 'hr' | 'finance' | 'people_admin';
 
@@ -47,38 +48,58 @@ interface RolesState {
   readonly holders: readonly RolesPerson[];
 }
 
-const ROLES: readonly {
+const ROLES = (): readonly {
   role: Role;
   label: string;
   means: string;
   short: string;
   icon: typeof ShieldCheck;
-}[] = [
+}[] => [
   {
     role: 'people_admin',
-    label: 'Administrator',
-    means:
+    label: t('people.settings.roles.administrator', 'Administrator'),
+    means: t(
+      'people.settings.roles.changes_the_fields_the_settings_and',
       'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
-    short: 'Every setting and every record',
+    ),
+    short: t(
+      'people.settings.roles.every_setting_and_every_record',
+      'Every setting and every record',
+    ),
     icon: ShieldCheck,
   },
   {
     role: 'hr',
-    label: 'HR',
-    means: 'Sees and corrects everybody’s record.',
-    short: 'Every record, approvals and imports',
+    label: t('people.settings.roles.hr', 'HR'),
+    means: t(
+      'people.settings.roles.sees_and_corrects_everybodys_record',
+      'Sees and corrects everybody’s record.',
+    ),
+    short: t(
+      'people.settings.roles.every_record_approvals_and_imports',
+      'Every record, approvals and imports',
+    ),
     icon: Users,
   },
   {
     role: 'finance',
-    label: 'Finance',
-    means: 'Sees pay, and asks for full values, for payroll.',
-    short: 'Pay and bank details, for payroll',
+    label: t('people.settings.roles.finance', 'Finance'),
+    means: t(
+      'people.settings.roles.sees_pay_and_asks_for_full',
+      'Sees pay, and asks for full values, for payroll.',
+    ),
+    short: t(
+      'people.settings.roles.pay_and_bank_details_for_payroll',
+      'Pay and bank details, for payroll',
+    ),
     icon: Banknote,
   },
 ];
-const labelOf = (role: Role): string => ROLES.find((r) => r.role === role)?.label ?? role;
-const nameOf = (p: RolesPerson): string => p.name ?? p.workEmail ?? 'Somebody without a record yet';
+const labelOf = (role: Role): string => ROLES().find((r) => r.role === role)?.label ?? role;
+const nameOf = (p: RolesPerson): string =>
+  p.name ??
+  p.workEmail ??
+  t('people.settings.roles.somebody_without_a_record_yet', 'Somebody without a record yet');
 
 /**
  * Roles (design H4): who holds administrator, HR and finance access. Tapping
@@ -119,18 +140,21 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
     };
   }, [signed, typed]);
 
-  const back = { label: 'Settings', onPress: navigation.goBack };
+  const back = {
+    label: t('people.settings.roles.settings', 'Settings'),
+    onPress: navigation.goBack,
+  };
   if (failed !== null) {
     return (
-      <Page title="Roles" back={back}>
+      <Page title={t('people.settings.roles.roles', 'Roles')} back={back}>
         <Failed message={failed} onRetry={() => void load(typed.trim())} />
       </Page>
     );
   }
   if (state === null) {
     return (
-      <Page title="Roles" back={back}>
-        <Loading label="Loading the roles" />
+      <Page title={t('people.settings.roles.roles', 'Roles')} back={back}>
+        <Loading label={t('people.settings.roles.loading_the_roles', 'Loading the roles')} />
       </Page>
     );
   }
@@ -138,12 +162,17 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
   const holdersOf = (role: Role): readonly RolesPerson[] =>
     state.holders.filter((p) => p.roles.includes(role));
   return (
-    <Page title="Roles" back={back}>
+    <Page title={t('people.settings.roles.roles', 'Roles')} back={back}>
       {state.canManage ? null : (
-        <Alert tone="info">Only a People administrator can change who holds a role.</Alert>
+        <Alert tone="info">
+          {t(
+            'people.settings.roles.only_a_people_administrator_can_change',
+            'Only a People administrator can change who holds a role.',
+          )}
+        </Alert>
       )}
       {/* Four cards (v3 S8): what each role can do, who has it, and one button. */}
-      {ROLES.map(({ role, label, short, icon }) => {
+      {ROLES().map(({ role, label, short, icon }) => {
         const holders = holdersOf(role);
         return (
           <Card key={role} className="gap-3">
@@ -159,7 +188,7 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
             <View className="flex-row items-center gap-3">
               {holders.length === 0 ? (
                 <Text tone="muted" className="flex-1">
-                  Nobody yet
+                  {t('people.settings.roles.nobody_yet', 'Nobody yet')}
                 </Text>
               ) : holders.length === 1 ? (
                 <View className="flex-1 flex-row items-center gap-2">
@@ -175,7 +204,11 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                       <Avatar key={h.accountId} name={nameOf(h)} />
                     ))}
                   </AvatarGroup>
-                  <Text weight="medium">{`${String(holders.length)} people`}</Text>
+                  <Text weight="medium">
+                    {t('people.settings.roles.people', '{{String}} people', {
+                      String: String(holders.length),
+                    })}
+                  </Text>
                 </View>
               )}
               {state.canManage ? (
@@ -186,7 +219,9 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                     setRoleOpen(role);
                   }}
                 >
-                  {holders.length === 0 ? 'Add someone' : 'Change'}
+                  {holders.length === 0
+                    ? t('people.settings.roles.add_someone', 'Add someone')
+                    : t('people.settings.roles.change', 'Change')}
                 </Button>
               ) : null}
             </View>
@@ -197,24 +232,30 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
         <ListItem
           listitem={false}
           icon={Network}
-          description="Their reports’ work details and requests"
+          description={t(
+            'people.settings.roles.their_reports_work_details_and_requests',
+            'Their reports’ work details and requests',
+          )}
           wrap
           className="bg-transparent px-0"
         >
-          Managers
+          {t('people.settings.roles.managers', 'Managers')}
         </ListItem>
         <View className="flex-row items-center gap-3">
           <Text tone="muted" className="flex-1">
-            From reporting lines
+            {t('people.settings.roles.from_reporting_lines', 'From reporting lines')}
           </Text>
-          <Badge size="sm">Automatic</Badge>
+          <Badge size="sm">{t('people.settings.roles.automatic', 'Automatic')}</Badge>
         </View>
       </Card>
       {holdersOf('finance').length === 0 ? (
         <View className="flex-row items-start gap-1.5 px-1">
           <Icon icon={Sparkles} size={13} tone="accent" />
           <Text variant="footnote" tone="accent" className="flex-1">
-            Finance is empty, so payroll exports need HR. Add someone to share the load.
+            {t(
+              'people.settings.roles.finance_is_empty_so_payroll_exports',
+              'Finance is empty, so payroll exports need HR. Add someone to share the load.',
+            )}
           </Text>
         </View>
       ) : null}
@@ -228,14 +269,22 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{labelOf(roleOpen)}</DialogTitle>
-              <DialogDescription>Tap a person to change their roles.</DialogDescription>
+              <DialogDescription>
+                {t(
+                  'people.settings.roles.tap_a_person_to_change_their',
+                  'Tap a person to change their roles.',
+                )}
+              </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <SearchField
                 value={typed}
                 onValueChange={setTyped}
-                placeholder="Find a person to add"
-                label="Find a person"
+                placeholder={t(
+                  'people.settings.roles.find_a_person_to_add',
+                  'Find a person to add',
+                )}
+                label={t('people.settings.roles.find_a_person', 'Find a person')}
               />
               <ScrollView style={{ flexGrow: 0, maxHeight: 360 }}>
                 {(typed.trim() === '' ? holdersOf(roleOpen) : rows).map((p) => (
@@ -244,7 +293,9 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                     listitem={false}
                     leading={<Avatar name={nameOf(p)} size={36} />}
                     description={
-                      p.roles.length === 0 ? 'No role' : p.roles.map(labelOf).join(' · ')
+                      p.roles.length === 0
+                        ? t('people.settings.roles.no_role', 'No role')
+                        : p.roles.map(labelOf).join(' · ')
                     }
                     chevron
                     onPress={() => {
@@ -272,7 +323,7 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                     });
                   }}
                 >
-                  Show more
+                  {t('people.settings.roles.show_more', 'Show more')}
                 </Button>
               )}
             </DialogBody>
@@ -283,7 +334,7 @@ export function Roles({ navigation }: PeopleScreen<'Roles'>): React.JSX.Element 
                   setRoleOpen(null);
                 }}
               >
-                Done
+                {t('people.settings.roles.done', 'Done')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -329,11 +380,24 @@ function PersonRoles({
       <ReasonDialog
         title={
           pending.grant
-            ? `Make ${who} ${labelOf(pending.role)}`
-            : `Remove ${labelOf(pending.role)} from ${who}`
+            ? t('people.settings.roles.make', 'Make {{who}} {{labelOf}}', {
+                who,
+                labelOf: labelOf(pending.role),
+              })
+            : t('people.settings.roles.remove_from', 'Remove {{labelOf}} from {{who}}', {
+                labelOf: labelOf(pending.role),
+                who,
+              })
         }
-        description="The reason is kept with the change."
-        action={pending.grant ? 'Grant' : 'Remove'}
+        description={t(
+          'people.settings.roles.the_reason_is_kept_with_the',
+          'The reason is kept with the change.',
+        )}
+        action={
+          pending.grant
+            ? t('people.settings.roles.grant', 'Grant')
+            : t('people.settings.roles.remove', 'Remove')
+        }
         busy={busy !== null}
         onClose={() => {
           setPending(null);
@@ -369,7 +433,7 @@ function PersonRoles({
         </DialogHeader>
         <DialogBody>
           <List>
-            {ROLES.map(({ role, label, means }) => {
+            {ROLES().map(({ role, label, means }) => {
               const held = person.roles.includes(role);
               const locked = (me && !held) || (held && role === 'people_admin' && lastAdmin);
               return (
@@ -377,16 +441,25 @@ function PersonRoles({
                   key={role}
                   description={
                     me && !held
-                      ? 'Nobody grants themselves a role.'
+                      ? t(
+                          'people.settings.roles.nobody_grants_themselves_a_role',
+                          'Nobody grants themselves a role.',
+                        )
                       : held && role === 'people_admin' && lastAdmin
-                        ? 'The last administrator stays.'
+                        ? t(
+                            'people.settings.roles.the_last_administrator_stays',
+                            'The last administrator stays.',
+                          )
                         : means
                   }
                   trailing={
                     <Switch
                       checked={held}
                       disabled={locked}
-                      accessibilityLabel={`${label} for ${who}`}
+                      accessibilityLabel={t('people.settings.roles.for', '{{label}} for {{who}}', {
+                        label,
+                        who,
+                      })}
                       onCheckedChange={(on) => {
                         setPending({ role, grant: on });
                       }}
@@ -401,7 +474,7 @@ function PersonRoles({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Done
+            {t('people.settings.roles.done', 'Done')}
           </Button>
         </DialogFooter>
       </DialogContent>

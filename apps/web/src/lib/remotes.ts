@@ -137,7 +137,7 @@ export function headerFrame(
     // Every People page opens as "People › section", its siblings a click away.
     section: here === undefined ? null : here.label,
     siblings: siblingsOf(places.sections, here, counts.sections),
-    siblingsLabel: `${area} sections`,
+    siblingsLabel: t('lib.remotes.sections', '{{area}} sections', { area }),
     ...(section?.tabs === undefined || !umbrella
       ? {}
       : {

@@ -196,9 +196,24 @@ export interface ImportFlowProps {
 }
 
 const STEPS = [
-  { id: 'map', label: t('import.import-flow.upload_and_map', 'Upload and map') },
-  { id: 'decide', label: t('import.import-flow.decide_whats_new', 'Decide what’s new') },
-  { id: 'plan', label: t('import.import-flow.approve_and_run', 'Approve and run') },
+  {
+    id: 'map',
+    get label(): string {
+      return t('import.import-flow.upload_and_map', 'Upload and map');
+    },
+  },
+  {
+    id: 'decide',
+    get label(): string {
+      return t('import.import-flow.decide_whats_new', 'Decide what’s new');
+    },
+  },
+  {
+    id: 'plan',
+    get label(): string {
+      return t('import.import-flow.approve_and_run', 'Approve and run');
+    },
+  },
 ] as const;
 
 const IGNORE = '__ignore';
@@ -719,12 +734,17 @@ function Steps({
   const placesHint =
     placesMissing.length === 0 ? null : (
       <p id={`${whyId}-places`} role="status" className="text-sm text-warning-fg">
-        {t('import.import-flow.give', 'Give')} {placesMissing.map((w) => `“${w.value}”`).join(', ')}{' '}
         {t(
-          'import.import-flow.a_name_a_country_and_a',
-          'a name, a country and a time zone, or leave',
-        )}{' '}
-        {placesMissing.length === 1 ? 'it' : 'them'} {t('import.import-flow.empty', 'empty.')}
+          'import.import-flow.give_places_a_name',
+          {
+            one: 'Give {{places}} a name, a country and a time zone, or leave it empty.',
+            other: 'Give {{places}} a name, a country and a time zone, or leave them empty.',
+          },
+          {
+            count: placesMissing.length,
+            places: placesMissing.map((w) => `“${w.value}”`).join(', '),
+          },
+        )}
       </p>
     );
 
@@ -887,12 +907,14 @@ function Steps({
               </Button>
             }
           >
-            {t('import.import-flow.imported', 'Imported')}{' '}
-            {(run?.people.done ?? 0).toLocaleString(locale())}{' '}
-            {run?.people.done === 1 ? 'person' : 'people'}
             {t(
-              'import.import-flow.its_full_report_is_kept_for',
-              '. Its full report is kept for a week after it finishes.',
+              'import.import-flow.imported_people',
+              {
+                one: 'Imported {{count}} person. Its full report is kept for a week after it finishes.',
+                other:
+                  'Imported {{count}} people. Its full report is kept for a week after it finishes.',
+              },
+              { count: run?.people.done ?? 0 },
             )}
           </Alert>
         )}
@@ -963,7 +985,12 @@ function Steps({
                 <p className="text-sm text-fg-muted">
                   {stage.file.name} · {stage.file.rows.toLocaleString(locale())}{' '}
                   {t('import.import-flow.rows', 'rows')}
-                  {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped}{' '}
+                  {stage.file.sheet === null
+                    ? ''
+                    : t('import.import-flow.sheet', ' · sheet “{{sheet}}”', {
+                        sheet: stage.file.sheet,
+                      })}{' '}
+                  · {mapped}{' '}
                   {t('import.import-flow.of_columns_mapped', 'of {{length}} columns mapped', {
                     length: stage.columns.length,
                   })}
@@ -1131,7 +1158,11 @@ function Steps({
                     )}
                     meta={
                       <Badge size="sm">
-                        {deciding.length} {deciding.length === 1 ? 'field' : 'fields'}
+                        {t(
+                          'import.import-flow.fields_count',
+                          { one: '{{count}} field', other: '{{count}} fields' },
+                          { count: deciding.length },
+                        )}
                       </Badge>
                     }
                   >

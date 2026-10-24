@@ -117,11 +117,21 @@ type Body = (p: {
 type Act = ReturnType<typeof useAct>;
 
 const COUNTRY: Readonly<Record<string, string>> = {
-  DE: tr('settings.germany', 'Germany'),
-  ES: tr('settings.spain', 'Spain'),
-  GB: tr('settings.united_kingdom', 'United Kingdom'),
-  IN: tr('settings.india', 'India'),
-  US: tr('settings.united_states', 'United States'),
+  get DE(): string {
+    return tr('settings.germany', 'Germany');
+  },
+  get ES(): string {
+    return tr('settings.spain', 'Spain');
+  },
+  get GB(): string {
+    return tr('settings.united_kingdom', 'United Kingdom');
+  },
+  get IN(): string {
+    return tr('settings.india', 'India');
+  },
+  get US(): string {
+    return tr('settings.united_states', 'United States');
+  },
 };
 
 /** A page's title, what it is for, and its one main action. */
@@ -363,7 +373,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
  */
 /** Never saved here: still Recruiting's placeholders, not the company's own. */
 const unset = (g: GeneralSettings): boolean =>
-  g.companyName === 'Your company' && g.companySlug === 'company';
+  g.companyName === tr('settings.your_company', 'Your company') && g.companySlug === 'company';
 
 /** `meridian-freight` read as a name: "Meridian Freight". */
 const nameOf = (slug: string): string =>
@@ -644,14 +654,23 @@ function AboutField({
 const CareersPage: Body = ({ data, props }) => {
   const { act, g, set, changed, discard, save, fromCompany } = useGeneral(data, props);
   const checks = useChecks({
-    name: g.companyName.trim() === '' ? 'Your company’s name, as candidates know it.' : null,
+    name:
+      g.companyName.trim() === ''
+        ? tr(
+            'settings.your_companys_name_as_candidates_know',
+            'Your company’s name, as candidates know it.',
+          )
+        : null,
     slug: SLUG.test(g.companySlug)
       ? null
-      : 'Use 1 to 40 lowercase letters, numbers and hyphens, starting and ending with a letter or number.',
+      : tr(
+          'settings.use_1_to_40_lowercase_letters',
+          'Use 1 to 40 lowercase letters, numbers and hyphens, starting and ending with a letter or number.',
+        ),
     reply:
       g.replyAddress === null || EMAIL.test(g.replyAddress)
         ? null
-        : 'That is not an email address.',
+        : tr('settings.that_is_not_an_email_address', 'That is not an email address.'),
   });
   return (
     <>
@@ -726,7 +745,11 @@ const CareersPage: Body = ({ data, props }) => {
                 }}
               />
             </FieldControl>
-            <FieldDescription>{`jobs.kithena.com/${g.companySlug === '' ? '…' : g.companySlug}`}</FieldDescription>
+            <FieldDescription>
+              {tr('settings.jobs_kithena_com', 'jobs.kithena.com/{{value}}', {
+                value: g.companySlug === '' ? '…' : g.companySlug,
+              })}
+            </FieldDescription>
             <FieldError>{checks.error('slug')}</FieldError>
           </Field>
           <List>
@@ -754,7 +777,10 @@ const CareersPage: Body = ({ data, props }) => {
               <Input
                 type="email"
                 value={g.replyAddress ?? ''}
-                placeholder="careers@meridianfreight.com"
+                placeholder={tr(
+                  'settings.careers_meridianfreight_com',
+                  'careers@meridianfreight.com',
+                )}
                 onChange={(e) => {
                   set({
                     replyAddress: e.target.value.trim() === '' ? null : e.target.value.trim(),
@@ -783,17 +809,17 @@ const CareersPage: Body = ({ data, props }) => {
   );
 };
 
-const REVEAL: readonly (readonly [GeneralSettings['revealInternalAt'], string])[] = [
+const REVEAL = (): readonly (readonly [GeneralSettings['revealInternalAt'], string])[] => [
   ['screening', tr('settings.once_they_pass_screening', 'Once they pass screening')],
   ['interview', tr('settings.once_they_reach_interviews', 'Once they reach interviews')],
   ['assessment', tr('settings.once_they_reach_the_assessment', 'Once they reach the assessment')],
   ['offer', tr('settings.only_at_the_offer', 'Only at the offer')],
 ];
 
-const AFTER: readonly (readonly [
+const AFTER = (): readonly (readonly [
   NonNullable<GeneralSettings['referralBonus']>['after'],
   string,
-])[] = [
+])[] => [
   ['probation', tr('settings.after_probation', 'After probation')],
   ['three_months', tr('settings.after_three_months', 'After three months')],
   ['six_months', tr('settings.after_six_months', 'After six months')],
@@ -812,10 +838,16 @@ const HiringRules: Body = ({ data, props }) => {
   const bonus = g.referralBonus;
   const currencies = [...new Set(['EUR', ...data.entities.map((e) => e.currency)])];
   const checks = useChecks({
-    bonus: bonus === null || bonus.amountMinor > 0 ? null : 'Enter the bonus, more than nothing.',
+    bonus:
+      bonus === null || bonus.amountMinor > 0
+        ? null
+        : tr('settings.enter_the_bonus_more_than_nothing', 'Enter the bonus, more than nothing.'),
     reasons:
       g.rejectionReasons.length === 0
-        ? 'Keep at least one reason: every rejection records one.'
+        ? tr(
+            'settings.keep_at_least_one_reason_every',
+            'Keep at least one reason: every rejection records one.',
+          )
         : null,
   });
   return (
@@ -865,7 +897,7 @@ const HiringRules: Body = ({ data, props }) => {
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                {REVEAL.map(([value, label]) => (
+                {REVEAL().map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -952,7 +984,7 @@ const HiringRules: Body = ({ data, props }) => {
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      {AFTER.map(([value, label]) => (
+                      {AFTER().map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
@@ -1041,7 +1073,10 @@ function OwnDomain({
   const checks = useChecks({
     host: /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/u.test(host.trim())
       ? null
-      : 'Enter a domain such as careers.yourcompany.com, without https://.',
+      : tr(
+          'settings.enter_a_domain_such_as_careers',
+          'Enter a domain such as careers.yourcompany.com, without https://.',
+        ),
   });
   return (
     <Group title={tr('settings.your_own_domain', 'Your own domain')}>
@@ -1884,9 +1919,12 @@ function ScorecardEditor({
   const checks = useChecks({
     name:
       name.trim() === ''
-        ? 'Name the scorecard, as interviewers will pick it.'
+        ? tr(
+            'settings.name_the_scorecard_as_interviewers_will',
+            'Name the scorecard, as interviewers will pick it.',
+          )
         : taken.some((t) => t.toLowerCase() === name.trim().toLowerCase() && t !== held?.name)
-          ? 'A scorecard by that name is already here.'
+          ? tr('settings.a_scorecard_by_that_name_is', 'A scorecard by that name is already here.')
           : null,
     competencies:
       named.length === 0
@@ -2146,20 +2184,25 @@ function ScorecardEditor({
   );
 }
 
-const SCALE = [
+const SCALE = () =>
   [
-    '1',
-    tr('settings.strong_no', 'Strong no'),
-    tr('settings.clear_evidence_against', 'Clear evidence against.'),
-  ],
-  ['2', tr('settings.no', 'No'), tr('settings.more_against_than_for', 'More against than for.')],
-  ['3', tr('settings.yes', 'Yes'), tr('settings.more_for_than_against', 'More for than against.')],
-  [
-    '4',
-    tr('settings.strong_yes', 'Strong yes'),
-    tr('settings.clear_repeated_evidence_for', 'Clear, repeated evidence for.'),
-  ],
-] as const;
+    [
+      '1',
+      tr('settings.strong_no', 'Strong no'),
+      tr('settings.clear_evidence_against', 'Clear evidence against.'),
+    ],
+    ['2', tr('settings.no', 'No'), tr('settings.more_against_than_for', 'More against than for.')],
+    [
+      '3',
+      tr('settings.yes', 'Yes'),
+      tr('settings.more_for_than_against', 'More for than against.'),
+    ],
+    [
+      '4',
+      tr('settings.strong_yes', 'Strong yes'),
+      tr('settings.clear_repeated_evidence_for', 'Clear, repeated evidence for.'),
+    ],
+  ] as const;
 
 const Scorecards: Body = ({ data, props }) => {
   const act = useAct(props);
@@ -2237,7 +2280,7 @@ const Scorecards: Body = ({ data, props }) => {
         </Group>
         <Group title={tr('settings.the_scale', 'The scale')}>
           <List>
-            {SCALE.map(([n, label, line]) => (
+            {SCALE().map(([n, label, line]) => (
               <ListItem
                 key={n}
                 leading={
@@ -2859,8 +2902,11 @@ const Ai: Body = ({ data, props }) => {
           <List>
             {feature(
               'writer',
-              'Write and translate job ads',
-              'Drafts and translates the description.',
+              tr('settings.write_and_translate_job_ads', 'Write and translate job ads'),
+              tr(
+                'settings.drafts_and_translates_the_description',
+                'Drafts and translates the description.',
+              ),
             )}
             {feature(
               'parser',

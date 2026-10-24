@@ -10,6 +10,7 @@ import { Input } from '../input/input.tsx';
 import { List, ListItem, type IconTone } from '../list-item/list-item.tsx';
 import { Text } from '../text/text.tsx';
 import { NavGroup, NavItem } from './nav.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A long list of destinations in labelled groups, as Settings is. On a phone
@@ -159,9 +160,12 @@ export function GroupedNav({
   collapsible = false,
   defaultCollapsed = [],
   searchable = false,
-  searchPlaceholder = 'Search',
+  searchPlaceholder = t('components.nav.grouped-nav.search', 'Search'),
   defaultQuery = '',
-  noResults = 'Try a shorter or different word.',
+  noResults = t(
+    'components.nav.grouped-nav.try_a_shorter_or_different_word',
+    'Try a shorter or different word.',
+  ),
   presentation = 'list',
   className,
 }: GroupedNavProps): React.JSX.Element {
@@ -190,8 +194,22 @@ export function GroupedNav({
             {String(item.count)}
           </Text>
         ) : null}
-        {item.locked ? <Icon icon={Lock} size={14} tone="subtle" label="Locked" /> : null}
-        {item.pinned ? <Icon icon={Pin} size={14} tone="subtle" label="Pinned" /> : null}
+        {item.locked ? (
+          <Icon
+            icon={Lock}
+            size={14}
+            tone="subtle"
+            label={t('components.nav.grouped-nav.locked', 'Locked')}
+          />
+        ) : null}
+        {item.pinned ? (
+          <Icon
+            icon={Pin}
+            size={14}
+            tone="subtle"
+            label={t('components.nav.grouped-nav.pinned', 'Pinned')}
+          />
+        ) : null}
       </View>
     ) : null;
 
@@ -219,7 +237,9 @@ export function GroupedNav({
       {shown.length === 0 ? (
         typeof noResults === 'string' ? (
           <View className="gap-1 px-4 py-2">
-            <Text weight="semibold">No matches</Text>
+            <Text weight="semibold">
+              {t('components.nav.grouped-nav.no_matches', 'No matches')}
+            </Text>
             <Text variant="subhead" tone="muted">
               {noResults}
             </Text>
@@ -322,8 +342,12 @@ export function GroupedNav({
                       <Text weight="medium">
                         <Marked text={item.label} query={query} />
                       </Text>
-                      {item.locked ? <Unseen>locked</Unseen> : null}
-                      {item.pinned ? <Unseen>pinned</Unseen> : null}
+                      {item.locked ? (
+                        <Unseen>{t('components.nav.grouped-nav.locked_2', 'locked')}</Unseen>
+                      ) : null}
+                      {item.pinned ? (
+                        <Unseen>{t('components.nav.grouped-nav.pinned_2', 'pinned')}</Unseen>
+                      ) : null}
                     </ListItem>
                   );
                 })}

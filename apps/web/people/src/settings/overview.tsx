@@ -95,16 +95,19 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
           'The details People keeps on each person: what they are, who sees them, and when they are asked.',
         )}
         items={[
-          { label: 'Fields', value: String(fields.length) },
+          { label: t('settings.overview.fields', 'Fields'), value: String(fields.length) },
           {
-            label: 'Published',
+            label: t('settings.overview.published', 'Published'),
             value:
               published === null
-                ? 'Not yet'
-                : `Version ${String(published.version)}, ${day(published.publishedAt)}`,
+                ? t('settings.overview.not_yet', 'Not yet')
+                : t('settings.overview.version_on', 'Version {{version}}, {{day}}', {
+                    version: String(published.version),
+                    day: day(published.publishedAt),
+                  }),
           },
           {
-            label: 'Unpublished changes',
+            label: t('settings.overview.unpublished_changes', 'Unpublished changes'),
             value:
               unpublishedChanges === 0 ? (
                 'None'
@@ -139,20 +142,29 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
           'Legal entities, work locations, employee numbering, the default time zone and retention.',
         )}
         items={[
-          { label: 'Legal entities', value: String(live(o.legalEntities)) },
-          { label: 'Work locations', value: String(live(o.locations)) },
-          { label: 'Default time zone', value: o.settings.defaultTimeZone },
           {
-            label: 'Photo at sign-up',
-            value:
-              o.settings.photoAtSignup === 'required'
-                ? 'Asked first'
-                : o.settings.photoAtSignup === 'optional'
-                  ? 'Asked, can skip'
-                  : 'Not asked',
+            label: t('settings.overview.legal_entities', 'Legal entities'),
+            value: String(live(o.legalEntities)),
           },
           {
-            label: 'Smallest group reported',
+            label: t('settings.overview.work_locations', 'Work locations'),
+            value: String(live(o.locations)),
+          },
+          {
+            label: t('settings.overview.default_time_zone', 'Default time zone'),
+            value: o.settings.defaultTimeZone,
+          },
+          {
+            label: t('settings.overview.photo_at_sign_up', 'Photo at sign-up'),
+            value:
+              o.settings.photoAtSignup === 'required'
+                ? t('settings.overview.asked_first', 'Asked first')
+                : o.settings.photoAtSignup === 'optional'
+                  ? t('settings.overview.asked_can_skip', 'Asked, can skip')
+                  : t('settings.overview.not_asked', 'Not asked'),
+          },
+          {
+            label: t('settings.overview.smallest_group_reported', 'Smallest group reported'),
             value: t(
               'settings.overview.count_people',
               { one: '{{count}} person', other: '{{count}} people' },
@@ -160,12 +172,18 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
             ),
           },
           {
-            label: 'Retention periods',
+            label: t('settings.overview.retention_periods', 'Retention periods'),
             value:
               unreviewed === 0 ? (
                 'Reviewed'
               ) : (
-                <Badge tone="attention">{`${String(unreviewed)} waiting for legal review`}</Badge>
+                <Badge tone="attention">
+                  {t(
+                    'settings.overview.waiting_for_legal_review',
+                    '{{String}} waiting for legal review',
+                    { String: String(unreviewed) },
+                  )}
+                </Badge>
               ),
           },
         ]}
@@ -187,9 +205,12 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
           'Who is an HR member, a People administrator or in finance here.',
         )}
         items={[
-          { label: 'People administrators', value: String(holding('people_admin')) },
-          { label: 'HR members', value: String(holding('hr')) },
-          { label: 'Finance', value: String(holding('finance')) },
+          {
+            label: t('settings.overview.people_administrators', 'People administrators'),
+            value: String(holding('people_admin')),
+          },
+          { label: t('settings.overview.hr_members', 'HR members'), value: String(holding('hr')) },
+          { label: t('settings.overview.finance', 'Finance'), value: String(holding('finance')) },
         ]}
       />,
     );
@@ -210,17 +231,17 @@ function Cards({ data }: { readonly data: PeopleSettingsState }): JSX.Element {
         )}
         items={[
           {
-            label: 'Webhooks',
+            label: t('settings.overview.webhooks', 'Webhooks'),
             value:
               data.integrations.endpoints.length === 0
                 ? 'None'
                 : `${String(enabled)} of ${String(data.integrations.endpoints.length)} on`,
           },
           {
-            label: 'Provisioning',
+            label: t('settings.overview.provisioning', 'Provisioning'),
             value:
               live.length === 0
-                ? 'Not connected'
+                ? t('settings.overview.not_connected', 'Not connected')
                 : live
                     .map(
                       (c) =>

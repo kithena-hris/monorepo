@@ -21,6 +21,7 @@ import { useAct } from '../act';
 import { ask, formInputs, useSigned, type Finding, type RecordField, type Value } from '../api';
 import { AttributeInput } from '../attribute-input';
 import type { CompletenessState, GapField, GapRow } from './model';
+import { t } from '../../i18n';
 
 /** A gap's field as the form's field: People sends the gap its type and choices. */
 const asField = (f: GapField): RecordField => ({
@@ -71,7 +72,9 @@ function FillIn({
       }
     }
     const saved = await act<{ held: number | null }>('SaveCompletenessGrid', { changes }, (d) =>
-      d.held === null || d.held === 0 ? 'Saved' : 'Sent to HR for approval',
+      d.held === null || d.held === 0
+        ? 'Saved'
+        : t('people.review.missing.sent_to_hr_for_approval', 'Sent to HR for approval'),
     );
     if (saved === null) return;
     onClose();
@@ -87,8 +90,12 @@ function FillIn({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Fill in for ${row.name}`}</DialogTitle>
-          <DialogDescription>What HR owns and is missing.</DialogDescription>
+          <DialogTitle>
+            {t('people.review.missing.fill_in_for', 'Fill in for {{name}}', { name: row.name })}
+          </DialogTitle>
+          <DialogDescription>
+            {t('people.review.missing.what_hr_owns_and_is_missing', 'What HR owns and is missing.')}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Stack gap={3}>
@@ -108,7 +115,7 @@ function FillIn({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.review.missing.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -117,7 +124,9 @@ function FillIn({
             loading={busy !== null}
             onPress={() => void save()}
           >
-            {warnings !== null && warnings.length > 0 ? 'Save anyway' : 'Save'}
+            {warnings !== null && warnings.length > 0
+              ? t('people.review.missing.save_anyway', 'Save anyway')
+              : t('people.review.missing.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -157,16 +166,31 @@ export function Missing({
         <Stack gap={2}>
           {complete === null ? null : (
             <>
-              <Text variant="title1">{`${String(complete.percent)}% complete`}</Text>
-              <Progress value={complete.percent} label="Records complete" />
+              <Text variant="title1">
+                {t('people.review.missing.complete', '{{String}}% complete', {
+                  String: String(complete.percent),
+                })}
+              </Text>
+              <Progress
+                value={complete.percent}
+                label={t('people.review.missing.records_complete', 'Records complete')}
+              />
             </>
           )}
           <Text tone="muted">
-            {`${String(completeness.waiting.people)} waiting on employees · ${String(completeness.toFill)} for HR`}
+            {t(
+              'people.review.missing.waiting_on_employees_for_hr',
+              '{{String}} waiting on employees · {{String2}} for HR',
+              { String: String(completeness.waiting.people), String2: String(completeness.toFill) },
+            )}
           </Text>
           {completeness.blocking === null || completeness.blocking === 0 ? null : (
             <Text variant="footnote" tone="warning">
-              {`${String(completeness.blocking)} missing bank, tax or ID details payroll needs.`}
+              {t(
+                'people.review.missing.missing_bank_tax_or_id_details',
+                '{{String}} missing bank, tax or ID details payroll needs.',
+                { String: String(completeness.blocking) },
+              )}
             </Text>
           )}
         </Stack>
@@ -178,7 +202,9 @@ export function Missing({
             <ListItem
               key={row.personId}
               leading={<Avatar name={row.name} size={40} decorative />}
-              description={`Missing: ${row.missing.map(labelOf).join(', ')}`}
+              description={t('people.review.missing.missing', 'Missing: {{join}}', {
+                join: row.missing.map(labelOf).join(', '),
+              })}
               onPress={() => {
                 onOpen(row.personId, row.name);
               }}
@@ -191,11 +217,11 @@ export function Missing({
                       setFilling(row);
                     }}
                   >
-                    Fill in
+                    {t('people.review.missing.fill_in', 'Fill in')}
                   </Button>
                 ) : done ? (
                   <Button size="sm" variant="ghost" disabled>
-                    Reminded
+                    {t('people.review.missing.reminded', 'Reminded')}
                   </Button>
                 ) : (
                   <Button
@@ -211,7 +237,7 @@ export function Missing({
                       });
                     }}
                   >
-                    Remind
+                    {t('people.review.missing.remind', 'Remind')}
                   </Button>
                 )
               }
@@ -234,7 +260,7 @@ export function Missing({
             });
           }}
         >
-          Show more people
+          {t('people.review.missing.show_more_people', 'Show more people')}
         </Button>
       )}
       {filling === null ? null : (

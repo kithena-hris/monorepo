@@ -17,6 +17,7 @@ import {
 } from '../dropdown-menu/dropdown-menu.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Where you are in a hierarchy: every item but the last is a link. On a
@@ -95,7 +96,11 @@ function Crumb({
         <DropdownMenuTrigger>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${item.label}, choose another`}
+            accessibilityLabel={t(
+              'components.breadcrumb.breadcrumb.choose_another',
+              '{{label}}, choose another',
+              { label: item.label },
+            )}
             className={cn(
               'h-7 shrink-0 flex-row items-center gap-1 rounded-[8px] bg-surface-sunken px-2',
               link,
@@ -145,7 +150,9 @@ function Folded({
       <DropdownMenuTrigger>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${String(items.length)} more`}
+          accessibilityLabel={t('components.breadcrumb.breadcrumb.more', '{{String}} more', {
+            String: String(items.length),
+          })}
           className={cn(
             'h-6 w-7 shrink-0 items-center justify-center rounded-[8px] bg-surface-sunken',
             link,
@@ -154,7 +161,10 @@ function Folded({
           <Icon icon={Ellipsis} size={15} tone="muted" />
         </Pressable>
       </DropdownMenuTrigger>
-      <DropdownMenuContent label="Hidden levels" {...host}>
+      <DropdownMenuContent
+        label={t('components.breadcrumb.breadcrumb.hidden_levels', 'Hidden levels')}
+        {...host}
+      >
         {items.map((item) => (
           <DropdownMenuItem
             key={item.label}
@@ -173,7 +183,7 @@ export function Breadcrumb({
   items,
   separator = 'chevron',
   maxItems,
-  label = 'Breadcrumb',
+  label = t('components.breadcrumb.breadcrumb.breadcrumb', 'Breadcrumb'),
   portalHost,
   className,
 }: BreadcrumbProps): React.JSX.Element {
@@ -221,7 +231,9 @@ export function BreadcrumbBack({
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`Back to ${label}`}
+      accessibilityLabel={t('components.breadcrumb.breadcrumb.back_to', 'Back to {{label}}', {
+        label,
+      })}
       onPress={onPress}
       className={cn('min-h-m-tap flex-row items-center gap-1 self-start', link, className)}
     >

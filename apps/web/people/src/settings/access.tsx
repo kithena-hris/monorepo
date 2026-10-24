@@ -13,36 +13,53 @@ import { t } from '../i18n';
 export const AUDIENCES: readonly AccessAudience[] = [
   {
     id: 'self',
-    label: t('settings.access.the_employee', 'The employee'),
-    description: t(
-      'settings.access.the_person_the_record_is_about',
-      'The person the record is about',
-    ),
+    get label(): string {
+      return t('settings.access.the_employee', 'The employee');
+    },
+    get description(): string {
+      return t('settings.access.the_person_the_record_is_about', 'The person the record is about');
+    },
     icon: <icons.person />,
   },
   {
     id: 'manager',
-    label: t('settings.access.manager', 'Manager'),
-    description: t('settings.access.their_direct_manager', 'Their direct manager'),
+    get label(): string {
+      return t('settings.access.manager', 'Manager');
+    },
+    get description(): string {
+      return t('settings.access.their_direct_manager', 'Their direct manager');
+    },
     icon: <icons.team />,
   },
   {
     id: 'manager_chain',
-    label: t('settings.access.line_managers', 'Line managers'),
-    description: t('settings.access.managers_above_their_manager', 'Managers above their manager'),
+    get label(): string {
+      return t('settings.access.line_managers', 'Line managers');
+    },
+    get description(): string {
+      return t('settings.access.managers_above_their_manager', 'Managers above their manager');
+    },
     icon: <icons.organisation />,
     canChange: false,
   },
   {
     id: 'hr',
-    label: 'HR',
-    description: t('settings.access.your_hr_team', 'Your HR team'),
+    get label(): string {
+      return t('settings.access.hr', 'HR');
+    },
+    get description(): string {
+      return t('settings.access.your_hr_team', 'Your HR team');
+    },
     icon: <icons.people />,
   },
   {
     id: 'finance',
-    label: t('settings.access.finance', 'Finance'),
-    description: t('settings.access.for_payroll', 'For payroll'),
+    get label(): string {
+      return t('settings.access.finance', 'Finance');
+    },
+    get description(): string {
+      return t('settings.access.for_payroll', 'For payroll');
+    },
     icon: <icons.payroll />,
   },
 ];

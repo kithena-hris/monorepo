@@ -42,7 +42,12 @@ export function grouped<T extends { readonly category: string }>(
       ? []
       : [
           {
-            category: { key: 'other', name: 'Other perks', icon: 'more', custom: false },
+            category: {
+              key: 'other',
+              name: t('benefits.other_perks', 'Other perks'),
+              icon: 'more',
+              custom: false,
+            },
             benefits: strays,
           },
         ]),

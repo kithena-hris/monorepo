@@ -8,6 +8,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./words": "./src/words.ts",
     "./global.css": "./src/global.css"
   },
   "scripts": {

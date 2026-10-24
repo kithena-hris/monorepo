@@ -7,6 +7,7 @@ import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Progress } from '../progress/progress.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Progress through a flow with a fixed number of steps; more than five is too
@@ -124,7 +125,13 @@ function Step({
         )}
       >
         {children}
-        <Unseen>{`step ${String(index + 1)} of ${String(count)}, ${spoken[status]}`}</Unseen>
+        <Unseen>
+          {t('components.stepper.stepper.step_of', 'step {{String}} of {{String2}}, {{value}}', {
+            String: String(index + 1),
+            String2: String(count),
+            value: spoken[status],
+          })}
+        </Unseen>
       </Pressable>
     );
   }
@@ -138,7 +145,7 @@ function Step({
 export function Stepper({
   steps,
   orientation = 'vertical',
-  label = 'Progress',
+  label = t('components.stepper.stepper.progress', 'Progress'),
   className,
 }: StepperProps): React.JSX.Element {
   const vertical = orientation === 'vertical';
@@ -244,7 +251,14 @@ export function StepperProgress({
             value={step}
             max={count}
             hideLabel
-            label={label ? `${label}, step ${reading}` : `Step ${reading}`}
+            label={
+              label
+                ? t('components.stepper.stepper.step', '{{label}}, step {{reading}}', {
+                    label,
+                    reading,
+                  })
+                : t('components.stepper.stepper.step_2', 'Step {{reading}}', { reading })
+            }
             valueLabel={reading}
           />
         ) : (
@@ -310,7 +324,11 @@ export function StepperDots({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Step ${String(current + 1)} of ${String(count)}`}
+      accessibilityLabel={t(
+        'components.stepper.stepper.step_of_2',
+        'Step {{String}} of {{String2}}',
+        { String: String(current + 1), String2: String(count) },
+      )}
       className={cn('flex-row items-center justify-center gap-2', className)}
     >
       {Array.from({ length: count }, (_, index) => (

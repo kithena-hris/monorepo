@@ -20,6 +20,7 @@ import {
 } from '../dialog/dialog.tsx';
 import { checkFile, type Pick, type PickedFile, type Rejection } from '../dropzone/files.ts';
 import { Icon, iconVariants, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Images with a preview: a tile for each and a tile that adds one. Type, size
@@ -107,7 +108,11 @@ export function ImageUploader({
         rejections.push({
           file,
           reason: 'count',
-          message: `Only ${String(maxFiles)} ${maxFiles === 1 ? 'image' : 'images'} allowed.`,
+          message: t(
+            'components.image-uploader.image-uploader.only_allowed',
+            { one: 'Only {{count}} image allowed.', other: 'Only {{count}} images allowed.' },
+            { count: maxFiles },
+          ),
         });
       else
         accepted.push({
@@ -145,7 +150,14 @@ export function ImageUploader({
         ))}
         {showAdd ? (
           <AddTile
-            label={addLabel ?? (value.length ? 'Add' : multiple ? 'Add photos' : 'Add photo')}
+            label={
+              addLabel ??
+              (value.length
+                ? t('components.image-uploader.image-uploader.add', 'Add')
+                : multiple
+                  ? t('components.image-uploader.image-uploader.add_photos', 'Add photos')
+                  : t('components.image-uploader.image-uploader.add_photo', 'Add photo'))
+            }
             name={label}
             pick={pick}
             onFiles={take}
@@ -198,7 +210,11 @@ function ImageTile({
         <View className="absolute top-1.5 right-1.5">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${image.name}`}
+            accessibilityLabel={t(
+              'components.image-uploader.image-uploader.remove',
+              'Remove {{name}}',
+              { name: image.name },
+            )}
             hitSlop={10}
             onPress={onRemove}
             className="size-6 items-center justify-center rounded-full bg-overlay"
@@ -242,7 +258,7 @@ function AddTile({
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
         accessibilityRole="button"
-        accessibilityLabel={`${label || 'Add a photo'}, ${name}`}
+        accessibilityLabel={`${label || t('components.image-uploader.image-uploader.add_a_photo', 'Add a photo')}, ${name}`}
         accessibilityState={{ disabled }}
         aria-invalid={invalid || undefined}
         disabled={disabled}
@@ -324,13 +340,19 @@ function Uploading({ progress, name }: { progress: number; name: string }): Reac
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`Uploading ${name}`}
+      accessibilityLabel={t(
+        'components.image-uploader.image-uploader.uploading',
+        'Uploading {{name}}',
+        { name },
+      )}
       accessibilityValue={{ min: 0, max: 100, now: value }}
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={100}
       role="progressbar"
-      aria-label={`Uploading ${name}`}
+      aria-label={t('components.image-uploader.image-uploader.uploading', 'Uploading {{name}}', {
+        name,
+      })}
       className="absolute inset-0 items-center justify-center bg-overlay"
     >
       {ring}
@@ -479,7 +501,11 @@ export function AvatarUploader({
           </PhotoButton>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`${name}’s photo`}</DialogTitle>
+              <DialogTitle>
+                {t('components.image-uploader.image-uploader.s_photo', '{{name}}’s photo', {
+                  name,
+                })}
+              </DialogTitle>
             </DialogHeader>
             <DialogFooter stack>
               <Button
@@ -489,7 +515,10 @@ export function AvatarUploader({
                   choose();
                 }}
               >
-                Choose a new photo
+                {t(
+                  'components.image-uploader.image-uploader.choose_a_new_photo',
+                  'Choose a new photo',
+                )}
               </Button>
               <Button
                 variant="danger-soft"
@@ -498,10 +527,12 @@ export function AvatarUploader({
                   onRemove?.();
                 }}
               >
-                Remove photo
+                {t('components.image-uploader.image-uploader.remove_photo', 'Remove photo')}
               </Button>
               <DialogClose asChild>
-                <Button variant="ghost">Cancel</Button>
+                <Button variant="ghost">
+                  {t('components.image-uploader.image-uploader.cancel', 'Cancel')}
+                </Button>
               </DialogClose>
             </DialogFooter>
           </DialogContent>
@@ -525,21 +556,39 @@ export function AvatarUploader({
               size="sm"
               disabled={disabled || uploading}
               // What it says first, then whose (WCAG 2.5.3, Label in Name).
-              accessibilityLabel={src ? `Change photo, ${name}` : `Add photo, ${name}`}
+              accessibilityLabel={
+                src
+                  ? t(
+                      'components.image-uploader.image-uploader.change_photo',
+                      'Change photo, {{name}}',
+                      { name },
+                    )
+                  : t(
+                      'components.image-uploader.image-uploader.add_photo_2',
+                      'Add photo, {{name}}',
+                      { name },
+                    )
+              }
               onPress={choose}
             >
-              {src ? 'Change photo' : 'Add photo'}
+              {src
+                ? t('components.image-uploader.image-uploader.change_photo_2', 'Change photo')
+                : t('components.image-uploader.image-uploader.add_photo', 'Add photo')}
             </Button>
             {onRemove && src ? (
               <Button
                 variant="ghost"
                 size="sm"
                 disabled={disabled || uploading}
-                accessibilityLabel={`Remove ${name}’s photo`}
+                accessibilityLabel={t(
+                  'components.image-uploader.image-uploader.remove_s_photo',
+                  'Remove {{name}}’s photo',
+                  { name },
+                )}
                 onPress={onRemove}
                 className="-ml-[15px]"
               >
-                Remove
+                {t('components.image-uploader.image-uploader.remove_2', 'Remove')}
               </Button>
             ) : null}
           </View>
@@ -569,7 +618,11 @@ function PhotoButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Change ${name}’s photo`}
+      accessibilityLabel={t(
+        'components.image-uploader.image-uploader.change_s_photo',
+        'Change {{name}}’s photo',
+        { name },
+      )}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
@@ -587,7 +640,7 @@ function PhotoButton({
             >
               <Icon icon={Camera} size={22} tone="on-accent" />
               <CssText className="text-[12px] leading-none font-semibold text-fg-on-accent">
-                Change
+                {t('components.image-uploader.image-uploader.change', 'Change')}
               </CssText>
             </View>
           ) : null}

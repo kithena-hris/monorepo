@@ -169,11 +169,21 @@ function Waiting({ what, icon }: { readonly what: string; readonly icon: ReactNo
 }
 
 const COUNTRY: Readonly<Record<string, string>> = {
-  DE: tr('job-terms.germany', 'Germany'),
-  ES: tr('job-terms.spain', 'Spain'),
-  GB: tr('job-terms.the_united_kingdom', 'the United Kingdom'),
-  IN: tr('job-terms.india', 'India'),
-  US: tr('job-terms.the_united_states', 'the United States'),
+  get DE(): string {
+    return tr('job-terms.germany', 'Germany');
+  },
+  get ES(): string {
+    return tr('job-terms.spain', 'Spain');
+  },
+  get GB(): string {
+    return tr('job-terms.the_united_kingdom', 'the United Kingdom');
+  },
+  get IN(): string {
+    return tr('job-terms.india', 'India');
+  },
+  get US(): string {
+    return tr('job-terms.the_united_states', 'the United States');
+  },
 };
 
 export const countryName = (code: string | null): string =>
@@ -280,29 +290,30 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
   );
 }
 
-const MODES = [
+const MODES = () =>
   [
-    'onsite',
-    tr('job-terms.on_site', 'On site'),
-    tr('job-terms.every_day_at_the_workplace', 'Every day at the workplace.'),
-    <icons.company key="i" aria-hidden />,
-  ],
-  [
-    'hybrid',
-    tr('job-terms.hybrid', 'Hybrid'),
-    tr(
-      'job-terms.some_days_at_the_workplace_the',
-      'Some days at the workplace, the rest from home.',
-    ),
-    <icons.transfer key="i" aria-hidden />,
-  ],
-  [
-    'remote',
-    tr('job-terms.remote', 'Remote'),
-    tr('job-terms.from_home_within_the_countrys_law', 'From home, within the country’s law.'),
-    <icons.home key="i" aria-hidden />,
-  ],
-] as const;
+    [
+      'onsite',
+      tr('job-terms.on_site', 'On site'),
+      tr('job-terms.every_day_at_the_workplace', 'Every day at the workplace.'),
+      <icons.company key="i" aria-hidden />,
+    ],
+    [
+      'hybrid',
+      tr('job-terms.hybrid', 'Hybrid'),
+      tr(
+        'job-terms.some_days_at_the_workplace_the',
+        'Some days at the workplace, the rest from home.',
+      ),
+      <icons.transfer key="i" aria-hidden />,
+    ],
+    [
+      'remote',
+      tr('job-terms.remote', 'Remote'),
+      tr('job-terms.from_home_within_the_countrys_law', 'From home, within the country’s law.'),
+      <icons.home key="i" aria-hidden />,
+    ],
+  ] as const;
 
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
@@ -324,7 +335,7 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
           save({ workMode: v as NonNullable<JobTerms['workMode']> });
         }}
       >
-        {MODES.map(([key, label, description, icon]) => (
+        {MODES().map(([key, label, description, icon]) => (
           <RadioCard key={key} value={key} description={description} icon={icon}>
             {label}
           </RadioCard>
@@ -388,7 +399,7 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
             <Field required>
               <FieldLabel>{tr('job-terms.days_on_site', 'Days on site')}</FieldLabel>
               <ChipRow aria-label={tr('job-terms.days_on_site', 'Days on site')}>
-                {DAYS.map(([d, label]) => {
+                {DAYS().map(([d, label]) => {
                   const set = terms.hybridOnsiteDays ?? [];
                   const on = set.includes(d);
                   const full =
@@ -425,18 +436,24 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
 
 /** What each kind of work means, where the country's own rules give no line of their own. */
 const RELATIONSHIP_NOTE: Readonly<Record<string, string>> = {
-  employee: tr(
-    'job-terms.on_the_payroll_with_the_full',
-    'On the payroll, with the full protection of employment law.',
-  ),
-  worker: tr(
-    'job-terms.paid_for_the_work_with_core',
-    'Paid for the work, with core rights such as holiday pay and the minimum wage.',
-  ),
-  contractor: tr(
-    'job-terms.self_employed_invoicing_for_the_work_no',
-    'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
-  ),
+  get employee(): string {
+    return tr(
+      'job-terms.on_the_payroll_with_the_full',
+      'On the payroll, with the full protection of employment law.',
+    );
+  },
+  get worker(): string {
+    return tr(
+      'job-terms.paid_for_the_work_with_core',
+      'Paid for the work, with core rights such as holiday pay and the minimum wage.',
+    );
+  },
+  get contractor(): string {
+    return tr(
+      'job-terms.self_employed_invoicing_for_the_work_no',
+      'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
+    );
+  },
 };
 
 export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
@@ -558,20 +575,22 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
   );
 }
 
-const DAYS = [
-  [1, tr('job-terms.mon', 'Mon')],
-  [2, tr('job-terms.tue', 'Tue')],
-  [3, tr('job-terms.wed', 'Wed')],
-  [4, tr('job-terms.thu', 'Thu')],
-  [5, tr('job-terms.fri', 'Fri')],
-  [6, tr('job-terms.sat', 'Sat')],
-  [7, tr('job-terms.sun', 'Sun')],
-] as const;
+const DAYS = () =>
+  [
+    [1, tr('job-terms.mon', 'Mon')],
+    [2, tr('job-terms.tue', 'Tue')],
+    [3, tr('job-terms.wed', 'Wed')],
+    [4, tr('job-terms.thu', 'Thu')],
+    [5, tr('job-terms.fri', 'Fri')],
+    [6, tr('job-terms.sat', 'Sat')],
+    [7, tr('job-terms.sun', 'Sun')],
+  ] as const;
 
-const WEEKS = [
-  [[1, 2, 3, 4, 5], tr('job-terms.monday_to_friday', 'Monday to Friday')],
-  [[1, 2, 3, 4], tr('job-terms.monday_to_thursday', 'Monday to Thursday')],
-] as const;
+const WEEKS = () =>
+  [
+    [[1, 2, 3, 4, 5], tr('job-terms.monday_to_friday', 'Monday to Friday')],
+    [[1, 2, 3, 4], tr('job-terms.monday_to_thursday', 'Monday to Thursday')],
+  ] as const;
 
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
@@ -586,7 +605,7 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
     <>
       <Refusal error={error} />
       <ChipRow aria-label={tr('job-terms.work_days', 'Work days')}>
-        {DAYS.map(([d, label]) => {
+        {DAYS().map(([d, label]) => {
           const on = terms.workDays.includes(d);
           return (
             <Chip
@@ -606,21 +625,21 @@ export function DaysChoice({ data, props }: TermsProps): JSX.Element {
       {/* Shortcuts that fill the days above, said as such: they are not a second setting. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-fg-muted">
         <span>{tr('job-terms.fill_in_a_common_week', 'Fill in a common week:')}</span>
-        {WEEKS.filter(
-          ([days]) => days.join() !== terms.workDays.toSorted((a, b) => a - b).join(),
-        ).map(([days, label]) => (
-          <Button
-            key={label}
-            size="xs"
-            variant="ghost"
-            startIcon={<icons.calendar aria-hidden />}
-            onClick={() => {
-              save({ workDays: [...days] });
-            }}
-          >
-            {label}
-          </Button>
-        ))}
+        {WEEKS()
+          .filter(([days]) => days.join() !== terms.workDays.toSorted((a, b) => a - b).join())
+          .map(([days, label]) => (
+            <Button
+              key={label}
+              size="xs"
+              variant="ghost"
+              startIcon={<icons.calendar aria-hidden />}
+              onClick={() => {
+                save({ workDays: [...days] });
+              }}
+            >
+              {label}
+            </Button>
+          ))}
       </div>
     </>
   );
@@ -728,14 +747,16 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
               label: tr('job-terms.full_time_there', 'Full time there'),
               value:
                 options.fullTimeWeeklyMinutes === null
-                  ? 'Not set'
+                  ? tr('job-terms.not_set', 'Not set')
                   : hoursOf(options.fullTimeWeeklyMinutes),
             },
             {
               label: tr('job-terms.so_this_is', 'So this is'),
               value: (
                 <Badge size="sm" variant="soft" tone="accent">
-                  {options.hours === 'full_time' ? 'Full time' : 'Part time'}
+                  {options.hours === 'full_time'
+                    ? tr('job-terms.full_time', 'Full time')
+                    : tr('job-terms.part_time', 'Part time')}
                 </Badge>
               ),
             },

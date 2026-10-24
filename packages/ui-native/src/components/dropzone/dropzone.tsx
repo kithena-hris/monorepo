@@ -10,6 +10,7 @@ import { spokenName } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import type { Pick, PickedFile } from './files.ts';
+import { t } from '../../lib/i18n';
 
 export {
   checkFile,
@@ -52,8 +53,8 @@ export type DropzoneProps = {
 export function Dropzone({
   pick,
   onFiles,
-  label = 'Choose files',
-  hint = 'PDF, PNG or JPG, up to 10 MB',
+  label = t('components.dropzone.dropzone.choose_files', 'Choose files'),
+  hint = t('components.dropzone.dropzone.pdf_png_or_jpg_up_to', 'PDF, PNG or JPG, up to 10 MB'),
   error,
   variant = 'panel',
   disabled = false,
@@ -95,7 +96,7 @@ export function Dropzone({
             !inline && 'text-center',
           )}
         >
-          {over ? 'Drop to upload' : label}
+          {over ? t('components.dropzone.dropzone.drop_to_upload', 'Drop to upload') : label}
         </CssText>
         <CssText
           accessibilityLiveRegion={error ? 'polite' : 'none'}
@@ -130,10 +131,12 @@ export function Dropzone({
           size="sm"
           disabled={disabled}
           loading={busy}
-          accessibilityLabel={`Browse, ${label}`}
+          accessibilityLabel={t('components.dropzone.dropzone.browse_2', 'Browse, {{label}}', {
+            label,
+          })}
           onPress={open}
         >
-          Browse
+          {t('components.dropzone.dropzone.browse', 'Browse')}
         </Button>
       </View>
     );

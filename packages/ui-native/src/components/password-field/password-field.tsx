@@ -7,6 +7,7 @@ import { Button } from '../button/button.tsx';
 import { Field, FieldDescription, FieldError, FieldLabel } from '../field/field.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
+import { t } from '../../lib/i18n';
 
 export type PasswordRequirement = { id: string; label: string; test: (value: string) => boolean };
 
@@ -39,13 +40,50 @@ export type PasswordFieldProps = {
 };
 
 export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
-  { id: 'length', label: 'At least 12 characters', test: (v) => v.length >= 12 },
-  { id: 'case', label: 'Upper and lower case', test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v) },
-  { id: 'number', label: 'A number', test: (v) => /\d/.test(v) },
-  { id: 'symbol', label: 'A symbol', test: (v) => /[^\w\s]/.test(v) },
+  {
+    id: 'length',
+    get label(): string {
+      return t(
+        'components.password-field.password-field.at_least_12_characters',
+        'At least 12 characters',
+      );
+    },
+    test: (v) => v.length >= 12,
+  },
+  {
+    id: 'case',
+    get label(): string {
+      return t(
+        'components.password-field.password-field.upper_and_lower_case',
+        'Upper and lower case',
+      );
+    },
+    test: (v) => /[a-z]/.test(v) && /[A-Z]/.test(v),
+  },
+  {
+    id: 'number',
+    get label(): string {
+      return t('components.password-field.password-field.a_number', 'A number');
+    },
+    test: (v) => /\d/.test(v),
+  },
+  {
+    id: 'symbol',
+    get label(): string {
+      return t('components.password-field.password-field.a_symbol', 'A symbol');
+    },
+    test: (v) => /[^\w\s]/.test(v),
+  },
 ];
 
-const strengthLabel = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'] as const;
+const strengthLabel = (strength: number): string =>
+  [
+    t('components.password-field.password-field.very_weak', 'Very weak'),
+    t('components.password-field.password-field.weak', 'Weak'),
+    t('components.password-field.password-field.fair', 'Fair'),
+    t('components.password-field.password-field.strong', 'Strong'),
+    t('components.password-field.password-field.very_strong', 'Very strong'),
+  ][strength] ?? '';
 const strengthTone = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-success', 'bg-success'] as const;
 
 /** The web's estimate, 0 to 4: length, and the kinds of character in it. */
@@ -112,7 +150,11 @@ export function PasswordField({
               variant="ghost"
               size="xs"
               startIcon={<Icon icon={revealed ? EyeOff : Eye} size={19} tone="muted" />}
-              accessibilityLabel={revealed ? `Hide ${label}` : `Show ${label}`}
+              accessibilityLabel={
+                revealed
+                  ? t('components.password-field.password-field.hide', 'Hide {{label}}', { label })
+                  : t('components.password-field.password-field.show', 'Show {{label}}', { label })
+              }
               disabled={disabled}
               onPress={() => {
                 setRevealed(!revealed);
@@ -127,20 +169,29 @@ export function PasswordField({
       {showStrength ? (
         <View
           role="progressbar"
-          aria-label={`${label} strength`}
+          aria-label={t('components.password-field.password-field.strength', '{{label}} strength', {
+            label,
+          })}
           aria-valuemin={0}
           aria-valuemax={4}
           aria-valuenow={strength}
-          aria-valuetext={value === '' ? 'Empty' : strengthLabel[strength]}
+          aria-valuetext={
+            value === ''
+              ? t('components.password-field.password-field.empty', 'Empty')
+              : strengthLabel(strength)
+          }
           className="gap-2"
         >
           <View className="flex-row justify-between gap-3">
             <CssText className="text-subhead font-medium text-fg">
-              {value === '' ? ' ' : strengthLabel[strength]}
+              {value === '' ? ' ' : strengthLabel(strength)}
             </CssText>
             {checks.length > 0 ? (
               <CssText className="text-subhead font-medium text-fg-muted tabular-nums">
-                {met} of {checks.length}
+                {t('components.password-field.password-field.of', '{{met}}  of  {{length}}', {
+                  met,
+                  length: checks.length,
+                })}
               </CssText>
             ) : null}
           </View>

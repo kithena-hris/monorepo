@@ -132,7 +132,7 @@ function fitToScreen(): void {
   });
 }
 
-const MONTHS = [
+const MONTHS = () => [
   t('envelopes.sign-view.jan', 'Jan'),
   t('envelopes.sign-view.feb', 'Feb'),
   t('envelopes.sign-view.mar', 'Mar'),
@@ -159,13 +159,17 @@ export function traceCaption(traceId: string, at: Date): string {
     '{{getUTCDate}} {{value}} {{getUTCFullYear}}, {{pad}}:{{pad2}} UTC',
     {
       getUTCDate: String(at.getUTCDate()),
-      value: MONTHS.at(at.getUTCMonth()) ?? '',
+      value: MONTHS().at(at.getUTCMonth()) ?? '',
       getUTCFullYear: String(at.getUTCFullYear()),
       pad: pad(at.getUTCHours()),
       pad2: pad(at.getUTCMinutes()),
     },
   );
-  return `Electronically signed via Kithena on ${when}\nSignature ID: ${traceId}`;
+  return t(
+    'envelopes.sign-view.electronically_signed_via_kithena_on_signature',
+    'Electronically signed via Kithena on {{when}}\nSignature ID: {{traceId}}',
+    { when, traceId },
+  );
 }
 
 /**
@@ -283,15 +287,27 @@ export function useSigning(
 }
 
 /** What pressing the focused box does, said on the bar's main button. */
-const ACT: Readonly<Record<FieldKind, string>> = {
-  signature: t('envelopes.sign-view.sign', 'Sign'),
-  initials: t('envelopes.sign-view.initial', 'Initial'),
-  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
-  name: 'Add your name',
-  title: t('envelopes.sign-view.type_it', 'Type it'),
-  text: t('envelopes.sign-view.type_it', 'Type it'),
-  checkbox: t('envelopes.sign-view.tick', 'Tick'),
-};
+const ACT = (): Readonly<Record<FieldKind, string>> => ({
+  get signature(): string {
+    return t('envelopes.sign-view.sign', 'Sign');
+  },
+  get initials(): string {
+    return t('envelopes.sign-view.initial', 'Initial');
+  },
+  get date(): string {
+    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+  },
+  name: t('envelopes.sign-view.add_your_name', 'Add your name'),
+  get title(): string {
+    return t('envelopes.sign-view.type_it', 'Type it');
+  },
+  get text(): string {
+    return t('envelopes.sign-view.type_it', 'Type it');
+  },
+  get checkbox(): string {
+    return t('envelopes.sign-view.tick', 'Tick');
+  },
+});
 
 export function DocumentToSign({
   env,
@@ -403,7 +419,7 @@ export function DocumentToSign({
                   hint:
                     signing === null
                       ? (env.signers.find((s) => s.id === f.signerId)?.name ?? '')
-                      : HINT[f.kind],
+                      : HINT()[f.kind],
                   done,
                   // Printed the moment it is filled, as the sealed file prints it.
                   ...(live === null || !done
@@ -608,7 +624,7 @@ function StepBar({
         >
           {SIGNED.has(focused.kind) && mark === null
             ? t('envelopes.sign-view.adopt_and_sign', 'Adopt and sign')
-            : ACT[focused.kind]}
+            : ACT()[focused.kind]}
         </Button>
       </PinnedBar>
     );
@@ -630,15 +646,25 @@ function StepBar({
   );
 }
 
-const HINT: Readonly<Record<FieldKind, string>> = {
-  signature: t('envelopes.sign-view.sign', 'Sign'),
-  initials: t('envelopes.sign-view.initial', 'Initial'),
-  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
-  name: 'Name',
-  title: t('envelopes.sign-view.title', 'Title'),
-  text: t('envelopes.sign-view.text_3', 'Text'),
+const HINT = (): Readonly<Record<FieldKind, string>> => ({
+  get signature(): string {
+    return t('envelopes.sign-view.sign', 'Sign');
+  },
+  get initials(): string {
+    return t('envelopes.sign-view.initial', 'Initial');
+  },
+  get date(): string {
+    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+  },
+  name: t('envelopes.sign-view.name', 'Name'),
+  get title(): string {
+    return t('envelopes.sign-view.title', 'Title');
+  },
+  get text(): string {
+    return t('envelopes.sign-view.text_3', 'Text');
+  },
   checkbox: '',
-};
+});
 
 /** K5: Reach's adopt dialog, where adopting also signs the box that asked. */
 export function AdoptDialog({
@@ -656,7 +682,7 @@ export function AdoptDialog({
     <AdoptSignatureDialog
       open={open}
       name={name}
-      action="Adopt and sign"
+      action={t('envelopes.sign-view.adopt_and_sign', 'Adopt and sign')}
       onOpenChange={onOpenChange}
       onAdopt={onAdopt}
     />

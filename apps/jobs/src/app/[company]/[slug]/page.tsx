@@ -6,6 +6,7 @@ import { JobAd } from '../../../components/job-ad';
 import { JobAssistant } from '../../../components/job-assistant';
 import { job as readJob } from '../../../lib/api';
 import { jobPosting, ldJson, plain } from '../../../lib/structured';
+import { t } from '../../../lib/i18n';
 
 type Params = Promise<{ company: string; slug: string }>;
 type Search = Promise<{ lang?: string }>;
@@ -21,10 +22,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { company, slug } = await params;
   const answer = await readJob(company, slug, (await searchParams).lang);
-  if (!answer.ok) return { title: 'Job not found', robots: { index: false } };
+  if (!answer.ok)
+    return {
+      title: t('app.[company].[slug].page.job_not_found', 'Job not found'),
+      robots: { index: false },
+    };
   const j = answer.data;
   return {
-    title: `${j.title} at ${j.company.name}`,
+    title: t('app.[company].[slug].page.at', '{{title}} at {{name}}', {
+      title: j.title,
+      name: j.company.name,
+    }),
     description: plain(j.html).slice(0, 160),
     alternates: { canonical: `/${company}/${slug}` },
     robots: { index: !j.closed },

@@ -504,18 +504,48 @@ export function summaryOf(state: DirectoryState): string {
 
 /** The operators People honours for each kind of field, in the order offered. */
 const EMPTY: FilterOperator[] = [
-  { id: 'empty', label: t('directory.directory.is_empty', 'is empty'), value: 'none' },
-  { id: 'not_empty', label: t('directory.directory.is_not_empty', 'is not empty'), value: 'none' },
+  {
+    id: 'empty',
+    get label(): string {
+      return t('directory.directory.is_empty', 'is empty');
+    },
+    value: 'none',
+  },
+  {
+    id: 'not_empty',
+    get label(): string {
+      return t('directory.directory.is_not_empty', 'is not empty');
+    },
+    value: 'none',
+  },
 ];
 const OPERATORS: Record<string, readonly FilterOperator[]> = {
   text: [
     { id: 'contains', label: 'contains', value: 'text' },
-    { id: 'is', label: t('directory.directory.is_exactly', 'is exactly'), value: 'text' },
+    {
+      id: 'is',
+      get label(): string {
+        return t('directory.directory.is_exactly', 'is exactly');
+      },
+      value: 'text',
+    },
     ...EMPTY,
   ],
   select: [
-    { id: 'in', label: t('directory.directory.is_any_of', 'is any of'), value: 'options' },
-    { id: 'not_in', label: t('directory.directory.is_none_of', 'is none of'), value: 'options' },
+    {
+      id: 'in',
+      get label(): string {
+        return t('directory.directory.is_any_of', 'is any of');
+      },
+      value: 'options',
+    },
+    {
+      id: 'not_in',
+      get label(): string {
+        return t('directory.directory.is_none_of', 'is none of');
+      },
+      value: 'options',
+    },
     ...EMPTY,
   ],
   status: [
@@ -525,17 +555,43 @@ const OPERATORS: Record<string, readonly FilterOperator[]> = {
   date: [
     {
       id: 'between',
-      label: t('directory.directory.is_between', 'is between'),
+      get label(): string {
+        return t('directory.directory.is_between', 'is between');
+      },
       value: 'date-range',
     },
-    { id: 'before', label: t('directory.directory.is_before', 'is before'), value: 'date' },
-    { id: 'after', label: t('directory.directory.is_after', 'is after'), value: 'date' },
+    {
+      id: 'before',
+      get label(): string {
+        return t('directory.directory.is_before', 'is before');
+      },
+      value: 'date',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('directory.directory.is_after', 'is after');
+      },
+      value: 'date',
+    },
     ...EMPTY,
   ],
   number: [
     { id: 'is', label: 'is', value: 'number' },
-    { id: 'before', label: t('directory.directory.is_less_than', 'is less than'), value: 'number' },
-    { id: 'after', label: t('directory.directory.is_more_than', 'is more than'), value: 'number' },
+    {
+      id: 'before',
+      get label(): string {
+        return t('directory.directory.is_less_than', 'is less than');
+      },
+      value: 'number',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('directory.directory.is_more_than', 'is more than');
+      },
+      value: 'number',
+    },
     ...EMPTY,
   ],
   person: EMPTY,
@@ -922,9 +978,15 @@ export function chipOf(
       };
     // Everybody below a manager, however deep: "Marco's team".
     case 'under':
-      return { field: 'Team of', text: formatList(condition.values.map(shown), 'or') };
+      return {
+        field: t('directory.directory.team_of', 'Team of'),
+        text: formatList(condition.values.map(shown), 'or'),
+      };
     case 'contains':
-      return { field: label, text: `mentions “${first}”` };
+      return {
+        field: label,
+        text: t('directory.directory.mentions', 'mentions “{{first}}”', { first }),
+      };
     default:
       return { field: label, text: formatList(condition.values.map(shown), 'or') };
   }
@@ -1844,7 +1906,7 @@ function Body({
       : [
           {
             key: 'group',
-            field: 'Grouped by',
+            field: t('directory.directory.grouped_by', 'Grouped by'),
             text: grouping.label,
             onRemove: () => {
               onGroupChange(null);
@@ -1859,7 +1921,7 @@ function Body({
       : [
           {
             key: 'sort',
-            field: 'Sorted by',
+            field: t('directory.directory.sorted_by_field', 'Sorted by'),
             // "most missing details · top 1"
             text: `${orderWords(sort, fields, metrics).replace(/^(ordered|sorted) by /u, '')}${
               top === null ? '' : ` · top ${String(top)}`
@@ -2242,9 +2304,11 @@ function Body({
               {peeked.missing === null || peeked.missing === 0 ? null : (
                 <p className="flex items-center gap-2 text-sm text-fg-muted">
                   <MissingMark count={peeked.missing} />
-                  {t('directory.directory.required', 'required')}{' '}
-                  {peeked.missing === 1 ? 'detail' : 'details'}{' '}
-                  {t('directory.directory.to_fill_in', 'to fill in')}
+                  {t(
+                    'directory.directory.required_details_to_fill_in',
+                    { one: 'required detail to fill in', other: 'required details to fill in' },
+                    { count: peeked.missing },
+                  )}
                 </p>
               )}
               {/*

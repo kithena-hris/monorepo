@@ -36,6 +36,7 @@ import { ask, useSigned, type RecordField, type Value } from './api';
 import { ibanCheck, nifSuggestion } from './checks';
 import { scanIdCard } from './readers';
 import { uploadFile } from './media';
+import { t } from '../i18n';
 
 /** Types whose value is a file People keeps: uploaded when chosen, its id saved like any value. */
 export const FILE_TYPES = new Set(['document_ref', 'image']);
@@ -62,13 +63,16 @@ function FilePicker({
   return (
     <Stack gap={2}>
       <Text tone={held ? 'default' : 'subtle'}>
-        {chosen ?? (held ? 'A file is kept' : 'No file yet')}
+        {chosen ??
+          (held
+            ? t('people.attribute-input.a_file_is_kept', 'A file is kept')
+            : t('people.attribute-input.no_file_yet', 'No file yet'))}
       </Text>
       <Button
         size="sm"
         disabled={disabled}
         loading={busy}
-        loadingLabel="Uploading"
+        loadingLabel={t('people.attribute-input.uploading', 'Uploading')}
         onPress={() => {
           setBusy(true);
           setProblem(null);
@@ -89,7 +93,9 @@ function FilePicker({
           });
         }}
       >
-        {held || chosen !== null ? 'Replace file' : 'Choose a file'}
+        {held || chosen !== null
+          ? t('people.attribute-input.replace_file', 'Replace file')
+          : t('people.attribute-input.choose_a_file', 'Choose a file')}
       </Button>
       {problem === null ? null : (
         <Text variant="footnote" tone="danger">
@@ -149,7 +155,7 @@ export function PersonPicker({
   value,
   onChange,
   disabled,
-  placeholder = 'Choose a person',
+  placeholder = t('people.attribute-input.choose_a_person', 'Choose a person'),
   size,
 }: {
   label: string;
@@ -202,7 +208,7 @@ export function PersonPicker({
       onSearchChange={setSearch}
       loading={loading}
       placeholder={placeholder}
-      searchPlaceholder="Type a name"
+      searchPlaceholder={t('people.attribute-input.type_a_name', 'Type a name')}
       disabled={disabled}
       clearable
       {...(size === undefined ? {} : { size })}
@@ -261,7 +267,9 @@ function Control({
         <DatePicker
           label={field.label}
           value={text(value) === '' || indefinite ? null : text(value)}
-          {...(indefinite ? { placeholder: 'Indefinite' } : {})}
+          {...(indefinite
+            ? { placeholder: t('people.attribute-input.indefinite', 'Indefinite') }
+            : {})}
           onChange={(next) => {
             onChange(next);
           }}
@@ -273,14 +281,19 @@ function Control({
         <Stack gap={2}>
           {picker}
           <Inline justify="between">
-            <Text>No end date (indefinite)</Text>
+            <Text>
+              {t('people.attribute-input.no_end_date_indefinite', 'No end date (indefinite)')}
+            </Text>
             <Switch
               checked={indefinite}
               onCheckedChange={(on) => {
                 onChange(on ? 'indefinite' : null);
               }}
               disabled={disabled}
-              accessibilityLabel="No end date (indefinite)"
+              accessibilityLabel={t(
+                'people.attribute-input.no_end_date_indefinite',
+                'No end date (indefinite)',
+              )}
             />
           </Inline>
         </Stack>
@@ -306,7 +319,7 @@ function Control({
           onChange={(next) => {
             onChange(Array.isArray(next) ? [...(next as readonly string[])] : []);
           }}
-          placeholder="Choose"
+          placeholder={t('people.attribute-input.choose', 'Choose')}
           disabled={disabled}
         />
       );
@@ -380,8 +393,8 @@ function Control({
           onChange={(next) => {
             onChange(typeof next === 'string' ? next : null);
           }}
-          placeholder="Choose"
-          searchPlaceholder="Type to search"
+          placeholder={t('people.attribute-input.choose', 'Choose')}
+          searchPlaceholder={t('people.attribute-input.type_to_search', 'Type to search')}
           disabled={disabled}
         />
       );
@@ -390,7 +403,13 @@ function Control({
     return (
       <Select value={text(value)} onValueChange={onChange} disabled={disabled || empty}>
         <SelectTrigger accessibilityLabel={field.label}>
-          <SelectValue placeholder={empty ? 'Nothing to choose from' : 'Choose'} />
+          <SelectValue
+            placeholder={
+              empty
+                ? t('people.attribute-input.nothing_to_choose_from', 'Nothing to choose from')
+                : t('people.attribute-input.choose', 'Choose')
+            }
+          />
         </SelectTrigger>
         <SelectContent>
           {field.options.map((o) => (
@@ -434,20 +453,27 @@ export function ScanIdButton({ onValue }: { onValue: (value: string) => void }):
         fullWidth
         startIcon={<Icon icon={ScanLine} />}
         loading={busy}
-        loadingLabel="Reading the card"
+        loadingLabel={t('people.attribute-input.reading_the_card', 'Reading the card')}
         onPress={() => {
           setBusy(true);
           void scanIdCard(signed).then((read) => {
             setBusy(false);
             if (read === null) return;
             if (!read.ok) {
-              toast({ title: 'That did not work', description: read.message, tone: 'danger' });
+              toast({
+                title: t('people.attribute-input.that_did_not_work', 'That did not work'),
+                description: read.message,
+                tone: 'danger',
+              });
               return;
             }
             if (read.data.value === null) {
               toast({
-                title: 'No number found',
-                description: 'Hold the card flat, in good light, and try again.',
+                title: t('people.attribute-input.no_number_found', 'No number found'),
+                description: t(
+                  'people.attribute-input.hold_the_card_flat_in_good',
+                  'Hold the card flat, in good light, and try again.',
+                ),
                 tone: 'warning',
               });
               return;
@@ -456,10 +482,13 @@ export function ScanIdButton({ onValue }: { onValue: (value: string) => void }):
           });
         }}
       >
-        Scan your card
+        {t('people.attribute-input.scan_your_card', 'Scan your card')}
       </Button>
       <Text variant="footnote" tone="subtle" className="text-center">
-        Only the number is read from the photo. The photo isn’t kept.
+        {t(
+          'people.attribute-input.only_the_number_is_read_from',
+          'Only the number is read from the photo. The photo isn’t kept.',
+        )}
       </Text>
     </View>
   );
@@ -486,11 +515,20 @@ export function AttributeInput({
   /** Whose record, for a file's upload: null is the viewer's own. */
   personId?: string | null;
 }): React.JSX.Element {
-  const kept = field.keptIn === null ? null : `Kept in ${field.keptIn}: change it there.`;
+  const kept =
+    field.keptIn === null
+      ? null
+      : t(
+          'people.attribute-input.kept_in_change_it_there',
+          'Kept in {{keptIn}}: change it there.',
+          { keptIn: field.keptIn },
+        );
   const owned = field.readOnly
     ? field.ownedBy === null
-      ? 'You can see this but not change it.'
-      : `Changed by ${field.ownedBy}.`
+      ? t('people.attribute-input.you_can_see_this_but_not', 'You can see this but not change it.')
+      : t('people.attribute-input.changed_by', 'Changed by {{ownedBy}}.', {
+          ownedBy: field.ownedBy,
+        })
     : null;
   const hint = kept ?? owned ?? field.description;
   // Worked out as it is typed (design v3 P15, P20): the right NIF letter, a bank's name.
@@ -515,7 +553,13 @@ export function AttributeInput({
       {warning === undefined ? null : <FieldDescription tone="warning">{warning}</FieldDescription>}
       {nif === null ? null : (
         <>
-          <FieldDescription tone="warning">{`For ${nif.slice(0, -1)} the letter should be ${nif.at(-1) ?? ''}.`}</FieldDescription>
+          <FieldDescription tone="warning">
+            {t(
+              'people.attribute-input.for_the_letter_should_be',
+              'For {{slice}} the letter should be {{value}}.',
+              { slice: nif.slice(0, -1), value: nif.at(-1) ?? '' },
+            )}
+          </FieldDescription>
           <Button
             variant="tinted"
             fullWidth
@@ -524,7 +568,7 @@ export function AttributeInput({
               onChange(nif);
             }}
           >
-            {`Use ${nif}`}
+            {t('people.attribute-input.use', 'Use {{nif}}', { nif })}
           </Button>
         </>
       )}
@@ -534,8 +578,13 @@ export function AttributeInput({
       {iban === null ? null : (
         <FieldDescription tone={iban.valid ? 'muted' : 'warning'}>
           {iban.valid
-            ? `${iban.bank === null ? '' : `${iban.bank} · `}the number checks out`
-            : 'The check digits don’t match: look at the number again.'}
+            ? t('people.attribute-input.the_number_checks_out', '{{value}}the number checks out', {
+                value: iban.bank === null ? '' : `${iban.bank} · `,
+              })
+            : t(
+                'people.attribute-input.the_check_digits_dont_match_look',
+                'The check digits don’t match: look at the number again.',
+              )}
         </FieldDescription>
       )}
       {hint === null ? null : <FieldDescription>{hint}</FieldDescription>}

@@ -47,30 +47,69 @@ import {
   type ReviewTab,
   type Row,
 } from './model';
+import { t as tr } from '../../i18n';
 
 /** Each chip's own empty state, so an empty filter still says what would appear. */
-const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body: string }>> = {
+const EMPTY = (): Readonly<
+  Record<ReviewKind | 'all' | 'mine', { title: string; body: string }>
+> => ({
   all: {
-    title: 'Nothing waiting for you',
-    body: 'Changes, ID checks, duplicates and requests appear here when they need you.',
+    title: tr('people.review.review.nothing_waiting_for_you', 'Nothing waiting for you'),
+    body: tr(
+      'people.review.review.changes_id_checks_duplicates_and_requests',
+      'Changes, ID checks, duplicates and requests appear here when they need you.',
+    ),
   },
-  changes: { title: 'Nothing to approve', body: 'All changes have been decided.' },
+  changes: {
+    title: tr('people.review.review.nothing_to_approve', 'Nothing to approve'),
+    body: tr(
+      'people.review.review.all_changes_have_been_decided',
+      'All changes have been decided.',
+    ),
+  },
   ids: {
-    title: 'Nothing to review',
-    body: 'Every national identifier entered so far passed its checks, or has been reviewed.',
+    title: tr('people.review.review.nothing_to_review', 'Nothing to review'),
+    body: tr(
+      'people.review.review.every_national_identifier_entered_so_far',
+      'Every national identifier entered so far passed its checks, or has been reviewed.',
+    ),
   },
   duplicates: {
-    title: 'Nothing looks duplicated',
-    body: 'No two records share a work email, a name and birth date, or a unique value.',
+    title: tr('people.review.review.nothing_looks_duplicated', 'Nothing looks duplicated'),
+    body: tr(
+      'people.review.review.no_two_records_share_a_work',
+      'No two records share a work email, a name and birth date, or a unique value.',
+    ),
   },
-  access: { title: 'Nothing to decide', body: 'A request appears here when finance asks.' },
+  access: {
+    title: tr('people.review.review.nothing_to_decide', 'Nothing to decide'),
+    body: tr(
+      'people.review.review.a_request_appears_here_when_finance',
+      'A request appears here when finance asks.',
+    ),
+  },
   exports: {
-    title: 'Nothing to send',
-    body: 'A request appears here when somebody sends an export to a person who can’t see all of it.',
+    title: tr('people.review.review.nothing_to_send', 'Nothing to send'),
+    body: tr(
+      'people.review.review.a_request_appears_here_when_somebody',
+      'A request appears here when somebody sends an export to a person who can’t see all of it.',
+    ),
   },
-  missing: { title: 'Nothing is missing', body: 'Every required field has a value.' },
-  mine: { title: 'Nothing waiting', body: 'None of your changes wait for approval.' },
-};
+  missing: {
+    title: tr('people.review.review.nothing_is_missing', 'Nothing is missing'),
+    body: tr(
+      'people.review.review.every_required_field_has_a_value',
+      'Every required field has a value.',
+    ),
+  },
+  mine: {
+    title: tr('people.review.review.nothing_waiting', 'Nothing waiting'),
+    body: tr(
+      'people.review.review.none_of_your_changes_wait_for',
+      'None of your changes wait for approval.',
+    ),
+  },
+});
 
 /** One row of the queue (design `qrow`): who, how long ago, what, and why it is flagged. */
 function QueueRow({ row, now, onPress }: { row: Row; now: number; onPress: () => void }) {
@@ -127,7 +166,9 @@ function FullValuesAsk({ access, onDone }: { access: AccessState; onDone: () => 
   return (
     <Card>
       <Stack gap={3}>
-        <Text variant="title3">Ask for full values</Text>
+        <Text variant="title3">
+          {tr('people.review.review.ask_for_full_values', 'Ask for full values')}
+        </Text>
         {access.fields.map((f) => (
           <Checkbox
             key={f.key}
@@ -140,9 +181,11 @@ function FullValuesAsk({ access, onDone }: { access: AccessState; onDone: () => 
           </Checkbox>
         ))}
         <Field required invalid={shown && reason.trim() === ''}>
-          <FieldLabel>Reason</FieldLabel>
+          <FieldLabel>{tr('people.review.review.reason', 'Reason')}</FieldLabel>
           <Input value={reason} onChange={setReason} size="sm" maxLength={500} />
-          {shown && reason.trim() === '' ? <FieldError>Say why, for HR.</FieldError> : null}
+          {shown && reason.trim() === '' ? (
+            <FieldError>{tr('people.review.review.say_why_for_hr', 'Say why, for HR.')}</FieldError>
+          ) : null}
         </Field>
         <Button
           variant="primary"
@@ -152,34 +195,36 @@ function FullValuesAsk({ access, onDone }: { access: AccessState; onDone: () => 
           onPress={() => {
             setShown(true);
             if (reason.trim() === '') return;
-            void act('RequestFullValues', { fields, reason: reason.trim() }, 'Sent to HR').then(
-              (done) => {
-                if (done === null) return;
-                setFields([]);
-                setReason('');
-                setShown(false);
-                onDone();
-              },
-            );
+            void act(
+              'RequestFullValues',
+              { fields, reason: reason.trim() },
+              tr('people.review.review.sent_to_hr', 'Sent to HR'),
+            ).then((done) => {
+              if (done === null) return;
+              setFields([]);
+              setReason('');
+              setShown(false);
+              onDone();
+            });
           }}
         >
-          Ask HR
+          {tr('people.review.review.ask_hr', 'Ask HR')}
         </Button>
       </Stack>
     </Card>
   );
 }
 
-const STATE: Partial<
+const STATE = (): Partial<
   Record<string, { tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger'; text: string }>
-> = {
-  pending: { tone: 'warning', text: 'Waiting for HR' },
-  approved: { tone: 'info', text: 'Being prepared' },
-  issued: { tone: 'success', text: 'Ready' },
-  downloaded: { tone: 'neutral', text: 'Downloaded' },
-  rejected: { tone: 'danger', text: 'Rejected' },
-  expired: { tone: 'neutral', text: 'Expired' },
-};
+> => ({
+  pending: { tone: 'warning', text: tr('people.review.review.waiting_for_hr', 'Waiting for HR') },
+  approved: { tone: 'info', text: tr('people.review.review.being_prepared', 'Being prepared') },
+  issued: { tone: 'success', text: tr('people.review.review.ready', 'Ready') },
+  downloaded: { tone: 'neutral', text: tr('people.review.review.downloaded', 'Downloaded') },
+  rejected: { tone: 'danger', text: tr('people.review.review.rejected', 'Rejected') },
+  expired: { tone: 'neutral', text: tr('people.review.review.expired', 'Expired') },
+});
 
 /** The viewer's own requests for full values, and the one download each allows. */
 function OwnRequests({ access }: { access: AccessState }) {
@@ -188,17 +233,21 @@ function OwnRequests({ access }: { access: AccessState }) {
   return (
     <Stack gap={2}>
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Your requests
+        {tr('people.review.review.your_requests', 'Your requests')}
       </Text>
       <List>
         {mine.map((r) => {
-          const state = STATE[r.state];
+          const state = STATE()[r.state];
           return (
             <ListItem
               key={r.id}
               description={
                 r.state === 'pending'
-                  ? `Waiting for HR · expires ${longDate(r.expiresAt.slice(0, 10))}`
+                  ? tr(
+                      'people.review.review.waiting_for_hr_expires',
+                      'Waiting for HR · expires {{longDate}}',
+                      { longDate: longDate(r.expiresAt.slice(0, 10)) },
+                    )
                   : (r.note ?? state?.text ?? r.state)
               }
               trailing={
@@ -216,7 +265,7 @@ function OwnRequests({ access }: { access: AccessState }) {
                       void WebBrowser.openBrowserAsync(r.link ?? '');
                     }}
                   >
-                    Download, once
+                    {tr('people.review.review.download_once', 'Download, once')}
                   </Button>
                 )
               }
@@ -240,7 +289,7 @@ function Checks({ data, onDone }: { data: ReviewData; onDone: () => void }) {
   return (
     <Stack gap={2}>
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        What Kithena checks
+        {tr('people.review.review.what_kithena_checks', 'What Kithena checks')}
       </Text>
       <List>
         {checks.map((c) => (
@@ -267,17 +316,33 @@ function Checks({ data, onDone }: { data: ReviewData; onDone: () => void }) {
       </List>
       {tunable ? null : (
         <Text variant="footnote" tone="muted" className="px-1">
-          A People administrator switches these.
+          {tr(
+            'people.review.review.a_people_administrator_switches_these',
+            'A People administrator switches these.',
+          )}
         </Text>
       )}
       {last90 === null ? null : (
         <Text variant="footnote" tone="muted" className="px-1">
-          {`Last 90 days: ${String(last90.flagged)} flagged, ${String(last90.rejected)} rejected, ${String(last90.marked)} marked not unusual.`}
+          {tr(
+            'people.review.review.last_90_days_flagged_rejected_marked',
+            'Last 90 days: {{String}} flagged, {{String2}} rejected, {{String3}} marked not unusual.',
+            {
+              String: String(last90.flagged),
+              String2: String(last90.rejected),
+              String3: String(last90.marked),
+            },
+          )}
         </Text>
       )}
-      <Alert tone="info" title="What it never does">
-        It never blocks a change, never contacts anyone, and never uses health, diversity or other
-        special-category data.
+      <Alert
+        tone="info"
+        title={tr('people.review.review.what_it_never_does', 'What it never does')}
+      >
+        {tr(
+          'people.review.review.it_never_blocks_a_change_never',
+          'It never blocks a change, never contacts anyone, and never uses health, diversity or other special-category data.',
+        )}
       </Alert>
     </Stack>
   );
@@ -320,12 +385,20 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
   );
 
   const frame = (children: React.ReactNode) => (
-    <Page title="Review" back={{ label: 'People', onPress: navigation.goBack }}>
+    <Page
+      title={tr('people.review.review.review', 'Review')}
+      back={{ label: tr('people.review.review.people', 'People'), onPress: navigation.goBack }}
+    >
       {children}
     </Page>
   );
   if (failed !== null) return frame(<Failed message={failed} onRetry={() => void load()} />);
-  if (data === null) return frame(<Loading label="Loading what waits for you" />);
+  if (data === null)
+    return frame(
+      <Loading
+        label={tr('people.review.review.loading_what_waits_for_you', 'Loading what waits for you')}
+      />,
+    );
 
   const viewer = viewerOf(data);
   const now = Date.now();
@@ -350,12 +423,14 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
     t === 'waiting'
       ? viewer === 'hr'
         ? // Four segments leave no room for a count: the All chip under it has it.
-          'For me'
-        : `Waiting · ${String(rowsOf(data, 'waiting').length)}`
+          tr('people.review.review.for_me', 'For me')
+        : tr('people.review.review.waiting', 'Waiting · {{String}}', {
+            String: String(rowsOf(data, 'waiting').length),
+          })
       : t === 'flagged'
         ? 'Flagged'
         : t === 'asked'
-          ? 'I asked'
+          ? tr('people.review.review.i_asked', 'I asked')
           : 'Decided';
 
   const open = (row: Row): void => {
@@ -369,7 +444,7 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
     else navigation.navigate('ReviewShare', { id: head });
   };
 
-  const empty = EMPTY[viewer === 'hr' ? kind : 'mine'];
+  const empty = EMPTY()[viewer === 'hr' ? kind : 'mine'];
 
   return frame(
     <>
@@ -377,7 +452,7 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
         value={tab}
         fullWidth
         size="sm"
-        accessibilityLabel="Whose turn"
+        accessibilityLabel={tr('people.review.review.whose_turn', 'Whose turn')}
         onValueChange={(next) => {
           setTab(next as ReviewTab);
           setKind('all');
@@ -398,11 +473,13 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
             onValueChange={(next) => {
               setKind(next as ReviewKind | 'all');
             }}
-            accessibilityLabel="Kinds"
+            accessibilityLabel={tr('people.review.review.kinds', 'Kinds')}
             scroll
           >
             <ChipGroupItem value="all" variant="view">
-              {`All ${String(rowsOf(data, tab).length)}`}
+              {tr('people.review.review.all', 'All {{String}}', {
+                String: String(rowsOf(data, tab).length),
+              })}
             </ChipGroupItem>
             {chips.map((k) => {
               const n = countOf(k);
@@ -425,7 +502,10 @@ export function Review({ navigation, route }: PeopleScreen<'Review'>): React.JSX
 
       {viewer === 'employee' && tab === 'waiting' ? (
         <Text tone="muted">
-          HR reviews each change within 7 days. Your record stays the same until then.
+          {tr(
+            'people.review.review.hr_reviews_each_change_within_7',
+            'HR reviews each change within 7 days. Your record stays the same until then.',
+          )}
         </Text>
       ) : null}
 
@@ -474,13 +554,22 @@ function DecidedElse({ data, onDone }: { data: ReviewData; onDone: () => void })
       {ids.length === 0 ? null : (
         <Stack gap={2}>
           <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-            ID checks
+            {tr('people.review.review.id_checks', 'ID checks')}
           </Text>
           <List>
             {ids.map((d) => (
               <ListItem
                 key={`${d.personId}-${d.label}-${d.decidedAt}`}
-                description={`${d.outcome === 'accepted' ? 'Accepted' : 'Sent back'} by ${d.decidedBy} · ${longDate(d.decidedAt.slice(0, 10))}${d.note === null ? '' : ` · “${d.note}”`}`}
+                description={tr(
+                  'people.review.review.by',
+                  '{{value}} by {{decidedBy}} · {{longDate}}{{value2}}',
+                  {
+                    value: d.outcome === 'accepted' ? 'Accepted' : 'Sent back',
+                    decidedBy: d.decidedBy,
+                    longDate: longDate(d.decidedAt.slice(0, 10)),
+                    value2: d.note === null ? '' : ` · “${d.note}”`,
+                  },
+                )}
               >
                 {`${d.name} · ${d.label}`}
               </ListItem>

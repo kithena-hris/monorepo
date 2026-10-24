@@ -86,65 +86,95 @@ const TARGETS: readonly {
 }[] = [
   {
     key: 'careers_page',
-    label: tr('job.careers_page', 'Careers page'),
-    what: tr(
-      'job.the_companys_page_on_kithena_jobs',
-      'The company’s page on Kithena Jobs, and its embed',
-    ),
+    get label(): string {
+      return tr('job.careers_page', 'Careers page');
+    },
+    get what(): string {
+      return tr(
+        'job.the_companys_page_on_kithena_jobs',
+        'The company’s page on Kithena Jobs, and its embed',
+      );
+    },
     available: true,
   },
   {
     key: 'kithena_jobs',
-    label: tr('job.kithena_jobs_search', 'Kithena Jobs search'),
-    what: tr(
-      'job.the_cross_company_search_if_the',
-      'The cross-company search, if the company opted in',
-    ),
+    get label(): string {
+      return tr('job.kithena_jobs_search', 'Kithena Jobs search');
+    },
+    get what(): string {
+      return tr(
+        'job.the_cross_company_search_if_the',
+        'The cross-company search, if the company opted in',
+      );
+    },
     available: true,
   },
   {
     key: 'google_for_jobs',
-    label: tr('job.google_for_jobs', 'Google for Jobs'),
-    what: tr(
-      'job.structured_data_on_the_job_page_google',
-      'Structured data on the job page; Google crawls it',
-    ),
+    get label(): string {
+      return tr('job.google_for_jobs', 'Google for Jobs');
+    },
+    get what(): string {
+      return tr(
+        'job.structured_data_on_the_job_page_google',
+        'Structured data on the job page; Google crawls it',
+      );
+    },
     available: true,
   },
   {
     key: 'xml_feed',
-    label: tr('job.open_xml_feed', 'Open XML feed'),
-    what: tr('job.for_aggregators_that_read_feeds', 'For aggregators that read feeds'),
+    get label(): string {
+      return tr('job.open_xml_feed', 'Open XML feed');
+    },
+    get what(): string {
+      return tr('job.for_aggregators_that_read_feeds', 'For aggregators that read feeds');
+    },
     available: true,
   },
   {
     key: 'internal_board',
-    label: tr('job.internal_job_board', 'Internal job board'),
-    what: tr('job.members_only_with_refer_and_apply', 'Members only, with refer and apply'),
+    get label(): string {
+      return tr('job.internal_job_board', 'Internal job board');
+    },
+    get what(): string {
+      return tr('job.members_only_with_refer_and_apply', 'Members only, with refer and apply');
+    },
     available: true,
   },
   {
     key: 'share_link',
-    label: tr('job.share_links', 'Share links'),
-    what: tr('job.a_tracked_link_per_channel', 'A tracked link per channel'),
+    get label(): string {
+      return tr('job.share_links', 'Share links');
+    },
+    get what(): string {
+      return tr('job.a_tracked_link_per_channel', 'A tracked link per channel');
+    },
     available: true,
   },
   {
     key: 'indeed',
-    label: tr('job.indeed', 'Indeed'),
-    what: tr(
-      'job.glassdoor_lists_jobs_from_indeed_needs_the',
-      'Glassdoor lists jobs from Indeed; needs the careers page first',
-    ),
+    get label(): string {
+      return tr('job.indeed', 'Indeed');
+    },
+    get what(): string {
+      return tr(
+        'job.glassdoor_lists_jobs_from_indeed_needs_the',
+        'Glassdoor lists jobs from Indeed; needs the careers page first',
+      );
+    },
     available: false,
   },
   {
     key: 'linkedin',
     label: 'LinkedIn',
-    what: tr(
-      'job.partner_only_use_the_tracked_share_link',
-      'Partner-only; use the tracked share link',
-    ),
+    get what(): string {
+      return tr(
+        'job.partner_only_use_the_tracked_share_link',
+        'Partner-only; use the tracked share link',
+      );
+    },
     available: false,
   },
 ];
@@ -361,31 +391,32 @@ function useKeep(
 }
 
 /** The four roles on a job, each with what it does: every one shown, whoever holds it listed. */
-const ROLE_ROWS = [
+const ROLE_ROWS = () =>
   [
-    'recruiter',
-    tr('job.recruiters', 'Recruiters'),
-    tr('job.run_the_hiring_the_ad_the', 'Run the hiring: the ad, the screening, the bookings.'),
-  ],
-  [
-    'hiring_manager',
-    tr('job.hiring_manager', 'Hiring manager'),
-    tr(
-      'job.decides_who_is_hired_needed_before',
-      'Decides who is hired. Needed before the setup moves on.',
-    ),
-  ],
-  [
-    'interviewer',
-    tr('job.interviewers', 'Interviewers'),
-    tr('job.meet_candidates_and_fill_in_their', 'Meet candidates and fill in their scorecards.'),
-  ],
-  [
-    'coordinator',
-    tr('job.coordinators', 'Coordinators'),
-    tr('job.book_interviews_and_keep_the_calendar', 'Book interviews and keep the calendar.'),
-  ],
-] as const;
+    [
+      'recruiter',
+      tr('job.recruiters', 'Recruiters'),
+      tr('job.run_the_hiring_the_ad_the', 'Run the hiring: the ad, the screening, the bookings.'),
+    ],
+    [
+      'hiring_manager',
+      tr('job.hiring_manager', 'Hiring manager'),
+      tr(
+        'job.decides_who_is_hired_needed_before',
+        'Decides who is hired. Needed before the setup moves on.',
+      ),
+    ],
+    [
+      'interviewer',
+      tr('job.interviewers', 'Interviewers'),
+      tr('job.meet_candidates_and_fill_in_their', 'Meet candidates and fill in their scorecards.'),
+    ],
+    [
+      'coordinator',
+      tr('job.coordinators', 'Coordinators'),
+      tr('job.book_interviews_and_keep_the_calendar', 'Book interviews and keep the calendar.'),
+    ],
+  ] as const;
 
 const sameTeam = (
   a: readonly { personId: string; role: string }[],
@@ -425,7 +456,7 @@ function Team({
   const body = (
     <div className="flex flex-col gap-6">
       <Refusal error={error} />
-      {ROLE_ROWS.map(([role, label, line]) => (
+      {ROLE_ROWS().map(([role, label, line]) => (
         <Field key={role} required={role === 'hiring_manager'}>
           <FieldLabel>{label}</FieldLabel>
           <FieldDescription>{line}</FieldDescription>
@@ -1846,29 +1877,63 @@ function ChatChannel({
 type Part = 'details' | 'team' | 'criteria' | 'plan' | 'ad' | 'form' | 'publishing';
 
 const PART_TITLE: Readonly<Record<Part, string>> = {
-  details: tr('job.internal_details', 'Internal details'),
-  team: tr('job.hiring_team', 'Hiring team'),
-  criteria: tr('job.criteria', 'Criteria'),
-  plan: tr('job.interview_plan', 'Interview plan'),
-  ad: tr('job.languages_and_checks', 'Languages and checks'),
-  form: tr('job.apply_form', 'Apply form'),
-  publishing: tr('job.publishing', 'Publishing'),
+  get details(): string {
+    return tr('job.internal_details', 'Internal details');
+  },
+  get team(): string {
+    return tr('job.hiring_team', 'Hiring team');
+  },
+  get criteria(): string {
+    return tr('job.criteria', 'Criteria');
+  },
+  get plan(): string {
+    return tr('job.interview_plan', 'Interview plan');
+  },
+  get ad(): string {
+    return tr('job.languages_and_checks', 'Languages and checks');
+  },
+  get form(): string {
+    return tr('job.apply_form', 'Apply form');
+  },
+  get publishing(): string {
+    return tr('job.publishing', 'Publishing');
+  },
 };
 
 const WEEKDAY: Readonly<Record<number, string>> = {
-  1: tr('job.mon', 'Mon'),
-  2: tr('job.tue', 'Tue'),
-  3: tr('job.wed', 'Wed'),
-  4: tr('job.thu', 'Thu'),
-  5: tr('job.fri', 'Fri'),
-  6: tr('job.sat', 'Sat'),
-  7: tr('job.sun', 'Sun'),
+  get 1(): string {
+    return tr('job.mon', 'Mon');
+  },
+  get 2(): string {
+    return tr('job.tue', 'Tue');
+  },
+  get 3(): string {
+    return tr('job.wed', 'Wed');
+  },
+  get 4(): string {
+    return tr('job.thu', 'Thu');
+  },
+  get 5(): string {
+    return tr('job.fri', 'Fri');
+  },
+  get 6(): string {
+    return tr('job.sat', 'Sat');
+  },
+  get 7(): string {
+    return tr('job.sun', 'Sun');
+  },
 };
 
 const MODE: Readonly<Record<string, string>> = {
-  onsite: tr('job.on_site', 'On site'),
-  hybrid: tr('job.hybrid', 'Hybrid'),
-  remote: tr('job.remote', 'Remote'),
+  get onsite(): string {
+    return tr('job.on_site', 'On site');
+  },
+  get hybrid(): string {
+    return tr('job.hybrid', 'Hybrid');
+  },
+  get remote(): string {
+    return tr('job.remote', 'Remote');
+  },
 };
 
 function PartBody({
@@ -2001,7 +2066,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
         const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
-        const company = data.company ?? { name: 'Your company', logoUrl: null };
+        const company = data.company ?? {
+          name: tr('job.your_company', 'Your company'),
+          logoUrl: null,
+        };
         const pay =
           data.job.salary === null
             ? null
@@ -2117,18 +2185,18 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           },
         ];
         const rail = [
-          { label: tr('job.location', 'Location'), value: where ?? 'Not set' },
+          { label: tr('job.location', 'Location'), value: where ?? tr('job.not_set', 'Not set') },
           { label: tr('job.work_mode', 'Work mode'), value: mode },
           {
             label: tr('job.contract', 'Contract'),
-            value: data.job.outline.contractType ?? 'Not set',
+            value: data.job.outline.contractType ?? tr('job.not_set', 'Not set'),
           },
           { label: tr('job.hours', 'Hours'), value: hours },
           {
             label: tr('job.holiday', 'Holiday'),
             value:
               data.terms.vacationDays === null
-                ? 'Not set'
+                ? tr('job.not_set', 'Not set')
                 : `${String(data.terms.vacationDays)} days a year`,
           },
         ];
@@ -2457,7 +2525,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 >
                   {/* Every role, whoever holds it: an empty one says so rather than vanishing. */}
                   <dl className="flex flex-col gap-3 text-sm">
-                    {ROLE_ROWS.map(([role, label]) => {
+                    {ROLE_ROWS().map(([role, label]) => {
                       const held = data.team.filter((m) => m.role === role);
                       return (
                         <div key={role} className="flex flex-col gap-1">
@@ -2628,7 +2696,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       {
                         label: tr('job.internal_title', 'Internal title'),
                         value:
-                          data.job.internalTitle === '' ? 'Same as the ad' : data.job.internalTitle,
+                          data.job.internalTitle === ''
+                            ? tr('job.same_as_the_ad', 'Same as the ad')
+                            : data.job.internalTitle,
                       },
                       {
                         label: tr('job.internal_only', 'Internal only'),

@@ -121,12 +121,13 @@ const QUESTION_KINDS: readonly QuestionKind[] = [
   'date',
   'file',
 ];
-const LANGUAGES = [
-  ['en', tr('settings-editors.english', 'English')],
-  ['es', tr('settings-editors.spanish', 'Spanish')],
-  ['de', tr('settings-editors.german', 'German')],
-  ['hi', tr('settings-editors.hindi', 'Hindi')],
-] as const;
+const LANGUAGES = () =>
+  [
+    ['en', tr('settings-editors.english', 'English')],
+    ['es', tr('settings-editors.spanish', 'Spanish')],
+    ['de', tr('settings-editors.german', 'German')],
+    ['hi', tr('settings-editors.hindi', 'Hindi')],
+  ] as const;
 
 /** A name's key: lower case, words joined, starting with a letter. */
 export const keyOf = (name: string): string =>
@@ -287,7 +288,10 @@ export function EntityEditor({
   const [headcount, setHeadcount] = useState<number | null>(held?.headcount ?? 0);
   const [worksCouncil, setWorksCouncil] = useState(held?.worksCouncil ?? false);
   const checks = useChecks({
-    name: name.trim() === '' ? 'Give the entity its legal name.' : null,
+    name:
+      name.trim() === ''
+        ? tr('settings-editors.give_the_entity_its_legal_name', 'Give the entity its legal name.')
+        : null,
     hours:
       hours === null || hours < 10 || hours > 60
         ? tr(
@@ -456,7 +460,13 @@ export function LocationEditor({
   const [city, setCity] = useState(held?.city ?? '');
   const [timeZone, setTimeZone] = useState(held?.timeZone ?? ZONE[country] ?? 'UTC');
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the location, as people call it.' : null,
+    name:
+      name.trim() === ''
+        ? tr(
+            'settings-editors.name_the_location_as_people_call',
+            'Name the location, as people call it.',
+          )
+        : null,
   });
   return (
     <Editor
@@ -600,9 +610,12 @@ export function DepartmentEditor({
   const checks = useChecks({
     name:
       name.trim() === ''
-        ? 'Name the department.'
+        ? tr('settings-editors.name_the_department', 'Name the department.')
         : units.some((u) => u.id !== held?.id && u.name.toLowerCase() === name.trim().toLowerCase())
-          ? 'A department by that name is already here.'
+          ? tr(
+              'settings-editors.a_department_by_that_name_is',
+              'A department by that name is already here.',
+            )
           : null,
   });
   return (
@@ -731,7 +744,13 @@ export function PipelineEditor({
         ),
   ];
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the pipeline, as recruiters will pick it.' : null,
+    name:
+      name.trim() === ''
+        ? tr(
+            'settings-editors.name_the_pipeline_as_recruiters_will',
+            'Name the pipeline, as recruiters will pick it.',
+          )
+        : null,
     steps: shape.some((p) => p !== null)
       ? tr('settings-editors.steps_are_incomplete', 'Steps are incomplete.')
       : null,
@@ -1013,7 +1032,13 @@ export function ChainEditor({
   };
   const draft = { appliesTo, when, steps: steps.map((s) => s.approver) };
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the rule, such as “Large budgets”.' : null,
+    name:
+      name.trim() === ''
+        ? tr(
+            'settings-editors.name_the_rule_such_as_large',
+            'Name the rule, such as “Large budgets”.',
+          )
+        : null,
     steps: steps.length === 0 ? tr('settings-editors.add_who_says_yes', 'Add who says yes.') : null,
     person: steps.some((s) => s.approver.kind === 'person' && s.approver.personId === '')
       ? tr('settings-editors.pick_the_person', 'Pick the person.')
@@ -1456,7 +1481,10 @@ export function QuestionnaireEditor({
     setQuestions(questions.map((q) => (q.id === id ? { ...q, ...patch } : q)));
   };
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the questionnaire.' : null,
+    name:
+      name.trim() === ''
+        ? tr('settings-editors.name_the_questionnaire', 'Name the questionnaire.')
+        : null,
     questions:
       questions.length === 0 || questions.some((q) => q.text.trim() === '')
         ? tr('settings-editors.questions_are_incomplete', 'Questions are incomplete.')
@@ -1636,10 +1664,12 @@ export function QuestionnaireEditor({
 /** What a template can be for: the composer's moments, and the invitation to choose interview times. */
 export const TEMPLATE_PURPOSES: Readonly<Record<string, string>> = {
   ...PURPOSE_LABEL,
-  interview_invitation: tr(
-    'settings-editors.invitation_to_choose_interview_times',
-    'Invitation to choose interview times',
-  ),
+  get interview_invitation(): string {
+    return tr(
+      'settings-editors.invitation_to_choose_interview_times',
+      'Invitation to choose interview times',
+    );
+  },
 };
 
 export function TemplateEditor({
@@ -1660,8 +1690,12 @@ export function TemplateEditor({
   const known = Object.keys(TEMPLATE_PURPOSES).includes(purpose);
   const [customPurpose, setCustomPurpose] = useState(!known && purpose !== '');
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the template.' : null,
-    purpose: purpose.trim() === '' ? 'Choose what it is used for.' : null,
+    name:
+      name.trim() === '' ? tr('settings-editors.name_the_template', 'Name the template.') : null,
+    purpose:
+      purpose.trim() === ''
+        ? tr('settings-editors.choose_what_it_is_used_for', 'Choose what it is used for.')
+        : null,
     body:
       body.trim() === '' ? tr('settings-editors.write_what_it_says', 'Write what it says.') : null,
   });
@@ -1799,7 +1833,7 @@ export function TemplateEditor({
               <SelectValue />
             </SelectTrigger>
           </FieldControl>
-          <Options items={LANGUAGES} />
+          <Options items={LANGUAGES()} />
         </Select>
       </Field>
       {kind === 'email' ? (
@@ -1895,7 +1929,13 @@ export function BenefitEditor({
     }
   };
   const checks = useChecks({
-    name: name.trim() === '' ? 'Name the benefit, as a candidate reads it.' : null,
+    name:
+      name.trim() === ''
+        ? tr(
+            'settings-editors.name_the_benefit_as_a_candidate',
+            'Name the benefit, as a candidate reads it.',
+          )
+        : null,
     entity:
       entityId === ''
         ? tr(
@@ -2180,32 +2220,76 @@ export function BenefitEditor({
 }
 
 /** The icons a category may wear, named for what they look like. */
-const ICON_NAMES: Readonly<Record<string, string>> = {
-  health: tr('settings-editors.health', 'Health'),
-  payroll: tr('settings-editors.savings', 'Savings'),
-  break: tr('settings-editors.food', 'Food'),
-  travel: tr('settings-editors.travel', 'Travel'),
-  parental: tr('settings-editors.family', 'Family'),
-  goal: tr('settings-editors.growth', 'Growth'),
-  system: tr('settings-editors.equipment', 'Equipment'),
-  favourite: tr('settings-editors.heart', 'Heart'),
-  location: tr('settings-editors.place', 'Place'),
-  analytics: 'Chart',
-  payment: tr('settings-editors.money', 'Money'),
-  vacation: tr('settings-editors.holiday', 'Holiday'),
-  locked: tr('settings-editors.protection', 'Protection'),
-  transfer: tr('settings-editors.exchange', 'Exchange'),
-  home: 'Home',
-  more: tr('settings-editors.more', 'More'),
-  team: tr('settings-editors.team', 'Team'),
-  company: tr('settings-editors.company', 'Company'),
-  calendar: tr('settings-editors.calendar', 'Calendar'),
-  document: tr('settings-editors.document', 'Document'),
-  starred: tr('settings-editors.star', 'Star'),
-  work: tr('settings-editors.work', 'Work'),
-  meeting: tr('settings-editors.meeting', 'Meeting'),
-  approve: tr('settings-editors.tick', 'Tick'),
-};
+const ICON_NAMES = (): Readonly<Record<string, string>> => ({
+  get health(): string {
+    return tr('settings-editors.health', 'Health');
+  },
+  get payroll(): string {
+    return tr('settings-editors.savings', 'Savings');
+  },
+  get break(): string {
+    return tr('settings-editors.food', 'Food');
+  },
+  get travel(): string {
+    return tr('settings-editors.travel', 'Travel');
+  },
+  get parental(): string {
+    return tr('settings-editors.family', 'Family');
+  },
+  get goal(): string {
+    return tr('settings-editors.growth', 'Growth');
+  },
+  get system(): string {
+    return tr('settings-editors.equipment', 'Equipment');
+  },
+  get favourite(): string {
+    return tr('settings-editors.heart', 'Heart');
+  },
+  get location(): string {
+    return tr('settings-editors.place', 'Place');
+  },
+  analytics: tr('settings-editors.chart', 'Chart'),
+  get payment(): string {
+    return tr('settings-editors.money', 'Money');
+  },
+  get vacation(): string {
+    return tr('settings-editors.holiday', 'Holiday');
+  },
+  get locked(): string {
+    return tr('settings-editors.protection', 'Protection');
+  },
+  get transfer(): string {
+    return tr('settings-editors.exchange', 'Exchange');
+  },
+  home: tr('settings-editors.home', 'Home'),
+  get more(): string {
+    return tr('settings-editors.more', 'More');
+  },
+  get team(): string {
+    return tr('settings-editors.team', 'Team');
+  },
+  get company(): string {
+    return tr('settings-editors.company', 'Company');
+  },
+  get calendar(): string {
+    return tr('settings-editors.calendar', 'Calendar');
+  },
+  get document(): string {
+    return tr('settings-editors.document', 'Document');
+  },
+  get starred(): string {
+    return tr('settings-editors.star', 'Star');
+  },
+  get work(): string {
+    return tr('settings-editors.work', 'Work');
+  },
+  get meeting(): string {
+    return tr('settings-editors.meeting', 'Meeting');
+  },
+  get approve(): string {
+    return tr('settings-editors.tick', 'Tick');
+  },
+});
 
 /** S6: a benefit category of the company's own: its name and the icon it wears. */
 export function CategoryEditor({
@@ -2224,11 +2308,14 @@ export function CategoryEditor({
   const checks = useChecks({
     name:
       name.trim() === ''
-        ? 'Name the category.'
+        ? tr('settings-editors.name_the_category', 'Name the category.')
         : data.benefitCategories.some(
               (c) => c.key !== held?.key && c.name.toLowerCase() === name.trim().toLowerCase(),
             )
-          ? 'A category by that name is already here.'
+          ? tr(
+              'settings-editors.a_category_by_that_name_is',
+              'A category by that name is already here.',
+            )
           : null,
   });
   return (
@@ -2274,7 +2361,7 @@ export function CategoryEditor({
         >
           {data.categoryIcons.map((key) => (
             <RadioCard key={key} value={key} icon={<CategoryIcon icon={key} />}>
-              {ICON_NAMES[key] ?? words(key)}
+              {ICON_NAMES()[key] ?? words(key)}
             </RadioCard>
           ))}
         </RadioGroup>

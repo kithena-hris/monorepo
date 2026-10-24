@@ -4,6 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { cn } from '../lib/cn.ts';
 import { iconVariants, type IconProps } from '../components/icon/icon.tsx';
+import { t as tr } from '../lib/i18n';
 
 /**
  * The Reach mark, drawn as the web's: a figure leaning forward and the thing
@@ -143,9 +144,9 @@ export function ReachLogo({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Reach"
+      accessibilityLabel={tr('brand.reach-logo.reach', 'Reach')}
       role="img"
-      aria-label="Reach"
+      aria-label={tr('brand.reach-logo.reach', 'Reach')}
       className={cn('flex-row items-center', className)}
       style={{ gap: Math.round(side * 0.36) }}
     >
@@ -159,11 +160,11 @@ export function ReachLogo({
             letterSpacing: -side * 0.66 * 0.02,
           }}
         >
-          Reach
+          {tr('brand.reach-logo.reach', 'Reach')}
         </CssText>
         {showSubtitle ? (
           <CssText className="mt-1 text-caption font-medium tracking-[0.18em] text-fg-subtle uppercase">
-            Design system
+            {tr('brand.reach-logo.design_system', 'Design system')}
           </CssText>
         ) : null}
       </View>

@@ -64,11 +64,12 @@ export interface NegativeBalanceProps {
   readonly onSave?: (policyId: string, rule: Rule | null, publish: boolean) => Promise<Outcome>;
 }
 
-const TITLE = t('settings.negative-balance.negative_balance', 'Negative balance');
-const DESCRIPTION = t(
-  'settings.negative-balance.what_happens_when_someone_books_more_than',
-  'What happens when someone books more than they’ve earned.',
-);
+const TITLE = (): string => t('settings.negative-balance.negative_balance', 'Negative balance');
+const DESCRIPTION = (): string =>
+  t(
+    'settings.negative-balance.what_happens_when_someone_books_more_than',
+    'What happens when someone books more than they’ve earned.',
+  );
 const page = '@container/negative flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/negative:grid @min-[60rem]/negative:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @min-[60rem]/negative:items-start';
@@ -84,7 +85,7 @@ export function NegativeBalance({ load, onSave }: NegativeBalanceProps): JSX.Ele
   if (load.status === 'loading') return <NegativeBalanceSkeleton />;
   return (
     <div className={page}>
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader title={TITLE()} description={DESCRIPTION()} />
       <Loaded
         load={load}
         what={t(
@@ -361,40 +362,58 @@ function Editor({
 }
 
 const APPROVES: Record<Rule['approvers'], string> = {
-  manager: t('settings.negative-balance.your_manager_approves_it', 'Your manager approves it.'),
-  manager_then_hr: t(
-    'settings.negative-balance.your_manager_approves_it_then_hr',
-    'Your manager approves it, then HR.',
-  ),
-  hr: t('settings.negative-balance.hr_approves_it', 'HR approves it.'),
+  get manager(): string {
+    return t('settings.negative-balance.your_manager_approves_it', 'Your manager approves it.');
+  },
+  get manager_then_hr(): string {
+    return t(
+      'settings.negative-balance.your_manager_approves_it_then_hr',
+      'Your manager approves it, then HR.',
+    );
+  },
+  get hr(): string {
+    return t('settings.negative-balance.hr_approves_it', 'HR approves it.');
+  },
 };
 const YEAR_END: Record<Rule['atYearEnd'], string> = {
-  next_year: t(
-    'settings.negative-balance.they_come_from_next_years_allowance',
-    'They come from next year’s allowance.',
-  ),
-  unpaid: t(
-    'settings.negative-balance.any_still_below_zero_at_the',
-    'Any still below zero at the end of the year are unpaid, deducted from December’s pay.',
-  ),
-  write_off: t(
-    'settings.negative-balance.any_still_below_zero_at_the_2',
-    'Any still below zero at the end of the year are written off.',
-  ),
+  get next_year(): string {
+    return t(
+      'settings.negative-balance.they_come_from_next_years_allowance',
+      'They come from next year’s allowance.',
+    );
+  },
+  get unpaid(): string {
+    return t(
+      'settings.negative-balance.any_still_below_zero_at_the',
+      'Any still below zero at the end of the year are unpaid, deducted from December’s pay.',
+    );
+  },
+  get write_off(): string {
+    return t(
+      'settings.negative-balance.any_still_below_zero_at_the_2',
+      'Any still below zero at the end of the year are written off.',
+    );
+  },
 };
 const LEAVING: Record<Rule['onLeaving'], string> = {
-  final_pay: t(
-    'settings.negative-balance.if_you_leave_before_earning_them',
-    'If you leave before earning them back, they’re deducted from your final pay.',
-  ),
-  write_off: t(
-    'settings.negative-balance.if_you_leave_before_earning_them_2',
-    'If you leave before earning them back, they’re written off.',
-  ),
-  hr_decides: t(
-    'settings.negative-balance.if_you_leave_before_earning_them_3',
-    'If you leave before earning them back, HR decides what happens.',
-  ),
+  get final_pay(): string {
+    return t(
+      'settings.negative-balance.if_you_leave_before_earning_them',
+      'If you leave before earning them back, they’re deducted from your final pay.',
+    );
+  },
+  get write_off(): string {
+    return t(
+      'settings.negative-balance.if_you_leave_before_earning_them_2',
+      'If you leave before earning them back, they’re written off.',
+    );
+  },
+  get hr_decides(): string {
+    return t(
+      'settings.negative-balance.if_you_leave_before_earning_them_3',
+      'If you leave before earning them back, HR decides what happens.',
+    );
+  },
 };
 
 /** The sentence a request that crosses zero shows its employee, word for word. */
@@ -457,8 +476,8 @@ function WhatPeopleSee({
 export function NegativeBalanceSkeleton(): JSX.Element {
   return (
     <SettingsSkeleton
-      title={TITLE}
-      description={DESCRIPTION}
+      title={TITLE()}
+      description={DESCRIPTION()}
       container="@container/negative"
       columns={columns}
       main={['h-72', 'h-[34rem]']}

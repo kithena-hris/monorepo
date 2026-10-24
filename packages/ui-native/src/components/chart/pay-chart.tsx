@@ -18,6 +18,7 @@ import {
   WEB,
 } from './parts.tsx';
 import { bgTone, inkTone, seriesTone, type ChartTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 export interface RangeBand {
   label: string;
@@ -68,7 +69,7 @@ export function RangeChart({
   ticks,
   spreadLabel,
   midLabel,
-  bandLabel = 'Band',
+  bandLabel = t('components.chart.pay-chart.band', 'Band'),
   onSelect,
   selectedLabel,
   format = (v) => String(v),

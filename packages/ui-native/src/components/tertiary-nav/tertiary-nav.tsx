@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /*
  * The third level of navigation on a phone, inside one screen. Most of it is
@@ -32,7 +33,7 @@ export function TableOfContents({
   items,
   value,
   onValueChange,
-  title = 'On this page',
+  title = t('components.tertiary-nav.tertiary-nav.on_this_page', 'On this page'),
   className,
 }: TableOfContentsProps): React.JSX.Element {
   return (

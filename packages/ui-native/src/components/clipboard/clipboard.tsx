@@ -10,6 +10,7 @@ import { spokenName } from '../../lib/spoken-name.tsx';
 import { Button, type ButtonProps } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Tooltip } from '../tooltip/tooltip.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Copy to the clipboard, as the web's: the write can be refused and says so,
@@ -138,9 +139,9 @@ export type CopyButtonProps = Omit<ButtonProps, 'children' | 'onPress' | 'href' 
 export function CopyButton({
   value,
   children,
-  label = 'Copy',
-  copiedLabel = 'Copied',
-  errorLabel = 'Couldn’t copy',
+  label = t('components.clipboard.clipboard.copy', 'Copy'),
+  copiedLabel = t('components.clipboard.clipboard.copied', 'Copied'),
+  errorLabel = t('components.clipboard.clipboard.couldnt_copy', 'Couldn’t copy'),
   icon = Copy,
   resetAfter,
   onCopy,
@@ -266,7 +267,12 @@ export function CopyField({
         value={value}
         size="xs"
         sayCopied
-        label={copyLabel ?? (label ? `Copy ${label}` : 'Copy')}
+        label={
+          copyLabel ??
+          (label
+            ? t('components.clipboard.clipboard.copy_2', 'Copy {{label}}', { label })
+            : t('components.clipboard.clipboard.copy', 'Copy'))
+        }
         {...(onCopy ? { onCopy } : {})}
         {...(onError ? { onError } : {})}
         {...(write ? { write } : {})}

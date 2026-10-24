@@ -25,6 +25,7 @@ import { View } from 'react-native';
 
 import { useAct } from '../people/act';
 import { read, useSigned } from '../people/api';
+import { t } from '../i18n';
 
 /**
  * Hand over while away (M:F3, G4): Time Off's cover for the approver's dates.
@@ -66,24 +67,41 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hand over while you’re away</DialogTitle>
-          <DialogDescription>People waiting see who has their request.</DialogDescription>
+          <DialogTitle>
+            {t('inbox.hand-over.hand_over_while_youre_away', 'Hand over while you’re away')}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'inbox.hand-over.people_waiting_see_who_has_their',
+              'People waiting see who has their request.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {d?.delegation?.range != null ? (
             <Text variant="footnote" tone="muted">
-              {`${d.delegation.delegateName} has them from ${d.delegation.range.from} to ${d.delegation.range.to}.`}
+              {t(
+                'inbox.hand-over.has_them_from_to',
+                '{{delegateName}} has them from {{from}} to {{to}}.',
+                {
+                  delegateName: d.delegation.delegateName,
+                  from: d.delegation.range.from,
+                  to: d.delegation.range.to,
+                },
+              )}
             </Text>
           ) : null}
           <Field>
-            <FieldLabel>Who</FieldLabel>
+            <FieldLabel>{t('inbox.hand-over.who', 'Who')}</FieldLabel>
             <Select value={to ?? ''} onValueChange={setTo}>
               <FieldControl>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose someone" />
+                  <SelectValue
+                    placeholder={t('inbox.hand-over.choose_someone', 'Choose someone')}
+                  />
                 </SelectTrigger>
               </FieldControl>
-              <SelectContent title="Who">
+              <SelectContent title={t('inbox.hand-over.who', 'Who')}>
                 {(d?.candidates ?? []).map((c) => (
                   <SelectItem key={c.personId} value={c.personId}>
                     {c.displayName}
@@ -95,31 +113,44 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
           <View className="flex-row gap-2.5">
             <View className="flex-1">
               <Field>
-                <FieldLabel>From</FieldLabel>
-                <DatePicker label="From" value={from} onChange={setFrom} />
+                <FieldLabel>{t('inbox.hand-over.from', 'From')}</FieldLabel>
+                <DatePicker
+                  label={t('inbox.hand-over.from', 'From')}
+                  value={from}
+                  onChange={setFrom}
+                />
               </Field>
             </View>
             <View className="flex-1">
               <Field>
-                <FieldLabel>Until</FieldLabel>
-                <DatePicker label="Until" value={until} onChange={setUntil} />
+                <FieldLabel>{t('inbox.hand-over.until', 'Until')}</FieldLabel>
+                <DatePicker
+                  label={t('inbox.hand-over.until', 'Until')}
+                  value={until}
+                  onChange={setUntil}
+                />
               </Field>
             </View>
           </View>
           <Field>
-            <FieldLabel>What</FieldLabel>
+            <FieldLabel>{t('inbox.hand-over.what', 'What')}</FieldLabel>
             <View className="flex-row flex-wrap gap-2">
               <Chip selected disabled>
-                Time off
+                {t('inbox.hand-over.time_off', 'Time off')}
               </Chip>
             </View>
-            <FieldDescription>Review in People stays with HR.</FieldDescription>
+            <FieldDescription>
+              {t(
+                'inbox.hand-over.review_in_people_stays_with_hr',
+                'Review in People stays with HR.',
+              )}
+            </FieldDescription>
           </Field>
         </DialogBody>
         <DialogFooter>
           {d?.delegation == null ? (
             <Button className="flex-1" onPress={onClose}>
-              Cancel
+              {t('inbox.hand-over.cancel', 'Cancel')}
             </Button>
           ) : (
             <Button
@@ -129,11 +160,11 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
                 void act(
                   'RemoveTimeOffDelegation',
                   { approverId: d.approverId },
-                  'Handed back',
+                  t('inbox.hand-over.handed_back', 'Handed back'),
                 ).then(onClose);
               }}
             >
-              Stop
+              {t('inbox.hand-over.stop', 'Stop')}
             </Button>
           )}
           <Button
@@ -149,13 +180,13 @@ export function HandOver({ onClose }: { onClose: () => void }): React.JSX.Elemen
                   approverId: d.approverId,
                   input: { delegateId: to, range: { from, to: until } },
                 },
-                'Handed over',
+                t('inbox.hand-over.handed_over', 'Handed over'),
               ).then((done) => {
                 if (done !== null) onClose();
               });
             }}
           >
-            Hand over
+            {t('inbox.hand-over.hand_over', 'Hand over')}
           </Button>
         </DialogFooter>
       </DialogContent>

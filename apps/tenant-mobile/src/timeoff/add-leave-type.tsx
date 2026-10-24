@@ -48,6 +48,7 @@ import { leaveIcon } from './icons';
 import { CATEGORIES, keyOf } from './leave-kinds';
 import { todayHere } from './time';
 import { amount, shortDate } from './words';
+import { t } from '../i18n';
 
 type Step = 'what' | 'balance' | 'rules' | 'preview';
 
@@ -157,7 +158,7 @@ export function TimeOffAddLeaveType({
           name: { default: name.trim() },
           category,
           colorToken: sick ? 'chart-3' : 'chart-4',
-          icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+          icon: CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag',
           unit: hours ? 'hour' : 'day',
           tracked,
           paid,
@@ -204,7 +205,11 @@ export function TimeOffAddLeaveType({
     setQuestion(null);
     if (r.definition === null) {
       setUnread(
-        r.problems[0]?.message ?? 'Kithena could not read that. Say how many days a year, say.',
+        r.problems[0]?.message ??
+          t(
+            'timeoff.add-leave-type.kithena_could_not_read_that_say',
+            'Kithena could not read that. Say how many days a year, say.',
+          ),
       );
       return;
     }
@@ -239,9 +244,12 @@ export function TimeOffAddLeaveType({
   };
   const back =
     at === 0
-      ? { label: 'Leave types', onPress: navigation.goBack }
+      ? {
+          label: t('timeoff.add-leave-type.leave_types', 'Leave types'),
+          onPress: navigation.goBack,
+        }
       : {
-          label: 'Back',
+          label: t('timeoff.add-leave-type.back', 'Back'),
           onPress: () => {
             setStep(steps[at - 1] ?? 'what');
           },
@@ -250,7 +258,7 @@ export function TimeOffAddLeaveType({
 
   return (
     <Page
-      title="Add a leave type"
+      title={t('timeoff.add-leave-type.add_a_leave_type', 'Add a leave type')}
       back={back}
       foot={
         step === 'preview' ? (
@@ -275,7 +283,9 @@ export function TimeOffAddLeaveType({
               });
             }}
           >
-            {tracked ? 'Publish' : 'Done'}
+            {tracked
+              ? t('timeoff.add-leave-type.publish', 'Publish')
+              : t('timeoff.add-leave-type.done', 'Done')}
           </Button>
         ) : (
           <>
@@ -283,7 +293,7 @@ export function TimeOffAddLeaveType({
               <Button
                 startIcon={<Icon icon={ArrowLeft} />}
                 onPress={back.onPress}
-                accessibilityLabel="Back"
+                accessibilityLabel={t('timeoff.add-leave-type.back', 'Back')}
               />
             )}
             <Button
@@ -294,43 +304,55 @@ export function TimeOffAddLeaveType({
               loading={busy === 'DefineTimeOffLeaveType' || busy === 'DraftTimeOffPolicy'}
               onPress={next}
             >
-              {steps[at + 1] === 'preview' ? 'See an example' : 'Next'}
+              {steps[at + 1] === 'preview'
+                ? t('timeoff.add-leave-type.see_an_example', 'See an example')
+                : t('timeoff.add-leave-type.next', 'Next')}
             </Button>
           </>
         )
       }
     >
-      <StepperProgress step={at + 1} count={steps.length} label="Add a leave type" />
+      <StepperProgress
+        step={at + 1}
+        count={steps.length}
+        label={t('timeoff.add-leave-type.add_a_leave_type', 'Add a leave type')}
+      />
       {step === 'what' ? (
         <Stack gap={3}>
           <Text variant="title2" accessibilityRole="header">
-            What is it?
+            {t('timeoff.add-leave-type.what_is_it', 'What is it?')}
           </Text>
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('timeoff.add-leave-type.name', 'Name')}</FieldLabel>
             <Input
               value={name}
               onChange={setName}
               maxLength={60}
               readOnly={defined !== null}
-              placeholder="Personal leave"
+              placeholder={t('timeoff.add-leave-type.personal_leave', 'Personal leave')}
             />
             <FieldDescription>
               {defined !== null
-                ? 'Already added; rename it from the leave type.'
+                ? t(
+                    'timeoff.add-leave-type.already_added_rename_it_from_the',
+                    'Already added; rename it from the leave type.',
+                  )
                 : name.trim() === ''
-                  ? 'What people see when they ask for it.'
-                  : `Key: ${keyOf(name)}`}
+                  ? t(
+                      'timeoff.add-leave-type.what_people_see_when_they_ask',
+                      'What people see when they ask for it.',
+                    )
+                  : t('timeoff.add-leave-type.key', 'Key: {{keyOf}}', { keyOf: keyOf(name) })}
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Kind</FieldLabel>
+            <FieldLabel>{t('timeoff.add-leave-type.kind', 'Kind')}</FieldLabel>
             <Select value={category} onValueChange={setCategory} disabled={defined !== null}>
-              <SelectTrigger accessibilityLabel="Kind">
+              <SelectTrigger accessibilityLabel={t('timeoff.add-leave-type.kind', 'Kind')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map(([v, l]) => (
+                {CATEGORIES().map(([v, l]) => (
                   <SelectItem key={v} value={v}>
                     {l}
                   </SelectItem>
@@ -342,28 +364,39 @@ export function TimeOffAddLeaveType({
             <SegmentedControl
               fullWidth
               value={paid}
-              accessibilityLabel="Pay"
+              accessibilityLabel={t('timeoff.add-leave-type.pay', 'Pay')}
               onValueChange={setPaid}
             >
-              <SegmentedControlItem value="paid">Paid</SegmentedControlItem>
-              <SegmentedControlItem value="unpaid">Unpaid</SegmentedControlItem>
+              <SegmentedControlItem value="paid">
+                {t('timeoff.add-leave-type.paid', 'Paid')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="unpaid">
+                {t('timeoff.add-leave-type.unpaid', 'Unpaid')}
+              </SegmentedControlItem>
             </SegmentedControl>
           ) : (
-            <Text tone="muted">{paid === 'paid' ? 'Paid' : 'Unpaid'}</Text>
+            <Text tone="muted">
+              {paid === 'paid'
+                ? t('timeoff.add-leave-type.paid', 'Paid')
+                : t('timeoff.add-leave-type.unpaid', 'Unpaid')}
+            </Text>
           )}
           <ListItem
             listitem={false}
-            description="Teammates see only “Off”. Sick leave always is."
+            description={t(
+              'timeoff.add-leave-type.teammates_see_only_off_sick_leave',
+              'Teammates see only “Off”. Sick leave always is.',
+            )}
             trailing={
               <Switch
                 checked={hidden || sick}
                 disabled={sick || defined !== null}
-                accessibilityLabel="Private"
+                accessibilityLabel={t('timeoff.add-leave-type.private', 'Private')}
                 onCheckedChange={setHidden}
               />
             }
           >
-            Private
+            {t('timeoff.add-leave-type.private', 'Private')}
           </ListItem>
           {defined !== null ? null : (
             <Card>
@@ -371,26 +404,38 @@ export function TimeOffAddLeaveType({
                 <View className="flex-row items-center gap-2">
                   <AssistantMark size={18} />
                   <Text variant="headline" className="flex-1">
-                    Or describe it, and Kithena fills in the rest
+                    {t(
+                      'timeoff.add-leave-type.or_describe_it_and_kithena_fills',
+                      'Or describe it, and Kithena fills in the rest',
+                    )}
                   </Text>
                 </View>
                 <Textarea
                   value={described}
                   onChange={setDescribed}
-                  placeholder="12 days a year, earned monthly and pro rata. Up to 3 carried over to March. Not in the first 3 months."
-                  accessibilityLabel="The rules, as you would explain them"
+                  placeholder={t(
+                    'timeoff.add-leave-type.12_days_a_year_earned_monthly',
+                    '12 days a year, earned monthly and pro rata. Up to 3 carried over to March. Not in the first 3 months.',
+                  )}
+                  accessibilityLabel={t(
+                    'timeoff.add-leave-type.the_rules_as_you_would_explain',
+                    'The rules, as you would explain them',
+                  )}
                 />
                 {unread === null ? null : <Alert tone="warning">{unread}</Alert>}
                 <Button
                   startIcon={<Icon icon={Sparkles} />}
                   disabled={!ready || described.trim() === ''}
                   loading={reading || busy !== null}
-                  loadingLabel="Kithena is reading it"
+                  loadingLabel={t(
+                    'timeoff.add-leave-type.kithena_is_reading_it',
+                    'Kithena is reading it',
+                  )}
                   onPress={() => {
                     void readIt({ text: described.trim() });
                   }}
                 >
-                  Fill it in and review
+                  {t('timeoff.add-leave-type.fill_it_in_and_review', 'Fill it in and review')}
                 </Button>
               </Stack>
             </Card>
@@ -399,40 +444,50 @@ export function TimeOffAddLeaveType({
       ) : step === 'balance' ? (
         <Stack gap={3}>
           <Text variant="title2" accessibilityRole="header">
-            How much can people take?
+            {t('timeoff.add-leave-type.how_much_can_people_take', 'How much can people take?')}
           </Text>
           <ListItem
             listitem={false}
-            description="Taken from an allowance that Time Off keeps."
+            description={t(
+              'timeoff.add-leave-type.taken_from_an_allowance_that_time',
+              'Taken from an allowance that Time Off keeps.',
+            )}
             trailing={
               <Switch
                 checked={tracked}
                 disabled={defined !== null}
-                accessibilityLabel="From a balance"
+                accessibilityLabel={t('timeoff.add-leave-type.from_a_balance', 'From a balance')}
                 onCheckedChange={setTracked}
               />
             }
           >
-            From a balance
+            {t('timeoff.add-leave-type.from_a_balance', 'From a balance')}
           </ListItem>
           {tracked ? (
             <>
               <ListItem
                 listitem={false}
-                description="Counted in hours, not days."
+                description={t(
+                  'timeoff.add-leave-type.counted_in_hours_not_days',
+                  'Counted in hours, not days.',
+                )}
                 trailing={
                   <Switch
                     checked={hours}
                     disabled={defined !== null}
-                    accessibilityLabel="In hours"
+                    accessibilityLabel={t('timeoff.add-leave-type.in_hours', 'In hours')}
                     onCheckedChange={setHours}
                   />
                 }
               >
-                In hours
+                {t('timeoff.add-leave-type.in_hours', 'In hours')}
               </ListItem>
               <NumberField
-                label={hours ? 'Hours a year' : 'Days a year'}
+                label={
+                  hours
+                    ? t('timeoff.add-leave-type.hours_a_year', 'Hours a year')
+                    : t('timeoff.add-leave-type.days_a_year', 'Days a year')
+                }
                 min={0}
                 max={365}
                 step={0.5}
@@ -442,46 +497,59 @@ export function TimeOffAddLeaveType({
                 }}
               />
               <Field>
-                <FieldLabel>Given</FieldLabel>
+                <FieldLabel>{t('timeoff.add-leave-type.given', 'Given')}</FieldLabel>
                 <SegmentedControl
                   fullWidth
                   value={earning}
-                  accessibilityLabel="Given"
+                  accessibilityLabel={t('timeoff.add-leave-type.given', 'Given')}
                   onValueChange={(v) => {
                     setEarning(v === 'monthly' ? 'monthly' : 'upfront');
                   }}
                 >
-                  <SegmentedControlItem value="upfront">All at once</SegmentedControlItem>
-                  <SegmentedControlItem value="monthly">Month by month</SegmentedControlItem>
+                  <SegmentedControlItem value="upfront">
+                    {t('timeoff.add-leave-type.all_at_once', 'All at once')}
+                  </SegmentedControlItem>
+                  <SegmentedControlItem value="monthly">
+                    {t('timeoff.add-leave-type.month_by_month', 'Month by month')}
+                  </SegmentedControlItem>
                 </SegmentedControl>
               </Field>
               <ListItem
                 listitem={false}
-                description="Someone joining or leaving mid-year gets a share, rounded up to the half day."
+                description={t(
+                  'timeoff.add-leave-type.someone_joining_or_leaving_mid_year',
+                  'Someone joining or leaving mid-year gets a share, rounded up to the half day.',
+                )}
                 trailing={
                   <Switch
                     checked={proRata}
-                    accessibilityLabel="Pro rata"
+                    accessibilityLabel={t('timeoff.add-leave-type.pro_rata', 'Pro rata')}
                     onCheckedChange={setProRata}
                   />
                 }
               >
-                Pro rata
+                {t('timeoff.add-leave-type.pro_rata', 'Pro rata')}
               </ListItem>
             </>
           ) : (
             <Text tone="muted">
-              People ask for it and their manager decides; nothing is counted down.
+              {t(
+                'timeoff.add-leave-type.people_ask_for_it_and_their',
+                'People ask for it and their manager decides; nothing is counted down.',
+              )}
             </Text>
           )}
         </Stack>
       ) : step === 'rules' ? (
         <Stack gap={3}>
           <Text variant="title2" accessibilityRole="header">
-            Any rules?
+            {t('timeoff.add-leave-type.any_rules', 'Any rules?')}
           </Text>
           <NumberField
-            label="Carried into next year, at most"
+            label={t(
+              'timeoff.add-leave-type.carried_into_next_year_at_most',
+              'Carried into next year, at most',
+            )}
             min={0}
             max={365}
             step={0.5}
@@ -491,10 +559,13 @@ export function TimeOffAddLeaveType({
             }}
           />
           <Text variant="footnote" tone="muted">
-            Used by 31 March, or lost. 0 carries nothing.
+            {t(
+              'timeoff.add-leave-type.used_by_31_march_or_lost',
+              'Used by 31 March, or lost. 0 carries nothing.',
+            )}
           </Text>
           <NumberField
-            label="Probation, months"
+            label={t('timeoff.add-leave-type.probation_months', 'Probation, months')}
             min={0}
             max={24}
             value={probation}
@@ -503,7 +574,10 @@ export function TimeOffAddLeaveType({
             }}
           />
           <Text variant="footnote" tone="muted">
-            How long after joining before it can be booked.
+            {t(
+              'timeoff.add-leave-type.how_long_after_joining_before_it',
+              'How long after joining before it can be booked.',
+            )}
           </Text>
         </Stack>
       ) : (
@@ -555,7 +629,7 @@ export function TimeOffAddLeaveType({
                   setQuestion(null);
                 }}
               >
-                Fill it in myself
+                {t('timeoff.add-leave-type.fill_it_in_myself', 'Fill it in myself')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -594,16 +668,16 @@ function Example({
   onFrom: (date: string | null) => void;
 }): React.JSX.Element {
   const unit = hours ? 'hours' : 'days';
-  const icon = CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag';
+  const icon = CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag';
   return (
     <Stack gap={3}>
       <Text variant="title2" accessibilityRole="header">
-        How it will look
+        {t('timeoff.add-leave-type.how_it_will_look', 'How it will look')}
       </Text>
       <Card>
         <Stack gap={2}>
           <Text variant="footnote" weight="semibold" tone="muted">
-            On someone’s phone
+            {t('timeoff.add-leave-type.on_someones_phone', 'On someone’s phone')}
           </Text>
           <Stat
             label={name}
@@ -614,8 +688,16 @@ function Example({
             unit={tracked ? (hours ? 'banked' : `${unit} left`) : 'not counted'}
             {...(tracked
               ? {
-                  chart: <Progress label={`${name}: none used yet`} value={0} max={allowance} />,
-                  description: '0 used · 0 booked',
+                  chart: (
+                    <Progress
+                      label={t('timeoff.add-leave-type.none_used_yet', '{{name}}: none used yet', {
+                        name,
+                      })}
+                      value={0}
+                      max={allowance}
+                    />
+                  ),
+                  description: t('timeoff.add-leave-type.0_used_0_booked', '0 used · 0 booked'),
                 }
               : {})}
           />
@@ -626,26 +708,61 @@ function Example({
           ? [
               `${amount(days(allowance))} ${unit} a year, ${earning === 'monthly' ? `about ${amount(days(allowance / 12))} each month` : 'all on the first day of the year'}`,
               proRata
-                ? 'Joining or leaving mid-year gets a share, rounded up to the half day'
-                : 'Joining mid-year still gets the whole year',
+                ? t(
+                    'timeoff.add-leave-type.joining_or_leaving_mid_year_gets',
+                    'Joining or leaving mid-year gets a share, rounded up to the half day',
+                  )
+                : t(
+                    'timeoff.add-leave-type.joining_mid_year_still_gets_the',
+                    'Joining mid-year still gets the whole year',
+                  ),
               carry === 0
-                ? 'Nothing carries into next year'
-                : `Up to ${amount(days(carry))} ${unit} carry over, used by 31 March`,
+                ? t(
+                    'timeoff.add-leave-type.nothing_carries_into_next_year',
+                    'Nothing carries into next year',
+                  )
+                : t(
+                    'timeoff.add-leave-type.up_to_carry_over_used_by',
+                    'Up to {{amount}} {{unit}} carry over, used by 31 March',
+                    { amount: amount(days(carry)), unit },
+                  ),
               probation === 0
-                ? 'Can be booked from day one'
-                : `Can be booked after ${String(probation)} ${probation === 1 ? 'month' : 'months'}`,
+                ? t(
+                    'timeoff.add-leave-type.can_be_booked_from_day_one',
+                    'Can be booked from day one',
+                  )
+                : t(
+                    'timeoff.add-leave-type.can_be_booked_after',
+                    {
+                      one: 'Can be booked after {{count}} month',
+                      other: 'Can be booked after {{count}} months',
+                    },
+                    { count: probation },
+                  ),
             ]
-          : ['Not counted from a balance', 'Asked for and approved like any time off']
+          : [
+              t('timeoff.add-leave-type.not_counted_from_a_balance', 'Not counted from a balance'),
+              t(
+                'timeoff.add-leave-type.asked_for_and_approved_like_any',
+                'Asked for and approved like any time off',
+              ),
+            ]
         ).map((line) => (
           <ListItem key={line}>{line}</ListItem>
         ))}
       </List>
       {tracked && policyId !== null ? <Members policyId={policyId} unit={unit} /> : null}
       {tracked ? (
-        <DatePicker label="In effect from" value={from} onChange={onFrom} />
+        <DatePicker
+          label={t('timeoff.add-leave-type.in_effect_from', 'In effect from')}
+          value={from}
+          onChange={onFrom}
+        />
       ) : (
-        <Alert tone="success" title="Added">
-          {`${name} can be asked for now.`}
+        <Alert tone="success" title={t('timeoff.add-leave-type.added', 'Added')}>
+          {t('timeoff.add-leave-type.can_be_asked_for_now', '{{name}} can be asked for now.', {
+            name,
+          })}
         </Alert>
       )}
     </Stack>
@@ -655,37 +772,74 @@ function Example({
 /** What publishing gives each person this year, from Time Off's own preview of the draft. */
 function Members({ policyId, unit }: { policyId: string; unit: string }): React.JSX.Element {
   const { load } = useTimeOff<Preview>('TimeOffPolicyPreview', { policyId });
-  if (load.status === 'loading') return <Loading label="Working out each person’s balance" />;
+  if (load.status === 'loading')
+    return (
+      <Loading
+        label={t(
+          'timeoff.add-leave-type.working_out_each_persons_balance',
+          'Working out each person’s balance',
+        )}
+      />
+    );
   if (load.status === 'error') return <Text tone="muted">{load.message}</Text>;
   const members = load.data.members;
   return (
     <Card>
       <Stack gap={2}>
-        <CardTitle>{`Once published, for ${String(members.length)} ${members.length === 1 ? 'person' : 'people'}`}</CardTitle>
+        <CardTitle>
+          {t(
+            'timeoff.add-leave-type.once_published_for',
+            {
+              one: 'Once published, for {{count}} person',
+              other: 'Once published, for {{count}} people',
+            },
+            { count: members.length },
+          )}
+        </CardTitle>
         {members.length === 0 ? (
-          <Text tone="muted">Nobody it applies to works here yet.</Text>
+          <Text tone="muted">
+            {t(
+              'timeoff.add-leave-type.nobody_it_applies_to_works_here',
+              'Nobody it applies to works here yet.',
+            )}
+          </Text>
         ) : (
           <View>
             {members.slice(0, 5).map((m) => (
               <ListItem
                 key={m.personId}
                 listitem={false}
-                description={`${amount(m.allowance.draft)} ${unit} this year`}
-                trailing={<Text className="tabular-nums">{`${amount(m.left.draft)} left`}</Text>}
+                description={t(
+                  'timeoff.add-leave-type.this_year',
+                  '{{amount}} {{unit}} this year',
+                  { amount: amount(m.allowance.draft), unit },
+                )}
+                trailing={
+                  <Text className="tabular-nums">
+                    {t('timeoff.add-leave-type.left', '{{amount}} left', {
+                      amount: amount(m.left.draft),
+                    })}
+                  </Text>
+                }
               >
                 {m.displayName}
               </ListItem>
             ))}
             {members.length > 5 ? (
-              <Text
-                variant="footnote"
-                tone="muted"
-              >{`and ${String(members.length - 5)} more`}</Text>
+              <Text variant="footnote" tone="muted">
+                {t('timeoff.add-leave-type.and_more', 'and {{String}} more', {
+                  String: String(members.length - 5),
+                })}
+              </Text>
             ) : null}
           </View>
         )}
         <Text variant="footnote" tone="muted">
-          {`Worked out by Time Off as of ${shortDate(todayHere())}.`}
+          {t(
+            'timeoff.add-leave-type.worked_out_by_time_off_as',
+            'Worked out by Time Off as of {{shortDate}}.',
+            { shortDate: shortDate(todayHere()) },
+          )}
         </Text>
       </Stack>
     </Card>
@@ -757,14 +911,20 @@ export function DescribeLeaveTypeDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New leave type</DialogTitle>
+          <DialogTitle>{t('timeoff.add-leave-type.new_leave_type', 'New leave type')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <Textarea
             value={text}
             onChange={setText}
-            placeholder="Bereavement: 5 paid days for close family, 2 for anyone else. No approval, just tell the manager."
-            accessibilityLabel="Describe the leave"
+            placeholder={t(
+              'timeoff.add-leave-type.bereavement_5_paid_days_for_close',
+              'Bereavement: 5 paid days for close family, 2 for anyone else. No approval, just tell the manager.',
+            )}
+            accessibilityLabel={t(
+              'timeoff.add-leave-type.describe_the_leave',
+              'Describe the leave',
+            )}
           />
           <Button
             size="sm"
@@ -774,10 +934,12 @@ export function DescribeLeaveTypeDialog({
               readIt({ text: text.trim() });
             }}
           >
-            {asked === null ? 'Read it' : 'Read it again'}
+            {asked === null
+              ? t('timeoff.add-leave-type.read_it', 'Read it')
+              : t('timeoff.add-leave-type.read_it_again', 'Read it again')}
           </Button>
           {asked === null ? null : answer === null ? (
-            <Loading label="Reading it" />
+            <Loading label={t('timeoff.add-leave-type.reading_it', 'Reading it')} />
           ) : typeof answer === 'string' ? (
             <Alert tone="danger">{answer}</Alert>
           ) : (
@@ -785,12 +947,14 @@ export function DescribeLeaveTypeDialog({
               <View className="flex-row items-center gap-2">
                 <Icon icon={Sparkles} size={16} tone="accent" />
                 <Text variant="headline" className="flex-1">
-                  {name === '' ? 'The new leave' : name}
+                  {name === '' ? t('timeoff.add-leave-type.the_new_leave', 'The new leave') : name}
                 </Text>
               </View>
               <List>
                 <ListItem listitem={false} overline="Paid">
-                  {unpaid ? 'No, unpaid' : 'Yes, full pay'}
+                  {unpaid
+                    ? t('timeoff.add-leave-type.no_unpaid', 'No, unpaid')
+                    : t('timeoff.add-leave-type.yes_full_pay', 'Yes, full pay')}
                 </ListItem>
                 {(read_?.rules ?? []).map((r) => (
                   <ListItem key={r.key} listitem={false} overline={r.label} wrap>
@@ -827,7 +991,7 @@ export function DescribeLeaveTypeDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onSteps}>
-            Edit rules
+            {t('timeoff.add-leave-type.edit_rules', 'Edit rules')}
           </Button>
           <Button
             className="flex-1"
@@ -842,7 +1006,7 @@ export function DescribeLeaveTypeDialog({
                     name: { default: name },
                     category,
                     colorToken: category === 'sick_leave' ? 'chart-3' : 'chart-4',
-                    icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+                    icon: CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag',
                     unit: 'day',
                     tracked: read_?.definition != null,
                     paid: unpaid ? 'unpaid' : 'paid',
@@ -860,7 +1024,7 @@ export function DescribeLeaveTypeDialog({
               })();
             }}
           >
-            Create
+            {t('timeoff.add-leave-type.create', 'Create')}
           </Button>
         </DialogFooter>
       </DialogContent>

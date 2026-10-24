@@ -22,6 +22,7 @@ export type PeopleRoutes = {
   InboxItem: { id: string };
   /** Me › Settings › Notifications (M:I1). */
   Notifications: undefined;
+  Language: undefined;
   /** A new starter's sections, one at a time (D7). */
   Onboarding: undefined;
   /** `personId` absent: the viewer's own record. `back` is what the bar's back says. */

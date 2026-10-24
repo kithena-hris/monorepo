@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 
 import { ask, formInputs, useSigned } from '../people/api';
 import { askDocuments } from './api';
+import { t } from '../i18n';
 
 /**
  * Filling a record from a document on the phone (Documents MP3, K9): the
@@ -127,8 +128,12 @@ export function FillRecord({
       !answer.ok
         ? answer.message
         : waiting === 0
-          ? 'Saved.'
-          : `Saved. ${String(waiting)} wait for approval before they show.`,
+          ? t('documents.record.saved', 'Saved.')
+          : t(
+              'documents.record.saved_wait_for_approval_before_they',
+              'Saved. {{String}} wait for approval before they show.',
+              { String: String(waiting) },
+            ),
     );
   };
 
@@ -141,21 +146,40 @@ export function FillRecord({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Fill ${name}’s record`}</DialogTitle>
-          <DialogDescription>Nothing is saved until you tick it.</DialogDescription>
+          <DialogTitle>
+            {t('documents.record.fill_s_record', 'Fill {{name}}’s record', { name })}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'documents.record.nothing_is_saved_until_you_tick',
+              'Nothing is saved until you tick it.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {rows === null ? (
-            <Spinner label="Kithena is reading the document" />
+            <Spinner
+              label={t(
+                'documents.record.kithena_is_reading_the_document',
+                'Kithena is reading the document',
+              )}
+            />
           ) : typeof rows === 'string' ? (
             <Alert tone="danger">{rows}</Alert>
           ) : rows.length === 0 ? (
-            <Text tone="muted">The document states none of the record’s fields.</Text>
+            <Text tone="muted">
+              {t(
+                'documents.record.the_document_states_none_of_the',
+                'The document states none of the record’s fields.',
+              )}
+            </Text>
           ) : (
             rows.map((r) => (
               <ListItem
                 key={r.key}
-                description={`Now: ${r.current ?? '—'}`}
+                description={t('documents.record.now', 'Now: {{value}}', {
+                  value: r.current ?? '—',
+                })}
                 supporting={
                   <Badge size="sm" tone="neutral">
                     {`${r.found.value} · p. ${String(r.found.page)}`}
@@ -163,7 +187,9 @@ export function FillRecord({
                 }
                 trailing={
                   <Checkbox
-                    accessibilityLabel={`Save ${r.label}`}
+                    accessibilityLabel={t('documents.record.save', 'Save {{label}}', {
+                      label: r.label,
+                    })}
                     checked={ticked.has(r.key)}
                     disabled={done !== null}
                     onCheckedChange={(on) => {
@@ -183,7 +209,9 @@ export function FillRecord({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            {done === null ? 'Cancel' : 'Close'}
+            {done === null
+              ? t('documents.record.cancel', 'Cancel')
+              : t('documents.record.close', 'Close')}
           </Button>
           {done === null ? (
             <Button
@@ -193,7 +221,7 @@ export function FillRecord({
               disabled={ticked.size === 0}
               onPress={() => void save()}
             >
-              {`Save ${String(ticked.size)}`}
+              {t('documents.record.save_2', 'Save {{String}}', { String: String(ticked.size) })}
             </Button>
           ) : null}
         </DialogFooter>
@@ -227,7 +255,10 @@ export function ActOnLetter({
     void askDocuments<{ fields: readonly { name: string; value: string; page: number }[] }>(
       signed,
       'ReadDocumentFields',
-      { documentId, input: { names: ['Last working day'] } },
+      {
+        documentId,
+        input: { names: [t('documents.record.last_working_day', 'Last working day')] },
+      },
     ).then((r) => {
       if (!live) return;
       if (!r.ok) setDay(r.message);
@@ -245,7 +276,11 @@ export function ActOnLetter({
       reason: 'resigned',
     });
     setSaving(false);
-    setDone(answer.ok ? 'Their notice is in their record.' : answer.message);
+    setDone(
+      answer.ok
+        ? t('documents.record.their_notice_is_in_their_record', 'Their notice is in their record.')
+        : answer.message,
+    );
   };
   return (
     <Dialog
@@ -256,21 +291,51 @@ export function ActOnLetter({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`What this letter changes for ${name}`}</DialogTitle>
-          <DialogDescription>Nothing changes until you save.</DialogDescription>
+          <DialogTitle>
+            {t(
+              'documents.record.what_this_letter_changes_for',
+              'What this letter changes for {{name}}',
+              { name },
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'documents.record.nothing_changes_until_you_save',
+              'Nothing changes until you save.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {day === undefined ? (
-            <Spinner label="Kithena is reading the letter" />
+            <Spinner
+              label={t(
+                'documents.record.kithena_is_reading_the_letter',
+                'Kithena is reading the letter',
+              )}
+            />
           ) : typeof day === 'string' ? (
             <Alert tone="danger">{day}</Alert>
           ) : day === null ? (
-            <Text tone="muted">The letter states no last working day.</Text>
+            <Text tone="muted">
+              {t(
+                'documents.record.the_letter_states_no_last_working',
+                'The letter states no last working day.',
+              )}
+            </Text>
           ) : (
             <>
-              <Text>{`Give notice: last working day ${day.value} (p. ${String(day.page)}).`}</Text>
+              <Text>
+                {t(
+                  'documents.record.give_notice_last_working_day_p',
+                  'Give notice: last working day {{value}} (p. {{String}}).',
+                  { value: day.value, String: String(day.page) },
+                )}
+              </Text>
               <Text variant="footnote" tone="muted">
-                Their leave balance is settled on that day, as it is for anybody leaving.
+                {t(
+                  'documents.record.their_leave_balance_is_settled_on',
+                  'Their leave balance is settled on that day, as it is for anybody leaving.',
+                )}
               </Text>
             </>
           )}
@@ -278,7 +343,9 @@ export function ActOnLetter({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            {done === null ? 'Cancel' : 'Close'}
+            {done === null
+              ? t('documents.record.cancel', 'Cancel')
+              : t('documents.record.close', 'Close')}
           </Button>
           {done === null && day !== null && typeof day === 'object' ? (
             <Button
@@ -287,7 +354,7 @@ export function ActOnLetter({
               loading={saving}
               onPress={() => void save(day.value)}
             >
-              Save
+              {t('documents.record.save_3', 'Save')}
             </Button>
           ) : null}
         </DialogFooter>

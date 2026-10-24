@@ -5,6 +5,7 @@ import { cn } from '../../lib/cn.ts';
 import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Everything that needs attention, in one list, as the web's notification
@@ -36,9 +37,12 @@ export type NotificationCenterProps = {
 
 export function NotificationCenter({
   children,
-  title = 'Notifications',
+  title = t('components.notification-center.notification-center.notifications', 'Notifications'),
   onMarkAllRead,
-  markAllReadLabel = 'Mark all read',
+  markAllReadLabel = t(
+    'components.notification-center.notification-center.mark_all_read',
+    'Mark all read',
+  ),
   className,
 }: NotificationCenterProps): React.JSX.Element {
   return (
@@ -152,11 +156,15 @@ export function NotificationItem({
       </View>
     ) : null);
   const acting = actions !== undefined && actions.length > 0;
-  const read = `${unread ? 'Unread. ' : ''}${title}${description ? `. ${description}` : ''}. ${time}`;
+  const read = `${unread ? t('components.notification-center.notification-center.unread', 'Unread. ') : ''}${title}${description ? `. ${description}` : ''}. ${time}`;
 
   const body = (
     <>
-      {unread ? <Unseen>Unread.</Unseen> : null}
+      {unread ? (
+        <Unseen>
+          {t('components.notification-center.notification-center.unread_2', 'Unread.')}
+        </Unseen>
+      ) : null}
       {/* The unread tint: the accent wash at a little over half. */}
       {unread ? <View className="absolute inset-0 bg-accent-subtle opacity-55" /> : null}
       {leading}

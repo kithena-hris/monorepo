@@ -45,7 +45,7 @@ import { t as tr } from './i18n';
  * screen offers only that.
  */
 
-const PHASES: readonly [Phase, string][] = [
+const PHASES = (): readonly [Phase, string][] => [
   ['before_start', tr('plan.before_day_one', 'Before day one')],
   ['day_one', tr('plan.day_one', 'Day one')],
   ['first_week', tr('plan.first_week', 'First week')],
@@ -110,7 +110,7 @@ function PlanBody({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card>
           <CardContent className="flex flex-col gap-1">
-            {PHASES.map(([phase, label]) => {
+            {PHASES().map(([phase, label]) => {
               const tasks = data.tasks.filter((t) => t.phase === phase);
               if (tasks.length === 0) return null;
               return (
@@ -177,7 +177,10 @@ function PlanBody({
             <KeyValues
               items={[
                 { label: tr('plan.manager', 'Manager'), value: data.manager ?? '—' },
-                { label: tr('plan.buddy', 'Buddy'), value: data.buddy ?? 'Not chosen' },
+                {
+                  label: tr('plan.buddy', 'Buddy'),
+                  value: data.buddy ?? tr('plan.not_chosen', 'Not chosen'),
+                },
                 {
                   label: tr('plan.probation', 'Probation'),
                   value: p.probationEnd === null ? 'None' : `Ends ${day(p.probationEnd)}`,

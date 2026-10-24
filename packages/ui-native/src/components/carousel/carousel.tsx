@@ -12,6 +12,7 @@ import { Pressable, Text as CssText, View } from 'react-native-css/components';
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A few equal items side by side that people swipe through, as the web's.
@@ -68,8 +69,8 @@ export function Carousel({
   index: controlled,
   defaultIndex = 0,
   onIndexChange,
-  previousLabel = 'Previous',
-  nextLabel = 'Next',
+  previousLabel = t('components.carousel.carousel.previous', 'Previous'),
+  nextLabel = t('components.carousel.carousel.next', 'Next'),
   className,
 }: CarouselProps): React.JSX.Element {
   const slides = Children.toArray(children);
@@ -166,7 +167,10 @@ export function Carousel({
               key={i}
               role="group"
               aria-roledescription="slide"
-              aria-label={`${String(i + 1)} of ${String(count)}`}
+              aria-label={t('components.carousel.carousel.of', '{{String}} of {{String2}}', {
+                String: String(i + 1),
+                String2: String(count),
+              })}
               style={{ width: slide || undefined }}
             >
               {child}
@@ -180,7 +184,11 @@ export function Carousel({
             <Pressable
               key={i}
               accessibilityRole="button"
-              accessibilityLabel={`Slide ${String(i + 1)} of ${String(count)}`}
+              accessibilityLabel={t(
+                'components.carousel.carousel.slide_of',
+                'Slide {{String}} of {{String2}}',
+                { String: String(i + 1), String2: String(count) },
+              )}
               accessibilityState={{ selected: i === index }}
               hitSlop={{ top: 18, bottom: 18, left: 3, right: 3 }}
               onPress={() => {

@@ -1,4 +1,6 @@
 import type { Entry, Value } from '../api';
+import { t } from '../../i18n';
+import { dateFormat } from '@reach/ui-native/words';
 
 /**
  * Review's shapes and rules, as the web's (`people/src/review/review.tsx`,
@@ -269,12 +271,24 @@ export interface Row {
 }
 
 export const CHIP: Readonly<Record<ReviewKind, string>> = {
-  changes: 'Changes',
-  ids: 'ID checks',
-  duplicates: 'Duplicates',
-  access: 'Full values',
-  exports: 'Exports',
-  missing: 'Missing details',
+  get changes(): string {
+    return t('people.review.model.changes', 'Changes');
+  },
+  get ids(): string {
+    return t('people.review.model.id_checks', 'ID checks');
+  },
+  get duplicates(): string {
+    return t('people.review.model.duplicates', 'Duplicates');
+  },
+  get access(): string {
+    return t('people.review.model.full_values', 'Full values');
+  },
+  get exports(): string {
+    return t('people.review.model.exports', 'Exports');
+  },
+  get missing(): string {
+    return t('people.review.model.missing_details', 'Missing details');
+  },
 };
 
 export const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {
@@ -304,7 +318,13 @@ export function ago(at: string, now: number): string {
 /** How long until it lapses: "2 days left", "Expires today". */
 export function daysLeft(expiresAt: string, now: number): string {
   const days = Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 86_400_000));
-  return days === 0 ? 'Expires today' : `${String(days)} ${days === 1 ? 'day' : 'days'} left`;
+  return days === 0
+    ? t('people.review.model.expires_today', 'Expires today')
+    : t(
+        'people.review.model.days_left',
+        { one: '{{count}} day left', other: '{{count}} days left' },
+        { count: days },
+      );
 }
 
 /** "Nora" from "Nora Becker"; "the requester" when it is not a name. */
@@ -313,7 +333,7 @@ export const firstName = (name: string): string =>
     ? 'the requester'
     : (name.split(' ')[0] ?? name);
 
-const shortDate = new Intl.DateTimeFormat('en-GB', {
+const shortDate = dateFormat({
   day: 'numeric',
   month: 'short',
   timeZone: 'UTC',
@@ -326,7 +346,11 @@ export const summaryOf = (item: ApprovalItem): string =>
 export const pairId = (pair: DuplicatePair): string => pair.personIds.join('~');
 
 const peopleCount = (n: number): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? 'person' : 'people'}`;
+  t(
+    'people.review.model.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 
 export const changeRow = (item: ApprovalItem): Row => ({
   id: `change-${item.id}`,
@@ -335,7 +359,9 @@ export const changeRow = (item: ApprovalItem): Row => ({
   personId: item.personId,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
-  by: `Asked by ${item.requestedBy === 'You' ? 'you' : item.requestedBy}`,
+  by: t('people.review.model.asked_by', 'Asked by {{value}}', {
+    value: item.requestedBy === 'You' ? 'you' : item.requestedBy,
+  }),
   at: item.requestedAt,
   flag: isClosed(item) ? null : item.flagSummary,
   badge: null,
@@ -351,15 +377,22 @@ export const idRow = (item: IdItem): Row => ({
   by:
     item.enteredBy === null
       ? null
-      : `Entered by ${item.enteredBy === 'You' ? 'you' : item.enteredBy}`,
+      : t('people.review.model.entered_by', 'Entered by {{value}}', {
+          value: item.enteredBy === 'You' ? 'you' : item.enteredBy,
+        }),
   at: item.enteredAt,
   flag: null,
   badge: item.findings.some((f) => f.level === 'mismatch')
-    ? { tone: 'danger', text: 'Failed' }
-    : { tone: 'warning', text: 'Unverifiable' },
+    ? { tone: 'danger', text: t('people.review.model.failed', 'Failed') }
+    : { tone: 'warning', text: t('people.review.model.unverifiable', 'Unverifiable') },
 });
 
-const BAND = { strong: 'Strong', likely: 'Likely', possible: 'Possible' } as const;
+const BAND = () =>
+  ({
+    strong: t('people.review.model.strong', 'Strong'),
+    likely: t('people.review.model.likely', 'Likely'),
+    possible: t('people.review.model.possible', 'Possible'),
+  }) as const;
 
 export const pairRow = (pair: DuplicatePair): Row => ({
   id: `dup-${pairId(pair)}`,
@@ -367,11 +400,20 @@ export const pairRow = (pair: DuplicatePair): Row => ({
   name: pair.names[0] ?? '',
   personId: pair.personIds[0] ?? null,
   avatarUrl: pair.avatarUrls?.[0] ?? null,
-  summary: `Possible duplicate of ${pair.names[1] ?? ''} · ${pair.reasons.join(', ')}`,
-  by: pair.flaggedBy === null || pair.flaggedBy === '' ? null : `Flagged by ${pair.flaggedBy}`,
+  summary: t(
+    'people.review.model.possible_duplicate_of',
+    'Possible duplicate of {{value}} · {{join}}',
+    { value: pair.names[1] ?? '', join: pair.reasons.join(', ') },
+  ),
+  by:
+    pair.flaggedBy === null || pair.flaggedBy === ''
+      ? null
+      : t('people.review.model.flagged_by', 'Flagged by {{flaggedBy}}', {
+          flaggedBy: pair.flaggedBy,
+        }),
   at: null,
   flag: null,
-  badge: pair.match === null ? null : { tone: 'warning', text: BAND[pair.match] },
+  badge: pair.match === null ? null : { tone: 'warning', text: BAND()[pair.match] },
 });
 
 export const accessRow = (r: AccessRequest): Row => ({
@@ -390,12 +432,13 @@ export const accessRow = (r: AccessRequest): Row => ({
 export const shareRow = (share: Share): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
-  name: share.requestedBy.name ?? 'A colleague',
+  name: share.requestedBy.name ?? t('people.review.model.a_colleague', 'A colleague'),
   personId: null,
   avatarUrl: null,
-  summary: `Export to ${share.recipient.name ?? 'a colleague'} · ${
-    share.people === null ? share.reason : peopleCount(share.people)
-  }`,
+  summary: t('people.review.model.export_to', 'Export to {{value}} · {{value2}}', {
+    value: share.recipient.name ?? 'a colleague',
+    value2: share.people === null ? share.reason : peopleCount(share.people),
+  }),
   by: null,
   at: share.requestedAt,
   flag: null,

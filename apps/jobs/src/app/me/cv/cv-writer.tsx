@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type JSX } from 'react';
 
 import { accountApi } from '../../../lib/browser-api';
+import { t } from '../../../lib/i18n';
 
 /**
  * The CV writer, in three steps: say what you have done in your own words,
@@ -44,10 +45,10 @@ interface Draft {
   readonly languages: readonly string[];
 }
 
-const STEPS = [
-  { id: 'say', label: 'What you have done' },
-  { id: 'edit', label: 'Read the draft' },
-  { id: 'keep', label: 'In your library' },
+const STEPS = () => [
+  { id: 'say', label: t('app.me.cv.cv-writer.what_you_have_done', 'What you have done') },
+  { id: 'edit', label: t('app.me.cv.cv-writer.read_the_draft', 'Read the draft') },
+  { id: 'keep', label: t('app.me.cv.cv-writer.in_your_library', 'In your library') },
 ];
 
 const empty: Entry = { title: '', organisation: '', from: '', to: '', bullets: [] };
@@ -71,7 +72,7 @@ function EntryFields({
         <div key={String(i)} className="flex flex-col gap-2 rounded-xl bg-surface-sunken p-4">
           <div className="grid gap-2 sm:grid-cols-2">
             <Field required>
-              <FieldLabel>Title</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.title', 'Title')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={e.title}
@@ -82,7 +83,7 @@ function EntryFields({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Where</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.where', 'Where')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={e.organisation}
@@ -93,7 +94,7 @@ function EntryFields({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>From</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.from', 'From')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={e.from}
@@ -105,11 +106,11 @@ function EntryFields({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>To</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.to', 'To')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={e.to}
-                  placeholder="now"
+                  placeholder={t('app.me.cv.cv-writer.now', 'now')}
                   onChange={(ev) => {
                     set(i, { to: ev.target.value });
                   }}
@@ -118,7 +119,9 @@ function EntryFields({
             </Field>
           </div>
           <Field>
-            <FieldLabel>What you did, one line each</FieldLabel>
+            <FieldLabel>
+              {t('app.me.cv.cv-writer.what_you_did_one_line_each', 'What you did, one line each')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
@@ -138,7 +141,7 @@ function EntryFields({
                 onChange(list.filter((_, j) => j !== i));
               }}
             >
-              Remove
+              {t('app.me.cv.cv-writer.remove', 'Remove')}
             </Button>
           </div>
         </div>
@@ -152,7 +155,7 @@ function EntryFields({
             onChange([...list, empty]);
           }}
         >
-          Add one
+          {t('app.me.cv.cv-writer.add_one', 'Add one')}
         </Button>
       </div>
     </section>
@@ -223,22 +226,29 @@ export function CvWriter({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-[-0.02em]">Write your CV</h1>
+        <h1 className="text-3xl font-bold tracking-[-0.02em]">
+          {t('app.me.cv.cv-writer.write_your_cv', 'Write your CV')}
+        </h1>
         <p className="text-fg-muted">
-          {`For ${name}, ${email}. `}
-          Say what you have done, in your own words. An AI lays it out as a CV from what you said
-          and nothing else; you change any line before it is kept.
+          {t('app.me.cv.cv-writer.for', 'For {{name}}, {{email}}.', { name, email })}{' '}
+          {t(
+            'app.me.cv.cv-writer.say_what_you_have_done_in',
+            'Say what you have done, in your own words. An AI lays it out as a CV from what you said and nothing else; you change any line before it is kept.',
+          )}
         </p>
       </div>
       <Stepper
-        label="Writing your CV"
-        steps={STEPS}
+        label={t('app.me.cv.cv-writer.writing_your_cv', 'Writing your CV')}
+        steps={STEPS()}
         current={step}
         orientation="horizontal"
         size="sm"
       />
       {error === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t('app.me.cv.cv-writer.that_did_not_go_through', 'That did not go through')}
+        >
           {error}
         </Alert>
       )}
@@ -251,82 +261,110 @@ export function CvWriter({
           }}
         >
           <Field required>
-            <FieldLabel>The kind of role you want</FieldLabel>
+            <FieldLabel>
+              {t('app.me.cv.cv-writer.the_kind_of_role_you_want', 'The kind of role you want')}
+            </FieldLabel>
             <FieldControl>
               <Input
                 value={answers.targetRole}
-                placeholder="Backend engineer, Berlin or remote"
+                placeholder={t(
+                  'app.me.cv.cv-writer.backend_engineer_berlin_or_remote',
+                  'Backend engineer, Berlin or remote',
+                )}
                 onChange={ask('targetRole')}
               />
             </FieldControl>
           </Field>
           <Field>
-            <FieldLabel>About you</FieldLabel>
+            <FieldLabel>{t('app.me.cv.cv-writer.about_you', 'About you')}</FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
                 value={answers.about}
-                placeholder="Who you are at work, what you care about, what you are good at."
+                placeholder={t(
+                  'app.me.cv.cv-writer.who_you_are_at_work_what',
+                  'Who you are at work, what you care about, what you are good at.',
+                )}
                 onChange={ask('about')}
               />
             </FieldControl>
           </Field>
           <Field required>
-            <FieldLabel>Where you have worked</FieldLabel>
+            <FieldLabel>
+              {t('app.me.cv.cv-writer.where_you_have_worked', 'Where you have worked')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
                 value={answers.experience}
-                placeholder={
-                  'One job per paragraph: the title, the company, the years, and what you did there. Numbers help: "cut deploy time from 40 to 8 minutes".'
-                }
+                placeholder={t(
+                  'app.me.cv.cv-writer.one_job_per_paragraph_the_title',
+                  'One job per paragraph: the title, the company, the years, and what you did there. Numbers help: "cut deploy time from 40 to 8 minutes".',
+                )}
                 onChange={ask('experience')}
               />
             </FieldControl>
             <FieldDescription>
-              Only what you write here goes into the CV. Nothing is invented.
+              {t(
+                'app.me.cv.cv-writer.only_what_you_write_here_goes',
+                'Only what you write here goes into the CV. Nothing is invented.',
+              )}
             </FieldDescription>
           </Field>
           <Field>
-            <FieldLabel>Education and training</FieldLabel>
+            <FieldLabel>
+              {t('app.me.cv.cv-writer.education_and_training', 'Education and training')}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
                 value={answers.education}
-                placeholder="Degrees, courses, certificates, with the years."
+                placeholder={t(
+                  'app.me.cv.cv-writer.degrees_courses_certificates_with_the_years',
+                  'Degrees, courses, certificates, with the years.',
+                )}
                 onChange={ask('education')}
               />
             </FieldControl>
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel>Skills</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.skills', 'Skills')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={answers.skills}
-                  placeholder="Go, Postgres, Kubernetes, on call"
+                  placeholder={t(
+                    'app.me.cv.cv-writer.go_postgres_kubernetes_on_call',
+                    'Go, Postgres, Kubernetes, on call',
+                  )}
                   onChange={ask('skills')}
                 />
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Languages you speak</FieldLabel>
+              <FieldLabel>
+                {t('app.me.cv.cv-writer.languages_you_speak', 'Languages you speak')}
+              </FieldLabel>
               <FieldControl>
                 <Input
                   value={answers.languages}
-                  placeholder="English, Spanish"
+                  placeholder={t('app.me.cv.cv-writer.english_spanish', 'English, Spanish')}
                   onChange={ask('languages')}
                 />
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Where you live</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.where_you_live', 'Where you live')}</FieldLabel>
               <FieldControl>
-                <Input value={answers.location} placeholder="Madrid" onChange={ask('location')} />
+                <Input
+                  value={answers.location}
+                  placeholder={t('app.me.cv.cv-writer.madrid', 'Madrid')}
+                  onChange={ask('location')}
+                />
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Phone</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.phone', 'Phone')}</FieldLabel>
               <FieldControl>
                 <Input type="tel" value={answers.phone} onChange={ask('phone')} />
               </FieldControl>
@@ -334,7 +372,7 @@ export function CvWriter({
           </div>
           <div className="flex items-center justify-between">
             <Button asChild variant="ghost">
-              <Link href="/me">Back</Link>
+              <Link href="/me">{t('app.me.cv.cv-writer.back', 'Back')}</Link>
             </Button>
             <Button
               type="submit"
@@ -342,7 +380,7 @@ export function CvWriter({
               disabled={answers.targetRole.trim() === '' || answers.experience.trim().length < 20}
               loading={pending}
             >
-              Write the draft
+              {t('app.me.cv.cv-writer.write_the_draft', 'Write the draft')}
             </Button>
           </div>
         </form>
@@ -351,7 +389,7 @@ export function CvWriter({
         <div className="flex flex-col gap-6">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field required>
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.name', 'Name')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.name}
@@ -362,7 +400,7 @@ export function CvWriter({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Headline</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.headline', 'Headline')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.headline}
@@ -373,7 +411,7 @@ export function CvWriter({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Email</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.email', 'Email')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.email}
@@ -384,7 +422,7 @@ export function CvWriter({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Phone</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.phone', 'Phone')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.phone ?? ''}
@@ -395,7 +433,7 @@ export function CvWriter({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Location</FieldLabel>
+              <FieldLabel>{t('app.me.cv.cv-writer.location', 'Location')}</FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.location ?? ''}
@@ -407,7 +445,7 @@ export function CvWriter({
             </Field>
           </div>
           <Field>
-            <FieldLabel>Profile</FieldLabel>
+            <FieldLabel>{t('app.me.cv.cv-writer.profile', 'Profile')}</FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
@@ -419,14 +457,14 @@ export function CvWriter({
             </FieldControl>
           </Field>
           <EntryFields
-            label="Experience"
+            label={t('app.me.cv.cv-writer.experience', 'Experience')}
             list={draft.experience}
             onChange={(experience) => {
               setDraft({ ...draft, experience });
             }}
           />
           <EntryFields
-            label="Education"
+            label={t('app.me.cv.cv-writer.education', 'Education')}
             list={draft.education}
             onChange={(education) => {
               setDraft({ ...draft, education });
@@ -434,7 +472,9 @@ export function CvWriter({
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
-              <FieldLabel>Skills, comma separated</FieldLabel>
+              <FieldLabel>
+                {t('app.me.cv.cv-writer.skills_comma_separated', 'Skills, comma separated')}
+              </FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.skills.join(', ')}
@@ -445,7 +485,9 @@ export function CvWriter({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>Languages, comma separated</FieldLabel>
+              <FieldLabel>
+                {t('app.me.cv.cv-writer.languages_comma_separated', 'Languages, comma separated')}
+              </FieldLabel>
               <FieldControl>
                 <Input
                   value={draft.languages.join(', ')}
@@ -466,27 +508,35 @@ export function CvWriter({
                 setStep(0);
               }}
             >
-              Say it differently
+              {t('app.me.cv.cv-writer.say_it_differently', 'Say it differently')}
             </Button>
             <Button
               disabled={draft.name.trim() === '' || draft.experience.length === 0}
               loading={pending}
               onClick={keep}
             >
-              Keep it as a PDF
+              {t('app.me.cv.cv-writer.keep_it_as_a_pdf', 'Keep it as a PDF')}
             </Button>
           </div>
         </div>
       ) : null}
       {step === 2 ? (
-        <Alert tone="success" title="Your CV is in your library">
-          It goes with your applications when you attach none, once you make it the default.
+        <Alert
+          tone="success"
+          title={t('app.me.cv.cv-writer.your_cv_is_in_your_library', 'Your CV is in your library')}
+        >
+          {t(
+            'app.me.cv.cv-writer.it_goes_with_your_applications_when',
+            'It goes with your applications when you attach none, once you make it the default.',
+          )}
           <div className="mt-3 flex gap-2">
             <Button asChild size="sm">
-              <Link href="/me">Your applications and CVs</Link>
+              <Link href="/me">
+                {t('app.me.cv.cv-writer.your_applications_and_cvs', 'Your applications and CVs')}
+              </Link>
             </Button>
             <Button asChild size="sm" variant="secondary">
-              <Link href="/">Find a job</Link>
+              <Link href="/">{t('app.me.cv.cv-writer.find_a_job', 'Find a job')}</Link>
             </Button>
           </div>
         </Alert>

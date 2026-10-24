@@ -106,33 +106,59 @@ export interface FieldChangeProps {
 
 const ACTION: Record<ReviewAction, { readonly label: string; readonly means: string }> = {
   edit: {
-    label: tr('settings.field-change.type_the_right_value', 'Type the right value'),
-    means: tr('settings.field-change.written_now_as_a_correction', 'Written now, as a correction.'),
+    get label(): string {
+      return tr('settings.field-change.type_the_right_value', 'Type the right value');
+    },
+    get means(): string {
+      return tr(
+        'settings.field-change.written_now_as_a_correction',
+        'Written now, as a correction.',
+      );
+    },
   },
   clear: {
-    label: tr('settings.field-change.remove_it', 'Remove it'),
-    means: tr(
-      'settings.field-change.cleared_history_keeps_what_it_was',
-      'Cleared. History keeps what it was.',
-    ),
+    get label(): string {
+      return tr('settings.field-change.remove_it', 'Remove it');
+    },
+    get means(): string {
+      return tr(
+        'settings.field-change.cleared_history_keeps_what_it_was',
+        'Cleared. History keeps what it was.',
+      );
+    },
   },
   request: {
-    label: tr('settings.field-change.ask_the_employee', 'Ask the employee'),
-    means: tr(
-      'settings.field-change.cleared_and_theyre_asked_for_it',
-      'Cleared, and they’re asked for it on their profile and by email.',
-    ),
+    get label(): string {
+      return tr('settings.field-change.ask_the_employee', 'Ask the employee');
+    },
+    get means(): string {
+      return tr(
+        'settings.field-change.cleared_and_theyre_asked_for_it',
+        'Cleared, and they’re asked for it on their profile and by email.',
+      );
+    },
   },
   hr: {
-    label: tr('settings.field-change.hr_fills_it_in_later', 'HR fills it in later'),
-    means: tr(
-      'settings.field-change.cleared_and_listed_for_hr_in',
-      'Cleared, and listed for HR in Data health.',
-    ),
+    get label(): string {
+      return tr('settings.field-change.hr_fills_it_in_later', 'HR fills it in later');
+    },
+    get means(): string {
+      return tr(
+        'settings.field-change.cleared_and_listed_for_hr_in',
+        'Cleared, and listed for HR in Data health.',
+      );
+    },
   },
   leave: {
-    label: tr('settings.field-change.leave_it_empty', 'Leave it empty'),
-    means: tr('settings.field-change.cleared_and_nobody_is_asked', 'Cleared, and nobody is asked.'),
+    get label(): string {
+      return tr('settings.field-change.leave_it_empty', 'Leave it empty');
+    },
+    get means(): string {
+      return tr(
+        'settings.field-change.cleared_and_nobody_is_asked',
+        'Cleared, and nobody is asked.',
+      );
+    },
   },
 };
 

@@ -131,14 +131,15 @@ export interface CyclesData {
   readonly hr: boolean;
 }
 
-const STATES = [
-  ['', tr('cycles.all', 'All')],
-  ['draft', tr('cycles.draft', 'Draft')],
-  ['scheduled', tr('cycles.scheduled', 'Scheduled')],
-  ['in_progress', tr('cycles.in_progress', 'In progress')],
-  ['closed', tr('cycles.closed', 'Closed')],
-  ['archived', tr('cycles.archived', 'Archived')],
-] as const;
+const STATES = () =>
+  [
+    ['', tr('cycles.all', 'All')],
+    ['draft', tr('cycles.draft', 'Draft')],
+    ['scheduled', tr('cycles.scheduled', 'Scheduled')],
+    ['in_progress', tr('cycles.in_progress', 'In progress')],
+    ['closed', tr('cycles.closed', 'Closed')],
+    ['archived', tr('cycles.archived', 'Archived')],
+  ] as const;
 
 export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
   const act = useAct(props);
@@ -199,7 +200,7 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                   }}
                 />
                 <ChipRow aria-label={tr('cycles.state', 'State')}>
-                  {STATES.map(([v, l]) => (
+                  {STATES().map(([v, l]) => (
                     <Chip
                       key={v}
                       selected={state === v}
@@ -395,7 +396,7 @@ function NewCycle({
 }): JSX.Element {
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const [basics, setBasics] = useState<Pick<CycleSetup, 'name' | 'description' | 'start'>>({
-    name: 'New cycle',
+    name: tr('cycles.new_cycle', 'New cycle'),
     description: '',
     start: { date: addDays(today, 30), time: '09:00', zone: 'UTC' },
   });
@@ -408,7 +409,9 @@ function NewCycle({
   useEffect(() => {
     if (created.current !== null) return;
     created.current = act
-      .call('CreatePerformanceCycle', { input: { name: 'New cycle', start: null, copyFrom: null } })
+      .call('CreatePerformanceCycle', {
+        input: { name: tr('cycles.new_cycle', 'New cycle'), start: null, copyFrom: null },
+      })
       .then((d) => {
         if (!d.ok) {
           setError(d.message);
@@ -446,7 +449,7 @@ function NewCycle({
       onClose={onClose}
       title={basics.name}
       description={tr('cycles.draft_saved_as_you_go', 'Draft · saved as you go')}
-      steps={STEPS}
+      steps={STEPS()}
       step={0}
       onStep={go}
       finishLabel={tr('cycles.next', 'Next')}
@@ -609,7 +612,7 @@ export interface SetupData {
 }
 
 /** Five steps: when and what the subject sees, who, which reviews and their reminders, the timeline, and a last look. */
-const STEPS = [
+const STEPS = () => [
   tr('cycles.basics', 'Basics'),
   tr('cycles.people', 'People'),
   tr('cycles.reviews_and_reminders', 'Reviews and reminders'),
@@ -626,13 +629,14 @@ const ZONES = [
   'Asia/Kolkata',
   'UTC',
 ];
-const REMINDERS = [
-  ['before:7', tr('cycles.7_days_before', '7 days before')],
-  ['before:3', tr('cycles.3_days_before', '3 days before')],
-  ['on_day', tr('cycles.on_the_day', 'On the day')],
-  ['late:2', tr('cycles.every_2_days_when_late', 'Every 2 days when late')],
-  ['opens', tr('cycles.when_it_opens', 'When it opens')],
-] as const;
+const REMINDERS = () =>
+  [
+    ['before:7', tr('cycles.7_days_before', '7 days before')],
+    ['before:3', tr('cycles.3_days_before', '3 days before')],
+    ['on_day', tr('cycles.on_the_day', 'On the day')],
+    ['late:2', tr('cycles.every_2_days_when_late', 'Every 2 days when late')],
+    ['opens', tr('cycles.when_it_opens', 'When it opens')],
+  ] as const;
 
 /** PF4: setup in a centred dialog; each step saves as it changes. */
 export function Setup(props: ScreenProps<SetupData>): JSX.Element {
@@ -649,7 +653,7 @@ function SetupDialog({
 }: ScreenProps<SetupData> & { readonly data: SetupData }): JSX.Element {
   const act = useAct(props);
   const [step, setStep] = useState(
-    Math.min(STEPS.length - 1, Number(props.search?.['step'] ?? '0') || 0),
+    Math.min(STEPS().length - 1, Number(props.search?.['step'] ?? '0') || 0),
   );
   const [c, setC] = useState<CycleSetup>(data.cycle);
   const save = (patch: Partial<CycleSetup>): void => {
@@ -689,11 +693,11 @@ function SetupDialog({
             ? tr('cycles.draft_saved_as_you_go', 'Draft · saved as you go')
             : words(c.state)
         }
-        steps={STEPS}
+        steps={STEPS()}
         step={step}
         onStep={go}
         finishLabel={finishLabel}
-        canNext={step < STEPS.length - 1 || (!blocked && data.action !== 'past')}
+        canNext={step < STEPS().length - 1 || (!blocked && data.action !== 'past')}
         pending={act.pending}
         finish={() => {
           act.run('StartPerformanceCycle', { id: c.id }, () => {
@@ -938,14 +942,34 @@ function Basics({
 }
 
 const IS = [
-  { id: 'is', label: tr('cycles.is_any_of', 'is any of'), value: 'options' },
-  { id: 'not', label: tr('cycles.is_none_of', 'is none of'), value: 'options' },
+  {
+    id: 'is',
+    get label(): string {
+      return tr('cycles.is_any_of', 'is any of');
+    },
+    value: 'options',
+  },
+  {
+    id: 'not',
+    get label(): string {
+      return tr('cycles.is_none_of', 'is none of');
+    },
+    value: 'options',
+  },
 ] as const;
 const STATUS_LABEL: Readonly<Record<string, string>> = {
-  active: tr('cycles.active', 'Active'),
-  on_leave: tr('cycles.on_leave', 'On leave'),
-  notice: tr('cycles.on_notice', 'On notice'),
-  pre_hire: tr('cycles.starting_soon', 'Starting soon'),
+  get active(): string {
+    return tr('cycles.active', 'Active');
+  },
+  get on_leave(): string {
+    return tr('cycles.on_leave', 'On leave');
+  },
+  get notice(): string {
+    return tr('cycles.on_notice', 'On notice');
+  },
+  get pre_hire(): string {
+    return tr('cycles.starting_soon', 'Starting soon');
+  },
 };
 
 /** What the People step filters on: what Performance knows of each person. */
@@ -995,7 +1019,7 @@ function filterFields(data: {
     {
       id: 'title',
       label: tr('cycles.job_title', 'Job title'),
-      operators: [{ id: 'contains', label: 'contains', value: 'text' }],
+      operators: [{ id: 'contains', label: tr('cycles.contains', 'contains'), value: 'text' }],
     },
     {
       id: 'hiredOn',
@@ -1909,7 +1933,7 @@ function Identity({
           </SelectTrigger>
         </FieldControl>
         <SelectContent>
-          {NAMES.map(([x, l]) => (
+          {NAMES().map(([x, l]) => (
             <SelectItem key={x} value={x}>
               {l}
             </SelectItem>
@@ -1920,12 +1944,13 @@ function Identity({
   );
 }
 
-const NAMES = [
-  ['hidden', tr('cycles.hidden_from_the_subject', 'Hidden from the subject')],
-  ['shown', tr('cycles.shown_to_the_subject', 'Shown to the subject')],
-  ['writer', tr('cycles.the_writer_chooses', 'The writer chooses')],
-] as const;
-const NAME_LABEL: Readonly<Record<string, string>> = Object.fromEntries(NAMES);
+const NAMES = () =>
+  [
+    ['hidden', tr('cycles.hidden_from_the_subject', 'Hidden from the subject')],
+    ['shown', tr('cycles.shown_to_the_subject', 'Shown to the subject')],
+    ['writer', tr('cycles.the_writer_chooses', 'The writer chooses')],
+  ] as const;
+const NAME_LABEL: Readonly<Record<string, string>> = Object.fromEntries(NAMES());
 
 /** One kind of review's reminders: when, and by which channels besides the Inbox. */
 function ReminderOptions({
@@ -1945,7 +1970,7 @@ function ReminderOptions({
           kind: kind.toLowerCase(),
         })}
       >
-        {REMINDERS.map(([v, l]) => (
+        {REMINDERS().map(([v, l]) => (
           <Chip
             key={v}
             selected={value.rules.includes(v)}
@@ -2424,8 +2449,12 @@ const dueAfter = (d: Deadline): string =>
         );
 
 const PICKER: Readonly<Record<string, string>> = {
-  subject: tr('cycles.the_person_2', 'the person'),
-  manager: tr('cycles.their_manager_2', 'their manager'),
+  get subject(): string {
+    return tr('cycles.the_person_2', 'the person');
+  },
+  get manager(): string {
+    return tr('cycles.their_manager_2', 'their manager');
+  },
   hr: 'HR',
 };
 
@@ -2672,15 +2701,19 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                 : []),
               {
                 label: tr('cycles.acknowledgement', 'Acknowledgement'),
-                value: v.acknowledge ? 'Asked for' : 'Not asked for',
+                value: v.acknowledge
+                  ? tr('cycles.asked_for', 'Asked for')
+                  : tr('cycles.not_asked_for', 'Not asked for'),
               },
               {
                 label: tr('cycles.their_comment', 'Their comment'),
-                value: v.subjectComment ? 'Allowed' : 'Not allowed',
+                value: v.subjectComment ? 'Allowed' : tr('cycles.not_allowed', 'Not allowed'),
               },
               {
                 label: tr('cycles.peer_summary', 'Peer summary'),
-                value: v.peerSummary ? 'Shared, without names' : 'Kept back',
+                value: v.peerSummary
+                  ? tr('cycles.shared_without_names', 'Shared, without names')
+                  : tr('cycles.kept_back', 'Kept back'),
               },
               {
                 label: tr('cycles.response_minimum', 'Response minimum'),
@@ -2801,11 +2834,17 @@ export interface OverviewData {
 
 type Dialog = 'extend' | 'close' | 'export' | 'add' | 'remove' | null;
 
-const REMINDER_LABEL: Readonly<Record<string, string>> = Object.fromEntries(REMINDERS);
+const REMINDER_LABEL: Readonly<Record<string, string>> = Object.fromEntries(REMINDERS());
 const RELEASE_LABEL: Readonly<Record<string, string>> = {
-  manager: tr('cycles.as_each_is_submitted', 'As each is submitted'),
-  hr_date: tr('cycles.on_a_date', 'On a date'),
-  close: tr('cycles.when_the_cycle_closes', 'When the cycle closes'),
+  get manager(): string {
+    return tr('cycles.as_each_is_submitted', 'As each is submitted');
+  },
+  get hr_date(): string {
+    return tr('cycles.on_a_date', 'On a date');
+  },
+  get close(): string {
+    return tr('cycles.when_the_cycle_closes', 'When the cycle closes');
+  },
 };
 
 /**
@@ -3016,9 +3055,15 @@ function CycleSettings({
   );
 }
 const GOALS_LABEL: Readonly<Record<string, string>> = {
-  none: tr('cycles.not_part_of_this_cycle', 'Not part of this cycle'),
-  context: tr('cycles.shown_beside_the_review', 'Shown beside the review'),
-  scored: tr('cycles.scored_in_the_review', 'Scored in the review'),
+  get none(): string {
+    return tr('cycles.not_part_of_this_cycle', 'Not part of this cycle');
+  },
+  get context(): string {
+    return tr('cycles.shown_beside_the_review', 'Shown beside the review');
+  },
+  get scored(): string {
+    return tr('cycles.scored_in_the_review', 'Scored in the review');
+  },
 };
 
 /** Whole days from one calendar date to another; negative when `to` is earlier. */
@@ -3026,22 +3071,63 @@ const daysBetween = (from: string, to: string): number =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 const REVIEW_STATES = [
-  { value: 'not_started', label: tr('cycles.not_started', 'Not started') },
-  { value: 'draft', label: tr('cycles.in_progress', 'In progress') },
-  { value: 'overdue', label: tr('cycles.overdue', 'Overdue') },
-  { value: 'submitted', label: tr('cycles.submitted', 'Submitted') },
-  { value: 'released', label: tr('cycles.released', 'Released') },
-  { value: 'ack', label: tr('cycles.acknowledged', 'Acknowledged') },
-  { value: 'unlock', label: tr('cycles.unlock_requested', 'Unlock requested') },
-  { value: 'none', label: tr('cycles.none', 'None') },
+  {
+    value: 'not_started',
+    get label(): string {
+      return tr('cycles.not_started', 'Not started');
+    },
+  },
+  {
+    value: 'draft',
+    get label(): string {
+      return tr('cycles.in_progress', 'In progress');
+    },
+  },
+  {
+    value: 'overdue',
+    get label(): string {
+      return tr('cycles.overdue', 'Overdue');
+    },
+  },
+  {
+    value: 'submitted',
+    get label(): string {
+      return tr('cycles.submitted', 'Submitted');
+    },
+  },
+  {
+    value: 'released',
+    get label(): string {
+      return tr('cycles.released', 'Released');
+    },
+  },
+  {
+    value: 'ack',
+    get label(): string {
+      return tr('cycles.acknowledged', 'Acknowledged');
+    },
+  },
+  {
+    value: 'unlock',
+    get label(): string {
+      return tr('cycles.unlock_requested', 'Unlock requested');
+    },
+  },
+  {
+    value: 'none',
+    get label(): string {
+      return tr('cycles.none', 'None');
+    },
+  },
 ];
-const GROUPS = [
-  ['', tr('cycles.no_grouping', 'No grouping')],
-  ['department', tr('cycles.department', 'Department')],
-  ['location', tr('cycles.work_location', 'Work location')],
-  ['legalEntity', tr('cycles.legal_entity', 'Legal entity')],
-  ['manager', tr('cycles.manager', 'Manager')],
-] as const;
+const GROUPS = () =>
+  [
+    ['', tr('cycles.no_grouping', 'No grouping')],
+    ['department', tr('cycles.department', 'Department')],
+    ['location', tr('cycles.work_location', 'Work location')],
+    ['legalEntity', tr('cycles.legal_entity', 'Legal entity')],
+    ['manager', tr('cycles.manager', 'Manager')],
+  ] as const;
 
 /** A row's group heading: the name of what it is grouped by. */
 function groupLabel(data: OverviewData, group: string, r: OverviewRow): string {
@@ -3064,10 +3150,34 @@ function groupLabel(data: OverviewData, group: string, r: OverviewRow): string {
 }
 
 const STANCES = [
-  { key: 'submitted', label: tr('cycles.submitted', 'Submitted'), tone: 'success' },
-  { key: 'started', label: tr('cycles.in_progress', 'In progress'), tone: 'accent' },
-  { key: 'waiting', label: tr('cycles.not_started', 'Not started'), tone: 'neutral' },
-  { key: 'overdue', label: tr('cycles.overdue', 'Overdue'), tone: 'danger' },
+  {
+    key: 'submitted',
+    get label(): string {
+      return tr('cycles.submitted', 'Submitted');
+    },
+    tone: 'success',
+  },
+  {
+    key: 'started',
+    get label(): string {
+      return tr('cycles.in_progress', 'In progress');
+    },
+    tone: 'accent',
+  },
+  {
+    key: 'waiting',
+    get label(): string {
+      return tr('cycles.not_started', 'Not started');
+    },
+    tone: 'neutral',
+  },
+  {
+    key: 'overdue',
+    get label(): string {
+      return tr('cycles.overdue', 'Overdue');
+    },
+    tone: 'danger',
+  },
 ] as const;
 
 /**
@@ -3145,7 +3255,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
             }),
           }))}
           center={`${String(done)}%`}
-          centerLabel="submitted"
+          centerLabel={tr('cycles.submitted_center', 'submitted')}
           showLegend
         />
       </ChartCard>
@@ -3246,7 +3356,7 @@ function PeopleToolbar({
     {
       id: 'overdue',
       label: tr('cycles.anything_overdue', 'Anything overdue'),
-      operators: [{ id: 'is', label: 'is', value: 'options' }],
+      operators: [{ id: 'is', label: tr('cycles.is', 'is'), value: 'options' }],
       options: [
         { value: 'yes', label: tr('cycles.yes', 'Yes') },
         { value: 'no', label: tr('cycles.no', 'No') },
@@ -3377,7 +3487,7 @@ function PeopleToolbar({
                   {group === ''
                     ? tr('cycles.view', 'View')
                     : tr('cycles.view_by', 'View · by {{value}}', {
-                        value: (GROUPS.find(([v]) => v === group)?.[1] ?? '').toLowerCase(),
+                        value: (GROUPS().find(([v]) => v === group)?.[1] ?? '').toLowerCase(),
                       })}
                 </Button>
               </PopoverTrigger>
@@ -3399,7 +3509,7 @@ function PeopleToolbar({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {GROUPS.map(([v, l]) => (
+                    {GROUPS().map(([v, l]) => (
                       <SelectItem key={v === '' ? 'none' : v} value={v === '' ? 'none' : v}>
                         {l}
                       </SelectItem>
@@ -4272,7 +4382,10 @@ function CloseDialog({
               'cycles.unlocked_and_edited_once_submitted_before',
               'Unlocked and edited, once submitted before',
             ),
-            value: 'Completed, on the last submitted revision',
+            value: tr(
+              'cycles.completed_on_the_last_submitted_revision',
+              'Completed, on the last submitted revision',
+            ),
           },
           {
             label: tr('cycles.draft_never_submitted', 'Draft, never submitted'),
@@ -4445,7 +4558,10 @@ function AddDialog({
             onClick={() => {
               act.run(
                 'AddPerformanceParticipant',
-                { id, input: { personId: chosen, reason: 'Late joiner' } },
+                {
+                  id,
+                  input: { personId: chosen, reason: tr('cycles.late_joiner', 'Late joiner') },
+                },
                 onDone,
               );
             }}

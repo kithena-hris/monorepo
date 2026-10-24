@@ -39,31 +39,85 @@ export type EmailPurpose =
   'rejection' | 'selection' | 'interview_confirmation' | 'offer' | 'stage_expectations';
 
 export const PURPOSE_LABEL: Readonly<Record<EmailPurpose, string>> = {
-  rejection: tr('composer.application_not_taken_forward', 'Application not taken forward'),
-  selection: tr('composer.moving_to_the_next_step', 'Moving to the next step'),
-  interview_confirmation: tr('composer.interview_confirmed', 'Interview confirmed'),
-  offer: tr('composer.offer_sent', 'Offer sent'),
-  stage_expectations: tr('composer.what_to_expect_at_this_stage', 'What to expect at this stage'),
+  get rejection(): string {
+    return tr('composer.application_not_taken_forward', 'Application not taken forward');
+  },
+  get selection(): string {
+    return tr('composer.moving_to_the_next_step', 'Moving to the next step');
+  },
+  get interview_confirmation(): string {
+    return tr('composer.interview_confirmed', 'Interview confirmed');
+  },
+  get offer(): string {
+    return tr('composer.offer_sent', 'Offer sent');
+  },
+  get stage_expectations(): string {
+    return tr('composer.what_to_expect_at_this_stage', 'What to expect at this stage');
+  },
 };
 
 /** Every placeholder, as Recruiting fills it (`emails.ts`). */
 export const PLACEHOLDERS = [
-  { key: 'candidate', label: tr('composer.candidates_full_name', 'Candidate’s full name') },
-  { key: 'first_name', label: tr('composer.candidates_first_name', 'Candidate’s first name') },
-  { key: 'job', label: tr('composer.job_title', 'Job title') },
-  { key: 'company', label: tr('composer.company_name', 'Company name') },
-  { key: 'stage', label: tr('composer.current_stage', 'Current stage') },
+  {
+    key: 'candidate',
+    get label(): string {
+      return tr('composer.candidates_full_name', 'Candidate’s full name');
+    },
+  },
+  {
+    key: 'first_name',
+    get label(): string {
+      return tr('composer.candidates_first_name', 'Candidate’s first name');
+    },
+  },
+  {
+    key: 'job',
+    get label(): string {
+      return tr('composer.job_title', 'Job title');
+    },
+  },
+  {
+    key: 'company',
+    get label(): string {
+      return tr('composer.company_name', 'Company name');
+    },
+  },
+  {
+    key: 'stage',
+    get label(): string {
+      return tr('composer.current_stage', 'Current stage');
+    },
+  },
   {
     key: 'expectations',
-    label: tr('composer.what_happens_at_the_current_stage', 'What happens at the current stage'),
+    get label(): string {
+      return tr('composer.what_happens_at_the_current_stage', 'What happens at the current stage');
+    },
   },
   {
     key: 'interview',
-    label: tr('composer.next_interview_date_and_time', 'Next interview, date and time'),
+    get label(): string {
+      return tr('composer.next_interview_date_and_time', 'Next interview, date and time');
+    },
   },
-  { key: 'where', label: tr('composer.where_the_interview_is', 'Where the interview is') },
-  { key: 'sender', label: tr('composer.your_name', 'Your name') },
-  { key: 'link', label: tr('composer.the_candidates_page', 'The candidate’s page') },
+  {
+    key: 'where',
+    get label(): string {
+      return tr('composer.where_the_interview_is', 'Where the interview is');
+    },
+  },
+  {
+    key: 'sender',
+    get label(): string {
+      return tr('composer.your_name', 'Your name');
+    },
+  },
+  {
+    key: 'link',
+    get label(): string {
+      return tr('composer.the_candidates_page', 'The candidate’s page');
+    },
+  },
 ] as const;
 
 export interface ComposedEmail {

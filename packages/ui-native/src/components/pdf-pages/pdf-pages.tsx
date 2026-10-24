@@ -12,6 +12,7 @@ import { Alert, Skeleton } from '../feedback/feedback.tsx';
 // and react-native-web's bundlers take `engine.web.tsx` (a frame).
 import { PdfEngine } from './engine';
 import type { EngineMessage } from './engine-html.ts';
+import { t } from '../../lib/i18n';
 
 /**
  * A PDF's pages, the web's `PdfPages` on a phone: each page drawn as a
@@ -85,8 +86,17 @@ export function PdfPages({
 
   if (failed) {
     return (
-      <Alert tone="danger" title="The document could not be shown">
-        Check the connection and open it again.
+      <Alert
+        tone="danger"
+        title={t(
+          'components.pdf-pages.pdf-pages.the_document_could_not_be_shown',
+          'The document could not be shown',
+        )}
+      >
+        {t(
+          'components.pdf-pages.pdf-pages.check_the_connection_and_open_it',
+          'Check the connection and open it again.',
+        )}
       </Alert>
     );
   }
@@ -110,7 +120,9 @@ export function PdfPages({
         <View
           accessible
           accessibilityRole="progressbar"
-          accessibilityLabel={`Opening ${label}`}
+          accessibilityLabel={t('components.pdf-pages.pdf-pages.opening', 'Opening {{label}}', {
+            label,
+          })}
           className="gap-3"
         >
           <Skeleton className="aspect-[0.77] w-full rounded-sm" />
@@ -139,7 +151,11 @@ export function PdfPages({
                   <Image
                     accessible
                     source={{ uri: picture }}
-                    accessibilityLabel={`${label}, page ${String(p.number)} of ${String(pages.length)}`}
+                    accessibilityLabel={t(
+                      'components.pdf-pages.pdf-pages.page_of',
+                      '{{label}}, page {{String}} of {{String2}}',
+                      { label, String: String(p.number), String2: String(pages.length) },
+                    )}
                     className="absolute inset-0 h-full w-full"
                     resizeMode="contain"
                   />

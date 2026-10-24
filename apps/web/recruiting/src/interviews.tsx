@@ -54,12 +54,13 @@ import { t as tr } from './i18n';
  * every disagreement is Recruiting's, never computed here.
  */
 
-const ANCHORS = [
-  tr('interviews.strong_no', 'Strong no'),
-  tr('interviews.no', 'No'),
-  tr('interviews.yes', 'Yes'),
-  tr('interviews.strong_yes', 'Strong yes'),
-] as const;
+const ANCHORS = () =>
+  [
+    tr('interviews.strong_no', 'Strong no'),
+    tr('interviews.no', 'No'),
+    tr('interviews.yes', 'Yes'),
+    tr('interviews.strong_yes', 'Strong yes'),
+  ] as const;
 const RECOMMENDATIONS: readonly Recommendation[] = ['strong_no', 'no', 'yes', 'strong_yes'];
 
 /** RM1 on the web: what I interview next and the scorecards I owe. */
@@ -241,9 +242,15 @@ function Hours({ props }: { readonly props: ScreenProps<InterviewsData> }): JSX.
 }
 
 const PROVIDER: Readonly<Record<string, string>> = {
-  google: tr('interviews.google_calendar', 'Google Calendar'),
-  microsoft: tr('interviews.microsoft_365', 'Microsoft 365'),
-  zoom: tr('interviews.zoom', 'Zoom'),
+  get google(): string {
+    return tr('interviews.google_calendar', 'Google Calendar');
+  },
+  get microsoft(): string {
+    return tr('interviews.microsoft_365', 'Microsoft 365');
+  },
+  get zoom(): string {
+    return tr('interviews.zoom', 'Zoom');
+  },
 };
 
 /**
@@ -401,7 +408,7 @@ function Scale({
       disabled={disabled}
       className="w-full"
     >
-      {ANCHORS.map((a, i) => (
+      {ANCHORS().map((a, i) => (
         <SegmentedControlItem key={a} value={String(i + 1)}>
           {tr('interviews.text_2', '{{value}} · {{a}}', { value: String(i + 1), a })}
         </SegmentedControlItem>

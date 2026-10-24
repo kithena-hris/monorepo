@@ -1,4 +1,5 @@
 import { ask, useRead, type Answer, type Load, type Signed } from '../people/api';
+import { locale } from '@reach/ui-native/words';
 
 /**
  * Recruiting on the phone (REC-145): the web's operations through the
@@ -23,7 +24,7 @@ export const words = (k: string): string => {
 };
 
 export const when = (iso: string): string =>
-  new Date(iso).toLocaleString('en-GB', {
+  new Date(iso).toLocaleString(locale(), {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

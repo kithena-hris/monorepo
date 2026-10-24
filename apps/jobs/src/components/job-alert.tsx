@@ -17,6 +17,7 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../lib/browser-api';
+import { t } from '../lib/i18n';
 
 /** J11: "Email me jobs like this", sent only once the address confirms. */
 export function JobAlert({
@@ -35,12 +36,22 @@ export function JobAlert({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>{`Email me new jobs at ${name}`}</CardTitle>
+        <CardTitle level={2}>
+          {t('components.job-alert.email_me_new_jobs_at', 'Email me new jobs at {{name}}', {
+            name,
+          })}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {state === 'sent' ? (
-          <Alert tone="success" title="Check your inbox">
-            We sent a link to confirm. Nothing is sent until you do.
+          <Alert
+            tone="success"
+            title={t('components.job-alert.check_your_inbox', 'Check your inbox')}
+          >
+            {t(
+              'components.job-alert.we_sent_a_link_to_confirm',
+              'We sent a link to confirm. Nothing is sent until you do.',
+            )}
           </Alert>
         ) : (
           <form
@@ -57,13 +68,16 @@ export function JobAlert({
             }}
           >
             {state === 'idle' ? null : (
-              <Alert tone="danger" title="That did not go through">
+              <Alert
+                tone="danger"
+                title={t('components.job-alert.that_did_not_go_through', 'That did not go through')}
+              >
                 {state}
               </Alert>
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field required>
-                <FieldLabel>Your email</FieldLabel>
+                <FieldLabel>{t('components.job-alert.your_email', 'Your email')}</FieldLabel>
                 <FieldControl>
                   <Input
                     type="email"
@@ -76,11 +90,13 @@ export function JobAlert({
                 </FieldControl>
               </Field>
               <Field>
-                <FieldLabel>Jobs matching (optional)</FieldLabel>
+                <FieldLabel>
+                  {t('components.job-alert.jobs_matching_optional', 'Jobs matching (optional)')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={query}
-                    placeholder="designer"
+                    placeholder={t('components.job-alert.designer', 'designer')}
                     onChange={(e) => {
                       setQuery(e.target.value);
                     }}
@@ -89,17 +105,21 @@ export function JobAlert({
               </Field>
             </div>
             <SegmentedControl
-              aria-label="How often"
+              aria-label={t('components.job-alert.how_often', 'How often')}
               value={frequency}
               onValueChange={(v) => {
                 setFrequency(v === 'daily' ? 'daily' : 'weekly');
               }}
             >
-              <SegmentedControlItem value="weekly">Weekly</SegmentedControlItem>
-              <SegmentedControlItem value="daily">Daily</SegmentedControlItem>
+              <SegmentedControlItem value="weekly">
+                {t('components.job-alert.weekly', 'Weekly')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="daily">
+                {t('components.job-alert.daily', 'Daily')}
+              </SegmentedControlItem>
             </SegmentedControl>
             <Button type="submit" loading={pending} disabled={email === ''}>
-              Email me
+              {t('components.job-alert.email_me', 'Email me')}
             </Button>
           </form>
         )}

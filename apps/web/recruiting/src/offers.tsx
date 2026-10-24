@@ -400,21 +400,51 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
 }
 
 const STEP_LABEL: Readonly<Record<string, string>> = {
-  entity: tr('offers.legal_entity', 'Legal entity'),
-  location: tr('offers.work_location', 'Work location'),
-  relationship: tr('offers.relationship', 'Relationship'),
-  contract_type: tr('offers.contract_type', 'Contract type'),
-  fixed_term_reason: tr('offers.fixed_term_reason', 'Fixed-term reason'),
-  duration: tr('offers.duration', 'Duration'),
-  hours: tr('offers.hours', 'Hours'),
-  probation: tr('offers.probation', 'Probation'),
-  notice: tr('offers.notice', 'Notice'),
-  work_mode: tr('offers.work_mode', 'Work mode'),
-  agreement: tr('offers.collective_agreement', 'Collective agreement'),
-  pay: tr('offers.pay', 'Pay'),
-  benefits: tr('offers.benefits', 'Benefits'),
-  clauses: tr('offers.clauses', 'Clauses'),
-  summary: tr('offers.summary', 'Summary'),
+  get entity(): string {
+    return tr('offers.legal_entity', 'Legal entity');
+  },
+  get location(): string {
+    return tr('offers.work_location', 'Work location');
+  },
+  get relationship(): string {
+    return tr('offers.relationship', 'Relationship');
+  },
+  get contract_type(): string {
+    return tr('offers.contract_type', 'Contract type');
+  },
+  get fixed_term_reason(): string {
+    return tr('offers.fixed_term_reason', 'Fixed-term reason');
+  },
+  get duration(): string {
+    return tr('offers.duration', 'Duration');
+  },
+  get hours(): string {
+    return tr('offers.hours', 'Hours');
+  },
+  get probation(): string {
+    return tr('offers.probation', 'Probation');
+  },
+  get notice(): string {
+    return tr('offers.notice', 'Notice');
+  },
+  get work_mode(): string {
+    return tr('offers.work_mode', 'Work mode');
+  },
+  get agreement(): string {
+    return tr('offers.collective_agreement', 'Collective agreement');
+  },
+  get pay(): string {
+    return tr('offers.pay', 'Pay');
+  },
+  get benefits(): string {
+    return tr('offers.benefits', 'Benefits');
+  },
+  get clauses(): string {
+    return tr('offers.clauses', 'Clauses');
+  },
+  get summary(): string {
+    return tr('offers.summary', 'Summary');
+  },
 };
 
 function Length({
@@ -942,7 +972,10 @@ function Composer({
                     label: tr('offers.signature', 'Signature'),
                     value:
                       data.checked.terms.signature === 'wet_ink'
-                        ? 'Wet ink: printed and signed by hand'
+                        ? tr(
+                            'offers.wet_ink_printed_and_signed_by',
+                            'Wet ink: printed and signed by hand',
+                          )
                         : 'Electronic',
                   },
                   {
@@ -1444,7 +1477,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                     label: tr('offers.terms', 'Terms'),
                     value:
                       t == null
-                        ? 'Not complete'
+                        ? tr('offers.not_complete', 'Not complete')
                         : `${words(t.contractType)} · ${String(t.weeklyMinutes / 60)} h a week`,
                   },
                   {
@@ -1581,10 +1614,16 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                             label: tr('offers.signing', 'Signing'),
                             value:
                               k.route === 'wet_ink'
-                                ? 'Wet ink: printed, signed by hand by both, scan uploaded'
+                                ? tr(
+                                    'offers.wet_ink_printed_signed_by_hand',
+                                    'Wet ink: printed, signed by hand by both, scan uploaded',
+                                  )
                                 : k.route === 'documents'
                                   ? 'Through Documents'
-                                  : 'Signed contract uploaded',
+                                  : tr(
+                                      'offers.signed_contract_uploaded',
+                                      'Signed contract uploaded',
+                                    ),
                           },
                           {
                             label: tr('offers.documents', 'Documents'),
@@ -1592,7 +1631,10 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                           },
                           {
                             label: tr('offers.signed', 'Signed'),
-                            value: k.signedOn === null ? 'Not yet' : day(k.signedOn),
+                            value:
+                              k.signedOn === null
+                                ? tr('offers.not_yet', 'Not yet')
+                                : day(k.signedOn),
                           },
                         ]}
                       />

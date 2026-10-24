@@ -1,10 +1,10 @@
 import type { FilterField, FilterOperator } from '@reach/ui-native';
+import { t } from '../i18n';
+import { dateFormat } from '@reach/ui-native/words';
 
 // display.tsx's, here so this module stays testable without React Native.
 const longDate = (iso: string): string =>
-  new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' }).format(
-    Date.parse(`${iso}T00:00:00Z`),
-  );
+  dateFormat({ dateStyle: 'long', timeZone: 'UTC' }).format(Date.parse(`${iso}T00:00:00Z`));
 
 /**
  * The Directory's conditions, as the web's (`directory.tsx`): which operators
@@ -25,35 +25,119 @@ export interface DirectoryField {
 }
 
 const EMPTY: FilterOperator[] = [
-  { id: 'empty', label: 'is empty', value: 'none' },
-  { id: 'not_empty', label: 'is not empty', value: 'none' },
+  {
+    id: 'empty',
+    get label(): string {
+      return t('people.filters.is_empty', 'is empty');
+    },
+    value: 'none',
+  },
+  {
+    id: 'not_empty',
+    get label(): string {
+      return t('people.filters.is_not_empty', 'is not empty');
+    },
+    value: 'none',
+  },
 ];
 
 const OPERATORS: Readonly<Record<string, readonly FilterOperator[]>> = {
   text: [
-    { id: 'contains', label: 'contains', value: 'text' },
-    { id: 'is', label: 'is exactly', value: 'text' },
+    {
+      id: 'contains',
+      get label(): string {
+        return t('people.filters.contains', 'contains');
+      },
+      value: 'text',
+    },
+    {
+      id: 'is',
+      get label(): string {
+        return t('people.filters.is_exactly', 'is exactly');
+      },
+      value: 'text',
+    },
     ...EMPTY,
   ],
   select: [
-    { id: 'in', label: 'is any of', value: 'options' },
-    { id: 'not_in', label: 'is none of', value: 'options' },
+    {
+      id: 'in',
+      get label(): string {
+        return t('people.filters.is_any_of', 'is any of');
+      },
+      value: 'options',
+    },
+    {
+      id: 'not_in',
+      get label(): string {
+        return t('people.filters.is_none_of', 'is none of');
+      },
+      value: 'options',
+    },
     ...EMPTY,
   ],
   status: [
-    { id: 'in', label: 'is any of', value: 'options' },
-    { id: 'not_in', label: 'is none of', value: 'options' },
+    {
+      id: 'in',
+      get label(): string {
+        return t('people.filters.is_any_of', 'is any of');
+      },
+      value: 'options',
+    },
+    {
+      id: 'not_in',
+      get label(): string {
+        return t('people.filters.is_none_of', 'is none of');
+      },
+      value: 'options',
+    },
   ],
   date: [
-    { id: 'between', label: 'is between', value: 'date-range' },
-    { id: 'before', label: 'is before', value: 'date' },
-    { id: 'after', label: 'is after', value: 'date' },
+    {
+      id: 'between',
+      get label(): string {
+        return t('people.filters.is_between', 'is between');
+      },
+      value: 'date-range',
+    },
+    {
+      id: 'before',
+      get label(): string {
+        return t('people.filters.is_before', 'is before');
+      },
+      value: 'date',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('people.filters.is_after', 'is after');
+      },
+      value: 'date',
+    },
     ...EMPTY,
   ],
   number: [
-    { id: 'is', label: 'is', value: 'number' },
-    { id: 'before', label: 'is less than', value: 'number' },
-    { id: 'after', label: 'is more than', value: 'number' },
+    {
+      id: 'is',
+      get label(): string {
+        return t('people.filters.is', 'is');
+      },
+      value: 'number',
+    },
+    {
+      id: 'before',
+      get label(): string {
+        return t('people.filters.is_less_than', 'is less than');
+      },
+      value: 'number',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('people.filters.is_more_than', 'is more than');
+      },
+      value: 'number',
+    },
     ...EMPTY,
   ],
   person: EMPTY,

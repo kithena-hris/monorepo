@@ -5,6 +5,7 @@ import { View } from 'react-native';
 
 import { ask, useSigned } from '../people/api';
 import { askDocuments, chooseFile, DocumentsOn, putFile, scan, type Picked } from './api';
+import { t } from '../i18n';
 
 /**
  * A Time Off request missing its note, on the phone (Documents MJ3, MJ4): a
@@ -100,12 +101,16 @@ export function NoteNeeded({
     const put = await putFile(signed, picked);
     if (!library.ok || !put.ok) {
       setBusy(null);
-      setProblem(put.ok ? 'Documents did not answer.' : put.message);
+      setProblem(
+        put.ok
+          ? t('documents.notes.documents_did_not_answer', 'Documents did not answer.')
+          : put.message,
+      );
       return;
     }
     const filed = await askDocuments<{ id: string }>(signed, 'UploadDocument', {
       input: {
-        title: 'Sick note',
+        title: t('documents.notes.sick_note', 'Sick note'),
         typeKey: 'sick_note',
         subjectPersonId: personId ?? library.data.viewer.personId,
         upload: put.data,
@@ -120,12 +125,17 @@ export function NoteNeeded({
   };
 
   return (
-    <Alert tone="warning" title="A note is needed">
+    <Alert tone="warning" title={t('documents.notes.a_note_is_needed', 'A note is needed')}>
       <View className="gap-2.5">
-        <Text>Leave this long needs a doctor’s note. Only its person and HR see it.</Text>
+        <Text>
+          {t(
+            'documents.notes.leave_this_long_needs_a_doctors',
+            'Leave this long needs a doctor’s note. Only its person and HR see it.',
+          )}
+        </Text>
         {!documents ? null : files === null ? (
           <Button size="sm" loading={busy === 'list'} onPress={open}>
-            Add note
+            {t('documents.notes.add_note', 'Add note')}
           </Button>
         ) : (
           <>
@@ -135,7 +145,11 @@ export function NoteNeeded({
                   <ListItem
                     key={f.id}
                     icon={FileText}
-                    description={f.kind === 'Medical' ? 'Sick note' : 'Your document'}
+                    description={
+                      f.kind === 'Medical'
+                        ? t('documents.notes.sick_note', 'Sick note')
+                        : t('documents.notes.your_document', 'Your document')
+                    }
                     trailing={
                       <Button
                         size="xs"
@@ -147,7 +161,7 @@ export function NoteNeeded({
                           void attach(f.id);
                         }}
                       >
-                        Attach
+                        {t('documents.notes.attach', 'Attach')}
                       </Button>
                     }
                   >
@@ -163,7 +177,7 @@ export function NoteNeeded({
                 loading={busy === 'scan'}
                 onPress={() => void fileNew('scan')}
               >
-                Scan it
+                {t('documents.notes.scan_it', 'Scan it')}
               </Button>
               <Button
                 className="flex-1"
@@ -171,7 +185,7 @@ export function NoteNeeded({
                 loading={busy === 'file'}
                 onPress={() => void fileNew('file')}
               >
-                Choose a file
+                {t('documents.notes.choose_a_file', 'Choose a file')}
               </Button>
             </View>
           </>

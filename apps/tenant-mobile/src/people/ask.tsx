@@ -18,6 +18,7 @@ import { ask, useSigned } from './api';
 import { aboutInbox, askInbox, type InboxReply } from '../inbox/api';
 import type { Described } from '../timeoff/describe';
 import { amount, spanLabel } from '../timeoff/words';
+import { t as tr } from '../i18n';
 
 interface Turn {
   readonly question: string;
@@ -44,8 +45,10 @@ export interface TimeOffAsk {
 export const aboutTimeOff = (question: string): boolean =>
   /\b(time off|days? off|take|vacation|holiday|leave|long weekend|bridge|book)\b/iu.test(question);
 
-const NOTHING =
-  'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.';
+const NOTHING = tr(
+  'people.ask.im_not_sure_i_can_help',
+  'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.',
+);
 
 /**
  * Ask Kithena (design A4): a compact card above the tab bar, never the whole
@@ -90,20 +93,25 @@ export function AskKithena({
               ? {
                   question,
                   text: answer.ok
-                    ? 'I couldn’t find dates that fit. Try saying when, or how many days.'
+                    ? tr(
+                        'people.ask.i_couldnt_find_dates_that_fit',
+                        'I couldn’t find dates that fit. Try saying when, or how many days.',
+                      )
                     : answer.message,
                   people: [],
                 }
               : {
                   question,
-                  text: `${best.fits ? 'Yes.' : 'Only past your balance.'} ${spanLabel(best.from, best.to)} ${
+                  text: `${best.fits ? 'Yes.' : tr('people.ask.only_past_your_balance', 'Only past your balance.')} ${spanLabel(best.from, best.to)} ${
                     best.short.length === 0
                       ? 'is free on your team'
                       : `leaves ${String(best.short[0]?.in ?? 0)} of ${String(best.short[0]?.of ?? 0)} in`
                   }${best.leftAfter === null ? '' : `, and you’d have ${amount(best.leftAfter)} days left`}.`,
                   people: [],
                   request: {
-                    label: `Request ${spanLabel(best.from, best.to)}`,
+                    label: tr('people.ask.request', 'Request {{spanLabel}}', {
+                      spanLabel: spanLabel(best.from, best.to),
+                    }),
                     params: {
                       ...(answer.data.understood.leaveTypeKey === null
                         ? {}
@@ -155,7 +163,7 @@ export function AskKithena({
   return (
     <AssistantWidget open={open} onOpenChange={setOpen} bottomInset={bottomInset}>
       <AssistantPanel
-        title="Ask Kithena"
+        title={tr('people.ask.ask_kithena', 'Ask Kithena')}
         className="flex-1"
         onMinimize={() => {
           setOpen(false);
@@ -171,7 +179,11 @@ export function AskKithena({
             onValueChange={setDraft}
             onSubmit={send}
             streaming={waiting}
-            placeholder={onInbox ? 'Ask about your inbox…' : 'Ask anything…'}
+            placeholder={
+              onInbox
+                ? tr('people.ask.ask_about_your_inbox', 'Ask about your inbox…')
+                : tr('people.ask.ask_anything', 'Ask anything…')
+            }
           />
         }
       >
@@ -185,13 +197,21 @@ export function AskKithena({
           {turns.length === 0 ? (
             <AssistantSuggestions>
               {(onInbox
-                ? ['What do I need to do this week?', 'What’s waiting on others?']
+                ? [
+                    tr('people.ask.what_do_i_need_to_do', 'What do I need to do this week?'),
+                    tr('people.ask.whats_waiting_on_others', 'What’s waiting on others?'),
+                  ]
                 : [
                     ...(onRequest === undefined
                       ? []
-                      : ['Can I take the Friday before the next holiday?']),
-                    'Who starts this month?',
-                    'Who reports to me?',
+                      : [
+                          tr(
+                            'people.ask.can_i_take_the_friday_before',
+                            'Can I take the Friday before the next holiday?',
+                          ),
+                        ]),
+                    tr('people.ask.who_starts_this_month', 'Who starts this month?'),
+                    tr('people.ask.who_reports_to_me', 'Who reports to me?'),
                   ]
               ).map((s) => (
                 <AssistantSuggestion

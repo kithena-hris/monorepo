@@ -1,5 +1,6 @@
 import type { InboxAnswer, Item } from './model';
 import { dueOf, shortDay } from './time';
+import { t as tr } from '../i18n';
 
 /**
  * The one line that opens the Inbox and Home (design v3 I1, I4, I5, H1): what
@@ -48,7 +49,12 @@ export function todoBrief(inbox: InboxAnswer): string | null {
   if (pressing.length === 1) {
     const [first] = pressing;
     if (first !== undefined)
-      parts.push(`One thing is urgent: ${lower(first.title)}, ${dueWords(first, now, zone)}.`);
+      parts.push(
+        tr('inbox.brief.one_thing_is_urgent', 'One thing is urgent: {{lower}}, {{dueWords}}.', {
+          lower: lower(first.title),
+          dueWords: dueWords(first, now, zone),
+        }),
+      );
   } else if (pressing.length > 1) {
     parts.push(`${plural(pressing.length, 'thing is', 'things are')} urgent.`);
   } else if (approvals.length > 0) {
@@ -65,7 +71,11 @@ export function todoBrief(inbox: InboxAnswer): string | null {
       .filter((d): d is string => d !== null)
       .sort()[0];
     parts.push(
-      later === undefined ? 'The rest has no date.' : `The rest can wait until ${shortDay(later)}.`,
+      later === undefined
+        ? tr('inbox.brief.the_rest_has_no_date', 'The rest has no date.')
+        : tr('inbox.brief.the_rest_can_wait_until', 'The rest can wait until {{shortDay}}.', {
+            shortDay: shortDay(later),
+          }),
     );
   }
   return parts.join(' ');

@@ -499,7 +499,7 @@ export function GroupedNav({
           />
         ) : (
           <p aria-hidden className="flex items-center gap-1 px-2.5 py-2.5 text-xs text-fg-subtle">
-            {results} {results === 1 ? 'result' : 'results'}
+            {t('components.nav.grouped-nav.results_count', { one: '{{count}} result', other: '{{count}} results' }, { count: results })}
             <span className="flex items-center gap-1 touch:hidden">
               · <Kbd>↵</Kbd> {t('components.nav.grouped-nav.opens_the_first', 'opens the first')}
             </span>

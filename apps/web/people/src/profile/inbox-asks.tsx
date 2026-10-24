@@ -410,15 +410,42 @@ export function SendDocumentDialog({
 
 const STATE: Readonly<Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' }>> =
   {
-    open: { label: t('profile.inbox-asks.waiting', 'Waiting'), tone: 'warning' },
-    kept: { label: t('profile.inbox-asks.kept', 'Kept'), tone: 'neutral' },
-    acknowledged: { label: t('profile.inbox-asks.acknowledged', 'Acknowledged'), tone: 'success' },
-    signed: { label: t('profile.inbox-asks.signed', 'Signed'), tone: 'success' },
-    countersigned: {
-      label: t('profile.inbox-asks.signed_by_both', 'Signed by both'),
+    open: {
+      get label(): string {
+        return t('profile.inbox-asks.waiting', 'Waiting');
+      },
+      tone: 'warning',
+    },
+    kept: {
+      get label(): string {
+        return t('profile.inbox-asks.kept', 'Kept');
+      },
+      tone: 'neutral',
+    },
+    acknowledged: {
+      get label(): string {
+        return t('profile.inbox-asks.acknowledged', 'Acknowledged');
+      },
       tone: 'success',
     },
-    declined: { label: t('profile.inbox-asks.sent_back', 'Sent back'), tone: 'neutral' },
+    signed: {
+      get label(): string {
+        return t('profile.inbox-asks.signed', 'Signed');
+      },
+      tone: 'success',
+    },
+    countersigned: {
+      get label(): string {
+        return t('profile.inbox-asks.signed_by_both', 'Signed by both');
+      },
+      tone: 'success',
+    },
+    declined: {
+      get label(): string {
+        return t('profile.inbox-asks.sent_back', 'Sent back');
+      },
+      tone: 'neutral',
+    },
   };
 
 /** The person's Documents (D2, F1): every document sent to them, kept with their record. */

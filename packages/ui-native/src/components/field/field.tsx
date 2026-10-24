@@ -12,6 +12,7 @@ import { Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { Icon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Form field wiring, the web's parts on a phone: `Field`, `FieldLabel`,
@@ -193,17 +194,25 @@ function LabelMarks(): React.JSX.Element | null {
   if (!field) return null;
   return (
     <>
-      {field.optional ? <CssText className="text-subhead text-fg-muted">Optional</CssText> : null}
+      {field.optional ? (
+        <CssText className="text-subhead text-fg-muted">
+          {t('components.field.field.optional', 'Optional')}
+        </CssText>
+      ) : null}
       {field.sensitive ? (
         <View className="flex-row items-center gap-1">
           <Icon icon={Lock} size={12} tone="muted" />
-          <CssText className="text-subhead font-medium text-fg-muted">Private</CssText>
+          <CssText className="text-subhead font-medium text-fg-muted">
+            {t('components.field.field.private', 'Private')}
+          </CssText>
         </View>
       ) : null}
       {field.missing ? (
         <View className="flex-row items-center gap-1">
           <Icon icon={TriangleAlert} size={12} tone="warning" />
-          <CssText className="text-subhead font-medium text-warning-fg">Missing</CssText>
+          <CssText className="text-subhead font-medium text-warning-fg">
+            {t('components.field.field.missing', 'Missing')}
+          </CssText>
         </View>
       ) : null}
     </>
@@ -235,7 +244,7 @@ export function FloatingLabel({
       >
         {label}
         {field.required ? <CssText className="text-danger-fg"> *</CssText> : null}
-        {field.optional ? ' · optional' : ''}
+        {field.optional ? t('components.field.field.optional_2', ' · optional') : ''}
       </CssText>
       {field.sensitive ? <Icon icon={Lock} size={11} tone="muted" /> : null}
     </View>

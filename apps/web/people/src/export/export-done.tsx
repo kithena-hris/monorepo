@@ -287,7 +287,7 @@ export function ExportDone({
             items={[
               {
                 label: t('export.export-done.reason', 'Reason'),
-                value: record.reason ?? 'None given',
+                value: record.reason ?? t('export.export-done.none_given', 'None given'),
               },
               {
                 label: t('export.export-done.people', 'People'),
@@ -302,13 +302,17 @@ export function ExportDone({
                 : [
                     {
                       label: t('export.export-done.approved_by', 'Approved by'),
-                      value: record.approvedBy.name ?? 'A People administrator',
+                      value:
+                        record.approvedBy.name ??
+                        t('export.export-done.a_people_administrator', 'A People administrator'),
                     },
                   ]),
               {
                 label: t('export.export-done.kept_until', 'Kept until'),
                 value:
-                  record.keptUntil === null ? 'No end date set yet' : spokenDate(record.keptUntil),
+                  record.keptUntil === null
+                    ? t('export.export-done.no_end_date_set_yet', 'No end date set yet')
+                    : spokenDate(record.keptUntil),
               },
             ]}
           />
@@ -344,8 +348,15 @@ export function ExportDone({
                 t('export.export-done.to', 'to {{firstName}}', {
                   firstName: firstName(sentTo.name),
                 })}
-            {t('export.export-done.as', ', as')} {sentTo === null ? 'you' : firstName(sentTo.name)}{' '}
-            {t('export.export-done.can_see_it_that_morning', 'can see it that morning.')}
+            {sentTo === null
+              ? t('export.export-done.as_you_see_it', ', as you can see it that morning.')
+              : t(
+                  'export.export-done.as_they_see_it',
+                  ', as {{firstName}} can see it that morning.',
+                  {
+                    firstName: firstName(sentTo.name),
+                  },
+                )}
           </Alert>
         ) : (
           <Alert tone="danger" title={t('export.export-done.not_scheduled', 'Not scheduled')}>
@@ -504,15 +515,18 @@ export function ShareWaiting({
               {
                 label: t('export.export-done.who', 'Who'),
                 // "you" is the requester's word for themselves; said to anybody else, it is them.
-                value: (share.audience ?? 'Everybody you can see').replace(
-                  /\byou\b/u,
-                  share.mine ? 'you' : firstName(share.requestedBy.name),
-                ),
+                value: (
+                  share.audience ??
+                  t('export.export-done.everybody_you_can_see', 'Everybody you can see')
+                ).replace(/\byou\b/u, share.mine ? 'you' : firstName(share.requestedBy.name)),
               },
               { label: t('export.export-done.fields', 'Fields'), value: listed(share.fields) },
               {
                 label: t('export.export-done.as_of', 'As of'),
-                value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
+                value:
+                  share.asOf === null
+                    ? t('export.export-done.the_day_it_is_sent', 'The day it is sent')
+                    : spokenDate(share.asOf),
               },
               {
                 label: t('export.export-done.format', 'Format'),
@@ -608,7 +622,7 @@ export function ShareWaiting({
                 share.state === 'pending'
                   ? spokenDate(share.expiresAt)
                   : share.decidedAt === null
-                    ? 'Not decided'
+                    ? t('export.export-done.not_decided', 'Not decided')
                     : `${decided}, ${spokenDate(share.decidedAt)}`,
             },
           ]}

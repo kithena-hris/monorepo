@@ -4,6 +4,10 @@
  * same on every screen.
  */
 
+import { dateFormat as readerDate } from '@reach/ui-native/words';
+
+import { t } from '../i18n';
+
 export type Tone =
   'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5' | 'chart-6' | 'neutral';
 
@@ -22,15 +26,20 @@ export const signed = (value: string): string =>
 
 /** "1 day", "5 days", "0.5 days". */
 export const days = (value: string): string => {
-  const n = amount(value);
-  return `${n} ${n === '1' ? 'day' : 'days'}`;
+  return t(
+    'timeoff.words.days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    {
+      count: Number(amount(value)),
+    },
+  );
 };
 
 export const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
 const dateFormat = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+  readerDate({ ...options, timeZone: 'UTC' });
 export const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 export const longDate = (date: string): string =>
   dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(date));
@@ -86,25 +95,33 @@ export function relativeDay(today: string, date: string): string {
   if (n === 0) return 'Today';
   if (n === 1) return 'Tomorrow';
   if (n === -1) return 'Yesterday';
-  return n > 0 ? `In ${String(n)} days` : `${String(-n)} days ago`;
+  return n > 0
+    ? t('timeoff.words.in_days', 'In {{String}} days', { String: String(n) })
+    : `${String(-n)} days ago`;
 }
 
 export type StatusTone = 'success' | 'warning' | 'neutral' | 'info' | 'danger';
 
 /** A request's status as a person reads it (PRD §8.1). */
-const STATUS: Record<string, { readonly label: string; readonly tone: StatusTone }> = {
-  pending: { label: 'Waiting for approval', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'success' },
-  counter_proposed: { label: 'New dates suggested', tone: 'info' },
-  change_pending: { label: 'Change waiting', tone: 'warning' },
-  taken: { label: 'Taken', tone: 'neutral' },
-  declined: { label: 'Declined', tone: 'danger' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
-};
+const STATUS = (): Record<string, { readonly label: string; readonly tone: StatusTone }> => ({
+  pending: {
+    label: t('timeoff.words.waiting_for_approval', 'Waiting for approval'),
+    tone: 'warning',
+  },
+  approved: { label: t('timeoff.words.approved', 'Approved'), tone: 'success' },
+  counter_proposed: {
+    label: t('timeoff.words.new_dates_suggested', 'New dates suggested'),
+    tone: 'info',
+  },
+  change_pending: { label: t('timeoff.words.change_waiting', 'Change waiting'), tone: 'warning' },
+  taken: { label: t('timeoff.words.taken', 'Taken'), tone: 'neutral' },
+  declined: { label: t('timeoff.words.declined', 'Declined'), tone: 'danger' },
+  cancelled: { label: t('timeoff.words.cancelled', 'Cancelled'), tone: 'neutral' },
+  withdrawn: { label: t('timeoff.words.withdrawn', 'Withdrawn'), tone: 'neutral' },
+});
 
 export const statusOf = (status: string): { readonly label: string; readonly tone: StatusTone } =>
-  STATUS[status] ?? { label: status, tone: 'neutral' };
+  STATUS()[status] ?? { label: status, tone: 'neutral' };
 
 /** A bridge's days to ask for: "Mon 7 Dec", or "9–11 Dec" for more than one. */
 export const bridgeDays = (b: { readonly from: string; readonly to: string }): string =>

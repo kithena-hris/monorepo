@@ -18,6 +18,7 @@ import { read, useSigned } from '../people/api';
 import type { Described, Option } from './describe';
 import { approversOf, type Preview } from './request-dialog';
 import { amount, longSpan } from './words';
+import { t } from '../i18n';
 
 /** What a sentence became: the best dates, what they cost, and who decides. */
 export interface Answered {
@@ -76,7 +77,13 @@ export function useDescribed(sentence: string | null): {
         described: d.data,
         best,
         preview: p !== null && p.ok ? p.data.preview : null,
-        failed: best === null ? 'No dates fit that. Say when, or how many days.' : null,
+        failed:
+          best === null
+            ? t(
+                'timeoff.describe-answer.no_dates_fit_that_say_when',
+                'No dates fit that. Say when, or how many days.',
+              )
+            : null,
       });
     });
     return () => {
@@ -121,7 +128,8 @@ export function DescribedCard({
         <Text tone="muted">{answer.failed}</Text>
       </Card>
     );
-  if (best === null || described === null) return <Spinner label="Reading it" />;
+  if (best === null || described === null)
+    return <Spinner label={t('timeoff.describe-answer.reading_it', 'Reading it')} />;
   const to = approversOf(preview);
   const short = preview?.belowMinimum ?? best.short;
   const tip = described.options[1];
@@ -133,7 +141,14 @@ export function DescribedCard({
             <Icon icon={Sparkles} size={15} tone="on-accent" />
           </View>
           <Text variant="headline" className="flex-1">
-            {`${String(best.used)} ${best.used === 1 ? 'day' : 'days'} off, ${String(best.away.days)} days away`}
+            {t(
+              'timeoff.describe-answer.off_days_away',
+              {
+                one: '{{count}} day off, {{String2}} days away',
+                other: '{{count}} days off, {{String2}} days away',
+              },
+              { count: best.used, String2: String(best.away.days) },
+            )}
           </Text>
         </View>
         <Text variant="title2" weight="bold">
@@ -147,18 +162,32 @@ export function DescribedCard({
               ? {
                   id: 'clash',
                   icon: CircleCheck,
-                  label: 'No clash',
+                  label: t('timeoff.describe-answer.no_clash', 'No clash'),
                   value:
                     best.fewest === null
-                      ? 'The team has enough people in.'
-                      : `The team stays at ${String(best.fewest.in)} of ${String(best.fewest.of)}.`,
+                      ? t(
+                          'timeoff.describe-answer.the_team_has_enough_people_in',
+                          'The team has enough people in.',
+                        )
+                      : t(
+                          'timeoff.describe-answer.the_team_stays_at',
+                          'The team stays at {{in}} of {{of}}.',
+                          { in: best.fewest.in, of: best.fewest.of },
+                        ),
                 }
               : {
                   id: 'clash',
                   icon: TriangleAlert,
                   tone: 'warning' as const,
-                  label: 'Short',
-                  value: `${String(short.length)} ${short.length === 1 ? 'day' : 'days'} below the team’s minimum`,
+                  label: t('timeoff.describe-answer.short', 'Short'),
+                  value: t(
+                    'timeoff.describe-answer.days_below_the_team_s',
+                    {
+                      one: '{{count}} day below the team’s minimum',
+                      other: '{{count}} days below the team’s minimum',
+                    },
+                    { count: short.length },
+                  ),
                 },
             ...(preview?.balance == null
               ? []
@@ -166,20 +195,36 @@ export function DescribedCard({
                   {
                     id: 'left',
                     icon: Sun,
-                    label: `Of ${amount(preview.balance.before)} now`,
+                    label: t('timeoff.describe-answer.of_now', 'Of {{amount}} now', {
+                      amount: amount(preview.balance.before),
+                    }),
                     value: `${amount(preview.balance.after)} days left after`,
                   },
                 ]),
             ...(to === null
               ? []
-              : [{ id: 'who', icon: User, label: 'Who decides', value: `${to} approves` }]),
+              : [
+                  {
+                    id: 'who',
+                    icon: User,
+                    label: t('timeoff.describe-answer.who_decides', 'Who decides'),
+                    value: `${to} approves`,
+                  },
+                ]),
           ]}
         />
         {to === null ? null : (
           <Field>
-            <FieldLabel>{`Note to ${to}`}</FieldLabel>
+            <FieldLabel>
+              {t('timeoff.describe-answer.note_to', 'Note to {{to}}', { to })}
+            </FieldLabel>
             <FieldControl>
-              <Input value={note} onChange={onNote} placeholder="Optional" size="sm" />
+              <Input
+                value={note}
+                onChange={onNote}
+                placeholder={t('timeoff.describe-answer.optional', 'Optional')}
+                size="sm"
+              />
             </FieldControl>
           </Field>
         )}
@@ -188,7 +233,7 @@ export function DescribedCard({
         <View className="flex-row items-start gap-1.5 px-1">
           <Icon icon={Sparkles} size={13} tone="accent" />
           <Text variant="footnote" tone="accent" className="flex-1">
-            {`Or: ${tip.line.text}`}
+            {t('timeoff.describe-answer.or', 'Or: {{text}}', { text: tip.line.text })}
           </Text>
         </View>
       )}

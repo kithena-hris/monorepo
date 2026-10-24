@@ -9,6 +9,7 @@ import { spokenName } from '../../lib/spoken-name.tsx';
 import { Badge } from '../badge/badge.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /*
  * The bars above and below a phone's content: the app bar with its large
@@ -59,7 +60,9 @@ export function AppBar({
   const backButton = back ? (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Back to ${back.label}`}
+      accessibilityLabel={t('components.app-bar.app-bar.back_to', 'Back to {{label}}', {
+        label: back.label,
+      })}
       onPress={back.onPress}
       className="min-h-m-tap flex-row items-center gap-0.5 pr-1"
     >
@@ -160,8 +163,8 @@ export function SelectionBar({
   label,
   onCancel,
   onSelectAll,
-  cancelLabel = 'Cancel',
-  selectAllLabel = 'All',
+  cancelLabel = t('components.app-bar.app-bar.cancel', 'Cancel'),
+  selectAllLabel = t('components.app-bar.app-bar.all', 'All'),
   className,
 }: SelectionBarProps): React.JSX.Element {
   return (
@@ -228,7 +231,7 @@ export function TabBar({
   items,
   value,
   onValueChange,
-  label = 'Sections',
+  label = t('components.app-bar.app-bar.sections', 'Sections'),
   className,
 }: TabBarProps): React.JSX.Element {
   const android = usePlatform() === 'android';
@@ -300,7 +303,7 @@ export function NavigationRail({
   items,
   value,
   onValueChange,
-  label = 'Sections',
+  label = t('components.app-bar.app-bar.sections', 'Sections'),
   header,
   className,
 }: NavigationRailProps): React.JSX.Element {

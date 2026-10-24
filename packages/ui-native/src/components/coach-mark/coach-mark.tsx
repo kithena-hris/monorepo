@@ -6,6 +6,7 @@ import { Badge } from '../badge/badge.tsx';
 import { Button } from '../button/button.tsx';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Introduces one new feature, pointing at the control itself. One tour, three
@@ -60,7 +61,7 @@ export function CoachMark({
   onNext,
   nextLabel,
   onSkip,
-  skipLabel = 'Skip',
+  skipLabel = t('components.coach-mark.coach-mark.skip', 'Skip'),
   spotlight = false,
   side = 'bottom',
   className,
@@ -103,7 +104,10 @@ export function CoachMark({
         <View className="mt-1 flex-row items-center gap-1.5">
           {total > 1 ? (
             <Text variant="caption" tone="subtle" tabular>
-              {`${String(step)} of ${String(total)}`}
+              {t('components.coach-mark.coach-mark.of', '{{String}} of {{String2}}', {
+                String: String(step),
+                String2: String(total),
+              })}
             </Text>
           ) : null}
           <View className="flex-1" />
@@ -128,7 +132,10 @@ export function CoachMark({
                 else setOpen(false);
               }}
             >
-              {nextLabel ?? (last ? 'Got it' : 'Next')}
+              {nextLabel ??
+                (last
+                  ? t('components.coach-mark.coach-mark.got_it', 'Got it')
+                  : t('components.coach-mark.coach-mark.next', 'Next'))}
             </Button>
           </View>
         </View>

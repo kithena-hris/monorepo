@@ -563,7 +563,10 @@ function DatePicker({
       tr('request.request.someone', 'Someone');
     const tone = chartTone(data.leaveTypes.find((t) => t.key === e.leaveTypeKey)?.colorToken);
     for (let d = e.span.from; d <= e.span.to; d = addDays(d, 1)) {
-      (markers[d] ??= []).push({ tone, label: `${name} off` });
+      (markers[d] ??= []).push({
+        tone,
+        label: tr('request.request.name_off', '{{name}} off', { name }),
+      });
     }
   }
   for (const h of data.holidays) styles[h.date] = { appearance: 'struck', label: h.name };
@@ -844,7 +847,10 @@ function BelowZero({
         )}
         impact={`${nextYear} starts at ${amount(negative.nextYearStartsAt ?? '0')}`}
       >
-        {`Borrow ${amount(negative.days ?? '0')} days from ${nextYear}`}
+        {tr('request.request.borrow_days_from', 'Borrow {{amount}} days from {{nextYear}}', {
+          amount: amount(negative.days ?? '0'),
+          nextYear,
+        })}
       </RadioCard>,
     );
   }
@@ -859,7 +865,9 @@ function BelowZero({
           'Not offered here yet: Time Off cannot split one request into paid and unpaid days. Ask HR.',
         )}
       >
-        {`Make ${amount(negative.unpaid.days)} days unpaid`}
+        {tr('request.request.make_days_unpaid', 'Make {{amount}} days unpaid', {
+          amount: amount(negative.unpaid.days),
+        })}
       </RadioCard>,
     );
   }
@@ -872,9 +880,15 @@ function BelowZero({
         description={tr('request.request.fits_your_balance', '{{days}} fits your balance.', {
           days: days(shorten.days),
         })}
-        impact="Nothing borrowed"
+        impact={tr('request.request.nothing_borrowed', 'Nothing borrowed')}
       >
-        {`Shorten to ${spanLabel(span.from, shorten.to)}${shorten.endsHalfDay ? ', half the last day' : ''}`}
+        {shorten.endsHalfDay
+          ? tr('request.request.shorten_to_half', 'Shorten to {{spanLabel}}, half the last day', {
+              spanLabel: spanLabel(span.from, shorten.to),
+            })
+          : tr('request.request.shorten_to_span', 'Shorten to {{spanLabel}}', {
+              spanLabel: spanLabel(span.from, shorten.to),
+            })}
       </RadioCard>,
     );
   }

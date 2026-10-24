@@ -1,6 +1,7 @@
 import 'server-only';
 
 import type { CandidatePage, PublicCompany, PublicJob, PublicListing } from '@kithena/contracts';
+import { t } from './i18n';
 
 /**
  * Recruiting's public API, from the server (REC-090). Search, job and
@@ -25,7 +26,14 @@ async function call<T>(
       ...(revalidate === undefined ? { cache: 'no-store' } : { next: { revalidate } }),
     });
   } catch {
-    return { ok: false, status: 503, message: 'Kithena Jobs is not reachable right now.' };
+    return {
+      ok: false,
+      status: 503,
+      message: t(
+        'lib.api.kithena_jobs_is_not_reachable_right',
+        'Kithena Jobs is not reachable right now.',
+      ),
+    };
   }
   const body = (await response.json().catch(() => null)) as
     { error?: { message?: string } } | T | null;
@@ -34,7 +42,8 @@ async function call<T>(
       ok: false,
       status: response.status,
       message:
-        (body as { error?: { message?: string } } | null)?.error?.message ?? 'Something went wrong',
+        (body as { error?: { message?: string } } | null)?.error?.message ??
+        t('lib.api.something_went_wrong', 'Something went wrong'),
     };
   return { ok: true, data: body as T };
 }

@@ -25,11 +25,11 @@
   },
   "analytics.applications": {
     "text": "Applications",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
   },
   "analytics.applications_by_source": {
     "text": "Applications by source",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.applications_that_ever_reached_each_stage": {
     "text": "Applications that ever reached each stage",
@@ -65,7 +65,7 @@
   },
   "analytics.conversion_by_stage": {
     "text": "Conversion by stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
   },
   "analytics.conversion_per_stage": {
     "text": "Conversion per stage",
@@ -77,7 +77,7 @@
   },
   "analytics.days": {
     "text": "Days",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"unit\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.declined": {
     "text": "Declined",
@@ -133,11 +133,11 @@
   },
   "analytics.hires": {
     "text": "Hires",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
   },
   "analytics.hires_by_month": {
     "text": "Hires by month",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.job_opened_to_the_last_opening": {
     "text": "Job opened to the last opening hired, days",
@@ -145,7 +145,7 @@
   },
   "analytics.median_days": {
     "text": "Median days",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"unit\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.median_days_in_stage": {
     "text": "Median days in stage",
@@ -205,7 +205,7 @@
   },
   "analytics.pipeline_by_stage": {
     "text": "Pipeline by stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.race_or_ethnicity": {
     "text": "Race or ethnicity",
@@ -221,7 +221,7 @@
   },
   "analytics.rejection_reasons": {
     "text": "Rejection reasons",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
   },
   "analytics.sent": {
     "text": "Sent",
@@ -245,11 +245,11 @@
   },
   "analytics.time_in_stage": {
     "text": "Time in stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.time_to_fill": {
     "text": "Time to fill",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, TILES: text built in code."
   },
   "analytics.time_to_fill_by_job": {
     "text": "Time to fill by job",
@@ -257,7 +257,7 @@
   },
   "analytics.time_to_hire": {
     "text": "Time to hire",
-    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. analytics.tsx, METRICS: text built in code."
   },
   "analytics.under_four_fifths": {
     "text": "{{ratioBp}}, under four-fifths",
@@ -286,6 +286,10 @@
   "benefits.of": {
     "text": "{{on}} of {{length}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. benefits.tsx, BenefitPicker: the meta of <Badge>. Filled in: {{on}}, {{length}}."
+  },
+  "benefits.other_perks": {
+    "text": "Other perks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. benefits.tsx: a \"name\" value."
   },
   "board.active": {
     "text": "Active",
@@ -479,6 +483,10 @@
     "text": "Add to a talent pool…",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the placeholder of <SelectValue>."
   },
+  "candidate.added_from_the_profile": {
+    "text": "Added from the profile",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the onClick of <Button>."
+  },
   "candidate.adjustments": {
     "text": "Adjustments",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
@@ -629,7 +637,7 @@
   },
   "candidate.met": {
     "text": "Met",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"met\" value."
   },
   "candidate.more_detail_optional": {
     "text": "More detail (optional)",
@@ -715,13 +723,17 @@
     "text": "Nobody stays without a lawful basis: consent asked by email, renewed thirty days before it ends.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the description of <PageHeader>."
   },
+  "candidate.none_asked": {
+    "text": "None asked",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+  },
   "candidate.not_evidenced": {
     "text": "Not evidenced",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"not_evidenced\" value."
   },
   "candidate.not_met": {
     "text": "Not met",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"not_met\" value."
   },
   "candidate.not_yet_checked_by_the_candidate": {
     "text": "Not yet checked by the candidate",
@@ -749,7 +761,7 @@
   },
   "candidate.partly_met": {
     "text": "Partly met",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"partly_met\" value."
   },
   "candidate.phone": {
     "text": "Phone",
@@ -961,7 +973,7 @@
   },
   "composer.application_not_taken_forward": {
     "text": "Application not taken forward",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: a \"rejection\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: text built in code."
   },
   "composer.built_in": {
     "text": "{{PURPOSE_LABEL}} (built in)",
@@ -969,19 +981,19 @@
   },
   "composer.candidates_first_name": {
     "text": "Candidate’s first name",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.candidates_full_name": {
     "text": "Candidate’s full name",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.company_name": {
     "text": "Company name",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.current_stage": {
     "text": "Current stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.each_candidate_gets_their_own_name": {
     "text": "Each candidate gets their own name and link",
@@ -1005,11 +1017,11 @@
   },
   "composer.interview_confirmed": {
     "text": "Interview confirmed",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: a \"interview_confirmation\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: text built in code."
   },
   "composer.job_title": {
     "text": "Job title",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.message": {
     "text": "Message",
@@ -1017,11 +1029,11 @@
   },
   "composer.moving_to_the_next_step": {
     "text": "Moving to the next step",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: a \"selection\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: text built in code."
   },
   "composer.next_interview_date_and_time": {
     "text": "Next interview, date and time",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.no_email_goes_with_this": {
     "text": "No email goes with this.",
@@ -1029,7 +1041,7 @@
   },
   "composer.offer_sent": {
     "text": "Offer sent",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: a \"offer\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: text built in code."
   },
   "composer.plain_text_a_placeholder_such_as": {
     "text": "Plain text. A placeholder such as {{first_name}} is filled in for each candidate when the email goes; {{link}} becomes their own page.",
@@ -1053,23 +1065,23 @@
   },
   "composer.the_candidates_page": {
     "text": "The candidate’s page",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.what_happens_at_the_current_stage": {
     "text": "What happens at the current stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.what_to_expect_at_this_stage": {
     "text": "What to expect at this stage",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: a \"stage_expectations\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PURPOSE_LABEL: text built in code."
   },
   "composer.where_the_interview_is": {
     "text": "Where the interview is",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "composer.your_name": {
     "text": "Your name",
-    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. composer.tsx, PLACEHOLDERS: text built in code."
   },
   "frame.back": {
     "text": "Back",
@@ -1437,7 +1449,7 @@
   },
   "interviews.google_calendar": {
     "text": "Google Calendar",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: a \"google\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: text built in code."
   },
   "interviews.google_meet": {
     "text": "Google Meet",
@@ -1493,7 +1505,7 @@
   },
   "interviews.microsoft_365": {
     "text": "Microsoft 365",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: a \"microsoft\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: text built in code."
   },
   "interviews.min": {
     "text": "{{minutes}} min",
@@ -1869,7 +1881,7 @@
   },
   "interviews.zoom": {
     "text": "Zoom",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: a \"zoom\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: text built in code."
   },
   "job-terms.a_fixed_salary": {
     "text": "A fixed salary",
@@ -2019,13 +2031,17 @@
     "text": "From home, within the country’s law.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, MODES: text built in code."
   },
+  "job-terms.full_time": {
+    "text": "Full time",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: the items of <Badge>."
+  },
   "job-terms.full_time_there": {
     "text": "Full time there",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: the items of <KeyValues>."
   },
   "job-terms.germany": {
     "text": "Germany",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: a \"DE\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: text built in code."
   },
   "job-terms.h": {
     "text": "{{value}} h",
@@ -2045,7 +2061,7 @@
   },
   "job-terms.india": {
     "text": "India",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: a \"IN\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: text built in code."
   },
   "job-terms.kind_of_pay": {
     "text": "Kind of pay",
@@ -2091,6 +2107,10 @@
     "text": "None",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: text inside <SelectItem>."
   },
+  "job-terms.not_set": {
+    "text": "Not set",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: the items of <KeyValues>."
+  },
   "job-terms.not_yet": {
     "text": "Not yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, Waiting: the title of <EmptyState>."
@@ -2105,7 +2125,7 @@
   },
   "job-terms.on_the_payroll_with_the_full": {
     "text": "On the payroll, with the full protection of employment law.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: a \"employee\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: text built in code."
   },
   "job-terms.open_ended": {
     "text": "Open-ended",
@@ -2117,11 +2137,15 @@
   },
   "job-terms.paid_for_the_work_with_core": {
     "text": "Paid for the work, with core rights such as holiday pay and the minimum wage.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: a \"worker\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: text built in code."
   },
   "job-terms.paid_holiday_a_year": {
     "text": "Paid holiday, {{unit}} a year",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, LeaveChoice: the label of <NumberField>. Filled in: {{unit}}."
+  },
+  "job-terms.part_time": {
+    "text": "Part time",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: the items of <Badge>."
   },
   "job-terms.pay_range": {
     "text": "Pay range",
@@ -2161,7 +2185,7 @@
   },
   "job-terms.self_employed_invoicing_for_the_work_no": {
     "text": "Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: a \"contractor\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, RELATIONSHIP_NOTE: text built in code."
   },
   "job-terms.set_days": {
     "text": "Set days",
@@ -2189,7 +2213,7 @@
   },
   "job-terms.spain": {
     "text": "Spain",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: a \"ES\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: text built in code."
   },
   "job-terms.starts": {
     "text": "Starts",
@@ -2249,11 +2273,11 @@
   },
   "job-terms.the_united_kingdom": {
     "text": "the United Kingdom",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: a \"GB\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: text built in code."
   },
   "job-terms.the_united_states": {
     "text": "the United States",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: a \"US\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, COUNTRY: text built in code."
   },
   "job-terms.they_pick_their_own_days_each": {
     "text": "They pick their own days each week.",
@@ -2389,7 +2413,7 @@
   },
   "job-wizard.benefits": {
     "text": "Benefits",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.changing_the_description": {
     "text": "Changing the description",
@@ -2413,11 +2437,11 @@
   },
   "job-wizard.contract": {
     "text": "Contract",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.describe_the_role": {
     "text": "Describe the role",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.direct": {
     "text": "Direct",
@@ -2433,7 +2457,7 @@
   },
   "job-wizard.employer": {
     "text": "Employer",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.energetic": {
     "text": "Energetic",
@@ -2465,11 +2489,11 @@
   },
   "job-wizard.hiring_team": {
     "text": "Hiring team",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.how_do_candidates_move_through": {
     "text": "How do candidates move through?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.how_it_is_written": {
     "text": "How it is written",
@@ -2477,7 +2501,7 @@
   },
   "job-wizard.how_the_work_is_done": {
     "text": "How the work is done",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.its_title_as_candidates_will_read": {
     "text": "Its title as candidates will read it, the team it sits in and how senior it is. The level shapes the description and the pay estimate.",
@@ -2489,7 +2513,7 @@
   },
   "job-wizard.kind_of_work": {
     "text": "Kind of work",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.lead": {
     "text": "Lead",
@@ -2565,15 +2589,15 @@
   },
   "job-wizard.openings_and_start": {
     "text": "Openings and start",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"blocks\" value."
   },
   "job-wizard.paid_holiday": {
     "text": "Paid holiday",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.pay": {
     "text": "Pay",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.pay_hours_holiday_and_the_contract": {
     "text": "Pay, hours, holiday and the contract are never written into the text: the ad shows them from the job, exactly as set.",
@@ -2581,7 +2605,7 @@
   },
   "job-wizard.pipeline_and_interviews": {
     "text": "Pipeline and interviews",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.professional": {
     "text": "Professional",
@@ -2657,7 +2681,7 @@
   },
   "job-wizard.team_and_level": {
     "text": "Team and level",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"blocks\" value."
   },
   "job-wizard.text": {
     "text": "{{value}} {{join}}",
@@ -2693,7 +2717,7 @@
   },
   "job-wizard.the_working_day": {
     "text": "The working day",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.this_page_follows_from_the_one": {
     "text": "This page follows from the one before",
@@ -2701,7 +2725,7 @@
   },
   "job-wizard.title": {
     "text": "Title",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"blocks\" value."
   },
   "job-wizard.to_answer": {
     "text": "To answer",
@@ -2721,19 +2745,19 @@
   },
   "job-wizard.what_does_it_pay_and_offer": {
     "text": "What does it pay and offer?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.what_is_the_job": {
     "text": "What is the job?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, ROLE: text built in code."
   },
   "job-wizard.what_kind_of_contract": {
     "text": "What kind of contract?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.what_they_bring": {
     "text": "What they bring",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.what_to_change": {
     "text": "What to change",
@@ -2741,19 +2765,19 @@
   },
   "job-wizard.when_do_they_work": {
     "text": "When do they work?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.where_is_the_work": {
     "text": "Where is the work?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.who_hires_and_for_what": {
     "text": "Who hires, and for what?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"title\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: text built in code."
   },
   "job-wizard.work_days": {
     "text": "Work days",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.working_on_it_text": {
     "text": "Working on it: “{{text}}”",
@@ -2761,7 +2785,7 @@
   },
   "job-wizard.workplace": {
     "text": "Workplace",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-wizard.tsx, WIZARD_PAGES: a \"blocks\" value."
   },
   "job-wizard.works_on_their_own": {
     "text": "Works on their own",
@@ -2813,7 +2837,7 @@
   },
   "job.a_tracked_link_per_channel": {
     "text": "A tracked link per channel",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.a_week": {
     "text": "{{hoursOf}} a week",
@@ -2917,7 +2941,7 @@
   },
   "job.careers_page": {
     "text": "Careers page",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.channel_id": {
     "text": "Channel ID",
@@ -3017,7 +3041,7 @@
   },
   "job.for_aggregators_that_read_feeds": {
     "text": "For aggregators that read feeds",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.for_the_team_only_when_it": {
     "text": "For the team only, when it differs from the ad.",
@@ -3025,7 +3049,7 @@
   },
   "job.fri": {
     "text": "Fri",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"5\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.from_the_hiring_team_each_gets": {
     "text": "From the hiring team; each gets the calendar invitation.",
@@ -3041,11 +3065,11 @@
   },
   "job.glassdoor_lists_jobs_from_indeed_needs_the": {
     "text": "Glassdoor lists jobs from Indeed; needs the careers page first",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.google_for_jobs": {
     "text": "Google for Jobs",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.guided_setup": {
     "text": "Guided setup",
@@ -3097,7 +3121,7 @@
   },
   "job.hybrid": {
     "text": "Hybrid",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: a \"hybrid\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: text built in code."
   },
   "job.in_every_check_passes": {
     "text": "In {{join}}. Every check passes.",
@@ -3117,15 +3141,15 @@
   },
   "job.indeed": {
     "text": "Indeed",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.internal_details": {
     "text": "Internal details",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: a \"details\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: text built in code."
   },
   "job.internal_job_board": {
     "text": "Internal job board",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.internal_only": {
     "text": "Internal only",
@@ -3141,7 +3165,7 @@
   },
   "job.interview_plan": {
     "text": "Interview plan",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: a \"plan\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: text built in code."
   },
   "job.interviewers": {
     "text": "Interviewers",
@@ -3153,7 +3177,7 @@
   },
   "job.kithena_jobs_search": {
     "text": "Kithena Jobs search",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.knockout_answers": {
     "text": "Knockout answers",
@@ -3161,7 +3185,7 @@
   },
   "job.languages_and_checks": {
     "text": "Languages and checks",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: a \"ad\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: text built in code."
   },
   "job.length": {
     "text": "Length",
@@ -3197,7 +3221,7 @@
   },
   "job.members_only_with_refer_and_apply": {
     "text": "Members only, with refer and apply",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.min": {
     "text": "{{m}} min",
@@ -3237,7 +3261,7 @@
   },
   "job.mon": {
     "text": "Mon",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"1\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.move_to_must_have": {
     "text": "Move “{{text}}” to must have",
@@ -3341,7 +3365,7 @@
   },
   "job.on_site": {
     "text": "On site",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: a \"onsite\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: text built in code."
   },
   "job.on_the_internal_board_nowhere_public": {
     "text": "On the internal board, nowhere public.",
@@ -3369,7 +3393,7 @@
   },
   "job.open_xml_feed": {
     "text": "Open XML feed",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.openings": {
     "text": "Openings",
@@ -3389,7 +3413,7 @@
   },
   "job.partner_only_use_the_tracked_share_link": {
     "text": "Partner-only; use the tracked share link",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.pays": {
     "text": "Pays",
@@ -3429,7 +3453,7 @@
   },
   "job.publishing": {
     "text": "Publishing",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: a \"publishing\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, PART_TITLE: text built in code."
   },
   "job.publishing_2_one": {
     "text": "{{count}} check blocks publishing.",
@@ -3457,7 +3481,7 @@
   },
   "job.remote": {
     "text": "Remote",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: a \"remote\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, MODE: text built in code."
   },
   "job.remove": {
     "text": "Remove “{{text}}”",
@@ -3479,9 +3503,13 @@
     "text": "Run the hiring: the ad, the screening, the bookings.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, ROLE_ROWS: text built in code."
   },
+  "job.same_as_the_ad": {
+    "text": "Same as the ad",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the items of <KeyValues>."
+  },
   "job.sat": {
     "text": "Sat",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"6\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.save": {
     "text": "Save",
@@ -3525,7 +3553,7 @@
   },
   "job.share_links": {
     "text": "Share links",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"label\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.shown": {
     "text": "Shown",
@@ -3545,11 +3573,11 @@
   },
   "job.structured_data_on_the_job_page_google": {
     "text": "Structured data on the job page; Google crawls it",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.sun": {
     "text": "Sun",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"7\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.target": {
     "text": "Target",
@@ -3625,7 +3653,7 @@
   },
   "job.the_companys_page_on_kithena_jobs": {
     "text": "The company’s page on Kithena Jobs, and its embed",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.the_companys_pipelines_from_settings_choosing": {
     "text": "The company’s pipelines, from Settings. Choosing one gives this job its steps.",
@@ -3637,7 +3665,7 @@
   },
   "job.the_cross_company_search_if_the": {
     "text": "The cross-company search, if the company opted in",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: a \"what\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, TARGETS: text built in code."
   },
   "job.the_default": {
     "text": "{{name}} (the default)",
@@ -3709,7 +3737,7 @@
   },
   "job.thu": {
     "text": "Thu",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"4\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.time": {
     "text": "Time",
@@ -3737,7 +3765,7 @@
   },
   "job.tue": {
     "text": "Tue",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"2\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.unpublish_everywhere": {
     "text": "Unpublish everywhere",
@@ -3761,7 +3789,7 @@
   },
   "job.wed": {
     "text": "Wed",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: a \"3\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
   "job.what_a_candidate_must_bring_and": {
     "text": "What a candidate must bring, and what is a bonus.",
@@ -3823,6 +3851,10 @@
     "text": "Write the description to publish",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the actions of <Button>."
   },
+  "job.your_company": {
+    "text": "Your company",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: text inside <Loaded>."
+  },
   "load.could_not_load": {
     "text": "Could not load {{what}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
@@ -3834,6 +3866,194 @@
   "load.try_again": {
     "text": "Try again",
     "context": "Recruiting: jobs, candidates, interviews, offers. load.tsx, Loaded: the action of <Button>."
+  },
+  "nav./recruiting/agencies.label": {
+    "text": "Agencies",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/agencies): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/analytics.label": {
+    "text": "Analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/analytics): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/board.label": {
+    "text": "Internal board",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/board): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/candidates.description": {
+    "text": "Everyone who applied or was sourced, the pools they are kept in, the agencies who send them",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/candidates.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): the heading of the group it is listed under."
+  },
+  "nav./recruiting/candidates.label": {
+    "text": "Candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/candidates.summary": {
+    "text": "Candidates, pools, agencies",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/home.description": {
+    "text": "Your tasks and your jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/home.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): the heading of the group it is listed under."
+  },
+  "nav./recruiting/home.label": {
+    "text": "Home",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/home.summary": {
+    "text": "Tasks and jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/interviews.description": {
+    "text": "Interviews you run and the scorecards you owe",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/interviews.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): the heading of the group it is listed under."
+  },
+  "nav./recruiting/interviews.label": {
+    "text": "Interviews",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/interviews.summary": {
+    "text": "Interviews and scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/jobs.description": {
+    "text": "Every job: its pipeline and setup, the headcount behind it, how it performs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/jobs.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): the heading of the group it is listed under."
+  },
+  "nav./recruiting/jobs.label": {
+    "text": "Jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/jobs.summary": {
+    "text": "Jobs, requisitions, analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/offers.description": {
+    "text": "Offers, their approvals, contracts and the conditions before a start",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/offers.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): the heading of the group it is listed under."
+  },
+  "nav./recruiting/offers.label": {
+    "text": "Offers",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/offers.summary": {
+    "text": "Offers and contracts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/pools.label": {
+    "text": "Talent pools",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/pools): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/requisitions.label": {
+    "text": "Requisitions",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/requisitions): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/ai.description": {
+    "text": "What AI may help with in hiring, and what it never sees.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/ai.label": {
+    "text": "AI",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/benefits.description": {
+    "text": "What each entity offers, by category, statutory ones included.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/benefits): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/benefits.label": {
+    "text": "Benefits",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/benefits): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/careers.description": {
+    "text": "Your company's name, its page on Kithena Jobs, your own domain and where replies go.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/careers): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/careers.label": {
+    "text": "Careers page",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/careers): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/emails.description": {
+    "text": "What each moment sends, from a rejection to an offer letter.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/emails): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/emails.label": {
+    "text": "Emails and letters",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/emails): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/entities.description": {
+    "text": "Who employs, where people work, and the departments jobs sit in.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/entities): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/entities.label": {
+    "text": "Entities and locations",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/entities): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/integrations.description": {
+    "text": "Job boards, your website, your HR system and checks.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/integrations): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/integrations.label": {
+    "text": "Integrations",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/integrations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/pay.description": {
+    "text": "The range each grade pays; every offer is checked against it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pay): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/pay.label": {
+    "text": "Pay bands",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pay): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/pipelines.description": {
+    "text": "The steps candidates move through, and who approves jobs and offers.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pipelines): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/pipelines.label": {
+    "text": "Pipelines and approvals",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pipelines): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/questionnaires.description": {
+    "text": "Questions on the apply form or at a step, with kind knockouts.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/questionnaires): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/questionnaires.label": {
+    "text": "Questionnaires",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/questionnaires): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/rules.description": {
+    "text": "Approving new jobs, internal applicants, referral bonuses and rejection reasons.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/rules): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/rules.label": {
+    "text": "Hiring rules",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/rules): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/scorecards.description": {
+    "text": "What interviewers rate, on one four-point scale.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/scorecards): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/scorecards.label": {
+    "text": "Scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/scorecards): its name in the sidebar, the breadcrumb and the menus."
   },
   "offers.added_up_by_kithena": {
     "text": "Added up by Kithena",
@@ -3893,7 +4113,7 @@
   },
   "offers.benefits": {
     "text": "Benefits",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"benefits\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.benefits_in_this_offer": {
     "text": "Benefits in this offer",
@@ -3945,11 +4165,11 @@
   },
   "offers.clauses": {
     "text": "Clauses",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"clauses\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.collective_agreement": {
     "text": "Collective agreement",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"agreement\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.comment": {
     "text": "Comment",
@@ -3977,7 +4197,7 @@
   },
   "offers.contract_type": {
     "text": "Contract type",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"contract_type\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.create_draft": {
     "text": "Create draft",
@@ -4017,7 +4237,7 @@
   },
   "offers.duration": {
     "text": "Duration",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"duration\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.ends_on": {
     "text": "Ends on",
@@ -4045,7 +4265,7 @@
   },
   "offers.fixed_term_reason": {
     "text": "Fixed-term reason",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"fixed_term_reason\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.from_the_entitys_catalogue_statutory_ones": {
     "text": "From the entity’s catalogue; statutory ones are included and locked",
@@ -4073,7 +4293,7 @@
   },
   "offers.hours": {
     "text": "Hours",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"hours\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.hours_a_week": {
     "text": "Hours a week",
@@ -4097,7 +4317,7 @@
   },
   "offers.legal_entity": {
     "text": "Legal entity",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"entity\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.mobility_clause": {
     "text": "Mobility clause",
@@ -4151,6 +4371,10 @@
     "text": "None for this step.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <p>."
   },
+  "offers.not_complete": {
+    "text": "Not complete",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: the items of <KeyValues>."
+  },
   "offers.not_lawful": {
     "text": "Not lawful",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: the title of <Alert>."
@@ -4163,9 +4387,13 @@
     "text": "Not waiting on you",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: the title of <Alert>."
   },
+  "offers.not_yet": {
+    "text": "Not yet",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
+  },
   "offers.notice": {
     "text": "Notice",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"notice\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.notice_from_the_employee": {
     "text": "Notice from the employee",
@@ -4233,7 +4461,7 @@
   },
   "offers.pay": {
     "text": "Pay",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"pay\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.payments_a_year": {
     "text": "Payments a year",
@@ -4253,7 +4481,7 @@
   },
   "offers.probation": {
     "text": "Probation",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"probation\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.read_and_confirm": {
     "text": "Read and confirm",
@@ -4281,7 +4509,7 @@
   },
   "offers.relationship": {
     "text": "Relationship",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"relationship\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.relocation": {
     "text": "Relocation",
@@ -4343,6 +4571,10 @@
     "text": "Signed",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
   },
+  "offers.signed_contract_uploaded": {
+    "text": "Signed contract uploaded",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
+  },
   "offers.signing": {
     "text": "Signing",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
@@ -4381,7 +4613,7 @@
   },
   "offers.summary": {
     "text": "Summary",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"summary\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.terms": {
     "text": "Terms",
@@ -4455,6 +4687,14 @@
     "text": "Waiting on step {{value}} of {{length}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the title of <Alert>. Filled in: {{value}}, {{length}}."
   },
+  "offers.wet_ink_printed_and_signed_by": {
+    "text": "Wet ink: printed and signed by hand",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: the items of <KeyValues>."
+  },
+  "offers.wet_ink_printed_signed_by_hand": {
+    "text": "Wet ink: printed, signed by hand by both, scan uploaded",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
+  },
   "offers.when_its_signed": {
     "text": "When it’s signed",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <h2>."
@@ -4469,11 +4709,11 @@
   },
   "offers.work_location": {
     "text": "Work location",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"location\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.work_mode": {
     "text": "Work mode",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: a \"work_mode\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
   },
   "offers.worked_here_before": {
     "text": "Worked here before",
@@ -4995,9 +5235,17 @@
     "text": "Waiting on {{join}}.",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, RequisitionApproval: text inside <Alert>. Filled in: {{join}}."
   },
+  "settings-editors.a_category_by_that_name_is": {
+    "text": "A category by that name is already here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, CategoryEditor: a \"name\" value."
+  },
   "settings-editors.a_de_entity_with_one_presents": {
     "text": "A DE entity with one presents hires to it first.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, EntityEditor: text inside <FieldDescription>."
+  },
+  "settings-editors.a_department_by_that_name_is": {
+    "text": "A department by that name is already here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, DepartmentEditor: a \"name\" value."
   },
   "settings-editors.a_full_time_week_is_between": {
     "text": "A full-time week is between 10 and 60 hours.",
@@ -5193,7 +5441,7 @@
   },
   "settings-editors.calendar": {
     "text": "Calendar",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"calendar\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.cancel": {
     "text": "Cancel",
@@ -5215,6 +5463,10 @@
     "text": "Certain answers flag the application, or reject it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, KnockoutEditor: text inside <FieldDescription>."
   },
+  "settings-editors.chart": {
+    "text": "Chart",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"analytics\" value."
+  },
   "settings-editors.choose_an_entity": {
     "text": "Choose an entity",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, BenefitEditor: the placeholder of <SelectValue>."
@@ -5222,6 +5474,10 @@
   "settings-editors.choose_the_entity_that_offers_it": {
     "text": "Choose the entity that offers it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, BenefitEditor: a \"entity\" value."
+  },
+  "settings-editors.choose_what_it_is_used_for": {
+    "text": "Choose what it is used for.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, TemplateEditor: a \"purpose\" value."
   },
   "settings-editors.city": {
     "text": "City",
@@ -5237,7 +5493,7 @@
   },
   "settings-editors.company": {
     "text": "Company",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"company\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.contract": {
     "text": "Contract",
@@ -5277,7 +5533,7 @@
   },
   "settings-editors.document": {
     "text": "Document",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"document\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.drag_to_reorder_the_type_tells": {
     "text": "Drag to reorder. The type tells Kithena what happens at a step: an interview step books interviews, an offer step sends offers.",
@@ -5305,7 +5561,7 @@
   },
   "settings-editors.equipment": {
     "text": "Equipment",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"system\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.every_new_job": {
     "text": "Every new job",
@@ -5329,7 +5585,7 @@
   },
   "settings-editors.exchange": {
     "text": "Exchange",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"transfer\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.exempt_up_to_the_statutory_limit": {
     "text": "Exempt up to the statutory limit.",
@@ -5337,7 +5593,7 @@
   },
   "settings-editors.family": {
     "text": "Family",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"parental\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.finance": {
     "text": "Finance",
@@ -5345,7 +5601,7 @@
   },
   "settings-editors.food": {
     "text": "Food",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"break\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.from_people_its_name_and_country": {
     "text": "From People: its name and country are changed there.",
@@ -5363,9 +5619,13 @@
     "text": "German",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, LANGUAGES: text built in code."
   },
+  "settings-editors.give_the_entity_its_legal_name": {
+    "text": "Give the entity its legal name.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, EntityEditor: a \"name\" value."
+  },
   "settings-editors.growth": {
     "text": "Growth",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"goal\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.headcount": {
     "text": "Headcount",
@@ -5373,11 +5633,11 @@
   },
   "settings-editors.health": {
     "text": "Health",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"health\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.heart": {
     "text": "Heart",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"favourite\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.hindi": {
     "text": "Hindi",
@@ -5389,7 +5649,11 @@
   },
   "settings-editors.holiday": {
     "text": "Holiday",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"vacation\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
+  },
+  "settings-editors.home": {
+    "text": "Home",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"home\" value."
   },
   "settings-editors.hours": {
     "text": "hours",
@@ -5417,7 +5681,7 @@
   },
   "settings-editors.invitation_to_choose_interview_times": {
     "text": "Invitation to choose interview times",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, TEMPLATE_PURPOSES: a \"interview_invitation\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, TEMPLATE_PURPOSES: text built in code."
   },
   "settings-editors.its_country_pack_decides_the_terms": {
     "text": "Its country pack decides the terms it can offer.",
@@ -5457,11 +5721,11 @@
   },
   "settings-editors.meeting": {
     "text": "Meeting",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"meeting\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.money": {
     "text": "Money",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"payment\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.months": {
     "text": "Months",
@@ -5473,11 +5737,43 @@
   },
   "settings-editors.more": {
     "text": "More",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"more\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.name": {
     "text": "Name",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, EntityEditor: text inside <FieldLabel>."
+  },
+  "settings-editors.name_the_benefit_as_a_candidate": {
+    "text": "Name the benefit, as a candidate reads it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, BenefitEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_category": {
+    "text": "Name the category.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, CategoryEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_department": {
+    "text": "Name the department.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, DepartmentEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_location_as_people_call": {
+    "text": "Name the location, as people call it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, LocationEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_pipeline_as_recruiters_will": {
+    "text": "Name the pipeline, as recruiters will pick it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, PipelineEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_questionnaire": {
+    "text": "Name the questionnaire.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, QuestionnaireEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_rule_such_as_large": {
+    "text": "Name the rule, such as “Large budgets”.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ChainEditor: a \"name\" value."
+  },
+  "settings-editors.name_the_template": {
+    "text": "Name the template.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, TemplateEditor: a \"name\" value."
   },
   "settings-editors.new_approval_rule": {
     "text": "New approval rule",
@@ -5609,7 +5905,7 @@
   },
   "settings-editors.place": {
     "text": "Place",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"location\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.press_enter_after_each_one": {
     "text": "Press Enter after each one.",
@@ -5625,7 +5921,7 @@
   },
   "settings-editors.protection": {
     "text": "Protection",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"locked\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.question": {
     "text": "Question {{value}}",
@@ -5673,7 +5969,7 @@
   },
   "settings-editors.savings": {
     "text": "Savings",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"payroll\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.screening": {
     "text": "Screening",
@@ -5709,7 +6005,7 @@
   },
   "settings-editors.star": {
     "text": "Star",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"starred\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.step": {
     "text": "Step",
@@ -5737,7 +6033,7 @@
   },
   "settings-editors.team": {
     "text": "Team",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"team\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.text": {
     "text": "{{name}} ({{country}})",
@@ -5793,7 +6089,7 @@
   },
   "settings-editors.tick": {
     "text": "Tick",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"approve\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.time_zone": {
     "text": "Time zone",
@@ -5801,7 +6097,7 @@
   },
   "settings-editors.travel": {
     "text": "Travel",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"travel\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.type": {
     "text": "Type",
@@ -5865,7 +6161,7 @@
   },
   "settings-editors.work": {
     "text": "Work",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: a \"work\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings-editors.tsx, ICON_NAMES: text built in code."
   },
   "settings-editors.work_modes": {
     "text": "Work modes",
@@ -5918,6 +6214,10 @@
   "settings.a_pipeline_for_interns_with_no": {
     "text": "A pipeline for interns with no assessment, or Finance approves jobs over 100k",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PipelinesAndApprovals: the placeholder of <InWords>."
+  },
+  "settings.a_scorecard_by_that_name_is": {
+    "text": "A scorecard by that name is already here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, ScorecardEditor: a \"name\" value."
   },
   "settings.a_year": {
     "text": "{{yearlyMinor}} a year",
@@ -6135,6 +6435,10 @@
     "text": "Cancel",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, ScorecardEditor: text inside <Button>."
   },
+  "settings.careers_meridianfreight_com": {
+    "text": "careers@meridianfreight.com",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: the placeholder of <Input>."
+  },
   "settings.careers_page": {
     "text": "Careers page",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: the title of <Header>."
@@ -6215,6 +6519,10 @@
     "text": "Domain",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, OwnDomain: text inside <FieldLabel>."
   },
+  "settings.drafts_and_translates_the_description": {
+    "text": "Drafts and translates the description.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Ai: text inside <List>."
+  },
   "settings.draws_a_hiring_chart_asked_for_in": {
     "text": "Draws a hiring chart asked for in words.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Ai: text inside <List>."
@@ -6250,6 +6558,14 @@
   "settings.en": {
     "text": "{{purposeLabel}} · EN",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, EmailsAndLetters: the description of <Row>. Filled in: {{purposeLabel}}."
+  },
+  "settings.enter_a_domain_such_as_careers": {
+    "text": "Enter a domain such as careers.yourcompany.com, without https://.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, OwnDomain: a \"host\" value."
+  },
+  "settings.enter_the_bonus_more_than_nothing": {
+    "text": "Enter the bonus, more than nothing.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: a \"bonus\" value."
   },
   "settings.enter_the_highest_yearly_salary": {
     "text": "Enter the highest yearly salary.",
@@ -6313,7 +6629,7 @@
   },
   "settings.germany": {
     "text": "Germany",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: a \"DE\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: text built in code."
   },
   "settings.google_for_jobs": {
     "text": "Google for Jobs",
@@ -6369,7 +6685,7 @@
   },
   "settings.india": {
     "text": "India",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: a \"IN\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: text built in code."
   },
   "settings.integrations": {
     "text": "Integrations",
@@ -6403,6 +6719,10 @@
     "text": "Jobs it employs for keep their terms; no new job can choose it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: the actions of <Row>."
   },
+  "settings.jobs_kithena_com": {
+    "text": "jobs.kithena.com/{{value}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: text inside <FieldDescription>. Filled in: {{value}}."
+  },
   "settings.jobs_stop_offering_it_a_standard_one": {
     "text": "Jobs stop offering it; a standard one can be put back.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Benefits: the actions of <Row>."
@@ -6422,6 +6742,10 @@
   "settings.jobs_there_keep_it_no_new_job": {
     "text": "Jobs there keep it; no new job can choose it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: text inside <Row>."
+  },
+  "settings.keep_at_least_one_reason_every": {
+    "text": "Keep at least one reason: every rejection records one.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: a \"reasons\" value."
   },
   "settings.keep_it": {
     "text": "Keep it",
@@ -6486,6 +6810,10 @@
   "settings.name_the_grade_such_as_senior": {
     "text": "Name the grade, such as Senior or E3.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBandEditor: a \"grade\" value."
+  },
+  "settings.name_the_scorecard_as_interviewers_will": {
+    "text": "Name the scorecard, as interviewers will pick it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, ScorecardEditor: a \"name\" value."
   },
   "settings.needed_before_ai_evidence_is_used": {
     "text": "Needed before AI evidence is used on NYC jobs.",
@@ -6773,7 +7101,7 @@
   },
   "settings.spain": {
     "text": "Spain",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: a \"ES\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: text built in code."
   },
   "settings.standard_benefits": {
     "text": "Standard benefits",
@@ -6826,6 +7154,10 @@
   "settings.that_image_was_not_accepted": {
     "text": "That image was not accepted.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, LogoField: the onReject of <AvatarUploader>."
+  },
+  "settings.that_is_not_an_email_address": {
+    "text": "That is not an email address.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: a \"reply\" value."
   },
   "settings.that_reason_is_already_here": {
     "text": "That reason is already here.",
@@ -6893,15 +7225,19 @@
   },
   "settings.united_kingdom": {
     "text": "United Kingdom",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: a \"GB\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: text built in code."
   },
   "settings.united_states": {
     "text": "United States",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: a \"US\" value."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, COUNTRY: text built in code."
   },
   "settings.us_federal_contractor": {
     "text": "US federal contractor",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: the label of <SwitchRow>."
+  },
+  "settings.use_1_to_40_lowercase_letters": {
+    "text": "Use 1 to 40 lowercase letters, numbers and hyphens, starting and ending with a letter or number.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: a \"slug\" value."
   },
   "settings.value": {
     "text": "Value",
@@ -6995,6 +7331,10 @@
     "text": "Works council agreed",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Questionnaires: text inside <Badge>."
   },
+  "settings.write_and_translate_job_ads": {
+    "text": "Write and translate job ads",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Ai: text inside <List>."
+  },
   "settings.write_it_with_ai": {
     "text": "Write it with AI",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AboutField: text inside <Button>."
@@ -7013,11 +7353,15 @@
   },
   "settings.your_company": {
     "text": "Your company",
-    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: the title of <Group>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx: text built in code."
   },
   "settings.your_company_as_candidates_see_it": {
     "text": "Your company as candidates see it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: the description of <Header>."
+  },
+  "settings.your_companys_name_as_candidates_know": {
+    "text": "Your company’s name, as candidates know it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: a \"name\" value."
   },
   "settings.your_jobs_on_a_site_of_your": {
     "text": "Your jobs on a site of your own.",

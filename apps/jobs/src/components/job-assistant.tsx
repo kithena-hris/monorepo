@@ -17,6 +17,7 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../lib/browser-api';
+import { t } from '../lib/i18n';
 
 /**
  * J8 on a job page (PRD §10.6): an AI, and it says so; it answers from the ad,
@@ -40,10 +41,14 @@ export function JobAssistant({
   return (
     <Card>
       <CardHeader>
-        <CardTitle level={2}>Questions about this job</CardTitle>
+        <CardTitle level={2}>
+          {t('components.job-assistant.questions_about_this_job', 'Questions about this job')}
+        </CardTitle>
         <CardDescription>
-          You are asking an AI assistant. It answers from this job ad and the hiring steps only, and
-          it does not assess you.
+          {t(
+            'components.job-assistant.you_are_asking_an_ai_assistant',
+            'You are asking an AI assistant. It answers from this job ad and the hiring steps only, and it does not assess you.',
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -78,8 +83,11 @@ export function JobAssistant({
           }}
         >
           <Input
-            aria-label="Your question"
-            placeholder="Is it remote? What are the steps?"
+            aria-label={t('components.job-assistant.your_question', 'Your question')}
+            placeholder={t(
+              'components.job-assistant.is_it_remote_what_are_the',
+              'Is it remote? What are the steps?',
+            )}
             value={question}
             onChange={(e) => {
               setQuestion(e.target.value);
@@ -87,11 +95,14 @@ export function JobAssistant({
             className="flex-1"
           />
           <Button type="submit" loading={pending}>
-            Ask
+            {t('components.job-assistant.ask', 'Ask')}
           </Button>
         </form>
         {!handOver ? null : sent ? (
-          <Alert tone="success" title="Sent to the recruiter" />
+          <Alert
+            tone="success"
+            title={t('components.job-assistant.sent_to_the_recruiter', 'Sent to the recruiter')}
+          />
         ) : (
           <form
             className="flex flex-col gap-2"
@@ -107,9 +118,14 @@ export function JobAssistant({
               });
             }}
           >
-            <p className="text-sm">Ask the recruiter instead; they reply by email.</p>
+            <p className="text-sm">
+              {t(
+                'components.job-assistant.ask_the_recruiter_instead_they_reply',
+                'Ask the recruiter instead; they reply by email.',
+              )}
+            </p>
             <Field required>
-              <FieldLabel>Your email</FieldLabel>
+              <FieldLabel>{t('components.job-assistant.your_email', 'Your email')}</FieldLabel>
               <FieldControl>
                 <Input
                   type="email"
@@ -122,7 +138,9 @@ export function JobAssistant({
             </Field>
             {said.length === 0 ? (
               <Field required>
-                <FieldLabel>Your question</FieldLabel>
+                <FieldLabel>
+                  {t('components.job-assistant.your_question', 'Your question')}
+                </FieldLabel>
                 <FieldControl>
                   <Textarea
                     autoResize
@@ -135,7 +153,7 @@ export function JobAssistant({
               </Field>
             ) : null}
             <Button type="submit" variant="secondary" loading={pending} disabled={email === ''}>
-              Ask the recruiter
+              {t('components.job-assistant.ask_the_recruiter', 'Ask the recruiter')}
             </Button>
           </form>
         )}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { ENGINE_HTML, parseMessage, type EngineMessage } from './engine-html.ts';
+import { t } from '../../lib/i18n';
 
 /** The little of the DOM this needs: Reach Native compiles without the DOM's types. */
 interface Frame {
@@ -46,7 +47,7 @@ export function PdfEngine({
     <iframe
       ref={frame as never}
       srcDoc={ENGINE_HTML}
-      title="PDF renderer"
+      title={t('components.pdf-pages.engine.web.pdf_renderer', 'PDF renderer')}
       aria-hidden
       tabIndex={-1}
       style={{ position: 'absolute', width: 0, height: 0, border: 0, visibility: 'hidden' }}

@@ -38,25 +38,33 @@ export interface ReportRunsProps {
 /** Why a recipient or a run got nothing, in words. */
 const WHY: Record<string, string> = {
   sent: 'sent',
-  failed: t('reports.report-runs.the_email_failed', 'the email failed'),
-  not_eligible: t('reports.report-runs.has_left_or_has_no_work', 'has left, or has no work email'),
-  FIELD_NOT_FILTERABLE: t(
-    'reports.report-runs.may_not_filter_by_this_audience',
-    'may not filter by this audience',
-  ),
-  NOT_A_VIEWER: t(
-    'reports.report-runs.has_nothing_to_see_in_the',
-    'has nothing to see in the summary',
-  ),
-  EXPORT_REASON_REQUIRED: t(
-    'reports.report-runs.the_file_needs_a_reason',
-    'the file needs a reason',
-  ),
-  owner_not_allowed: t(
-    'reports.report-runs.its_owner_no_longer_manages_people',
-    'its owner no longer manages People',
-  ),
-  segment_gone: t('reports.report-runs.its_segment_was_deleted', 'its segment was deleted'),
+  get failed(): string {
+    return t('reports.report-runs.the_email_failed', 'the email failed');
+  },
+  get not_eligible(): string {
+    return t('reports.report-runs.has_left_or_has_no_work', 'has left, or has no work email');
+  },
+  get FIELD_NOT_FILTERABLE(): string {
+    return t(
+      'reports.report-runs.may_not_filter_by_this_audience',
+      'may not filter by this audience',
+    );
+  },
+  get NOT_A_VIEWER(): string {
+    return t('reports.report-runs.has_nothing_to_see_in_the', 'has nothing to see in the summary');
+  },
+  get EXPORT_REASON_REQUIRED(): string {
+    return t('reports.report-runs.the_file_needs_a_reason', 'the file needs a reason');
+  },
+  get owner_not_allowed(): string {
+    return t(
+      'reports.report-runs.its_owner_no_longer_manages_people',
+      'its owner no longer manages People',
+    );
+  },
+  get segment_gone(): string {
+    return t('reports.report-runs.its_segment_was_deleted', 'its segment was deleted');
+  },
 };
 const why = (code: string): string => WHY[code] ?? code;
 
@@ -143,10 +151,14 @@ function Runs({
                   <span className="font-medium">{run.period}</span>
                   {run.missed > 0 ? (
                     <span className="text-fg-muted text-sm">
-                      {t('reports.report-runs.covers_earlier', 'Covers {{missed}} earlier', {
-                        missed: String(run.missed),
-                      })}{' '}
-                      {run.missed === 1 ? 'period' : 'periods'}
+                      {t(
+                        'reports.report-runs.covers_earlier_periods',
+                        {
+                          one: 'Covers {{count}} earlier period',
+                          other: 'Covers {{count}} earlier periods',
+                        },
+                        { count: run.missed },
+                      )}
                     </span>
                   ) : null}
                   <ul

@@ -109,9 +109,15 @@ export interface HolidaySettingsProps {
 
 const LEVELS: Record<Layer['level'], number> = { national: 0, regional: 1, city: 2 };
 const LEVEL_NAME: Record<Layer['level'], string> = {
-  national: t('settings.holiday-settings.national', 'National'),
-  regional: t('settings.holiday-settings.regional', 'Regional'),
-  city: t('settings.holiday-settings.city', 'City'),
+  get national(): string {
+    return t('settings.holiday-settings.national', 'National');
+  },
+  get regional(): string {
+    return t('settings.holiday-settings.regional', 'Regional');
+  },
+  get city(): string {
+    return t('settings.holiday-settings.city', 'City');
+  },
 };
 
 /** The calendars a location keeps, ticked, saved with their own button (TOF-099a). */
@@ -180,11 +186,12 @@ function Keeps({
   );
 }
 
-const TITLE = t('settings.holiday-settings.holidays', 'Holidays');
-const DESCRIPTION = t(
-  'settings.holiday-settings.each_person_gets_the_holidays_for_the',
-  'Each person gets the holidays for the place they work. A holiday on a weekend follows the regional rules.',
-);
+const TITLE = (): string => t('settings.holiday-settings.holidays', 'Holidays');
+const DESCRIPTION = (): string =>
+  t(
+    'settings.holiday-settings.each_person_gets_the_holidays_for_the',
+    'Each person gets the holidays for the place they work. A holiday on a weekend follows the regional rules.',
+  );
 const page = '@container/holidays flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[48rem]/holidays:grid @min-[48rem]/holidays:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]/holidays:items-start';
@@ -194,7 +201,7 @@ export function HolidaySettings(props: HolidaySettingsProps): JSX.Element {
   if (load.status === 'loading') return <HolidaySettingsSkeleton />;
   return (
     <div className={page}>
-      {load.status === 'error' ? <PageHeader title={TITLE} description={DESCRIPTION} /> : null}
+      {load.status === 'error' ? <PageHeader title={TITLE()} description={DESCRIPTION()} /> : null}
       <Loaded
         load={load}
         what={t('settings.holiday-settings.the_holiday_calendars', 'the holiday calendars')}
@@ -228,8 +235,8 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={TITLE}
-        description={DESCRIPTION}
+        title={TITLE()}
+        description={DESCRIPTION()}
         actions={
           <>
             <SegmentedControl
@@ -634,8 +641,8 @@ export function HolidaySettingsSkeleton(): JSX.Element {
   return (
     <div className={page}>
       <PageHeader
-        title={TITLE}
-        description={DESCRIPTION}
+        title={TITLE()}
+        description={DESCRIPTION()}
         actions={<Skeleton className="h-8 w-28 rounded-full" />}
       />
       <div role="status" className={columns}>

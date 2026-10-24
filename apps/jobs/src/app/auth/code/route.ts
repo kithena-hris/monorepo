@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { accountCall } from '../../../lib/account';
+import { t } from '../../../lib/i18n';
 
 /** Email a sign-in code to an address, making the account if there is none. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -11,7 +12,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const email = typeof input?.email === 'string' ? input.email.trim() : '';
   const name = typeof input?.name === 'string' ? input.name.trim() : '';
   if (!email.includes('@'))
-    return NextResponse.json({ error: { message: 'Check the address' } }, { status: 400 });
+    return NextResponse.json(
+      { error: { message: t('app.auth.code.route.check_the_address', 'Check the address') } },
+      { status: 400 },
+    );
   const answer = await accountCall<{ sent: true; code?: string }>('/code', {
     method: 'POST',
     body: { email, name },

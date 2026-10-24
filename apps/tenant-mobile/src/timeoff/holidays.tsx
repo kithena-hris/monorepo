@@ -20,6 +20,7 @@ import { calendarFeed, useTimeOff } from './api';
 import { todayHere } from './time';
 import type { Bridge } from './today';
 import { bridgeDays, relativeDay, shortDate } from './words';
+import { t } from '../i18n';
 
 interface HolidaysData {
   readonly year: number;
@@ -50,13 +51,13 @@ export function TimeOffHolidays({
   const [feed, setFeed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const today = todayHere();
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: t('timeoff.holidays.time_off', 'Time off'), onPress: navigation.goBack };
   return (
-    <Page title="Holidays" back={back}>
+    <Page title={t('timeoff.holidays.holidays', 'Holidays')} back={back}>
       <SegmentedControl
         fullWidth
         value={String(year)}
-        accessibilityLabel="Year"
+        accessibilityLabel={t('timeoff.holidays.year', 'Year')}
         onValueChange={(y) => {
           setYear(Number(y));
         }}
@@ -69,19 +70,25 @@ export function TimeOffHolidays({
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading the holidays" />
+        <Loading label={t('timeoff.holidays.loading_the_holidays', 'Loading the holidays')} />
       ) : (
         <>
           <ListItem listitem={false} icon={MapPin}>
             {load.data.locationKey === null
-              ? 'No work location is on your record, so no public holidays apply.'
+              ? t(
+                  'timeoff.holidays.no_work_location_is_on_your',
+                  'No work location is on your record, so no public holidays apply.',
+                )
               : `${capital(load.data.locationKey)} · ${[...new Set(load.data.holidays.map((h) => h.layer))].join(', ')}`}
           </ListItem>
           {load.data.holidays.length === 0 ? (
             <EmptyState
               icon={PartyPopper}
-              title="No public holidays"
-              description="None apply where you work this year."
+              title={t('timeoff.holidays.no_public_holidays', 'No public holidays')}
+              description={t(
+                'timeoff.holidays.none_apply_where_you_work_this',
+                'None apply where you work this year.',
+              )}
             />
           ) : (
             <List>
@@ -89,9 +96,15 @@ export function TimeOffHolidays({
                 const bridge = load.data.bridges.find((b) => b.holidays[0]?.date === h.date);
                 const note =
                   bridge !== undefined
-                    ? `Take ${bridgeDays(bridge)} → ${String(bridge.away.days)} days off`
+                    ? t(
+                        'timeoff.holidays.take_days_off',
+                        'Take {{bridgeDays}} → {{String}} days off',
+                        { bridgeDays: bridgeDays(bridge), String: String(bridge.away.days) },
+                      )
                     : h.movedFrom !== null
-                      ? `Moved from ${shortDate(h.movedFrom)}`
+                      ? t('timeoff.holidays.moved_from', 'Moved from {{shortDate}}', {
+                          shortDate: shortDate(h.movedFrom),
+                        })
                       : h.date >= today
                         ? relativeDay(today, h.date)
                         : 'Passed';
@@ -124,13 +137,20 @@ export function TimeOffHolidays({
             });
           }}
         >
-          Add to my calendar
+          {t('timeoff.holidays.add_to_my_calendar', 'Add to my calendar')}
         </Button>
       ) : (
         <>
-          <CopyField value={feed} label="Copy the feed address" mono />
+          <CopyField
+            value={feed}
+            label={t('timeoff.holidays.copy_the_feed_address', 'Copy the feed address')}
+            mono
+          />
           <Text variant="footnote" tone="muted">
-            Your time off and these holidays, kept up to date in your calendar app.
+            {t(
+              'timeoff.holidays.your_time_off_and_these_holidays',
+              'Your time off and these holidays, kept up to date in your calendar app.',
+            )}
           </Text>
         </>
       )}

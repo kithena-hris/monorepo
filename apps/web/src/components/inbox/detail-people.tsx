@@ -752,7 +752,9 @@ function Asked({ item, act }: BodyProps): JSX.Element {
                     act.run(
                       () => changeAskBatch(d.batchId, 'remind', { personIds: [p.personId] }),
                       {
-                        title: `${p.name} reminded`,
+                        title: t('components.inbox.detail-people.reminded', '{{name}} reminded', {
+                          name: p.name,
+                        }),
                       },
                     );
                   }}

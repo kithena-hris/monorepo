@@ -4,6 +4,8 @@ import { Alert, Badge, Button, EmptyState, SlotPicker, Spinner, icons } from '@r
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
+import { t as tr } from '../../../lib/i18n';
+import { locale } from '@reach/ui/intl';
 
 interface Slots {
   readonly slots: readonly string[];
@@ -23,13 +25,14 @@ interface Slots {
   readonly booked: string | null;
 }
 
-const LONG = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+const LONG = (): Intl.DateTimeFormat =>
+  new Intl.DateTimeFormat(locale(), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 /**
  * The link in the invitation: ten times that suit the candidate, from the
@@ -48,7 +51,13 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
   useEffect(() => {
     const t = tokenFromHash();
     setToken(t);
-    if (t === '') setError('Open this page from the link in your invitation.');
+    if (t === '')
+      setError(
+        tr(
+          'app.schedule.[company].pick-time.open_this_page_from_the_link',
+          'Open this page from the link in your invitation.',
+        ),
+      );
     else
       void publicApi<Slots>(company, '/schedule', { token: t }).then((a) => {
         if (!a.ok) {
@@ -67,15 +76,24 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           icon={<icons.success aria-hidden />}
           title={
             data?.chosen.length === 0
-              ? 'Your times are with the team'
-              : 'Your new times are with the team'
+              ? tr(
+                  'app.schedule.[company].pick-time.your_times_are_with_the_team',
+                  'Your times are with the team',
+                )
+              : tr(
+                  'app.schedule.[company].pick-time.your_new_times_are_with_the',
+                  'Your new times are with the team',
+                )
           }
-          description="They will confirm one by email, with the meeting link and what it is about. The email has a link back here if your plans change."
+          description={tr(
+            'app.schedule.[company].pick-time.they_will_confirm_one_by_email',
+            'They will confirm one by email, with the meeting link and what it is about. The email has a link back here if your plans change.',
+          )}
         />
         <div className="flex flex-wrap justify-center gap-1.5">
           {sent.map((t) => (
             <Badge key={t} size="sm" variant="soft" tone="accent">
-              {LONG.format(new Date(t))}
+              {LONG().format(new Date(t))}
             </Badge>
           ))}
         </div>
@@ -83,62 +101,109 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
     );
   if (error !== null && data === null)
     return (
-      <Alert tone="warning" title="We can’t show times">
+      <Alert
+        tone="warning"
+        title={tr('app.schedule.[company].pick-time.we_cant_show_times', 'We can’t show times')}
+      >
         {error}
       </Alert>
     );
-  if (data === null) return <Spinner label="Loading times" />;
+  if (data === null)
+    return (
+      <Spinner label={tr('app.schedule.[company].pick-time.loading_times', 'Loading times')} />
+    );
   const today = new Date().toISOString().slice(0, 10);
   const changing = data.chosen.length > 0;
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-[-0.01em]">
-          {changing ? 'Change your times' : 'When suits you?'}
+          {changing
+            ? tr('app.schedule.[company].pick-time.change_your_times', 'Change your times')
+            : tr('app.schedule.[company].pick-time.when_suits_you', 'When suits you?')}
         </h1>
         <p className="text-fg-muted">{`${data.title} · ${String(data.minutes)} min · times in ${zone}, your time. Pick ${String(data.wanted)}; the team books one and sends the invitation.`}</p>
         {data.organiser === null && data.interviewers.length === 0 ? null : (
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <icons.people aria-hidden className="size-4 text-fg-muted" />
-            {`Every time below is free for ${[data.organiser, ...data.interviewers]
-              .filter((n): n is string => n !== null)
-              .join(', ')
-              .replace(
-                /, ([^,]*)$/u,
-                ' and $1',
-              )}: their working hours, holidays and meetings are already left out.`}
+            {tr(
+              'app.schedule.[company].pick-time.every_time_below_is_free_for',
+              'Every time below is free for {{replace}}: their working hours, holidays and meetings are already left out.',
+              {
+                replace: [data.organiser, ...data.interviewers]
+                  .filter((n): n is string => n !== null)
+                  .join(', ')
+                  .replace(/, ([^,]*)$/u, ' and $1'),
+              },
+            )}
           </p>
         )}
       </header>
       {data.booked === null ? null : (
-        <Alert tone="info" title={`Booked for ${LONG.format(new Date(data.booked))}`}>
-          Give new times here and the team moves it to one of them; until then, that time stands.
+        <Alert
+          tone="info"
+          title={tr('app.schedule.[company].pick-time.booked_for', 'Booked for {{format}}', {
+            format: LONG().format(new Date(data.booked)),
+          })}
+        >
+          {tr(
+            'app.schedule.[company].pick-time.give_new_times_here_and_the',
+            'Give new times here and the team moves it to one of them; until then, that time stands.',
+          )}
         </Alert>
       )}
       {data.excluded === 0 ? null : (
-        <Alert tone="warning" title="The team could not make your earlier times">
-          {`Those ${String(data.excluded)} are left out now. Please choose others.`}
+        <Alert
+          tone="warning"
+          title={tr(
+            'app.schedule.[company].pick-time.the_team_could_not_make_your',
+            'The team could not make your earlier times',
+          )}
+        >
+          {tr(
+            'app.schedule.[company].pick-time.those_are_left_out_now_please',
+            'Those {{String}} are left out now. Please choose others.',
+            { String: String(data.excluded) },
+          )}
         </Alert>
       )}
       {changing ? (
-        <Alert tone="neutral" title="Your times so far are picked below">
-          Take off any that no longer work and add others; sending replaces what you gave before.
+        <Alert
+          tone="neutral"
+          title={tr(
+            'app.schedule.[company].pick-time.your_times_so_far_are_picked',
+            'Your times so far are picked below',
+          )}
+        >
+          {tr(
+            'app.schedule.[company].pick-time.take_off_any_that_no_longer',
+            'Take off any that no longer work and add others; sending replaces what you gave before.',
+          )}
         </Alert>
       ) : null}
       {error === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={tr(
+            'app.schedule.[company].pick-time.that_did_not_go_through',
+            'That did not go through',
+          )}
+        >
           {error}
         </Alert>
       )}
       {data.slots.length === 0 ? (
         <EmptyState
           icon={<icons.calendar aria-hidden />}
-          title="No times left"
-          description="Reply to the invitation and the recruiter will find one."
+          title={tr('app.schedule.[company].pick-time.no_times_left', 'No times left')}
+          description={tr(
+            'app.schedule.[company].pick-time.reply_to_the_invitation_and_the',
+            'Reply to the invitation and the recruiter will find one.',
+          )}
         />
       ) : (
         <SlotPicker
-          label="Times that suit you"
+          label={tr('app.schedule.[company].pick-time.times_that_suit_you', 'Times that suit you')}
           slots={data.slots}
           value={chosen}
           onChange={setChosen}
@@ -149,7 +214,12 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
         />
       )}
       <div className="sticky bottom-0 -mx-4 flex items-center justify-between gap-3 border-t border-border bg-canvas/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
-        <span className="text-sm text-fg-muted tabular-nums">{`${String(chosen.length)} of ${String(data.wanted)} picked`}</span>
+        <span className="text-sm text-fg-muted tabular-nums">
+          {tr('app.schedule.[company].pick-time.of_picked', '{{String}} of {{String2}} picked', {
+            String: String(chosen.length),
+            String2: String(data.wanted),
+          })}
+        </span>
         <Button
           disabled={chosen.length !== data.wanted || data.wanted === 0}
           loading={pending}
@@ -165,7 +235,11 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
             });
           }}
         >
-          {changing ? 'Send my new times' : `Send my ${String(data.wanted)} times`}
+          {changing
+            ? tr('app.schedule.[company].pick-time.send_my_new_times', 'Send my new times')
+            : tr('app.schedule.[company].pick-time.send_my_times', 'Send my {{String}} times', {
+                String: String(data.wanted),
+              })}
         </Button>
       </div>
     </div>

@@ -107,7 +107,7 @@ describe('the scheduled reports screen (PEO-069)', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Monday roster' }));
     await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
     const dialog = screen.getByRole('dialog', { name: 'Edit Monday roster' });
-    expect(within(dialog).getByText(EACH_SEES_THEIR_OWN)).toBeInTheDocument();
+    expect(within(dialog).getByText(EACH_SEES_THEIR_OWN())).toBeInTheDocument();
     expect(
       within(dialog).getByRole('button', { name: 'What each recipient gets' }),
     ).toBeInTheDocument();

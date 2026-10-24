@@ -203,12 +203,24 @@ export interface ReviewProps extends ChangeActions {
 /* ------------------------------------------------------------- words -- */
 
 const CHIP: Readonly<Record<ReviewKind, string>> = {
-  changes: t('review.review.changes', 'Changes'),
-  ids: t('review.review.id_checks', 'ID checks'),
-  duplicates: t('review.review.duplicates', 'Duplicates'),
-  access: t('review.review.full_values', 'Full values'),
-  exports: t('review.review.exports', 'Exports'),
-  missing: t('review.review.missing_details', 'Missing details'),
+  get changes(): string {
+    return t('review.review.changes', 'Changes');
+  },
+  get ids(): string {
+    return t('review.review.id_checks', 'ID checks');
+  },
+  get duplicates(): string {
+    return t('review.review.duplicates', 'Duplicates');
+  },
+  get access(): string {
+    return t('review.review.full_values', 'Full values');
+  },
+  get exports(): string {
+    return t('review.review.exports', 'Exports');
+  },
+  get missing(): string {
+    return t('review.review.missing_details', 'Missing details');
+  },
 };
 
 /** Each kind's glyph, on its row and its chip. */
@@ -224,57 +236,89 @@ const KIND_ICON: Readonly<Record<ReviewKind, ReactNode>> = {
 /** Each chip's own empty state (E13), so an empty filter still says what would appear. */
 const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body: string }>> = {
   all: {
-    title: t('review.review.nothing_waiting_for_you', 'Nothing waiting for you'),
-    body: t(
-      'review.review.changes_id_checks_duplicates_and_requests',
-      'Changes, ID checks, duplicates and requests appear here when they need you.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_waiting_for_you', 'Nothing waiting for you');
+    },
+    get body(): string {
+      return t(
+        'review.review.changes_id_checks_duplicates_and_requests',
+        'Changes, ID checks, duplicates and requests appear here when they need you.',
+      );
+    },
   },
   changes: {
-    title: t('review.review.nothing_to_approve', 'Nothing to approve'),
-    body: t('review.review.all_changes_have_been_decided', 'All changes have been decided.'),
+    get title(): string {
+      return t('review.review.nothing_to_approve', 'Nothing to approve');
+    },
+    get body(): string {
+      return t('review.review.all_changes_have_been_decided', 'All changes have been decided.');
+    },
   },
   ids: {
-    title: t('review.review.nothing_to_review', 'Nothing to review'),
-    body: t(
-      'review.review.every_national_identifier_entered_so_far',
-      'Every national identifier entered so far passed its country’s checks, or has been reviewed.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_to_review', 'Nothing to review');
+    },
+    get body(): string {
+      return t(
+        'review.review.every_national_identifier_entered_so_far',
+        'Every national identifier entered so far passed its country’s checks, or has been reviewed.',
+      );
+    },
   },
   duplicates: {
-    title: t('review.review.nothing_looks_duplicated', 'Nothing looks duplicated'),
-    body: t(
-      'review.review.no_two_records_share_a_work',
-      'No two records share a work email, a name and birth date, or a unique value.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_looks_duplicated', 'Nothing looks duplicated');
+    },
+    get body(): string {
+      return t(
+        'review.review.no_two_records_share_a_work',
+        'No two records share a work email, a name and birth date, or a unique value.',
+      );
+    },
   },
   access: {
-    title: t('review.review.nothing_to_decide', 'Nothing to decide'),
-    body: t(
-      'review.review.a_request_appears_here_when_finance',
-      'A request appears here when finance asks.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_to_decide', 'Nothing to decide');
+    },
+    get body(): string {
+      return t(
+        'review.review.a_request_appears_here_when_finance',
+        'A request appears here when finance asks.',
+      );
+    },
   },
   exports: {
-    title: t('review.review.nothing_to_send', 'Nothing to send'),
-    body: t(
-      'review.review.a_request_appears_here_when_somebody',
-      'A request appears here when somebody sends an export to a person who can’t see all of it.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_to_send', 'Nothing to send');
+    },
+    get body(): string {
+      return t(
+        'review.review.a_request_appears_here_when_somebody',
+        'A request appears here when somebody sends an export to a person who can’t see all of it.',
+      );
+    },
   },
   missing: {
-    title: t('review.review.nothing_is_missing', 'Nothing is missing'),
-    body: t(
-      'review.review.every_required_field_has_a_value',
-      'Every required field has a value for everybody it applies to.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_is_missing', 'Nothing is missing');
+    },
+    get body(): string {
+      return t(
+        'review.review.every_required_field_has_a_value',
+        'Every required field has a value for everybody it applies to.',
+      );
+    },
   },
   mine: {
-    title: t('review.review.nothing_waiting', 'Nothing waiting'),
-    body: t(
-      'review.review.none_of_your_changes_wait_for',
-      'None of your changes wait for approval.',
-    ),
+    get title(): string {
+      return t('review.review.nothing_waiting', 'Nothing waiting');
+    },
+    get body(): string {
+      return t(
+        'review.review.none_of_your_changes_wait_for',
+        'None of your changes wait for approval.',
+      );
+    },
   },
 };
 
@@ -365,7 +409,7 @@ const accessRow = (r: FullValuesRequest): Row => ({
 const shareRow = (share: ShareRequest): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
-  name: share.requestedBy.name ?? 'A colleague',
+  name: share.requestedBy.name ?? t('review.review.a_colleague_name', 'A colleague'),
   avatarUrl: share.requestedBy.avatarUrl ?? null,
   // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
   summary: t('review.review.export_to', 'Export to {{value}} · {{value2}}', {
@@ -1327,7 +1371,9 @@ function ExportDetail({
           {
             label: t('review.review.who', 'Who'),
             value: [
-              (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
+              (
+                share.audience ?? t('review.review.everybody_you_can_see', 'Everybody you can see')
+              ).replace(/\byou\b/u, firstName(asker)),
               share.people == null ? null : peopleCount(share.people),
             ]
               .filter((x) => x !== null)
@@ -1336,7 +1382,10 @@ function ExportDetail({
           { label: t('review.review.fields', 'Fields'), value: listed(share.fields) },
           {
             label: t('review.review.as_of', 'As of'),
-            value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
+            value:
+              share.asOf === null
+                ? t('review.review.the_day_it_is_sent', 'The day it is sent')
+                : spokenDate(share.asOf),
           },
           { label: t('review.review.format', 'Format'), value: FORMAT_LABEL[share.format] },
           { label: t('review.review.reason', 'Reason'), value: `“${share.reason}”` },
@@ -1499,10 +1548,12 @@ function decisionsOf(state: ReviewState): Decision[] {
 
 // At module scope, so the table keeps one set of columns and redraws a row
 // only when its decision changes, not every time a page lands.
-const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
+const DECIDED_COLUMNS = (): readonly DataColumn<Decision>[] => [
   {
     id: 'person',
-    header: t('review.review.person', 'Person'),
+    get header(): string {
+      return t('review.review.person', 'Person');
+    },
     cell: (d) => (
       <span className="flex min-w-0 items-center gap-2">
         <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
@@ -1510,10 +1561,18 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </span>
     ),
   },
-  { id: 'what', header: t('review.review.what', 'What'), cell: (d) => d.what },
+  {
+    id: 'what',
+    get header(): string {
+      return t('review.review.what', 'What');
+    },
+    cell: (d) => d.what,
+  },
   {
     id: 'outcome',
-    header: t('review.review.outcome', 'Outcome'),
+    get header(): string {
+      return t('review.review.outcome', 'Outcome');
+    },
     cardTrailing: true,
     cell: (d) => (
       <Badge size="sm" tone={d.outcome.tone}>
@@ -1521,10 +1580,19 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </Badge>
     ),
   },
-  { id: 'by', header: t('review.review.by', 'By'), shortHeader: 'By', cell: (d) => d.by },
+  {
+    id: 'by',
+    get header(): string {
+      return t('review.review.by', 'By');
+    },
+    shortHeader: t('review.review.by', 'By'),
+    cell: (d) => d.by,
+  },
   {
     id: 'when',
-    header: t('review.review.when', 'When'),
+    get header(): string {
+      return t('review.review.when', 'When');
+    },
     cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
   },
 ];
@@ -1611,7 +1679,7 @@ function Decided({
             fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
-            columns={DECIDED_COLUMNS}
+            columns={DECIDED_COLUMNS()}
           />
         </PageSection>
       )}

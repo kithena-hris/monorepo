@@ -88,29 +88,41 @@ const ROLES: readonly {
 }[] = [
   {
     role: 'people_admin',
-    label: t('settings.roles.people_administrator', 'People administrator'),
-    means: t(
-      'settings.roles.changes_the_fields_the_settings_and',
-      'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
-    ),
+    get label(): string {
+      return t('settings.roles.people_administrator', 'People administrator');
+    },
+    get means(): string {
+      return t(
+        'settings.roles.changes_the_fields_the_settings_and',
+        'Changes the fields, the settings and who holds a role, and does anything HR and Finance can.',
+      );
+    },
     icon: <icons.permission aria-hidden />,
   },
   {
     role: 'hr',
-    label: 'HR',
-    means: t(
-      'settings.roles.sees_and_corrects_everybodys_record',
-      'Sees and corrects everybody’s record.',
-    ),
+    get label(): string {
+      return t('settings.roles.hr', 'HR');
+    },
+    get means(): string {
+      return t(
+        'settings.roles.sees_and_corrects_everybodys_record',
+        'Sees and corrects everybody’s record.',
+      );
+    },
     icon: <icons.people aria-hidden />,
   },
   {
     role: 'finance',
-    label: t('settings.roles.finance', 'Finance'),
-    means: t(
-      'settings.roles.sees_pay_and_asks_for_full',
-      'Sees pay, and asks for full values, for payroll.',
-    ),
+    get label(): string {
+      return t('settings.roles.finance', 'Finance');
+    },
+    get means(): string {
+      return t(
+        'settings.roles.sees_pay_and_asks_for_full',
+        'Sees pay, and asks for full values, for payroll.',
+      );
+    },
     icon: <icons.payroll aria-hidden />,
   },
 ];
@@ -182,7 +194,7 @@ function Roles({
               <div className="flex min-w-0 flex-col">
                 <span className="font-medium">
                   {who}
-                  {me ? ' (you)' : ''}
+                  {me ? t('settings.roles.you', ' (you)') : ''}
                 </span>
                 {person.name !== null && person.workEmail !== null ? (
                   <span className="text-fg-muted text-sm">{person.workEmail}</span>

@@ -2,6 +2,7 @@ import { Badge } from '@reach/ui-native';
 import { View } from 'react-native';
 
 import { dueOf, moduleName, type Item } from './model';
+import { t } from '../i18n';
 
 /** The badges under a row: where it lives, when it is due, where it stands. */
 export function RowBadges({
@@ -18,7 +19,7 @@ export function RowBadges({
     <View className="mt-1 flex-row flex-wrap gap-1.5">
       {item.unread ? (
         <Badge size="sm" tone="accent" variant="solid">
-          New
+          {t('inbox.row-badges.new', 'New')}
         </Badge>
       ) : null}
       <Badge size="sm" variant="outline">
@@ -37,10 +38,14 @@ export function RowBadges({
       {item.team === null ? null : (
         <Badge size="sm" tone={item.team.takenBy === null ? 'warning' : 'info'} dot>
           {item.team.takenBy === null
-            ? `For ${item.team.role.toLowerCase()}`
+            ? t('inbox.row-badges.for', 'For {{toLowerCase}}', {
+                toLowerCase: item.team.role.toLowerCase(),
+              })
             : item.team.mine
-              ? 'You are on it'
-              : `${item.team.takenBy.name ?? 'Somebody'} is on it`}
+              ? t('inbox.row-badges.you_are_on_it', 'You are on it')
+              : t('inbox.row-badges.is_on_it', '{{value}} is on it', {
+                  value: item.team.takenBy.name ?? 'Somebody',
+                })}
         </Badge>
       )}
       {item.outcome === null ? null : (
@@ -49,10 +54,13 @@ export function RowBadges({
         </Badge>
       )}
       {item.replies > 0 ? (
-        <Badge
-          size="sm"
-          tone="accent"
-        >{`${String(item.replies)} repl${item.replies === 1 ? 'y' : 'ies'}`}</Badge>
+        <Badge size="sm" tone="accent">
+          {t(
+            'inbox.row-badges.repl',
+            { one: '{{count}} reply', other: '{{count}} replies' },
+            { count: item.replies },
+          )}
+        </Badge>
       ) : null}
     </View>
   );

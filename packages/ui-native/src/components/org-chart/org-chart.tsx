@@ -9,6 +9,7 @@ import { spokenName, Unseen } from '../../lib/spoken-name.tsx';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Badge, type BadgeProps } from '../badge/badge.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 const WEB = Platform.OS === 'web';
 
@@ -214,10 +215,18 @@ export function OrgChart({
     const dim = needle !== '' && !chain.has(node.id);
     const dragging = drag?.id === node.id;
     const target = drag !== null && drag.over === node.id && valid(drag.id, node.id);
-    const name = node.vacant ? 'Open role' : node.name;
+    const name = node.vacant
+      ? t('components.org-chart.org-chart.open_role', 'Open role')
+      : node.name;
     const title = node.title ?? '';
     const said = `${name}${title ? `, ${title}` : ''}${
-      reports > 0 ? `, ${String(reports)} report${reports > 1 ? 's' : ''}` : ''
+      reports > 0
+        ? t(
+            'components.org-chart.org-chart.reports',
+            { one: ', {{count}} report', other: ', {{count}} reports' },
+            { count: reports },
+          )
+        : ''
     }${node.status ? `, ${node.status}` : ''}${matched ? ', match' : ''}`;
     const movable = canMove && !node.locked && !node.vacant && depth > 0;
 
@@ -240,9 +249,23 @@ export function OrgChart({
             })}
         accessibilityActions={[
           ...(children.length > 0
-            ? [{ name: open ? 'collapse' : 'expand', label: open ? 'Collapse' : 'Expand' }]
+            ? [
+                {
+                  name: open ? 'collapse' : 'expand',
+                  label: open
+                    ? t('components.org-chart.org-chart.collapse', 'Collapse')
+                    : t('components.org-chart.org-chart.expand', 'Expand'),
+                },
+              ]
             : []),
-          ...(movable && onRequestReassign ? [{ name: 'reassign', label: 'Report to…' }] : []),
+          ...(movable && onRequestReassign
+            ? [
+                {
+                  name: 'reassign',
+                  label: t('components.org-chart.org-chart.report_to', 'Report to…'),
+                },
+              ]
+            : []),
         ]}
         onAccessibilityAction={(event) => {
           const action = event.nativeEvent.actionName;
@@ -304,7 +327,7 @@ export function OrgChart({
                 {name}
               </CssText>
               <CssText numberOfLines={1} className="text-footnote leading-[1.3] text-fg-muted">
-                {`${title}${reports > 0 ? ` · ${String(reports)} report${reports > 1 ? 's' : ''}` : ''}`}
+                {`${title}${reports > 0 ? t('components.org-chart.org-chart.reports_line', { one: ' · {{count}} report', other: ' · {{count}} reports' }, { count: reports }) : ''}`}
               </CssText>
             </>
           )}
@@ -314,7 +337,7 @@ export function OrgChart({
             {node.status}
           </Badge>
         ) : null}
-        {matched ? <Unseen>match</Unseen> : null}
+        {matched ? <Unseen>{t('components.org-chart.org-chart.match', 'match')}</Unseen> : null}
         {reports > 0 ? (
           <Pressable
             accessible={false}

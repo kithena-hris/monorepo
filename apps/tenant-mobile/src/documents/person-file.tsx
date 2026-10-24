@@ -5,6 +5,7 @@ import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askDocuments, meta, useDocuments, type Row } from './api';
+import { t } from '../i18n';
 
 /**
  * A person's file on the phone (MH2): the checklist their types require,
@@ -28,12 +29,13 @@ interface PersonFileData {
   readonly rows: readonly Row[];
 }
 
-const STATE = {
-  have: ['In the file', 'success'],
-  asked: ['Asked', 'info'],
-  expired: ['Expired', 'danger'],
-  missing: ['Missing', 'warning'],
-} as const;
+const STATE = () =>
+  ({
+    have: [t('documents.person-file.in_the_file', 'In the file'), 'success'],
+    asked: [t('documents.person-file.asked', 'Asked'), 'info'],
+    expired: [t('documents.person-file.expired', 'Expired'), 'danger'],
+    missing: [t('documents.person-file.missing', 'Missing'), 'warning'],
+  }) as const;
 
 export function DocumentsPersonFile({
   navigation,
@@ -43,7 +45,10 @@ export function DocumentsPersonFile({
   const { personId, name } = route.params;
   const { load, reload } = useDocuments<PersonFileData>('DocumentsPersonFile', { personId });
   const [done, setDone] = useState<Readonly<Record<string, string>>>({});
-  const back = { label: 'Documents', onPress: navigation.goBack };
+  const back = {
+    label: t('documents.person-file.documents', 'Documents'),
+    onPress: navigation.goBack,
+  };
   const first = name.split(' ')[0] ?? name;
   if (load.status !== 'ready') {
     return (
@@ -51,7 +56,7 @@ export function DocumentsPersonFile({
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the file" />
+          <Loading label={t('documents.person-file.loading_the_file', 'Loading the file')} />
         )}
       </Page>
     );
@@ -62,10 +67,18 @@ export function DocumentsPersonFile({
       <Text tone="muted">{data.jobLine}</Text>
       {data.of === 0 ? null : (
         <>
-          <Heading title={`Required · ${String(data.have)} of ${String(data.of)}`} />
+          <Heading
+            title={t('documents.person-file.required_of', 'Required · {{String}} of {{String2}}', {
+              String: String(data.have),
+              String2: String(data.of),
+            })}
+          />
           <Progress
             value={(data.have / data.of) * 100}
-            label={`${String(data.have)} of ${String(data.of)}`}
+            label={t('documents.person-file.of', '{{String}} of {{String2}}', {
+              String: String(data.have),
+              String2: String(data.of),
+            })}
           />
           <List>
             {data.checklist.map((r) => (
@@ -73,8 +86,8 @@ export function DocumentsPersonFile({
                 key={r.typeKey}
                 description={r.detail}
                 supporting={
-                  <Badge tone={STATE[r.state][1]} size="sm">
-                    {STATE[r.state][0]}
+                  <Badge tone={STATE()[r.state][1]} size="sm">
+                    {STATE()[r.state][0]}
                   </Badge>
                 }
                 trailing={
@@ -92,7 +105,7 @@ export function DocumentsPersonFile({
                         });
                       }}
                     >
-                      Open
+                      {t('documents.person-file.open', 'Open')}
                     </Button>
                   ) : data.hr && r.action === 'remind' && r.requestId !== null ? (
                     <Button
@@ -105,7 +118,7 @@ export function DocumentsPersonFile({
                         })
                       }
                     >
-                      Remind
+                      {t('documents.person-file.remind', 'Remind')}
                     </Button>
                   ) : data.hr ? (
                     <Button
@@ -117,7 +130,11 @@ export function DocumentsPersonFile({
                             personId,
                             typeKey: r.typeKey,
                             dueOn: null,
-                            message: `Hi ${first}, we need your ${r.name.toLowerCase()}. A photo is fine.`,
+                            message: t(
+                              'documents.person-file.hi_we_need_your_a_photo',
+                              'Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.',
+                              { first, toLowerCase: r.name.toLowerCase() },
+                            ),
                           },
                         }).then((a) => {
                           if (a.ok) {
@@ -127,7 +144,7 @@ export function DocumentsPersonFile({
                         })
                       }
                     >
-                      Ask
+                      {t('documents.person-file.ask', 'Ask')}
                     </Button>
                   ) : null
                 }
@@ -138,7 +155,13 @@ export function DocumentsPersonFile({
           </List>
         </>
       )}
-      <Heading title={data.hr ? `Filed to ${first}` : 'Filed to you'} />
+      <Heading
+        title={
+          data.hr
+            ? t('documents.person-file.filed_to', 'Filed to {{first}}', { first })
+            : t('documents.person-file.filed_to_you', 'Filed to you')
+        }
+      />
       <List>
         {data.rows.map((row) => (
           <ListItem

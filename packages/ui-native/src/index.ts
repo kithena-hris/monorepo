@@ -874,3 +874,27 @@ export {
   type SentenceProps,
 } from './components/sentence/sentence.tsx';
 export { DayTiles, type DayTile, type DayTilesProps } from './components/day-tiles/day-tiles.tsx';
+// Words and formats in the reader's language: the web's port and formatters,
+// shared like the filter model, so the phone's screens and Reach Mobile ask
+// the one function the app hands over (`setTranslate`, `setLocale`).
+export {
+  englishOf,
+  interpolate,
+  setTranslate,
+  translator,
+  type Plural,
+  type T,
+  type Translate,
+  type TranslateVars,
+} from '@reach/ui/i18n';
+export {
+  dateFormat,
+  formatList,
+  formatRelative,
+  inSentence,
+  languageName,
+  locale,
+  numberFormat,
+  regionName,
+  setLocale,
+} from '@reach/ui/intl';

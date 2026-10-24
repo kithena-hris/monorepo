@@ -96,9 +96,13 @@ function Page({
 /* ----------------------------------------------------------- types (S2) -- */
 
 const AUDIENCE = {
-  subject: tr('settings.settings.the_person_and_hr', 'the person and HR'),
+  get subject(): string {
+    return tr('settings.settings.the_person_and_hr', 'the person and HR');
+  },
   everyone: 'everyone',
-  hr: tr('settings.settings.hr_only', 'HR only'),
+  get hr(): string {
+    return tr('settings.settings.hr_only', 'HR only');
+  },
 } as const;
 
 /** "Filed to each person. The person and HR see it, Confidential. Signed by them, then HR." */
@@ -1048,51 +1052,75 @@ function Lift({
 const FEATURES: readonly { key: AiFeature; label: string; description: string }[] = [
   {
     key: 'summaries',
-    label: tr('settings.settings.summaries', 'Summaries'),
-    description: tr(
-      'settings.settings.on_every_document_a_person_opens',
-      'On every document a person opens',
-    ),
+    get label(): string {
+      return tr('settings.settings.summaries', 'Summaries');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.on_every_document_a_person_opens',
+        'On every document a person opens',
+      );
+    },
   },
   {
     key: 'questions',
-    label: tr('settings.settings.questions_about_a_document', 'Questions about a document'),
-    description: tr(
-      'settings.settings.answered_from_its_pages_citing_them',
-      'Answered from its pages, citing them',
-    ),
+    get label(): string {
+      return tr('settings.settings.questions_about_a_document', 'Questions about a document');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.answered_from_its_pages_citing_them',
+        'Answered from its pages, citing them',
+      );
+    },
   },
   {
     key: 'across',
-    label: tr('settings.settings.questions_across_documents', 'Questions across documents'),
-    description: tr(
-      'settings.settings.from_the_search_box_only_from',
-      'From the search box, only from documents the person can open',
-    ),
+    get label(): string {
+      return tr('settings.settings.questions_across_documents', 'Questions across documents');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.from_the_search_box_only_from',
+        'From the search box, only from documents the person can open',
+      );
+    },
   },
   {
     key: 'sorting',
-    label: tr('settings.settings.sort_uploads', 'Sort uploads'),
-    description: tr(
-      'settings.settings.type_person_and_dates_for_hr',
-      'Type, person and dates, for HR to confirm',
-    ),
+    get label(): string {
+      return tr('settings.settings.sort_uploads', 'Sort uploads');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.type_person_and_dates_for_hr',
+        'Type, person and dates, for HR to confirm',
+      );
+    },
   },
   {
     key: 'fields',
-    label: tr('settings.settings.read_fields_into_people', 'Read fields into People'),
-    description: tr(
-      'settings.settings.always_reviewed_before_anything_is_saved',
-      'Always reviewed before anything is saved',
-    ),
+    get label(): string {
+      return tr('settings.settings.read_fields_into_people', 'Read fields into People');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.always_reviewed_before_anything_is_saved',
+        'Always reviewed before anything is saved',
+      );
+    },
   },
   {
     key: 'photos',
-    label: tr('settings.settings.read_photos_and_scans', 'Read photos and scans'),
-    description: tr(
-      'settings.settings.off_by_default_a_picture_is',
-      'Off by default: a picture is sent as it is, since names in it cannot be hidden first',
-    ),
+    get label(): string {
+      return tr('settings.settings.read_photos_and_scans', 'Read photos and scans');
+    },
+    get description(): string {
+      return tr(
+        'settings.settings.off_by_default_a_picture_is',
+        'Off by default: a picture is sent as it is, since names in it cannot be hidden first',
+      );
+    },
   },
 ];
 

@@ -6,6 +6,7 @@ import { BarChart } from './bar-chart.tsx';
 import { binValues, squarify, type HistogramBin } from './geometry.ts';
 import { AxisLabels, ChartFrame, ChartGrid, decor, pct, useWidth, WEB } from './parts.tsx';
 import { bgTone, borderTone, seriesTone, type ChartTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 export interface TreemapItem {
   label: string;
@@ -346,7 +347,11 @@ export function BulletChart({
             key={m.label}
             accessible
             accessibilityRole="image"
-            accessibilityLabel={`${m.label}: ${shown}, target ${String(m.target)}, ${met ? 'met' : 'not met'}`}
+            accessibilityLabel={t(
+              'components.chart.part-chart.target',
+              '{{label}}: {{shown}}, target {{String}}, {{value}}',
+              { label: m.label, shown, String: String(m.target), value: met ? 'met' : 'not met' },
+            )}
             className="gap-1.5"
           >
             <CssText {...decor} className="text-subhead leading-[1.2] font-medium text-fg-muted">

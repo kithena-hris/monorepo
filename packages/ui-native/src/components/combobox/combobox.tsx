@@ -22,6 +22,7 @@ import { ListFooter, ListHeading, ListSeparator, OptionRow } from '../select/lis
 import { Spinner } from '../spinner/spinner.tsx';
 import { Text } from '../text/text.tsx';
 import { SearchField } from '../typed-fields/typed-fields.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A select you can type into, for a list too long to scan: a manager out of
@@ -102,9 +103,10 @@ export function Combobox({
   onChange,
   multiple = false,
   chips = false,
-  placeholder = 'Choose…',
-  searchPlaceholder = 'Search',
-  emptyMessage = (query) => `Nothing matches “${query}”`,
+  placeholder = t('components.combobox.combobox.choose', 'Choose…'),
+  searchPlaceholder = t('components.combobox.combobox.search', 'Search'),
+  emptyMessage = (query) =>
+    t('components.combobox.combobox.nothing_matches', 'Nothing matches “{{query}}”', { query }),
   label,
   disabled: disabledProp,
   invalid: invalidProp,
@@ -114,7 +116,8 @@ export function Combobox({
   loading = false,
   footer,
   onCreate,
-  createLabel = (query) => `Create “${query}”`,
+  createLabel = (query) =>
+    t('components.combobox.combobox.create', 'Create “{{query}}”', { query }),
   inline = false,
   defaultQuery = '',
   defaultOpen = false,
@@ -214,7 +217,9 @@ export function Combobox({
                 variant="ghost"
                 size="xs"
                 startIcon={<Icon icon={X} />}
-                accessibilityLabel={`Clear ${name}`}
+                accessibilityLabel={t('components.combobox.combobox.clear', 'Clear {{name}}', {
+                  name,
+                })}
                 onPress={() => {
                   onChange(multiple ? [] : null);
                 }}
@@ -236,7 +241,7 @@ export function Combobox({
                 setOpen(false);
               }}
             >
-              Done
+              {t('components.combobox.combobox.done', 'Done')}
             </Button>
           </DialogFooter>
         ) : null}
@@ -363,7 +368,11 @@ function ChipsBox({
       <DialogTrigger asChild disabled={disabled}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${placeholder}, ${name}, ${String(chosen.length)} selected`}
+          accessibilityLabel={t(
+            'components.combobox.combobox.selected',
+            '{{placeholder}}, {{name}}, {{String}} selected',
+            { placeholder, name, String: String(chosen.length) },
+          )}
           {...(hint ? { accessibilityHint: hint } : {})}
           accessibilityState={{ disabled }}
           disabled={disabled}
@@ -445,8 +454,12 @@ function Panel({
   const said = multiple
     ? `${String(chosen.length)} selected`
     : loading
-      ? 'Searching…'
-      : `${String(matches.length)} ${matches.length === 1 ? 'match' : 'matches'}`;
+      ? t('components.combobox.combobox.searching', 'Searching…')
+      : t(
+          'components.combobox.combobox.matches',
+          { one: '{{count}} match', other: '{{count}} matches' },
+          { count: matches.length },
+        );
 
   return (
     <>
@@ -462,10 +475,21 @@ function Panel({
               if (first) onPick(first.value);
               else if (canCreate) onCreate?.(q);
             }}
-            label={`Search ${name.toLowerCase()}`}
+            label={t('components.combobox.combobox.search_2', 'Search {{toLowerCase}}', {
+              toLowerCase: name.toLowerCase(),
+            })}
             placeholder={searchPlaceholder}
             autoFocus
-            {...(loading ? { endAdornment: <Spinner size={16} label="Searching" /> } : {})}
+            {...(loading
+              ? {
+                  endAdornment: (
+                    <Spinner
+                      size={16}
+                      label={t('components.combobox.combobox.searching_2', 'Searching')}
+                    />
+                  ),
+                }
+              : {})}
           />
         </SearchBox>
       </View>

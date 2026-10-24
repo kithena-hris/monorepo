@@ -82,6 +82,7 @@ import {
   when,
   type Item,
 } from './model';
+import { t } from '../i18n';
 
 /**
  * One item on its own page (M:B1–B7, M:C2–C4, M:D2, M:F2, M:G1, M:S1): the kind
@@ -179,7 +180,11 @@ function useWrite(navigation: Nav) {
     setBusy(null);
     void readInbox(signed);
     if (!answer.ok) {
-      toast({ title: 'That did not work', description: answer.message, tone: 'danger' });
+      toast({
+        title: t('inbox.item.that_did_not_work', 'That did not work'),
+        description: answer.message,
+        tone: 'danger',
+      });
       return null;
     }
     toast({
@@ -188,7 +193,10 @@ function useWrite(navigation: Nav) {
       tone: 'success',
       ...(done.undo === undefined
         ? {}
-        : { action: { label: 'Undo', onPress: done.undo }, duration: 10_000 }),
+        : {
+            action: { label: t('inbox.item.undo', 'Undo'), onPress: done.undo },
+            duration: 10_000,
+          }),
     });
     if (done.back === true) navigation.goBack();
     return answer.data;
@@ -205,7 +213,7 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
   const [menu, setMenu] = useState<'main' | 'snooze' | null>(null);
   const [asking, setAsking] = useState(false);
   const [sendingBack, setSendingBack] = useState(false);
-  const back = { label: 'Inbox', onPress: navigation.goBack };
+  const back = { label: t('inbox.item.inbox', 'Inbox'), onPress: navigation.goBack };
   const all =
     inbox === null
       ? []
@@ -218,9 +226,11 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
         {error !== null ? (
           <Failed message={error} onRetry={reload} />
         ) : inbox === null ? (
-          <Loading label="Loading" />
+          <Loading label={t('inbox.item.loading', 'Loading')} />
         ) : (
-          <Text tone="muted">This is no longer in your Inbox.</Text>
+          <Text tone="muted">
+            {t('inbox.item.this_is_no_longer_in_your', 'This is no longer in your Inbox.')}
+          </Text>
         )}
       </Page>
     );
@@ -248,7 +258,9 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
           <Button
             variant="ghost"
             size="sm"
-            accessibilityLabel={`Open in ${item.openIn}`}
+            accessibilityLabel={t('inbox.item.open_in', 'Open in {{openIn}}', {
+              openIn: item.openIn,
+            })}
             startIcon={<Icon icon={ArrowUpRight} />}
             onPress={() => {
               openIn(signed, navigation, item);
@@ -257,7 +269,7 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
           <Button
             variant="ghost"
             size="sm"
-            accessibilityLabel="More"
+            accessibilityLabel={t('inbox.item.more', 'More')}
             startIcon={<Icon icon={Ellipsis} />}
             onPress={() => {
               setMenu('main');
@@ -270,12 +282,12 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
       <View className="flex-row flex-wrap gap-1.5">
         <Badge size="sm" tone={item.lane === 'task' ? 'accent' : 'neutral'}>
           {item.lane === 'task'
-            ? 'Task'
+            ? t('inbox.item.task', 'Task')
             : item.lane === 'update'
-              ? 'Update'
+              ? t('inbox.item.update', 'Update')
               : item.lane === 'request'
-                ? 'Request'
-                : 'Done'}
+                ? t('inbox.item.request', 'Request')
+                : t('inbox.item.done', 'Done')}
         </Badge>
         <Badge size="sm" variant="outline">
           {item.area === null
@@ -292,13 +304,13 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
         )}
         <Text variant="footnote" tone="muted">
           {item.lane === 'request'
-            ? `You asked on ${when(item.at, zone)}`
+            ? t('inbox.item.you_asked_on', 'You asked on {{when}}', { when: when(item.at, zone) })
             : `${item.from?.name ?? 'Kithena'} · ${when(item.at, zone)}`}
         </Text>
       </View>
       <RowBadges item={{ ...item, unread: false }} now={now} zone={zone} />
       {item.message === null || item.message === '' ? null : (
-        <ChatLog accessibilityLabel="Their message">
+        <ChatLog accessibilityLabel={t('inbox.item.their_message', 'Their message')}>
           <ChatMessage
             from="other"
             author={item.from?.name ?? 'Kithena'}
@@ -324,7 +336,7 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
                 setAsking(true);
               }}
             >
-              {`Ask ${sender} a question`}
+              {t('inbox.item.ask_a_question', 'Ask {{sender}} a question', { sender })}
             </ActionSheetItem>
           ) : null}
           {item.lane === 'task' && item.outcome === null && item.count === null ? (
@@ -336,7 +348,7 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
                 }, 300)
               }
             >
-              Remind me later
+              {t('inbox.item.remind_me_later', 'Remind me later')}
             </ActionSheetItem>
           ) : null}
           {canAsk ? (
@@ -346,19 +358,19 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
                 setSendingBack(true);
               }}
             >
-              I can’t do this
+              {t('inbox.item.i_cant_do_this', 'I can’t do this')}
             </ActionSheetItem>
           ) : null}
           {item.lane === 'update' ? (
             <ActionSheetItem
               onSelect={() => {
                 void changeInbox(signed, { kind: 'done', ids: [item.id] }).then(() => {
-                  toast({ title: 'Moved to Done', tone: 'success' });
+                  toast({ title: t('inbox.item.moved_to_done', 'Moved to Done'), tone: 'success' });
                   navigation.goBack();
                 });
               }}
             >
-              Move to Done
+              {t('inbox.item.move_to_done', 'Move to Done')}
             </ActionSheetItem>
           ) : null}
           {item.lane === 'update' ? (
@@ -367,10 +379,15 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
                 void changeInbox(signed, {
                   kind: 'mute',
                   mute: { what: item.kind, inbox: false, email: true, phone: true },
-                }).then(() => toast({ title: 'Muted on email and phone', tone: 'success' }));
+                }).then(() =>
+                  toast({
+                    title: t('inbox.item.muted_on_email_and_phone', 'Muted on email and phone'),
+                    tone: 'success',
+                  }),
+                );
               }}
             >
-              Mute updates like this
+              {t('inbox.item.mute_updates_like_this', 'Mute updates like this')}
             </ActionSheetItem>
           ) : null}
           <ActionSheetItem
@@ -379,16 +396,18 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
               openIn(signed, navigation, item);
             }}
           >
-            {`Open in ${item.openIn}`}
+            {t('inbox.item.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
           </ActionSheetItem>
           <ActionSheetItem
             onSelect={() => {
               void Clipboard.setStringAsync(
                 `${signed.company.origin}/inbox/todo?item=${encodeURIComponent(item.id)}`,
-              ).then(() => toast({ title: 'Link copied', tone: 'success' }));
+              ).then(() =>
+                toast({ title: t('inbox.item.link_copied', 'Link copied'), tone: 'success' }),
+              );
             }}
           >
-            Copy link
+            {t('inbox.item.copy_link', 'Copy link')}
           </ActionSheetItem>
         </ActionSheetContent>
       </ActionSheet>
@@ -399,11 +418,15 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
         }}
       >
         <ActionSheetContent
-          title="Remind me"
+          title={t('inbox.item.remind_me', 'Remind me')}
           description={
             item.due === null
               ? undefined
-              : `It comes back by ${shortDay(item.due)}, the day it’s due.`
+              : t(
+                  'inbox.item.it_comes_back_by_the_day',
+                  'It comes back by {{shortDay}}, the day it’s due.',
+                  { shortDay: shortDay(item.due) },
+                )
           }
         >
           {snoozeChoices(new Date(), item.due).map((c) => (
@@ -411,7 +434,12 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
               key={c.label}
               onSelect={() => {
                 void changeInbox(signed, { kind: 'snooze', id: item.id, until: c.at }).then(() => {
-                  toast({ title: `Snoozed until ${when(c.at, zone)}`, tone: 'success' });
+                  toast({
+                    title: t('inbox.item.snoozed_until', 'Snoozed until {{when}}', {
+                      when: when(c.at, zone),
+                    }),
+                    tone: 'success',
+                  });
                   navigation.goBack();
                 });
               }}
@@ -433,7 +461,13 @@ export function InboxItem({ navigation, route }: PeopleScreen<'InboxItem'>): Rea
               'people',
               'SendBackAsk',
               { id: str(d(item)['askId']), reason, note },
-              { title: 'Sent back', description: `${sender} gets an update`, back: true },
+              {
+                title: t('inbox.item.sent_back', 'Sent back'),
+                description: t('inbox.item.gets_an_update', '{{sender}} gets an update', {
+                  sender,
+                }),
+                back: true,
+              },
             );
           }}
         />
@@ -446,7 +480,7 @@ function Activity({ item, zone }: { item: Item; zone: string }): React.JSX.Eleme
   const events = d(item)['events'];
   if (!Array.isArray(events) || events.length === 0) return null;
   return (
-    <Timeline accessibilityLabel="What happened">
+    <Timeline accessibilityLabel={t('inbox.item.what_happened', 'What happened')}>
       {(events as { icon: string; text: string; at: string }[]).map((e, i) => (
         <TimelineItem
           key={`${e.at}${String(i)}`}
@@ -516,7 +550,7 @@ function plain({ item, signed, navigation }: BodyArgs): Body {
           openIn(signed, navigation, item);
         }}
       >
-        {`Open in ${item.openIn}`}
+        {t('inbox.item.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
       </Button>
     ),
   };
@@ -549,7 +583,7 @@ export function FieldInput({
         <Select value={text} onValueChange={onChange} disabled={disabled}>
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose" />
+              <SelectValue placeholder={t('inbox.item.choose', 'Choose')} />
             </SelectTrigger>
           </FieldControl>
           <SelectContent title={field.label}>
@@ -574,7 +608,9 @@ export function FieldInput({
       )}
       {field.description === null ? null : <FieldDescription>{field.description}</FieldDescription>}
       {field.sensitive ? (
-        <FieldDescription>A change to this goes to HR first.</FieldDescription>
+        <FieldDescription>
+          {t('inbox.item.a_change_to_this_goes_to', 'A change to this goes to HR first.')}
+        </FieldDescription>
       ) : null}
     </Field>
   );
@@ -612,8 +648,10 @@ function Details({
       'CompleteAsk',
       { id: askId, values: JSON.stringify(values) },
       {
-        title: `${fields.map((f) => f.label).join(', ')} added`,
-        description: `${sender} gets an update`,
+        title: t('inbox.item.added', '{{join}} added', {
+          join: fields.map((f) => f.label).join(', '),
+        }),
+        description: t('inbox.item.gets_an_update', '{{sender}} gets an update', { sender }),
         back: true,
         undo: () => {
           void ask(signed, 'UndoAsk', { id: askId, values: JSON.stringify(previous) }).then(() =>
@@ -626,8 +664,15 @@ function Details({
   return (
     <View className="gap-4">
       {state === 'cancelled' ? (
-        <Alert tone="neutral" title={`${str(detail['closedBy']) ?? sender} cancelled this`}>
-          {str(detail['note']) === null ? 'Nothing to do.' : `“${str(detail['note']) ?? ''}”`}
+        <Alert
+          tone="neutral"
+          title={t('inbox.item.cancelled_this', '{{value}} cancelled this', {
+            value: str(detail['closedBy']) ?? sender,
+          })}
+        >
+          {str(detail['note']) === null
+            ? t('inbox.item.nothing_to_do', 'Nothing to do.')
+            : `“${str(detail['note']) ?? ''}”`}
         </Alert>
       ) : null}
       {open || state === 'cancelled' ? (
@@ -650,12 +695,17 @@ function Details({
       {open ? (
         <Text variant="footnote" tone="muted">
           {fields.some((f) => f.sensitive)
-            ? 'Some of this goes to HR first.'
-            : 'Only you and HR see this. It goes on your record straight away.'}
+            ? t('inbox.item.some_of_this_goes_to_hr', 'Some of this goes to HR first.')
+            : t(
+                'inbox.item.only_you_and_hr_see_this',
+                'Only you and HR see this. It goes on your record straight away.',
+              )}
         </Text>
       ) : null}
       {thread.length === 0 ? null : (
-        <ChatLog accessibilityLabel="Questions on this task">
+        <ChatLog
+          accessibilityLabel={t('inbox.item.questions_on_this_task', 'Questions on this task')}
+        >
           {thread.map((m) => (
             <ChatMessage
               key={m.at}
@@ -670,15 +720,20 @@ function Details({
       )}
       {open && (asking || thread.length > 0) ? (
         <ChatComposer
-          accessibilityLabel={`Reply to ${sender}`}
-          placeholder={`Reply to ${sender}…`}
+          accessibilityLabel={t('inbox.item.reply_to', 'Reply to {{sender}}', { sender })}
+          placeholder={t('inbox.item.reply_to_2', 'Reply to {{sender}}…', { sender })}
           busy={writes.busy === 'ReplyToAsk'}
           onSend={(text) => {
             void writes.write(
               'people',
               'ReplyToAsk',
               { id: askId, body: text },
-              { title: 'Sent', description: `${sender} gets an update` },
+              {
+                title: t('inbox.item.sent', 'Sent'),
+                description: t('inbox.item.gets_an_update', '{{sender}} gets an update', {
+                  sender,
+                }),
+              },
             );
             setAsking(false);
           }}
@@ -692,7 +747,7 @@ function Details({
               setAsking(true);
             }}
           >
-            {`Ask ${sender}`}
+            {t('inbox.item.ask', 'Ask {{sender}}', { sender })}
           </Button>
           <Button
             className="flex-1"
@@ -702,7 +757,7 @@ function Details({
             loading={writes.busy === 'CompleteAsk'}
             onPress={submit}
           >
-            Add to my record
+            {t('inbox.item.add_to_my_record', 'Add to my record')}
           </Button>
         </View>
       ) : state === 'cancelled' ? (
@@ -711,7 +766,7 @@ function Details({
             void changeInbox(signed, { kind: 'done', ids: [item.id] });
           }}
         >
-          Move to Done
+          {t('inbox.item.move_to_done', 'Move to Done')}
         </Button>
       ) : null}
       {open ? (
@@ -721,7 +776,7 @@ function Details({
             setSendingBack(true);
           }}
         >
-          I can’t do this
+          {t('inbox.item.i_cant_do_this', 'I can’t do this')}
         </Button>
       ) : null}
     </View>
@@ -755,7 +810,10 @@ function Correct({ item, writes, signed }: BodyArgs): React.JSX.Element {
                 const found = (a.data.findings ?? []).map((f) => f.message);
                 setCheck(
                   found.length === 0
-                    ? 'The check passes. HR still checks it against your document.'
+                    ? t(
+                        'inbox.item.the_check_passes_hr_still_checks',
+                        'The check passes. HR still checks it against your document.',
+                      )
                     : found.join(' '),
                 );
               });
@@ -774,11 +832,14 @@ function Correct({ item, writes, signed }: BodyArgs): React.JSX.Element {
             'people',
             'SaveOwnSection',
             { changed: formInputs({ [field.key]: value }) },
-            { title: `${field.label} sent to HR`, back: true },
+            {
+              title: t('inbox.item.sent_to_hr', '{{label}} sent to HR', { label: field.label }),
+              back: true,
+            },
           );
         }}
       >
-        Send to HR
+        {t('inbox.item.send_to_hr', 'Send to HR')}
       </Button>
     </View>
   );
@@ -795,18 +856,27 @@ function change({ item, now, zone, writes }: BodyArgs): Body {
       <View className="gap-4">
         <KeyValues
           items={[
-            { label: 'On the record', value: shown(detail['before']) },
-            { label: 'Asked for', value: shown(detail['after']) },
+            {
+              label: t('inbox.item.on_the_record', 'On the record'),
+              value: shown(detail['before']),
+            },
+            { label: t('inbox.item.asked_for', 'Asked for'), value: shown(detail['after']) },
           ]}
         />
-        <Stepper steps={stepsOf(steps)} orientation="vertical" label="Where it is" />
+        <Stepper
+          steps={stepsOf(steps)}
+          orientation="vertical"
+          label={t('inbox.item.where_it_is', 'Where it is')}
+        />
         {nudge === null ? null : (
           <Text variant="footnote" tone="muted">
             {nudge.used
-              ? 'You nudged HR'
+              ? t('inbox.item.you_nudged_hr', 'You nudged HR')
               : can
-                ? 'Nudge once'
-                : `You can nudge from ${when(nudge.from, zone)}`}
+                ? t('inbox.item.nudge_once', 'Nudge once')
+                : t('inbox.item.you_can_nudge_from', 'You can nudge from {{when}}', {
+                    when: when(nudge.from, zone),
+                  })}
           </Text>
         )}
       </View>
@@ -822,11 +892,11 @@ function change({ item, now, zone, writes }: BodyArgs): Body {
                     'people',
                     'WithdrawPendingChange',
                     { id: changeId },
-                    { title: 'Withdrawn', back: true },
+                    { title: t('inbox.item.withdrawn', 'Withdrawn'), back: true },
                   );
                 }}
               >
-                Withdraw
+                {t('inbox.item.withdraw', 'Withdraw')}
               </Button>
               <Button
                 className="flex-1"
@@ -839,11 +909,11 @@ function change({ item, now, zone, writes }: BodyArgs): Body {
                     'people',
                     'NudgePendingChange',
                     { id: changeId },
-                    { title: 'HR was nudged' },
+                    { title: t('inbox.item.hr_was_nudged', 'HR was nudged') },
                   );
                 }}
               >
-                Nudge HR
+                {t('inbox.item.nudge_hr', 'Nudge HR')}
               </Button>
             </>
           ),
@@ -868,10 +938,17 @@ function asked({ item, writes }: BodyArgs): Body {
     content: (
       <View className="gap-4">
         <Progress
-          label={`${String(done)} of ${String(total)} done`}
+          label={t('inbox.item.of_done', '{{String}} of {{String2}} done', {
+            String: String(done),
+            String2: String(total),
+          })}
           value={total === 0 ? 0 : (done / total) * 100}
           showValue
-          valueLabel={left.length === 0 ? 'All done' : `${String(left.length)} to go`}
+          valueLabel={
+            left.length === 0
+              ? t('inbox.item.all_done', 'All done')
+              : t('inbox.item.to_go', '{{String}} to go', { String: String(left.length) })
+          }
         />
         {left.length === 0 ? null : (
           <List>
@@ -888,12 +965,18 @@ function asked({ item, writes }: BodyArgs): Body {
                         void writes.write(
                           'people',
                           'ChangeAskBatch',
-                          { batchId, action: 'remind', personIds: [p.personId] },
-                          { title: `${p.name} reminded` },
+                          {
+                            batchId,
+                            action: 'remind',
+                            personIds: [p.personId],
+                          },
+                          {
+                            title: t('inbox.item.reminded', '{{name}} reminded', { name: p.name }),
+                          },
                         );
                       }}
                     >
-                      Remind
+                      {t('inbox.item.remind', 'Remind')}
                     </Button>
                     <Button
                       size="sm"
@@ -903,11 +986,15 @@ function asked({ item, writes }: BodyArgs): Body {
                           'people',
                           'CancelAsk',
                           { id: p.askId, note: null },
-                          { title: `Cancelled for ${p.name}` },
+                          {
+                            title: t('inbox.item.cancelled_for', 'Cancelled for {{name}}', {
+                              name: p.name,
+                            }),
+                          },
                         );
                       }}
                     >
-                      Cancel
+                      {t('inbox.item.cancel', 'Cancel')}
                     </Button>
                   </View>
                 }
@@ -931,11 +1018,14 @@ function asked({ item, writes }: BodyArgs): Body {
                     'people',
                     'ChangeAskBatch',
                     { batchId, action: 'cancel' },
-                    { title: 'Cancelled for everyone', back: true },
+                    {
+                      title: t('inbox.item.cancelled_for_everyone', 'Cancelled for everyone'),
+                      back: true,
+                    },
                   );
                 }}
               >
-                Cancel all
+                {t('inbox.item.cancel_all', 'Cancel all')}
               </Button>
               <Button
                 className="flex-1"
@@ -946,11 +1036,19 @@ function asked({ item, writes }: BodyArgs): Body {
                     'people',
                     'ChangeAskBatch',
                     { batchId, action: 'remind' },
-                    { title: `Reminded ${String(left.length)}` },
+                    {
+                      title: t('inbox.item.reminded_2', 'Reminded {{String}}', {
+                        String: String(left.length),
+                      }),
+                    },
                   );
                 }}
               >
-                {left.length === 1 ? 'Remind' : `Remind the ${String(left.length)}`}
+                {left.length === 1
+                  ? t('inbox.item.remind', 'Remind')
+                  : t('inbox.item.remind_the', 'Remind the {{String}}', {
+                      String: String(left.length),
+                    })}
               </Button>
             </>
           ),
@@ -972,7 +1070,11 @@ function review({ item, navigation }: BodyArgs): Body {
           {queues.map((q) => (
             <ListItem
               key={q.key}
-              description={q.by.length === 0 ? undefined : `From ${q.by.join(', ')}`}
+              description={
+                q.by.length === 0
+                  ? undefined
+                  : t('inbox.item.from', 'From {{join}}', { join: q.by.join(', ') })
+              }
               trailing={<Badge tone="warning">{String(q.count)}</Badge>}
               chevron
               onPress={() => {
@@ -984,7 +1086,10 @@ function review({ item, navigation }: BodyArgs): Body {
           ))}
         </List>
         <Text variant="footnote" tone="muted">
-          Review items keep their own tools. They aren’t copied here, so the two can’t disagree.
+          {t(
+            'inbox.item.review_items_keep_their_own_tools',
+            'Review items keep their own tools. They aren’t copied here, so the two can’t disagree.',
+          )}
         </Text>
       </View>
     ),
@@ -997,7 +1102,7 @@ function review({ item, navigation }: BodyArgs): Body {
           navigation.navigate('Review');
         }}
       >
-        Open Review
+        {t('inbox.item.open_review', 'Open Review')}
       </Button>
     ),
   };
@@ -1019,10 +1124,13 @@ function Checklist({ item, navigation, signed }: BodyArgs): React.JSX.Element {
   return (
     <View className="gap-4">
       <Progress
-        label="Your checklist"
+        label={t('inbox.item.your_checklist', 'Your checklist')}
         value={(count / Math.max(1, steps.length)) * 100}
         showValue
-        valueLabel={`${String(count)} of ${String(steps.length)}`}
+        valueLabel={t('inbox.item.of', '{{String}} of {{String2}}', {
+          String: String(count),
+          String2: String(steps.length),
+        })}
       />
       <List>
         {steps.map((s) => (
@@ -1051,7 +1159,7 @@ function Checklist({ item, navigation, signed }: BodyArgs): React.JSX.Element {
                     });
                   }}
                 >
-                  Fill in
+                  {t('inbox.item.fill_in', 'Fill in')}
                 </Button>
               ) : undefined
             }
@@ -1080,7 +1188,11 @@ function Document({ item, zone, writes, signed }: BodyArgs): React.JSX.Element {
   const open = (): void => {
     void ask<string>(signed, 'PeopleDocumentFile', { id: documentId }).then(async (a) => {
       if (!a.ok) {
-        toast({ title: 'That did not open', description: a.message, tone: 'danger' });
+        toast({
+          title: t('inbox.item.that_did_not_open', 'That did not open'),
+          description: a.message,
+          tone: 'danger',
+        });
         return;
       }
       const file = JSON.parse(a.data) as { name: string; mediaType: string; data: string };
@@ -1094,32 +1206,37 @@ function Document({ item, zone, writes, signed }: BodyArgs): React.JSX.Element {
       <List>
         <ListItem
           icon={FileText}
-          description={`${String(Math.max(1, Math.round(Number(detail['size'] ?? 0) / 1024)))} KB`}
+          description={t('inbox.item.kb', '{{String}} KB', {
+            String: String(Math.max(1, Math.round(Number(detail['size'] ?? 0) / 1024))),
+          })}
           trailing={
             <Button
               size="sm"
               variant="ghost"
-              accessibilityLabel="Open"
+              accessibilityLabel={t('inbox.item.open', 'Open')}
               startIcon={<Icon icon={Eye} />}
               onPress={open}
             />
           }
         >
-          {str(detail['name']) ?? 'Document'}
+          {str(detail['name']) ?? t('inbox.item.document', 'Document')}
         </ListItem>
       </List>
       <KeyValues
         items={[
-          { label: 'Sent by', value: str(detail['sentBy']) ?? '—' },
+          { label: t('inbox.item.sent_by', 'Sent by'), value: str(detail['sentBy']) ?? '—' },
           ...(signature === null
             ? []
             : [
                 {
-                  label: 'Signed',
+                  label: t('inbox.item.signed', 'Signed'),
                   value: `${when(signature.at, zone)}${signature.place === null ? '' : ` · ${signature.place}`} · ${signature.name}`,
                 },
               ]),
-          { label: 'Kept in', value: 'Your profile › Documents' },
+          {
+            label: t('inbox.item.kept_in', 'Kept in'),
+            value: t('inbox.item.your_profile_documents', 'Your profile › Documents'),
+          },
         ]}
       />
       {action === 'sign' || action === 'acknowledge' || counter ? (
@@ -1134,18 +1251,18 @@ function Document({ item, zone, writes, signed }: BodyArgs): React.JSX.Element {
                 'people',
                 'ActOnDocument',
                 { id: documentId, action: 'acknowledge' },
-                { title: 'Acknowledged', back: true },
+                { title: t('inbox.item.acknowledged', 'Acknowledged'), back: true },
               );
             } else setSigning(true);
           }}
         >
           {action === 'acknowledge'
-            ? 'I’ve read it'
+            ? t('inbox.item.ive_read_it', 'I’ve read it')
             : counter
-              ? 'Countersign'
+              ? t('inbox.item.countersign', 'Countersign')
               : seen
-                ? 'Sign'
-                : 'Open it first'}
+                ? t('inbox.item.sign', 'Sign')
+                : t('inbox.item.open_it_first', 'Open it first')}
         </Button>
       ) : null}
       {signing ? (
@@ -1161,11 +1278,20 @@ function Document({ item, zone, writes, signed }: BodyArgs): React.JSX.Element {
               'people',
               'ActOnDocument',
               counter
-                ? { id: documentId, action: 'countersign', name: s.name }
+                ? {
+                    id: documentId,
+                    action: 'countersign',
+                    name: s.name,
+                  }
                 : { id: documentId, action: 'sign', ...s },
               {
-                title: counter ? 'Countersigned' : 'Signed',
-                description: 'Kept in the profile under Documents',
+                title: counter
+                  ? t('inbox.item.countersigned', 'Countersigned')
+                  : t('inbox.item.signed', 'Signed'),
+                description: t(
+                  'inbox.item.kept_in_the_profile_under_documents',
+                  'Kept in the profile under Documents',
+                ),
                 back: true,
               },
             );
@@ -1203,7 +1329,10 @@ function SignDialog({
         <DialogHeader>
           <DialogTitle>{`${counter ? 'Countersign' : 'Sign'} ${name}`}</DialogTitle>
           <DialogDescription>
-            A signed copy is kept in the profile under Documents.
+            {t(
+              'inbox.item.a_signed_copy_is_kept_in',
+              'A signed copy is kept in the profile under Documents.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -1214,27 +1343,35 @@ function SignDialog({
                 if (v === 'typed' || v === 'drawn') setHow(v);
               }}
               size="sm"
-              accessibilityLabel="How to sign"
+              accessibilityLabel={t('inbox.item.how_to_sign', 'How to sign')}
             >
-              <SegmentedControlItem value="typed">Type</SegmentedControlItem>
-              <SegmentedControlItem value="drawn">Draw</SegmentedControlItem>
+              <SegmentedControlItem value="typed">
+                {t('inbox.item.type', 'Type')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="drawn">
+                {t('inbox.item.draw', 'Draw')}
+              </SegmentedControlItem>
             </SegmentedControl>
           )}
           <Field>
-            <FieldLabel>Your full name</FieldLabel>
+            <FieldLabel>{t('inbox.item.your_full_name', 'Your full name')}</FieldLabel>
             <FieldControl>
               <Input value={full} onChange={setFull} autoComplete="name" />
             </FieldControl>
           </Field>
           {how === 'drawn' ? (
-            <SignaturePad value={mark} onValueChange={setMark} label="Draw your signature" />
+            <SignaturePad
+              value={mark}
+              onValueChange={setMark}
+              label={t('inbox.item.draw_your_signature', 'Draw your signature')}
+            />
           ) : null}
           <Checkbox checked={agreed} onCheckedChange={setAgreed}>
-            I agree this is my signature
+            {t('inbox.item.i_agree_this_is_my_signature', 'I agree this is my signature')}
           </Checkbox>
         </DialogBody>
         <DialogFooter>
-          <Button onPress={onClose}>Cancel</Button>
+          <Button onPress={onClose}>{t('inbox.item.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             disabled={!ready}
@@ -1242,7 +1379,7 @@ function SignDialog({
               onSign({ name: full.trim(), how, mark: how === 'typed' ? full.trim() : mark });
             }}
           >
-            {counter ? 'Countersign' : 'Sign'}
+            {counter ? t('inbox.item.countersign', 'Countersign') : t('inbox.item.sign', 'Sign')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1272,8 +1409,16 @@ function SendBack({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Send this back to ${sender}?`}</DialogTitle>
-          <DialogDescription>{`It leaves your To do. ${sender} gets an update with your reason.`}</DialogDescription>
+          <DialogTitle>
+            {t('inbox.item.send_this_back_to', 'Send this back to {{sender}}?', { sender })}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'inbox.item.it_leaves_your_to_do_gets',
+              'It leaves your To do. {{sender}} gets an update with your reason.',
+              { sender },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <RadioGroup
@@ -1282,19 +1427,25 @@ function SendBack({
               if (v === 'no_information' || v === 'not_applicable' || v === 'other') setReason(v);
             }}
           >
-            <RadioGroupItem value="no_information">I don’t have this information</RadioGroupItem>
-            <RadioGroupItem value="not_applicable">This doesn’t apply to me</RadioGroupItem>
-            <RadioGroupItem value="other">Something else</RadioGroupItem>
+            <RadioGroupItem value="no_information">
+              {t('inbox.item.i_dont_have_this_information', 'I don’t have this information')}
+            </RadioGroupItem>
+            <RadioGroupItem value="not_applicable">
+              {t('inbox.item.this_doesnt_apply_to_me', 'This doesn’t apply to me')}
+            </RadioGroupItem>
+            <RadioGroupItem value="other">
+              {t('inbox.item.something_else', 'Something else')}
+            </RadioGroupItem>
           </RadioGroup>
           <Textarea
             value={note}
             onChange={setNote}
-            placeholder={`Note for ${sender}`}
-            accessibilityLabel={`Note for ${sender}`}
+            placeholder={t('inbox.item.note_for', 'Note for {{sender}}', { sender })}
+            accessibilityLabel={t('inbox.item.note_for', 'Note for {{sender}}', { sender })}
           />
         </DialogBody>
         <DialogFooter>
-          <Button onPress={onClose}>Cancel</Button>
+          <Button onPress={onClose}>{t('inbox.item.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             disabled={reason === 'other' && note.trim() === ''}
@@ -1302,7 +1453,7 @@ function SendBack({
               onSend(reason, note.trim() === '' ? null : note.trim());
             }}
           >
-            Send back
+            {t('inbox.item.send_back', 'Send back')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1321,17 +1472,32 @@ function integration({ item, zone, writes, signed, navigation }: BodyArgs): Body
           tone="danger"
           title={
             detail['disabled'] === true
-              ? 'Sending is switched off'
-              : `Failed ${num(detail['attempts'], 3)} times in a row`
+              ? t('inbox.item.sending_is_switched_off', 'Sending is switched off')
+              : t('inbox.item.failed_times_in_a_row', 'Failed {{num}} times in a row', {
+                  num: num(detail['attempts'], 3),
+                })
           }
         >
-          {str(detail['problem']) ?? 'Nothing new reaches it until it is fixed.'}
+          {str(detail['problem']) ??
+            t(
+              'inbox.item.nothing_new_reaches_it_until_it',
+              'Nothing new reaches it until it is fixed.',
+            )}
         </Alert>
         <KeyValues
           items={[
-            { label: 'Failing since', value: when(str(detail['since']) ?? item.at, zone) },
-            { label: 'Waiting to send', value: num(detail['waiting']) },
-            { label: 'Who sees this', value: team?.role ?? 'All admins' },
+            {
+              label: t('inbox.item.failing_since', 'Failing since'),
+              value: when(str(detail['since']) ?? item.at, zone),
+            },
+            {
+              label: t('inbox.item.waiting_to_send', 'Waiting to send'),
+              value: num(detail['waiting']),
+            },
+            {
+              label: t('inbox.item.who_sees_this', 'Who sees this'),
+              value: team?.role ?? t('inbox.item.all_admins', 'All admins'),
+            },
           ]}
         />
       </View>
@@ -1345,7 +1511,7 @@ function integration({ item, zone, writes, signed, navigation }: BodyArgs): Body
             openIn(signed, navigation, item);
           }}
         >
-          Open
+          {t('inbox.item.open', 'Open')}
         </Button>
         {team?.mine === true ? null : (
           <Button
@@ -1358,11 +1524,19 @@ function integration({ item, zone, writes, signed, navigation }: BodyArgs): Body
                 'people',
                 'TakeInboxTask',
                 { itemId: item.id, note: null },
-                { title: 'It’s yours', description: 'It stops counting for the other admins' },
+                {
+                  title: t('inbox.item.its_yours', 'It’s yours'),
+                  description: t(
+                    'inbox.item.it_stops_counting_for_the_other',
+                    'It stops counting for the other admins',
+                  ),
+                },
               );
             }}
           >
-            {taken ? 'Take it over' : 'Take it'}
+            {taken
+              ? t('inbox.item.take_it_over', 'Take it over')
+              : t('inbox.item.take_it', 'Take it')}
           </Button>
         )}
       </>
@@ -1375,7 +1549,7 @@ function Dates({ detail, extra }: { detail: Detail; extra?: string }): React.JSX
   const to = str(detail['to']) ?? '';
   return (
     <Stat
-      label="Dates"
+      label={t('inbox.item.dates', 'Dates')}
       icon={<Icon icon={CalendarDays} />}
       value={spanLong(from, to)}
       description={[days(str(detail['workingDays']) ?? '0'), str(detail['leaveTypeName']), extra]
@@ -1400,7 +1574,10 @@ function Approval({ item, writes }: BodyArgs): React.JSX.Element {
         input: { decision, reason: note.trim() === '' ? null : note.trim() },
       },
       {
-        title: decision === 'approve' ? `Approved ${who}’s time off` : `Declined ${who}’s time off`,
+        title:
+          decision === 'approve'
+            ? t('inbox.item.approved_s_time_off', 'Approved {{who}}’s time off', { who })
+            : t('inbox.item.declined_s_time_off', 'Declined {{who}}’s time off', { who }),
         back: true,
       },
     );
@@ -1412,13 +1589,20 @@ function Approval({ item, writes }: BodyArgs): React.JSX.Element {
       {week.length === 0 ? null : (
         <View className="gap-2">
           <Text variant="footnote" weight="semibold" tone="muted">
-            {`${str(detail['teamName']) ?? 'The team'} that week${out === null ? '' : ` · ${String(out.out)} of ${String(out.of)} already out`}`}
+            {t('inbox.item.that_week', '{{value}} that week{{value2}}', {
+              value: str(detail['teamName']) ?? 'The team',
+              value2: out === null ? '' : ` · ${String(out.out)} of ${String(out.of)} already out`,
+            })}
           </Text>
           <List>
             {week.map((day) => (
               <ListItem
                 key={day.date}
-                description={day.out.length === 0 ? 'Nobody else out' : day.out.join(', ')}
+                description={
+                  day.out.length === 0
+                    ? t('inbox.item.nobody_else_out', 'Nobody else out')
+                    : day.out.join(', ')
+                }
               >
                 {shortDay(day.date)}
               </ListItem>
@@ -1432,21 +1616,32 @@ function Approval({ item, writes }: BodyArgs): React.JSX.Element {
             ? []
             : [
                 {
-                  label: `${who} has left after this`,
+                  label: t('inbox.item.has_left_after_this', '{{who}} has left after this', {
+                    who,
+                  }),
                   value: days(str(detail['balanceAfter']) ?? '0'),
                 },
               ]),
           ...(str(detail['firstAsk']) === null
             ? []
-            : [{ label: 'Asked first for', value: str(detail['firstAsk']) ?? '' }]),
+            : [
+                {
+                  label: t('inbox.item.asked_first_for', 'Asked first for'),
+                  value: str(detail['firstAsk']) ?? '',
+                },
+              ]),
         ]}
       />
       {item.lane === 'task' ? (
         <>
           <Field>
-            <FieldLabel>{`Note to ${who}`}</FieldLabel>
+            <FieldLabel>{t('inbox.item.note_to', 'Note to {{who}}', { who })}</FieldLabel>
             <FieldControl>
-              <Input value={note} onChange={setNote} placeholder="Optional" />
+              <Input
+                value={note}
+                onChange={setNote}
+                placeholder={t('inbox.item.optional', 'Optional')}
+              />
             </FieldControl>
           </Field>
           <View className="flex-row gap-2.5">
@@ -1457,7 +1652,7 @@ function Approval({ item, writes }: BodyArgs): React.JSX.Element {
                 decide('decline');
               }}
             >
-              Decline
+              {t('inbox.item.decline', 'Decline')}
             </Button>
             <Button
               className="flex-1"
@@ -1468,7 +1663,7 @@ function Approval({ item, writes }: BodyArgs): React.JSX.Element {
                 decide('approve');
               }}
             >
-              Approve
+              {t('inbox.item.approve', 'Approve')}
             </Button>
           </View>
         </>
@@ -1489,14 +1684,18 @@ function request({ item, now, zone, writes }: BodyArgs): Body {
     content: (
       <View className="gap-4">
         <Dates detail={detail} />
-        <Stepper steps={stepsOf(steps)} orientation="vertical" label="Where it is" />
+        <Stepper
+          steps={stepsOf(steps)}
+          orientation="vertical"
+          label={t('inbox.item.where_it_is', 'Where it is')}
+        />
         <KeyValues
           items={[
             ...(holder === null
               ? []
               : [
                   {
-                    label: 'With',
+                    label: t('inbox.item.with', 'With'),
                     value:
                       holder.covering === null
                         ? holder.name
@@ -1505,16 +1704,25 @@ function request({ item, now, zone, writes }: BodyArgs): Body {
                 ]),
             ...(str(detail['balanceAfter']) === null
               ? []
-              : [{ label: 'Left after this', value: days(str(detail['balanceAfter']) ?? '0') }]),
+              : [
+                  {
+                    label: t('inbox.item.left_after_this', 'Left after this'),
+                    value: days(str(detail['balanceAfter']) ?? '0'),
+                  },
+                ]),
           ]}
         />
         {nudge === null ? null : (
           <Text variant="footnote" tone="muted">
             {nudge.used
-              ? `You nudged ${who}`
+              ? t('inbox.item.you_nudged', 'You nudged {{who}}', { who })
               : can
-                ? 'Nudge once'
-                : `You can nudge after 48 hours, from ${when(nudge.from, zone)}`}
+                ? t('inbox.item.nudge_once', 'Nudge once')
+                : t(
+                    'inbox.item.you_can_nudge_after_48_hours',
+                    'You can nudge after 48 hours, from {{when}}',
+                    { when: when(nudge.from, zone) },
+                  )}
           </Text>
         )}
       </View>
@@ -1530,11 +1738,11 @@ function request({ item, now, zone, writes }: BodyArgs): Body {
                     'timeoff',
                     'CancelTimeOffRequest',
                     { requestId },
-                    { title: 'Withdrawn', back: true },
+                    { title: t('inbox.item.withdrawn', 'Withdrawn'), back: true },
                   );
                 }}
               >
-                Withdraw
+                {t('inbox.item.withdraw', 'Withdraw')}
               </Button>
               <Button
                 className="flex-1"
@@ -1547,11 +1755,11 @@ function request({ item, now, zone, writes }: BodyArgs): Body {
                     'timeoff',
                     'NudgeTimeOffRequest',
                     { requestId },
-                    { title: `${who} was nudged` },
+                    { title: t('inbox.item.was_nudged', '{{who}} was nudged', { who }) },
                   );
                 }}
               >
-                {`Nudge ${who}`}
+                {t('inbox.item.nudge', 'Nudge {{who}}', { who })}
               </Button>
             </>
           ),
@@ -1563,7 +1771,7 @@ function request({ item, now, zone, writes }: BodyArgs): Body {
 function decided({ item, navigation, signed }: BodyArgs): Body {
   const detail = d(item);
   const approved = detail['approved'] === true;
-  const by = firstName(str(detail['by'])) || 'Your approver';
+  const by = firstName(str(detail['by'])) || t('inbox.item.your_approver', 'Your approver');
   return {
     content: (
       <View className="gap-4">
@@ -1572,10 +1780,20 @@ function decided({ item, navigation, signed }: BodyArgs): Body {
           items={[
             ...(str(detail['leftThisYear']) === null
               ? []
-              : [{ label: 'Left this year', value: days(str(detail['leftThisYear']) ?? '0') }]),
+              : [
+                  {
+                    label: t('inbox.item.left_this_year', 'Left this year'),
+                    value: days(str(detail['leftThisYear']) ?? '0'),
+                  },
+                ]),
             ...(str(detail['note']) === null
               ? []
-              : [{ label: `${by}’s note`, value: `“${str(detail['note']) ?? ''}”` }]),
+              : [
+                  {
+                    label: t('inbox.item.s_note', '{{by}}’s note', { by }),
+                    value: `“${str(detail['note']) ?? ''}”`,
+                  },
+                ]),
           ]}
         />
       </View>
@@ -1588,7 +1806,7 @@ function decided({ item, navigation, signed }: BodyArgs): Body {
           openIn(signed, navigation, item);
         }}
       >
-        Open in Time off
+        {t('inbox.item.open_in_time_off', 'Open in Time off')}
       </Button>
     ) : (
       <Button
@@ -1602,7 +1820,7 @@ function decided({ item, navigation, signed }: BodyArgs): Body {
           navigation.navigate('TimeOffRequest', params);
         }}
       >
-        Request other dates
+        {t('inbox.item.request_other_dates', 'Request other dates')}
       </Button>
     ),
   };
@@ -1618,7 +1836,10 @@ function expiring({ item, navigation }: BodyArgs): Body {
             label: str(detail['leaveTypeName']) ?? 'Days',
             value: days(str(detail['days']) ?? '0'),
           },
-          { label: 'Use them by', value: shortDay(str(detail['by']) ?? '') },
+          {
+            label: t('inbox.item.use_them_by', 'Use them by'),
+            value: shortDay(str(detail['by']) ?? ''),
+          },
         ]}
       />
     ),
@@ -1632,7 +1853,7 @@ function expiring({ item, navigation }: BodyArgs): Body {
           });
         }}
       >
-        Plan time off
+        {t('inbox.item.plan_time_off', 'Plan time off')}
       </Button>
     ),
   };
@@ -1646,13 +1867,21 @@ function holidays({ item, signed, navigation }: BodyArgs): Body {
       <KeyValues
         items={[
           {
-            label: 'Calendar',
+            label: t('inbox.item.calendar', 'Calendar'),
             value: `${str(detail['calendar']) ?? ''} · ${num(detail['year'])}`,
           },
-          { label: 'Public holidays', value: num(detail['count']) },
+          {
+            label: t('inbox.item.public_holidays', 'Public holidays'),
+            value: num(detail['count']),
+          },
           ...(first === null
             ? []
-            : [{ label: 'First one', value: `${shortDay(first.date)} · ${first.name}` }]),
+            : [
+                {
+                  label: t('inbox.item.first_one', 'First one'),
+                  value: `${shortDay(first.date)} · ${first.name}`,
+                },
+              ]),
         ]}
       />
     ),
@@ -1664,7 +1893,7 @@ function holidays({ item, signed, navigation }: BodyArgs): Body {
           openIn(signed, navigation, item);
         }}
       >
-        Open in Time off
+        {t('inbox.item.open_in_time_off', 'Open in Time off')}
       </Button>
     ),
   };

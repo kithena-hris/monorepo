@@ -1,7 +1,7 @@
 import { ReachProvider, Spinner } from '@reach/ui-native';
 import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { AppState, useColorScheme, View } from 'react-native';
 
 import {
@@ -20,11 +20,14 @@ import {
   type Person,
 } from './src/account';
 import { restoreLook } from './src/appearance';
+import { companyLanguage, language, onLanguage } from './src/i18n';
+import { restoreLanguage } from './src/language-store';
 import { queryClient } from './src/query';
 import { CompanyScreen, SignInScreen, UnreachableScreen } from './src/screens';
 import { SignedIn } from './src/signed-in';
 
 import './global.css';
+import { t as tr } from './src/i18n';
 
 /**
  * Kithena on a phone, for the people at a company: the tenant app, signed in
@@ -59,6 +62,7 @@ async function resumed(): Promise<Place> {
   const company = await companyAt(saved.origin);
   if (company === 'unreachable') return { kind: 'unreachable', origin: saved.origin };
   if (company === null) return { kind: 'company' };
+  companyLanguage(company.language);
   if (saved.sessionId === null) return signingIn(company);
 
   const person = await whoAmI(company.origin, saved.sessionId);
@@ -77,6 +81,8 @@ async function resumed(): Promise<Place> {
 export default function App(): React.JSX.Element {
   const scheme = useColorScheme();
   const [place, setPlace] = useState<Place>({ kind: 'starting' });
+  // Every screen redraws in a new language: the tree is keyed on it.
+  const words = useSyncExternalStore(onLanguage, language);
 
   const resume = useCallback(async (): Promise<void> => {
     setPlace({ kind: 'starting' });
@@ -85,7 +91,7 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     void restoreLook();
-    void resume();
+    void restoreLanguage().then(resume);
   }, [resume]);
 
   // Back in the foreground is a focus: reads that went stale meanwhile are asked again.
@@ -106,10 +112,10 @@ export default function App(): React.JSX.Element {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ReachProvider theme={scheme === 'dark' ? 'dark' : 'light'}>
+      <ReachProvider key={words} theme={scheme === 'dark' ? 'dark' : 'light'}>
         {place.kind === 'starting' ? (
           <View className="flex-1 items-center justify-center bg-canvas">
-            <Spinner label="Opening Kithena" />
+            <Spinner label={tr('App.opening_kithena', 'Opening Kithena')} />
           </View>
         ) : place.kind === 'company' ? (
           <CompanyScreen
@@ -117,6 +123,7 @@ export default function App(): React.JSX.Element {
               const company = await companyAt(origin);
               if (company === null) return 'none';
               if (company === 'unreachable') return 'unreachable';
+              companyLanguage(company.language);
               setPlace(await signingIn(company));
               return 'found';
             }}

@@ -61,12 +61,12 @@ import { t as tr } from './i18n';
  */
 
 type Tone = 'neutral' | 'accent' | 'info' | 'success' | 'warning' | 'danger';
-const STATE: Readonly<Record<string, readonly [string, Tone]>> = {
+const STATE = (): Readonly<Record<string, readonly [string, Tone]>> => ({
   not_started: [tr('learning.assigned', 'Assigned'), 'neutral'],
   in_progress: [tr('learning.in_progress', 'In progress'), 'warning'],
   done: [tr('learning.completed', 'Completed'), 'success'],
   going: [tr('learning.going', 'Going'), 'info'],
-};
+});
 
 function StateBadge({
   state,
@@ -82,7 +82,7 @@ function StateBadge({
     due < new Date().toISOString().slice(0, 10);
   const [label, tone] = late
     ? ([tr('learning.overdue', 'Overdue'), 'danger'] as const)
-    : (STATE[state] ?? [state, 'neutral']);
+    : (STATE()[state] ?? [state, 'neutral']);
   return (
     <Badge size="sm" tone={tone}>
       {label}
@@ -90,16 +90,17 @@ function StateBadge({
   );
 }
 
-const KINDS = [
-  ['course', tr('learning.external_course', 'External course')],
-  ['session', tr('learning.live_session', 'Live session')],
-  ['recording', tr('learning.recording', 'Recording')],
-  ['document', tr('learning.document', 'Document')],
-  ['quiz', tr('learning.quiz', 'Quiz')],
-  ['path', tr('learning.path', 'Path')],
-  ['link', tr('learning.link', 'Link')],
-] as const;
-const kindWord = (k: string): string => KINDS.find(([v]) => v === k)?.[1] ?? k;
+const KINDS = () =>
+  [
+    ['course', tr('learning.external_course', 'External course')],
+    ['session', tr('learning.live_session', 'Live session')],
+    ['recording', tr('learning.recording', 'Recording')],
+    ['document', tr('learning.document', 'Document')],
+    ['quiz', tr('learning.quiz', 'Quiz')],
+    ['path', tr('learning.path', 'Path')],
+    ['link', tr('learning.link', 'Link')],
+  ] as const;
+const kindWord = (k: string): string => KINDS().find(([v]) => v === k)?.[1] ?? k;
 
 export interface LearningData {
   readonly tab: string;
@@ -541,7 +542,7 @@ function NewItem({
 }): JSX.Element {
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState('course');
-  const [provider, setProvider] = useState('Your company');
+  const [provider, setProvider] = useState(tr('learning.your_company', 'Your company'));
   const [minutes, setMinutes] = useState<number | null>(30);
   const [url, setUrl] = useState('');
   const [ack, setAck] = useState('');
@@ -611,7 +612,12 @@ function NewItem({
           }}
         />
       </Field>
-      <Choose label={tr('learning.kind', 'Kind')} value={kind} options={KINDS} onChange={setKind} />
+      <Choose
+        label={tr('learning.kind', 'Kind')}
+        value={kind}
+        options={KINDS()}
+        onChange={setKind}
+      />
       <Field>
         <FieldLabel>{tr('learning.provider', 'Provider')}</FieldLabel>
         <Input

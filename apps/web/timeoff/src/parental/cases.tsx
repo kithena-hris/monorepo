@@ -28,13 +28,13 @@ export interface ParentalCasesProps {
   readonly load: Loadable<ParentalCasesData>;
 }
 
-const TITLE = t('parental.cases.parental_leave', 'Parental leave');
+const TITLE = (): string => t('parental.cases.parental_leave', 'Parental leave');
 
 export function ParentalCases({ load }: ParentalCasesProps): JSX.Element {
   if (load.status === 'loading') return <ParentalCasesSkeleton />;
   return (
     <div className="flex flex-col gap-6">
-      {load.status === 'error' ? <PageHeader title={TITLE} /> : null}
+      {load.status === 'error' ? <PageHeader title={TITLE()} /> : null}
       <Loaded load={load} what={t('parental.cases.the_parental_cases', 'the parental cases')}>
         {(data) => <Ready data={data} />}
       </Loaded>
@@ -47,7 +47,7 @@ function Ready({ data }: { readonly data: ParentalCasesData }): JSX.Element {
   return (
     <>
       <PageHeader
-        title={TITLE}
+        title={TITLE()}
         description={
           data.cases.length === 0
             ? t('parental.cases.plans_parents_send_come_here', 'Plans parents send come here')
@@ -119,7 +119,7 @@ function Ready({ data }: { readonly data: ParentalCasesData }): JSX.Element {
 export function ParentalCasesSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={TITLE} description={' '} />
+      <PageHeader title={TITLE()} description={' '} />
       <div role="status" className="flex flex-col gap-px overflow-hidden rounded-[1.125rem]">
         <span className="sr-only">
           {t('parental.cases.loading_the_parental_cases', 'Loading the parental cases')}

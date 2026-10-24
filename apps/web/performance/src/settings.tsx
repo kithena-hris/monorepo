@@ -87,103 +87,151 @@ const PAGES: Readonly<
   >
 > = {
   general: {
-    title: tr('settings.general', 'General'),
-    description: tr(
-      'settings.the_companys_rating_scale_and_the',
-      'The company’s rating scale and the parts of Performance it uses.',
-    ),
+    get title(): string {
+      return tr('settings.general', 'General');
+    },
+    get description(): string {
+      return tr(
+        'settings.the_companys_rating_scale_and_the',
+        'The company’s rating scale and the parts of Performance it uses.',
+      );
+    },
     section: 'general',
   },
   release: {
-    title: tr('settings.release', 'Release'),
-    description: tr(
-      'settings.the_defaults_a_new_cycle_starts',
-      'The defaults a new cycle starts from: who releases, the response minimum, acknowledgement.',
-    ),
+    get title(): string {
+      return tr('settings.release', 'Release');
+    },
+    get description(): string {
+      return tr(
+        'settings.the_defaults_a_new_cycle_starts',
+        'The defaults a new cycle starts from: who releases, the response minimum, acknowledgement.',
+      );
+    },
     section: 'reviews',
   },
   feedback: {
-    title: tr('settings.feedback', 'Feedback'),
-    description: tr(
-      'settings.who_may_give_feedback_whether_names',
-      'Who may give feedback, whether names are shown, praise and its company values.',
-    ),
+    get title(): string {
+      return tr('settings.feedback', 'Feedback');
+    },
+    get description(): string {
+      return tr(
+        'settings.who_may_give_feedback_whether_names',
+        'Who may give feedback, whether names are shown, praise and its company values.',
+      );
+    },
     section: 'feedback',
   },
   goals: {
-    title: tr('settings.goals', 'Goals'),
-    description: tr(
-      'settings.goal_periods_their_check_in_cadence',
-      'Goal periods, their check-in cadence, and whether goals are weighted.',
-    ),
+    get title(): string {
+      return tr('settings.goals', 'Goals');
+    },
+    get description(): string {
+      return tr(
+        'settings.goal_periods_their_check_in_cadence',
+        'Goal periods, their check-in cadence, and whether goals are weighted.',
+      );
+    },
     section: 'goals',
   },
   learning: {
-    title: tr('settings.learning', 'Learning'),
-    description: tr(
-      'settings.learning_platforms_and_the_attendance_share',
-      'Learning platforms and the attendance share that completes a session.',
-    ),
+    get title(): string {
+      return tr('settings.learning', 'Learning');
+    },
+    get description(): string {
+      return tr(
+        'settings.learning_platforms_and_the_attendance_share',
+        'Learning platforms and the attendance share that completes a session.',
+      );
+    },
     section: 'learning',
   },
   calibration: {
-    title: tr('settings.calibration', 'Calibration'),
-    description: tr(
-      'settings.the_nine_box_guide_and_who',
-      'The nine-box guide and who sees what in a session.',
-    ),
+    get title(): string {
+      return tr('settings.calibration', 'Calibration');
+    },
+    get description(): string {
+      return tr(
+        'settings.the_nine_box_guide_and_who',
+        'The nine-box guide and who sees what in a session.',
+      );
+    },
     section: 'calibration',
   },
   ai: {
-    title: 'AI',
-    description: tr(
-      'settings.each_ai_feature_on_or_off_every',
-      'Each AI feature, on or off. Every output is logged; a person confirms every number.',
-    ),
+    get title(): string {
+      return tr('settings.ai', 'AI');
+    },
+    get description(): string {
+      return tr(
+        'settings.each_ai_feature_on_or_off_every',
+        'Each AI feature, on or off. Every output is logged; a person confirms every number.',
+      );
+    },
     section: 'ai',
   },
   connections: {
-    title: tr('settings.connections', 'Connections'),
-    description: tr(
-      'settings.calendars_chat_and_the_tools_people',
-      'Calendars, chat and the tools people may let Kithena read for their reviews.',
-    ),
+    get title(): string {
+      return tr('settings.connections', 'Connections');
+    },
+    get description(): string {
+      return tr(
+        'settings.calendars_chat_and_the_tools_people',
+        'Calendars, chat and the tools people may let Kithena read for their reviews.',
+      );
+    },
     section: 'integrations',
   },
   retention: {
-    title: tr('settings.retention', 'Retention'),
-    description: tr(
-      'settings.how_long_each_kind_of_record',
-      'How long each kind of record is kept after someone leaves, and legal holds.',
-    ),
+    get title(): string {
+      return tr('settings.retention', 'Retention');
+    },
+    get description(): string {
+      return tr(
+        'settings.how_long_each_kind_of_record',
+        'How long each kind of record is kept after someone leaves, and legal holds.',
+      );
+    },
     section: 'privacy',
     only: ['retention', 'holds'],
   },
   'works-councils': {
-    title: tr('settings.works_councils', 'Works councils'),
-    description: tr(
-      'settings.where_a_works_council_has_agreed',
-      'Where a works council has agreed to Performance, and to which parts.',
-    ),
+    get title(): string {
+      return tr('settings.works_councils', 'Works councils');
+    },
+    get description(): string {
+      return tr(
+        'settings.where_a_works_council_has_agreed',
+        'Where a works council has agreed to Performance, and to which parts.',
+      );
+    },
     section: 'privacy',
     only: ['worksCouncil'],
   },
   access: {
-    title: tr('settings.access', 'Access'),
-    description: tr(
-      'settings.who_is_hr_to_performance_beyond',
-      'Who is HR to Performance, beyond the company’s administrators.',
-    ),
+    get title(): string {
+      return tr('settings.access', 'Access');
+    },
+    get description(): string {
+      return tr(
+        'settings.who_is_hr_to_performance_beyond',
+        'Who is HR to Performance, beyond the company’s administrators.',
+      );
+    },
     section: 'roles',
   },
 };
 
 const GENERAL = {
-  title: tr('settings.general', 'General'),
-  description: tr(
-    'settings.the_companys_rating_scale_its_scores',
-    'The company’s rating scale, its scores, and the parts of Performance it uses.',
-  ),
+  get title(): string {
+    return tr('settings.general', 'General');
+  },
+  get description(): string {
+    return tr(
+      'settings.the_companys_rating_scale_its_scores',
+      'The company’s rating scale, its scores, and the parts of Performance it uses.',
+    );
+  },
   section: 'general',
 };
 
@@ -404,198 +452,206 @@ const ZONES = [...new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])].map((
   label: z.replaceAll('_', ' '),
 }));
 
-const KINDS_WITH_FORMS = [
-  ['self', tr('settings.self_reviews', 'Self reviews')],
-  ['manager', tr('settings.manager_reviews', 'Manager reviews')],
-  ['peer', tr('settings.peer_reviews', 'Peer reviews')],
-  ['upward', tr('settings.upward_reviews', 'Upward reviews')],
-  ['skip', tr('settings.skip_level_reviews', 'Skip-level reviews')],
-] as const;
+const KINDS_WITH_FORMS = () =>
+  [
+    ['self', tr('settings.self_reviews', 'Self reviews')],
+    ['manager', tr('settings.manager_reviews', 'Manager reviews')],
+    ['peer', tr('settings.peer_reviews', 'Peer reviews')],
+    ['upward', tr('settings.upward_reviews', 'Upward reviews')],
+    ['skip', tr('settings.skip_level_reviews', 'Skip-level reviews')],
+  ] as const;
 
-const CADENCE = [
-  ['weekly', tr('settings.weekly', 'Weekly')],
-  ['fortnightly', tr('settings.every_two_weeks', 'Every two weeks')],
-  ['monthly', tr('settings.monthly', 'Monthly')],
-  ['none', tr('settings.no_check_ins', 'No check-ins')],
-] as const;
+const CADENCE = () =>
+  [
+    ['weekly', tr('settings.weekly', 'Weekly')],
+    ['fortnightly', tr('settings.every_two_weeks', 'Every two weeks')],
+    ['monthly', tr('settings.monthly', 'Monthly')],
+    ['none', tr('settings.no_check_ins', 'No check-ins')],
+  ] as const;
 
-const NINE_BOX = [
+const NINE_BOX = () =>
   [
-    'star',
-    tr('settings.star', 'Star'),
-    tr('settings.high_performance_high_potential', 'High performance, high potential'),
-  ],
-  [
-    'high',
-    tr('settings.high_performer', 'High performer'),
-    tr('settings.high_performance_moderate_potential', 'High performance, moderate potential'),
-  ],
-  [
-    'trusted',
-    tr('settings.trusted_professional', 'Trusted professional'),
-    tr('settings.high_performance_low_potential', 'High performance, low potential'),
-  ],
-  [
-    'corePotential',
-    tr('settings.rising_talent', 'Rising talent'),
-    tr('settings.moderate_performance_high_potential', 'Moderate performance, high potential'),
-  ],
-  [
-    'core',
-    tr('settings.core_player', 'Core player'),
-    tr(
-      'settings.moderate_performance_moderate_potential',
-      'Moderate performance, moderate potential',
-    ),
-  ],
-  [
-    'effective',
-    tr('settings.effective', 'Effective'),
-    tr('settings.moderate_performance_low_potential', 'Moderate performance, low potential'),
-  ],
-  [
-    'inconsistent',
-    tr('settings.inconsistent', 'Inconsistent'),
-    tr('settings.low_performance_high_potential', 'Low performance, high potential'),
-  ],
-  [
-    'lowPotential',
-    tr('settings.dilemma', 'Dilemma'),
-    tr('settings.low_performance_moderate_potential', 'Low performance, moderate potential'),
-  ],
-  [
-    'under',
-    tr('settings.underperformer', 'Underperformer'),
-    tr('settings.low_performance_low_potential', 'Low performance, low potential'),
-  ],
-] as const;
+    [
+      'star',
+      tr('settings.star', 'Star'),
+      tr('settings.high_performance_high_potential', 'High performance, high potential'),
+    ],
+    [
+      'high',
+      tr('settings.high_performer', 'High performer'),
+      tr('settings.high_performance_moderate_potential', 'High performance, moderate potential'),
+    ],
+    [
+      'trusted',
+      tr('settings.trusted_professional', 'Trusted professional'),
+      tr('settings.high_performance_low_potential', 'High performance, low potential'),
+    ],
+    [
+      'corePotential',
+      tr('settings.rising_talent', 'Rising talent'),
+      tr('settings.moderate_performance_high_potential', 'Moderate performance, high potential'),
+    ],
+    [
+      'core',
+      tr('settings.core_player', 'Core player'),
+      tr(
+        'settings.moderate_performance_moderate_potential',
+        'Moderate performance, moderate potential',
+      ),
+    ],
+    [
+      'effective',
+      tr('settings.effective', 'Effective'),
+      tr('settings.moderate_performance_low_potential', 'Moderate performance, low potential'),
+    ],
+    [
+      'inconsistent',
+      tr('settings.inconsistent', 'Inconsistent'),
+      tr('settings.low_performance_high_potential', 'Low performance, high potential'),
+    ],
+    [
+      'lowPotential',
+      tr('settings.dilemma', 'Dilemma'),
+      tr('settings.low_performance_moderate_potential', 'Low performance, moderate potential'),
+    ],
+    [
+      'under',
+      tr('settings.underperformer', 'Underperformer'),
+      tr('settings.low_performance_low_potential', 'Low performance, low potential'),
+    ],
+  ] as const;
 
-const AI_FEATURES = [
+const AI_FEATURES = () =>
   [
-    'builder',
-    tr('settings.form_builder', 'Form builder'),
-    tr('settings.drafts_a_forms_questions_from_a', 'Drafts a form’s questions from a description.'),
-  ],
-  [
-    'summaries',
-    tr('settings.summaries', 'Summaries'),
-    tr(
-      'settings.summarises_what_was_written_about_a',
-      'Summarises what was written about a person, for their manager.',
-    ),
-  ],
-  [
-    'sentiment',
-    tr('settings.sentiment', 'Sentiment'),
-    tr(
-      'settings.reads_the_tone_of_feedback_for',
-      'Reads the tone of feedback for analytics, in groups of five or more.',
-    ),
-  ],
-  [
-    'prefill',
-    tr('settings.prefill', 'Prefill'),
-    tr(
-      'settings.suggests_a_first_draft_of_a',
-      'Suggests a first draft of a review from the year’s evidence.',
-    ),
-  ],
-  [
-    'writingChecks',
-    tr('settings.writing_checks', 'Writing checks'),
-    tr(
-      'settings.flags_vague_or_biased_wording_while',
-      'Flags vague or biased wording while someone writes.',
-    ),
-  ],
-  [
-    'toneCheck',
-    tr('settings.tone_check', 'Tone check'),
-    tr(
-      'settings.flags_feedback_that_may_land_badly',
-      'Flags feedback that may land badly before it is sent.',
-    ),
-  ],
-  [
-    'setupByChat',
-    tr('settings.set_up_in_words', 'Set up in words'),
-    tr('settings.builds_a_cycles_setup_from_a', 'Builds a cycle’s setup from a description.'),
-  ],
-  [
-    'automationsInWords',
-    tr('settings.automations_in_words', 'Automations in words'),
-    tr('settings.turns_a_sentence_into_an_automation', 'Turns a sentence into an automation.'),
-  ],
-  [
-    'charts',
-    tr('settings.charts_in_words', 'Charts in words'),
-    tr(
-      'settings.draws_the_analytics_chart_someone_asks',
-      'Draws the analytics chart someone asks for.',
-    ),
-  ],
-  [
-    'learningSuggestions',
-    tr('settings.learning_suggestions', 'Learning suggestions'),
-    tr(
-      'settings.suggests_courses_from_a_reviews_outcome',
-      'Suggests courses from a review’s outcome.',
-    ),
-  ],
-  [
-    'calibrationSuggestions',
-    tr('settings.calibration_suggestions', 'Calibration suggestions'),
-    tr(
-      'settings.proposes_moves_in_a_session_each',
-      'Proposes moves in a session, each for a person to accept.',
-    ),
-  ],
-  [
-    'panel',
-    tr('settings.ask_kithena', 'Ask Kithena'),
-    tr(
-      'settings.the_assistant_panel_on_every_performance',
-      'The assistant panel on every Performance screen.',
-    ),
-  ],
-] as const;
+    [
+      'builder',
+      tr('settings.form_builder', 'Form builder'),
+      tr(
+        'settings.drafts_a_forms_questions_from_a',
+        'Drafts a form’s questions from a description.',
+      ),
+    ],
+    [
+      'summaries',
+      tr('settings.summaries', 'Summaries'),
+      tr(
+        'settings.summarises_what_was_written_about_a',
+        'Summarises what was written about a person, for their manager.',
+      ),
+    ],
+    [
+      'sentiment',
+      tr('settings.sentiment', 'Sentiment'),
+      tr(
+        'settings.reads_the_tone_of_feedback_for',
+        'Reads the tone of feedback for analytics, in groups of five or more.',
+      ),
+    ],
+    [
+      'prefill',
+      tr('settings.prefill', 'Prefill'),
+      tr(
+        'settings.suggests_a_first_draft_of_a',
+        'Suggests a first draft of a review from the year’s evidence.',
+      ),
+    ],
+    [
+      'writingChecks',
+      tr('settings.writing_checks', 'Writing checks'),
+      tr(
+        'settings.flags_vague_or_biased_wording_while',
+        'Flags vague or biased wording while someone writes.',
+      ),
+    ],
+    [
+      'toneCheck',
+      tr('settings.tone_check', 'Tone check'),
+      tr(
+        'settings.flags_feedback_that_may_land_badly',
+        'Flags feedback that may land badly before it is sent.',
+      ),
+    ],
+    [
+      'setupByChat',
+      tr('settings.set_up_in_words', 'Set up in words'),
+      tr('settings.builds_a_cycles_setup_from_a', 'Builds a cycle’s setup from a description.'),
+    ],
+    [
+      'automationsInWords',
+      tr('settings.automations_in_words', 'Automations in words'),
+      tr('settings.turns_a_sentence_into_an_automation', 'Turns a sentence into an automation.'),
+    ],
+    [
+      'charts',
+      tr('settings.charts_in_words', 'Charts in words'),
+      tr(
+        'settings.draws_the_analytics_chart_someone_asks',
+        'Draws the analytics chart someone asks for.',
+      ),
+    ],
+    [
+      'learningSuggestions',
+      tr('settings.learning_suggestions', 'Learning suggestions'),
+      tr(
+        'settings.suggests_courses_from_a_reviews_outcome',
+        'Suggests courses from a review’s outcome.',
+      ),
+    ],
+    [
+      'calibrationSuggestions',
+      tr('settings.calibration_suggestions', 'Calibration suggestions'),
+      tr(
+        'settings.proposes_moves_in_a_session_each',
+        'Proposes moves in a session, each for a person to accept.',
+      ),
+    ],
+    [
+      'panel',
+      tr('settings.ask_kithena', 'Ask Kithena'),
+      tr(
+        'settings.the_assistant_panel_on_every_performance',
+        'The assistant panel on every Performance screen.',
+      ),
+    ],
+  ] as const;
 
-const CONNECTIONS = [
+const CONNECTIONS = () =>
   [
-    'google',
-    tr('settings.google_workspace', 'Google Workspace'),
-    tr(
-      'settings.calendar_invitations_for_sessions_and_1_1s',
-      'Calendar invitations for sessions and 1:1s.',
-    ),
-  ],
-  [
-    'microsoft',
-    tr('settings.microsoft_365', 'Microsoft 365'),
-    tr(
-      'settings.calendar_invitations_for_sessions_and_1_1s',
-      'Calendar invitations for sessions and 1:1s.',
-    ),
-  ],
-  [
-    'slack',
-    tr('settings.slack', 'Slack'),
-    tr(
-      'settings.reminders_praise_and_asking_kithena_in',
-      'Reminders, praise and asking Kithena in the chat app.',
-    ),
-  ],
-  [
-    'teams',
-    tr('settings.microsoft_teams', 'Microsoft Teams'),
-    tr('settings.reminders_and_praise_in_teams', 'Reminders and praise in Teams.'),
-  ],
-  [
-    'gchat',
-    tr('settings.google_chat', 'Google Chat'),
-    tr('settings.reminders_and_praise_in_google_chat', 'Reminders and praise in Google Chat.'),
-  ],
-] as const;
+    [
+      'google',
+      tr('settings.google_workspace', 'Google Workspace'),
+      tr(
+        'settings.calendar_invitations_for_sessions_and_1_1s',
+        'Calendar invitations for sessions and 1:1s.',
+      ),
+    ],
+    [
+      'microsoft',
+      tr('settings.microsoft_365', 'Microsoft 365'),
+      tr(
+        'settings.calendar_invitations_for_sessions_and_1_1s',
+        'Calendar invitations for sessions and 1:1s.',
+      ),
+    ],
+    [
+      'slack',
+      tr('settings.slack', 'Slack'),
+      tr(
+        'settings.reminders_praise_and_asking_kithena_in',
+        'Reminders, praise and asking Kithena in the chat app.',
+      ),
+    ],
+    [
+      'teams',
+      tr('settings.microsoft_teams', 'Microsoft Teams'),
+      tr('settings.reminders_and_praise_in_teams', 'Reminders and praise in Teams.'),
+    ],
+    [
+      'gchat',
+      tr('settings.google_chat', 'Google Chat'),
+      tr('settings.reminders_and_praise_in_google_chat', 'Reminders and praise in Google Chat.'),
+    ],
+  ] as const;
 
 /** What each settings page holds, laid out as sections of one form. */
 function Body({
@@ -739,7 +795,7 @@ function Body({
               'The form each kind of review starts with in a new cycle.',
             )}
           >
-            {KINDS_WITH_FORMS.map(([kind, label]) => (
+            {KINDS_WITH_FORMS().map(([kind, label]) => (
               <Choose
                 key={kind}
                 label={label}
@@ -960,7 +1016,7 @@ function Body({
       );
     }
     case 'calibration': {
-      const total = NINE_BOX.reduce((n, [k]) => n + (num(ui.get('guide', k)) ?? 0), 0);
+      const total = NINE_BOX().reduce((n, [k]) => n + (num(ui.get('guide', k)) ?? 0), 0);
       return (
         <>
           <FormSection
@@ -970,7 +1026,7 @@ function Body({
               'The share of people expected in each box: a guide for the session, never a quota.',
             )}
           >
-            {NINE_BOX.map(([k, label, hint]) => (
+            {NINE_BOX().map(([k, label, hint]) => (
               <Count
                 key={k}
                 ui={ui}
@@ -1030,7 +1086,7 @@ function Body({
         >
           <Switches
             ui={ui}
-            items={AI_FEATURES.map(([k, label, hint]) => ({
+            items={AI_FEATURES().map(([k, label, hint]) => ({
               path: ['features', k],
               label,
               hint,
@@ -1044,7 +1100,7 @@ function Body({
           <FormSection title={tr('settings.calendars_and_chat', 'Calendars and chat')}>
             <Switches
               ui={ui}
-              items={CONNECTIONS.map(([k, label, hint]) => ({
+              items={CONNECTIONS().map(([k, label, hint]) => ({
                 path: ['connections', k],
                 label,
                 hint,
@@ -1245,7 +1301,7 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
     to: '',
     cadence: 'fortnightly',
   });
-  const cadence = (c: string): string => (CADENCE.find(([v]) => v === c)?.[1] ?? c).toLowerCase();
+  const cadence = (c: string): string => (CADENCE().find(([v]) => v === c)?.[1] ?? c).toLowerCase();
   return (
     <>
       <FormSection
@@ -1411,7 +1467,7 @@ function GoalsSettings({ ui }: { readonly ui: Ui }): JSX.Element {
         <Choose
           label={tr('settings.check_ins', 'Check-ins')}
           value={draft.cadence}
-          options={CADENCE}
+          options={CADENCE()}
           onChange={(v) => {
             setDraft({ ...draft, cadence: v });
           }}
@@ -1668,15 +1724,29 @@ export interface ConnectedToolsData {
 }
 
 const SOURCE: Readonly<Record<string, string>> = {
-  slack: tr('settings.slack', 'Slack'),
-  teams: tr('settings.microsoft_teams', 'Microsoft Teams'),
-  gchat: tr('settings.google_chat', 'Google Chat'),
-  meet: tr('settings.google_meet', 'Google Meet'),
+  get slack(): string {
+    return tr('settings.slack', 'Slack');
+  },
+  get teams(): string {
+    return tr('settings.microsoft_teams', 'Microsoft Teams');
+  },
+  get gchat(): string {
+    return tr('settings.google_chat', 'Google Chat');
+  },
+  get meet(): string {
+    return tr('settings.google_meet', 'Google Meet');
+  },
   github: 'GitHub',
   gitlab: 'GitLab',
-  linear: tr('settings.linear', 'Linear'),
-  jira: tr('settings.jira', 'Jira'),
-  confluence: tr('settings.confluence', 'Confluence'),
+  get linear(): string {
+    return tr('settings.linear', 'Linear');
+  },
+  get jira(): string {
+    return tr('settings.jira', 'Jira');
+  },
+  get confluence(): string {
+    return tr('settings.confluence', 'Confluence');
+  },
 };
 
 /** S12: what I let Kithena read of my own work, each on or off, and every read. */

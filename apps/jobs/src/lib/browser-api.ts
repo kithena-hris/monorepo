@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 /**
  * The public API from the browser (REC-093, REC-094): the apply form and the
  * candidate's own pages call Recruiting directly, because a CV is up to 10 MB
@@ -41,11 +43,19 @@ export async function publicApi<T>(
     } | null;
     return response.ok
       ? { ok: true, data: body as T }
-      : { ok: false, message: body?.error?.message ?? 'That did not go through. Try again.' };
+      : {
+          ok: false,
+          message:
+            body?.error?.message ??
+            t('lib.browser-api.that_did_not_go_through_try', 'That did not go through. Try again.'),
+        };
   } catch {
     return {
       ok: false,
-      message: 'Kithena Jobs is not reachable right now. Try again in a moment.',
+      message: t(
+        'lib.browser-api.kithena_jobs_is_not_reachable_right',
+        'Kithena Jobs is not reachable right now. Try again in a moment.',
+      ),
     };
   }
 }
@@ -66,11 +76,19 @@ export async function accountApi<T>(
     } | null;
     return response.ok
       ? { ok: true, data: body as T }
-      : { ok: false, message: body?.error?.message ?? 'That did not go through. Try again.' };
+      : {
+          ok: false,
+          message:
+            body?.error?.message ??
+            t('lib.browser-api.that_did_not_go_through_try', 'That did not go through. Try again.'),
+        };
   } catch {
     return {
       ok: false,
-      message: 'Kithena Jobs is not reachable right now. Try again in a moment.',
+      message: t(
+        'lib.browser-api.kithena_jobs_is_not_reachable_right',
+        'Kithena Jobs is not reachable right now. Try again in a moment.',
+      ),
     };
   }
 }

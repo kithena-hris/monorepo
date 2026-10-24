@@ -139,10 +139,11 @@ export interface ReportSchedulesProps {
 }
 
 /** The sentence every place that names recipients says. */
-export const EACH_SEES_THEIR_OWN = t(
-  'reports.report-schedules.each_recipient_sees_only_the_people',
-  'Each recipient sees only the people and columns they have access to.',
-);
+export const EACH_SEES_THEIR_OWN = (): string =>
+  t(
+    'reports.report-schedules.each_recipient_sees_only_the_people',
+    'Each recipient sees only the people and columns they have access to.',
+  );
 
 const WEEKDAYS = (): readonly string[] => [
   t('reports.report-schedules.monday', 'Monday'),
@@ -207,10 +208,30 @@ export const RUN_OUTCOME: Record<
   string,
   { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
 > = {
-  sent: { label: t('reports.report-schedules.sent', 'Sent'), tone: 'success' },
-  partial: { label: t('reports.report-schedules.partly_sent', 'Partly sent'), tone: 'warning' },
-  failed: { label: t('reports.report-schedules.failed', 'Failed'), tone: 'danger' },
-  skipped: { label: t('reports.report-schedules.skipped', 'Skipped'), tone: 'neutral' },
+  sent: {
+    get label(): string {
+      return t('reports.report-schedules.sent', 'Sent');
+    },
+    tone: 'success',
+  },
+  partial: {
+    get label(): string {
+      return t('reports.report-schedules.partly_sent', 'Partly sent');
+    },
+    tone: 'warning',
+  },
+  failed: {
+    get label(): string {
+      return t('reports.report-schedules.failed', 'Failed');
+    },
+    tone: 'danger',
+  },
+  skipped: {
+    get label(): string {
+      return t('reports.report-schedules.skipped', 'Skipped');
+    },
+    tone: 'neutral',
+  },
 };
 const outcomeOf = (outcome: string | null) =>
   outcome === null
@@ -235,11 +256,12 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   );
 }
 
-const TITLE = t('reports.report-schedules.scheduled_reports', 'Scheduled reports');
-const ABOUT = t(
-  'reports.report-schedules.a_file_or_the_summary_emailed',
-  'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.',
-);
+const TITLE = (): string => t('reports.report-schedules.scheduled_reports', 'Scheduled reports');
+const ABOUT = (): string =>
+  t(
+    'reports.report-schedules.a_file_or_the_summary_emailed',
+    'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.',
+  );
 
 /**
  * The one list of schedules: the Schedules button on every Insights tab opens
@@ -276,7 +298,7 @@ function Schedules({
   if (!state.canManage) {
     return (
       <>
-        <PageHeader title={TITLE} description={ABOUT} />
+        <PageHeader title={TITLE()} description={ABOUT()} />
         <Alert tone="info">
           {t(
             'reports.report-schedules.only_hr_and_people_administrators_schedule',
@@ -300,8 +322,8 @@ function Schedules({
   return (
     <>
       <PageHeader
-        title={TITLE}
-        description={ABOUT}
+        title={TITLE()}
+        description={ABOUT()}
         actions={
           <Button
             variant="primary"
@@ -321,7 +343,7 @@ function Schedules({
         </Alert>
       )}
       <DataTable<ScheduleRow>
-        label={TITLE}
+        label={TITLE()}
         rows={state.schedules}
         rowId={(row) => row.id}
         describeRow={(row) => row.name}
@@ -878,7 +900,7 @@ export function ScheduleForm({
               <Field required>
                 <div className="flex items-center gap-1">
                   <FieldLabel>{t('reports.report-schedules.recipients', 'Recipients')}</FieldLabel>
-                  <Tooltip content={EACH_SEES_THEIR_OWN}>
+                  <Tooltip content={EACH_SEES_THEIR_OWN()}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -921,7 +943,7 @@ export function ScheduleForm({
                     }}
                   />
                 </FieldControl>
-                <FieldDescription>{EACH_SEES_THEIR_OWN}</FieldDescription>
+                <FieldDescription>{EACH_SEES_THEIR_OWN()}</FieldDescription>
               </Field>
 
               {refused === null ? null : (
@@ -974,14 +996,13 @@ export function ScheduleForm({
             <Stack gap={3}>
               <p>
                 {t(
-                  'reports.report-schedules.this_report_is_built_again_for',
-                  'This report is built again for each of its',
-                )}{' '}
-                {String(draft.recipients.length)}{' '}
-                {draft.recipients.length === 1 ? 'recipient' : 'recipients'}
-                {t(
-                  'reports.report-schedules.every_time_it_runs_as_that',
-                  ', every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                  'reports.report-schedules.built_again_for_each_recipient',
+                  {
+                    one: 'This report is built again for each of its {{count}} recipient, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                    other:
+                      'This report is built again for each of its {{count}} recipients, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                  },
+                  { count: draft.recipients.length },
                 )}
               </p>
               <p>

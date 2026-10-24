@@ -41,6 +41,7 @@ import { PeopleHome as Home } from './people/home';
 import { Inbox } from './inbox/inbox';
 import { InboxItem } from './inbox/item';
 import { NotificationSettings } from './inbox/notifications';
+import { LanguageSettings } from './language';
 import { readInbox } from './inbox/api';
 import { useInboxNotifications } from './inbox/notify';
 import { Onboarding } from './people/onboarding';
@@ -119,6 +120,7 @@ import { ImportExport } from './people/transfer/hub';
 import { Import } from './people/transfer/import';
 import { ImportRun } from './people/transfer/run';
 import type { PeopleRoutes } from './people/routes';
+import { t as tr } from './i18n';
 
 const Stack_ = createNativeStackNavigator<PeopleRoutes>();
 
@@ -149,6 +151,7 @@ const TabStack = memo(function TabStack({
           <Stack_.Screen name="Inbox" component={Inbox} />
           <Stack_.Screen name="InboxItem" component={InboxItem} />
           <Stack_.Screen name="Notifications" component={NotificationSettings} />
+          <Stack_.Screen name="Language" component={LanguageSettings} />
           <Stack_.Screen name="Onboarding" component={Onboarding} />
           <Stack_.Screen name="People" component={PeopleTab} />
           <Stack_.Screen name="Profile" component={Profile} />
@@ -462,7 +465,9 @@ export function SignedIn({
                         <Banner
                           tone="warning"
                           icon={Eye}
-                          title={`Viewing as ${fullName(person)}`}
+                          title={tr('signed-in.viewing_as', 'Viewing as {{fullName}}', {
+                            fullName: fullName(person),
+                          })}
                           actions={
                             <Button
                               size="xs"
@@ -474,11 +479,14 @@ export function SignedIn({
                                 });
                               }}
                             >
-                              End viewing
+                              {tr('signed-in.end_viewing', 'End viewing')}
                             </Button>
                           }
                         >
-                          Read-only. It ends by itself after thirty minutes.
+                          {tr(
+                            'signed-in.read_only_it_ends_by_itself',
+                            'Read-only. It ends by itself after thirty minutes.',
+                          )}
                         </Banner>
                       </View>
                     )}
@@ -514,24 +522,34 @@ export function SignedIn({
                       style={{ bottom: insets.bottom + 4, display: hiding > 0 ? 'none' : 'flex' }}
                     >
                       <TabBar
-                        label="Kithena"
+                        label={tr('signed-in.kithena', 'Kithena')}
                         items={[
-                          { key: 'home', label: 'Home', icon: House },
+                          { key: 'home', label: tr('signed-in.home', 'Home'), icon: House },
                           ...(timeOff
-                            ? [{ key: 'timeoff', label: 'Time off', icon: CalendarDays }]
+                            ? [
+                                {
+                                  key: 'timeoff',
+                                  label: tr('signed-in.time_off', 'Time off'),
+                                  icon: CalendarDays,
+                                },
+                              ]
                             : []),
-                          { key: 'people', label: 'People', icon: Users },
+                          { key: 'people', label: tr('signed-in.people', 'People'), icon: Users },
                           {
                             key: 'inbox',
-                            label: 'Inbox',
+                            label: tr('signed-in.inbox', 'Inbox'),
                             icon: InboxIcon,
                             ...(waiting > 0 ? { badge: waiting } : {}),
                           },
                           more
-                            ? { key: 'more', label: 'More', icon: LayoutGrid }
+                            ? { key: 'more', label: tr('signed-in.more', 'More'), icon: LayoutGrid }
                             : documents
-                              ? { key: 'documents', label: 'Documents', icon: FolderOpen }
-                              : { key: 'me', label: 'Me', icon: User },
+                              ? {
+                                  key: 'documents',
+                                  label: tr('signed-in.documents', 'Documents'),
+                                  icon: FolderOpen,
+                                }
+                              : { key: 'me', label: tr('signed-in.me', 'Me'), icon: User },
                         ]}
                         value={tab}
                         onValueChange={(key) => {

@@ -30,6 +30,7 @@ import { View } from 'react-native';
 import { useAct } from '../act';
 import { askDocuments, DocumentsOn, putFile } from '../../documents/api';
 import { useRead, useSigned } from '../api';
+import { t } from '../../i18n';
 
 interface Builder {
   readonly today: string;
@@ -105,7 +106,12 @@ export function ExportDialog({
       .then((r) => (r.ok ? r.blob() : null))
       .catch(() => null);
     if (body === null) {
-      setKeeping('The export could not be read.');
+      setKeeping(
+        t(
+          'people.transfer.export-dialog.the_export_could_not_be_read',
+          'The export could not be read.',
+        ),
+      );
       return;
     }
     const put = await putFile(signed, { name: link.name, mediaType: 'text/csv', body });
@@ -140,35 +146,53 @@ export function ExportDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Export people</DialogTitle>
-          <DialogDescription>Kept in the activity log with the file.</DialogDescription>
+          <DialogTitle>
+            {t('people.transfer.export-dialog.export_people', 'Export people')}
+          </DialogTitle>
+          <DialogDescription>
+            {t(
+              'people.transfer.export-dialog.kept_in_the_activity_log_with',
+              'Kept in the activity log with the file.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {builder === null ? (
-            <Spinner label="Loading what you can export" />
+            <Spinner
+              label={t(
+                'people.transfer.export-dialog.loading_what_you_can_export',
+                'Loading what you can export',
+              )}
+            />
           ) : (
             <>
               <Field>
-                <FieldLabel>Who</FieldLabel>
+                <FieldLabel>{t('people.transfer.export-dialog.who', 'Who')}</FieldLabel>
                 <Select value={who} onValueChange={setWho}>
                   <FieldControl>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                   </FieldControl>
-                  <SelectContent title="Who">
+                  <SelectContent title={t('people.transfer.export-dialog.who', 'Who')}>
                     {builder.who
                       .filter((w) => w.value !== 'conditions')
                       .map((w) => (
                         <SelectItem key={w.value} value={w.value}>
-                          {w.count === null ? w.label : `${w.label} · ${String(w.count)} people`}
+                          {w.count === null
+                            ? w.label
+                            : t(
+                                'people.transfer.export-dialog.people',
+                                '{{label}} · {{String}} people',
+                                { label: w.label, String: String(w.count) },
+                              )}
                         </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
               </Field>
               <Field invalid={tried && chosen.length === 0}>
-                <FieldLabel>What</FieldLabel>
+                <FieldLabel>{t('people.transfer.export-dialog.what', 'What')}</FieldLabel>
                 <View className="flex-row flex-wrap gap-2">
                   {builder.sections.map((s) => {
                     const on = chosen.includes(s.key);
@@ -186,23 +210,39 @@ export function ExportDialog({
                   })}
                 </View>
                 {tried && chosen.length === 0 ? (
-                  <FieldError>Choose what goes in.</FieldError>
+                  <FieldError>
+                    {t('people.transfer.export-dialog.choose_what_goes_in', 'Choose what goes in.')}
+                  </FieldError>
                 ) : null}
               </Field>
               <Field required invalid={tried && reason.trim() === ''}>
-                <FieldLabel>Why you need it</FieldLabel>
+                <FieldLabel>
+                  {t('people.transfer.export-dialog.why_you_need_it', 'Why you need it')}
+                </FieldLabel>
                 <FieldControl>
                   <Input value={reason} onChange={setReason} maxLength={500} />
                 </FieldControl>
                 {tried && reason.trim() === '' ? (
-                  <FieldError>Say why, for the activity log.</FieldError>
+                  <FieldError>
+                    {t(
+                      'people.transfer.export-dialog.say_why_for_the_activity_log',
+                      'Say why, for the activity log.',
+                    )}
+                  </FieldError>
                 ) : null}
               </Field>
               {leftOut.length === 0 ? null : (
                 <View className="flex-row items-start gap-1.5">
                   <Icon icon={Sparkles} size={13} tone="accent" />
                   <Text variant="footnote" className="flex-1 text-accent-fg">
-                    {`${leftOut.map((s) => s.label).join(' and ')} ${leftOut.length === 1 ? 'is' : 'are'} left out. Adding ${leftOut.length === 1 ? 'it' : 'them'} may need a second approval.`}
+                    {t(
+                      'people.transfer.export-dialog.left_out_adding_may_need_a',
+                      {
+                        one: '{{join}} is left out. Adding it may need a second approval.',
+                        other: '{{join}} are left out. Adding them may need a second approval.',
+                      },
+                      { count: leftOut.length, join: leftOut.map((s) => s.label).join(' and ') },
+                    )}
                   </Text>
                 </View>
               )}
@@ -213,18 +253,21 @@ export function ExportDialog({
                   loading={busy === 'RequestExport'}
                   onPress={() => void keep()}
                 >
-                  Save to Documents
+                  {t('people.transfer.export-dialog.save_to_documents', 'Save to Documents')}
                 </Button>
               ) : null}
               <Button variant="link" onPress={onFull}>
-                More options: a date, a format, sending
+                {t(
+                  'people.transfer.export-dialog.more_options_a_date_a_format',
+                  'More options: a date, a format, sending',
+                )}
               </Button>
             </>
           )}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.transfer.export-dialog.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -233,7 +276,7 @@ export function ExportDialog({
             loading={busy === 'RequestExport'}
             onPress={() => void download()}
           >
-            Download CSV
+            {t('people.transfer.export-dialog.download_csv', 'Download CSV')}
           </Button>
         </DialogFooter>
       </DialogContent>

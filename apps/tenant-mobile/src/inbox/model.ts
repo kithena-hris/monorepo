@@ -100,10 +100,16 @@ export interface InboxAnswer {
 
 export { dayIn, dueOf, shortDay } from './time';
 import { dayIn, shortDay } from './time';
+import { t } from '../i18n';
+import { dateFormat, locale } from '@reach/ui-native/words';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
-  people: 'People',
-  timeoff: 'Time off',
+  get people(): string {
+    return t('inbox.model.people', 'People');
+  },
+  get timeoff(): string {
+    return t('inbox.model.time_off', 'Time off');
+  },
 };
 export const moduleName = (m: string): string => MODULE_NAMES[m] ?? m;
 
@@ -146,7 +152,7 @@ export const firstName = (name: string | null | undefined): string =>
 export function when(instant: string, zone: string): string {
   let time = instant.slice(11, 16);
   try {
-    time = new Intl.DateTimeFormat('en-GB', {
+    time = dateFormat({
       timeZone: zone,
       hour: '2-digit',
       minute: '2-digit',
@@ -168,13 +174,17 @@ export function ago(at: string, now: string): string {
 /** "1 day", "2.5 days". */
 export const days = (n: string | number): string => {
   const v = Number(n);
-  return `${Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/u, '')} day${v === 1 ? '' : 's'}`;
+  return t(
+    'inbox.model.days',
+    { one: '{{value}} day', other: '{{value}} days' },
+    { count: v, value: Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/u, '') },
+  );
 };
 
 /** "28–30 December", "30 December – 2 January". */
 export function spanLong(from: string, to: string): string {
   const long = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', {
+    new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), {
       day: 'numeric',
       month: 'long',
       timeZone: 'UTC',
@@ -195,9 +205,11 @@ export function snoozeChoices(now: Date, due: string | null): { label: string; a
   };
   const monday = (8 - now.getDay()) % 7 || 7;
   return [
-    ...(now.getHours() < 15 ? [{ label: 'This afternoon', at: at(0, 16) }] : []),
-    { label: 'Tomorrow morning', at: at(1, 9) },
-    { label: 'Monday', at: at(monday, 9) },
+    ...(now.getHours() < 15
+      ? [{ label: t('inbox.model.this_afternoon', 'This afternoon'), at: at(0, 16) }]
+      : []),
+    { label: t('inbox.model.tomorrow_morning', 'Tomorrow morning'), at: at(1, 9) },
+    { label: t('inbox.model.monday', 'Monday'), at: at(monday, 9) },
   ]
     .filter((c) => due === null || c.at.toISOString().slice(0, 10) <= due)
     .map((c) => ({ label: c.label, at: c.at.toISOString() }));

@@ -28,6 +28,7 @@ import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askRecruiting, useRecruiting, when, words } from './api';
+import { t } from '../i18n';
 
 /**
  * Recruiting on the phone (REC-145, design RM0b–RM7): for a hiring manager
@@ -48,49 +49,68 @@ interface Home {
 
 export function RecruitingHome({ navigation }: PeopleScreen<'Recruiting'>): React.JSX.Element {
   const { load, reload } = useRecruiting<Home>('RecruitingHome');
-  const back = { label: 'More', onPress: navigation.goBack };
+  const back = { label: t('recruiting.screens.more', 'More'), onPress: navigation.goBack };
   if (load.status !== 'ready')
     return (
-      <Page title="Recruiting" back={back}>
+      <Page title={t('recruiting.screens.recruiting', 'Recruiting')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading Recruiting" />
+          <Loading label={t('recruiting.screens.loading_recruiting', 'Loading Recruiting')} />
         )}
       </Page>
     );
   const d = load.data;
   const open = d.jobs.filter((j) => j.state === 'open');
   return (
-    <Page title="Recruiting" back={back}>
-      <Heading title="Needs you" />
+    <Page title={t('recruiting.screens.recruiting', 'Recruiting')} back={back}>
+      <Heading title={t('recruiting.screens.needs_you', 'Needs you')} />
       <List>
-        <ListItem icon={Stamp} chevron onPress={() => { navigation.navigate('RecruitingApprovals'); }}>
-          Approvals
+        <ListItem
+          icon={Stamp}
+          chevron
+          onPress={() => {
+            navigation.navigate('RecruitingApprovals');
+          }}
+        >
+          {t('recruiting.screens.approvals', 'Approvals')}
         </ListItem>
         <ListItem
           icon={CalendarClock}
           chevron
-          onPress={() => { navigation.navigate('RecruitingInterviews'); }}
+          onPress={() => {
+            navigation.navigate('RecruitingInterviews');
+          }}
         >
-          My interviews and scorecards
+          {t('recruiting.screens.my_interviews_and_scorecards', 'My interviews and scorecards')}
         </ListItem>
-        <ListItem icon={Briefcase} chevron onPress={() => { navigation.navigate('RecruitingBoard'); }}>
-          Open jobs: refer someone
+        <ListItem
+          icon={Briefcase}
+          chevron
+          onPress={() => {
+            navigation.navigate('RecruitingBoard');
+          }}
+        >
+          {t('recruiting.screens.open_jobs_refer_someone', 'Open jobs: refer someone')}
         </ListItem>
       </List>
       {open.length === 0 ? null : (
         <>
-          <Heading title="My jobs" />
+          <Heading title={t('recruiting.screens.my_jobs', 'My jobs')} />
           <List>
             {open.map((j) => (
               <ListItem
                 key={j.id}
                 icon={Briefcase}
                 chevron
-                description={`${String(j.counts.total)} candidates · ${String(j.counts.newThisWeek)} new`}
-                onPress={() => { navigation.navigate('RecruitingPipeline', { jobId: j.id, title: j.title }); }
-                }
+                description={t(
+                  'recruiting.screens.candidates_new',
+                  '{{String}} candidates · {{String2}} new',
+                  { String: String(j.counts.total), String2: String(j.counts.newThisWeek) },
+                )}
+                onPress={() => {
+                  navigation.navigate('RecruitingPipeline', { jobId: j.id, title: j.title });
+                }}
               >
                 {j.title}
               </ListItem>
@@ -100,13 +120,22 @@ export function RecruitingHome({ navigation }: PeopleScreen<'Recruiting'>): Reac
       )}
       <View className="flex-row gap-3">
         <View className="flex-1">
-          <Stat label="Open jobs" value={String(open.length)} />
+          <Stat
+            label={t('recruiting.screens.open_jobs', 'Open jobs')}
+            value={String(open.length)}
+          />
         </View>
         <View className="flex-1">
-          <Stat label="To do" value={String(d.tasks.length)} />
+          <Stat label={t('recruiting.screens.to_do', 'To do')} value={String(d.tasks.length)} />
         </View>
       </View>
-      <Button onPress={() => { navigation.navigate('RecruitingAnalytics'); }}>Analytics</Button>
+      <Button
+        onPress={() => {
+          navigation.navigate('RecruitingAnalytics');
+        }}
+      >
+        {t('recruiting.screens.analytics', 'Analytics')}
+      </Button>
     </Page>
   );
 }
@@ -128,26 +157,37 @@ export function RecruitingInterviews({
 }: PeopleScreen<'RecruitingInterviews'>): React.JSX.Element {
   const { load, reload } = useRecruiting<Interviews>('RecruitingInterviews');
   const [tab, setTab] = useState<'upcoming' | 'owed'>('upcoming');
-  const back = { label: 'Recruiting', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.recruiting', 'Recruiting'),
+    onPress: navigation.goBack,
+  };
   return (
-    <Page title="My interviews" back={back}>
+    <Page title={t('recruiting.screens.my_interviews', 'My interviews')} back={back}>
       <SegmentedControl
         fullWidth
         value={tab}
-        accessibilityLabel="Which interviews"
-        onValueChange={(v) => { setTab(v === 'owed' ? 'owed' : 'upcoming'); }}
+        accessibilityLabel={t('recruiting.screens.which_interviews', 'Which interviews')}
+        onValueChange={(v) => {
+          setTab(v === 'owed' ? 'owed' : 'upcoming');
+        }}
       >
-        <SegmentedControlItem value="upcoming">Upcoming</SegmentedControlItem>
-        <SegmentedControlItem value="owed">Scorecards owed</SegmentedControlItem>
+        <SegmentedControlItem value="upcoming">
+          {t('recruiting.screens.upcoming', 'Upcoming')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="owed">
+          {t('recruiting.screens.scorecards_owed', 'Scorecards owed')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {load.status !== 'ready' ? (
         load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading your interviews" />
+          <Loading
+            label={t('recruiting.screens.loading_your_interviews', 'Loading your interviews')}
+          />
         )
       ) : (tab === 'upcoming' ? load.data.upcoming : load.data.owed).length === 0 ? (
-        <Text tone="muted">Nothing here.</Text>
+        <Text tone="muted">{t('recruiting.screens.nothing_here', 'Nothing here.')}</Text>
       ) : (
         <List>
           {(tab === 'upcoming' ? load.data.upcoming : load.data.owed).map((i) => (
@@ -156,7 +196,9 @@ export function RecruitingInterviews({
               icon={tab === 'owed' ? ClipboardPen : CalendarClock}
               chevron
               description={`${i.title} · ${when(i.startsAt)}`}
-              onPress={() => { navigation.navigate('RecruitingKit', { interviewId: i.id }); }}
+              onPress={() => {
+                navigation.navigate('RecruitingKit', { interviewId: i.id });
+              }}
             >
               {i.candidate}
             </ListItem>
@@ -186,14 +228,17 @@ export function RecruitingPipeline({
   const { load, reload } = useRecruiting<Pipeline>('RecruitingPipeline', {
     jobId: route.params.jobId,
   });
-  const back = { label: 'Recruiting', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.recruiting', 'Recruiting'),
+    onPress: navigation.goBack,
+  };
   if (load.status !== 'ready')
     return (
       <Page title={route.params.title} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the pipeline" />
+          <Loading label={t('recruiting.screens.loading_the_pipeline', 'Loading the pipeline')} />
         )}
       </Page>
     );
@@ -211,7 +256,9 @@ export function RecruitingPipeline({
                 <ListItem
                   key={c.candidateId}
                   chevron
-                  description={`${String(c.daysInStage)} d in stage`}
+                  description={t('recruiting.screens.d_in_stage', '{{String}} d in stage', {
+                    String: String(c.daysInStage),
+                  })}
                   trailing={
                     c.unread > 0 ? (
                       <Badge size="sm" tone="accent">
@@ -219,11 +266,12 @@ export function RecruitingPipeline({
                       </Badge>
                     ) : undefined
                   }
-                  onPress={() => { navigation.navigate('RecruitingCandidate', {
+                  onPress={() => {
+                    navigation.navigate('RecruitingCandidate', {
                       candidateId: c.candidateId,
                       name: c.name,
-                    }); }
-                  }
+                    });
+                  }}
                 >
                   {c.name}
                 </ListItem>
@@ -265,14 +313,14 @@ export function RecruitingCandidate({
   const [rejecting, setRejecting] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const back = { label: 'Pipeline', onPress: navigation.goBack };
+  const back = { label: t('recruiting.screens.pipeline', 'Pipeline'), onPress: navigation.goBack };
   if (load.status !== 'ready')
     return (
       <Page title={route.params.name} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the candidate" />
+          <Loading label={t('recruiting.screens.loading_the_candidate', 'Loading the candidate')} />
         )}
       </Page>
     );
@@ -297,21 +345,27 @@ export function RecruitingCandidate({
         ? {
             foot: (
               <View className="flex-row gap-3">
-                <Button className="flex-1" onPress={() => { setRejecting(true); }}>
-                  Reject
+                <Button
+                  className="flex-1"
+                  onPress={() => {
+                    setRejecting(true);
+                  }}
+                >
+                  {t('recruiting.screens.reject', 'Reject')}
                 </Button>
                 {next === undefined ? null : (
                   <Button
                     className="flex-1"
                     variant="primary"
                     loading={busy}
-                    onPress={() => { act('MoveApplication', {
+                    onPress={() => {
+                      act('MoveApplication', {
                         applicationId: a.applicationId,
                         input: { to: next.id },
-                      }); }
-                    }
+                      });
+                    }}
                   >
-                    {`Advance to ${next.name}`}
+                    {t('recruiting.screens.advance_to', 'Advance to {{name}}', { name: next.name })}
                   </Button>
                 )}
               </View>
@@ -321,29 +375,40 @@ export function RecruitingCandidate({
     >
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
       {a === undefined ? (
-        <Text tone="muted">No applications.</Text>
+        <Text tone="muted">{t('recruiting.screens.no_applications', 'No applications.')}</Text>
       ) : (
         <>
           <List>
             <ListItem description={a.job.title}>
               {a.outcome === 'active' ? (a.stages[at]?.name ?? '') : words(a.outcome)}
             </ListItem>
-            <ListItem description="Source">{words(a.source)}</ListItem>
+            <ListItem description={t('recruiting.screens.source', 'Source')}>
+              {words(a.source)}
+            </ListItem>
             {load.data.candidate.email === undefined ? null : (
-              <ListItem description="Email">{load.data.candidate.email}</ListItem>
+              <ListItem description={t('recruiting.screens.email', 'Email')}>
+                {load.data.candidate.email}
+              </ListItem>
             )}
           </List>
-          <Heading title="Scorecards" />
+          <Heading title={t('recruiting.screens.scorecards', 'Scorecards')} />
           {a.scorecards.length === 0 ? (
             <Text tone="muted">
-              None yet. An interviewer sees the others only after submitting their own.
+              {t(
+                'recruiting.screens.none_yet_an_interviewer_sees_the',
+                'None yet. An interviewer sees the others only after submitting their own.',
+              )}
             </Text>
           ) : (
             <List>
               {a.scorecards.map((s) => (
                 <ListItem
                   key={s.interviewerId}
-                  description={s.submittedAt === null ? 'Not submitted' : 'Submitted'}
+                  description={
+                    s.submittedAt === null
+                      ? t('recruiting.screens.not_submitted', 'Not submitted')
+                      : t('recruiting.screens.submitted', 'Submitted')
+                  }
                 >
                   {s.recommendation === null ? '—' : words(s.recommendation)}
                 </ListItem>
@@ -361,20 +426,34 @@ export function RecruitingCandidate({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`Reject ${load.data.candidate.name}?`}</DialogTitle>
+              <DialogTitle>
+                {t('recruiting.screens.reject_2', 'Reject {{name}}?', {
+                  name: load.data.candidate.name,
+                })}
+              </DialogTitle>
               <DialogDescription>
-                {a.job.title}. The email goes later today, never at night.
+                {t(
+                  'recruiting.screens.the_email_goes_later_today_never',
+                  '{{title}}. The email goes later today, never at night.',
+                  { title: a.job.title },
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button className="flex-1" onPress={() => { setRejecting(false); }}>
-                Cancel
+              <Button
+                className="flex-1"
+                onPress={() => {
+                  setRejecting(false);
+                }}
+              >
+                {t('recruiting.screens.cancel', 'Cancel')}
               </Button>
               <Button
                 className="flex-1"
                 variant="danger"
                 loading={busy}
-                onPress={() => { act('RejectApplication', {
+                onPress={() => {
+                  act('RejectApplication', {
                     applicationId: a.applicationId,
                     input: {
                       reasonKey: 'better_candidate',
@@ -382,10 +461,10 @@ export function RecruitingCandidate({
                       send: 'later_today',
                       poolId: null,
                     },
-                  }); }
-                }
+                  });
+                }}
               >
-                Reject
+                {t('recruiting.screens.reject', 'Reject')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -419,7 +498,13 @@ interface Kit {
   readonly me: string;
 }
 
-const ANCHORS = ['Strong no', 'No', 'Yes', 'Strong yes'] as const;
+const ANCHORS = () =>
+  [
+    t('recruiting.screens.strong_no', 'Strong no'),
+    t('recruiting.screens.no', 'No'),
+    t('recruiting.screens.yes', 'Yes'),
+    t('recruiting.screens.strong_yes', 'Strong yes'),
+  ] as const;
 const RECOMMENDATIONS = ['strong_no', 'no', 'yes', 'strong_yes'] as const;
 
 export function RecruitingKit({
@@ -436,14 +521,17 @@ export function RecruitingKit({
   const [notes, setNotes] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const back = { label: 'My interviews', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.my_interviews', 'My interviews'),
+    onPress: navigation.goBack,
+  };
   if (load.status !== 'ready')
     return (
-      <Page title="Scorecard" back={back}>
+      <Page title={t('recruiting.screens.scorecard', 'Scorecard')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the kit" />
+          <Loading label={t('recruiting.screens.loading_the_kit', 'Loading the kit')} />
         )}
       </Page>
     );
@@ -452,7 +540,9 @@ export function RecruitingKit({
   if (mine?.submittedAt != null)
     return (
       <Page title={k.candidate.name} back={back}>
-        <Alert tone="success">Your scorecard is in.</Alert>
+        <Alert tone="success">
+          {t('recruiting.screens.your_scorecard_is_in', 'Your scorecard is in.')}
+        </Alert>
       </Page>
     );
   const last = step >= k.competencies.length;
@@ -463,9 +553,11 @@ export function RecruitingKit({
       size="sm"
       value={value === null ? '' : String(value)}
       accessibilityLabel={label}
-      onValueChange={(v) => { set(Number(v)); }}
+      onValueChange={(v) => {
+        set(Number(v));
+      }}
     >
-      {ANCHORS.map((a, i) => (
+      {ANCHORS().map((a, i) => (
         <SegmentedControlItem
           key={a}
           value={String(i + 1)}
@@ -490,8 +582,14 @@ export function RecruitingKit({
       back={back}
       foot={
         <View className="flex-row gap-3">
-          <Button className="flex-1" disabled={step === 0} onPress={() => { setStep(step - 1); }}>
-            Back
+          <Button
+            className="flex-1"
+            disabled={step === 0}
+            onPress={() => {
+              setStep(step - 1);
+            }}
+          >
+            {t('recruiting.screens.back', 'Back')}
           </Button>
           {last ? (
             <Button
@@ -501,16 +599,18 @@ export function RecruitingKit({
               disabled={recommendation === null}
               onPress={submit}
             >
-              Submit
+              {t('recruiting.screens.submit', 'Submit')}
             </Button>
           ) : (
             <Button
               className="flex-1"
               variant="primary"
               disabled={c !== undefined && ratings[c.key] === undefined}
-              onPress={() => { setStep(step + 1); }}
+              onPress={() => {
+                setStep(step + 1);
+              }}
             >
-              Next
+              {t('recruiting.screens.next', 'Next')}
             </Button>
           )}
         </View>
@@ -520,19 +620,28 @@ export function RecruitingKit({
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
       {last || c === undefined ? (
         <>
-          <Text variant="title3">Overall recommendation</Text>
+          <Text variant="title3">
+            {t('recruiting.screens.overall_recommendation', 'Overall recommendation')}
+          </Text>
           {scale(
             recommendation === null
               ? null
               : RECOMMENDATIONS.indexOf(recommendation as (typeof RECOMMENDATIONS)[number]) + 1,
-            (n) => { setRecommendation(RECOMMENDATIONS[n - 1] ?? null); },
-            'Overall recommendation',
+            (n) => {
+              setRecommendation(RECOMMENDATIONS[n - 1] ?? null);
+            },
+            t('recruiting.screens.overall_recommendation', 'Overall recommendation'),
           )}
           <Field>
-            <FieldLabel>Notes</FieldLabel>
+            <FieldLabel>{t('recruiting.screens.notes', 'Notes')}</FieldLabel>
             <Textarea value={notes} onChangeText={setNotes} />
           </Field>
-          <Text tone="muted">Others’ scorecards appear after you submit.</Text>
+          <Text tone="muted">
+            {t(
+              'recruiting.screens.others_scorecards_appear_after_you_submit',
+              'Others’ scorecards appear after you submit.',
+            )}
+          </Text>
         </>
       ) : (
         <>
@@ -541,7 +650,13 @@ export function RecruitingKit({
           {c.questions.map((q) => (
             <Text key={q}>{q}</Text>
           ))}
-          {scale(ratings[c.key] ?? null, (n) => { setRatings({ ...ratings, [c.key]: n }); }, c.name)}
+          {scale(
+            ratings[c.key] ?? null,
+            (n) => {
+              setRatings({ ...ratings, [c.key]: n });
+            },
+            c.name,
+          )}
         </>
       )}
     </Page>
@@ -571,7 +686,10 @@ export function RecruitingApprovals({
   } | null>(null);
   const [comment, setComment] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
-  const back = { label: 'Recruiting', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.recruiting', 'Recruiting'),
+    onPress: navigation.goBack,
+  };
   const decide = (decision: 'approved' | 'rejected'): void => {
     if (deciding === null) return;
     const operation = deciding.kind === 'offer' ? 'DecideOffer' : 'DecideRequisition';
@@ -594,15 +712,17 @@ export function RecruitingApprovals({
   const pendingReqs =
     reqs.load.status === 'ready' ? reqs.load.data.filter((r) => r.approval?.mine === true) : [];
   return (
-    <Page title="Approvals" back={back}>
+    <Page title={t('recruiting.screens.approvals', 'Approvals')} back={back}>
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
       {offers.load.status === 'loading' || reqs.load.status === 'loading' ? (
-        <Loading label="Loading approvals" />
+        <Loading label={t('recruiting.screens.loading_approvals', 'Loading approvals')} />
       ) : null}
       {pendingOffers.length + pendingReqs.length === 0 &&
       offers.load.status === 'ready' &&
       reqs.load.status === 'ready' ? (
-        <Text tone="muted">Nothing waits on you.</Text>
+        <Text tone="muted">
+          {t('recruiting.screens.nothing_waits_on_you', 'Nothing waits on you.')}
+        </Text>
       ) : null}
       <List>
         {pendingOffers.map((o) => (
@@ -611,9 +731,17 @@ export function RecruitingApprovals({
             icon={FileText}
             chevron
             description={o.job}
-            onPress={() => { setDeciding({ kind: 'offer', id: o.id, title: `Offer: ${o.candidate}` }); }}
+            onPress={() => {
+              setDeciding({
+                kind: 'offer',
+                id: o.id,
+                title: t('recruiting.screens.offer', 'Offer: {{candidate}}', {
+                  candidate: o.candidate,
+                }),
+              });
+            }}
           >
-            {`Offer: ${o.candidate}`}
+            {t('recruiting.screens.offer', 'Offer: {{candidate}}', { candidate: o.candidate })}
           </ListItem>
         ))}
         {pendingReqs.map((r) => (
@@ -621,11 +749,20 @@ export function RecruitingApprovals({
             key={r.id}
             icon={Briefcase}
             chevron
-            description={`${String(r.openings)} openings`}
-            onPress={() => { setDeciding({ kind: 'requisition', id: r.id, title: `Requisition: ${r.title}` }); }
-            }
+            description={t('recruiting.screens.openings', '{{String}} openings', {
+              String: String(r.openings),
+            })}
+            onPress={() => {
+              setDeciding({
+                kind: 'requisition',
+                id: r.id,
+                title: t('recruiting.screens.requisition', 'Requisition: {{title}}', {
+                  title: r.title,
+                }),
+              });
+            }}
           >
-            {`Requisition: ${r.title}`}
+            {t('recruiting.screens.requisition', 'Requisition: {{title}}', { title: r.title })}
           </ListItem>
         ))}
       </List>
@@ -640,12 +777,15 @@ export function RecruitingApprovals({
             <DialogHeader>
               <DialogTitle>{deciding.title}</DialogTitle>
               <DialogDescription>
-                Its checks are on the web’s approval page; a comment is required to reject.
+                {t(
+                  'recruiting.screens.its_checks_are_on_the_webs',
+                  'Its checks are on the web’s approval page; a comment is required to reject.',
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <Field>
-                <FieldLabel>Comment</FieldLabel>
+                <FieldLabel>{t('recruiting.screens.comment', 'Comment')}</FieldLabel>
                 <Textarea value={comment} onChangeText={setComment} />
               </Field>
             </DialogBody>
@@ -653,12 +793,20 @@ export function RecruitingApprovals({
               <Button
                 className="flex-1"
                 disabled={comment.trim() === ''}
-                onPress={() => { decide('rejected'); }}
+                onPress={() => {
+                  decide('rejected');
+                }}
               >
-                Reject
+                {t('recruiting.screens.reject', 'Reject')}
               </Button>
-              <Button className="flex-1" variant="primary" onPress={() => { decide('approved'); }}>
-                Approve
+              <Button
+                className="flex-1"
+                variant="primary"
+                onPress={() => {
+                  decide('approved');
+                }}
+              >
+                {t('recruiting.screens.approve', 'Approve')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -687,12 +835,20 @@ export function RecruitingBoard({
   const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
   const [said, setSaid] = useState<string | null>(null);
-  const back = { label: 'Recruiting', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.recruiting', 'Recruiting'),
+    onPress: navigation.goBack,
+  };
   if (job !== null)
     return (
       <Page
-        title="Refer"
-        back={{ label: 'Job board', onPress: () => { setJob(null); } }}
+        title={t('recruiting.screens.refer', 'Refer')}
+        back={{
+          label: t('recruiting.screens.job_board', 'Job board'),
+          onPress: () => {
+            setJob(null);
+          },
+        }}
         foot={
           <Button
             variant="primary"
@@ -712,17 +868,17 @@ export function RecruitingBoard({
               });
             }}
           >
-            Send referral
+            {t('recruiting.screens.send_referral', 'Send referral')}
           </Button>
         }
       >
         <Text variant="title3">{job.title}</Text>
         <Field>
-          <FieldLabel>Name</FieldLabel>
+          <FieldLabel>{t('recruiting.screens.name', 'Name')}</FieldLabel>
           <Input value={name} onChangeText={setName} />
         </Field>
         <Field>
-          <FieldLabel>Email</FieldLabel>
+          <FieldLabel>{t('recruiting.screens.email', 'Email')}</FieldLabel>
           <Input
             value={email}
             onChangeText={setEmail}
@@ -731,22 +887,25 @@ export function RecruitingBoard({
           />
         </Field>
         <Field>
-          <FieldLabel>Why they’d be good</FieldLabel>
+          <FieldLabel>{t('recruiting.screens.why_theyd_be_good', 'Why they’d be good')}</FieldLabel>
           <Textarea value={note} onChangeText={setNote} />
         </Field>
         <Text tone="muted">
-          They apply themselves, with their own consent. You’ll only hear whether they were hired.
+          {t(
+            'recruiting.screens.they_apply_themselves_with_their_own',
+            'They apply themselves, with their own consent. You’ll only hear whether they were hired.',
+          )}
         </Text>
       </Page>
     );
   return (
-    <Page title="Job board" back={back}>
+    <Page title={t('recruiting.screens.job_board', 'Job board')} back={back}>
       {said === null ? null : <Alert tone="info">{said}</Alert>}
       {load.status !== 'ready' ? (
         load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading open jobs" />
+          <Loading label={t('recruiting.screens.loading_open_jobs', 'Loading open jobs')} />
         )
       ) : (
         <List>
@@ -756,7 +915,9 @@ export function RecruitingBoard({
               icon={Briefcase}
               chevron
               description={[j.department, words(j.workMode)].filter(Boolean).join(' · ')}
-              onPress={() => { setJob({ id: j.id, title: j.title }); }}
+              onPress={() => {
+                setJob({ id: j.id, title: j.title });
+              }}
             >
               {j.title}
             </ListItem>
@@ -781,27 +942,30 @@ export function RecruitingAnalytics({
   navigation,
 }: PeopleScreen<'RecruitingAnalytics'>): React.JSX.Element {
   const { load, reload } = useRecruiting<Analytics>('RecruitingAnalytics', { period: 'this_year' });
-  const back = { label: 'Recruiting', onPress: navigation.goBack };
+  const back = {
+    label: t('recruiting.screens.recruiting', 'Recruiting'),
+    onPress: navigation.goBack,
+  };
   if (load.status !== 'ready')
     return (
-      <Page title="Analytics" back={back}>
+      <Page title={t('recruiting.screens.analytics', 'Analytics')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading analytics" />
+          <Loading label={t('recruiting.screens.loading_analytics', 'Loading analytics')} />
         )}
       </Page>
     );
   const o = load.data.overview;
   return (
-    <Page title="Analytics" back={back}>
+    <Page title={t('recruiting.screens.analytics', 'Analytics')} back={back}>
       <View className="flex-row gap-3">
         <View className="flex-1">
-          <Stat label="Hires" value={String(o.hires)} />
+          <Stat label={t('recruiting.screens.hires', 'Hires')} value={String(o.hires)} />
         </View>
         <View className="flex-1">
           <Stat
-            label="Time to hire"
+            label={t('recruiting.screens.time_to_hire', 'Time to hire')}
             value={
               o.timeToHire.median === null ? '—' : `${String(Math.round(o.timeToHire.median))} d`
             }
@@ -811,15 +975,20 @@ export function RecruitingAnalytics({
       <View className="flex-row gap-3">
         <View className="flex-1">
           <Stat
-            label="Offer acceptance"
+            label={t('recruiting.screens.offer_acceptance', 'Offer acceptance')}
             value={load.data.offers.rate === null ? '—' : `${load.data.offers.rate}%`}
           />
         </View>
         <View className="flex-1">
-          <Stat label="Open jobs" value={String(o.openJobs)} />
+          <Stat label={t('recruiting.screens.open_jobs', 'Open jobs')} value={String(o.openJobs)} />
         </View>
       </View>
-      <Text tone="muted">Other dashboards and building a chart are on the web.</Text>
+      <Text tone="muted">
+        {t(
+          'recruiting.screens.other_dashboards_and_building_a_chart',
+          'Other dashboards and building a chart are on the web.',
+        )}
+      </Text>
     </Page>
   );
 }

@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn.ts';
 import { Card } from '../card/card.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * One number with context, as the web's `Stat`. Direction and sentiment are
@@ -96,7 +97,7 @@ export function Stat({
         >
           {from === undefined ? null : (
             <CssText
-              accessibilityLabel="from"
+              accessibilityLabel={t('components.stat.stat.from', 'from')}
               className="font-semibold tracking-normal text-fg-muted"
               style={{ fontSize: size * 0.55 }}
             >

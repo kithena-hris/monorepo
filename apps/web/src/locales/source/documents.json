@@ -1017,19 +1017,23 @@
   },
   "envelopes.prepare.dated_signature": {
     "text": "Dated signature",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"date\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.for": {
     "text": "For",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
   },
+  "envelopes.prepare.full_name": {
+    "text": "Full name",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"name\" value."
+  },
   "envelopes.prepare.initials": {
     "text": "Initials",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"initials\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.job_title": {
     "text": "Job title",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"title\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.kind_of_box": {
     "text": "Kind of box",
@@ -1061,11 +1065,11 @@
   },
   "envelopes.prepare.signature": {
     "text": "Signature",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"signature\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.text": {
     "text": "Text",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"text\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.text_2_one": {
     "text": "{{name}} · {{count}} box",
@@ -1093,7 +1097,7 @@
   },
   "envelopes.prepare.tick_box": {
     "text": "Tick box",
-    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"checkbox\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
   },
   "envelopes.prepare.who_signs": {
     "text": "Who signs",
@@ -1102,6 +1106,10 @@
   "envelopes.prepare.whose_box": {
     "text": "Whose box",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
+  },
+  "envelopes.sign-view.add_your_name": {
+    "text": "Add your name",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"name\" value."
   },
   "envelopes.sign-view.adopt_and_sign": {
     "text": "Adopt and sign",
@@ -1127,6 +1135,10 @@
     "text": "Dec",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
   },
+  "envelopes.sign-view.electronically_signed_via_kithena_on_signature": {
+    "text": "Electronically signed via Kithena on {{when}}\nSignature ID: {{traceId}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code. Filled in: {{when}}, {{traceId}}."
+  },
   "envelopes.sign-view.everybody_has_signed_the_sealed_copy": {
     "text": "Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code."
@@ -1149,7 +1161,7 @@
   },
   "envelopes.sign-view.initial": {
     "text": "Initial",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"initials\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.jan": {
     "text": "Jan",
@@ -1170,6 +1182,10 @@
   "envelopes.sign-view.may": {
     "text": "May",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"name\" value."
   },
   "envelopes.sign-view.next": {
     "text": "Next",
@@ -1209,11 +1225,11 @@
   },
   "envelopes.sign-view.sign": {
     "text": "Sign",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"signature\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.sign_and_date": {
     "text": "Sign and date",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"date\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.signed_by": {
     "text": "Signed by",
@@ -1237,7 +1253,7 @@
   },
   "envelopes.sign-view.text_3": {
     "text": "Text",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"text\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: text built in code."
   },
   "envelopes.sign-view.text_one": {
     "text": "{{count}} place",
@@ -1249,15 +1265,15 @@
   },
   "envelopes.sign-view.tick": {
     "text": "Tick",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"checkbox\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.title": {
     "text": "Title",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"title\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: text built in code."
   },
   "envelopes.sign-view.type_it": {
     "text": "Type it",
-    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"title\" value."
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: text built in code."
   },
   "envelopes.sign-view.utc": {
     "text": "{{getUTCDate}} {{value}} {{getUTCFullYear}}, {{pad}}:{{pad2}} UTC",
@@ -1597,7 +1613,7 @@
   },
   "library.library.expiring_in_60_days": {
     "text": "Expiring in 60 days",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"expiring\" value."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
   },
   "library.library.for": {
     "text": "For",
@@ -1615,6 +1631,10 @@
     "text": "Grant",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AccessDecision: text inside <Button>."
   },
+  "library.library.hi_we_need_your_a_photo": {
+    "text": "Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text built in code. Filled in: {{first}}, {{toLowerCase}}."
+  },
   "library.library.kithena_is_reading_your_documents": {
     "text": "Kithena is reading your documents",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, Ready: the label of <Spinner>."
@@ -1629,7 +1649,7 @@
   },
   "library.library.missing_from_peoples_files": {
     "text": "Missing from people’s files",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"missing\" value."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
   },
   "library.library.more": {
     "text": "More",
@@ -1745,7 +1765,7 @@
   },
   "library.library.retention_ended": {
     "text": "Retention ended",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"to_delete\" value."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
   },
   "library.library.review_and_sign": {
     "text": "Review and sign",
@@ -1813,7 +1833,7 @@
   },
   "library.library.waiting_for_a_signature": {
     "text": "Waiting for a signature",
-    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: a \"to_sign\" value."
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, QUEUE_TITLES: text built in code."
   },
   "library.library.who_can_see_it": {
     "text": "Who can see it",
@@ -1923,6 +1943,54 @@
     "text": "Try again",
     "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./documents/all.description": {
+    "text": "Every document you can open, what needs you, and HR’s queues",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/all.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): the heading of the group it is listed under."
+  },
+  "nav./documents/all.label": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/all.summary": {
+    "text": "Every document you can open",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): a short line under its name on a phone’s row."
+  },
+  "nav./settings/documents/access.description": {
+    "text": "What new documents start as, how far people can share, and what Confidential enforces.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/access): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/access.label": {
+    "text": "Access and sharing",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/access): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/ai.description": {
+    "text": "Summaries, questions and sorting: what Kithena may do with your documents.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/ai.label": {
+    "text": "Kithena reading",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/retention.description": {
+    "text": "One rule per kind of document, and the holds that override them.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/retention): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/retention.label": {
+    "text": "Retention and legal holds",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/retention): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/types.description": {
+    "text": "Where each kind of document is filed, who sees it, what it needs and how long it is kept.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/types): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/types.label": {
+    "text": "Document types",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/types): its name in the sidebar, the breadcrumb and the menus."
+  },
   "people.person-file.a_persons_file": {
     "text": "A person’s file",
     "context": "Documents: files, e-signatures, letters. people/person-file.tsx, PersonFile: the title of <PageHeader>."
@@ -1937,7 +2005,7 @@
   },
   "people.person-file.asked": {
     "text": "Asked",
-    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"asked\" value."
   },
   "people.person-file.before_day_one": {
     "text": "before day one",
@@ -1945,7 +2013,7 @@
   },
   "people.person-file.expired": {
     "text": "Expired",
-    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"expired\" value."
   },
   "people.person-file.file_a_document": {
     "text": "File a document",
@@ -1961,7 +2029,7 @@
   },
   "people.person-file.in_the_file": {
     "text": "In the file",
-    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"have\" value."
   },
   "people.person-file.loading_the_file": {
     "text": "Loading the file",
@@ -1969,7 +2037,7 @@
   },
   "people.person-file.missing": {
     "text": "Missing",
-    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. people/person-file.tsx, STATE: a \"missing\" value."
   },
   "people.person-file.needed_by": {
     "text": "Needed by {{dueOn}}",
@@ -2025,11 +2093,11 @@
   },
   "settings.settings.always_reviewed_before_anything_is_saved": {
     "text": "Always reviewed before anything is saved",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.answered_from_its_pages_citing_them": {
     "text": "Answered from its pages, citing them",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.anyone": {
     "text": "Anyone",
@@ -2165,11 +2233,11 @@
   },
   "settings.settings.from_the_search_box_only_from": {
     "text": "From the search box, only from documents the person can open",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.hr_only": {
     "text": "HR only",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: a \"hr\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: text built in code."
   },
   "settings.settings.hr_the_documents_type_or_its": {
     "text": "HR, the document’s type, or its owner can mark a document Confidential. Only HR lowers what HR or the type set.",
@@ -2273,11 +2341,11 @@
   },
   "settings.settings.off_by_default_a_picture_is": {
     "text": "Off by default: a picture is sent as it is, since names in it cannot be hidden first",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.on_every_document_a_person_opens": {
     "text": "On every document a person opens",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.one_rule_per_kind_of_document": {
     "text": "One rule per kind of document. Legal holds override them; nothing is deleted without HR confirming.",
@@ -2317,19 +2385,19 @@
   },
   "settings.settings.questions_about_a_document": {
     "text": "Questions about a document",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.questions_across_documents": {
     "text": "Questions across documents",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.read_fields_into_people": {
     "text": "Read fields into People",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.read_photos_and_scans": {
     "text": "Read photos and scans",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.reminders_days_before_it_expires_one": {
     "text": "Reminders {{join}} day before it expires",
@@ -2401,7 +2469,7 @@
   },
   "settings.settings.sort_uploads": {
     "text": "Sort uploads",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.subject_hr": {
     "text": "subject,hr",
@@ -2409,7 +2477,7 @@
   },
   "settings.settings.summaries": {
     "text": "Summaries",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"label\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.template": {
     "text": "Template",
@@ -2421,7 +2489,7 @@
   },
   "settings.settings.the_person_and_hr": {
     "text": "the person and HR",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: a \"subject\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, AUDIENCE: text built in code."
   },
   "settings.settings.the_person_it_is_about": {
     "text": "The person it is about",
@@ -2449,7 +2517,7 @@
   },
   "settings.settings.type_person_and_dates_for_hr": {
     "text": "Type, person and dates, for HR to confirm",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: a \"description\" value."
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, FEATURES: text built in code."
   },
   "settings.settings.until_they_leave_plus_years": {
     "text": "Until they leave, plus years",

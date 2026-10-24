@@ -21,6 +21,7 @@ import { longDate } from '../display';
 import type { PeopleScreen } from '../routes';
 import { parsed } from './load';
 import type { AccessState, Share } from './model';
+import { t } from '../../i18n';
 
 /** A request for full values (E7), as HR decides it: who, which fields, why, then Approve or Reject. */
 export function ReviewAccess({
@@ -30,11 +31,14 @@ export function ReviewAccess({
   const { load, reload } = useRead<AccessState>('FullValues', { request: route.params.id });
   const { act, busy } = useAct();
   const [note, setNote] = useState('');
-  const back = { label: 'All items', onPress: navigation.goBack };
+  const back = {
+    label: t('people.review.decide.all_items', 'All items'),
+    onPress: navigation.goBack,
+  };
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading the request" />
+        <Loading label={t('people.review.decide.loading_the_request', 'Loading the request')} />
       </Page>
     );
   if (load.status === 'error')
@@ -47,8 +51,11 @@ export function ReviewAccess({
   if (request === undefined) {
     return (
       <Page back={back}>
-        <Alert tone="info" title="Already decided">
-          This request is no longer waiting.
+        <Alert tone="info" title={t('people.review.decide.already_decided', 'Already decided')}>
+          {t(
+            'people.review.decide.this_request_is_no_longer_waiting',
+            'This request is no longer waiting.',
+          )}
         </Alert>
       </Page>
     );
@@ -65,7 +72,7 @@ export function ReviewAccess({
   const pending = request.state === 'pending' && load.data.canDecide && !request.mine;
   return (
     <Page
-      title="Full values"
+      title={t('people.review.decide.full_values', 'Full values')}
       back={back}
       {...(pending
         ? {
@@ -79,7 +86,7 @@ export function ReviewAccess({
                     decide(false);
                   }}
                 >
-                  Reject
+                  {t('people.review.decide.reject', 'Reject')}
                 </Button>
                 <Button
                   className="flex-1"
@@ -90,7 +97,7 @@ export function ReviewAccess({
                     decide(true);
                   }}
                 >
-                  Approve
+                  {t('people.review.decide.approve', 'Approve')}
                 </Button>
               </>
             ),
@@ -102,27 +109,43 @@ export function ReviewAccess({
           layout="stacked"
           items={[
             {
-              label: 'Asked by',
+              label: t('people.review.decide.asked_by', 'Asked by'),
               value: request.mine ? 'You' : (request.requestedBy ?? 'Somebody'),
             },
-            { label: 'Fields', value: request.fields.join(', ') },
-            ...(request.people === null ? [] : [{ label: 'Whose', value: request.people }]),
-            { label: 'Reason', value: request.reason },
-            { label: 'Asked on', value: longDate(request.requestedAt.slice(0, 10)) },
-            { label: 'Expires', value: longDate(request.expiresAt.slice(0, 10)) },
+            { label: t('people.review.decide.fields', 'Fields'), value: request.fields.join(', ') },
+            ...(request.people === null
+              ? []
+              : [{ label: t('people.review.decide.whose', 'Whose'), value: request.people }]),
+            { label: t('people.review.decide.reason', 'Reason'), value: request.reason },
+            {
+              label: t('people.review.decide.asked_on', 'Asked on'),
+              value: longDate(request.requestedAt.slice(0, 10)),
+            },
+            {
+              label: t('people.review.decide.expires', 'Expires'),
+              value: longDate(request.expiresAt.slice(0, 10)),
+            },
           ]}
         />
       </Card>
       <Text variant="footnote" tone="muted">
-        Approved, the requester downloads the values once, within 24 hours.
+        {t(
+          'people.review.decide.approved_the_requester_downloads_the_values',
+          'Approved, the requester downloads the values once, within 24 hours.',
+        )}
       </Text>
       {pending ? (
         <Field>
-          <FieldLabel>Note</FieldLabel>
-          <Textarea value={note} onChange={setNote} maxLength={500} placeholder="Optional" />
+          <FieldLabel>{t('people.review.decide.note', 'Note')}</FieldLabel>
+          <Textarea
+            value={note}
+            onChange={setNote}
+            maxLength={500}
+            placeholder={t('people.review.decide.optional', 'Optional')}
+          />
         </Field>
       ) : request.note === null ? null : (
-        <Text>{`Note: “${request.note}”`}</Text>
+        <Text>{t('people.review.decide.note_2', 'Note: “{{note}}”', { note: request.note })}</Text>
       )}
     </Page>
   );
@@ -137,11 +160,14 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
   const { load, reload } = useRead<string>('ExportShare', { id: route.params.id });
   const { act, busy } = useAct();
   const [note, setNote] = useState('');
-  const back = { label: 'All items', onPress: navigation.goBack };
+  const back = {
+    label: t('people.review.decide.all_items', 'All items'),
+    onPress: navigation.goBack,
+  };
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading the request" />
+        <Loading label={t('people.review.decide.loading_the_request', 'Loading the request')} />
       </Page>
     );
   if (load.status === 'error')
@@ -154,8 +180,11 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
   if (share === null) {
     return (
       <Page back={back}>
-        <Alert tone="info" title="Not found">
-          This request is gone, or it is not yours to decide.
+        <Alert tone="info" title={t('people.review.decide.not_found', 'Not found')}>
+          {t(
+            'people.review.decide.this_request_is_gone_or_it',
+            'This request is gone, or it is not yours to decide.',
+          )}
         </Alert>
       </Page>
     );
@@ -164,7 +193,7 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
     void act(
       'DecideExportShare',
       { id: share.id, approve, note: note.trim() === '' ? null : note.trim() },
-      approve ? 'Approved: it is sent' : 'Rejected',
+      approve ? t('people.review.decide.approved_it_is_sent', 'Approved: it is sent') : 'Rejected',
     ).then((done) => {
       if (done !== null) navigation.goBack();
     });
@@ -172,7 +201,7 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
   const pending = share.state === 'pending' && share.canDecide;
   return (
     <Page
-      title="Export"
+      title={t('people.review.decide.export', 'Export')}
       back={back}
       {...(pending
         ? {
@@ -186,7 +215,7 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
                     decide(false);
                   }}
                 >
-                  Reject
+                  {t('people.review.decide.reject', 'Reject')}
                 </Button>
                 <Button
                   className="flex-1"
@@ -197,7 +226,7 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
                     decide(true);
                   }}
                 >
-                  Approve and send
+                  {t('people.review.decide.approve_and_send', 'Approve and send')}
                 </Button>
               </>
             ),
@@ -207,9 +236,12 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
       <Inline gap={3} wrap={false}>
         <Avatar name={share.requestedBy.name ?? 'A colleague'} size={44} decorative />
         <Stack gap={1} className="flex-1">
-          <Text variant="title3">{`${share.requestedBy.name ?? 'A colleague'} → ${share.recipient.name ?? 'a colleague'}`}</Text>
+          <Text variant="title3">{`${share.requestedBy.name ?? t('people.review.decide.a_colleague', 'A colleague')} → ${share.recipient.name ?? 'a colleague'}`}</Text>
           <Text variant="footnote" tone="muted">
-            {`Asked ${longDate(share.requestedAt.slice(0, 10))} · expires ${longDate(share.expiresAt.slice(0, 10))}`}
+            {t('people.review.decide.asked_expires', 'Asked {{longDate}} · expires {{longDate2}}', {
+              longDate: longDate(share.requestedAt.slice(0, 10)),
+              longDate2: longDate(share.expiresAt.slice(0, 10)),
+            })}
           </Text>
         </Stack>
         {share.state === 'pending' ? null : <Badge size="sm">{share.state}</Badge>}
@@ -218,17 +250,34 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
         <KeyValues
           layout="stacked"
           items={[
-            { label: 'Reason', value: share.reason },
-            { label: 'Fields', value: share.fields.join(', ') },
-            ...(share.people === null ? [] : [{ label: 'People', value: String(share.people) }]),
-            ...(share.asOf === null ? [] : [{ label: 'As of', value: longDate(share.asOf) }]),
-            { label: 'Format', value: share.format.toUpperCase() },
+            { label: t('people.review.decide.reason', 'Reason'), value: share.reason },
+            { label: t('people.review.decide.fields', 'Fields'), value: share.fields.join(', ') },
+            ...(share.people === null
+              ? []
+              : [
+                  {
+                    label: t('people.review.decide.people', 'People'),
+                    value: String(share.people),
+                  },
+                ]),
+            ...(share.asOf === null
+              ? []
+              : [{ label: t('people.review.decide.as_of', 'As of'), value: longDate(share.asOf) }]),
+            {
+              label: t('people.review.decide.format', 'Format'),
+              value: share.format.toUpperCase(),
+            },
           ]}
         />
       </Card>
       {share.gap === null || share.gap.fields.length === 0 ? null : (
-        <Alert tone="warning" title={`${share.recipient.name ?? 'They'} can’t see all of it`}>
-          {`${share.gap.fields.map((f) => `${f.label} (${String(f.people)} people)`).join(', ')}${
+        <Alert
+          tone="warning"
+          title={t('people.review.decide.cant_see_all_of_it', '{{value}} can’t see all of it', {
+            value: share.recipient.name ?? 'They',
+          })}
+        >
+          {`${share.gap.fields.map((f) => t('people.review.decide.people_2', '{{label}} ({{String}} people)', { label: f.label, String: String(f.people) })).join(', ')}${
             share.gap.unlisted > 0
               ? `, and ${String(share.gap.unlisted)} people they can’t list`
               : ''
@@ -237,11 +286,16 @@ export function ReviewShare({ navigation, route }: PeopleScreen<'ReviewShare'>):
       )}
       {pending ? (
         <Field>
-          <FieldLabel>Note</FieldLabel>
-          <Textarea value={note} onChange={setNote} maxLength={500} placeholder="Optional" />
+          <FieldLabel>{t('people.review.decide.note', 'Note')}</FieldLabel>
+          <Textarea
+            value={note}
+            onChange={setNote}
+            maxLength={500}
+            placeholder={t('people.review.decide.optional', 'Optional')}
+          />
         </Field>
       ) : share.note === null ? null : (
-        <Text>{`Note: “${share.note}”`}</Text>
+        <Text>{t('people.review.decide.note_2', 'Note: “{{note}}”', { note: share.note })}</Text>
       )}
     </Page>
   );

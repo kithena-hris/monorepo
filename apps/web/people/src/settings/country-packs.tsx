@@ -37,13 +37,30 @@ const CHECK: Record<
   NonNullable<CountryPackRow['check']>,
   { readonly label: string; readonly tone: 'success' | 'info' | 'warning' }
 > = {
-  checksum: { label: t('settings.country-packs.checksum', 'Checksum'), tone: 'success' },
-  allocation: {
-    label: t('settings.country-packs.allocation_rules', 'Allocation rules'),
+  checksum: {
+    get label(): string {
+      return t('settings.country-packs.checksum', 'Checksum');
+    },
     tone: 'success',
   },
-  ranges: { label: t('settings.country-packs.ranges', 'Ranges'), tone: 'info' },
-  shape: { label: t('settings.country-packs.shape_only', 'Shape only'), tone: 'warning' },
+  allocation: {
+    get label(): string {
+      return t('settings.country-packs.allocation_rules', 'Allocation rules');
+    },
+    tone: 'success',
+  },
+  ranges: {
+    get label(): string {
+      return t('settings.country-packs.ranges', 'Ranges');
+    },
+    tone: 'info',
+  },
+  shape: {
+    get label(): string {
+      return t('settings.country-packs.shape_only', 'Shape only');
+    },
+    tone: 'warning',
+  },
 };
 
 export function CountryPacks({

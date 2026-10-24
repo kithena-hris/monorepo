@@ -22,6 +22,7 @@ import {
   Switch,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -33,6 +34,7 @@ import type { PeopleScreen } from '../people/routes';
 import { askTimeOff, useTimeOff } from './api';
 import { duration } from './time';
 import { amount, asDate, shortDate } from './words';
+import { t as tr } from '../i18n';
 
 interface Insights {
   readonly asOf: string;
@@ -71,15 +73,16 @@ interface Insights {
   }[];
 }
 
-const TABS = [
-  ['what-changed', 'What changed'],
-  ['time-off', 'Time off'],
-  ['attendance', 'Attendance'],
-  ['balances', 'Balances'],
-] as const;
+const TABS = () =>
+  [
+    ['what-changed', tr('timeoff.insights.what_changed', 'What changed')],
+    ['time-off', tr('timeoff.insights.time_off', 'Time off')],
+    ['attendance', tr('timeoff.insights.attendance', 'Attendance')],
+    ['balances', tr('timeoff.insights.balances', 'Balances')],
+  ] as const;
 
 const monthShort = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(asDate(`${m}-01`));
+  dateFormat({ month: 'short', timeZone: 'UTC' }).format(asDate(`${m}-01`));
 
 /**
  * Time Off's insights, for HR: the month in a few points (each opening the
@@ -93,14 +96,14 @@ export function TimeOffInsights({
   const [tab, setTab] = useState<string>('what-changed');
   const [open, setOpen] = useState<string | null>(null);
   const [nudging, setNudging] = useState(false);
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: tr('timeoff.insights.time_off', 'Time off'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Insights" back={back}>
+      <Page title={tr('timeoff.insights.insights', 'Insights')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the figures" />
+          <Loading label={tr('timeoff.insights.loading_the_figures', 'Loading the figures')} />
         )}
       </Page>
     );
@@ -109,26 +112,33 @@ export function TimeOffInsights({
   const point = d.points.find((p) => p.kind === open);
   const months = d.months.map((m) => monthShort(m.month));
   return (
-    <Page title="Insights" back={back}>
+    <Page title={tr('timeoff.insights.insights', 'Insights')} back={back}>
       <View>
         <ChipGroup
           type="single"
           scroll
           value={tab}
           onValueChange={setTab}
-          accessibilityLabel="Insights"
+          accessibilityLabel={tr('timeoff.insights.insights', 'Insights')}
         >
-          {TABS.map(([v, l]) => (
+          {TABS().map(([v, l]) => (
             <ChipGroupItem key={v} value={v} variant="view">
               {l}
             </ChipGroupItem>
           ))}
         </ChipGroup>
       </View>
-      <Text
-        variant="footnote"
-        tone="muted"
-      >{`As of ${shortDate(d.asOf.slice(0, 10))} · groups under ${String(d.cohortMinimum)} people are hidden${d.hiddenTeams > 0 ? ` (${String(d.hiddenTeams)} teams)` : ''}.`}</Text>
+      <Text variant="footnote" tone="muted">
+        {tr(
+          'timeoff.insights.as_of_groups_under_people_are',
+          'As of {{shortDate}} · groups under {{String}} people are hidden{{value}}.',
+          {
+            shortDate: shortDate(d.asOf.slice(0, 10)),
+            String: String(d.cohortMinimum),
+            value: d.hiddenTeams > 0 ? ` (${String(d.hiddenTeams)} teams)` : '',
+          },
+        )}
+      </Text>
       {tab === 'what-changed' ? (
         <>
           <Card>
@@ -136,12 +146,25 @@ export function TimeOffInsights({
               <View className="flex-row items-center gap-2">
                 <AssistantMark size={20} />
                 <Text variant="headline" className="flex-1">
-                  {`The month in ${String(d.points.length)} ${d.points.length === 1 ? 'point' : 'points'}`}
+                  {tr(
+                    'timeoff.insights.the_month_in',
+                    { one: 'The month in {{count}} point', other: 'The month in {{count}} points' },
+                    { count: d.points.length },
+                  )}
                 </Text>
-                <Badge size="sm">{d.points.some((p) => p.ai) ? 'AI' : 'Templated'}</Badge>
+                <Badge size="sm">
+                  {d.points.some((p) => p.ai)
+                    ? tr('timeoff.insights.ai', 'AI')
+                    : tr('timeoff.insights.templated', 'Templated')}
+                </Badge>
               </View>
               {d.points.length === 0 ? (
-                <Text tone="muted">Nothing worth saying changed this month.</Text>
+                <Text tone="muted">
+                  {tr(
+                    'timeoff.insights.nothing_worth_saying_changed_this_month',
+                    'Nothing worth saying changed this month.',
+                  )}
+                </Text>
               ) : (
                 d.points.map((p) => (
                   <ListItem
@@ -168,26 +191,44 @@ export function TimeOffInsights({
               setNudging(true);
             }}
           >
-            Nudge people to take time off
+            {tr('timeoff.insights.nudge_people_to_take_time_off', 'Nudge people to take time off')}
           </Button>
         </>
       ) : tab === 'time-off' ? (
-        <ChartCard title="Days taken" description="Vacation, sick and personal, by month">
+        <ChartCard
+          title={tr('timeoff.insights.days_taken', 'Days taken')}
+          description={tr(
+            'timeoff.insights.vacation_sick_and_personal_by_month',
+            'Vacation, sick and personal, by month',
+          )}
+        >
           <StackedBarChart
-            label="Days taken by month"
+            label={tr('timeoff.insights.days_taken_by_month', 'Days taken by month')}
             categories={months}
             series={[
-              { label: 'Vacation', values: d.months.map((m) => Number(m.vacation)) },
-              { label: 'Sick', values: d.months.map((m) => Number(m.sick)) },
-              { label: 'Personal', values: d.months.map((m) => Number(m.personal)) },
+              {
+                label: tr('timeoff.insights.vacation', 'Vacation'),
+                values: d.months.map((m) => Number(m.vacation)),
+              },
+              {
+                label: tr('timeoff.insights.sick', 'Sick'),
+                values: d.months.map((m) => Number(m.sick)),
+              },
+              {
+                label: tr('timeoff.insights.personal', 'Personal'),
+                values: d.months.map((m) => Number(m.personal)),
+              },
             ]}
           />
         </ChartCard>
       ) : tab === 'attendance' ? (
         <>
-          <ChartCard title="Overtime" description="Hours by month">
+          <ChartCard
+            title={tr('timeoff.insights.overtime', 'Overtime')}
+            description={tr('timeoff.insights.hours_by_month', 'Hours by month')}
+          >
             <BarChart
-              label="Overtime by month"
+              label={tr('timeoff.insights.overtime_by_month', 'Overtime by month')}
               data={d.months.map((m) => ({
                 label: monthShort(m.month),
                 value: Math.round(m.overtimeMinutes / 6) / 10,
@@ -195,9 +236,15 @@ export function TimeOffInsights({
               showValues
             />
           </ChartCard>
-          <ChartCard title="Missed clock-outs" description="By month">
+          <ChartCard
+            title={tr('timeoff.insights.missed_clock_outs', 'Missed clock-outs')}
+            description={tr('timeoff.insights.by_month', 'By month')}
+          >
             <BarChart
-              label="Missed clock-outs by month"
+              label={tr(
+                'timeoff.insights.missed_clock_outs_by_month',
+                'Missed clock-outs by month',
+              )}
               data={d.months.map((m) => ({ label: monthShort(m.month), value: m.missedClockOuts }))}
               showValues
             />
@@ -209,14 +256,23 @@ export function TimeOffInsights({
             {d.teams.map((t) => (
               <ListItem
                 key={t.team}
-                description={`${String(t.people)} people · ${amount(t.daysTaken)} taken · ${amount(t.left)} left · ${duration(t.overtimeMinutes)} overtime`}
+                description={tr(
+                  'timeoff.insights.people_taken_left_overtime',
+                  '{{String}} people · {{amount}} taken · {{amount2}} left · {{duration}} overtime',
+                  {
+                    String: String(t.people),
+                    amount: amount(t.daysTaken),
+                    amount2: amount(t.left),
+                    duration: duration(t.overtimeMinutes),
+                  },
+                )}
               >
                 {t.teamName}
               </ListItem>
             ))}
           </List>
           <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-            People
+            {tr('timeoff.insights.people', 'People')}
           </Text>
           <List>
             {d.people.map((p) => (
@@ -249,7 +305,9 @@ export function TimeOffInsights({
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {point.kind === 'unbooked' ? 'Who would lose days' : 'Who it is'}
+                {point.kind === 'unbooked'
+                  ? tr('timeoff.insights.who_would_lose_days', 'Who would lose days')
+                  : tr('timeoff.insights.who_it_is', 'Who it is')}
               </DialogTitle>
               <DialogDescription>{point.text}</DialogDescription>
             </DialogHeader>
@@ -263,7 +321,7 @@ export function TimeOffInsights({
                       leading={<Avatar name={p?.displayName ?? 'Someone'} size={36} />}
                       description={p?.teamName ?? ''}
                     >
-                      {p?.displayName ?? 'Someone'}
+                      {p?.displayName ?? tr('timeoff.insights.someone', 'Someone')}
                     </ListItem>
                   );
                 })}
@@ -276,7 +334,7 @@ export function TimeOffInsights({
                   setOpen(null);
                 }}
               >
-                Close
+                {tr('timeoff.insights.close', 'Close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -312,17 +370,34 @@ function Nudge({ onClose }: { onClose: () => void }): React.JSX.Element {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nudge to take time off</DialogTitle>
+          <DialogTitle>
+            {tr('timeoff.insights.nudge_to_take_time_off', 'Nudge to take time off')}
+          </DialogTitle>
           <DialogDescription>
-            An email to each person who has not had a day off in a while.
+            {tr(
+              'timeoff.insights.an_email_to_each_person_who',
+              'An email to each person who has not had a day off in a while.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {(
             [
-              ['balance', 'Their balance'],
-              ['bridge', 'A bridge day that makes it go further'],
-              ['losing', 'Days they would lose at year end'],
+              ['balance', tr('timeoff.insights.their_balance', 'Their balance')],
+              [
+                'bridge',
+                tr(
+                  'timeoff.insights.a_bridge_day_that_makes_it',
+                  'A bridge day that makes it go further',
+                ),
+              ],
+              [
+                'losing',
+                tr(
+                  'timeoff.insights.days_they_would_lose_at_year',
+                  'Days they would lose at year end',
+                ),
+              ],
             ] as const
           ).map(([k, label]) => (
             <ListItem
@@ -342,7 +417,7 @@ function Nudge({ onClose }: { onClose: () => void }): React.JSX.Element {
             </ListItem>
           ))}
           {load.status !== 'ready' ? (
-            <Loading label="Writing it" />
+            <Loading label={tr('timeoff.insights.writing_it', 'Writing it')} />
           ) : (
             <>
               {load.data.preview === null ? null : (
@@ -354,14 +429,21 @@ function Nudge({ onClose }: { onClose: () => void }): React.JSX.Element {
                 </Card>
               )}
               <Text variant="footnote" tone="muted">
-                {`${String(load.data.recipients.filter((r) => r.reachable).length)} of ${String(load.data.recipients.length)} can be reached by email.`}
+                {tr(
+                  'timeoff.insights.of_can_be_reached_by_email',
+                  '{{String}} of {{String2}} can be reached by email.',
+                  {
+                    String: String(load.data.recipients.filter((r) => r.reachable).length),
+                    String2: String(load.data.recipients.length),
+                  },
+                )}
               </Text>
             </>
           )}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.insights.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -378,13 +460,16 @@ function Nudge({ onClose }: { onClose: () => void }): React.JSX.Element {
                   },
                 },
                 (r) =>
-                  `Sent to ${String(r.sent)}${r.failed > 0 ? `, ${String(r.failed)} failed` : ''}`,
+                  tr('timeoff.insights.sent_to', 'Sent to {{String}}{{value}}', {
+                    String: String(r.sent),
+                    value: r.failed > 0 ? `, ${String(r.failed)} failed` : '',
+                  }),
               ).then((done) => {
                 if (done !== null) onClose();
               });
             }}
           >
-            Send
+            {tr('timeoff.insights.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>

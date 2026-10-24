@@ -249,10 +249,14 @@ export function SectionForm({
             tone="info"
             title={t('record.section-form.sent_to_hr_for_approval', 'Sent to HR for approval')}
           >
-            {formatList(held)} {held.length === 1 ? 'is' : 'are'}{' '}
             {t(
-              'record.section-form.not_changed_until_hr_approves_until',
-              'not changed until HR approves; until then the record keeps what it had. You can withdraw the change while it waits.',
+              'record.section-form.held_until_hr_approves',
+              {
+                one: '{{fields}} is not changed until HR approves; until then the record keeps what it had. You can withdraw the change while it waits.',
+                other:
+                  '{{fields}} are not changed until HR approves; until then the record keeps what it had. You can withdraw the change while it waits.',
+              },
+              { count: held.length, fields: formatList(held) },
             )}
           </Alert>
         )}

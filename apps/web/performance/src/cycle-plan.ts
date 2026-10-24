@@ -104,19 +104,19 @@ export function planRows(
   const nominationsClose = peerNominated ? resolveDue(p, p.nominations) : null;
   if (nominationsClose !== null)
     rows.push({
-      label: 'Nominations',
+      label: t('cycle-plan.nominations', 'Nominations'),
       meta: `Close ${date(nominationsClose)}`,
       items: [
         {
           id: 'nominations',
-          label: 'Nominating',
+          label: t('cycle-plan.nominating', 'Nominating'),
           start: p.start.date,
           end: nominationsClose,
           tone: 'neutral',
         },
         {
           id: 'nominations-due',
-          label: 'Nominations close',
+          label: t('cycle-plan.nominations_close', 'Nominations close'),
           start: nominationsClose,
           tone: 'neutral',
         },
@@ -131,7 +131,12 @@ export function planRows(
       a.due.from === 'nominations' && nominationsClose !== null ? nominationsClose : p.start.date;
     const items: TimelineEntry[] = [
       { id: `${k}-open`, label: label(k), start: opens, end: due < opens ? opens : due, tone },
-      { id: `${k}-due`, label: `${label(k)} due`, start: due, tone },
+      {
+        id: `${k}-due`,
+        label: t('cycle-plan.due', '{{label}} due', { label: label(k) }),
+        start: due,
+        tone,
+      },
       ...reminders(p.reminders.rules, opens, due)
         .filter((r) => r.date !== due)
         .map((r) => ({
@@ -148,9 +153,16 @@ export function planRows(
   const release = p.visibility?.release;
   if (release?.mode === 'hr_date' && release.date !== null)
     rows.push({
-      label: 'Release',
-      meta: 'Everyone at once',
-      items: [{ id: 'release', label: 'Released', start: release.date, tone: 'success' }],
+      label: t('cycle-plan.release', 'Release'),
+      meta: t('cycle-plan.everyone_at_once', 'Everyone at once'),
+      items: [
+        {
+          id: 'release',
+          label: t('cycle-plan.released', 'Released'),
+          start: release.date,
+          tone: 'success',
+        },
+      ],
     });
   return rows;
 }

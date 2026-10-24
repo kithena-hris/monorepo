@@ -7,6 +7,7 @@ import { Failed, Heading, Loading, Page } from '../frame';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askDocuments, useDocuments } from './api';
+import { t as tr } from '../i18n';
 
 /**
  * Settings › Documents on the phone (MS1–MS3, MS5, MS6): the types as one
@@ -34,21 +35,39 @@ interface SettingsData {
 }
 
 /** MS7: what Kithena may do with the company's documents. */
-const READING: readonly (readonly [string, string])[] = [
-  ['summaries', 'Summaries'],
-  ['questions', 'Questions about a document'],
-  ['across', 'Questions across documents'],
-  ['sorting', 'Sort uploads'],
-  ['fields', 'Read fields into People'],
-  ['photos', 'Read photos and scans'],
+const READING = (): readonly (readonly [string, string])[] => [
+  ['summaries', tr('documents.settings.summaries', 'Summaries')],
+  ['questions', tr('documents.settings.questions_about_a_document', 'Questions about a document')],
+  ['across', tr('documents.settings.questions_across_documents', 'Questions across documents')],
+  ['sorting', tr('documents.settings.sort_uploads', 'Sort uploads')],
+  ['fields', tr('documents.settings.read_fields_into_people', 'Read fields into People')],
+  ['photos', tr('documents.settings.read_photos_and_scans', 'Read photos and scans')],
 ];
 
-const SWITCHES: readonly (readonly [string, string])[] = [
-  ['askAfterUpload', 'Ask once after an upload whether to share'],
-  ['peopleMayTurnOffQuestion', 'People can turn the question off'],
-  ['watermark', 'Watermark confidential documents'],
-  ['blockDownload', 'Block download and print'],
-  ['personalSections', 'Everyone can create personal sections'],
+const SWITCHES = (): readonly (readonly [string, string])[] => [
+  [
+    'askAfterUpload',
+    tr(
+      'documents.settings.ask_once_after_an_upload_whether',
+      'Ask once after an upload whether to share',
+    ),
+  ],
+  [
+    'peopleMayTurnOffQuestion',
+    tr('documents.settings.people_can_turn_the_question_off', 'People can turn the question off'),
+  ],
+  [
+    'watermark',
+    tr('documents.settings.watermark_confidential_documents', 'Watermark confidential documents'),
+  ],
+  ['blockDownload', tr('documents.settings.block_download_and_print', 'Block download and print')],
+  [
+    'personalSections',
+    tr(
+      'documents.settings.everyone_can_create_personal_sections',
+      'Everyone can create personal sections',
+    ),
+  ],
 ];
 
 export function DocumentsSettings({
@@ -57,14 +76,14 @@ export function DocumentsSettings({
   const signed = useSigned();
   const { load, reload } = useDocuments<SettingsData>('DocumentsSettings');
   const [problem, setProblem] = useState<string | null>(null);
-  const back = { label: 'Settings', onPress: navigation.goBack };
+  const back = { label: tr('documents.settings.settings', 'Settings'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Documents" back={back}>
+      <Page title={tr('documents.settings.documents', 'Documents')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the settings" />
+          <Loading label={tr('documents.settings.loading_the_settings', 'Loading the settings')} />
         )}
       </Page>
     );
@@ -77,25 +96,39 @@ export function DocumentsSettings({
     });
   };
   return (
-    <Page title="Documents" back={back}>
-      {d.hr ? null : <Alert tone="info">Only HR can change these.</Alert>}
+    <Page title={tr('documents.settings.documents', 'Documents')} back={back}>
+      {d.hr ? null : (
+        <Alert tone="info">
+          {tr('documents.settings.only_hr_can_change_these', 'Only HR can change these.')}
+        </Alert>
+      )}
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
-      <Heading title="Document types" />
+      <Heading title={tr('documents.settings.document_types', 'Document types')} />
       <List>
         {d.types
           .filter((t) => !t.archived)
           .map((t) => (
             <ListItem
               key={t.key}
-              description={`${t.confidential ? 'Confidential · ' : ''}${t.retentionWords} · ${String(t.used)} documents`}
+              description={tr(
+                'documents.settings.documents_2',
+                '{{value}}{{retentionWords}} · {{String}} documents',
+                {
+                  value: t.confidential ? 'Confidential · ' : '',
+                  retentionWords: t.retentionWords,
+                  String: String(t.used),
+                },
+              )}
               supporting={
                 <View className="mt-1 flex-row gap-1.5">
                   {t.requiredFor === null ? null : (
                     <Badge tone="accent" size="sm">
-                      Required
+                      {tr('documents.settings.required', 'Required')}
                     </Badge>
                   )}
-                  {t.signers.length === 0 ? null : <Badge size="sm">Signature</Badge>}
+                  {t.signers.length === 0 ? null : (
+                    <Badge size="sm">{tr('documents.settings.signature', 'Signature')}</Badge>
+                  )}
                 </View>
               }
             >
@@ -103,9 +136,9 @@ export function DocumentsSettings({
             </ListItem>
           ))}
       </List>
-      <Heading title="Access and sharing" />
+      <Heading title={tr('documents.settings.access_and_sharing', 'Access and sharing')} />
       <List>
-        {SWITCHES.map(([key, label]) => (
+        {SWITCHES().map(([key, label]) => (
           <ListItem
             key={key}
             trailing={
@@ -122,13 +155,13 @@ export function DocumentsSettings({
             {label}
           </ListItem>
         ))}
-        <ListItem icon={Lock} description="Always on">
-          Log every confidential view
+        <ListItem icon={Lock} description={tr('documents.settings.always_on', 'Always on')}>
+          {tr('documents.settings.log_every_confidential_view', 'Log every confidential view')}
         </ListItem>
       </List>
-      <Heading title="Kithena reading" />
+      <Heading title={tr('documents.settings.kithena_reading', 'Kithena reading')} />
       <List>
-        {READING.map(([key, label]) => (
+        {READING().map(([key, label]) => (
           <ListItem
             key={key}
             trailing={
@@ -152,18 +185,25 @@ export function DocumentsSettings({
         ))}
       </List>
       <Text variant="footnote" tone="muted">
-        Medical documents are only ever read for their dates.
+        {tr(
+          'documents.settings.medical_documents_are_only_ever_read',
+          'Medical documents are only ever read for their dates.',
+        )}
       </Text>
-      <Heading title="Legal holds" />
+      <Heading title={tr('documents.settings.legal_holds', 'Legal holds')} />
       {d.holds.length === 0 ? (
-        <Text tone="muted">No holds.</Text>
+        <Text tone="muted">{tr('documents.settings.no_holds', 'No holds.')}</Text>
       ) : (
         <List>
           {d.holds.map((h) => (
             <ListItem
               key={h.id}
               icon={Archive}
-              description={`${h.setBy} · ${String(h.count)} documents`}
+              description={tr(
+                'documents.settings.documents_3',
+                '{{setBy}} · {{String}} documents',
+                { setBy: h.setBy, String: String(h.count) },
+              )}
               trailing={
                 d.hr ? (
                   <Button
@@ -172,7 +212,7 @@ export function DocumentsSettings({
                       void askDocuments(signed, 'LiftLegalHold', { holdId: h.id }).then(reload)
                     }
                   >
-                    Lift
+                    {tr('documents.settings.lift', 'Lift')}
                   </Button>
                 ) : null
               }
@@ -183,7 +223,10 @@ export function DocumentsSettings({
         </List>
       )}
       <Text variant="footnote" tone="muted">
-        Deleted documents are kept for 30 days, then gone.
+        {tr(
+          'documents.settings.deleted_documents_are_kept_for_30',
+          'Deleted documents are kept for 30 days, then gone.',
+        )}
       </Text>
     </Page>
   );

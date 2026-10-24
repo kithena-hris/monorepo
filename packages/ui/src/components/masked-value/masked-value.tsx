@@ -54,7 +54,7 @@ export function MaskedValue({
   expiresAt = null,
   onReveal,
   onHide,
-  label = 'value',
+  label = t('components.masked-value.masked-value.value', 'value'),
   className,
   ...props
 }: MaskedValueProps): JSX.Element {

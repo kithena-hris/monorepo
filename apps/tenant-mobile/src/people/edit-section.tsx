@@ -33,6 +33,7 @@ import {
   type Value,
 } from './api';
 import type { PeopleScreen } from './routes';
+import { t } from '../i18n';
 
 interface SectionData {
   readonly person: { readonly name: string };
@@ -181,17 +182,24 @@ function useSectionEdit(
       );
       if (!handed.ok)
         toast({
-          title: 'Their manager reviews were not handed over',
+          title: t(
+            'people.edit-section.their_manager_reviews_were_not_handed',
+            'Their manager reviews were not handed over',
+          ),
           description: handed.message,
           tone: 'danger',
         });
     }
     toast(
       waiting.length === 0
-        ? { title: 'Saved', tone: 'success' }
+        ? { title: t('people.edit-section.saved', 'Saved'), tone: 'success' }
         : {
-            title: 'Sent to HR for approval',
-            description: `${waiting.join(', ')} change when HR approves.`,
+            title: t('people.edit-section.sent_to_hr_for_approval', 'Sent to HR for approval'),
+            description: t(
+              'people.edit-section.change_when_hr_approves',
+              '{{join}} change when HR approves.',
+              { join: waiting.join(', ') },
+            ),
             tone: 'info',
           },
     );
@@ -200,15 +208,23 @@ function useSectionEdit(
 
   const form =
     load.status === 'loading' ? (
-      <Loading label="Loading the section" />
+      <Loading label={t('people.edit-section.loading_the_section', 'Loading the section')} />
     ) : load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : section === undefined ? (
-      <Text tone="muted">This section is not on the record any more.</Text>
+      <Text tone="muted">
+        {t(
+          'people.edit-section.this_section_is_not_on_the',
+          'This section is not on the record any more.',
+        )}
+      </Text>
     ) : (
       <Stack gap={4}>
         {failed === null ? null : (
-          <Alert tone="danger" title="That was not saved">
+          <Alert
+            tone="danger"
+            title={t('people.edit-section.that_was_not_saved', 'That was not saved')}
+          >
             {failed}
           </Alert>
         )}
@@ -221,9 +237,16 @@ function useSectionEdit(
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{`Change ${load.data.person.name.split(' ')[0] ?? ''}’s manager?`}</DialogTitle>
+                <DialogTitle>
+                  {t('people.edit-section.change_s_manager', 'Change {{value}}’s manager?', {
+                    value: load.data.person.name.split(' ')[0] ?? '',
+                  })}
+                </DialogTitle>
                 <DialogDescription>
-                  They report to the person you chose from now on.
+                  {t(
+                    'people.edit-section.they_report_to_the_person_you',
+                    'They report to the person you chose from now on.',
+                  )}
                 </DialogDescription>
               </DialogHeader>
               <DialogBody>
@@ -255,7 +278,7 @@ function useSectionEdit(
                     setConfirming(null);
                   }}
                 >
-                  Cancel
+                  {t('people.edit-section.cancel', 'Cancel')}
                 </Button>
                 <Button
                   variant="primary"
@@ -265,7 +288,7 @@ function useSectionEdit(
                     void save();
                   }}
                 >
-                  Change manager
+                  {t('people.edit-section.change_manager', 'Change manager')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -318,7 +341,7 @@ export function EditSection({ navigation, route }: PeopleScreen<'EditSection'>):
     edit.load.status === 'ready' && edit.section !== undefined ? (
       <>
         <Button className="flex-1" fullWidth onPress={navigation.goBack} disabled={edit.saving}>
-          Cancel
+          {t('people.edit-section.cancel', 'Cancel')}
         </Button>
         <Button
           className="flex-1"
@@ -326,10 +349,14 @@ export function EditSection({ navigation, route }: PeopleScreen<'EditSection'>):
           variant="primary"
           disabled={!edit.dirty}
           loading={edit.saving}
-          loadingLabel="Saving"
+          loadingLabel={t('people.edit-section.saving', 'Saving')}
           onPress={() => void edit.save()}
         >
-          {edit.anyway ? 'Save anyway' : edit.held ? 'Send to HR' : 'Save'}
+          {edit.anyway
+            ? t('people.edit-section.save_anyway', 'Save anyway')
+            : edit.held
+              ? t('people.edit-section.send_to_hr', 'Send to HR')
+              : t('people.edit-section.save', 'Save')}
         </Button>
       </>
     ) : undefined;
@@ -374,14 +401,21 @@ export function EditSectionDialog({
         <DialogHeader>
           <DialogTitle>
             {edit.section === undefined
-              ? 'Edit'
+              ? t('people.edit-section.edit', 'Edit')
               : own
-                ? `Change your ${edit.section.label.toLowerCase()}`
-                : `Edit ${edit.section.label.toLowerCase()}`}
+                ? t('people.edit-section.change_your', 'Change your {{toLowerCase}}', {
+                    toLowerCase: edit.section.label.toLowerCase(),
+                  })
+                : t('people.edit-section.edit_2', 'Edit {{toLowerCase}}', {
+                    toLowerCase: edit.section.label.toLowerCase(),
+                  })}
           </DialogTitle>
           {own && sensitive ? (
             <DialogDescription>
-              HR approves changes to some of these. Your record keeps the old value until then.
+              {t(
+                'people.edit-section.hr_approves_changes_to_some_of',
+                'HR approves changes to some of these. Your record keeps the old value until then.',
+              )}
             </DialogDescription>
           ) : null}
         </DialogHeader>
@@ -390,17 +424,21 @@ export function EditSectionDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose} disabled={edit.saving}>
-            Cancel
+            {t('people.edit-section.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
             variant="primary"
             disabled={!edit.dirty}
             loading={edit.saving}
-            loadingLabel="Saving"
+            loadingLabel={t('people.edit-section.saving', 'Saving')}
             onPress={() => void edit.save()}
           >
-            {edit.anyway ? 'Save anyway' : edit.held ? 'Send to HR' : 'Save'}
+            {edit.anyway
+              ? t('people.edit-section.save_anyway', 'Save anyway')
+              : edit.held
+                ? t('people.edit-section.send_to_hr', 'Send to HR')
+                : t('people.edit-section.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>

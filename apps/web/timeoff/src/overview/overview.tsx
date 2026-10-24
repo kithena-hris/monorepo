@@ -258,28 +258,78 @@ function Ready({
 /* -------------------------------------------------------------- clock -- */
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: t('overview.overview.clocked_in', 'Clocked in'), tone: 'success' },
-  on_break: { label: t('overview.overview.on_a_break', 'On a break'), tone: 'warning' },
-  out: { label: t('overview.overview.not_clocked_in', 'Not clocked in'), tone: 'neutral' },
+  in: {
+    get label(): string {
+      return t('overview.overview.clocked_in', 'Clocked in');
+    },
+    tone: 'success',
+  },
+  on_break: {
+    get label(): string {
+      return t('overview.overview.on_a_break', 'On a break');
+    },
+    tone: 'warning',
+  },
+  out: {
+    get label(): string {
+      return t('overview.overview.not_clocked_in', 'Not clocked in');
+    },
+    tone: 'neutral',
+  },
 };
 
 const WHERE: Record<WorkModel, string> = {
-  office: t('overview.overview.office', 'Office'),
-  remote: t('overview.overview.remote', 'Remote'),
-  client: t('overview.overview.at_a_client', 'At a client'),
+  get office(): string {
+    return t('overview.overview.office', 'Office');
+  },
+  get remote(): string {
+    return t('overview.overview.remote', 'Remote');
+  },
+  get client(): string {
+    return t('overview.overview.at_a_client', 'At a client');
+  },
 };
 
 const SEGMENT: Record<string, Pick<RangeBarSegment, 'label' | 'tone' | 'pattern' | 'size'>> = {
-  worked: { label: t('overview.overview.worked', 'Worked'), tone: 'success' },
+  worked: {
+    get label(): string {
+      return t('overview.overview.worked', 'Worked');
+    },
+    tone: 'success',
+  },
   live: {
-    label: t('overview.overview.working_now', 'Working now'),
+    get label(): string {
+      return t('overview.overview.working_now', 'Working now');
+    },
     tone: 'success',
     pattern: 'hatched',
   },
-  break: { label: t('overview.overview.break', 'Break'), tone: 'warning', size: 'thin' },
-  overtime: { label: t('overview.overview.overtime', 'Overtime'), tone: 'chart-4' },
-  missing: { label: t('overview.overview.missing', 'Missing'), tone: 'danger', pattern: 'hatched' },
-  planned: { label: t('overview.overview.planned', 'Planned'), tone: 'neutral' },
+  break: {
+    get label(): string {
+      return t('overview.overview.break', 'Break');
+    },
+    tone: 'warning',
+    size: 'thin',
+  },
+  overtime: {
+    get label(): string {
+      return t('overview.overview.overtime', 'Overtime');
+    },
+    tone: 'chart-4',
+  },
+  missing: {
+    get label(): string {
+      return t('overview.overview.missing', 'Missing');
+    },
+    tone: 'danger',
+    pattern: 'hatched',
+  },
+  planned: {
+    get label(): string {
+      return t('overview.overview.planned', 'Planned');
+    },
+    tone: 'neutral',
+  },
 };
 
 /** 07:00 to 19:00, in minutes after midnight, as the design's day bar. */

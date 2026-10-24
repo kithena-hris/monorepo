@@ -235,7 +235,7 @@ export function InboxDetail({
               ? {}
               : {
                   action: {
-                    label: 'Undo',
+                    label: t('components.inbox.detail.undo', 'Undo'),
                     onClick: () => {
                       void undo();
                     },

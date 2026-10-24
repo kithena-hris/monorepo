@@ -25,6 +25,7 @@ import {
 import { useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../lib/browser-api';
+import { t as tr } from '../lib/i18n';
 
 /**
  * The candidate's notification centre: everything a company is waiting on
@@ -82,8 +83,16 @@ export function noticesOf(
             kind: r.state === 'open' ? 'answered' : 'closed',
             title:
               r.state === 'open'
-                ? `You asked to move the ${r.label.toLowerCase()}`
-                : `The ${r.label.toLowerCase()} change was handled`,
+                ? tr(
+                    'components.asks.you_asked_to_move_the',
+                    'You asked to move the {{toLowerCase}}',
+                    { toLowerCase: r.label.toLowerCase() },
+                  )
+                : tr(
+                    'components.asks.the_change_was_handled',
+                    'The {{toLowerCase}} change was handled',
+                    { toLowerCase: r.label.toLowerCase() },
+                  ),
             detail: job,
             at: r.createdAt,
             open: false,
@@ -99,8 +108,18 @@ export function noticesOf(
             kind: 'answered',
             title:
               r.answer?.time != null
-                ? `Booked: ${r.label}, ${whenLong(r.answer.time)}`
-                : `You offered ${String(r.times.length)} time${r.times.length === 1 ? '' : 's'} for the ${r.label.toLowerCase()}`,
+                ? tr('components.asks.booked', 'Booked: {{label}}, {{whenLong}}', {
+                    label: r.label,
+                    whenLong: whenLong(r.answer.time),
+                  })
+                : tr(
+                    'components.asks.you_offered_times',
+                    {
+                      one: 'You offered {{count}} time for: {{label}}',
+                      other: 'You offered {{count}} times for: {{label}}',
+                    },
+                    { count: r.times.length, label: r.label },
+                  ),
             detail: job,
             at: r.createdAt,
             open: false,
@@ -116,8 +135,15 @@ export function noticesOf(
             kind: r.kind,
             title:
               r.kind === 'slots'
-                ? `Choose a time for your ${r.label.toLowerCase()}`
-                : `${company.name} asks: ${r.label}`,
+                ? tr(
+                    'components.asks.choose_a_time_for_your',
+                    'Choose a time for your {{toLowerCase}}',
+                    { toLowerCase: r.label.toLowerCase() },
+                  )
+                : tr('components.asks.asks', '{{name}} asks: {{label}}', {
+                    name: company.name,
+                    label: r.label,
+                  }),
             detail: job,
             at: r.createdAt,
             open: true,
@@ -132,9 +158,16 @@ export function noticesOf(
             title:
               r.kind === 'slots'
                 ? r.answer?.time != null
-                  ? `Booked: ${r.label}, ${whenLong(r.answer.time)}`
-                  : `You asked ${company.name} for other times`
-                : `Answered: ${r.label}`,
+                  ? tr('components.asks.booked', 'Booked: {{label}}, {{whenLong}}', {
+                      label: r.label,
+                      whenLong: whenLong(r.answer.time),
+                    })
+                  : tr(
+                      'components.asks.you_asked_for_other_times',
+                      'You asked {{name}} for other times',
+                      { name: company.name },
+                    )
+                : tr('components.asks.answered', 'Answered: {{label}}', { label: r.label }),
             detail: job,
             at: r.createdAt,
             open: false,
@@ -159,7 +192,7 @@ export function noticesOf(
           company,
           application,
           kind: 'offer',
-          title: 'An offer to read',
+          title: tr('components.asks.an_offer_to_read', 'An offer to read'),
           detail: job,
           at: application.offer.expiresOn,
           open: true,
@@ -238,7 +271,11 @@ export function NoticeDialog({
           {r?.kind === 'slots' && r.state === 'open' ? (
             <>
               {r.detail === null ? null : <p className="text-sm">{r.detail}</p>}
-              <RadioGroup aria-label="Times offered" value={time} onValueChange={setTime}>
+              <RadioGroup
+                aria-label={tr('components.asks.times_offered', 'Times offered')}
+                value={time}
+                onValueChange={setTime}
+              >
                 {r.times.map((t) => (
                   <RadioCard key={t} value={t} description={r.where ?? undefined}>
                     {whenLong(t)}
@@ -246,14 +283,19 @@ export function NoticeDialog({
                 ))}
                 <RadioCard
                   value="none"
-                  description="Say when suits you and they will offer others."
+                  description={tr(
+                    'components.asks.say_when_suits_you_and_they',
+                    'Say when suits you and they will offer others.',
+                  )}
                 >
-                  None of these work
+                  {tr('components.asks.none_of_these_work', 'None of these work')}
                 </RadioCard>
               </RadioGroup>
               {time === 'none' ? (
                 <Field required>
-                  <FieldLabel>When would suit you?</FieldLabel>
+                  <FieldLabel>
+                    {tr('components.asks.when_would_suit_you', 'When would suit you?')}
+                  </FieldLabel>
                   <FieldControl>
                     <Textarea
                       autoResize
@@ -266,7 +308,11 @@ export function NoticeDialog({
                 </Field>
               ) : null}
               <p className="text-xs text-fg-muted">
-                {`Times are shown in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`}
+                {tr(
+                  'components.asks.times_are_shown_in_your_time',
+                  'Times are shown in your time zone, {{timeZone}}.',
+                  { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+                )}
               </p>
             </>
           ) : null}
@@ -288,14 +334,21 @@ export function NoticeDialog({
           {i !== undefined ? (
             changeAsked ? (
               <p className="text-sm">
-                You have asked for a different time. Until the company moves it, this time stands.
+                {tr(
+                  'components.asks.you_have_asked_for_a_different',
+                  'You have asked for a different time. Until the company moves it, this time stands.',
+                )}
               </p>
             ) : (
               <Field required>
-                <FieldLabel>Ask for a different time</FieldLabel>
+                <FieldLabel>
+                  {tr('components.asks.ask_for_a_different_time', 'Ask for a different time')}
+                </FieldLabel>
                 <FieldDescription>
-                  Say why, in a line, and when would suit you. The company hears at once; this time
-                  stands until they move it.
+                  {tr(
+                    'components.asks.say_why_in_a_line_and',
+                    'Say why, in a line, and when would suit you. The company hears at once; this time stands until they move it.',
+                  )}
                 </FieldDescription>
                 <FieldControl>
                   <Textarea
@@ -311,13 +364,15 @@ export function NoticeDialog({
           ) : null}
           {notice?.kind === 'answered' || notice?.kind === 'closed' ? (
             <p className="text-sm text-fg-muted">
-              {r?.answer?.text ?? r?.detail ?? 'Nothing more to do here.'}
+              {r?.answer?.text ??
+                r?.detail ??
+                tr('components.asks.nothing_more_to_do_here', 'Nothing more to do here.')}
             </p>
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Close
+            {tr('components.asks.close', 'Close')}
           </Button>
           {r?.kind === 'slots' && r.state === 'open' ? (
             <Button
@@ -328,12 +383,20 @@ export function NoticeDialog({
                   `/me/asks/${r.id}`,
                   { time: time === 'none' ? null : time, text: text.trim() === '' ? null : text },
                   time === 'none'
-                    ? 'Sent. They will offer other times.'
-                    : 'Booked. The invitation is on its way.',
+                    ? tr(
+                        'components.asks.sent_they_will_offer_other_times',
+                        'Sent. They will offer other times.',
+                      )
+                    : tr(
+                        'components.asks.booked_the_invitation_is_on_its',
+                        'Booked. The invitation is on its way.',
+                      ),
                 );
               }}
             >
-              {time === 'none' ? 'Ask for other times' : 'Book this time'}
+              {time === 'none'
+                ? tr('components.asks.ask_for_other_times', 'Ask for other times')
+                : tr('components.asks.book_this_time', 'Book this time')}
             </Button>
           ) : null}
           {r?.kind === 'info' && r.state === 'open' ? (
@@ -341,10 +404,14 @@ export function NoticeDialog({
               loading={pending}
               disabled={text.trim() === ''}
               onClick={() => {
-                send(`/me/asks/${r.id}`, { time: null, text }, 'Sent. Thank you.');
+                send(
+                  `/me/asks/${r.id}`,
+                  { time: null, text },
+                  tr('components.asks.sent_thank_you', 'Sent. Thank you.'),
+                );
               }}
             >
-              Send my answer
+              {tr('components.asks.send_my_answer', 'Send my answer')}
             </Button>
           ) : null}
           {i !== undefined && !changeAsked ? (
@@ -355,11 +422,14 @@ export function NoticeDialog({
                 send(
                   `/me/interviews/${i.id}/change`,
                   { reason: text },
-                  'Sent. The company will come back with new times.',
+                  tr(
+                    'components.asks.sent_the_company_will_come_back',
+                    'Sent. The company will come back with new times.',
+                  ),
                 );
               }}
             >
-              Ask to move it
+              {tr('components.asks.ask_to_move_it', 'Ask to move it')}
             </Button>
           ) : null}
         </DialogFooter>
@@ -393,11 +463,11 @@ export function NoticeList({
             trailing={
               n.open ? (
                 <Badge size="sm" tone="warning">
-                  Needs you
+                  {tr('components.asks.needs_you', 'Needs you')}
                 </Badge>
               ) : n.kind === 'interview' ? (
                 <Badge size="sm" tone="accent">
-                  Booked
+                  {tr('components.asks.booked_2', 'Booked')}
                 </Badge>
               ) : null
             }

@@ -61,12 +61,13 @@ interface GoalRow {
 }
 
 /** Who sees a goal (§14.2), private until made public. */
-const VISIBILITY = [
-  ['owner', t('goals.only_the_owner_and_their_managers', 'Only the owner and their managers')],
-  ['team', t('goals.their_team_and_managers_too', 'Their team and managers too')],
-  ['everyone', t('goals.everyone_at_the_company', 'Everyone at the company')],
-] as const;
-const visibleTo = (v: string): string => VISIBILITY.find(([k]) => k === v)?.[1] ?? v;
+const VISIBILITY = () =>
+  [
+    ['owner', t('goals.only_the_owner_and_their_managers', 'Only the owner and their managers')],
+    ['team', t('goals.their_team_and_managers_too', 'Their team and managers too')],
+    ['everyone', t('goals.everyone_at_the_company', 'Everyone at the company')],
+  ] as const;
+const visibleTo = (v: string): string => VISIBILITY().find(([k]) => k === v)?.[1] ?? v;
 
 interface Period {
   readonly id: string;
@@ -89,17 +90,18 @@ export interface GoalsData {
   readonly may: { readonly create: boolean; readonly company: boolean };
 }
 
-const STATUS = [
-  ['', t('goals.all', 'All')],
-  ['active', t('goals.active', 'Active')],
-  ['draft', t('goals.draft', 'Draft')],
-  ['completed', t('goals.completed', 'Completed')],
-  ['missed', t('goals.missed', 'Missed')],
-  ['cancelled', t('goals.cancelled', 'Cancelled')],
-] as const;
+const STATUS = () =>
+  [
+    ['', t('goals.all', 'All')],
+    ['active', t('goals.active', 'Active')],
+    ['draft', t('goals.draft', 'Draft')],
+    ['completed', t('goals.completed', 'Completed')],
+    ['missed', t('goals.missed', 'Missed')],
+    ['cancelled', t('goals.cancelled', 'Cancelled')],
+  ] as const;
 
 function ConfidenceBadge({ value }: { readonly value: string }): JSX.Element {
-  const [label, tone] = CONFIDENCE[value] ?? [t('goals.on_track', 'On track'), 'success'];
+  const [label, tone] = CONFIDENCE()[value] ?? [t('goals.on_track', 'On track'), 'success'];
   return (
     <Badge size="sm" tone={tone}>
       {label}
@@ -227,7 +229,7 @@ export function Goals(props: ScreenProps<GoalsData>): JSX.Element {
                 />
               </div>
               <ChipRow aria-label={t('goals.status', 'Status')}>
-                {STATUS.map(([v, l]) => (
+                {STATUS().map(([v, l]) => (
                   <Chip
                     key={v}
                     selected={status === v}
@@ -372,12 +374,13 @@ function Tree({
   );
 }
 
-const MEASURES = [
-  ['number', t('goals.number', 'Number')],
-  ['percentage', t('goals.percentage', 'Percentage')],
-  ['currency', t('goals.amount', 'Amount')],
-  ['done', t('goals.done_or_not', 'Done or not')],
-] as const;
+const MEASURES = () =>
+  [
+    ['number', t('goals.number', 'Number')],
+    ['percentage', t('goals.percentage', 'Percentage')],
+    ['currency', t('goals.amount', 'Amount')],
+    ['done', t('goals.done_or_not', 'Done or not')],
+  ] as const;
 
 interface KrDraft {
   readonly title: string;
@@ -534,7 +537,7 @@ function NewGoal({
                 <Choose
                   label={t('goals.measured_by', 'Measured by')}
                   value={k.measure}
-                  options={MEASURES}
+                  options={MEASURES()}
                   onChange={(v) => {
                     setKr(i, { measure: v });
                   }}
@@ -662,7 +665,7 @@ function NewGoal({
               value={visibility}
               onValueChange={setVisibility}
             >
-              {VISIBILITY.map(([v, label]) => (
+              {VISIBILITY().map(([v, label]) => (
                 <RadioCard key={v} value={v}>
                   {label}
                 </RadioCard>
@@ -846,7 +849,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                               </span>
                             }
                             timestamp={day(c.at)}
-                            tone={CONFIDENCE[c.confidence]?.[1] ?? 'success'}
+                            tone={CONFIDENCE()[c.confidence]?.[1] ?? 'success'}
                             last={i === data.checkIns.length - 1}
                           >
                             {c.note}
@@ -893,7 +896,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                           <Choose
                             label={t('goals.visible_to', 'Visible to')}
                             value={g.visibility}
-                            options={VISIBILITY}
+                            options={VISIBILITY()}
                             onChange={(v) => {
                               act.run('SetPerformanceGoalVisibility', {
                                 id: g.id,

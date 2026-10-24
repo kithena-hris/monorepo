@@ -68,7 +68,7 @@ interface ToolbarButton {
   enabled?: (editor: Editor) => boolean;
 }
 
-const groups: Record<RichTextGroup, ToolbarButton[]> = {
+const toolbarGroups = (): Record<RichTextGroup, ToolbarButton[]> => ({
   history: [
     {
       id: 'undo',
@@ -198,21 +198,21 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   align: [
     {
       id: 'align-left',
-      label: 'Align left',
+      label: t('components.rich-text.rich-text-editor.align_left', 'Align left'),
       icon: <TextAlignStart />,
       run: (editor) => editor.chain().focus().setTextAlign('left').run(),
       active: (editor) => editor.isActive({ textAlign: 'left' }),
     },
     {
       id: 'align-center',
-      label: 'Align centre',
+      label: t('components.rich-text.rich-text-editor.align_centre', 'Align centre'),
       icon: <TextAlignCenter />,
       run: (editor) => editor.chain().focus().setTextAlign('center').run(),
       active: (editor) => editor.isActive({ textAlign: 'center' }),
     },
     {
       id: 'align-right',
-      label: 'Align right',
+      label: t('components.rich-text.rich-text-editor.align_right', 'Align right'),
       icon: <TextAlignEnd />,
       run: (editor) => editor.chain().focus().setTextAlign('right').run(),
       active: (editor) => editor.isActive({ textAlign: 'right' }),
@@ -221,7 +221,7 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   // Rendered by the component rather than from this table: adding a link needs
   // a URL, which needs a popover, which is not a single toggle.
   link: [],
-};
+});
 
 export function RichTextEditorBody(props: RichTextEditorProps): JSX.Element {
   const {
@@ -373,12 +373,12 @@ function RichTextToolbar({
   const [focusIndex, setFocusIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const buttons = names.flatMap((name) => groups[name]);
+  const buttons = names.flatMap((name) => toolbarGroups()[name]);
   // Where each group after the first begins, for the rule drawn between them.
   const groupStarts = new Set<number>();
   names.reduce((start, name) => {
-    if (start > 0 && groups[name].length > 0) groupStarts.add(start);
-    return start + groups[name].length;
+    if (start > 0 && toolbarGroups()[name].length > 0) groupStarts.add(start);
+    return start + toolbarGroups()[name].length;
   }, 0);
   const hasLink = names.includes('link');
   const total = buttons.length + (hasLink ? 2 : 0);

@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { Text as CssText, TextInput, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
+import { t } from '../../lib/i18n';
 
 export type PinInputProps = {
   value: string;
@@ -126,7 +127,11 @@ export function PinInput({
           textContentType="oneTimeCode"
           secureTextEntry={masked}
           caretHidden
-          accessibilityLabel={`${label}, ${String(length)} characters`}
+          accessibilityLabel={t(
+            'components.pin-input.pin-input.characters',
+            '{{label}}, {{String}} characters',
+            { label, String: String(length) },
+          )}
           {...(hint ? { accessibilityHint: hint } : {})}
           aria-invalid={invalid || undefined}
           aria-disabled={disabled || undefined}

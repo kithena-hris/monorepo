@@ -29,12 +29,42 @@ import { t } from '../i18n';
  * the three: colour alone never tells an added field from an archived one.
  */
 const MARKER = {
-  added: { glyph: '+', word: t('settings.publish.added', 'Added'), tone: 'success' },
-  tightened: { glyph: '~', word: t('settings.publish.tightened', 'Tightened'), tone: 'warning' },
-  loosened: { glyph: '~', word: t('settings.publish.loosened', 'Loosened'), tone: 'info' },
+  added: {
+    glyph: '+',
+    get word(): string {
+      return t('settings.publish.added', 'Added');
+    },
+    tone: 'success',
+  },
+  tightened: {
+    glyph: '~',
+    get word(): string {
+      return t('settings.publish.tightened', 'Tightened');
+    },
+    tone: 'warning',
+  },
+  loosened: {
+    glyph: '~',
+    get word(): string {
+      return t('settings.publish.loosened', 'Loosened');
+    },
+    tone: 'info',
+  },
   // Who may read it, or the conditions it is required under (PEO-065, PEO-066).
-  changed: { glyph: '~', word: t('settings.publish.changed', 'Changed'), tone: 'warning' },
-  archived: { glyph: '−', word: t('settings.publish.archived', 'Archived'), tone: 'neutral' },
+  changed: {
+    glyph: '~',
+    get word(): string {
+      return t('settings.publish.changed', 'Changed');
+    },
+    tone: 'warning',
+  },
+  archived: {
+    glyph: '−',
+    get word(): string {
+      return t('settings.publish.archived', 'Archived');
+    },
+    tone: 'neutral',
+  },
 } as const;
 
 export interface PublishDialogProps {

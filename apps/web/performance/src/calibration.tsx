@@ -70,9 +70,15 @@ export interface CalibrationsData {
 }
 
 const STATE: Readonly<Record<string, string>> = {
-  not_started: t('calibration.not_started', 'Not started'),
-  in_progress: t('calibration.in_progress', 'In progress'),
-  finalised: t('calibration.finalised', 'Finalised'),
+  get not_started(): string {
+    return t('calibration.not_started', 'Not started');
+  },
+  get in_progress(): string {
+    return t('calibration.in_progress', 'In progress');
+  },
+  get finalised(): string {
+    return t('calibration.finalised', 'Finalised');
+  },
 };
 
 type SessionRow = CalibrationsData['rows'][number];

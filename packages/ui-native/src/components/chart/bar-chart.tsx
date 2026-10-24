@@ -15,6 +15,7 @@ import {
   type ChartPoint,
 } from './parts.tsx';
 import { bgTone, seriesTone, type ChartTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 /** What a mark is to a screen reader: a button when it selects, otherwise a named picture. */
 function markProps(readout: string, selectable: boolean, selected: boolean) {
@@ -322,7 +323,9 @@ export function HorizontalBarChart({
         );
       })}
       {rest > 0 ? (
-        <CssText className="text-footnote text-fg-subtle">{`+${String(rest)} more`}</CssText>
+        <CssText className="text-footnote text-fg-subtle">
+          {t('components.chart.bar-chart.more', '+{{String}} more', { String: String(rest) })}
+        </CssText>
       ) : null}
     </ChartFrame>
   );

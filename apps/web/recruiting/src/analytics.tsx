@@ -50,27 +50,37 @@ const PERIODS = ['last_30_days', 'last_90_days', 'this_quarter', 'this_year', 'l
 const METRICS: readonly { key: string; label: string; by: readonly string[] }[] = [
   {
     key: 'applications',
-    label: tr('analytics.applications', 'Applications'),
+    get label(): string {
+      return tr('analytics.applications', 'Applications');
+    },
     by: ['department', 'source', 'job', 'country', 'month'],
   },
   {
     key: 'hires',
-    label: tr('analytics.hires', 'Hires'),
+    get label(): string {
+      return tr('analytics.hires', 'Hires');
+    },
     by: ['department', 'source', 'job', 'country', 'month', 'hiring_manager'],
   },
   {
     key: 'conversion',
-    label: tr('analytics.conversion_by_stage', 'Conversion by stage'),
+    get label(): string {
+      return tr('analytics.conversion_by_stage', 'Conversion by stage');
+    },
     by: ['stage', 'job', 'department', 'source'],
   },
   {
     key: 'time_to_hire',
-    label: tr('analytics.time_to_hire', 'Time to hire'),
+    get label(): string {
+      return tr('analytics.time_to_hire', 'Time to hire');
+    },
     by: ['department', 'job', 'source', 'month', 'country'],
   },
   {
     key: 'rejection_reasons',
-    label: tr('analytics.rejection_reasons', 'Rejection reasons'),
+    get label(): string {
+      return tr('analytics.rejection_reasons', 'Rejection reasons');
+    },
     by: ['rejection_reason', 'stage', 'job'],
   },
 ];
@@ -94,25 +104,37 @@ const TILES: readonly {
 }[] = [
   {
     id: 'hires-by-month',
-    title: tr('analytics.hires_by_month', 'Hires by month'),
+    get title(): string {
+      return tr('analytics.hires_by_month', 'Hires by month');
+    },
     dashboard: 'overview',
-    unit: tr('analytics.hires', 'Hires'),
+    get unit(): string {
+      return tr('analytics.hires', 'Hires');
+    },
     chart: 'trend',
     rows: (d) => d.overview.hiresByMonth.map((h) => ({ label: h.month, value: h.hires })),
   },
   {
     id: 'pipeline',
-    title: tr('analytics.pipeline_by_stage', 'Pipeline by stage'),
+    get title(): string {
+      return tr('analytics.pipeline_by_stage', 'Pipeline by stage');
+    },
     dashboard: 'funnel',
-    unit: tr('analytics.applications', 'Applications'),
+    get unit(): string {
+      return tr('analytics.applications', 'Applications');
+    },
     chart: 'funnel',
     rows: (d) => d.overview.funnel.map((f) => ({ label: words(f.category), value: f.count })),
   },
   {
     id: 'time-in-stage',
-    title: tr('analytics.time_in_stage', 'Time in stage'),
+    get title(): string {
+      return tr('analytics.time_in_stage', 'Time in stage');
+    },
     dashboard: 'funnel',
-    unit: tr('analytics.median_days', 'Median days'),
+    get unit(): string {
+      return tr('analytics.median_days', 'Median days');
+    },
     chart: 'bars',
     rows: (d) =>
       d.timeInStage
@@ -121,27 +143,39 @@ const TILES: readonly {
   },
   {
     id: 'rejection-reasons',
-    title: tr('analytics.rejection_reasons', 'Rejection reasons'),
+    get title(): string {
+      return tr('analytics.rejection_reasons', 'Rejection reasons');
+    },
     dashboard: 'funnel',
-    unit: tr('analytics.applications', 'Applications'),
+    get unit(): string {
+      return tr('analytics.applications', 'Applications');
+    },
     chart: 'bars',
     rows: (d) => points(d.overview.rejectionReasons),
     withheld: (d) => d.overview.rejectionReasons,
   },
   {
     id: 'time-to-fill',
-    title: tr('analytics.time_to_fill', 'Time to fill'),
+    get title(): string {
+      return tr('analytics.time_to_fill', 'Time to fill');
+    },
     dashboard: 'speed',
-    unit: tr('analytics.days', 'Days'),
+    get unit(): string {
+      return tr('analytics.days', 'Days');
+    },
     chart: 'bars',
     rows: (d) =>
       d.speed.filter((s) => s.days !== null).map((s) => ({ label: s.title, value: s.days ?? 0 })),
   },
   {
     id: 'sources',
-    title: tr('analytics.applications_by_source', 'Applications by source'),
+    get title(): string {
+      return tr('analytics.applications_by_source', 'Applications by source');
+    },
     dashboard: 'sources',
-    unit: tr('analytics.applications', 'Applications'),
+    get unit(): string {
+      return tr('analytics.applications', 'Applications');
+    },
     chart: 'bars',
     rows: (d) => points(d.overview.sources),
     withheld: (d) => d.overview.sources,

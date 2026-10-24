@@ -86,11 +86,12 @@ export interface DescribePolicyProps {
 const CONTAINER = '@container/policy';
 const COLUMNS =
   'flex flex-col gap-5 @min-[56rem]/policy:grid @min-[56rem]/policy:grid-cols-2 @min-[56rem]/policy:items-start';
-const TITLE = tr('settings.describe-policy.new_policy', 'New policy');
-const DESCRIPTION = tr(
-  'settings.describe-policy.write_the_policy_the_way_it_is',
-  'Write the policy the way it is in the handbook. Time Off turns it into rules you can check.',
-);
+const TITLE = (): string => tr('settings.describe-policy.new_policy', 'New policy');
+const DESCRIPTION = (): string =>
+  tr(
+    'settings.describe-policy.write_the_policy_the_way_it_is',
+    'Write the policy the way it is in the handbook. Time Off turns it into rules you can check.',
+  );
 
 /** The address's name for each rule HR can change. */
 const PARAM: Record<RuleKey, 'allowance' | 'probation' | 'carry' | 'negative'> = {
@@ -100,18 +101,26 @@ const PARAM: Record<RuleKey, 'allowance' | 'probation' | 'carry' | 'negative'> =
   negative: 'negative',
 };
 const UNIT: Record<RuleKey, string> = {
-  allowance: tr('settings.describe-policy.days_a_year', 'Days a year'),
-  probation: tr('settings.describe-policy.months_before_booking', 'Months before booking'),
-  carry_over: tr('settings.describe-policy.days_carried_over', 'Days carried over'),
-  negative: tr('settings.describe-policy.days_below_zero', 'Days below zero'),
+  get allowance(): string {
+    return tr('settings.describe-policy.days_a_year', 'Days a year');
+  },
+  get probation(): string {
+    return tr('settings.describe-policy.months_before_booking', 'Months before booking');
+  },
+  get carry_over(): string {
+    return tr('settings.describe-policy.days_carried_over', 'Days carried over');
+  },
+  get negative(): string {
+    return tr('settings.describe-policy.days_below_zero', 'Days below zero');
+  },
 };
 
 export function DescribePolicy(props: DescribePolicyProps): JSX.Element {
   if (props.load.status === 'loading') {
     return (
       <SettingsSkeleton
-        title={TITLE}
-        description={DESCRIPTION}
+        title={TITLE()}
+        description={DESCRIPTION()}
         container={CONTAINER}
         columns={COLUMNS}
         main={['h-12', 'h-40', 'h-10']}
@@ -122,7 +131,7 @@ export function DescribePolicy(props: DescribePolicyProps): JSX.Element {
   return (
     <div className={`${CONTAINER} flex flex-col gap-6`}>
       {props.load.status === 'error' ? (
-        <PageHeader title={TITLE} description={DESCRIPTION} />
+        <PageHeader title={TITLE()} description={DESCRIPTION()} />
       ) : null}
       <Loaded load={props.load} what={tr('settings.describe-policy.the_policy', 'the policy')}>
         {(data) => <Ready data={data} {...props} />}
@@ -161,8 +170,8 @@ function Ready({
   return (
     <>
       <PageHeader
-        title={TITLE}
-        description={DESCRIPTION}
+        title={TITLE()}
+        description={DESCRIPTION()}
         actions={
           <Button
             variant="primary"

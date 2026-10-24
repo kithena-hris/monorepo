@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import { usePulse } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t as tr } from '../../lib/i18n';
 
 type Tone =
   | 'neutral'
@@ -176,7 +177,9 @@ export function Badge({
       {onRemove ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={removeLabel ?? `Remove ${children}`}
+          accessibilityLabel={
+            removeLabel ?? tr('components.badge.badge.remove', 'Remove {{children}}', { children })
+          }
           hitSlop={14}
           onPress={onRemove}
           className="-mr-1 size-4 items-center justify-center"

@@ -69,7 +69,7 @@ export interface AttendanceSettingsProps {
   }) => Promise<Outcome>;
 }
 
-const TITLE = tr('settings.attendance-settings.attendance', 'Attendance');
+const TITLE = (): string => tr('settings.attendance-settings.attendance', 'Attendance');
 
 const onOff = (on: boolean): JSX.Element =>
   on ? (
@@ -79,10 +79,11 @@ const onOff = (on: boolean): JSX.Element =>
       {tr('settings.attendance-settings.off', 'Off')}
     </Badge>
   );
-const DESCRIPTION = tr(
-  'settings.attendance-settings.how_people_clock_in_and_what_counts',
-  'How people clock in, and what counts as a working day.',
-);
+const DESCRIPTION = (): string =>
+  tr(
+    'settings.attendance-settings.how_people_clock_in_and_what_counts',
+    'How people clock in, and what counts as a working day.',
+  );
 const page = '@container/attendance flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/attendance:grid @min-[60rem]/attendance:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/attendance:items-start';
@@ -95,7 +96,7 @@ export function AttendanceSettings({
   if (load.status === 'loading') return <AttendanceSettingsSkeleton />;
   return (
     <div className={page}>
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader title={TITLE()} description={DESCRIPTION()} />
       <Loaded
         load={load}
         what={tr('settings.attendance-settings.the_attendance_rules', 'the attendance rules')}
@@ -341,7 +342,7 @@ function Ready({
   );
 }
 
-const DAY = [
+const DAY = () => [
   tr('settings.attendance-settings.mon', 'Mon'),
   tr('settings.attendance-settings.tue', 'Tue'),
   tr('settings.attendance-settings.wed', 'Wed'),
@@ -350,7 +351,7 @@ const DAY = [
   tr('settings.attendance-settings.sat', 'Sat'),
   tr('settings.attendance-settings.sun', 'Sun'),
 ];
-const DAY_NAME = [
+const DAY_NAME = () => [
   tr('settings.attendance-settings.monday', 'Monday'),
   tr('settings.attendance-settings.tuesday', 'Tuesday'),
   tr('settings.attendance-settings.wednesday', 'Wednesday'),
@@ -417,7 +418,7 @@ function WeekEditor({
         className="flex flex-col gap-2"
         aria-label={tr('settings.attendance-settings.working_days', 'Working days')}
       >
-        {DAY_NAME.map((name, i) => {
+        {DAY_NAME().map((name, i) => {
           const day = String(i + 1);
           const w = week[day];
           return (
@@ -507,8 +508,8 @@ function scheduleLine(schedule: AttendanceSettingsData['defaultSchedule']): stri
   const nums = days.map(([d]) => Number(d)).toSorted((a, b) => a - b);
   const run = nums.every((n, i) => i === 0 || n === (nums[i - 1] ?? 0) + 1);
   const span = run
-    ? `${DAY[(nums[0] ?? 1) - 1] ?? ''}–${DAY[(nums.at(-1) ?? 1) - 1] ?? ''}`
-    : nums.map((n) => DAY[n - 1]).join(', ');
+    ? `${DAY()[(nums[0] ?? 1) - 1] ?? ''}–${DAY()[(nums.at(-1) ?? 1) - 1] ?? ''}`
+    : nums.map((n) => DAY()[n - 1]).join(', ');
   const weekly = days.reduce((t, [, w]) => t + w.end - w.start - w.breakMinutes, 0) / 60;
   return tr('settings.attendance-settings.h', '{{span}} · {{clock}}–{{clock2}} · {{weekly}}h', {
     span,
@@ -522,8 +523,8 @@ function scheduleLine(schedule: AttendanceSettingsData['defaultSchedule']): stri
 export function AttendanceSettingsSkeleton(): JSX.Element {
   return (
     <SettingsSkeleton
-      title={TITLE}
-      description={DESCRIPTION}
+      title={TITLE()}
+      description={DESCRIPTION()}
       container="@container/attendance"
       columns={columns}
       main={['h-64', 'h-48', 'h-40']}

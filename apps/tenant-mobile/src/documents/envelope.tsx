@@ -34,6 +34,7 @@ import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askDocuments, useDocuments } from './api';
 import { SignDocument } from './signing';
+import { t as tr } from '../i18n';
 
 /**
  * Signing on the phone (MX1–MX4, MX6): the document itself, full screen, with
@@ -76,14 +77,17 @@ interface EnvelopeData {
   readonly people: readonly { personId: string; name: string }[];
 }
 
-const STATUS: Record<string, readonly [string, 'neutral' | 'info' | 'success' | 'danger']> = {
-  waiting: ['Waiting', 'neutral'],
-  sent: ['Sent', 'info'],
-  opened: ['Opened', 'info'],
-  verified: ['Opened', 'info'],
-  signed: ['Signed', 'success'],
-  declined: ['Declined', 'danger'],
-};
+const STATUS = (): Record<
+  string,
+  readonly [string, 'neutral' | 'info' | 'success' | 'danger']
+> => ({
+  waiting: [tr('documents.envelope.waiting', 'Waiting'), 'neutral'],
+  sent: [tr('documents.envelope.sent', 'Sent'), 'info'],
+  opened: [tr('documents.envelope.opened', 'Opened'), 'info'],
+  verified: [tr('documents.envelope.opened', 'Opened'), 'info'],
+  signed: [tr('documents.envelope.signed', 'Signed'), 'success'],
+  declined: [tr('documents.envelope.declined', 'Declined'), 'danger'],
+});
 
 export function DocumentEnvelope({
   navigation,
@@ -97,14 +101,14 @@ export function DocumentEnvelope({
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const back = { label: 'Close', onPress: navigation.goBack };
+  const back = { label: tr('documents.envelope.close', 'Close'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Signature" back={back}>
+      <Page title={tr('documents.envelope.signature', 'Signature')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Opening the request" />
+          <Loading label={tr('documents.envelope.opening_the_request', 'Opening the request')} />
         )}
       </Page>
     );
@@ -131,7 +135,12 @@ export function DocumentEnvelope({
       envelopeId: id,
     });
     if (link.ok && link.data.url !== null) await WebBrowser.openBrowserAsync(link.data.url);
-    else setProblem(link.ok ? 'There is no file store here.' : link.message);
+    else
+      setProblem(
+        link.ok
+          ? tr('documents.envelope.there_is_no_file_store_here', 'There is no file store here.')
+          : link.message,
+      );
   };
   const total = env.signers.length;
   const signedCount = env.signers.filter((s) => s.status === 'signed').length;
@@ -147,10 +156,23 @@ export function DocumentEnvelope({
       }}
       onSend={() => {
         if (other === 'ask')
-          void act('AskEnvelopeSender', { input: { question: text } }, 'Your question was sent.');
+          void act(
+            'AskEnvelopeSender',
+            { input: { question: text } },
+            tr('documents.envelope.your_question_was_sent', 'Your question was sent.'),
+          );
         else if (other === 'decline')
-          void act('DeclineEnvelope', { input: { reason: text } }, 'Declined. The sender is told.');
-        else void act('VoidEnvelope', { input: { reason: text } }, 'Cancelled.');
+          void act(
+            'DeclineEnvelope',
+            { input: { reason: text } },
+            tr('documents.envelope.declined_the_sender_is_told', 'Declined. The sender is told.'),
+          );
+        else
+          void act(
+            'VoidEnvelope',
+            { input: { reason: text } },
+            tr('documents.envelope.cancelled', 'Cancelled.'),
+          );
       }}
     />
   );
@@ -174,10 +196,20 @@ export function DocumentEnvelope({
                 : `${next.slice(0, -1).join(', ')} and ${next.at(-1) ?? ''}`;
             setDone(
               completed
-                ? 'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.'
+                ? tr(
+                    'documents.envelope.everybody_has_signed_the_sealed_copy',
+                    'Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.',
+                  )
                 : names === ''
-                  ? 'Your signature is in. Your copy is on its way to your email.'
-                  : `Sent to ${names} for their signature. Your copy, as signed so far, is on its way to your email.`,
+                  ? tr(
+                      'documents.envelope.your_signature_is_in_your_copy',
+                      'Your signature is in. Your copy is on its way to your email.',
+                    )
+                  : tr(
+                      'documents.envelope.sent_to_for_their_signature_your',
+                      'Sent to {{names}} for their signature. Your copy, as signed so far, is on its way to your email.',
+                      { names },
+                    ),
             );
             reload();
           }}
@@ -187,7 +219,7 @@ export function DocumentEnvelope({
     );
   }
   return (
-    <Page title="Signature status" back={back}>
+    <Page title={tr('documents.envelope.signature_status', 'Signature status')} back={back}>
       <Text variant="title2">{env.title}</Text>
       <View className="flex-row flex-wrap gap-1.5">
         <Badge
@@ -196,37 +228,52 @@ export function DocumentEnvelope({
           }
         >
           {env.status === 'sent'
-            ? `${String(signedCount)} of ${String(total)} signed`
+            ? tr('documents.envelope.of_signed', '{{String}} of {{String2}} signed', {
+                String: String(signedCount),
+                String2: String(total),
+              })
             : env.status === 'completed'
-              ? 'Signed and sealed'
+              ? tr('documents.envelope.signed_and_sealed', 'Signed and sealed')
               : env.status}
         </Badge>
-        {env.dueOn === null ? null : <Badge>{`Due ${env.dueOn}`}</Badge>}
+        {env.dueOn === null ? null : (
+          <Badge>{tr('documents.envelope.due', 'Due {{dueOn}}', { dueOn: env.dueOn })}</Badge>
+        )}
       </View>
       {env.message === '' ? null : (
-        <Alert tone="info" title={`${env.sender} says`}>
+        <Alert
+          tone="info"
+          title={tr('documents.envelope.says', '{{sender}} says', { sender: env.sender })}
+        >
           {env.message}
         </Alert>
       )}
       {done === null ? null : <Alert tone="success">{done}</Alert>}
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
       <Button startIcon={<Icon icon={Eye} />} onPress={() => void open()}>
-        Read the document
+        {tr('documents.envelope.read_the_document', 'Read the document')}
       </Button>
-      <Heading title="Signers" />
+      <Heading title={tr('documents.envelope.signers', 'Signers')} />
       <Progress
         value={total === 0 ? 0 : (signedCount / total) * 100}
-        label={`${String(signedCount)} of ${String(total)} signed`}
+        label={tr('documents.envelope.of_signed', '{{String}} of {{String2}} signed', {
+          String: String(signedCount),
+          String2: String(total),
+        })}
       />
       <List>
         {env.signers.map((s) => (
           <ListItem
             key={s.id}
             leading={<Avatar name={s.name} size="md" />}
-            description={s.check === 'login' ? 'Kithena login' : 'Code by email'}
+            description={
+              s.check === 'login'
+                ? tr('documents.envelope.kithena_login', 'Kithena login')
+                : tr('documents.envelope.code_by_email', 'Code by email')
+            }
             trailing={
-              <Badge tone={STATUS[s.status]?.[1] ?? 'neutral'}>
-                {STATUS[s.status]?.[0] ?? s.status}
+              <Badge tone={STATUS()[s.status]?.[1] ?? 'neutral'}>
+                {STATUS()[s.status]?.[0] ?? s.status}
               </Badge>
             }
             supporting={
@@ -237,14 +284,20 @@ export function DocumentEnvelope({
                     void act(
                       'ReassignEnvelopeSigner',
                       { input: { signerId: s.id, personId } },
-                      'Passed on.',
+                      tr('documents.envelope.passed_on', 'Passed on.'),
                     )
                   }
                 >
-                  <SelectTrigger accessibilityLabel={`Pass ${s.name}’s turn to`}>
-                    <SelectValue placeholder="Pass it to…" />
+                  <SelectTrigger
+                    accessibilityLabel={tr(
+                      'documents.envelope.pass_s_turn_to',
+                      'Pass {{name}}’s turn to',
+                      { name: s.name },
+                    )}
+                  >
+                    <SelectValue placeholder={tr('documents.envelope.pass_it_to', 'Pass it to…')} />
                   </SelectTrigger>
-                  <SelectContent title="Pass to">
+                  <SelectContent title={tr('documents.envelope.pass_to', 'Pass to')}>
                     {env.people.map((p) => (
                       <SelectItem key={p.personId} value={p.personId}>
                         {p.name}
@@ -273,11 +326,14 @@ export function DocumentEnvelope({
                     companyName: signed.company.displayName ?? signed.company.slug,
                   },
                 },
-                'Reminded whoever it waits on now.',
+                tr(
+                  'documents.envelope.reminded_whoever_it_waits_on_now',
+                  'Reminded whoever it waits on now.',
+                ),
               )
             }
           >
-            Remind
+            {tr('documents.envelope.remind', 'Remind')}
           </Button>
           <Button
             className="flex-1"
@@ -286,13 +342,13 @@ export function DocumentEnvelope({
               setOther('void');
             }}
           >
-            Cancel the request
+            {tr('documents.envelope.cancel_the_request', 'Cancel the request')}
           </Button>
         </View>
       ) : null}
       {env.follows && env.trail.length > 0 ? (
         <>
-          <Heading title="What happened" />
+          <Heading title={tr('documents.envelope.what_happened', 'What happened')} />
           <List>
             {env.trail.map((t, i) => (
               <ListItem
@@ -341,28 +397,35 @@ function OtherDialog({
         <DialogHeader>
           <DialogTitle>
             {other === 'ask'
-              ? `Ask ${sender}`
+              ? tr('documents.envelope.ask', 'Ask {{sender}}', { sender })
               : other === 'decline'
-                ? 'Decline to sign'
-                : 'Cancel this request'}
+                ? tr('documents.envelope.decline_to_sign', 'Decline to sign')
+                : tr('documents.envelope.cancel_this_request', 'Cancel this request')}
           </DialogTitle>
           <DialogDescription>
             {other === 'ask'
-              ? 'The request waits for you.'
+              ? tr('documents.envelope.the_request_waits_for_you', 'The request waits for you.')
               : other === 'decline'
                 ? `${sender} is told; say why.`
-                : 'Nobody can sign it afterwards. Say why.'}
+                : tr(
+                    'documents.envelope.nobody_can_sign_it_afterwards_say',
+                    'Nobody can sign it afterwards. Say why.',
+                  )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field>
-            <FieldLabel>{other === 'ask' ? 'Your question' : 'Why'}</FieldLabel>
+            <FieldLabel>
+              {other === 'ask'
+                ? tr('documents.envelope.your_question', 'Your question')
+                : tr('documents.envelope.why', 'Why')}
+            </FieldLabel>
             <Textarea value={text} onChange={onText} />
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Back
+            {tr('documents.envelope.back', 'Back')}
           </Button>
           <Button
             className="flex-1"
@@ -371,7 +434,7 @@ function OtherDialog({
             loading={busy}
             onPress={onSend}
           >
-            Send
+            {tr('documents.envelope.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -391,14 +454,17 @@ export function DocumentCampaign({
     dueOn: string | null;
     left: readonly { personId: string; name: string; teamName: string | null }[];
   }>('DocumentsCampaign', { campaignId: route.params.id });
-  const back = { label: 'Documents', onPress: navigation.goBack };
+  const back = {
+    label: tr('documents.envelope.documents', 'Documents'),
+    onPress: navigation.goBack,
+  };
   if (load.status !== 'ready') {
     return (
-      <Page title="Acknowledgements" back={back}>
+      <Page title={tr('documents.envelope.acknowledgements', 'Acknowledgements')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the policy" />
+          <Loading label={tr('documents.envelope.loading_the_policy', 'Loading the policy')} />
         )}
       </Page>
     );
@@ -406,13 +472,25 @@ export function DocumentCampaign({
   const c = load.data;
   return (
     <Page title={c.title} back={back}>
-      <Text variant="title2">{`${String(c.done)} of ${String(c.of)} done`}</Text>
+      <Text variant="title2">
+        {tr('documents.envelope.of_done', '{{String}} of {{String2}} done', {
+          String: String(c.done),
+          String2: String(c.of),
+        })}
+      </Text>
       <Progress
         value={c.of === 0 ? 0 : (c.done / c.of) * 100}
-        label={`${String(c.done)} of ${String(c.of)} acknowledged`}
+        label={tr('documents.envelope.of_acknowledged', '{{String}} of {{String2}} acknowledged', {
+          String: String(c.done),
+          String2: String(c.of),
+        })}
       />
-      {c.dueOn === null ? null : <Text tone="muted">{`Due ${c.dueOn}`}</Text>}
-      <Heading title="Still to go" />
+      {c.dueOn === null ? null : (
+        <Text tone="muted">
+          {tr('documents.envelope.due', 'Due {{dueOn}}', { dueOn: c.dueOn })}
+        </Text>
+      )}
+      <Heading title={tr('documents.envelope.still_to_go', 'Still to go')} />
       <List>
         {c.left.map((p) => (
           <ListItem

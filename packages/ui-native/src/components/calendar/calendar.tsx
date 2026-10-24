@@ -27,6 +27,8 @@ export {
   type DateRange,
   type IsoDate,
 } from './dates.ts';
+import { locale as readerLocale } from '@reach/ui/intl';
+import { t } from '../../lib/i18n';
 
 /**
  * A month grid for picking days, the web's Calendar under a thumb: 44pt days
@@ -55,9 +57,22 @@ const dot: Record<CalendarTone, string> = {
 
 /** What each level's arrows do: a month, a year, or a page of twelve years. */
 const STEP = {
-  days: { months: 1, previous: 'Previous month', next: 'Next month' },
-  months: { months: 12, previous: 'Previous year', next: 'Next year' },
-  years: { months: 144, previous: 'Previous twelve years', next: 'Next twelve years' },
+  days: {
+    months: 1,
+    previous: () => t('components.calendar.calendar.previous_month', 'Previous month'),
+    next: () => t('components.calendar.calendar.next_month', 'Next month'),
+  },
+  months: {
+    months: 12,
+    previous: () => t('components.calendar.calendar.previous_year', 'Previous year'),
+    next: () => t('components.calendar.calendar.next_year', 'Next year'),
+  },
+  years: {
+    months: 144,
+    previous: () =>
+      t('components.calendar.calendar.previous_twelve_years', 'Previous twelve years'),
+    next: () => t('components.calendar.calendar.next_twelve_years', 'Next twelve years'),
+  },
 } as const;
 
 type CalendarBaseProps = {
@@ -109,7 +124,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
     weekStartsOn = 1,
     locale,
     today = formatIsoDate(Date.now()),
-    label = 'Calendar',
+    label = t('components.calendar.calendar.calendar', 'Calendar'),
     className,
   } = props;
   const [own, setOwn] = useState(() =>
@@ -132,16 +147,23 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
 
   const formats = useMemo(
     () => ({
-      title: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }),
-      day: new Intl.DateTimeFormat(locale, {
+      title: new Intl.DateTimeFormat(locale ?? readerLocale(), {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }),
+      day: new Intl.DateTimeFormat(locale ?? readerLocale(), {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric',
         timeZone: 'UTC',
       }),
-      weekday: new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }),
-      month: new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }),
+      weekday: new Intl.DateTimeFormat(locale ?? readerLocale(), {
+        weekday: 'short',
+        timeZone: 'UTC',
+      }),
+      month: new Intl.DateTimeFormat(locale ?? readerLocale(), { month: 'short', timeZone: 'UTC' }),
     }),
     [locale],
   );
@@ -213,7 +235,14 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
           <Button
             variant="ghost"
             size="sm"
-            accessibilityLabel={`${view === 'days' ? title : String(year)}, choose a ${view === 'days' ? 'month' : 'year'}`}
+            accessibilityLabel={t(
+              'components.calendar.calendar.choose_a',
+              '{{value}}, choose a {{value2}}',
+              {
+                value: view === 'days' ? title : String(year),
+                value2: view === 'days' ? 'month' : 'year',
+              },
+            )}
             endIcon={<Icon icon={ChevronDown} />}
             onPress={() => {
               setView(view === 'days' ? 'months' : 'years');
@@ -227,7 +256,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
             variant="ghost"
             size="xs"
             disabled={before}
-            accessibilityLabel={STEP[view].previous}
+            accessibilityLabel={STEP[view].previous()}
             startIcon={<Icon icon={ChevronLeft} />}
             onPress={() => {
               setMonth(addMonths(shown, -step));
@@ -237,7 +266,7 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
             variant="ghost"
             size="xs"
             disabled={after}
-            accessibilityLabel={STEP[view].next}
+            accessibilityLabel={STEP[view].next()}
             startIcon={<Icon icon={ChevronRight} />}
             onPress={() => {
               setMonth(addMonths(shown, step));
@@ -248,8 +277,12 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
       {view === 'months' ? (
         <View
           role="group"
-          aria-label={`Months of ${String(year)}`}
-          accessibilityLabel={`Months of ${String(year)}`}
+          aria-label={t('components.calendar.calendar.months_of', 'Months of {{String}}', {
+            String: String(year),
+          })}
+          accessibilityLabel={t('components.calendar.calendar.months_of', 'Months of {{String}}', {
+            String: String(year),
+          })}
           className="flex-row flex-wrap"
         >
           {Array.from({ length: 12 }, (_, m) => {
@@ -276,8 +309,16 @@ export function Calendar(props: CalendarProps): React.JSX.Element {
       ) : view === 'years' ? (
         <View
           role="group"
-          aria-label={`Years ${String(page)} to ${String(page + 11)}`}
-          accessibilityLabel={`Years ${String(page)} to ${String(page + 11)}`}
+          aria-label={t(
+            'components.calendar.calendar.years_to',
+            'Years {{String}} to {{String2}}',
+            { String: String(page), String2: String(page + 11) },
+          )}
+          accessibilityLabel={t(
+            'components.calendar.calendar.years_to',
+            'Years {{String}} to {{String2}}',
+            { String: String(page), String2: String(page + 11) },
+          )}
           className="flex-row flex-wrap"
         >
           {Array.from({ length: 12 }, (_, i) => {

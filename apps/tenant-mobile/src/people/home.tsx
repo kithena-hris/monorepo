@@ -26,6 +26,7 @@ import { ask, useSigned } from './api';
 import { changePhoto, uploadFile } from './media';
 import type { OnboardingData } from './onboarding';
 import type { PeopleScreen } from './routes';
+import { t } from '../i18n';
 
 interface Overview {
   readonly roles: { readonly hr: boolean; readonly admin: boolean; readonly finance: boolean };
@@ -172,7 +173,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
   if (overview === null)
     return (
       <Page large="Home">
-        <Loading label="Loading your home" />
+        <Loading label={t('people.home.loading_your_home', 'Loading your home')} />
       </Page>
     );
 
@@ -193,9 +194,14 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
     <Page large={me === null ? 'Home' : `Hi ${first(me.name)}`}>
       {setupShown ? (
         <Card>
-          <CardTitle>Finish setting up your account</CardTitle>
+          <CardTitle>
+            {t('people.home.finish_setting_up_your_account', 'Finish setting up your account')}
+          </CardTitle>
           <CardDescription>
-            Your company asks for these. Each is saved as soon as you choose it.
+            {t(
+              'people.home.your_company_asks_for_these_each',
+              'Your company asks for these. Each is saved as soon as you choose it.',
+            )}
           </CardDescription>
           <Stack gap={2} className="pt-2">
             {setup.photo === null ? null : (
@@ -210,14 +216,16 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                     if (up.ok) void load();
                     else
                       toast({
-                        title: 'That did not work',
+                        title: t('people.home.that_did_not_work', 'That did not work'),
                         description: up.message,
                         tone: 'danger',
                       });
                   });
                 }}
               >
-                {setup.photo === 'required' ? 'Add your photo (required)' : 'Add your photo'}
+                {setup.photo === 'required'
+                  ? t('people.home.add_your_photo_required', 'Add your photo (required)')
+                  : t('people.home.add_your_photo', 'Add your photo')}
               </Button>
             )}
             {setup.fields.map((f) => (
@@ -236,7 +244,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                       setBusy(null);
                       if (up !== null)
                         toast({
-                          title: 'That did not work',
+                          title: t('people.home.that_did_not_work', 'That did not work'),
                           description: up.message,
                           tone: 'danger',
                         });
@@ -250,7 +258,9 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                   });
                 }}
               >
-                {f.required ? `${f.label} (required)` : f.label}
+                {f.required
+                  ? t('people.home.required', '{{label}} (required)', { label: f.label })
+                  : f.label}
               </Button>
             ))}
             {setup.photo === 'required' || setup.fields.some((f) => f.required) ? null : (
@@ -260,7 +270,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                   setLater(true);
                 }}
               >
-                Later
+                {t('people.home.later', 'Later')}
               </Button>
             )}
           </Stack>
@@ -277,8 +287,15 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
         <ActionCard
           icon={ClipboardList}
           tone="accent"
-          title="Finish your onboarding"
-          description={`${String(onboarding)} ${onboarding === 1 ? 'step' : 'steps'} to go. Each saves on its own.`}
+          title={t('people.home.finish_your_onboarding', 'Finish your onboarding')}
+          description={t(
+            'people.home.to_go_each_saves_on_its',
+            {
+              one: '{{count}} step to go. Each saves on its own.',
+              other: '{{count}} steps to go. Each saves on its own.',
+            },
+            { count: onboarding },
+          )}
           actions={
             <Button
               size="sm"
@@ -287,7 +304,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                 navigation.navigate('Onboarding');
               }}
             >
-              Continue
+              {t('people.home.continue', 'Continue')}
             </Button>
           }
         />
@@ -296,8 +313,10 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
       {tasks.length === 0 || inbox === null ? null : (
         <>
           <Heading
-            title="Needs you"
-            action={`Inbox · ${String(inbox.counts.todo)}`}
+            title={t('people.home.needs_you', 'Needs you')}
+            action={t('people.home.inbox', 'Inbox · {{String}}', {
+              String: String(inbox.counts.todo),
+            })}
             onAction={() => {
               tabs?.open('inbox');
             }}
@@ -320,7 +339,11 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
             <Pressable
               className="flex-1"
               accessibilityRole="button"
-              accessibilityLabel={`${balance.name}: ${amount(balance.left)} days left. Where the days went`}
+              accessibilityLabel={t(
+                'people.home.days_left_where_the_days_went',
+                '{{name}}: {{amount}} days left. Where the days went',
+                { name: balance.name, amount: amount(balance.left) },
+              )}
               onPress={() => {
                 navigation.navigate('TimeOffBalance', {
                   leaveTypeKey: balance.leaveTypeKey,
@@ -333,7 +356,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
                 value={amount(balance.left)}
                 unit="days"
                 size={24}
-                description="left this year"
+                description={t('people.home.left_this_year', 'left this year')}
               />
             </Pressable>
           )}
@@ -341,7 +364,7 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
             <Pressable
               className="flex-1"
               accessibilityRole="button"
-              accessibilityLabel="Open Time off"
+              accessibilityLabel={t('people.home.open_time_off', 'Open Time off')}
               onPress={() => {
                 tabs?.open('timeoff');
               }}
@@ -349,15 +372,19 @@ export function PeopleHome({ navigation }: PeopleScreen<'Home'>): React.JSX.Elem
               <Stat
                 label={
                   clock.state === 'in'
-                    ? 'Clocked in'
+                    ? t('people.home.clocked_in', 'Clocked in')
                     : clock.state === 'on_break'
-                      ? 'On a break'
-                      : 'Not clocked in'
+                      ? t('people.home.on_a_break', 'On a break')
+                      : t('people.home.not_clocked_in', 'Not clocked in')
                 }
                 value={duration(clock.today.workedMinutes ?? 0)}
                 size={24}
                 description={
-                  since === undefined ? 'worked today' : `since ${clockTime(since.from)}`
+                  since === undefined
+                    ? t('people.home.worked_today', 'worked today')
+                    : t('people.home.since', 'since {{clockTime}}', {
+                        clockTime: clockTime(since.from),
+                      })
                 }
               />
             </Pressable>

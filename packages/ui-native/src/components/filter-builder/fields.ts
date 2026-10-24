@@ -1,13 +1,28 @@
 import type { FilterField, FilterGroup } from './filter-builder.tsx';
+import { t as tr } from '../../lib/i18n';
 
 /** The people directory's filterable fields, for stories. */
 export const PEOPLE_FIELDS: FilterField[] = [
   {
     id: 'team',
-    label: 'Team',
+    get label(): string {
+      return tr('components.filter-builder.fields.team', 'Team');
+    },
     operators: [
-      { id: 'is', label: 'is', value: 'option' },
-      { id: 'is-not', label: 'is not', value: 'option' },
+      {
+        id: 'is',
+        get label(): string {
+          return tr('components.filter-builder.fields.is', 'is');
+        },
+        value: 'option',
+      },
+      {
+        id: 'is-not',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_not', 'is not');
+        },
+        value: 'option',
+      },
     ],
     options: ['Engineering', 'Design', 'Sales', 'Support', 'Finance', 'People'].map((t) => ({
       value: t,
@@ -16,33 +31,85 @@ export const PEOPLE_FIELDS: FilterField[] = [
   },
   {
     id: 'location',
-    label: 'Location',
+    get label(): string {
+      return tr('components.filter-builder.fields.location', 'Location');
+    },
     operators: [
-      { id: 'is', label: 'is', value: 'option' },
-      { id: 'is-not', label: 'is not', value: 'option' },
+      {
+        id: 'is',
+        get label(): string {
+          return tr('components.filter-builder.fields.is', 'is');
+        },
+        value: 'option',
+      },
+      {
+        id: 'is-not',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_not', 'is not');
+        },
+        value: 'option',
+      },
     ],
     options: ['Berlin', 'London', 'Remote', 'Tokyo', 'Paris'].map((l) => ({ value: l, label: l })),
   },
   {
     id: 'start',
-    label: 'Start date',
+    get label(): string {
+      return tr('components.filter-builder.fields.start_date', 'Start date');
+    },
     operators: [
-      { id: 'after', label: 'is after', value: 'date' },
-      { id: 'before', label: 'is before', value: 'date' },
+      {
+        id: 'after',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_after', 'is after');
+        },
+        value: 'date',
+      },
+      {
+        id: 'before',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_before', 'is before');
+        },
+        value: 'date',
+      },
     ],
   },
   {
     id: 'salary',
-    label: 'Salary',
+    get label(): string {
+      return tr('components.filter-builder.fields.salary', 'Salary');
+    },
     operators: [
-      { id: 'above', label: 'is above', value: 'number' },
-      { id: 'below', label: 'is below', value: 'number' },
+      {
+        id: 'above',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_above', 'is above');
+        },
+        value: 'number',
+      },
+      {
+        id: 'below',
+        get label(): string {
+          return tr('components.filter-builder.fields.is_below', 'is below');
+        },
+        value: 'number',
+      },
     ],
   },
   {
     id: 'contract',
-    label: 'Contract',
-    operators: [{ id: 'is', label: 'is', value: 'option' }],
+    get label(): string {
+      return tr('components.filter-builder.fields.contract', 'Contract');
+    },
+    operators: [
+      {
+        id: 'is',
+        get label(): string {
+          return tr('components.filter-builder.fields.is', 'is');
+        },
+        value: 'option',
+      },
+    ],
     options: ['Permanent', 'Fixed term', 'Contractor'].map((c) => ({ value: c, label: c })),
   },
 ];

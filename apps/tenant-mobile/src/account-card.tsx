@@ -12,9 +12,19 @@ import {
   Stack,
   Text,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Building2, CalendarDays, EyeOff, LogOut, Moon, Settings, User } from 'lucide-react-native';
+import {
+  Building2,
+  CalendarDays,
+  EyeOff,
+  Languages,
+  LogOut,
+  Moon,
+  Settings,
+  User,
+} from 'lucide-react-native';
 import { createContext, useContext, useState } from 'react';
 import { Pressable, useColorScheme } from 'react-native';
 
@@ -23,6 +33,7 @@ import { greetingFor } from './address';
 import { setLook } from './appearance';
 import { useSigned } from './people/api';
 import type { PeopleRoutes } from './people/routes';
+import { t } from './i18n';
 
 /** "Adam Novak": what they are called, else words from their address. */
 export const fullName = (person: Person): string =>
@@ -61,11 +72,19 @@ export function AccountMenu(): React.JSX.Element | null {
     <DropdownMenu>
       <DropdownMenuTrigger>
         {/* Your initials, as the design's top right (v3 H1): the account is you. */}
-        <Pressable accessibilityRole="button" accessibilityLabel="Your account" hitSlop={6}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('account-card.your_account', 'Your account')}
+          hitSlop={6}
+        >
           <Avatar name={name} size={36} decorative />
         </Pressable>
       </DropdownMenuTrigger>
-      <DropdownMenuContent label="Your account" align="end" className="w-[300px]">
+      <DropdownMenuContent
+        label={t('account-card.your_account', 'Your account')}
+        align="end"
+        className="w-[300px]"
+      >
         {actions.endViewing === null ? null : (
           <>
             <DropdownMenuItem
@@ -74,7 +93,7 @@ export function AccountMenu(): React.JSX.Element | null {
                 void actions.endViewing?.();
               }}
             >
-              {`End viewing as ${name}`}
+              {t('account-card.end_viewing_as', 'End viewing as {{name}}', { name })}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -92,7 +111,7 @@ export function AccountMenu(): React.JSX.Element | null {
             actions.open('me');
           }}
         >
-          My profile
+          {t('account-card.my_profile', 'My profile')}
         </DropdownMenuItem>
         {actions.timeOff ? (
           <DropdownMenuItem
@@ -101,7 +120,7 @@ export function AccountMenu(): React.JSX.Element | null {
               actions.open('timeoff');
             }}
           >
-            My time off
+            {t('account-card.my_time_off', 'My time off')}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem
@@ -110,7 +129,15 @@ export function AccountMenu(): React.JSX.Element | null {
             navigation.navigate('Settings');
           }}
         >
-          Settings
+          {t('account-card.settings', 'Settings')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          icon={Languages}
+          onSelect={() => {
+            navigation.navigate('Language');
+          }}
+        >
+          {t('account-card.language', 'Language')}
         </DropdownMenuItem>
         <DropdownMenuCheckboxItem
           icon={Moon}
@@ -119,7 +146,7 @@ export function AccountMenu(): React.JSX.Element | null {
             setLook(on ? 'dark' : 'light');
           }}
         >
-          Dark mode
+          {t('account-card.dark_mode', 'Dark mode')}
         </DropdownMenuCheckboxItem>
         <DropdownMenuItem
           icon={Building2}
@@ -128,7 +155,7 @@ export function AccountMenu(): React.JSX.Element | null {
             void actions.changeCompany();
           }}
         >
-          Switch company
+          {t('account-card.switch_company', 'Switch company')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -138,7 +165,7 @@ export function AccountMenu(): React.JSX.Element | null {
             void signOut();
           }}
         >
-          Sign out
+          {t('account-card.sign_out', 'Sign out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -152,7 +179,7 @@ export function Account({ onSettings }: { onSettings: () => void }): React.JSX.E
   const until =
     person.expiresAt === null
       ? null
-      : new Date(person.expiresAt).toLocaleDateString(undefined, {
+      : new Date(person.expiresAt).toLocaleDateString(locale(), {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
@@ -161,36 +188,40 @@ export function Account({ onSettings }: { onSettings: () => void }): React.JSX.E
     <Stack gap={3}>
       <List>
         <ListItem trailing={<Text tone="muted">{company.displayName ?? company.slug}</Text>}>
-          Company
+          {t('account-card.company', 'Company')}
         </ListItem>
         {person.workEmail === null ? null : (
-          <ListItem trailing={<Text tone="muted">{person.workEmail}</Text>}>Work email</ListItem>
+          <ListItem trailing={<Text tone="muted">{person.workEmail}</Text>}>
+            {t('account-card.work_email', 'Work email')}
+          </ListItem>
         )}
         {until === null ? null : (
-          <ListItem trailing={<Text tone="muted">{until}</Text>}>Signed in until</ListItem>
+          <ListItem trailing={<Text tone="muted">{until}</Text>}>
+            {t('account-card.signed_in_until', 'Signed in until')}
+          </ListItem>
         )}
       </List>
       <List>
         <ListItem
           icon={Settings}
-          description="Your company’s, and your own"
+          description={t('account-card.your_companys_and_your_own', 'Your company’s, and your own')}
           chevron
           onPress={onSettings}
         >
-          Settings
+          {t('account-card.settings', 'Settings')}
         </ListItem>
       </List>
       <Button
         variant="danger-soft"
         fullWidth
         loading={busy}
-        loadingLabel="Signing out"
+        loadingLabel={t('account-card.signing_out', 'Signing out')}
         onPress={() => {
           setBusy(true);
           void signOut();
         }}
       >
-        Sign out
+        {t('account-card.sign_out', 'Sign out')}
       </Button>
     </Stack>
   );

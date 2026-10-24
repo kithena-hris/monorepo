@@ -35,6 +35,7 @@ import { BackGuard } from '../dialog/dialog.tsx';
 import { FloatingButton } from '../floating-button/floating-button.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * An assistant that answers from policies and data and acts only once a
@@ -80,7 +81,7 @@ export type AssistantPanelProps = {
 
 /** The assistant's card: a header, the conversation, the composer. */
 export function AssistantPanel({
-  title = 'Assistant',
+  title = t('components.assistant.assistant.assistant', 'Assistant'),
   subtitle,
   badge,
   onNewChat,
@@ -117,7 +118,10 @@ export function AssistantPanel({
           <Button
             variant="ghost"
             size="xs"
-            accessibilityLabel="New conversation"
+            accessibilityLabel={t(
+              'components.assistant.assistant.new_conversation',
+              'New conversation',
+            )}
             startIcon={<Icon icon={SquarePen} />}
             onPress={onNewChat}
           />
@@ -126,7 +130,7 @@ export function AssistantPanel({
           <Button
             variant="ghost"
             size="xs"
-            accessibilityLabel="Minimise"
+            accessibilityLabel={t('components.assistant.assistant.minimise', 'Minimise')}
             startIcon={<Icon icon={ChevronDown} />}
             onPress={onMinimize}
           />
@@ -135,7 +139,7 @@ export function AssistantPanel({
           <Button
             variant="ghost"
             size="xs"
-            accessibilityLabel="Close"
+            accessibilityLabel={t('components.assistant.assistant.close', 'Close')}
             startIcon={<Icon icon={X} />}
             onPress={onClose}
           />
@@ -232,7 +236,7 @@ export function AssistantFeedback({
         <Button
           variant="ghost"
           size="xs"
-          accessibilityLabel="Copy answer"
+          accessibilityLabel={t('components.assistant.assistant.copy_answer', 'Copy answer')}
           startIcon={<Icon icon={Copy} tone="subtle" />}
           onPress={onCopy}
         />
@@ -242,7 +246,7 @@ export function AssistantFeedback({
           <Button
             variant="ghost"
             size="xs"
-            accessibilityLabel="Good answer"
+            accessibilityLabel={t('components.assistant.assistant.good_answer', 'Good answer')}
             startIcon={<Icon icon={ThumbsUp} tone="subtle" />}
             onPress={() => {
               onRate(true);
@@ -251,7 +255,7 @@ export function AssistantFeedback({
           <Button
             variant="ghost"
             size="xs"
-            accessibilityLabel="Bad answer"
+            accessibilityLabel={t('components.assistant.assistant.bad_answer', 'Bad answer')}
             startIcon={<Icon icon={ThumbsDown} tone="subtle" />}
             onPress={() => {
               onRate(false);
@@ -263,7 +267,7 @@ export function AssistantFeedback({
         <Button
           variant="ghost"
           size="xs"
-          accessibilityLabel="Answer again"
+          accessibilityLabel={t('components.assistant.assistant.answer_again', 'Answer again')}
           startIcon={<Icon icon={RotateCw} tone="subtle" />}
           onPress={onRetry}
         />
@@ -290,7 +294,12 @@ export function AssistantSource({
   return (
     <Pressable
       accessibilityRole={onPress ? 'link' : 'text'}
-      {...spokenName(`Source ${String(index)}: ${children}`)}
+      {...spokenName(
+        t('components.assistant.assistant.source', 'Source {{String}}: {{children}}', {
+          String: String(index),
+          children,
+        }),
+      )}
       hitSlop={{ top: 9, bottom: 9 }}
       {...(onPress ? { onPress } : {})}
       className="h-[26px] flex-row items-center gap-1.5 rounded-full bg-surface-sunken pl-1 pr-2.5"
@@ -411,7 +420,7 @@ export function AssistantAction({
   description,
   details,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel = t('components.assistant.assistant.cancel', 'Cancel'),
   onConfirm,
   onCancel,
 }: AssistantActionProps): React.JSX.Element {
@@ -463,10 +472,13 @@ export function AssistantComposer({
   onSubmit,
   streaming = false,
   onStop,
-  placeholder = 'Ask a question…',
+  placeholder = t('components.assistant.assistant.ask_a_question', 'Ask a question…'),
   onAttach,
   onDictate,
-  disclaimer = 'Answers can be wrong. Check anything important.',
+  disclaimer = t(
+    'components.assistant.assistant.answers_can_be_wrong_check_anything',
+    'Answers can be wrong. Check anything important.',
+  ),
 }: AssistantComposerProps): React.JSX.Element {
   const ready = value.trim().length > 0;
   return (
@@ -477,7 +489,7 @@ export function AssistantComposer({
           {...(WEB ? { numberOfLines: 1 } : {})}
           value={value}
           onChangeText={onValueChange}
-          accessibilityLabel="Question"
+          accessibilityLabel={t('components.assistant.assistant.question', 'Question')}
           placeholder={placeholder}
           className="min-h-5 text-[16px] leading-[1.4] text-fg caret-accent outline-none placeholder:text-fg-subtle"
         />
@@ -486,7 +498,10 @@ export function AssistantComposer({
             <Button
               variant="ghost"
               size="xs"
-              accessibilityLabel="Attach a file"
+              accessibilityLabel={t(
+                'components.assistant.assistant.attach_a_file',
+                'Attach a file',
+              )}
               startIcon={<Icon icon={Paperclip} />}
               onPress={onAttach}
             />
@@ -495,7 +510,7 @@ export function AssistantComposer({
             <Button
               variant="ghost"
               size="xs"
-              accessibilityLabel="Dictate"
+              accessibilityLabel={t('components.assistant.assistant.dictate', 'Dictate')}
               startIcon={<Icon icon={Mic} />}
               onPress={onDictate}
             />
@@ -504,7 +519,7 @@ export function AssistantComposer({
           {streaming ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Stop"
+              accessibilityLabel={t('components.assistant.assistant.stop', 'Stop')}
               hitSlop={6}
               {...(onStop ? { onPress: onStop } : {})}
               className="size-8 items-center justify-center rounded-full bg-invert"
@@ -515,7 +530,7 @@ export function AssistantComposer({
             <Button
               variant="primary"
               size="xs"
-              accessibilityLabel="Send"
+              accessibilityLabel={t('components.assistant.assistant.send', 'Send')}
               startIcon={<Icon icon={ArrowUp} />}
               disabled={!ready}
               onPress={() => {
@@ -547,7 +562,7 @@ export function AssistantLauncher({
   onOpen,
   nudge,
   onDismissNudge,
-  label = 'Open the assistant',
+  label = t('components.assistant.assistant.open_the_assistant', 'Open the assistant'),
 }: AssistantLauncherProps): React.JSX.Element {
   return (
     <View className="items-end gap-2.5">
@@ -557,7 +572,7 @@ export function AssistantLauncher({
           {onDismissNudge ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Dismiss"
+              accessibilityLabel={t('components.assistant.assistant.dismiss', 'Dismiss')}
               hitSlop={15}
               onPress={onDismissNudge}
             >

@@ -20,6 +20,7 @@ import { usePlatform } from '../../provider.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A brief confirmation after an action, as the web's: it goes by itself, so
@@ -79,7 +80,7 @@ export function Toast({
   loading = false,
   action,
   onDismiss,
-  dismissLabel = 'Dismiss',
+  dismissLabel = t('components.toast.toast.dismiss', 'Dismiss'),
   className,
 }: ToastProps): React.JSX.Element {
   const urgent = tone === 'danger' || tone === 'warning';

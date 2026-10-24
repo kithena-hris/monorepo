@@ -18,5 +18,7 @@ export async function GET(): Promise<Response> {
     slug: tenant.slug,
     displayName: tenant.branding.displayName,
     logoUrl: tenant.branding.logoUrl,
+    // The phone's words until its reader chooses, as a screen's on the web.
+    language: tenant.language,
   });
 }

@@ -96,10 +96,18 @@ function greeting(who: { firstName: string; kind: PunchKind }, minute: number): 
 }
 
 const DID: Record<PunchKind, string> = {
-  in: t('kiosk.kiosk.clocked_in_at', 'Clocked in at'),
-  out: t('kiosk.kiosk.clocked_out_at', 'Clocked out at'),
-  break_start: t('kiosk.kiosk.break_started_at', 'Break started at'),
-  break_end: t('kiosk.kiosk.back_from_your_break_at', 'Back from your break at'),
+  get in(): string {
+    return t('kiosk.kiosk.clocked_in_at', 'Clocked in at');
+  },
+  get out(): string {
+    return t('kiosk.kiosk.clocked_out_at', 'Clocked out at');
+  },
+  get break_start(): string {
+    return t('kiosk.kiosk.break_started_at', 'Break started at');
+  },
+  get break_end(): string {
+    return t('kiosk.kiosk.back_from_your_break_at', 'Back from your break at');
+  },
 };
 
 export function Kiosk({

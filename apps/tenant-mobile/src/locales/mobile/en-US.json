@@ -1,0 +1,20 @@
+{
+  "documents.envelope.cancelled": "Canceled.",
+  "inbox.item.cancelled_for": "Canceled for {{name}}",
+  "inbox.item.cancelled_for_everyone": "Canceled for everyone",
+  "inbox.item.cancelled_this": "{{value}} canceled this",
+  "people.profile.summarise": "Summarize {{firstName}}",
+  "people.profile.there_is_nothing_to_summarise_that": "There is nothing to summarize that you may see yet.",
+  "people.settings.activity.organisation": "Organization",
+  "people.settings.fields-model.in_your_organisation": "In your organization",
+  "people.settings.organisation.germany_labour_records": "Germany, labor records",
+  "people.settings.organisation.loading_the_organisation": "Loading the organization",
+  "people.settings.organisation.organisation": "Organization",
+  "people.settings.organisation.spain_labour_records": "Spain, labor records",
+  "people.settings.settings.organisation": "Organization",
+  "timeoff.request.blue_dots_are_teammates_who_are": "Blue dots are teammates who are off, gray are holidays, red is a day already short.",
+  "timeoff.requests.cancelled": "Canceled",
+  "timeoff.settings.shortening_or_cancelling": "Shortening or canceling",
+  "timeoff.today.coming_up_past_and_cancelled": "Coming up, past and canceled",
+  "timeoff.words.cancelled": "Canceled"
+}

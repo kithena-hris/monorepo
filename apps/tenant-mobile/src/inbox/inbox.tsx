@@ -36,6 +36,7 @@ import { HandOver } from './hand-over';
 import { d, str } from './item';
 import { TaskCard, useInboxWrite } from './task-card';
 import { ago, iconOf, moduleName, type Group, type Item, type LaneName } from './model';
+import { t as tr } from '../i18n';
 
 /**
  * The Inbox tab (M:A1, M:C1, M:D1, M:E1, M:Z1): To do, Updates, Requests and
@@ -44,12 +45,12 @@ import { ago, iconOf, moduleName, type Group, type Item, type LaneName } from '.
  * the same.
  */
 
-const LABEL: Readonly<Record<LaneName, string>> = {
-  todo: 'To do',
-  updates: 'Updates',
-  requests: 'Requests',
-  done: 'Done',
-};
+const LABEL = (): Readonly<Record<LaneName, string>> => ({
+  todo: tr('inbox.inbox.to_do', 'To do'),
+  updates: tr('inbox.inbox.updates_2', 'Updates'),
+  requests: tr('inbox.inbox.requests_2', 'Requests'),
+  done: tr('inbox.inbox.done', 'Done'),
+});
 
 export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element {
   const signed = useSigned();
@@ -74,7 +75,11 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
   const change = (c: Parameters<typeof changeInbox>[1], said?: string): void => {
     void changeInbox(signed, c).then((refused) => {
       if (refused !== null)
-        toast({ title: 'That did not work', description: refused, tone: 'danger' });
+        toast({
+          title: tr('inbox.inbox.that_did_not_work', 'That did not work'),
+          description: refused,
+          tone: 'danger',
+        });
       else if (said !== undefined) toast({ title: said, tone: 'success' });
     });
   };
@@ -95,13 +100,13 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
             setHanding(true);
           }}
         >
-          Hand over
+          {tr('inbox.inbox.hand_over', 'Hand over')}
         </Button>
       ) : null}
       <Button
         variant="ghost"
         size="sm"
-        accessibilityLabel="Notification settings"
+        accessibilityLabel={tr('inbox.inbox.notification_settings', 'Notification settings')}
         startIcon={<Icon icon={SlidersHorizontal} />}
         onPress={() => {
           navigation.navigate('Notifications');
@@ -114,7 +119,7 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
     return (
       <Page large="Inbox" trailing={trailing}>
         {error === null ? (
-          <Loading label="Loading your Inbox" />
+          <Loading label={tr('inbox.inbox.loading_your_inbox', 'Loading your Inbox')} />
         ) : (
           <Failed message={error} onRetry={reload} />
         )}
@@ -148,16 +153,21 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
           }}
           swipeActions={[
             {
-              label: item.unread ? 'Read' : 'Unread',
+              label: item.unread
+                ? tr('inbox.inbox.read', 'Read')
+                : tr('inbox.inbox.unread', 'Unread'),
               tone: 'accent' as const,
               onSelect: () => {
                 change({ kind: 'read', ids: [item.id], read: item.unread });
               },
             },
             {
-              label: 'Done',
+              label: tr('inbox.inbox.done', 'Done'),
               onSelect: () => {
-                change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
+                change(
+                  { kind: 'done', ids: [item.id] },
+                  tr('inbox.inbox.moved_to_done', 'Moved to Done'),
+                );
               },
             },
           ]}
@@ -171,7 +181,9 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
             change({ kind: 'read', ids: [item.id], read: item.unread });
           }}
         >
-          {item.unread ? 'Mark as read' : 'Mark as unread'}
+          {item.unread
+            ? tr('inbox.inbox.mark_as_read', 'Mark as read')
+            : tr('inbox.inbox.mark_as_unread', 'Mark as unread')}
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -181,14 +193,17 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
             );
           }}
         >
-          Mute updates like this
+          {tr('inbox.inbox.mute_updates_like_this', 'Mute updates like this')}
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            change({ kind: 'done', ids: [item.id] }, 'Moved to Done');
+            change(
+              { kind: 'done', ids: [item.id] },
+              tr('inbox.inbox.moved_to_done', 'Moved to Done'),
+            );
           }}
         >
-          Move to Done
+          {tr('inbox.inbox.move_to_done', 'Move to Done')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -230,7 +245,7 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
                       : write('timeoff', 'NudgeTimeOffRequest', { requestId }, 'Nudged'));
                   }}
                 >
-                  Nudge
+                  {tr('inbox.inbox.nudge', 'Nudge')}
                 </Button>
               ),
             }
@@ -279,14 +294,20 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
         }}
         size="sm"
         fullWidth
-        accessibilityLabel="Show"
+        accessibilityLabel={tr('inbox.inbox.show', 'Show')}
       >
         <SegmentedControlItem value="todo">
-          {counts.todo === 0 ? 'To do' : `To do ${String(counts.todo)}`}
+          {counts.todo === 0
+            ? tr('inbox.inbox.to_do', 'To do')
+            : tr('inbox.inbox.to_do_2', 'To do {{String}}', { String: String(counts.todo) })}
         </SegmentedControlItem>
-        <SegmentedControlItem value="updates">{`Updates ${String(counts.updates)}`}</SegmentedControlItem>
-        <SegmentedControlItem value="requests">{`Requests ${String(counts.requests)}`}</SegmentedControlItem>
-        <SegmentedControlItem value="done">Done</SegmentedControlItem>
+        <SegmentedControlItem value="updates">
+          {tr('inbox.inbox.updates', 'Updates {{String}}', { String: String(counts.updates) })}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="requests">
+          {tr('inbox.inbox.requests', 'Requests {{String}}', { String: String(counts.requests) })}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="done">{tr('inbox.inbox.done', 'Done')}</SegmentedControlItem>
       </SegmentedControl>
       {brief === null ? null : (
         <Alert tone="accent" variant="summary">
@@ -294,7 +315,12 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
         </Alert>
       )}
       {lane === 'done' ? (
-        <SearchField value={q} onValueChange={setQ} label="Search done" placeholder="Search done" />
+        <SearchField
+          value={q}
+          onValueChange={setQ}
+          label={tr('inbox.inbox.search_done', 'Search done')}
+          placeholder={tr('inbox.inbox.search_done', 'Search done')}
+        />
       ) : null}
       {inbox.unanswered.length === 0 ? null : (
         <Text variant="footnote" tone="muted">
@@ -308,12 +334,15 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
             <EmptyState
               icon={CircleCheck}
               tone="accent"
-              title="You’re all caught up"
-              description="New tasks land here and on your phone."
+              title={tr('inbox.inbox.youre_all_caught_up', 'You’re all caught up')}
+              description={tr(
+                'inbox.inbox.new_tasks_land_here_and_on',
+                'New tasks land here and on your phone.',
+              )}
             />
           ) : (
             <>
-              {updates.length === 0 ? null : <Heading title="To do" />}
+              {updates.length === 0 ? null : <Heading title={tr('inbox.inbox.to_do', 'To do')} />}
               {tasks.map((item) => (
                 <TaskCard key={item.id} item={item} now={now} zone={zone} navigation={navigation} />
               ))}
@@ -327,7 +356,9 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
                   setShowSnoozed((s) => !s);
                 }}
               >
-                {`${String(inbox.snoozed.length)} snoozed`}
+                {tr('inbox.inbox.snoozed', '{{String}} snoozed', {
+                  String: String(inbox.snoozed.length),
+                })}
               </Button>
               {showSnoozed
                 ? inbox.snoozed.map((item) => (
@@ -345,12 +376,12 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
           {updates.length === 0 ? null : (
             <>
               <Heading
-                title="Updates"
+                title={tr('inbox.inbox.updates_2', 'Updates')}
                 {...(updates.some((u) => u.unread)
                   ? {
-                      action: 'Mark all read',
+                      action: tr('inbox.inbox.mark_all_read', 'Mark all read'),
                       onAction: () => {
-                        change({ kind: 'readAll' }, 'All read');
+                        change({ kind: 'readAll' }, tr('inbox.inbox.all_read', 'All read'));
                       },
                     }
                   : {})}
@@ -362,13 +393,26 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
       ) : groups.length === 0 ? (
         <EmptyState
           icon={InboxGlyph}
-          title={words === '' ? `Nothing in ${LABEL[lane]}` : 'Nothing matches'}
+          title={
+            words === ''
+              ? tr('inbox.inbox.nothing_in', 'Nothing in {{value}}', { value: LABEL()[lane] })
+              : tr('inbox.inbox.nothing_matches', 'Nothing matches')
+          }
           description={
             lane === 'requests'
-              ? 'When a request is decided it moves to Done and you get an update.'
+              ? tr(
+                  'inbox.inbox.when_a_request_is_decided_it',
+                  'When a request is decided it moves to Done and you get an update.',
+                )
               : lane === 'done'
-                ? 'Finished tasks, decided requests and older updates stay here.'
-                : 'News from every module lands here.'
+                ? tr(
+                    'inbox.inbox.finished_tasks_decided_requests_and_older',
+                    'Finished tasks, decided requests and older updates stay here.',
+                  )
+                : tr(
+                    'inbox.inbox.news_from_every_module_lands_here',
+                    'News from every module lands here.',
+                  )
           }
         />
       ) : (
@@ -385,7 +429,10 @@ export function Inbox({ navigation }: PeopleScreen<'Inbox'>): React.JSX.Element 
       )}
       {lane === 'requests' && groups.length > 0 ? (
         <Text variant="footnote" tone="muted" className="px-1">
-          When a request is decided it moves to Done and you get an update.
+          {tr(
+            'inbox.inbox.when_a_request_is_decided_it',
+            'When a request is decided it moves to Done and you get an update.',
+          )}
         </Text>
       ) : null}
       {handing ? (

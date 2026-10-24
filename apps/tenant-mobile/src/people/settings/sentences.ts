@@ -8,6 +8,7 @@ import {
   type ViewerScope,
   type WriterRole,
 } from './fields-model';
+import { t } from '../../i18n';
 
 /**
  * Settings read and written as sentences (design v3 S2, S4, S6). Pure, so
@@ -36,19 +37,19 @@ export function seersOf(visibility: readonly ViewerScope[]): string {
   return join(named);
 }
 
-const WRITER_WORD: Readonly<Record<WriterRole, string>> = {
-  employee: 'The employee',
-  manager: 'Their manager',
+const WRITER_WORD = (): Readonly<Record<WriterRole, string>> => ({
+  employee: t('people.settings.sentences.the_employee', 'The employee'),
+  manager: t('people.settings.sentences.their_manager', 'Their manager'),
   hr: 'HR',
-  finance: 'Finance',
-  system: 'Kithena',
-  external: 'An integration',
-};
+  finance: t('people.settings.sentences.finance', 'Finance'),
+  system: t('people.settings.sentences.kithena', 'Kithena'),
+  external: t('people.settings.sentences.an_integration', 'An integration'),
+});
 
 /** "HR", "The employee or HR": who fills it in. */
 export function writersOf(ownership: readonly WriterRole[]): string {
   const words = ownership.map((w, i) =>
-    i === 0 ? WRITER_WORD[w] : WRITER_WORD[w].replace(/^The |^Their /u, (m) => m.toLowerCase()),
+    i === 0 ? WRITER_WORD()[w] : WRITER_WORD()[w].replace(/^The |^Their /u, (m) => m.toLowerCase()),
   );
   if (words.length === 0) return 'Nobody';
   return words.length === 1

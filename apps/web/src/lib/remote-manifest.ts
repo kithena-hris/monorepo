@@ -1,6 +1,8 @@
 import { cache } from 'react';
 
-import { RouteManifest } from './manifest-schema';
+import type { T } from '@reach/ui/i18n';
+
+import { RouteManifest, type Place } from './manifest-schema';
 import {
   areaOf,
   matchPath,
@@ -12,6 +14,61 @@ import {
   type SlotName,
 } from './remotes';
 import { timed } from './timing';
+
+/**
+ * A place's words in the reader's language. A remote's `routes.json` is
+ * English, as its code is; each label is a key in the remote's namespace,
+ * `nav.<path>.<field>` (`i18n-extract.mjs` reads them out of the file), so
+ * the sidebar, the breadcrumb and the tabs all read in the page's language.
+ */
+type Tab = NonNullable<Place['tabs']>[number];
+
+/** One place's words, `nav.<path>.<field>`, in the reader's language. */
+function wordsIn<P extends Tab>(place: P, t: T): P {
+  const key = (field: string) => `nav.${place.path}.${field}`;
+  const out: P = { ...place, label: t(key('label'), place.label) };
+  for (const field of ['short', 'description', 'group'] as const) {
+    const english = place[field];
+    if (english !== undefined) out[field] = t(key(field), english);
+  }
+  if (place.labelFor !== undefined)
+    out.labelFor = Object.fromEntries(
+      Object.entries(place.labelFor).map(([role, english]) => [
+        role,
+        t(key(`label_for.${role}`), english),
+      ]),
+    );
+  return out;
+}
+
+/**
+ * A place's words in the reader's language. A remote's `routes.json` is
+ * English, as its code is; each label is a key in the remote's namespace,
+ * `nav.<path>.<field>` (`i18n-extract.mjs` reads them out of the file), so
+ * the sidebar, the breadcrumb and the tabs all read in the page's language.
+ */
+function placeIn(place: Place, t: T): Place {
+  const out = wordsIn(place, t);
+  if (place.summary !== undefined) out.summary = t(`nav.${place.path}.summary`, place.summary);
+  if (place.tabs !== undefined) out.tabs = place.tabs.map((tab) => wordsIn(tab, t));
+  return out;
+}
+
+type Nav = RemoteRoute['nav'];
+
+/** Every place of an area's navigation in the reader's language. */
+async function navIn(area: Area, nav: Nav): Promise<Nav> {
+  // Loaded here, not at the top: the request's words are server-only, and a
+  // test of the manifest has no request; outside one the navigation is English.
+  let t: T;
+  try {
+    t = await (await import('./server-words')).serverWords(area.name);
+  } catch {
+    return nav;
+  }
+  const each = (places: Nav['sections']): Place[] => places.map((place) => placeIn(place, t));
+  return { sections: each(nav.sections), actions: each(nav.actions), settings: each(nav.settings) };
+}
 
 /*
  * The server's half of `remotes.ts`: reading and checking a remote's
@@ -61,7 +118,13 @@ export async function remoteRoute(path: string): Promise<RemoteRoute | null | un
   const matched = matchRoute(manifest, path);
   return matched == null
     ? matched
-    : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
+    : {
+        entry: `${remotePath(area)}/remoteEntry.js`,
+        base,
+        area,
+        ...matched,
+        nav: await navIn(area, matched.nav),
+      };
 }
 
 /**
@@ -98,7 +161,7 @@ export async function remoteNav(area: Area): Promise<{
   if (!parsed.success) return null;
   const { routes, sections, actions, settings, slots } = parsed.data;
   return {
-    nav: { sections, actions, settings },
+    nav: await navIn(area, { sections, actions, settings }),
     routes: routes.map((r) => r.path),
     screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
     slots: Object.fromEntries(

@@ -167,7 +167,7 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
             // `username webauthn` is what lets a password manager offer the
             // right passkey against the right address on a shared device.
             autoComplete="username webauthn"
-            placeholder="you@yourcompany.com"
+            placeholder={t('components.passkey-sign-in.you_yourcompany_com', 'you@yourcompany.com')}
             onChange={(event) => {
               setEmail(event.target.value);
               if (emailProblem !== null) setEmailProblem(null);

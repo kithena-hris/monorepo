@@ -654,10 +654,18 @@ function Tiles({
 }
 
 const QUEUE_TITLES: Record<QueueKey, string> = {
-  to_sign: tr('library.library.waiting_for_a_signature', 'Waiting for a signature'),
-  expiring: tr('library.library.expiring_in_60_days', 'Expiring in 60 days'),
-  missing: tr('library.library.missing_from_peoples_files', 'Missing from people’s files'),
-  to_delete: tr('library.library.retention_ended', 'Retention ended'),
+  get to_sign(): string {
+    return tr('library.library.waiting_for_a_signature', 'Waiting for a signature');
+  },
+  get expiring(): string {
+    return tr('library.library.expiring_in_60_days', 'Expiring in 60 days');
+  },
+  get missing(): string {
+    return tr('library.library.missing_from_peoples_files', 'Missing from people’s files');
+  },
+  get to_delete(): string {
+    return tr('library.library.retention_ended', 'Retention ended');
+  },
 };
 
 function QueueList({
@@ -836,7 +844,11 @@ export function AskDialog({
   const [key, setKey] = useState(typeKey);
   const typeName = types.find((t) => t.key === key)?.name ?? 'document';
   const [message, setMessage] = useState(
-    `Hi ${first}, we need your ${typeName.toLowerCase()}. A photo is fine.`,
+    tr(
+      'library.library.hi_we_need_your_a_photo',
+      'Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.',
+      { first, toLowerCase: typeName.toLowerCase() },
+    ),
   );
   const write = useWrite();
   return (

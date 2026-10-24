@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Chip,
+  ListItem,
   SearchField,
   Select,
   SelectContent,
@@ -13,8 +14,8 @@ import {
   Stack,
   Switch,
   Text,
-  ListItem,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -22,6 +23,7 @@ import { Failed, Loading, Page } from '../frame';
 import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { amount, spanLabel } from './words';
+import { t as tr } from '../i18n';
 
 export interface Option {
   readonly from: string;
@@ -63,7 +65,7 @@ interface Asked {
 
 const LENGTHS = [1, 2, 3, 4, 5, 10, 15];
 const monthLabel = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+  dateFormat({ month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(`${m}-01T00:00:00Z`),
   );
 
@@ -85,14 +87,21 @@ export function SuggestionCard({
       <Stack gap={2}>
         <View className="flex-row items-center gap-2">
           <Text variant="headline" className="flex-1">
-            {`${spanLabel(o.from, o.to)} · ${String(o.used)} ${o.used === 1 ? 'day' : 'days'} → ${String(o.away.days)} off`}
+            {tr(
+              'timeoff.describe.off',
+              {
+                one: '{{spanLabel}} · {{count}} day → {{String2}} off',
+                other: '{{spanLabel}} · {{count}} days → {{String2}} off',
+              },
+              { count: o.used, spanLabel: spanLabel(o.from, o.to), String2: String(o.away.days) },
+            )}
           </Text>
           {best ? (
             <Badge size="sm" tone="accent">
-              Best
+              {tr('timeoff.describe.best', 'Best')}
             </Badge>
           ) : null}
-          {o.line.ai ? <Badge size="sm">AI</Badge> : null}
+          {o.line.ai ? <Badge size="sm">{tr('timeoff.describe.ai', 'AI')}</Badge> : null}
         </View>
         <Text variant="subhead">{o.line.text}</Text>
         <Text variant="footnote" tone="muted">
@@ -108,11 +117,11 @@ export function SuggestionCard({
         </Text>
         <View className="flex-row gap-2">
           <Button size="sm" variant={best ? 'primary' : 'secondary'} onPress={onChoose}>
-            Choose these dates
+            {tr('timeoff.describe.choose_these_dates', 'Choose these dates')}
           </Button>
           {onMore === undefined ? null : (
             <Button size="sm" variant="ghost" onPress={onMore}>
-              Plan with Kithena
+              {tr('timeoff.describe.plan_with_kithena', 'Plan with Kithena')}
             </Button>
           )}
         </View>
@@ -135,7 +144,7 @@ export function TimeOffDescribe({
     route.params?.sentence === undefined ? {} : { sentence: route.params.sentence },
   );
   const { load, reload } = useTimeOff<Described>('TimeOffDescribe', { ...asked });
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: tr('timeoff.describe.time_off', 'Time off'), onPress: navigation.goBack };
   const set = (patch: Asked): void => {
     setAsked((a) => ({ ...a, ...patch }));
   };
@@ -146,26 +155,31 @@ export function TimeOffDescribe({
     return d.toISOString().slice(0, 7);
   });
   return (
-    <Page title="Suggestions" back={back}>
+    <Page title={tr('timeoff.describe.suggestions', 'Suggestions')} back={back}>
       <SearchField
         value={typed}
         onValueChange={setTyped}
         onSearch={(value) => {
           setAsked(value.trim() === '' ? {} : { sentence: value.trim() });
         }}
-        placeholder="A week off in October next to a holiday"
-        label="Describe the time off"
+        placeholder={tr(
+          'timeoff.describe.a_week_off_in_october_next',
+          'A week off in October next to a holiday',
+        )}
+        label={tr('timeoff.describe.describe_the_time_off', 'Describe the time off')}
       />
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Finding dates" />
+        <Loading label={tr('timeoff.describe.finding_dates', 'Finding dates')} />
       ) : (
         <>
           <View className="flex-row items-center gap-2">
             <AssistantMark size={16} />
             <Text variant="footnote" weight="semibold" tone="muted">
-              {load.data.understood.ai ? 'Understood as' : 'Looking for'}
+              {load.data.understood.ai
+                ? tr('timeoff.describe.understood_as', 'Understood as')
+                : tr('timeoff.describe.looking_for', 'Looking for')}
             </Text>
           </View>
           <Select
@@ -174,8 +188,8 @@ export function TimeOffDescribe({
               set({ leaveTypeKey });
             }}
           >
-            <SelectTrigger size="sm" accessibilityLabel="Type">
-              <SelectValue placeholder="Type" />
+            <SelectTrigger size="sm" accessibilityLabel={tr('timeoff.describe.type', 'Type')}>
+              <SelectValue placeholder={tr('timeoff.describe.type', 'Type')} />
             </SelectTrigger>
             <SelectContent>
               {load.data.leaveTypes.map((t) => (
@@ -194,7 +208,11 @@ export function TimeOffDescribe({
                   set({ days: n });
                 }}
               >
-                {`${String(n)} ${n === 1 ? 'day' : 'days'}`}
+                {tr(
+                  'timeoff.describe.days',
+                  { one: '{{count}} day', other: '{{count}} days' },
+                  { count: n },
+                )}
               </Chip>
             ))}
           </View>
@@ -205,7 +223,7 @@ export function TimeOffDescribe({
                 set({ month: '' });
               }}
             >
-              Next three months
+              {tr('timeoff.describe.next_three_months', 'Next three months')}
             </Chip>
             {nextMonths.map((m) => (
               <Chip
@@ -224,31 +242,39 @@ export function TimeOffDescribe({
             trailing={
               <Switch
                 checked={load.data.understood.nextToHoliday}
-                accessibilityLabel="Next to a holiday"
+                accessibilityLabel={tr('timeoff.describe.next_to_a_holiday', 'Next to a holiday')}
                 onCheckedChange={(nextToHoliday) => {
                   set({ nextToHoliday });
                 }}
               />
             }
           >
-            Next to a holiday
+            {tr('timeoff.describe.next_to_a_holiday', 'Next to a holiday')}
           </ListItem>
           <ListItem
             listitem={false}
             trailing={
               <Switch
                 checked={load.data.understood.avoidShort}
-                accessibilityLabel="Avoid days the team is short"
+                accessibilityLabel={tr(
+                  'timeoff.describe.avoid_days_the_team_is_short',
+                  'Avoid days the team is short',
+                )}
                 onCheckedChange={(avoidShort) => {
                   set({ avoidShort });
                 }}
               />
             }
           >
-            Avoid days the team is short
+            {tr('timeoff.describe.avoid_days_the_team_is_short', 'Avoid days the team is short')}
           </ListItem>
           {load.data.options.length === 0 ? (
-            <Text tone="muted">Nothing fits that. Change a choice above.</Text>
+            <Text tone="muted">
+              {tr(
+                'timeoff.describe.nothing_fits_that_change_a_choice',
+                'Nothing fits that. Change a choice above.',
+              )}
+            </Text>
           ) : (
             load.data.options.map((o, i) => (
               <SuggestionCard

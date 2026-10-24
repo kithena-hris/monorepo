@@ -6,6 +6,7 @@ import { useAct } from '../act';
 import { draftFrom, type Draft, type Registry } from './fields-model';
 import { draftInput } from './field-editor';
 import { changeFrom, seersOf } from './sentences';
+import { t } from '../../i18n';
 
 /**
  * A setting changed by asking (design v3 S2): the field it found, before and
@@ -31,11 +32,13 @@ export function AskedChange({
     return (
       <Card variant="assistant">
         <Text>
-          I couldn’t tell which setting that is. Try “let managers see salary” or “make job title
-          required”, or open the setting below.
+          {t(
+            'people.settings.field-sentence.i_couldnt_tell_which_setting_that',
+            'I couldn’t tell which setting that is. Try “let managers see salary” or “make job title required”, or open the setting below.',
+          )}
         </Text>
         <Button size="sm" variant="ghost" onPress={onDismiss}>
-          Dismiss
+          {t('people.settings.field-sentence.dismiss', 'Dismiss')}
         </Button>
       </Card>
     );
@@ -57,12 +60,18 @@ export function AskedChange({
     <Card variant="assistant" className="gap-3">
       <View className="flex-row items-center gap-2">
         <Icon icon={Sparkles} size={16} tone="accent" />
-        <Text variant="headline" className="flex-1">{`This changes 1 field: ${field.label}`}</Text>
+        <Text variant="headline" className="flex-1">
+          {t(
+            'people.settings.field-sentence.this_changes_1_field',
+            'This changes 1 field: {{label}}',
+            { label: field.label },
+          )}
+        </Text>
       </View>
       {change.kind === 'see' ? (
         <View className="gap-1">
           <Text variant="footnote" tone="subtle">
-            Who can see it
+            {t('people.settings.field-sentence.who_can_see_it', 'Who can see it')}
           </Text>
           <Text tone="muted" className="line-through">
             {seersOf(before.visibility)}
@@ -72,37 +81,52 @@ export function AskedChange({
       ) : (
         <View className="gap-1">
           <Text variant="footnote" tone="subtle">
-            Required
+            {t('people.settings.field-sentence.required', 'Required')}
           </Text>
           <Text tone="muted" className="line-through">
-            {before.requiredness === 'never' ? 'Optional' : 'Required'}
+            {before.requiredness === 'never'
+              ? t('people.settings.field-sentence.optional', 'Optional')
+              : t('people.settings.field-sentence.required', 'Required')}
           </Text>
-          <Text variant="headline">{change.required ? 'Required' : 'Optional'}</Text>
+          <Text variant="headline">
+            {change.required
+              ? t('people.settings.field-sentence.required', 'Required')
+              : t('people.settings.field-sentence.optional', 'Optional')}
+          </Text>
         </View>
       )}
       {change.kind === 'see' && change.add.includes('manager') ? (
         <ListItem
           listitem={false}
           icon={Users}
-          description="Each manager sees only their own reports."
+          description={t(
+            'people.settings.field-sentence.each_manager_sees_only_their_own',
+            'Each manager sees only their own reports.',
+          )}
           className="bg-transparent px-0"
         >
-          Managers, for their reports
+          {t(
+            'people.settings.field-sentence.managers_for_their_reports',
+            'Managers, for their reports',
+          )}
         </ListItem>
       ) : null}
       {field.encrypted === true ? (
         <ListItem
           listitem={false}
           icon={EyeOff}
-          description="Shown masked until somebody taps Show; every view is logged."
+          description={t(
+            'people.settings.field-sentence.shown_masked_until_somebody_taps_show',
+            'Shown masked until somebody taps Show; every view is logged.',
+          )}
           className="bg-transparent px-0"
         >
-          Still masked
+          {t('people.settings.field-sentence.still_masked', 'Still masked')}
         </ListItem>
       ) : null}
       <View className="flex-row gap-2">
         <Button className="flex-1" size="sm" onPress={onDismiss}>
-          Not now
+          {t('people.settings.field-sentence.not_now', 'Not now')}
         </Button>
         <Button
           className="flex-1"
@@ -116,17 +140,21 @@ export function AskedChange({
                 input: draftInput(after, field.piiKind, 'human', field.encrypted === true),
                 editing: field.key,
               },
-              'Saved as a draft',
+              t('people.settings.field-sentence.saved_as_a_draft', 'Saved as a draft'),
             ).then((done) => {
               if (done !== null) onDone();
             });
           }}
         >
-          Save as draft
+          {t('people.settings.field-sentence.save_as_draft', 'Save as draft')}
         </Button>
       </View>
       <Text variant="footnote" tone="subtle">
-        {`Drafts go into version ${String((registry.published?.version ?? 0) + 1)}. Nothing changes until you publish.`}
+        {t(
+          'people.settings.field-sentence.drafts_go_into_version_nothing_changes',
+          'Drafts go into version {{String}}. Nothing changes until you publish.',
+          { String: String((registry.published?.version ?? 0) + 1) },
+        )}
       </Text>
     </Card>
   );

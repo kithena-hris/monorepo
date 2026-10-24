@@ -6,6 +6,7 @@
  */
 
 import { dateOrder } from '../../lib/intl-parts.ts';
+import { locale as readerLocale } from '@reach/ui/intl';
 
 export type IsoDate = string;
 
@@ -83,7 +84,7 @@ export function formatDate(
   locale?: string,
   options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' },
 ): string {
-  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(
+  return new Intl.DateTimeFormat(locale ?? readerLocale(), { ...options, timeZone: 'UTC' }).format(
     new Date(parseIsoDate(iso)),
   );
 }
@@ -122,7 +123,10 @@ export function parseDate(text: string, locale?: string): IsoDate | null {
   }
 
   // Words: the month's name or its abbreviation, in the locale or in English.
-  const words = input.toLocaleLowerCase(locale).replace(/[.,]/g, ' ').split(/\s+/);
+  const words = input
+    .toLocaleLowerCase(locale ?? readerLocale())
+    .replace(/[.,]/g, ' ')
+    .split(/\s+/);
   let month: number | undefined;
   const numbers: number[] = [];
   for (const word of words) {
@@ -137,7 +141,7 @@ export function parseDate(text: string, locale?: string): IsoDate | null {
 }
 
 function monthFromName(word: string, locale?: string): number | undefined {
-  for (const tag of [locale, 'en']) {
+  for (const tag of [locale ?? readerLocale(), 'en']) {
     for (const width of ['long', 'short'] as const) {
       const format = new Intl.DateTimeFormat(tag, { month: width, timeZone: 'UTC' });
       for (let m = 0; m < 12; m += 1) {

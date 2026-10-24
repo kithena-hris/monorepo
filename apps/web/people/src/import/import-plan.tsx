@@ -229,17 +229,40 @@ const whoOf = (r: { readonly row: number; readonly name?: string | null }): stri
   r.name ?? t('import.import-plan.row', 'Row {{row}}', { row: String(r.row) });
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
-  { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
-  { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
+  {
+    id: 'name',
+    get header(): string {
+      return t('import.import-plan.name', 'Name');
+    },
+    cell: whoOf,
+  },
+  {
+    id: 'row',
+    get header(): string {
+      return t('import.import-plan.row_2', 'Row');
+    },
+    numeric: true,
+    cell: (r) => r.row,
+  },
   {
     id: 'cell',
-    header: t('import.import-plan.cell', 'Cell'),
+    get header(): string {
+      return t('import.import-plan.cell', 'Cell');
+    },
     cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
   },
-  { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+  {
+    id: 'label',
+    get header(): string {
+      return t('import.import-plan.field', 'Field');
+    },
+    cell: (r) => r.label,
+  },
   {
     id: 'reason',
-    header: t('import.import-plan.why_its_left_empty', 'Why it’s left empty'),
+    get header(): string {
+      return t('import.import-plan.why_its_left_empty', 'Why it’s left empty');
+    },
     cell: (r) => r.reason,
   },
 ];
@@ -721,13 +744,14 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">
             {t(
-              'import.import-plan.count_sensitive_values_wait',
-              { one: '{{count}} sensitive value waits', other: '{{count}} sensitive values wait' },
+              'import.import-plan.sensitive_values_wait_for_hr',
+              {
+                one: '{{count}} sensitive value waits for HR’s approval and is not applied until then.',
+                other:
+                  '{{count}} sensitive values wait for HR’s approval and are not applied until then.',
+              },
               { count: done.held ?? 0 },
-            )}{' '}
-            {t('import.import-plan.for_hrs_approval_and', 'for HR’s approval and')}{' '}
-            {done.held === 1 ? 'is' : 'are'}{' '}
-            {t('import.import-plan.not_applied_until_then', 'not applied until then.')}
+            )}
           </Alert>
         ) : null}
         {done.created > 0 ? (

@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn.ts';
 import { spokenName } from '../../lib/spoken-name.tsx';
 import type { IconProps } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { t } from '../../lib/i18n';
 
 /*
  * Sizes from the mobile design: 52 is the default under a finger, 36 the
@@ -167,7 +168,7 @@ export function Button({
   href,
   disabled = false,
   loading = false,
-  loadingLabel = 'Loading',
+  loadingLabel = t('components.button.button.loading', 'Loading'),
   startIcon,
   endIcon,
   accessibilityLabel,

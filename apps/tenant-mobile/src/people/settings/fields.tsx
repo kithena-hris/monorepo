@@ -58,13 +58,29 @@ import type { PeopleScreen } from '../routes';
 import { FieldEditor } from './field-editor';
 import { fieldSentence } from './sentences';
 import { COLLECT, type Registry, type RegistryField } from './fields-model';
+import { t } from '../../i18n';
 
 const PENDING: Readonly<
   Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' }>
 > = {
-  added: { label: '+ Added', tone: 'success' },
-  changed: { label: '~ Changed', tone: 'warning' },
-  archived: { label: '− Archived', tone: 'neutral' },
+  added: {
+    get label(): string {
+      return t('people.settings.fields.added', '+ Added');
+    },
+    tone: 'success',
+  },
+  changed: {
+    get label(): string {
+      return t('people.settings.fields.changed', '~ Changed');
+    },
+    tone: 'warning',
+  },
+  archived: {
+    get label(): string {
+      return t('people.settings.fields.archived', '− Archived');
+    },
+    tone: 'neutral',
+  },
 };
 
 /** A glyph for the kind of answer a field takes, on the row's tile. */
@@ -104,21 +120,21 @@ function Badges({ field }: { field: RegistryField }): React.JSX.Element | null {
     ),
     field.requiresApproval === true ? (
       <Badge key="approval" size="sm" icon={ShieldCheck}>
-        Needs approval
+        {t('people.settings.fields.needs_approval', 'Needs approval')}
       </Badge>
     ) : null,
     field.encrypted === true ? (
       <Badge key="sealed" size="sm" icon={Lock}>
-        Encrypted
+        {t('people.settings.fields.encrypted', 'Encrypted')}
       </Badge>
     ) : null,
     field.classification === 'confidential' ? (
       <Badge key="kind" size="sm" tone="warning">
-        Confidential
+        {t('people.settings.fields.confidential', 'Confidential')}
       </Badge>
     ) : field.classification === 'special-category' ? (
       <Badge key="kind" size="sm" tone="danger">
-        Special category
+        {t('people.settings.fields.special_category', 'Special category')}
       </Badge>
     ) : null,
   ].filter((b) => b !== null);
@@ -164,8 +180,11 @@ export function FieldRegistry({
     });
   }, [navigation, signed]);
 
-  const back = { label: 'Settings', onPress: navigation.goBack };
-  const title = 'Employee fields';
+  const back = {
+    label: t('people.settings.fields.settings', 'Settings'),
+    onPress: navigation.goBack,
+  };
+  const title = t('people.settings.fields.employee_fields', 'Employee fields');
   if (failed !== null) {
     return (
       <Page title={title} back={back}>
@@ -176,7 +195,7 @@ export function FieldRegistry({
   if (registry === null) {
     return (
       <Page title={title} back={back}>
-        <Loading label="Loading the fields" />
+        <Loading label={t('people.settings.fields.loading_the_fields', 'Loading the fields')} />
       </Page>
     );
   }
@@ -210,7 +229,7 @@ export function FieldRegistry({
           size="sm"
           variant="primary"
           startIcon={<Icon icon={Plus} tone="on-accent" />}
-          accessibilityLabel="Add field"
+          accessibilityLabel={t('people.settings.fields.add_field', 'Add field')}
           disabled={home === undefined}
           onPress={() => {
             add();
@@ -223,17 +242,29 @@ export function FieldRegistry({
           <View className="flex-1 gap-0.5">
             <Text variant="headline">
               {waiting > 0
-                ? `${String(waiting)} ${waiting === 1 ? 'change' : 'changes'} waiting`
+                ? t(
+                    'people.settings.fields.waiting',
+                    { one: '{{count}} change waiting', other: '{{count}} changes waiting' },
+                    { count: waiting },
+                  )
                 : registry.published === null
-                  ? 'Not published yet'
-                  : `Version ${String(registry.published.version)} is live`}
+                  ? t('people.settings.fields.not_published_yet', 'Not published yet')
+                  : t('people.settings.fields.version_is_live', 'Version {{String}} is live', {
+                      String: String(registry.published.version),
+                    })}
             </Text>
             <Text variant="footnote" tone="muted">
               {waiting > 0
-                ? `Drafts for version ${String(next)}`
+                ? t('people.settings.fields.drafts_for_version', 'Drafts for version {{String}}', {
+                    String: String(next),
+                  })
                 : registry.published === null
-                  ? 'Nothing to publish'
-                  : `Published ${registry.published.publishedAt.slice(0, 10)} · nothing to publish`}
+                  ? t('people.settings.fields.nothing_to_publish', 'Nothing to publish')
+                  : t(
+                      'people.settings.fields.published_nothing_to_publish',
+                      'Published {{slice}} · nothing to publish',
+                      { slice: registry.published.publishedAt.slice(0, 10) },
+                    )}
             </Text>
           </View>
           <Button
@@ -246,7 +277,9 @@ export function FieldRegistry({
               setPublishing(true);
             }}
           >
-            {waiting > 0 ? 'Publish' : 'Preview'}
+            {waiting > 0
+              ? t('people.settings.fields.publish', 'Publish')
+              : t('people.settings.fields.preview', 'Preview')}
           </Button>
         </View>
       </Card>
@@ -260,8 +293,14 @@ export function FieldRegistry({
             setFind('');
           }
         }}
-        placeholder="Search fields, or describe a new one"
-        label="Search fields, or describe a new one"
+        placeholder={t(
+          'people.settings.fields.search_fields_or_describe_a_new',
+          'Search fields, or describe a new one',
+        )}
+        label={t(
+          'people.settings.fields.search_fields_or_describe_a_new',
+          'Search fields, or describe a new one',
+        )}
       />
       {needle === '' && section !== undefined ? (
         <View className="flex-row items-center gap-2">
@@ -271,17 +310,25 @@ export function FieldRegistry({
                 size="sm"
                 startIcon={<Icon icon={Folder} />}
                 endIcon={<Icon icon={ChevronDown} />}
-                accessibilityLabel={`Section: ${section.label}. Choose another`}
+                accessibilityLabel={t(
+                  'people.settings.fields.section_choose_another',
+                  'Section: {{label}}. Choose another',
+                  { label: section.label },
+                )}
               >
                 {section.label}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent label="Sections">
+            <DropdownMenuContent label={t('people.settings.fields.sections', 'Sections')}>
               {registry.sections.map((s) => (
                 <DropdownMenuItem
                   key={s.key}
                   {...(s.fixed ? { icon: Lock } : {})}
-                  description={`${String(count(s.key))} ${count(s.key) === 1 ? 'field' : 'fields'}${s.fixed ? ' · fixed rules' : ''}`}
+                  description={t(
+                    'people.settings.fields.fields',
+                    { one: '{{count}} field{{value}}', other: '{{count}} fields{{value}}' },
+                    { count: count(s.key), value: s.fixed ? ' · fixed rules' : '' },
+                  )}
                   onSelect={() => {
                     setChosen(s.key);
                   }}
@@ -296,27 +343,43 @@ export function FieldRegistry({
                   setAdding(true);
                 }}
               >
-                Add section
+                {t('people.settings.fields.add_section', 'Add section')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <View className="flex-1" />
           <Text variant="footnote" tone="muted">
-            {`${String(listed.length)} ${listed.length === 1 ? 'field' : 'fields'}`}
+            {t(
+              'people.settings.fields.fields_listed',
+              { one: '{{count}} field', other: '{{count}} fields' },
+              { count: listed.length },
+            )}
           </Text>
         </View>
       ) : null}
       {section?.fixed === true && needle === '' ? (
         <Alert tone="info" icon={Lock}>
-          Its rules are not yours to change; it can be read here.
+          {t(
+            'people.settings.fields.its_rules_are_not_yours_to',
+            'Its rules are not yours to change; it can be read here.',
+          )}
         </Alert>
       ) : null}
       {listed.length === 0 ? (
         <EmptyState
           icon={Folder}
-          title={needle === '' ? 'No fields yet' : 'Nothing matches'}
+          title={
+            needle === ''
+              ? t('people.settings.fields.no_fields_yet', 'No fields yet')
+              : t('people.settings.fields.nothing_matches', 'Nothing matches')
+          }
           description={
-            needle === '' ? 'Add one, or describe it above.' : 'Try another name or key.'
+            needle === ''
+              ? t(
+                  'people.settings.fields.add_one_or_describe_it_above',
+                  'Add one, or describe it above.',
+                )
+              : t('people.settings.fields.try_another_name_or_key', 'Try another name or key.')
           }
         />
       ) : (
@@ -358,7 +421,7 @@ export function FieldRegistry({
               add();
             }}
           >
-            Add field
+            {t('people.settings.fields.add_field', 'Add field')}
           </Button>
         </View>
       ) : null}
@@ -417,18 +480,23 @@ function AddSection({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a section</DialogTitle>
-          <DialogDescription>A draft change, published with the rest.</DialogDescription>
+          <DialogTitle>{t('people.settings.fields.add_a_section', 'Add a section')}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'people.settings.fields.a_draft_change_published_with_the',
+              'A draft change, published with the rest.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('people.settings.fields.name', 'Name')}</FieldLabel>
             <Input value={label} onChange={setLabel} maxLength={80} size="sm" />
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.settings.fields.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -436,14 +504,18 @@ function AddSection({
             disabled={label.trim() === ''}
             loading={busy === 'AddDraftSection'}
             onPress={() => {
-              void act('AddDraftSection', { label: label.trim() }, 'Section added').then((done) => {
+              void act(
+                'AddDraftSection',
+                { label: label.trim() },
+                t('people.settings.fields.section_added', 'Section added'),
+              ).then((done) => {
                 if (done === null) return;
                 onClose();
                 onAdded();
               });
             }}
           >
-            Add
+            {t('people.settings.fields.add', 'Add')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -521,22 +593,48 @@ function PublishDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Publish${version}`}</DialogTitle>
+          <DialogTitle>
+            {t('people.settings.fields.publish_2', 'Publish{{version}}', { version })}
+          </DialogTitle>
           <DialogDescription>
-            Takes effect immediately for everyone. Nothing already saved is changed or lost.
+            {t(
+              'people.settings.fields.takes_effect_immediately_for_everyone_nothing',
+              'Takes effect immediately for everyone. Nothing already saved is changed or lost.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 420 }} contentContainerClassName="gap-3">
             {preview === null ? (
-              <Spinner label="Working out what this changes" />
+              <Spinner
+                label={t(
+                  'people.settings.fields.working_out_what_this_changes',
+                  'Working out what this changes',
+                )}
+              />
             ) : typeof preview === 'string' ? (
-              <Alert tone="danger" title="Could not work out what this changes">
-                {`${preview} Nothing has been published.`}
+              <Alert
+                tone="danger"
+                title={t(
+                  'people.settings.fields.could_not_work_out_what_this',
+                  'Could not work out what this changes',
+                )}
+              >
+                {t(
+                  'people.settings.fields.nothing_has_been_published',
+                  '{{preview}} Nothing has been published.',
+                  { preview },
+                )}
               </Alert>
             ) : preview.unchanged ? (
-              <Alert tone="info" title="Nothing to publish">
-                The draft is the same as the published version.
+              <Alert
+                tone="info"
+                title={t('people.settings.fields.nothing_to_publish', 'Nothing to publish')}
+              >
+                {t(
+                  'people.settings.fields.the_draft_is_the_same_as',
+                  'The draft is the same as the published version.',
+                )}
               </Alert>
             ) : (
               <>
@@ -549,7 +647,7 @@ function PublishDialog({
                         ? {
                             trailing: (
                               <Badge size="sm" tone="danger">
-                                Special category
+                                {t('people.settings.fields.special_category', 'Special category')}
                               </Badge>
                             ),
                           }
@@ -559,25 +657,50 @@ function PublishDialog({
                     </ListItem>
                   ))}
                 </List>
-                <Text weight="semibold">{`Impact on ${String(preview.impact.evaluated)} people`}</Text>
+                <Text weight="semibold">
+                  {t('people.settings.fields.impact_on_people', 'Impact on {{String}} people', {
+                    String: String(preview.impact.evaluated),
+                  })}
+                </Text>
                 <AutoGrid minItemWidth={130} gap={2}>
-                  <Stat label="Become incomplete" value={preview.impact.becomingIncomplete} />
-                  <Stat label="For employees" value={preview.impact.forEmployees} />
-                  <Stat label="For you" value={preview.impact.forStaff} />
-                  <Stat label="Integrations told" value={preview.integrationsNotified} />
+                  <Stat
+                    label={t('people.settings.fields.become_incomplete', 'Become incomplete')}
+                    value={preview.impact.becomingIncomplete}
+                  />
+                  <Stat
+                    label={t('people.settings.fields.for_employees', 'For employees')}
+                    value={preview.impact.forEmployees}
+                  />
+                  <Stat
+                    label={t('people.settings.fields.for_you', 'For you')}
+                    value={preview.impact.forStaff}
+                  />
+                  <Stat
+                    label={t('people.settings.fields.integrations_told', 'Integrations told')}
+                    value={preview.integrationsNotified}
+                  />
                 </AutoGrid>
                 {preview.impact.becomingComplete > 0 ? (
-                  <Alert tone="success">{`${String(preview.impact.becomingComplete)} people who are incomplete today will be complete.`}</Alert>
+                  <Alert tone="success">
+                    {t(
+                      'people.settings.fields.people_who_are_incomplete_today_will',
+                      '{{String}} people who are incomplete today will be complete.',
+                      { String: String(preview.impact.becomingComplete) },
+                    )}
+                  </Alert>
                 ) : null}
                 {preview.impact.forEmployees > 0 ? (
                   <Alert tone="info">
-                    Employees with missing details get at most one reminder email a week.
+                    {t(
+                      'people.settings.fields.employees_with_missing_details_get_at',
+                      'Employees with missing details get at most one reminder email a week.',
+                    )}
                   </Alert>
                 ) : null}
               </>
             )}
             <DatePicker
-              label="Required from"
+              label={t('people.settings.fields.required_from', 'Required from')}
               size="sm"
               value={requiredFrom}
               min={today}
@@ -586,13 +709,16 @@ function PublishDialog({
               }}
             />
             <Text variant="footnote" tone="muted">
-              Records completed before this date are not counted as incomplete.
+              {t(
+                'people.settings.fields.records_completed_before_this_date_are',
+                'Records completed before this date are not counted as incomplete.',
+              )}
             </Text>
           </ScrollView>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.settings.fields.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -600,10 +726,10 @@ function PublishDialog({
             disabled={ready === null || ready.unchanged}
             loading={busy === 'PublishDraft'}
             onPress={() => {
-              void act<{ version: number }>(
-                'PublishDraft',
-                { requiredFrom },
-                (d) => `Version ${String(d.version)} published`,
+              void act<{ version: number }>('PublishDraft', { requiredFrom }, (d) =>
+                t('people.settings.fields.version_published', 'Version {{String}} published', {
+                  String: String(d.version),
+                }),
               ).then((done) => {
                 if (done === null) return;
                 onClose();
@@ -611,7 +737,7 @@ function PublishDialog({
               });
             }}
           >
-            {`Publish${version}`}
+            {t('people.settings.fields.publish_2', 'Publish{{version}}', { version })}
           </Button>
         </DialogFooter>
       </DialogContent>

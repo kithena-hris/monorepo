@@ -186,10 +186,18 @@ const CLASSES: readonly Classification[] = [
   'special-category',
 ];
 const CLASS_WORD: Record<Classification, string> = {
-  public: tr('import.new-fields.ordinary', 'Ordinary'),
-  internal: tr('import.new-fields.ordinary', 'Ordinary'),
-  confidential: tr('import.new-fields.confidential', 'Confidential'),
-  'special-category': tr('import.new-fields.special_category', 'Special category'),
+  get public(): string {
+    return tr('import.new-fields.ordinary', 'Ordinary');
+  },
+  get internal(): string {
+    return tr('import.new-fields.ordinary', 'Ordinary');
+  },
+  get confidential(): string {
+    return tr('import.new-fields.confidential', 'Confidential');
+  },
+  get 'special-category'(): string {
+    return tr('import.new-fields.special_category', 'Special category');
+  },
 };
 const SEALABLE = new Set<DataType>([
   'text',
@@ -861,8 +869,12 @@ const CHOICE: Record<
         'import.new-fields.one_request_each_with_everything_else',
         'One request each, with everything else asked of them, on their profile or in onboarding. The import emails nobody, and nobody who has left is asked. Until they answer, they show as incomplete.',
       ),
-    short: tr('import.new-fields.ask_them', 'Ask them'),
-    shortMeans: tr('import.new-fields.they_show_as_incomplete', 'They show as incomplete'),
+    get short(): string {
+      return tr('import.new-fields.ask_them', 'Ask them');
+    },
+    get shortMeans(): string {
+      return tr('import.new-fields.they_show_as_incomplete', 'They show as incomplete');
+    },
   },
   new: {
     label: () =>
@@ -873,8 +885,12 @@ const CHOICE: Record<
         'The {{count}} stay empty. New joiners are asked in onboarding.',
         { count },
       ),
-    short: tr('import.new-fields.only_new_joiners', 'Only new joiners'),
-    shortMeans: tr('import.new-fields.nobody_asked_today', 'Nobody asked today'),
+    get short(): string {
+      return tr('import.new-fields.only_new_joiners', 'Only new joiners');
+    },
+    get shortMeans(): string {
+      return tr('import.new-fields.nobody_asked_today', 'Nobody asked today');
+    },
   },
   hr: {
     label: (_n, count) =>
@@ -884,8 +900,12 @@ const CHOICE: Record<
         'import.new-fields.they_go_to_the_data_health',
         'They go to the Data health grid, for HR.',
       ),
-    short: tr('import.new-fields.hr_fills_it_in', 'HR fills it in'),
-    shortMeans: tr('import.new-fields.in_data_health_for_hr', 'In Data health, for HR'),
+    get short(): string {
+      return tr('import.new-fields.hr_fills_it_in', 'HR fills it in');
+    },
+    get shortMeans(): string {
+      return tr('import.new-fields.in_data_health_for_hr', 'In Data health, for HR');
+    },
   },
   leave: {
     label: () => tr('import.new-fields.leave_it_empty', 'Leave it empty'),
@@ -894,8 +914,12 @@ const CHOICE: Record<
         'import.new-fields.its_optional_and_nobody_is_asked',
         'It’s optional, and nobody is asked.',
       ),
-    short: tr('import.new-fields.leave_it_empty', 'Leave it empty'),
-    shortMeans: tr('import.new-fields.nobody_is_asked', 'Nobody is asked'),
+    get short(): string {
+      return tr('import.new-fields.leave_it_empty', 'Leave it empty');
+    },
+    get shortMeans(): string {
+      return tr('import.new-fields.nobody_is_asked', 'Nobody is asked');
+    },
   },
   default: {
     label: (_n, count) =>
@@ -907,8 +931,12 @@ const CHOICE: Record<
         'import.new-fields.every_row_of_the_file_holds',
         'Every row of the file holds the same value, so it’s written for them too.',
       ),
-    short: tr('import.new-fields.the_files_value', 'The file’s value'),
-    shortMeans: tr('import.new-fields.written_for_them', 'Written for them'),
+    get short(): string {
+      return tr('import.new-fields.the_files_value', 'The file’s value');
+    },
+    get shortMeans(): string {
+      return tr('import.new-fields.written_for_them', 'Written for them');
+    },
   },
 };
 

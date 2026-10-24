@@ -39,6 +39,7 @@ import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { todayHere } from './time';
 import { amount, shortDate, signed } from './words';
+import { t as tr } from '../i18n';
 
 interface Adjustment {
   readonly adjustmentId: string;
@@ -55,11 +56,12 @@ interface Adjustment {
   readonly canDecide: boolean;
 }
 
-const STATUS = {
-  pending: { label: 'Waiting for HR', tone: 'warning' },
-  approved: { label: 'Added', tone: 'success' },
-  declined: { label: 'Declined', tone: 'danger' },
-} as const;
+const STATUS = () =>
+  ({
+    pending: { label: tr('timeoff.adjustments.waiting_for_hr', 'Waiting for HR'), tone: 'warning' },
+    approved: { label: tr('timeoff.adjustments.added', 'Added'), tone: 'success' },
+    declined: { label: tr('timeoff.adjustments.declined', 'Declined'), tone: 'danger' },
+  }) as const;
 
 const unitOf = (unit: 'day' | 'hour', n: string): string =>
   unit === 'hour'
@@ -104,7 +106,10 @@ export function TimeOffAdjust({
   const [reason, setReason] = useState('');
   const [on, setOn] = useState<string | null>(today);
 
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = {
+    label: tr('timeoff.adjustments.time_off', 'Time off'),
+    onPress: navigation.goBack,
+  };
   const people =
     hr && company.load.status === 'ready'
       ? company.load.data.people.map((p) => ({
@@ -124,14 +129,14 @@ export function TimeOffAdjust({
     personId !== null && leaveTypeKey !== null && size > 0 && reason.trim() !== '' && on !== null;
   if (viewer.load.status === 'loading' || types.load.status === 'loading') {
     return (
-      <Page title="Adjust a balance" back={back}>
-        <Loading label="Loading" />
+      <Page title={tr('timeoff.adjustments.adjust_a_balance', 'Adjust a balance')} back={back}>
+        <Loading label={tr('timeoff.adjustments.loading', 'Loading')} />
       </Page>
     );
   }
   return (
     <Page
-      title="Adjust a balance"
+      title={tr('timeoff.adjustments.adjust_a_balance', 'Adjust a balance')}
       back={back}
       foot={
         <Button
@@ -152,38 +157,48 @@ export function TimeOffAdjust({
                   reason: reason.trim(),
                 },
               },
-              (done) => (done.status === 'pending' ? 'Sent to HR to approve' : 'Balance adjusted'),
+              (done) =>
+                done.status === 'pending'
+                  ? tr('timeoff.adjustments.sent_to_hr_to_approve', 'Sent to HR to approve')
+                  : tr('timeoff.adjustments.balance_adjusted', 'Balance adjusted'),
             ).then((done) => {
               if (done !== null) navigation.goBack();
             });
           }}
         >
-          {hr ? 'Adjust the balance' : 'Send to HR'}
+          {hr
+            ? tr('timeoff.adjustments.adjust_the_balance', 'Adjust the balance')
+            : tr('timeoff.adjustments.send_to_hr', 'Send to HR')}
         </Button>
       }
     >
       {hr ? null : (
-        <Alert tone="info" title="HR approves this">
-          It counts once HR has approved it, and you can follow it under Balance adjustments.
+        <Alert tone="info" title={tr('timeoff.adjustments.hr_approves_this', 'HR approves this')}>
+          {tr(
+            'timeoff.adjustments.it_counts_once_hr_has_approved',
+            'It counts once HR has approved it, and you can follow it under Balance adjustments.',
+          )}
         </Alert>
       )}
       <Field required>
-        <FieldLabel>Who</FieldLabel>
+        <FieldLabel>{tr('timeoff.adjustments.who', 'Who')}</FieldLabel>
         <Combobox
-          label="Who"
+          label={tr('timeoff.adjustments.who', 'Who')}
           options={people}
           value={personId}
           onChange={(v) => {
             setPersonId(typeof v === 'string' ? v : null);
           }}
-          placeholder="Choose someone"
+          placeholder={tr('timeoff.adjustments.choose_someone', 'Choose someone')}
         />
       </Field>
       <Field required>
-        <FieldLabel>Leave type</FieldLabel>
+        <FieldLabel>{tr('timeoff.adjustments.leave_type', 'Leave type')}</FieldLabel>
         <Select value={leaveTypeKey ?? ''} onValueChange={setLeaveTypeKey}>
-          <SelectTrigger accessibilityLabel="Leave type">
-            <SelectValue placeholder="Choose a leave type" />
+          <SelectTrigger accessibilityLabel={tr('timeoff.adjustments.leave_type', 'Leave type')}>
+            <SelectValue
+              placeholder={tr('timeoff.adjustments.choose_a_leave_type', 'Choose a leave type')}
+            />
           </SelectTrigger>
           <SelectContent>
             {tracked.map((t) => (
@@ -197,16 +212,24 @@ export function TimeOffAdjust({
       <SegmentedControl
         fullWidth
         value={direction}
-        accessibilityLabel="Add or take away"
+        accessibilityLabel={tr('timeoff.adjustments.add_or_take_away', 'Add or take away')}
         onValueChange={(v) => {
           setDirection(v === 'take' ? 'take' : 'add');
         }}
       >
-        <SegmentedControlItem value="add">Add</SegmentedControlItem>
-        <SegmentedControlItem value="take">Take away</SegmentedControlItem>
+        <SegmentedControlItem value="add">
+          {tr('timeoff.adjustments.add', 'Add')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="take">
+          {tr('timeoff.adjustments.take_away', 'Take away')}
+        </SegmentedControlItem>
       </SegmentedControl>
       <NumberField
-        label={chosen?.unit === 'hour' ? 'Hours' : 'Days'}
+        label={
+          chosen?.unit === 'hour'
+            ? tr('timeoff.adjustments.hours', 'Hours')
+            : tr('timeoff.adjustments.days', 'Days')
+        }
         min={0.5}
         max={365}
         step={0.5}
@@ -219,17 +242,29 @@ export function TimeOffAdjust({
         <BalanceChange personId={personId} leaveTypeKey={leaveTypeKey} delta={delta} unit={unit} />
       )}
       <Field required>
-        <FieldLabel>Why</FieldLabel>
+        <FieldLabel>{tr('timeoff.adjustments.why', 'Why')}</FieldLabel>
         <Textarea
           value={reason}
           onChange={setReason}
           maxLength={500}
-          placeholder="Worked the offsite weekend"
-          accessibilityLabel="Why"
+          placeholder={tr(
+            'timeoff.adjustments.worked_the_offsite_weekend',
+            'Worked the offsite weekend',
+          )}
+          accessibilityLabel={tr('timeoff.adjustments.why', 'Why')}
         />
-        <FieldDescription>Always needed. They see it beside the days.</FieldDescription>
+        <FieldDescription>
+          {tr(
+            'timeoff.adjustments.always_needed_they_see_it_beside',
+            'Always needed. They see it beside the days.',
+          )}
+        </FieldDescription>
       </Field>
-      <DatePicker label="Counts from" value={on} onChange={setOn} />
+      <DatePicker
+        label={tr('timeoff.adjustments.counts_from', 'Counts from')}
+        value={on}
+        onChange={setOn}
+      />
     </Page>
   );
 }
@@ -256,7 +291,7 @@ function BalanceChange({
     <Card>
       <View className="flex-row items-center">
         <Text className="flex-1" tone="muted">
-          Balance
+          {tr('timeoff.adjustments.balance', 'Balance')}
         </Text>
         <Text weight="semibold" className="tabular-nums">
           {`${amount(left.toFixed(3))} → ${amount((left + Number(delta)).toFixed(3))} ${unit}`}
@@ -279,7 +314,10 @@ export function TimeOffAdjustments({
   const { act, busy } = useAct('timeoff');
   const [declining, setDeclining] = useState<Adjustment | null>(null);
   const [note, setNote] = useState('');
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = {
+    label: tr('timeoff.adjustments.time_off', 'Time off'),
+    onPress: navigation.goBack,
+  };
   const decide = (a: Adjustment, approve: boolean, why: string | null): void => {
     void act(
       'DecideTimeOffBalanceAdjustment',
@@ -291,14 +329,14 @@ export function TimeOffAdjustments({
   };
   return (
     <Page
-      title="Balance adjustments"
+      title={tr('timeoff.adjustments.balance_adjustments', 'Balance adjustments')}
       back={back}
       trailing={
         <Button
           size="sm"
           variant="ghost"
           startIcon={<Icon icon={Plus} />}
-          accessibilityLabel="Adjust a balance"
+          accessibilityLabel={tr('timeoff.adjustments.adjust_a_balance', 'Adjust a balance')}
           onPress={() => {
             navigation.navigate('TimeOffAdjust');
           }}
@@ -308,12 +346,18 @@ export function TimeOffAdjustments({
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading adjustments" />
+        <Loading label={tr('timeoff.adjustments.loading_adjustments', 'Loading adjustments')} />
       ) : load.data.items.length === 0 ? (
         <Text tone="muted">
           {load.data.hr
-            ? 'Nothing waiting, and nothing adjusted in the last 30 days.'
-            : 'You have not asked for any adjustments in the last 30 days.'}
+            ? tr(
+                'timeoff.adjustments.nothing_waiting_and_nothing_adjusted_in',
+                'Nothing waiting, and nothing adjusted in the last 30 days.',
+              )
+            : tr(
+                'timeoff.adjustments.you_have_not_asked_for_any',
+                'You have not asked for any adjustments in the last 30 days.',
+              )}
         </Text>
       ) : (
         <Stack gap={3}>
@@ -324,8 +368,8 @@ export function TimeOffAdjustments({
                   <Text variant="headline" className="flex-1">
                     {`${a.displayName} · ${unitOf(a.unit, a.amount)}`}
                   </Text>
-                  <Badge size="sm" tone={STATUS[a.status].tone} dot>
-                    {STATUS[a.status].label}
+                  <Badge size="sm" tone={STATUS()[a.status].tone} dot>
+                    {STATUS()[a.status].label}
                   </Badge>
                 </View>
                 <Text variant="subhead">{`“${a.reason}”`}</Text>
@@ -343,7 +387,7 @@ export function TimeOffAdjustments({
                         setDeclining(a);
                       }}
                     >
-                      Decline
+                      {tr('timeoff.adjustments.decline', 'Decline')}
                     </Button>
                     <Button
                       className="flex-1"
@@ -353,7 +397,7 @@ export function TimeOffAdjustments({
                         decide(a, true, null);
                       }}
                     >
-                      Approve
+                      {tr('timeoff.adjustments.approve', 'Approve')}
                     </Button>
                   </View>
                 ) : null}
@@ -371,15 +415,26 @@ export function TimeOffAdjustments({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`Decline ${unitOf(declining.unit, declining.amount)} for ${declining.displayName}?`}</DialogTitle>
+              <DialogTitle>
+                {tr('timeoff.adjustments.decline_for', 'Decline {{unitOf}} for {{displayName}}?', {
+                  unitOf: unitOf(declining.unit, declining.amount),
+                  displayName: declining.displayName,
+                })}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody>
               <Textarea
                 value={note}
                 onChange={setNote}
                 maxLength={500}
-                placeholder="Why, for whoever asked (optional)"
-                accessibilityLabel="Why it is declined"
+                placeholder={tr(
+                  'timeoff.adjustments.why_for_whoever_asked_optional',
+                  'Why, for whoever asked (optional)',
+                )}
+                accessibilityLabel={tr(
+                  'timeoff.adjustments.why_it_is_declined',
+                  'Why it is declined',
+                )}
               />
             </DialogBody>
             <DialogFooter>
@@ -388,7 +443,7 @@ export function TimeOffAdjustments({
                   setDeclining(null);
                 }}
               >
-                Keep it
+                {tr('timeoff.adjustments.keep_it', 'Keep it')}
               </Button>
               <Button
                 variant="danger"
@@ -397,7 +452,7 @@ export function TimeOffAdjustments({
                   setDeclining(null);
                 }}
               >
-                Decline
+                {tr('timeoff.adjustments.decline', 'Decline')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -405,13 +460,16 @@ export function TimeOffAdjustments({
       )}
       <List>
         <ListItem
-          description="Add or take away days, saying why"
+          description={tr(
+            'timeoff.adjustments.add_or_take_away_days_saying',
+            'Add or take away days, saying why',
+          )}
           chevron
           onPress={() => {
             navigation.navigate('TimeOffAdjust');
           }}
         >
-          Adjust a balance
+          {tr('timeoff.adjustments.adjust_a_balance', 'Adjust a balance')}
         </ListItem>
       </List>
     </Page>

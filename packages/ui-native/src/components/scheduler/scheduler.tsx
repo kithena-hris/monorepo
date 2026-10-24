@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { cn } from '../../lib/cn.ts';
+import { t } from '../../lib/i18n';
 
 /**
  * Interviews, rotas and meetings by the hour, as the web's `Scheduler`, drawn
@@ -239,7 +240,11 @@ export function Scheduler({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${column?.label ?? ''}, ${formatMinutes(h * 60)}`}
-            accessibilityHint={onPickSlot ? 'Picks this hour' : undefined}
+            accessibilityHint={
+              onPickSlot
+                ? t('components.scheduler.scheduler.picks_this_hour', 'Picks this hour')
+                : undefined
+            }
             disabled={!onPickSlot}
             onPress={() => {
               if (panned.value) {
@@ -273,7 +278,17 @@ export function Scheduler({
             >
               <View
                 accessible
-                accessibilityLabel={`${e.title}${e.detail ? `, ${e.detail}` : ''}, ${formatMinutes(e.start)} to ${formatMinutes(e.end)}${e.clash ? ', clashes' : ''}`}
+                accessibilityLabel={t(
+                  'components.scheduler.scheduler.to',
+                  '{{title}}{{value}}, {{formatMinutes}} to {{formatMinutes2}}{{value2}}',
+                  {
+                    title: e.title,
+                    value: e.detail ? `, ${e.detail}` : '',
+                    formatMinutes: formatMinutes(e.start),
+                    formatMinutes2: formatMinutes(e.end),
+                    value2: e.clash ? ', clashes' : '',
+                  },
+                )}
                 className={cn(
                   'flex-1 overflow-hidden rounded-[8px] py-1.5 pr-2 pl-[11px]',
                   e.tentative ? cn('border border-dashed', EDGE[e.tone ?? 'accent']) : tone.fill,
@@ -313,7 +328,11 @@ export function Scheduler({
   return (
     <View className={cn('gap-2.5', className)}>
       {strip ? (
-        <View role="radiogroup" aria-label={`${label}: day`} className="flex-row gap-1.5">
+        <View
+          role="radiogroup"
+          aria-label={t('components.scheduler.scheduler.day', '{{label}}: day', { label })}
+          className="flex-row gap-1.5"
+        >
           {columns.map((c) => {
             const on = c.id === selected;
             return (
@@ -409,7 +428,9 @@ function Agenda({
             <View role="list" aria-label={c.label}>
               {day.map((e) => {
                 const tone = TONE[e.tone ?? 'accent'];
-                const time = e.allDay ? 'All day' : formatMinutes(e.start);
+                const time = e.allDay
+                  ? t('components.scheduler.scheduler.all_day', 'All day')
+                  : formatMinutes(e.start);
                 return (
                   <View
                     key={e.id}

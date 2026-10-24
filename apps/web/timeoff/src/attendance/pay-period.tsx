@@ -76,9 +76,15 @@ export interface PayPeriodProps {
 }
 
 const PAID_AS: Record<'comp' | 'paid' | 'mixed', string> = {
-  comp: tr('attendance.pay-period.comp_time', 'Comp time'),
-  paid: tr('attendance.pay-period.paid', 'Paid'),
-  mixed: tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time'),
+  get comp(): string {
+    return tr('attendance.pay-period.comp_time', 'Comp time');
+  },
+  get paid(): string {
+    return tr('attendance.pay-period.paid', 'Paid');
+  },
+  get mixed(): string {
+    return tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time');
+  },
 };
 const people = (n: number): string =>
   tr(
@@ -285,7 +291,11 @@ function Ready({
                         run(
                           'remind',
                           () => onRemind(data.month, null),
-                          `Reminded ${people(data.late.length)} and their managers`,
+                          tr(
+                            'attendance.pay-period.reminded_and_their_managers',
+                            'Reminded {{people}} and their managers',
+                            { people: people(data.late.length) },
+                          ),
                         );
                       }}
                     >

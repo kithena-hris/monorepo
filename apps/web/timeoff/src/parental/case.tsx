@@ -177,8 +177,12 @@ function step(
 }
 
 const MODULE: Record<'payroll' | 'benefits', string> = {
-  payroll: t('parental.case.payroll_module', 'Payroll module'),
-  benefits: t('parental.case.benefits_module', 'Benefits module'),
+  get payroll(): string {
+    return t('parental.case.payroll_module', 'Payroll module');
+  },
+  get benefits(): string {
+    return t('parental.case.benefits_module', 'Benefits module');
+  },
 };
 
 function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {
@@ -451,7 +455,12 @@ function Ready({
                   { label: member.displayName, value: 'Everything' },
                   ...(data.managerName === null
                     ? []
-                    : [{ label: data.managerName, value: 'Dates and handover' }]),
+                    : [
+                        {
+                          label: data.managerName,
+                          value: t('parental.case.dates_and_handover', 'Dates and handover'),
+                        },
+                      ]),
                   {
                     label:
                       member.teamName === null
@@ -459,9 +468,18 @@ function Ready({
                         : t('parental.case.team', '{{teamName}} team', {
                             teamName: member.teamName,
                           }),
-                    value: `${plan.teamSees === 'type' ? '“Parental leave”' : '“Away”'}, dates`,
+                    value:
+                      plan.teamSees === 'type'
+                        ? t('parental.case.sees_type_dates', '“Parental leave”, dates')
+                        : t('parental.case.sees_away_dates', '“Away”, dates'),
                   },
-                  { label: 'HR', value: 'Everything, plus documents' },
+                  {
+                    label: t('parental.case.hr', 'HR'),
+                    value: t(
+                      'parental.case.everything_plus_documents',
+                      'Everything, plus documents',
+                    ),
+                  },
                 ]}
               />
             </Card>

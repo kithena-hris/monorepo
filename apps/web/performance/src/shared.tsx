@@ -172,7 +172,7 @@ export const words = (key: string): string => {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
 
-const CYCLE: Readonly<Record<CycleState, readonly [string, Tone]>> = {
+const CYCLE = (): Readonly<Record<CycleState, readonly [string, Tone]>> => ({
   draft: [t('shared.draft', 'Draft'), 'neutral'],
   scheduling: [t('shared.scheduling', 'Scheduling'), 'info'],
   scheduled: [t('shared.scheduled', 'Scheduled'), 'accent'],
@@ -182,10 +182,10 @@ const CYCLE: Readonly<Record<CycleState, readonly [string, Tone]>> = {
   closing: [t('shared.closing', 'Closing'), 'warning'],
   closed: [t('shared.closed', 'Closed'), 'neutral'],
   archived: [t('shared.archived', 'Archived'), 'neutral'],
-};
+});
 
 export function CycleBadge({ state }: { readonly state: string }): JSX.Element {
-  const [label, tone] = (CYCLE as Partial<Record<string, readonly [string, Tone]>>)[state] ?? [
+  const [label, tone] = (CYCLE() as Partial<Record<string, readonly [string, Tone]>>)[state] ?? [
     words(state),
     'neutral',
   ];
@@ -201,7 +201,7 @@ export function CycleBadge({ state }: { readonly state: string }): JSX.Element {
   );
 }
 
-const REVIEW: Readonly<Record<string, readonly [string, Tone]>> = {
+const REVIEW = (): Readonly<Record<string, readonly [string, Tone]>> => ({
   not_started: [t('shared.not_started', 'Not started'), 'neutral'],
   draft: [t('shared.in_progress', 'In progress'), 'warning'],
   submitted: [t('shared.submitted', 'Submitted'), 'success'],
@@ -214,10 +214,10 @@ const REVIEW: Readonly<Record<string, readonly [string, Tone]>> = {
   declined: [t('shared.declined', 'Declined'), 'neutral'],
   handed: [t('shared.handed_over', 'Handed over'), 'neutral'],
   none: ['—', 'neutral'],
-};
+});
 
 export function ReviewBadge({ state }: { readonly state: string }): JSX.Element {
-  const [label, tone] = REVIEW[state] ?? [words(state), 'neutral'];
+  const [label, tone] = REVIEW()[state] ?? [words(state), 'neutral'];
   return (
     <Badge size="sm" tone={tone}>
       {label}
@@ -226,12 +226,24 @@ export function ReviewBadge({ state }: { readonly state: string }): JSX.Element 
 }
 
 const KIND: Readonly<Record<Kind, string>> = {
-  self: t('shared.self_review', 'Self review'),
-  manager: t('shared.manager_review', 'Manager review'),
-  peer: t('shared.peer_review', 'Peer review'),
-  upward: t('shared.upward_review', 'Upward review'),
-  skip: t('shared.skip_level_review', 'Skip-level review'),
-  goals: t('shared.goals_review', 'Goals review'),
+  get self(): string {
+    return t('shared.self_review', 'Self review');
+  },
+  get manager(): string {
+    return t('shared.manager_review', 'Manager review');
+  },
+  get peer(): string {
+    return t('shared.peer_review', 'Peer review');
+  },
+  get upward(): string {
+    return t('shared.upward_review', 'Upward review');
+  },
+  get skip(): string {
+    return t('shared.skip_level_review', 'Skip-level review');
+  },
+  get goals(): string {
+    return t('shared.goals_review', 'Goals review');
+  },
 };
 
 export const kindLabel = (k: string): string =>

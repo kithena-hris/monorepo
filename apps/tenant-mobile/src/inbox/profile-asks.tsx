@@ -31,6 +31,7 @@ import { useAct } from '../people/act';
 import { ask, useSigned } from '../people/api';
 import { blobOf, shareBase64 } from '../people/media';
 import type { PeopleRoutes } from '../people/routes';
+import { t as tr } from '../i18n';
 
 /**
  * What HR starts from somebody's profile on the phone (H2, H3) and the
@@ -69,8 +70,16 @@ export function AskDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Ask ${first} for details`}</DialogTitle>
-          <DialogDescription>{`${first} gets one task and fills it in from the Inbox.`}</DialogDescription>
+          <DialogTitle>
+            {tr('inbox.profile-asks.ask_for_details', 'Ask {{first}} for details', { first })}
+          </DialogTitle>
+          <DialogDescription>
+            {tr(
+              'inbox.profile-asks.gets_one_task_and_fills_it',
+              '{{first}} gets one task and fills it in from the Inbox.',
+              { first },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {fields.map((f) => (
@@ -87,13 +96,15 @@ export function AskDialog({
           <Textarea
             value={message}
             onChange={setMessage}
-            placeholder={`Your words to ${first}`}
-            accessibilityLabel="Message"
+            placeholder={tr('inbox.profile-asks.your_words_to', 'Your words to {{first}}', {
+              first,
+            })}
+            accessibilityLabel={tr('inbox.profile-asks.message', 'Message')}
           />
-          <DatePicker label="Due" value={due} onChange={setDue} />
+          <DatePicker label={tr('inbox.profile-asks.due', 'Due')} value={due} onChange={setDue} />
         </DialogBody>
         <DialogFooter>
-          <Button onPress={onClose}>Cancel</Button>
+          <Button onPress={onClose}>{tr('inbox.profile-asks.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<Icon icon={Send} />}
@@ -114,7 +125,7 @@ export function AskDialog({
               });
             }}
           >
-            {`Send to ${first}`}
+            {tr('inbox.profile-asks.send_to', 'Send to {{first}}', { first })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -152,7 +163,11 @@ export function SendDocumentDialog({
     });
     if (!target.ok) {
       setBusy(false);
-      toast({ title: 'Not sent', description: target.message, tone: 'danger' });
+      toast({
+        title: tr('inbox.profile-asks.not_sent', 'Not sent'),
+        description: target.message,
+        tone: 'danger',
+      });
       return;
     }
     const t = JSON.parse(target.data) as {
@@ -167,8 +182,11 @@ export function SendDocumentDialog({
     if (put?.ok !== true) {
       setBusy(false);
       toast({
-        title: 'Not sent',
-        description: 'The upload did not go through; try again.',
+        title: tr('inbox.profile-asks.not_sent', 'Not sent'),
+        description: tr(
+          'inbox.profile-asks.the_upload_did_not_go_through',
+          'The upload did not go through; try again.',
+        ),
         tone: 'danger',
       });
       return;
@@ -183,10 +201,17 @@ export function SendDocumentDialog({
     });
     setBusy(false);
     if (!sent.ok) {
-      toast({ title: 'Not sent', description: sent.message, tone: 'danger' });
+      toast({
+        title: tr('inbox.profile-asks.not_sent', 'Not sent'),
+        description: sent.message,
+        tone: 'danger',
+      });
       return;
     }
-    toast({ title: `Sent to ${first}`, tone: 'success' });
+    toast({
+      title: tr('inbox.profile-asks.sent_to', 'Sent to {{first}}', { first }),
+      tone: 'success',
+    });
     onClose();
   };
   return (
@@ -198,7 +223,9 @@ export function SendDocumentDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Send a document to ${first}`}</DialogTitle>
+          <DialogTitle>
+            {tr('inbox.profile-asks.send_a_document_to', 'Send a document to {{first}}', { first })}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody>
           <Button
@@ -213,7 +240,9 @@ export function SendDocumentDialog({
               });
             }}
           >
-            {file === null ? 'Choose the document' : file.name}
+            {file === null
+              ? tr('inbox.profile-asks.choose_the_document', 'Choose the document')
+              : file.name}
           </Button>
           <RadioGroup
             value={mode}
@@ -221,31 +250,51 @@ export function SendDocumentDialog({
               if (v === 'keep' || v === 'acknowledge' || v === 'sign') setMode(v);
             }}
           >
-            <RadioGroupItem value="keep" description="Filed in their profile. They get an update.">
-              Just keep it
+            <RadioGroupItem
+              value="keep"
+              description={tr(
+                'inbox.profile-asks.filed_in_their_profile_they_get',
+                'Filed in their profile. They get an update.',
+              )}
+            >
+              {tr('inbox.profile-asks.just_keep_it', 'Just keep it')}
             </RadioGroupItem>
-            <RadioGroupItem value="acknowledge" description="They confirm they’ve read it. A task.">
-              Read and acknowledge
+            <RadioGroupItem
+              value="acknowledge"
+              description={tr(
+                'inbox.profile-asks.they_confirm_theyve_read_it_a',
+                'They confirm they’ve read it. A task.',
+              )}
+            >
+              {tr('inbox.profile-asks.read_and_acknowledge', 'Read and acknowledge')}
             </RadioGroupItem>
-            <RadioGroupItem value="sign" description="They sign; then you countersign. A task.">
-              Sign it
+            <RadioGroupItem
+              value="sign"
+              description={tr(
+                'inbox.profile-asks.they_sign_then_you_countersign_a',
+                'They sign; then you countersign. A task.',
+              )}
+            >
+              {tr('inbox.profile-asks.sign_it', 'Sign it')}
             </RadioGroupItem>
           </RadioGroup>
           <Textarea
             value={message}
             onChange={setMessage}
-            placeholder="Message"
-            accessibilityLabel="Message"
+            placeholder={tr('inbox.profile-asks.message', 'Message')}
+            accessibilityLabel={tr('inbox.profile-asks.message', 'Message')}
           />
-          {mode === 'keep' ? null : <DatePicker label="Due" value={due} onChange={setDue} />}
+          {mode === 'keep' ? null : (
+            <DatePicker label={tr('inbox.profile-asks.due', 'Due')} value={due} onChange={setDue} />
+          )}
           {mode === 'sign' ? (
             <Switch checked={countersign} onCheckedChange={setCountersign}>
-              I countersign it after them
+              {tr('inbox.profile-asks.i_countersign_it_after_them', 'I countersign it after them')}
             </Switch>
           ) : null}
         </DialogBody>
         <DialogFooter>
-          <Button onPress={onClose}>Cancel</Button>
+          <Button onPress={onClose}>{tr('inbox.profile-asks.cancel', 'Cancel')}</Button>
           <Button
             variant="primary"
             startIcon={<Icon icon={Send} />}
@@ -255,7 +304,7 @@ export function SendDocumentDialog({
               void send();
             }}
           >
-            Send
+            {tr('inbox.profile-asks.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -271,14 +320,14 @@ interface Doc {
   readonly signature: { readonly name: string } | null;
 }
 
-const STATE: Readonly<Record<string, string>> = {
-  open: 'Waiting',
-  kept: 'Kept',
-  acknowledged: 'Acknowledged',
-  signed: 'Signed',
-  countersigned: 'Signed by both',
-  declined: 'Sent back',
-};
+const STATE = (): Readonly<Record<string, string>> => ({
+  open: tr('inbox.profile-asks.waiting', 'Waiting'),
+  kept: tr('inbox.profile-asks.kept', 'Kept'),
+  acknowledged: tr('inbox.profile-asks.acknowledged', 'Acknowledged'),
+  signed: tr('inbox.profile-asks.signed', 'Signed'),
+  countersigned: tr('inbox.profile-asks.signed_by_both', 'Signed by both'),
+  declined: tr('inbox.profile-asks.sent_back', 'Sent back'),
+});
 
 /** A row of the Document center's file for the person (Documents MP4). */
 interface Filed {
@@ -346,7 +395,11 @@ export function Documents({
   const open = (d: Doc): void => {
     void ask<string>(signed, 'PeopleDocumentFile', { id: d.id }).then(async (a) => {
       if (!a.ok) {
-        toast({ title: 'That did not open', description: a.message, tone: 'danger' });
+        toast({
+          title: tr('inbox.profile-asks.that_did_not_open', 'That did not open'),
+          description: a.message,
+          tone: 'danger',
+        });
         return;
       }
       const f = JSON.parse(a.data) as { name: string; mediaType: string; data: string };
@@ -357,10 +410,10 @@ export function Documents({
     // One card per section (design v3 P12): the title and its one action, then the rows.
     <Card padded={false} className="overflow-hidden">
       <View className="flex-row items-center justify-between px-4 pb-1 pt-4">
-        <Text variant="headline">Documents</Text>
+        <Text variant="headline">{tr('inbox.profile-asks.documents', 'Documents')}</Text>
         {onAdd === undefined ? null : (
           <Button size="xs" variant="link" onPress={onAdd}>
-            Send
+            {tr('inbox.profile-asks.send', 'Send')}
           </Button>
         )}
       </View>
@@ -369,9 +422,9 @@ export function Documents({
           key={f.id}
           listitem={false}
           icon={FileText}
-          description={f.status?.label ?? f.typeName ?? 'Filed'}
+          description={f.status?.label ?? f.typeName ?? tr('inbox.profile-asks.filed', 'Filed')}
           chevron
-          accessibilityLabel={`Open ${f.title}`}
+          accessibilityLabel={tr('inbox.profile-asks.open', 'Open {{title}}', { title: f.title })}
           onPress={() => {
             navigation.navigate('DocumentDetail', { id: f.id, title: f.title });
           }}
@@ -382,7 +435,7 @@ export function Documents({
       {docs.length === 0 ? (
         filed.length > 0 ? null : (
           <Text tone="muted" className="px-4 pb-4">
-            Nothing sent yet.
+            {tr('inbox.profile-asks.nothing_sent_yet', 'Nothing sent yet.')}
           </Text>
         )
       ) : (
@@ -394,18 +447,24 @@ export function Documents({
               listitem={false}
               icon={FileText}
               description={
-                d.signature === null ? (STATE[d.state] ?? d.state) : `Signed by ${d.signature.name}`
+                d.signature === null
+                  ? (STATE()[d.state] ?? d.state)
+                  : tr('inbox.profile-asks.signed_by', 'Signed by {{name}}', {
+                      name: d.signature.name,
+                    })
               }
               {...(waiting
                 ? {
                     trailing: (
                       <Badge size="sm" tone="warning">
-                        To sign
+                        {tr('inbox.profile-asks.to_sign', 'To sign')}
                       </Badge>
                     ),
                   }
                 : { chevron: true })}
-              accessibilityLabel={`Open ${d.name}`}
+              accessibilityLabel={tr('inbox.profile-asks.open_2', 'Open {{name}}', {
+                name: d.name,
+              })}
               onPress={() => {
                 open(d);
               }}

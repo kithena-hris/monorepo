@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { animateTo, useMotion } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * How a long form is laid out on a phone: titled sections in one column, a
@@ -81,9 +82,9 @@ export function FormSaveBar({
   onSave,
   onDiscard,
   saving = false,
-  message = 'Unsaved changes',
-  saveLabel = 'Save',
-  discardLabel = 'Discard',
+  message = t('components.form-sections.form-sections.unsaved_changes', 'Unsaved changes'),
+  saveLabel = t('components.form-sections.form-sections.save', 'Save'),
+  discardLabel = t('components.form-sections.form-sections.discard', 'Discard'),
   className,
 }: FormSaveBarProps): React.JSX.Element | null {
   const { fadeRise } = useMotion();

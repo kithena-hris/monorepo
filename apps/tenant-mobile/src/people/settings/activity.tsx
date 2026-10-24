@@ -18,6 +18,7 @@ import {
   SearchField,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { Filter, History, Lock } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
@@ -25,23 +26,35 @@ import { View } from 'react-native';
 import { Heading, Loading, Page } from '../../frame';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
+import { t } from '../../i18n';
 
-const AREAS = [
-  { value: 'fields', label: 'Employee fields' },
-  { value: 'organisation', label: 'Organisation' },
-  { value: 'roles', label: 'Roles' },
-  { value: 'integrations', label: 'Integrations' },
-  { value: 'imports_exports', label: 'Imports and exports' },
-  { value: 'sensitive_access', label: 'Sensitive access' },
-  { value: 'sign_in', label: 'Sign-in and support' },
-] as const;
+const AREAS = () =>
+  [
+    { value: 'fields', label: t('people.settings.activity.employee_fields', 'Employee fields') },
+    { value: 'organisation', label: t('people.settings.activity.organisation', 'Organisation') },
+    { value: 'roles', label: t('people.settings.activity.roles', 'Roles') },
+    { value: 'integrations', label: t('people.settings.activity.integrations', 'Integrations') },
+    {
+      value: 'imports_exports',
+      label: t('people.settings.activity.imports_and_exports', 'Imports and exports'),
+    },
+    {
+      value: 'sensitive_access',
+      label: t('people.settings.activity.sensitive_access', 'Sensitive access'),
+    },
+    {
+      value: 'sign_in',
+      label: t('people.settings.activity.sign_in_and_support', 'Sign-in and support'),
+    },
+  ] as const;
 
-const WHO = [
-  { value: 'person', label: 'People' },
-  { value: 'support', label: 'Kithena support' },
-  { value: 'system', label: 'System' },
-  { value: 'integration', label: 'Integrations' },
-] as const;
+const WHO = () =>
+  [
+    { value: 'person', label: t('people.settings.activity.people', 'People') },
+    { value: 'support', label: t('people.settings.activity.kithena_support', 'Kithena support') },
+    { value: 'system', label: t('people.settings.activity.system', 'System') },
+    { value: 'integration', label: t('people.settings.activity.integrations', 'Integrations') },
+  ] as const;
 
 interface Entry {
   readonly id: string;
@@ -80,10 +93,10 @@ const NONE: Filters = {
   to: null,
   search: null,
 };
-const SOMEONE = 'Someone at your company';
+const SOMEONE = t('people.settings.activity.someone_at_your_company', 'Someone at your company');
 
 const when = (iso: string): string =>
-  new Intl.DateTimeFormat(undefined, {
+  dateFormat({
     day: 'numeric',
     month: 'short',
     hour: '2-digit',
@@ -92,10 +105,15 @@ const when = (iso: string): string =>
 
 function who(e: Entry, named: Named): string {
   if (e.actorKind === 'support') {
-    return e.operatorLabel === null ? 'Kithena support' : `Kithena support (${e.operatorLabel})`;
+    return e.operatorLabel === null
+      ? t('people.settings.activity.kithena_support', 'Kithena support')
+      : t('people.settings.activity.kithena_support_2', 'Kithena support ({{operatorLabel}})', {
+          operatorLabel: e.operatorLabel,
+        });
   }
   if (e.actorKind === 'system') return 'System';
-  if (e.actorKind === 'integration') return 'An integration';
+  if (e.actorKind === 'integration')
+    return t('people.settings.activity.an_integration', 'An integration');
   return (e.actorAccountId === null ? undefined : named[e.actorAccountId]?.name) ?? SOMEONE;
 }
 
@@ -131,9 +149,9 @@ function changesIn(text: string): { what: string; from: string; to: string }[] |
  * the values. The search, the dates full width, who did it as pills, and the
  * areas; an entry opens in full with ways to narrow the log to it.
  */
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
-const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short' });
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const MONTH = dateFormat({ month: 'long', year: 'numeric' });
+const WEEKDAY = dateFormat({ weekday: 'short' });
+const DAY = dateFormat({ day: 'numeric', month: 'short' });
 
 /** "This week", then a month at a time, newest first. */
 function groupsOf<T extends { occurredAt: string }>(items: readonly T[]): [string, T[]][] {
@@ -141,7 +159,10 @@ function groupsOf<T extends { occurredAt: string }>(items: readonly T[]): [strin
   const out = new Map<string, T[]>();
   for (const e of items) {
     const at = Date.parse(e.occurredAt);
-    const key = at >= weekAgo ? 'This week' : MONTH.format(new Date(at));
+    const key =
+      at >= weekAgo
+        ? t('people.settings.activity.this_week', 'This week')
+        : MONTH.format(new Date(at));
     out.set(key, [...(out.get(key) ?? []), e]);
   }
   return [...out];
@@ -248,18 +269,24 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
     filters.subject === null ? null : (named[filters.subject]?.name ?? 'one record');
 
   return (
-    <Page title="Activity log" back={{ label: 'Settings', onPress: navigation.goBack }}>
+    <Page
+      title={t('people.settings.activity.activity_log', 'Activity log')}
+      back={{
+        label: t('people.settings.activity.settings', 'Settings'),
+        onPress: navigation.goBack,
+      }}
+    >
       <View>
         <ChipGroup
           type="multiple"
           scroll
-          accessibilityLabel="Areas"
+          accessibilityLabel={t('people.settings.activity.areas', 'Areas')}
           value={[...filters.areas]}
           onValueChange={(v: string[]) => {
             set({ areas: v });
           }}
         >
-          {AREAS.map((a) => (
+          {AREAS().map((a) => (
             <ChipGroupItem key={a.value} value={a.value}>
               {a.label}
             </ChipGroupItem>
@@ -269,8 +296,11 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
       <SearchField
         value={typed}
         onValueChange={setTyped}
-        placeholder="Search actions, names and reasons"
-        label="Search the activity"
+        placeholder={t(
+          'people.settings.activity.search_actions_names_and_reasons',
+          'Search actions, names and reasons',
+        )}
+        label={t('people.settings.activity.search_the_activity', 'Search the activity')}
       />
       <Button
         size="sm"
@@ -279,15 +309,17 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
           setMoreFilters((m) => !m);
         }}
       >
-        {moreFilters ? 'Fewer filters' : 'Who and when'}
+        {moreFilters
+          ? t('people.settings.activity.fewer_filters', 'Fewer filters')
+          : t('people.settings.activity.who_and_when', 'Who and when')}
       </Button>
       {moreFilters ? (
         <>
           <DatePicker
             mode="range"
             size="sm"
-            label="When"
-            placeholder="Any time"
+            label={t('people.settings.activity.when', 'When')}
+            placeholder={t('people.settings.activity.any_time', 'Any time')}
             value={
               filters.from === null && filters.to === null
                 ? null
@@ -301,16 +333,16 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
             <ChipGroup
               type="single"
               scroll
-              accessibilityLabel="Who"
+              accessibilityLabel={t('people.settings.activity.who', 'Who')}
               value={filters.by ?? 'anyone'}
               onValueChange={(v) => {
                 set({ by: v === '' || v === 'anyone' ? null : v });
               }}
             >
               <ChipGroupItem value="anyone" variant="view">
-                Anyone
+                {t('people.settings.activity.anyone', 'Anyone')}
               </ChipGroupItem>
-              {WHO.map((w) => (
+              {WHO().map((w) => (
                 <ChipGroupItem key={w.value} value={w.value} variant="view">
                   {w.label}
                 </ChipGroupItem>
@@ -326,9 +358,13 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
               onRemove={() => {
                 set({ actor: null });
               }}
-              removeLabel={`Show everybody’s, not only ${actorName}’s`}
+              removeLabel={t(
+                'people.settings.activity.show_everybodys_not_only_s',
+                'Show everybody’s, not only {{actorName}}’s',
+                { actorName },
+              )}
             >
-              {`By ${actorName}`}
+              {t('people.settings.activity.by', 'By {{actorName}}', { actorName })}
             </Chip>
           )}
           {subjectName === null ? null : (
@@ -336,39 +372,63 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
               onRemove={() => {
                 set({ subject: null });
               }}
-              removeLabel={`Show every record, not only ${subjectName}`}
+              removeLabel={t(
+                'people.settings.activity.show_every_record_not_only',
+                'Show every record, not only {{subjectName}}',
+                { subjectName },
+              )}
             >
-              {`About ${subjectName}`}
+              {t('people.settings.activity.about', 'About {{subjectName}}', { subjectName })}
             </Chip>
           )}
         </View>
       )}
       {entries === null ? (
-        <Loading label="Loading the activity" />
+        <Loading
+          label={t('people.settings.activity.loading_the_activity', 'Loading the activity')}
+        />
       ) : status === 'forbidden' ? (
         <EmptyState
           icon={Lock}
-          title="The activity log is for administrators and HR"
-          description="Ask one of your People administrators if you need to know who changed something."
+          title={t(
+            'people.settings.activity.the_activity_log_is_for_administrators',
+            'The activity log is for administrators and HR',
+          )}
+          description={t(
+            'people.settings.activity.ask_one_of_your_people_administrators',
+            'Ask one of your People administrators if you need to know who changed something.',
+          )}
         />
       ) : status === 'unavailable' ? (
         <EmptyState
           icon={History}
-          title="The activity log isn’t available yet"
-          description="It is still being set up for your workspace. What happens in the meantime is listed here once it is ready."
+          title={t(
+            'people.settings.activity.the_activity_log_isnt_available_yet',
+            'The activity log isn’t available yet',
+          )}
+          description={t(
+            'people.settings.activity.it_is_still_being_set_up',
+            'It is still being set up for your workspace. What happens in the meantime is listed here once it is ready.',
+          )}
         />
       ) : entries.length === 0 ? (
         filtered ? (
           <EmptyState
             icon={Filter}
-            title="Nothing matches"
-            description="Nothing recorded matches these filters. Remove one to see more."
+            title={t('people.settings.activity.nothing_matches', 'Nothing matches')}
+            description={t(
+              'people.settings.activity.nothing_recorded_matches_these_filters_remove',
+              'Nothing recorded matches these filters. Remove one to see more.',
+            )}
           />
         ) : (
           <EmptyState
             icon={History}
-            title="Nothing recorded yet"
-            description="Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins are listed here as they happen."
+            title={t('people.settings.activity.nothing_recorded_yet', 'Nothing recorded yet')}
+            description={t(
+              'people.settings.activity.settings_changes_imports_and_exports_sensitive',
+              'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins are listed here as they happen.',
+            )}
           />
         )
       ) : (
@@ -384,7 +444,7 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
                     <ListItem
                       key={e.id}
                       leading={<Avatar name={who(e, named)} size={36} />}
-                      description={`${who(e, named)} · ${AREAS.find((x) => x.value === e.area)?.label ?? e.area}`}
+                      description={`${who(e, named)} · ${AREAS().find((x) => x.value === e.area)?.label ?? e.area}`}
                       meta={shortWhen(e.occurredAt)}
                       onPress={() => {
                         setOpen(e);
@@ -407,7 +467,7 @@ export function Activity({ navigation, route }: PeopleScreen<'Activity'>): React
                 });
               }}
             >
-              Show older
+              {t('people.settings.activity.show_older', 'Show older')}
             </Button>
           )}
         </>
@@ -462,7 +522,13 @@ function EntryDialog({
         <DialogBody>
           {changed === null ? (
             e.detail === null && (e.reason !== null || e.actorKind === 'support') ? null : (
-              <Text tone="muted">{e.detail ?? 'No more detail was recorded.'}</Text>
+              <Text tone="muted">
+                {e.detail ??
+                  t(
+                    'people.settings.activity.no_more_detail_was_recorded',
+                    'No more detail was recorded.',
+                  )}
+              </Text>
             )
           ) : (
             <List>
@@ -473,16 +539,32 @@ function EntryDialog({
               ))}
             </List>
           )}
-          {e.reason === null ? null : <Text>{`Reason: ${e.reason}`}</Text>}
+          {e.reason === null ? null : (
+            <Text>
+              {t('people.settings.activity.reason', 'Reason: {{reason}}', { reason: e.reason })}
+            </Text>
+          )}
           {e.actorKind === 'support' ? (
             <Text variant="footnote" tone="muted">
               {e.area === 'sign_in'
-                ? 'Signed in from the Kithena back office'
+                ? t(
+                    'people.settings.activity.signed_in_from_the_kithena_back',
+                    'Signed in from the Kithena back office',
+                  )
                 : e.supportSignIn === null
-                  ? 'By Kithena support; the sign-in it came from is not in the log'
-                  : `During Kithena support’s sign-in at ${when(e.supportSignIn.at)}${
-                      e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`
-                    }`}
+                  ? t(
+                      'people.settings.activity.by_kithena_support_the_sign_in',
+                      'By Kithena support; the sign-in it came from is not in the log',
+                    )
+                  : t(
+                      'people.settings.activity.during_kithena_supports_sign_in_at',
+                      'During Kithena support’s sign-in at {{when}}{{value}}',
+                      {
+                        when: when(e.supportSignIn.at),
+                        value:
+                          e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`,
+                      },
+                    )}
             </Text>
           ) : null}
           <View className="flex-row flex-wrap gap-2">
@@ -493,7 +575,7 @@ function EntryDialog({
                   onFilter({ actor: e.actorAccountId, by: null });
                 }}
               >
-                {`Only what ${actor} did`}
+                {t('people.settings.activity.only_what_did', 'Only what {{actor}} did', { actor })}
               </Button>
             ) : e.actorKind === 'person' ? null : (
               <Button
@@ -502,7 +584,9 @@ function EntryDialog({
                   onFilter({ by: e.actorKind, actor: null });
                 }}
               >
-                {`Only ${WHO.find((w) => w.value === e.actorKind)?.label ?? actor}`}
+                {t('people.settings.activity.only', 'Only {{value}}', {
+                  value: WHO().find((w) => w.value === e.actorKind)?.label ?? actor,
+                })}
               </Button>
             )}
             {record === null || e.subjectId === null ? null : (
@@ -513,7 +597,9 @@ function EntryDialog({
                     onFilter({ subject: e.subjectId });
                   }}
                 >
-                  {`Only ${record}’s record`}
+                  {t('people.settings.activity.only_s_record', 'Only {{record}}’s record', {
+                    record,
+                  })}
                 </Button>
                 <Button
                   size="sm"
@@ -522,7 +608,7 @@ function EntryDialog({
                     if (e.subjectId !== null) onOpenRecord(e.subjectId, record);
                   }}
                 >
-                  {`Open ${record}`}
+                  {t('people.settings.activity.open', 'Open {{record}}', { record })}
                 </Button>
               </>
             )}
@@ -530,7 +616,7 @@ function EntryDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Close
+            {t('people.settings.activity.close', 'Close')}
           </Button>
         </DialogFooter>
       </DialogContent>

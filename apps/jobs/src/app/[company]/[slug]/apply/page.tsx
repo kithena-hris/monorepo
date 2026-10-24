@@ -7,11 +7,17 @@ import type { JSX } from 'react';
 import { me } from '../../../../lib/account';
 import { job as readJob } from '../../../../lib/api';
 import { ApplyForm } from './apply-form';
+import { t } from '../../../../lib/i18n';
 
 type Params = Promise<{ company: string; slug: string }>;
 type Search = Promise<{ lang?: string; src?: string }>;
 
-export const metadata: Metadata = { title: 'Apply', robots: { index: false } };
+export const metadata: Metadata = {
+  get title(): string {
+    return t('app.[company].[slug].apply.page.apply', 'Apply');
+  },
+  robots: { index: false },
+};
 
 /** J4: the apply flow for one job, its form as the job defines it. */
 export default async function Apply({
@@ -50,16 +56,22 @@ export default async function Apply({
         />
         <span className="font-semibold">{answer.data.company.name}</span>
       </Link>
-      <h1 className="text-2xl font-bold">{`Apply: ${answer.data.title}`}</h1>
+      <h1 className="text-2xl font-bold">
+        {t('app.[company].[slug].apply.page.apply_2', 'Apply: {{title}}', {
+          title: answer.data.title,
+        })}
+      </h1>
       {account === null ? (
         <p className="text-sm text-fg-muted">
           <Link
             href={`/sign-in?next=/${company}/${slug}/apply`}
             className="text-accent-fg underline underline-offset-4"
           >
-            Sign in
+            {t(
+              'app.[company].[slug].apply.page.sign_in_to_apply',
+              'Sign in to apply without a code, with the CV you keep here.',
+            )}
           </Link>
-          {' to apply without a code, with the CV you keep here.'}
         </p>
       ) : null}
       <ApplyForm job={answer.data} source={src ?? null} account={account} />

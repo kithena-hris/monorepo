@@ -23,6 +23,7 @@ import {
 import { FieldBox, fieldText, useFieldState } from '../input/input.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { ListHeading, ListSeparator, OptionRow } from './listbox.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Pick one value from a short, fixed list: the web's parts (`Select`,
@@ -207,7 +208,7 @@ export function SelectTrigger({
 
 /** The chosen option's label, or the placeholder in the subtle colour, which no chosen value is drawn in. */
 export function SelectValue({
-  placeholder = 'Choose…',
+  placeholder = t('components.select.select.choose', 'Choose…'),
 }: {
   placeholder?: string;
 }): React.JSX.Element {
@@ -237,7 +238,7 @@ export function SelectContent({
   className,
 }: SelectContentProps): React.JSX.Element {
   const select = useSelect('SelectContent');
-  const heading = title ?? select.name ?? 'Choose one';
+  const heading = title ?? select.name ?? t('components.select.select.choose_one', 'Choose one');
   return (
     <>
       <Collecting value>{children}</Collecting>

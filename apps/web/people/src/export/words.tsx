@@ -21,9 +21,13 @@ export interface ExportChoice {
 export type AddressPatch = Readonly<Record<string, string | null>>;
 
 export const FORMAT_LABEL: Record<ExportFormat, string> = {
-  xlsx: t('export.words.excel', 'Excel'),
+  get xlsx(): string {
+    return t('export.words.excel', 'Excel');
+  },
   csv: 'CSV',
-  pdf: t('export.words.pdf_roster', 'PDF roster'),
+  get pdf(): string {
+    return t('export.words.pdf_roster', 'PDF roster');
+  },
 };
 
 /** "30 June 2026": a calendar date as people say it. */

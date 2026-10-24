@@ -191,7 +191,11 @@ function taskColumns(
       sortBy: (r) => r.ownerRole,
       cell: (r) => (
         <span className="text-sm text-fg-muted">
-          {r.ownerRole === 'it' ? 'IT' : r.ownerRole === 'hr' ? 'HR' : words(r.ownerRole)}
+          {r.ownerRole === 'it'
+            ? t('home.it', 'IT')
+            : r.ownerRole === 'hr'
+              ? t('home.hr', 'HR')
+              : words(r.ownerRole)}
         </span>
       ),
     },

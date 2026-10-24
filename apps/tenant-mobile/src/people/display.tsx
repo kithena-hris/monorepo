@@ -1,8 +1,10 @@
 import { cn, Money, Text } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 
 import { isEmpty, type RecordField, type Value } from './api';
+import { t } from '../i18n';
 
-const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
+const date = dateFormat({ dateStyle: 'long', timeZone: 'UTC' });
 
 /** A calendar date, "14 March 1994": a date has no zone, so it is read as UTC. */
 export const longDate = (iso: string): string => date.format(Date.parse(`${iso}T00:00:00Z`));
@@ -25,21 +27,21 @@ export function DisplayValue({
   if (value === undefined || isEmpty(value)) {
     return (
       <Text tone="subtle" className={className}>
-        Not provided yet
+        {t('people.display.not_provided_yet', 'Not provided yet')}
       </Text>
     );
   }
   if (typeof value === 'boolean')
     return (
       <Text weight="medium" className={className}>
-        {value ? 'Yes' : 'No'}
+        {value ? t('people.display.yes', 'Yes') : t('people.display.no', 'No')}
       </Text>
     );
   // A signature is drawn where it is signed; here, only whether there is one.
   if (field.dataType === 'signature' && typeof value === 'string' && value !== '') {
     return (
       <Text weight="medium" className={className}>
-        On file
+        {t('people.display.on_file', 'On file')}
       </Text>
     );
   }

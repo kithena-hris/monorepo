@@ -32,6 +32,8 @@ import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Money, type MoneyProps } from '../money/money.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { numberFormat } from '@reach/ui/intl';
+import { t } from '../../lib/i18n';
 
 /**
  * A table on a phone, as the design draws it: each row a card. The first
@@ -216,7 +218,7 @@ export function BulkAction({
   );
 }
 
-const number = new Intl.NumberFormat('en-GB');
+const number = numberFormat();
 
 const WEB = Platform.OS === 'web';
 
@@ -588,7 +590,10 @@ export function DataTable<T>({
   let body: ReactNode;
   if (loading) {
     body = (
-      <View role="progressbar" aria-label={`Loading ${label}`}>
+      <View
+        role="progressbar"
+        aria-label={t('components.table.table.loading', 'Loading {{label}}', { label })}
+      >
         {Array.from({ length: 5 }, (_, k) => (
           <View
             key={k}
@@ -659,17 +664,22 @@ export function DataTable<T>({
         <DropdownMenuTrigger>
           <Pressable
             accessibilityRole="button"
-            accessibilityHint="Changes the order"
+            accessibilityHint={t('components.table.table.changes_the_order', 'Changes the order')}
             className="min-h-11 flex-row items-center gap-1.5 border-b border-border px-4 py-3"
           >
             <Icon icon={ArrowUpDown} size={15} tone="muted" />
             <CssText className="text-[14px] leading-none font-semibold text-fg-muted">
-              {`Sorted by ${describeSorts(sorts, columns)}`}
+              {t('components.table.table.sorted_by', 'Sorted by {{describeSorts}}', {
+                describeSorts: describeSorts(sorts, columns),
+              })}
             </CssText>
           </Pressable>
         </DropdownMenuTrigger>
-        <DropdownMenuContent label="Sort by" className="w-64">
-          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuContent
+          label={t('components.table.table.sort_by', 'Sort by')}
+          className="w-64"
+        >
+          <DropdownMenuLabel>{t('components.table.table.sort_by', 'Sort by')}</DropdownMenuLabel>
           <DropdownMenuRadioGroup
             value={sorts[0]?.columnId ?? ''}
             onValueChange={(columnId) => {
@@ -691,8 +701,12 @@ export function DataTable<T>({
               if (first) setSorts([{ ...first, direction: direction as SortDirection }, ...rest]);
             }}
           >
-            <DropdownMenuRadioItem value="ascending">Ascending</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="descending">Descending</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="ascending">
+              {t('components.table.table.ascending', 'Ascending')}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="descending">
+              {t('components.table.table.descending', 'Descending')}
+            </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -719,7 +733,7 @@ export function DataTable<T>({
           >
             <CheckboxBox checked={all} />
             <CssText className="text-[14px] leading-none font-semibold text-fg-muted">
-              Select all
+              {t('components.table.table.select_all', 'Select all')}
             </CssText>
           </Pressable>
         ) : null}
@@ -739,8 +753,12 @@ export function DataTable<T>({
             className="flex-1 text-[15px] leading-none font-semibold text-fg-on-invert"
           >
             {allPicked && total !== undefined
-              ? `All ${number.format(count)} selected`
-              : `${number.format(picked.size)} selected`}
+              ? t('components.table.table.all_selected', 'All {{format}} selected', {
+                  format: number.format(count),
+                })
+              : t('components.table.table.selected', '{{format}} selected', {
+                  format: number.format(picked.size),
+                })}
           </CssText>
           {bulkActions?.(shown.filter((row) => picked.has(rowId(row))))}
         </View>
@@ -877,7 +895,7 @@ function TableCardImpl<T>({
       {selectable ? (
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityLabel={`Select ${name}`}
+          accessibilityLabel={t('components.table.table.select', 'Select {{name}}', { name })}
           accessibilityState={{ checked: picked }}
           aria-checked={picked}
           hitSlop={10}
@@ -891,7 +909,11 @@ function TableCardImpl<T>({
       ) : null}
       {moves ? (
         <ReorderHandle
-          label={`Move ${name}, position ${String(index + 1)} of ${String(look.setsize)}`}
+          label={t(
+            'components.table.table.move_position_of',
+            'Move {{name}}, position {{String}} of {{String2}}',
+            { name, String: String(index + 1), String2: String(look.setsize) },
+          )}
           locked={look.locked.includes(id)}
           onMove={(delta) => {
             api.reorder(index, index + delta);
@@ -937,7 +959,9 @@ function LoadingMore(): React.JSX.Element {
   return (
     <View className="h-[52px] flex-row items-center justify-center gap-2.5">
       <Spinner size={16} decorative />
-      <CssText className="text-[14px] leading-none font-medium text-fg-muted">Loading more</CssText>
+      <CssText className="text-[14px] leading-none font-medium text-fg-muted">
+        {t('components.table.table.loading_more', 'Loading more')}
+      </CssText>
     </View>
   );
 }

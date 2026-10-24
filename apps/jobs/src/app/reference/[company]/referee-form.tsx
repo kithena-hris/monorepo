@@ -16,6 +16,7 @@ import {
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
+import { t } from '../../../lib/i18n';
 
 /** About five minutes; the answers go to the hiring team only. */
 export function RefereeForm({ company }: { readonly company: string }): JSX.Element {
@@ -34,8 +35,11 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
     return (
       <EmptyState
         icon={<icons.success aria-hidden />}
-        title="Thank you"
-        description="Your answers are with the hiring team."
+        title={t('app.reference.[company].referee-form.thank_you', 'Thank you')}
+        description={t(
+          'app.reference.[company].referee-form.your_answers_are_with_the_hiring',
+          'Your answers are with the hiring team.',
+        )}
       />
     );
   return (
@@ -54,18 +58,39 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         });
       }}
     >
-      <h1 className="text-2xl font-bold">A reference</h1>
-      <p className="text-fg-muted">You were named as a referee. No account needed.</p>
+      <h1 className="text-2xl font-bold">
+        {t('app.reference.[company].referee-form.a_reference', 'A reference')}
+      </h1>
+      <p className="text-fg-muted">
+        {t(
+          'app.reference.[company].referee-form.you_were_named_as_a_referee',
+          'You were named as a referee. No account needed.',
+        )}
+      </p>
       {token === '' ? (
-        <Alert tone="warning" title="Open this page from the link in the email" />
+        <Alert
+          tone="warning"
+          title={t(
+            'app.reference.[company].referee-form.open_this_page_from_the_link',
+            'Open this page from the link in the email',
+          )}
+        />
       ) : null}
       {error === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t(
+            'app.reference.[company].referee-form.that_did_not_go_through',
+            'That did not go through',
+          )}
+        >
           {error}
         </Alert>
       )}
       <Field required>
-        <FieldLabel>How do you know them?</FieldLabel>
+        <FieldLabel>
+          {t('app.reference.[company].referee-form.how_do_you_know_them', 'How do you know them?')}
+        </FieldLabel>
         <FieldControl>
           <Input
             value={answers['relationship'] ?? ''}
@@ -76,21 +101,35 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Would you hire them again?</FieldLabel>
+        <FieldLabel>
+          {t(
+            'app.reference.[company].referee-form.would_you_hire_them_again',
+            'Would you hire them again?',
+          )}
+        </FieldLabel>
         <SegmentedControl
-          aria-label="Would you hire them again?"
+          aria-label={t(
+            'app.reference.[company].referee-form.would_you_hire_them_again',
+            'Would you hire them again?',
+          )}
           value={answers['hire_again'] ?? 'yes'}
           onValueChange={(v) => {
             set('hire_again', v);
           }}
         >
-          <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
-          <SegmentedControlItem value="maybe">Maybe</SegmentedControlItem>
-          <SegmentedControlItem value="no">No</SegmentedControlItem>
+          <SegmentedControlItem value="yes">
+            {t('app.reference.[company].referee-form.yes', 'Yes')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="maybe">
+            {t('app.reference.[company].referee-form.maybe', 'Maybe')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="no">
+            {t('app.reference.[company].referee-form.no', 'No')}
+          </SegmentedControlItem>
         </SegmentedControl>
       </Field>
       <Field required>
-        <FieldLabel>Strengths</FieldLabel>
+        <FieldLabel>{t('app.reference.[company].referee-form.strengths', 'Strengths')}</FieldLabel>
         <FieldControl>
           <Textarea
             autoResize
@@ -102,7 +141,9 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         </FieldControl>
       </Field>
       <Field>
-        <FieldLabel>Something to develop</FieldLabel>
+        <FieldLabel>
+          {t('app.reference.[company].referee-form.something_to_develop', 'Something to develop')}
+        </FieldLabel>
         <FieldControl>
           <Textarea
             autoResize
@@ -122,7 +163,7 @@ export function RefereeForm({ company }: { readonly company: string }): JSX.Elem
         }
         loading={pending}
       >
-        Send reference
+        {t('app.reference.[company].referee-form.send_reference', 'Send reference')}
       </Button>
     </form>
   );

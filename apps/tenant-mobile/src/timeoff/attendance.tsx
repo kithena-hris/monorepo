@@ -25,12 +25,13 @@ import {
   RadioCard,
   RadioGroup,
   RangeBar,
+  type RangeBarSegment,
   Stack,
   Stat,
   Text,
   TimePicker,
-  type RangeBarSegment,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { ChevronLeft, ChevronRight, Clock3, History, Sparkles, Timer } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -45,6 +46,7 @@ import { askTimeOff, useTimeOff } from './api';
 import { inspectorRecord } from './insights';
 import { clockTime, duration, instantAt, minuteOfDay, todayHere } from './time';
 import { addDays, asDate, shortDate, spanLabel } from './words';
+import { t as tr } from '../i18n';
 
 interface Segment {
   readonly kind: string;
@@ -95,14 +97,22 @@ interface Sheet {
   readonly restBreaches: readonly { date: string; restMinutes: number }[];
 }
 
-const SEGMENT: Record<string, Omit<RangeBarSegment, 'start' | 'end'>> = {
-  worked: { label: 'Worked', tone: 'success' },
-  live: { label: 'Working now', tone: 'success', pattern: 'hatched' },
-  break: { label: 'Break', tone: 'warning', size: 'thin' },
-  overtime: { label: 'Overtime', tone: 'chart-4' },
-  missing: { label: 'Missing', tone: 'danger', pattern: 'hatched' },
-  planned: { label: 'Planned', tone: 'neutral' },
-};
+const SEGMENT = (): Record<string, Omit<RangeBarSegment, 'start' | 'end'>> => ({
+  worked: { label: tr('timeoff.attendance.worked', 'Worked'), tone: 'success' },
+  live: {
+    label: tr('timeoff.attendance.working_now', 'Working now'),
+    tone: 'success',
+    pattern: 'hatched',
+  },
+  break: { label: tr('timeoff.attendance.break', 'Break'), tone: 'warning', size: 'thin' },
+  overtime: { label: tr('timeoff.attendance.overtime', 'Overtime'), tone: 'chart-4' },
+  missing: {
+    label: tr('timeoff.attendance.missing', 'Missing'),
+    tone: 'danger',
+    pattern: 'hatched',
+  },
+  planned: { label: tr('timeoff.attendance.planned', 'Planned'), tone: 'neutral' },
+});
 const DAY: readonly [number, number] = [420, 1140];
 
 const mondayOf = (date: string): string => {
@@ -110,7 +120,7 @@ const mondayOf = (date: string): string => {
   return addDays(date, day === 0 ? -6 : 1 - day);
 };
 const weekday = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(asDate(date));
+  dateFormat({ weekday: 'long', timeZone: 'UTC' }).format(asDate(date));
 
 const bar = (label: string, segments: readonly Segment[], now?: number, axis = false) => (
   <RangeBar
@@ -122,7 +132,7 @@ const bar = (label: string, segments: readonly Segment[], now?: number, axis = f
     segments={segments.map((s) => ({
       start: s.from,
       end: s.to,
-      ...(SEGMENT[s.kind] ?? { label: s.kind }),
+      ...(SEGMENT()[s.kind] ?? { label: s.kind }),
     }))}
   />
 );
@@ -143,14 +153,14 @@ export function TimeOffTimesheet({
   });
   const [fixing, setFixing] = useState<string | null>(null);
   const today = todayHere();
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: tr('timeoff.attendance.time_off', 'Time off'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Timesheet" back={back}>
+      <Page title={tr('timeoff.attendance.timesheet', 'Timesheet')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading your week" />
+          <Loading label={tr('timeoff.attendance.loading_your_week', 'Loading your week')} />
         )}
       </Page>
     );
@@ -161,24 +171,25 @@ export function TimeOffTimesheet({
   const now = minuteOfDay(Date.now(), zone);
   const open = sheet.open.find((o) => o.date === fixing);
   return (
-    <Page title="Timesheet" back={back}>
+    <Page title={tr('timeoff.attendance.timesheet', 'Timesheet')} back={back}>
       <View className="flex-row items-center gap-2">
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronLeft} />}
-          accessibilityLabel="The week before"
+          accessibilityLabel={tr('timeoff.attendance.the_week_before', 'The week before')}
           onPress={() => {
             setMonday(addDays(monday, -7));
           }}
         />
-        <Text
-          weight="semibold"
-          className="flex-1 text-center"
-        >{`Week of ${shortDate(monday)}`}</Text>
+        <Text weight="semibold" className="flex-1 text-center">
+          {tr('timeoff.attendance.week_of', 'Week of {{shortDate}}', {
+            shortDate: shortDate(monday),
+          })}
+        </Text>
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronRight} />}
-          accessibilityLabel="The week after"
+          accessibilityLabel={tr('timeoff.attendance.the_week_after', 'The week after')}
           onPress={() => {
             setMonday(addDays(monday, 7));
           }}
@@ -188,18 +199,22 @@ export function TimeOffTimesheet({
         <Card>
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
-              <Text
-                variant="title2"
-                weight="bold"
-              >{`${duration(week.workedMinutes)} of ${duration(week.plannedMinutes)}`}</Text>
+              <Text variant="title2" weight="bold">
+                {tr('timeoff.attendance.of', '{{duration}} of {{duration2}}', {
+                  duration: duration(week.workedMinutes),
+                  duration2: duration(week.plannedMinutes),
+                })}
+              </Text>
               <Text variant="footnote" tone="muted">
                 {week.overtimeMinutes > 0
-                  ? `${duration(week.overtimeMinutes)} overtime`
-                  : 'No overtime'}
+                  ? tr('timeoff.attendance.overtime_2', '{{duration}} overtime', {
+                      duration: duration(week.overtimeMinutes),
+                    })
+                  : tr('timeoff.attendance.no_overtime', 'No overtime')}
               </Text>
             </View>
             <CircularProgress
-              label="Worked of planned"
+              label={tr('timeoff.attendance.worked_of_planned', 'Worked of planned')}
               value={
                 week.plannedMinutes === 0
                   ? 0
@@ -234,11 +249,11 @@ export function TimeOffTimesheet({
                         setFixing(d.date);
                       }}
                     >
-                      Fix
+                      {tr('timeoff.attendance.fix', 'Fix')}
                     </Button>
                   ) : live ? (
                     <Badge size="sm" tone="success" dot>
-                      Now
+                      {tr('timeoff.attendance.now', 'Now')}
                     </Badge>
                   ) : overtime > 0 ? (
                     <Badge size="sm" tone="info">{`+${duration(overtime)}`}</Badge>
@@ -255,12 +270,25 @@ export function TimeOffTimesheet({
           })}
       </Card>
       {sheet.restBreaches.map((r) => (
-        <Alert key={r.date} tone="warning" title={`Short rest before ${shortDate(r.date)}`}>
-          {`Only ${duration(r.restMinutes)} between the end of one day and the start of the next.`}
+        <Alert
+          key={r.date}
+          tone="warning"
+          title={tr('timeoff.attendance.short_rest_before', 'Short rest before {{shortDate}}', {
+            shortDate: shortDate(r.date),
+          })}
+        >
+          {tr(
+            'timeoff.attendance.only_between_the_end_of_one',
+            'Only {{duration}} between the end of one day and the start of the next.',
+            { duration: duration(r.restMinutes) },
+          )}
         </Alert>
       ))}
       <Text variant="footnote" tone="muted">
-        Kept as the law requires. Only you, your manager and HR see it.
+        {tr(
+          'timeoff.attendance.kept_as_the_law_requires_only',
+          'Kept as the law requires. Only you, your manager and HR see it.',
+        )}
       </Text>
       {fixing === null || open === undefined ? null : (
         <FixDialog
@@ -336,8 +364,23 @@ function FixDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`When did you finish on ${weekday(day.date)}?`}</DialogTitle>
-          <DialogDescription>{`You ${lastKind === 'in' ? 'clocked in' : 'last punched'} at ${clockTime(after)} and didn’t clock out. Nothing is overwritten.`}</DialogDescription>
+          <DialogTitle>
+            {tr(
+              'timeoff.attendance.when_did_you_finish_on',
+              'When did you finish on {{weekday}}?',
+              { weekday: weekday(day.date) },
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {tr(
+              'timeoff.attendance.you_at_and_didnt_clock_out',
+              'You {{value}} at {{clockTime}} and didn’t clock out. Nothing is overwritten.',
+              {
+                value: lastKind === 'in' ? 'clocked in' : 'last punched',
+                clockTime: clockTime(after),
+              },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {open.suggestion === null ? null : (
@@ -346,12 +389,19 @@ function FixDialog({
               <View className="flex-row items-center gap-2">
                 <AssistantMark size={18} />
                 <Text weight="semibold" className="flex-1">
-                  From your day
+                  {tr('timeoff.attendance.from_your_day', 'From your day')}
                 </Text>
               </View>
               {open.suggestion.evidence.map((e) => (
                 <Text key={`${e.source}${e.at}`} variant="subhead" tone="muted">
-                  {`${e.source === 'calendar' ? 'Your meeting ended' : 'Your last action in Kithena was'} at ${clockTime(minuteOfDay(e.at, zone))} · ${e.what}`}
+                  {tr('timeoff.attendance.at', '{{value}} at {{clockTime}} · {{what}}', {
+                    value:
+                      e.source === 'calendar'
+                        ? 'Your meeting ended'
+                        : 'Your last action in Kithena was',
+                    clockTime: clockTime(minuteOfDay(e.at, zone)),
+                    what: e.what,
+                  })}
                 </Text>
               ))}
             </Card>
@@ -375,13 +425,19 @@ function FixDialog({
                     key={t}
                     className="min-w-[46%] flex-1"
                     variant={on ? 'tinted' : 'secondary'}
-                    accessibilityLabel={t === open.suggestion?.time ? `${t}, suggested` : t}
+                    accessibilityLabel={
+                      t === open.suggestion?.time
+                        ? tr('timeoff.attendance.suggested', '{{t}}, suggested', { t })
+                        : t
+                    }
                     onPress={() => {
                       setChoice('picked');
                       setTime(t);
                     }}
                   >
-                    {t === open.suggestion?.time ? `${t} · Suggested` : t}
+                    {t === open.suggestion?.time
+                      ? tr('timeoff.attendance.suggested_2', '{{t}} · Suggested', { t })
+                      : t}
                   </Button>
                 );
               })}
@@ -392,26 +448,37 @@ function FixDialog({
                 setChoice('other');
               }}
             >
-              Another time
+              {tr('timeoff.attendance.another_time', 'Another time')}
             </Button>
           </View>
           {worked === null ? null : (
             <Text variant="footnote" tone="muted">
-              {`${duration(worked)} worked${overtime > 0 ? ` · ${duration(overtime)} overtime` : ''}`}
+              {tr('timeoff.attendance.worked_2', '{{duration}} worked{{value}}', {
+                duration: duration(worked),
+                value: overtime > 0 ? ` · ${duration(overtime)} overtime` : '',
+              })}
             </Text>
           )}
           {choice === 'other' ? (
-            <TimePicker label="Finished at" size="sm" step={5} value={time} onChange={setTime} />
+            <TimePicker
+              label={tr('timeoff.attendance.finished_at', 'Finished at')}
+              size="sm"
+              step={5}
+              value={time}
+              onChange={setTime}
+            />
           ) : null}
           <Field>
-            <FieldLabel>Note (optional)</FieldLabel>
+            <FieldLabel>{tr('timeoff.attendance.note_optional', 'Note (optional)')}</FieldLabel>
             <Input value={note} onChange={setNote} size="sm" maxLength={300} />
-            <FieldDescription>Kept with the correction.</FieldDescription>
+            <FieldDescription>
+              {tr('timeoff.attendance.kept_with_the_correction', 'Kept with the correction.')}
+            </FieldDescription>
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.attendance.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -431,13 +498,21 @@ function FixDialog({
                     reason: note.trim() === '' ? null : note.trim(),
                   },
                 },
-                (d) => (d.needsManager ? 'Saved; it goes to your manager' : 'Saved'),
+                (d) =>
+                  d.needsManager
+                    ? tr(
+                        'timeoff.attendance.saved_it_goes_to_your_manager',
+                        'Saved; it goes to your manager',
+                      )
+                    : 'Saved',
               ).then((done) => {
                 if (done !== null) onSaved();
               });
             }}
           >
-            {at === null ? 'Save' : `Save ${at}`}
+            {at === null
+              ? tr('timeoff.attendance.save', 'Save')
+              : tr('timeoff.attendance.save_2', 'Save {{at}}', { at })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -466,19 +541,23 @@ interface TeamNow {
   readonly sentence: { text: string; ai: boolean } | null;
 }
 
-const WHERE: Record<string, string> = { office: 'Office', remote: 'Remote', client: 'At a client' };
+const WHERE = (): Record<string, string> => ({
+  office: tr('timeoff.attendance.office', 'Office'),
+  remote: tr('timeoff.attendance.remote', 'Remote'),
+  client: tr('timeoff.attendance.at_a_client', 'At a client'),
+});
 
 /** Team, right now (design MT19): who is in, on a break or away, and what needs you. */
 export function TimeOffTeamNow({ navigation }: PeopleScreen<'TimeOffTeamNow'>): React.JSX.Element {
   const { load, reload } = useTimeOff<TeamNow>('TimeOffTeamRightNow');
-  const back = { label: 'Time off', onPress: navigation.goBack };
+  const back = { label: tr('timeoff.attendance.time_off', 'Time off'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Team now" back={back}>
+      <Page title={tr('timeoff.attendance.team_now', 'Team now')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading your team" />
+          <Loading label={tr('timeoff.attendance.loading_your_team', 'Loading your team')} />
         )}
       </Page>
     );
@@ -486,11 +565,19 @@ export function TimeOffTeamNow({ navigation }: PeopleScreen<'TimeOffTeamNow'>): 
   const d = load.data;
   const count = (s: string): number => d.people.filter((p) => p.state === s).length;
   return (
-    <Page title="Team now" back={back}>
+    <Page title={tr('timeoff.attendance.team_now', 'Team now')} back={back}>
       <View className="flex-row gap-2">
-        <Stat className="flex-1" label="In" value={count('in')} />
-        <Stat className="flex-1" label="Break" value={count('on_break')} />
-        <Stat className="flex-1" label="Away" value={count('out')} />
+        <Stat className="flex-1" label={tr('timeoff.attendance.in', 'In')} value={count('in')} />
+        <Stat
+          className="flex-1"
+          label={tr('timeoff.attendance.break', 'Break')}
+          value={count('on_break')}
+        />
+        <Stat
+          className="flex-1"
+          label={tr('timeoff.attendance.away', 'Away')}
+          value={count('out')}
+        />
       </View>
       {d.sentence === null ? null : <Text tone="muted">{d.sentence.text}</Text>}
       <List>
@@ -498,7 +585,11 @@ export function TimeOffTeamNow({ navigation }: PeopleScreen<'TimeOffTeamNow'>): 
           <ListItem
             key={p.personId}
             leading={<Avatar name={p.displayName} size={40} />}
-            description={p.state === 'out' ? 'Away' : (WHERE[p.workModel ?? ''] ?? '')}
+            description={
+              p.state === 'out'
+                ? tr('timeoff.attendance.away', 'Away')
+                : (WHERE()[p.workModel ?? ''] ?? '')
+            }
             trailing={
               <Badge
                 size="sm"
@@ -508,8 +599,8 @@ export function TimeOffTeamNow({ navigation }: PeopleScreen<'TimeOffTeamNow'>): 
                 {p.state === 'in'
                   ? duration(p.today.workedMinutes ?? 0)
                   : p.state === 'on_break'
-                    ? 'Break'
-                    : 'Away'}
+                    ? tr('timeoff.attendance.break', 'Break')
+                    : tr('timeoff.attendance.away', 'Away')}
               </Badge>
             }
           >
@@ -523,7 +614,11 @@ export function TimeOffTeamNow({ navigation }: PeopleScreen<'TimeOffTeamNow'>): 
             navigation.navigate('TimeOffAttendanceRequests');
           }}
         >
-          {`${String(d.needsYou.length)} ${d.needsYou.length === 1 ? 'thing needs' : 'things need'} you`}
+          {tr(
+            'timeoff.attendance.you',
+            { one: '{{count}} thing needs you', other: '{{count}} things need you' },
+            { count: d.needsYou.length },
+          )}
         </Button>
       )}
     </Page>
@@ -536,13 +631,15 @@ interface AttendanceRequests {
   readonly overtime: { becomes: 'comp' | 'paid' | 'choose'; multiplier: string };
 }
 
-const MINE: Record<string, { label: string; tone: 'warning' | 'success' | 'neutral' | 'danger' }> =
-  {
-    waiting: { label: 'Waiting', tone: 'warning' },
-    comp: { label: 'Comp time', tone: 'success' },
-    paid: { label: 'Paid', tone: 'success' },
-    declined: { label: 'Declined', tone: 'danger' },
-  };
+const MINE = (): Record<
+  string,
+  { label: string; tone: 'warning' | 'success' | 'neutral' | 'danger' }
+> => ({
+  waiting: { label: tr('timeoff.attendance.waiting', 'Waiting'), tone: 'warning' },
+  comp: { label: tr('timeoff.attendance.comp_time', 'Comp time'), tone: 'success' },
+  paid: { label: tr('timeoff.attendance.paid', 'Paid'), tone: 'success' },
+  declined: { label: tr('timeoff.attendance.declined', 'Declined'), tone: 'danger' },
+});
 
 /** Overtime to decide and late corrections for a manager, and your own overtime as it was decided. */
 export function TimeOffAttendanceRequests({
@@ -550,14 +647,17 @@ export function TimeOffAttendanceRequests({
 }: PeopleScreen<'TimeOffAttendanceRequests'>): React.JSX.Element {
   const { load, reload } = useTimeOff<AttendanceRequests>('TimeOffAttendanceRequests');
   const [deciding, setDeciding] = useState<Needs | null>(null);
-  const back = { label: 'Back', onPress: navigation.goBack };
+  const back = { label: tr('timeoff.attendance.back', 'Back'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Overtime and corrections" back={back}>
+      <Page
+        title={tr('timeoff.attendance.overtime_and_corrections', 'Overtime and corrections')}
+        back={back}
+      >
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading" />
+          <Loading label={tr('timeoff.attendance.loading', 'Loading')} />
         )}
       </Page>
     );
@@ -566,14 +666,21 @@ export function TimeOffAttendanceRequests({
   const overtime = d.needsYou.filter((n) => n.kind === 'overtime');
   const corrections = d.needsYou.filter((n) => n.kind === 'correction');
   return (
-    <Page title="Overtime and corrections" back={back}>
+    <Page
+      title={tr('timeoff.attendance.overtime_and_corrections', 'Overtime and corrections')}
+      back={back}
+    >
       {overtime.length === 0 ? null : (
         <List>
           {overtime.map((n) => (
             <ListItem
               key={`${n.personId}${n.date}`}
               icon={Timer}
-              description={`${shortDate(n.date)} · ${duration(n.minutes ?? 0)} over the plan`}
+              description={tr(
+                'timeoff.attendance.over_the_plan',
+                '{{shortDate}} · {{duration}} over the plan',
+                { shortDate: shortDate(n.date), duration: duration(n.minutes ?? 0) },
+              )}
               chevron
               onPress={() => {
                 setDeciding(n);
@@ -590,7 +697,11 @@ export function TimeOffAttendanceRequests({
             <ListItem
               key={`${n.personId}${n.date}c`}
               icon={History}
-              description={`${shortDate(n.date)} · added more than a day afterwards`}
+              description={tr(
+                'timeoff.attendance.added_more_than_a_day_afterwards',
+                '{{shortDate}} · added more than a day afterwards',
+                { shortDate: shortDate(n.date) },
+              )}
             >
               {`${n.displayName} · ${weekday(n.date)} ${n.punch?.kind === 'in' ? 'clock-in' : 'clock-out'}`}
             </ListItem>
@@ -598,20 +709,24 @@ export function TimeOffAttendanceRequests({
         </List>
       )}
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Your overtime
+        {tr('timeoff.attendance.your_overtime', 'Your overtime')}
       </Text>
       {d.mine.length === 0 ? (
-        <Text tone="muted">No overtime in the last month.</Text>
+        <Text tone="muted">
+          {tr('timeoff.attendance.no_overtime_in_the_last_month', 'No overtime in the last month.')}
+        </Text>
       ) : (
         <List>
           {d.mine.map((m) => (
             <ListItem
               key={m.date}
               icon={Clock3}
-              description={`${duration(m.minutes)} over the plan`}
+              description={tr('timeoff.attendance.over_the_plan_2', '{{duration}} over the plan', {
+                duration: duration(m.minutes),
+              })}
               trailing={
-                <Badge size="sm" tone={MINE[m.status]?.tone ?? 'neutral'}>
-                  {MINE[m.status]?.label ?? m.status}
+                <Badge size="sm" tone={MINE()[m.status]?.tone ?? 'neutral'}>
+                  {MINE()[m.status]?.label ?? m.status}
                 </Badge>
               }
             >
@@ -662,31 +777,56 @@ function OvertimeDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`${item.displayName}’s overtime`}</DialogTitle>
-          <DialogDescription>{`${shortDate(item.date)} · ${duration(minutes)} over the plan`}</DialogDescription>
+          <DialogTitle>
+            {tr('timeoff.attendance.s_overtime', '{{displayName}}’s overtime', {
+              displayName: item.displayName,
+            })}
+          </DialogTitle>
+          <DialogDescription>
+            {tr('timeoff.attendance.over_the_plan', '{{shortDate}} · {{duration}} over the plan', {
+              shortDate: shortDate(item.date),
+              duration: duration(minutes),
+            })}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <RadioGroup accessibilityLabel="What it becomes" value={choice} onValueChange={setChoice}>
+          <RadioGroup
+            accessibilityLabel={tr('timeoff.attendance.what_it_becomes', 'What it becomes')}
+            value={choice}
+            onValueChange={setChoice}
+          >
             {offered.map((o) => (
               <RadioCard
                 key={o}
                 value={o}
                 description={
                   o === 'comp'
-                    ? `${duration(minutes)} banked to take as time off.`
+                    ? tr(
+                        'timeoff.attendance.banked_to_take_as_time_off',
+                        '{{duration}} banked to take as time off.',
+                        { duration: duration(minutes) },
+                      )
                     : o === 'paid'
-                      ? `${duration(minutes)} at ${overtime.multiplier}×, sent to Payroll with the month.`
-                      : 'Not counted.'
+                      ? tr(
+                          'timeoff.attendance.at_sent_to_payroll_with_the',
+                          '{{duration}} at {{multiplier}}×, sent to Payroll with the month.',
+                          { duration: duration(minutes), multiplier: overtime.multiplier },
+                        )
+                      : tr('timeoff.attendance.not_counted', 'Not counted.')
                 }
               >
-                {o === 'comp' ? 'Comp time' : o === 'paid' ? 'Paid' : 'Decline'}
+                {o === 'comp'
+                  ? tr('timeoff.attendance.comp_time', 'Comp time')
+                  : o === 'paid'
+                    ? tr('timeoff.attendance.paid', 'Paid')
+                    : tr('timeoff.attendance.decline', 'Decline')}
               </RadioCard>
             ))}
           </RadioGroup>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.attendance.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -709,7 +849,9 @@ function OvertimeDialog({
               });
             }}
           >
-            {choice === 'declined' ? 'Decline' : 'Approve'}
+            {choice === 'declined'
+              ? tr('timeoff.attendance.decline', 'Decline')
+              : tr('timeoff.attendance.approve', 'Approve')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -723,9 +865,7 @@ const monthRange = (m: string): { from: string; to: string } => ({
   to: addDays(`${addDays(`${m}-01`, 31).slice(0, 7)}-01`, -1),
 });
 const monthName = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    asDate(`${m}-01`),
-  );
+  dateFormat({ month: 'long', year: 'numeric', timeZone: 'UTC' }).format(asDate(`${m}-01`));
 
 /** A month's attendance exceptions, for HR: missing clock-outs, short rests, overtime past the rules. */
 export function TimeOffExceptions({
@@ -744,21 +884,24 @@ export function TimeOffExceptions({
     }[];
   }>('TimeOffAttendanceExceptions', monthRange(month));
   const KIND: Record<string, string> = {
-    missing_out: 'Clock-out missing',
-    short_rest: 'Short rest',
-    long_day: 'Over the daily limit',
+    missing_out: tr('timeoff.attendance.clock_out_missing', 'Clock-out missing'),
+    short_rest: tr('timeoff.attendance.short_rest', 'Short rest'),
+    long_day: tr('timeoff.attendance.over_the_daily_limit', 'Over the daily limit'),
     overtime: 'Overtime',
-    holiday_worked: 'Worked a holiday',
+    holiday_worked: tr('timeoff.attendance.worked_a_holiday', 'Worked a holiday'),
   };
   const signed = useSigned();
   const [record, setRecord] = useState<string | null>(null);
   return (
-    <Page title="Exceptions" back={{ label: 'Back', onPress: navigation.goBack }}>
+    <Page
+      title={tr('timeoff.attendance.exceptions', 'Exceptions')}
+      back={{ label: tr('timeoff.attendance.back', 'Back'), onPress: navigation.goBack }}
+    >
       <View className="flex-row items-center gap-2">
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronLeft} />}
-          accessibilityLabel="Month before"
+          accessibilityLabel={tr('timeoff.attendance.month_before', 'Month before')}
           onPress={() => {
             setMonth(addDays(`${month}-01`, -1).slice(0, 7));
           }}
@@ -769,7 +912,7 @@ export function TimeOffExceptions({
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronRight} />}
-          accessibilityLabel="Month after"
+          accessibilityLabel={tr('timeoff.attendance.month_after', 'Month after')}
           onPress={() => {
             setMonth(addDays(`${month}-28`, 7).slice(0, 7));
           }}
@@ -790,19 +933,26 @@ export function TimeOffExceptions({
               });
             }}
           >
-            {`Inspector record · ${format.toUpperCase()}`}
+            {tr('timeoff.attendance.inspector_record', 'Inspector record · {{toUpperCase}}', {
+              toUpperCase: format.toUpperCase(),
+            })}
           </Button>
         ))}
       </View>
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading the exceptions" />
+        <Loading
+          label={tr('timeoff.attendance.loading_the_exceptions', 'Loading the exceptions')}
+        />
       ) : load.data.items.length === 0 ? (
         <EmptyState
           icon={Clock3}
-          title="Nothing to look at"
-          description="No exceptions this month."
+          title={tr('timeoff.attendance.nothing_to_look_at', 'Nothing to look at')}
+          description={tr(
+            'timeoff.attendance.no_exceptions_this_month',
+            'No exceptions this month.',
+          )}
         />
       ) : (
         <List>
@@ -866,12 +1016,15 @@ export function TimeOffPayPeriod({
   const { load, reload } = useTimeOff<PayPeriod>('TimeOffPayPeriod', { month });
   const { act, busy } = useAct('timeoff');
   return (
-    <Page title="Pay period" back={{ label: 'Back', onPress: navigation.goBack }}>
+    <Page
+      title={tr('timeoff.attendance.pay_period', 'Pay period')}
+      back={{ label: tr('timeoff.attendance.back', 'Back'), onPress: navigation.goBack }}
+    >
       <View className="flex-row items-center gap-2">
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronLeft} />}
-          accessibilityLabel="Month before"
+          accessibilityLabel={tr('timeoff.attendance.month_before', 'Month before')}
           onPress={() => {
             setMonth(addDays(`${month}-01`, -1).slice(0, 7));
           }}
@@ -882,7 +1035,7 @@ export function TimeOffPayPeriod({
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronRight} />}
-          accessibilityLabel="Month after"
+          accessibilityLabel={tr('timeoff.attendance.month_after', 'Month after')}
           onPress={() => {
             setMonth(addDays(`${month}-28`, 7).slice(0, 7));
           }}
@@ -891,41 +1044,54 @@ export function TimeOffPayPeriod({
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading the period" />
+        <Loading label={tr('timeoff.attendance.loading_the_period', 'Loading the period')} />
       ) : (
         <>
           <Text tone="muted">{`${spanLabel(load.data.from, load.data.to)}${load.data.closedAt === null ? '' : ` · closed ${shortDate(load.data.closedAt.slice(0, 10))}`}`}</Text>
           <View className="flex-row gap-2">
             <Stat
               className="flex-1"
-              label="Overtime paid"
+              label={tr('timeoff.attendance.overtime_paid', 'Overtime paid')}
               value={duration(load.data.totals.paidMinutes)}
             />
             <Stat
               className="flex-1"
-              label="Comp banked"
+              label={tr('timeoff.attendance.comp_banked', 'Comp banked')}
               value={duration(load.data.totals.compMinutes)}
             />
           </View>
           <View className="flex-row gap-2">
             <Stat
               className="flex-1"
-              label="Unpaid days"
+              label={tr('timeoff.attendance.unpaid_days', 'Unpaid days')}
               value={load.data.totals.unpaidDays}
-              description={`${String(load.data.totals.unpaidPeople)} people`}
+              description={tr('timeoff.attendance.people', '{{String}} people', {
+                String: String(load.data.totals.unpaidPeople),
+              })}
             />
             <Stat
               className="flex-1"
-              label="Below zero"
+              label={tr('timeoff.attendance.below_zero', 'Below zero')}
               value={load.data.totals.negativeBalanceDays}
-              description={`${String(load.data.totals.negativePeople)} people`}
+              description={tr('timeoff.attendance.people', '{{String}} people', {
+                String: String(load.data.totals.negativePeople),
+              })}
             />
           </View>
           <List>
             {load.data.teams.map((t) => (
               <ListItem
                 key={t.team ?? 'none'}
-                description={`${String(t.people)} people · ${duration(t.paidMinutes)} paid · ${duration(t.compMinutes)} comp${t.waiting > 0 ? ` · ${String(t.waiting)} waiting` : ''}`}
+                description={tr(
+                  'timeoff.attendance.people_paid_comp',
+                  '{{String}} people · {{duration}} paid · {{duration2}} comp{{value}}',
+                  {
+                    String: String(t.people),
+                    duration: duration(t.paidMinutes),
+                    duration2: duration(t.compMinutes),
+                    value: t.waiting > 0 ? ` · ${String(t.waiting)} waiting` : '',
+                  },
+                )}
                 {...(t.waiting > 0
                   ? {
                       trailing: (
@@ -940,7 +1106,7 @@ export function TimeOffPayPeriod({
                             ).then(reload);
                           }}
                         >
-                          Remind
+                          {tr('timeoff.attendance.remind', 'Remind')}
                         </Button>
                       ),
                     }
@@ -953,7 +1119,7 @@ export function TimeOffPayPeriod({
           {load.data.late.length === 0 ? null : (
             <>
               <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-                Still open
+                {tr('timeoff.attendance.still_open', 'Still open')}
               </Text>
               <List>
                 {load.data.late.map((l) => (
@@ -962,7 +1128,11 @@ export function TimeOffPayPeriod({
                     leading={<Avatar name={l.displayName} size={36} />}
                     description={[
                       l.openDays > 0
-                        ? `${String(l.openDays)} open ${l.openDays === 1 ? 'day' : 'days'}`
+                        ? tr(
+                            'timeoff.attendance.open_days',
+                            { one: '{{count}} open day', other: '{{count}} open days' },
+                            { count: l.openDays },
+                          )
                         : null,
                       l.overtimeWaitingMinutes > 0
                         ? `${duration(l.overtimeWaitingMinutes)} overtime waiting`
@@ -987,7 +1157,9 @@ export function TimeOffPayPeriod({
                 );
               }}
             >
-              {`Close ${monthName(month)}`}
+              {tr('timeoff.attendance.close', 'Close {{monthName}}', {
+                monthName: monthName(month),
+              })}
             </Button>
           ) : null}
         </>
@@ -1057,7 +1229,10 @@ export function TimeOffKioskCode({
   }, [signed]);
   const qr = useMemo(() => (code === null ? null : qrPath(code.token)), [code]);
   return (
-    <Page title="My kiosk code" back={{ label: 'Time off', onPress: navigation.goBack }}>
+    <Page
+      title={tr('timeoff.attendance.my_kiosk_code', 'My kiosk code')}
+      back={{ label: tr('timeoff.attendance.time_off', 'Time off'), onPress: navigation.goBack }}
+    >
       {failed !== null ? (
         <Failed
           message={failed}
@@ -1066,7 +1241,7 @@ export function TimeOffKioskCode({
           }}
         />
       ) : qr === null ? (
-        <Loading label="Making your code" />
+        <Loading label={tr('timeoff.attendance.making_your_code', 'Making your code')} />
       ) : (
         <Card>
           <View className="items-center gap-2">
@@ -1075,13 +1250,16 @@ export function TimeOffKioskCode({
                 width={240}
                 height={240}
                 viewBox={`0 0 ${String(qr.size)} ${String(qr.size)}`}
-                accessibilityLabel="Your kiosk code"
+                accessibilityLabel={tr('timeoff.attendance.your_kiosk_code', 'Your kiosk code')}
               >
                 <Path d={qr.path} fill="#000" />
               </Svg>
             </View>
             <Text variant="footnote" tone="muted">
-              Show it to the kiosk at the door. It changes every minute.
+              {tr(
+                'timeoff.attendance.show_it_to_the_kiosk_at',
+                'Show it to the kiosk at the door. It changes every minute.',
+              )}
             </Text>
           </View>
         </Card>
@@ -1089,9 +1267,12 @@ export function TimeOffKioskCode({
       {code === null ? null : (
         <Card>
           <Stack gap={2}>
-            <Text weight="semibold">Your PIN</Text>
+            <Text weight="semibold">{tr('timeoff.attendance.your_pin', 'Your PIN')}</Text>
             <PinInput
-              label="Six digits to type at the kiosk instead"
+              label={tr(
+                'timeoff.attendance.six_digits_to_type_at_the',
+                'Six digits to type at the kiosk instead',
+              )}
               length={6}
               type="numeric"
               masked
@@ -1106,13 +1287,13 @@ export function TimeOffKioskCode({
                 void act(
                   'SetTimeOffKioskCredential',
                   { personId: code.personId, kind: 'pin', input: { value: pin } },
-                  'PIN saved',
+                  tr('timeoff.attendance.pin_saved', 'PIN saved'),
                 ).then(() => {
                   setPin('');
                 });
               }}
             >
-              Save PIN
+              {tr('timeoff.attendance.save_pin', 'Save PIN')}
             </Button>
           </Stack>
         </Card>

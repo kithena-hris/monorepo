@@ -12,6 +12,7 @@
  */
 
 import { numberParts } from './intl-parts.ts';
+import { locale as readerLocale } from '@reach/ui/intl';
 
 export type MoneyFormat = {
   /** Minor-unit exponent. Defaults to the currency's own (2 for EUR, 0 for JPY). */
@@ -33,8 +34,10 @@ export type MoneyFormat = {
 /** The currency's own number of minor-unit digits. */
 export function currencyExponent(currency: string, locale?: string): number {
   return (
-    new Intl.NumberFormat(locale, { style: 'currency', currency }).resolvedOptions()
-      .maximumFractionDigits ?? 2
+    new Intl.NumberFormat(locale ?? readerLocale(), {
+      style: 'currency',
+      currency,
+    }).resolvedOptions().maximumFractionDigits ?? 2
   );
 }
 
@@ -77,7 +80,7 @@ export function formatMoney(
   const fraction = hideFraction ? '' : exact;
   const shown = hideFraction ? 0 : places;
 
-  const format = new Intl.NumberFormat(locale, {
+  const format = new Intl.NumberFormat(locale ?? readerLocale(), {
     style: hideCurrency ? 'decimal' : 'currency',
     currency,
     currencyDisplay,

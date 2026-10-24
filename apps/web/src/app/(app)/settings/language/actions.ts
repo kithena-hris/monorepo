@@ -13,11 +13,19 @@ import { serverWords } from '../../../../lib/server-words';
  */
 export async function saveLanguage(
   input: unknown,
-): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+): Promise<
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly code: 'unknown' | 'view_only' | 'failed';
+      readonly message: string;
+    }
+> {
   const t = await serverWords();
   if (!isLanguage(input))
     return {
       ok: false,
+      code: 'unknown',
       message: t(
         'app.app.settings.language.actions.that_language_is_not_available',
         'That language is not available.',
@@ -27,6 +35,7 @@ export async function saveLanguage(
   if (saved === 'view_only')
     return {
       ok: false,
+      code: 'view_only',
       message: t(
         'app.app.settings.language.actions.you_are_viewing_as_somebody_else_so',
         'You are viewing as somebody else, so nothing can be changed.',
@@ -42,6 +51,7 @@ export async function saveLanguage(
     ? { ok: true }
     : {
         ok: false,
+        code: 'failed',
         message: t(
           'app.app.settings.language.actions.your_language_could_not_be_saved_just',
           'Your language could not be saved just now. Try again.',

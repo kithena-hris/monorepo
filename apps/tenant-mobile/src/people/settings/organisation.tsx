@@ -54,6 +54,7 @@ import { useAct } from '../act';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
 import { bandAmount, minorDigits, toMinorDigits } from './minor';
+import { t } from '../../i18n';
 
 interface Entity {
   readonly id: string;
@@ -131,16 +132,26 @@ interface Pack {
   readonly sections: readonly { readonly label: string }[];
 }
 
-const PHOTO = [
-  ['off', 'Don’t ask'],
-  ['optional', 'Ask, and let them skip it'],
-  ['required', 'Ask before anything else'],
-] as const;
-const FLOOR_NAMES: Readonly<Record<string, string>> = {
-  'es-labour': 'Spain, labour records',
-  'de-labour': 'Germany, labour records',
-  'eu-payroll': 'EU, payroll and tax records',
-};
+const PHOTO = () =>
+  [
+    ['off', t('people.settings.organisation.dont_ask', 'Don’t ask')],
+    [
+      'optional',
+      t('people.settings.organisation.ask_and_let_them_skip_it', 'Ask, and let them skip it'),
+    ],
+    [
+      'required',
+      t('people.settings.organisation.ask_before_anything_else', 'Ask before anything else'),
+    ],
+  ] as const;
+const FLOOR_NAMES = (): Readonly<Record<string, string>> => ({
+  'es-labour': t('people.settings.organisation.spain_labour_records', 'Spain, labour records'),
+  'de-labour': t('people.settings.organisation.germany_labour_records', 'Germany, labour records'),
+  'eu-payroll': t(
+    'people.settings.organisation.eu_payroll_and_tax_records',
+    'EU, payroll and tax records',
+  ),
+});
 
 /** Today where a zone is: a zone change is in force once its day has begun there. */
 const todayIn = (zone: string): string =>
@@ -162,15 +173,16 @@ type Editing =
   | { kind: 'band'; band: PayBand | null }
   | { kind: 'archive'; name: string; archived: boolean; run: () => Promise<unknown> };
 
-const TABS = [
-  ['entities', 'Entities'],
-  ['locations', 'Locations'],
-  ['org-units', 'Org units'],
-  ['numbering', 'Numbering'],
-  ['country-packs', 'Country packs'],
-  ['reminders', 'Reminders'],
-  ['pay-bands', 'Pay bands'],
-] as const;
+const TABS = () =>
+  [
+    ['entities', t('people.settings.organisation.entities', 'Entities')],
+    ['locations', t('people.settings.organisation.locations', 'Locations')],
+    ['org-units', t('people.settings.organisation.org_units', 'Org units')],
+    ['numbering', t('people.settings.organisation.numbering', 'Numbering')],
+    ['country-packs', t('people.settings.organisation.country_packs', 'Country packs')],
+    ['reminders', t('people.settings.organisation.reminders', 'Reminders')],
+    ['pay-bands', t('people.settings.organisation.pay_bands', 'Pay bands')],
+  ] as const;
 
 /**
  * Organisation (design H7): its tabs as pills, its tables as rows with a menu
@@ -203,18 +215,26 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
     void load();
   }, [signed]);
 
-  const back = { label: 'Settings', onPress: navigation.goBack };
+  const back = {
+    label: t('people.settings.organisation.settings', 'Settings'),
+    onPress: navigation.goBack,
+  };
   if (failed !== null) {
     return (
-      <Page title="Organisation" back={back}>
+      <Page title={t('people.settings.organisation.organisation', 'Organisation')} back={back}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   }
   if (state === null) {
     return (
-      <Page title="Organisation" back={back}>
-        <Loading label="Loading the organisation" />
+      <Page title={t('people.settings.organisation.organisation', 'Organisation')} back={back}>
+        <Loading
+          label={t(
+            'people.settings.organisation.loading_the_organisation',
+            'Loading the organisation',
+          )}
+        />
       </Page>
     );
   }
@@ -246,10 +266,16 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
             size="sm"
             variant="ghost"
             startIcon={<Icon icon={Ellipsis} />}
-            accessibilityLabel={`Actions for ${label}`}
+            accessibilityLabel={t(
+              'people.settings.organisation.actions_for',
+              'Actions for {{label}}',
+              { label },
+            )}
           />
         </DropdownMenuTrigger>
-        <DropdownMenuContent label={`Actions for ${label}`}>
+        <DropdownMenuContent
+          label={t('people.settings.organisation.actions_for', 'Actions for {{label}}', { label })}
+        >
           {items.map((i) => (
             <DropdownMenuItem key={i.label} icon={i.icon} onSelect={i.onSelect}>
               {i.label}
@@ -262,10 +288,12 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
   const add = (title: string, open?: () => void) => (
     <Heading
       title={title}
-      {...(can && open !== undefined ? { action: 'Add', onAction: open } : {})}
+      {...(can && open !== undefined
+        ? { action: t('people.settings.organisation.add', 'Add'), onAction: open }
+        : {})}
     />
   );
-  const tabs = TABS.filter(
+  const tabs = TABS().filter(
     ([value]) =>
       (value !== 'country-packs' || packs !== null) &&
       (value !== 'pay-bands' || state.payBands !== null),
@@ -273,40 +301,55 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
   const shown = (value: string): boolean => tabs.some(([v]) => v === value);
 
   return (
-    <Page title="Organisation" back={back}>
-      {can ? null : <Alert tone="info">Only a People administrator changes these.</Alert>}
+    <Page title={t('people.settings.organisation.organisation', 'Organisation')} back={back}>
+      {can ? null : (
+        <Alert tone="info">
+          {t(
+            'people.settings.organisation.only_a_people_administrator_changes_these',
+            'Only a People administrator changes these.',
+          )}
+        </Alert>
+      )}
 
       {shown('entities') ? (
         <>
-          {add('Legal entities', () => {
+          {add(t('people.settings.organisation.legal_entities', 'Legal entities'), () => {
             setEditing({ kind: 'entity', entity: null });
           })}
           {state.legalEntities.length === 0 ? (
             <EmptyState
               icon={Building2}
-              title="No legal entities yet"
-              description="Add the company that employs people."
+              title={t(
+                'people.settings.organisation.no_legal_entities_yet',
+                'No legal entities yet',
+              )}
+              description={t(
+                'people.settings.organisation.add_the_company_that_employs_people',
+                'Add the company that employs people.',
+              )}
             />
           ) : (
             <List>
               {state.legalEntities.map((e) => {
                 const trailing = menu(e.name, [
                   {
-                    label: 'Edit',
+                    label: t('people.settings.organisation.edit', 'Edit'),
                     icon: Pencil,
                     onSelect: () => {
                       setEditing({ kind: 'entity', entity: e });
                     },
                   },
                   {
-                    label: 'Employee numbers',
+                    label: t('people.settings.organisation.employee_numbers', 'Employee numbers'),
                     icon: Hash,
                     onSelect: () => {
                       setEditing({ kind: 'numbering', entity: e });
                     },
                   },
                   {
-                    label: e.archived ? 'Restore' : 'Archive',
+                    label: e.archived
+                      ? t('people.settings.organisation.restore', 'Restore')
+                      : t('people.settings.organisation.archive', 'Archive'),
                     icon: e.archived ? ArchiveRestore : Archive,
                     onSelect: () => {
                       setEditing(archiving(e.name, e.archived, 'UpdateLegalEntity', e.id));
@@ -341,8 +384,11 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
           {state.locations.length === 0 ? (
             <EmptyState
               icon={Building2}
-              title="No locations yet"
-              description="Add where people work."
+              title={t('people.settings.organisation.no_locations_yet', 'No locations yet')}
+              description={t(
+                'people.settings.organisation.add_where_people_work',
+                'Add where people work.',
+              )}
             />
           ) : (
             <List>
@@ -350,21 +396,23 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                 const upcoming = l.zones.find((z) => z.effectiveFrom > todayIn(l.timeZone));
                 const trailing = menu(l.name, [
                   {
-                    label: 'Rename',
+                    label: t('people.settings.organisation.rename', 'Rename'),
                     icon: Pencil,
                     onSelect: () => {
                       setEditing({ kind: 'location', location: l });
                     },
                   },
                   {
-                    label: 'Change time zone',
+                    label: t('people.settings.organisation.change_time_zone', 'Change time zone'),
                     icon: Clock,
                     onSelect: () => {
                       setEditing({ kind: 'zone', location: l });
                     },
                   },
                   {
-                    label: l.archived ? 'Restore' : 'Archive',
+                    label: l.archived
+                      ? t('people.settings.organisation.restore', 'Restore')
+                      : t('people.settings.organisation.archive', 'Archive'),
                     icon: l.archived ? ArchiveRestore : Archive,
                     onSelect: () => {
                       setEditing(archiving(l.name, l.archived, 'UpdateLocation', l.id));
@@ -396,35 +444,40 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
 
       {shown('org-units') ? (
         <>
-          {add('Org units', () => {
+          {add(t('people.settings.organisation.org_units', 'Org units'), () => {
             setEditing({ kind: 'unit', unit: null, mode: 'add' });
           })}
           {state.orgUnits.length === 0 ? (
             <EmptyState
               icon={Building2}
-              title="No org units yet"
-              description="Departments and teams, nested as they are."
+              title={t('people.settings.organisation.no_org_units_yet', 'No org units yet')}
+              description={t(
+                'people.settings.organisation.departments_and_teams_nested_as_they',
+                'Departments and teams, nested as they are.',
+              )}
             />
           ) : (
             <List>
               {state.orgUnits.map((u) => {
                 const trailing = menu(u.name, [
                   {
-                    label: 'Rename',
+                    label: t('people.settings.organisation.rename', 'Rename'),
                     icon: Pencil,
                     onSelect: () => {
                       setEditing({ kind: 'unit', unit: u, mode: 'rename' });
                     },
                   },
                   {
-                    label: 'Move',
+                    label: t('people.settings.organisation.move', 'Move'),
                     icon: MoveRight,
                     onSelect: () => {
                       setEditing({ kind: 'unit', unit: u, mode: 'move' });
                     },
                   },
                   {
-                    label: u.archived ? 'Restore' : 'Archive',
+                    label: u.archived
+                      ? t('people.settings.organisation.restore', 'Restore')
+                      : t('people.settings.organisation.archive', 'Archive'),
                     icon: u.archived ? ArchiveRestore : Archive,
                     onSelect: () => {
                       setEditing(archiving(u.name, u.archived, 'UpdateOrgUnit', u.id));
@@ -446,13 +499,21 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         </>
       ) : null}
 
-      {shown('numbering') ? add('Employee numbers') : null}
+      {shown('numbering')
+        ? add(t('people.settings.organisation.employee_numbers', 'Employee numbers'))
+        : null}
       {shown('numbering') ? (
         state.legalEntities.length === 0 ? (
           <EmptyState
             icon={Hash}
-            title="No legal entities to number"
-            description="Add a legal entity first."
+            title={t(
+              'people.settings.organisation.no_legal_entities_to_number',
+              'No legal entities to number',
+            )}
+            description={t(
+              'people.settings.organisation.add_a_legal_entity_first',
+              'Add a legal entity first.',
+            )}
           />
         ) : (
           <List>
@@ -465,8 +526,10 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                     key={e.id}
                     description={
                       n === undefined
-                        ? 'Not numbered'
-                        : `Next: ${numberOf(n.prefix, n.digits, n.nextValue)}`
+                        ? t('people.settings.organisation.not_numbered', 'Not numbered')
+                        : t('people.settings.organisation.next', 'Next: {{numberOf}}', {
+                            numberOf: numberOf(n.prefix, n.digits, n.nextValue),
+                          })
                     }
                     {...(can
                       ? {
@@ -485,13 +548,18 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
         )
       ) : null}
 
-      {shown('country-packs') && packs !== null ? add('Country packs') : null}
+      {shown('country-packs') && packs !== null
+        ? add(t('people.settings.organisation.country_packs', 'Country packs'))
+        : null}
       {shown('country-packs') && packs !== null ? (
         packs.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title="No country packs"
-            description="Packs arrive with People, one per country it has paperwork rules for."
+            title={t('people.settings.organisation.no_country_packs', 'No country packs')}
+            description={t(
+              'people.settings.organisation.packs_arrive_with_people_one_per',
+              'Packs arrive with People, one per country it has paperwork rules for.',
+            )}
           />
         ) : (
           <List>
@@ -505,7 +573,9 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                   description={[
                     `${String(p.fields)} fields`,
                     p.sections.map((s) => s.label).join(', '),
-                    used.length === 0 ? 'No entity here' : used.map((e) => e.name).join(', '),
+                    used.length === 0
+                      ? t('people.settings.organisation.no_entity_here', 'No entity here')
+                      : used.map((e) => e.name).join(', '),
                   ]
                     .filter((x) => x !== '')
                     .join(' · ')}
@@ -524,23 +594,38 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
       {shown('pay-bands') && state.payBands !== null ? (
         <>
           <Text tone="muted">
-            Compa-ratio is salary divided by the band midpoint for the grade and currency.
+            {t(
+              'people.settings.organisation.compa_ratio_is_salary_divided_by',
+              'Compa-ratio is salary divided by the band midpoint for the grade and currency.',
+            )}
           </Text>
-          {add('Pay bands', () => {
+          {add(t('people.settings.organisation.pay_bands', 'Pay bands'), () => {
             setEditing({ kind: 'band', band: null });
           })}
           {state.payBands.length === 0 ? (
             <EmptyState
               icon={Building2}
-              title="No pay bands yet"
-              description="Add one per grade and currency to see compa-ratio."
+              title={t('people.settings.organisation.no_pay_bands_yet', 'No pay bands yet')}
+              description={t(
+                'people.settings.organisation.add_one_per_grade_and_currency',
+                'Add one per grade and currency to see compa-ratio.',
+              )}
             />
           ) : (
             <List>
               {state.payBands.map((b) => (
                 <ListItem
                   key={b.id}
-                  description={`From ${b.effectiveFrom} · ${bandAmount(b.minimumMinor, b.currency)} – ${bandAmount(b.maximumMinor, b.currency)} · mid ${bandAmount(b.midpointMinor, b.currency)}`}
+                  description={t(
+                    'people.settings.organisation.from_mid',
+                    'From {{effectiveFrom}} · {{bandAmount}} – {{bandAmount2}} · mid {{bandAmount3}}',
+                    {
+                      effectiveFrom: b.effectiveFrom,
+                      bandAmount: bandAmount(b.minimumMinor, b.currency),
+                      bandAmount2: bandAmount(b.maximumMinor, b.currency),
+                      bandAmount3: bandAmount(b.midpointMinor, b.currency),
+                    },
+                  )}
                   {...(can
                     ? {
                         chevron: true,
@@ -570,8 +655,14 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
               <DialogTitle>{`${editing.archived ? 'Restore' : 'Archive'} ${editing.name}?`}</DialogTitle>
               <DialogDescription>
                 {editing.archived
-                  ? 'It can be chosen again for new records.'
-                  : 'It can no longer be chosen for new records. Nothing is lost: restore it any time.'}
+                  ? t(
+                      'people.settings.organisation.it_can_be_chosen_again_for',
+                      'It can be chosen again for new records.',
+                    )
+                  : t(
+                      'people.settings.organisation.it_can_no_longer_be_chosen',
+                      'It can no longer be chosen for new records. Nothing is lost: restore it any time.',
+                    )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -581,7 +672,7 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                   setEditing(null);
                 }}
               >
-                Cancel
+                {t('people.settings.organisation.cancel', 'Cancel')}
               </Button>
               <Button
                 className="flex-1"
@@ -592,7 +683,9 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                   void run().then(reload);
                 }}
               >
-                {editing.archived ? 'Restore' : 'Archive'}
+                {editing.archived
+                  ? t('people.settings.organisation.restore', 'Restore')
+                  : t('people.settings.organisation.archive', 'Archive')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -662,8 +755,8 @@ function ZonePicker({
         label={label}
         size="sm"
         disabled={disabled}
-        placeholder="Choose a time zone"
-        searchPlaceholder="Search time zones"
+        placeholder={t('people.settings.organisation.choose_a_time_zone', 'Choose a time zone')}
+        searchPlaceholder={t('people.settings.organisation.search_time_zones', 'Search time zones')}
         options={state.timeZones.map((z) => ({ value: z, label: z.replaceAll('_', ' ') }))}
         value={value === '' ? null : value}
         onChange={(next) => {
@@ -671,7 +764,9 @@ function ZonePicker({
         }}
       />
       {description === undefined ? null : <FieldDescription>{description}</FieldDescription>}
-      <FieldError>Choose a time zone.</FieldError>
+      <FieldError>
+        {t('people.settings.organisation.choose_a_time_zone_2', 'Choose a time zone.')}
+      </FieldError>
     </Field>
   );
 }
@@ -725,15 +820,21 @@ function EditDialog({
   const title =
     editing.kind === 'entity'
       ? entity === null
-        ? 'Add a legal entity'
+        ? t('people.settings.organisation.add_a_legal_entity', 'Add a legal entity')
         : `Edit ${entity.name}`
       : editing.kind === 'location'
         ? place === null
-          ? 'Add a location'
+          ? t('people.settings.organisation.add_a_location', 'Add a location')
           : `Rename ${place.name}`
         : editing.kind === 'zone'
-          ? `Change the time zone of ${editing.location.name}`
-          : `Employee numbers in ${editing.entity.name}`;
+          ? t(
+              'people.settings.organisation.change_the_time_zone_of',
+              'Change the time zone of {{name}}',
+              { name: editing.location.name },
+            )
+          : t('people.settings.organisation.employee_numbers_in', 'Employee numbers in {{name}}', {
+              name: editing.entity.name,
+            });
   const submit = (): Promise<unknown> => {
     switch (editing.kind) {
       case 'entity':
@@ -741,7 +842,7 @@ function EditDialog({
           ? act(
               'CreateLegalEntity',
               { name: name.trim(), country, timeZone: zone },
-              'Legal entity added',
+              t('people.settings.organisation.legal_entity_added', 'Legal entity added'),
             )
           : act(
               'UpdateLegalEntity',
@@ -757,20 +858,20 @@ function EditDialog({
           ? act(
               'CreateLocation',
               { legalEntityId, name: name.trim(), country, timeZone: zone, effectiveFrom: from },
-              'Location added',
+              t('people.settings.organisation.location_added', 'Location added'),
             )
           : act('UpdateLocation', { id: place.id, name: name.trim() }, 'Renamed');
       case 'zone':
         return act(
           'ChangeLocationZone',
           { id: editing.location.id, timeZone: zone, effectiveFrom: effectiveFrom ?? '' },
-          'Time zone changed',
+          t('people.settings.organisation.time_zone_changed', 'Time zone changed'),
         );
       case 'numbering':
         return act(
           'SetEmployeeNumbering',
           { legalEntityId: editing.entity.id, prefix, digits: digits ?? 1, start: start ?? 1 },
-          'Numbering saved',
+          t('people.settings.organisation.numbering_saved', 'Numbering saved'),
         );
     }
   };
@@ -784,15 +885,28 @@ function EditDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Kept with who changed it and when.</DialogDescription>
+          <DialogDescription>
+            {t(
+              'people.settings.organisation.kept_with_who_changed_it_and',
+              'Kept with who changed it and when.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 440 }} contentContainerClassName="gap-4">
             {editing.kind === 'location' && place === null ? (
               <Field required>
-                <FieldLabel>Legal entity</FieldLabel>
+                <FieldLabel>
+                  {t('people.settings.organisation.legal_entity', 'Legal entity')}
+                </FieldLabel>
                 <Select value={legalEntityId} onValueChange={setLegalEntityId}>
-                  <SelectTrigger size="sm" accessibilityLabel="Legal entity">
+                  <SelectTrigger
+                    size="sm"
+                    accessibilityLabel={t(
+                      'people.settings.organisation.legal_entity',
+                      'Legal entity',
+                    )}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -809,32 +923,46 @@ function EditDialog({
             ) : null}
             {needsName ? (
               <Field required invalid={shown && problems.name}>
-                <FieldLabel>Name</FieldLabel>
+                <FieldLabel>{t('people.settings.organisation.name', 'Name')}</FieldLabel>
                 <Input value={name} onChange={setName} maxLength={200} size="sm" />
-                <FieldError>A name is needed.</FieldError>
+                <FieldError>
+                  {t('people.settings.organisation.a_name_is_needed', 'A name is needed.')}
+                </FieldError>
               </Field>
             ) : null}
             {needsPlace ? (
               <Field required invalid={shown && problems.country}>
-                <FieldLabel>Country</FieldLabel>
+                <FieldLabel>{t('people.settings.organisation.country', 'Country')}</FieldLabel>
                 <Combobox
-                  label="Country"
+                  label={t('people.settings.organisation.country', 'Country')}
                   size="sm"
-                  placeholder="Choose a country"
-                  searchPlaceholder="Search countries"
+                  placeholder={t(
+                    'people.settings.organisation.choose_a_country',
+                    'Choose a country',
+                  )}
+                  searchPlaceholder={t(
+                    'people.settings.organisation.search_countries',
+                    'Search countries',
+                  )}
                   options={state.countries.map((c) => ({ value: c.code, label: c.name }))}
                   value={country === '' ? null : country}
                   onChange={(next) => {
                     setCountry(typeof next === 'string' ? next : '');
                   }}
                 />
-                <FieldError>Choose a country.</FieldError>
+                <FieldError>
+                  {t('people.settings.organisation.choose_a_country_2', 'Choose a country.')}
+                </FieldError>
               </Field>
             ) : null}
             {needsZone ? (
               <ZonePicker
                 state={state}
-                label={editing.kind === 'zone' ? 'New time zone' : 'Time zone'}
+                label={
+                  editing.kind === 'zone'
+                    ? t('people.settings.organisation.new_time_zone', 'New time zone')
+                    : t('people.settings.organisation.time_zone', 'Time zone')
+                }
                 value={zone}
                 onChange={setZone}
                 invalid={shown && problems.zone}
@@ -843,22 +971,28 @@ function EditDialog({
             {editing.kind === 'zone' || (editing.kind === 'location' && place === null) ? (
               <Stack gap={1}>
                 <DatePicker
-                  label="From"
+                  label={t('people.settings.organisation.from', 'From')}
                   size="sm"
                   value={editing.kind === 'zone' ? effectiveFrom : from}
                   onChange={setFrom}
                 />
                 <Text variant="footnote" tone="muted">
                   {editing.kind === 'zone'
-                    ? 'In force from the start of this day in the new zone. The same day again corrects an earlier change.'
-                    : 'Leave empty for today.'}
+                    ? t(
+                        'people.settings.organisation.in_force_from_the_start_of',
+                        'In force from the start of this day in the new zone. The same day again corrects an earlier change.',
+                      )
+                    : t(
+                        'people.settings.organisation.leave_empty_for_today',
+                        'Leave empty for today.',
+                      )}
                 </Text>
               </Stack>
             ) : null}
             {editing.kind === 'numbering' ? (
               <>
                 <Field invalid={shown && problems.prefix}>
-                  <FieldLabel>Prefix</FieldLabel>
+                  <FieldLabel>{t('people.settings.organisation.prefix', 'Prefix')}</FieldLabel>
                   <Input
                     value={prefix}
                     onChange={setPrefix}
@@ -867,37 +1001,57 @@ function EditDialog({
                     autoCapitalize="characters"
                   />
                   <FieldDescription>
-                    Up to ten letters, digits or hyphens. May be empty.
+                    {t(
+                      'people.settings.organisation.up_to_ten_letters_digits_or',
+                      'Up to ten letters, digits or hyphens. May be empty.',
+                    )}
                   </FieldDescription>
-                  <FieldError>Letters, digits and hyphens only.</FieldError>
+                  <FieldError>
+                    {t(
+                      'people.settings.organisation.letters_digits_and_hyphens_only',
+                      'Letters, digits and hyphens only.',
+                    )}
+                  </FieldError>
                 </Field>
                 <NumberField
-                  label="Digits"
+                  label={t('people.settings.organisation.digits', 'Digits')}
                   size="sm"
                   value={digits}
                   min={1}
                   max={12}
                   invalid={shown && problems.digits}
-                  hint="Numbers are zero-padded to this width, and grow past it rather than wrap."
+                  hint={t(
+                    'people.settings.organisation.numbers_are_zero_padded_to_this',
+                    'Numbers are zero-padded to this width, and grow past it rather than wrap.',
+                  )}
                   onChange={setDigits}
                 />
                 <NumberField
-                  label="Next number"
+                  label={t('people.settings.organisation.next_number', 'Next number')}
                   size="sm"
                   value={start}
                   min={scheme?.nextValue ?? 1}
                   invalid={shown && problems.start}
-                  hint="Never moves back below a number already handed out."
+                  hint={t(
+                    'people.settings.organisation.never_moves_back_below_a_number',
+                    'Never moves back below a number already handed out.',
+                  )}
                   onChange={setStart}
                 />
-                <Text>{`The next person hired here is ${numberOf(prefix, digits ?? 1, start ?? 1)}.`}</Text>
+                <Text>
+                  {t(
+                    'people.settings.organisation.the_next_person_hired_here_is',
+                    'The next person hired here is {{numberOf}}.',
+                    { numberOf: numberOf(prefix, digits ?? 1, start ?? 1) },
+                  )}
+                </Text>
               </>
             ) : null}
           </ScrollView>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.settings.organisation.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -911,7 +1065,7 @@ function EditDialog({
               });
             }}
           >
-            Save
+            {t('people.settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -957,7 +1111,7 @@ function UnitDialog({
   const invalid = mode !== 'move' && name.trim() === '';
   const excluded = unit === null ? new Set<string>() : subtreeOf(units, unit.id);
   const parents = [
-    { value: TOP, label: 'Top level' },
+    { value: TOP, label: t('people.settings.organisation.top_level', 'Top level') },
     ...units
       .filter((u) => !u.archived && !excluded.has(u.id))
       .map((u) => ({ value: u.id, label: u.path })),
@@ -974,29 +1128,39 @@ function UnitDialog({
         <DialogHeader>
           <DialogTitle>
             {unit === null
-              ? 'Add an org unit'
+              ? t('people.settings.organisation.add_an_org_unit', 'Add an org unit')
               : mode === 'rename'
-                ? `Rename ${unit.name}`
-                : `Move ${unit.name}`}
+                ? t('people.settings.organisation.rename_2', 'Rename {{name}}', { name: unit.name })
+                : t('people.settings.organisation.move_2', 'Move {{name}}', { name: unit.name })}
           </DialogTitle>
-          <DialogDescription>Kept with who changed it and when.</DialogDescription>
+          <DialogDescription>
+            {t(
+              'people.settings.organisation.kept_with_who_changed_it_and',
+              'Kept with who changed it and when.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {mode === 'move' ? null : (
             <Field required invalid={shown && invalid}>
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>{t('people.settings.organisation.name', 'Name')}</FieldLabel>
               <Input value={name} onChange={setName} maxLength={200} size="sm" />
-              <FieldError>A name is needed.</FieldError>
+              <FieldError>
+                {t('people.settings.organisation.a_name_is_needed', 'A name is needed.')}
+              </FieldError>
             </Field>
           )}
           {mode === 'rename' ? null : (
             <Field>
-              <FieldLabel>Under</FieldLabel>
+              <FieldLabel>{t('people.settings.organisation.under', 'Under')}</FieldLabel>
               <Combobox
-                label="Under"
+                label={t('people.settings.organisation.under', 'Under')}
                 size="sm"
-                placeholder="Top level"
-                searchPlaceholder="Search org units"
+                placeholder={t('people.settings.organisation.top_level', 'Top level')}
+                searchPlaceholder={t(
+                  'people.settings.organisation.search_org_units',
+                  'Search org units',
+                )}
                 options={parents}
                 value={parent}
                 onChange={(next) => {
@@ -1005,15 +1169,21 @@ function UnitDialog({
               />
               <FieldDescription>
                 {mode === 'move'
-                  ? 'Everything under it moves with it.'
-                  : 'Leave it at the top level for a department of its own.'}
+                  ? t(
+                      'people.settings.organisation.everything_under_it_moves_with_it',
+                      'Everything under it moves with it.',
+                    )
+                  : t(
+                      'people.settings.organisation.leave_it_at_the_top_level',
+                      'Leave it at the top level for a department of its own.',
+                    )}
               </FieldDescription>
             </Field>
           )}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.settings.organisation.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -1024,7 +1194,11 @@ function UnitDialog({
               if (invalid) return;
               void (
                 unit === null
-                  ? act('CreateOrgUnit', { name: name.trim(), parentId }, 'Org unit added')
+                  ? act(
+                      'CreateOrgUnit',
+                      { name: name.trim(), parentId },
+                      t('people.settings.organisation.org_unit_added', 'Org unit added'),
+                    )
                   : mode === 'rename'
                     ? act('UpdateOrgUnit', { id: unit.id, name: name.trim() }, 'Renamed')
                     : act('UpdateOrgUnit', { id: unit.id, parentId }, 'Moved')
@@ -1033,7 +1207,7 @@ function UnitDialog({
               });
             }}
           >
-            Save
+            {t('people.settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1088,7 +1262,13 @@ function PayBandDialog({
           setAmounts((a) => ({ ...a, [key]: value }));
         }}
       />
-      <FieldError>{`An amount in ${currency === '' ? 'the currency' : currency}, above zero.`}</FieldError>
+      <FieldError>
+        {t(
+          'people.settings.organisation.an_amount_in_above_zero',
+          'An amount in {{value}}, above zero.',
+          { value: currency === '' ? 'the currency' : currency },
+        )}
+      </FieldError>
     </Field>
   );
   return (
@@ -1101,16 +1281,24 @@ function PayBandDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {band === null ? 'Add a pay band' : `Correct ${band.grade}, ${band.currency}`}
+            {band === null
+              ? t('people.settings.organisation.add_a_pay_band', 'Add a pay band')
+              : t('people.settings.organisation.correct', 'Correct {{grade}}, {{currency}}', {
+                  grade: band.grade,
+                  currency: band.currency,
+                })}
           </DialogTitle>
           <DialogDescription>
-            Kept with who changed it and when. The same grade, currency and day again corrects it.
+            {t(
+              'people.settings.organisation.kept_with_who_changed_it_and_2',
+              'Kept with who changed it and when. The same grade, currency and day again corrects it.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 440 }} contentContainerClassName="gap-4">
             <Field required invalid={shown && problems.grade}>
-              <FieldLabel>Grade</FieldLabel>
+              <FieldLabel>{t('people.settings.organisation.grade', 'Grade')}</FieldLabel>
               <Input
                 value={grade}
                 onChange={setGrade}
@@ -1118,11 +1306,18 @@ function PayBandDialog({
                 size="sm"
                 readOnly={band !== null}
               />
-              <FieldDescription>As the grade field stores it on a profile.</FieldDescription>
-              <FieldError>A grade is needed.</FieldError>
+              <FieldDescription>
+                {t(
+                  'people.settings.organisation.as_the_grade_field_stores_it',
+                  'As the grade field stores it on a profile.',
+                )}
+              </FieldDescription>
+              <FieldError>
+                {t('people.settings.organisation.a_grade_is_needed', 'A grade is needed.')}
+              </FieldError>
             </Field>
             <Field required invalid={shown && problems.currency}>
-              <FieldLabel>Currency</FieldLabel>
+              <FieldLabel>{t('people.settings.organisation.currency', 'Currency')}</FieldLabel>
               <Input
                 value={currency}
                 maxLength={3}
@@ -1133,13 +1328,18 @@ function PayBandDialog({
                   setCurrency(value.toUpperCase());
                 }}
               />
-              <FieldError>A three-letter currency code, such as EUR.</FieldError>
+              <FieldError>
+                {t(
+                  'people.settings.organisation.a_three_letter_currency_code_such',
+                  'A three-letter currency code, such as EUR.',
+                )}
+              </FieldError>
             </Field>
             {amount('minimum', 'Minimum')}
             {amount('midpoint', 'Midpoint')}
             {amount('maximum', 'Maximum')}
             <DatePicker
-              label="From"
+              label={t('people.settings.organisation.from', 'From')}
               size="sm"
               value={from}
               onChange={setFrom}
@@ -1149,7 +1349,7 @@ function PayBandDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.settings.organisation.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -1168,13 +1368,13 @@ function PayBandDialog({
                   maximumMinor: minor.maximum ?? '',
                   effectiveFrom: from,
                 },
-                'Pay band saved',
+                t('people.settings.organisation.pay_band_saved', 'Pay band saved'),
               ).then((done) => {
                 if (done !== null) onSaved();
               });
             }}
           >
-            Save
+            {t('people.settings.organisation.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1200,28 +1400,50 @@ function Reminders({ state, onSaved }: { state: State; onSaved: () => void }): R
     <>
       <Card>
         <Stack gap={3}>
-          <CardTitle>Company</CardTitle>
+          <CardTitle>{t('people.settings.organisation.company', 'Company')}</CardTitle>
           <Text variant="subhead" tone="muted">
             {settings.slug === null
-              ? `${settings.displayName ?? 'Not known yet'}. Named by the back office.`
-              : `${settings.displayName ?? settings.slug}, signing in at ${settings.slug}. Named by the back office, and changed there.`}
+              ? t(
+                  'people.settings.organisation.named_by_the_back_office',
+                  '{{value}}. Named by the back office.',
+                  { value: settings.displayName ?? 'Not known yet' },
+                )
+              : t(
+                  'people.settings.organisation.signing_in_at_named_by_the',
+                  '{{value}}, signing in at {{slug}}. Named by the back office, and changed there.',
+                  { value: settings.displayName ?? settings.slug, slug: settings.slug },
+                )}
           </Text>
           <ZonePicker
             state={state}
-            label="Default time zone"
+            label={t('people.settings.organisation.default_time_zone', 'Default time zone')}
             value={zone}
             onChange={setZone}
             disabled={!state.canManage}
-            description="The day of anybody with no location or legal entity, and of every figure about the whole company."
+            description={t(
+              'people.settings.organisation.the_day_of_anybody_with_no',
+              'The day of anybody with no location or legal entity, and of every figure about the whole company.',
+            )}
           />
           <Field>
-            <FieldLabel>A photo when someone signs up</FieldLabel>
+            <FieldLabel>
+              {t(
+                'people.settings.organisation.a_photo_when_someone_signs_up',
+                'A photo when someone signs up',
+              )}
+            </FieldLabel>
             <Select value={photo} disabled={!state.canManage} onValueChange={setPhoto}>
-              <SelectTrigger size="sm" accessibilityLabel="A photo when someone signs up">
+              <SelectTrigger
+                size="sm"
+                accessibilityLabel={t(
+                  'people.settings.organisation.a_photo_when_someone_signs_up',
+                  'A photo when someone signs up',
+                )}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PHOTO.map(([value, label]) => (
+                {PHOTO().map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -1233,27 +1455,50 @@ function Reminders({ state, onSaved }: { state: State; onSaved: () => void }): R
       </Card>
       <Card>
         <Stack gap={3}>
-          <CardTitle>Reminders and privacy</CardTitle>
+          <CardTitle>
+            {t('people.settings.organisation.reminders_and_privacy', 'Reminders and privacy')}
+          </CardTitle>
           <KeyValues
             layout="stacked"
             items={[
               {
-                label: 'Reminders to employees',
-                value: 'By email, at most once a week, until their profile is complete',
+                label: t(
+                  'people.settings.organisation.reminders_to_employees',
+                  'Reminders to employees',
+                ),
+                value: t(
+                  'people.settings.organisation.by_email_at_most_once_a',
+                  'By email, at most once a week, until their profile is complete',
+                ),
               },
-              { label: 'When', value: 'The day a detail goes missing, then once a week' },
-              { label: 'At', value: '09:00 to 18:00, on their own clock' },
+              {
+                label: t('people.settings.organisation.when', 'When'),
+                value: t(
+                  'people.settings.organisation.the_day_a_detail_goes_missing',
+                  'The day a detail goes missing, then once a week',
+                ),
+              },
+              {
+                label: t('people.settings.organisation.at', 'At'),
+                value: '09:00 to 18:00, on their own clock',
+              },
             ]}
           />
           <NumberField
-            label="Smallest group shown in reports"
+            label={t(
+              'people.settings.organisation.smallest_group_shown_in_reports',
+              'Smallest group shown in reports',
+            )}
             size="sm"
             value={minimum}
             min={settings.cohortMinimum}
             step={1}
             disabled={!state.canManage}
             invalid={lowered}
-            hint="Can be raised, never lowered. In a smaller group, people can be picked out from an average."
+            hint={t(
+              'people.settings.organisation.can_be_raised_never_lowered_in',
+              'Can be raised, never lowered. In a smaller group, people can be picked out from an average.',
+            )}
             onChange={setMinimum}
           />
         </Stack>
@@ -1277,33 +1522,53 @@ function Reminders({ state, onSaved }: { state: State; onSaved: () => void }): R
             });
           }}
         >
-          Save
+          {t('people.settings.organisation.save', 'Save')}
         </Button>
       ) : null}
       {state.retentionFloors.length === 0 ? null : (
         <Card>
           <Stack gap={3}>
-            <CardTitle>Statutory retention</CardTitle>
+            <CardTitle>
+              {t('people.settings.organisation.statutory_retention', 'Statutory retention')}
+            </CardTitle>
             <Text variant="subhead" tone="muted">
-              The minimum time a leaver’s records are kept by law.
+              {t(
+                'people.settings.organisation.the_minimum_time_a_leavers_records',
+                'The minimum time a leaver’s records are kept by law.',
+              )}
             </Text>
             {pending ? (
-              <Alert tone="warning" title="Pending legal review">
-                Nothing is erased automatically until these are confirmed.
+              <Alert
+                tone="warning"
+                title={t(
+                  'people.settings.organisation.pending_legal_review',
+                  'Pending legal review',
+                )}
+              >
+                {t(
+                  'people.settings.organisation.nothing_is_erased_automatically_until_these',
+                  'Nothing is erased automatically until these are confirmed.',
+                )}
               </Alert>
             ) : null}
             <List>
               {state.retentionFloors.map((f) => (
                 <ListItem
                   key={f.floor}
-                  description={`${String(f.months)} months after leaving`}
+                  description={t(
+                    'people.settings.organisation.months_after_leaving',
+                    '{{String}} months after leaving',
+                    { String: String(f.months) },
+                  )}
                   trailing={
                     <Badge size="sm" tone={f.status === 'reviewed' ? 'success' : 'warning'}>
-                      {f.status === 'reviewed' ? 'Reviewed' : 'Pending review'}
+                      {f.status === 'reviewed'
+                        ? t('people.settings.organisation.reviewed', 'Reviewed')
+                        : t('people.settings.organisation.pending_review', 'Pending review')}
                     </Badge>
                   }
                 >
-                  {FLOOR_NAMES[f.floor] ?? f.floor}
+                  {FLOOR_NAMES()[f.floor] ?? f.floor}
                 </ListItem>
               ))}
             </List>
@@ -1312,29 +1577,41 @@ function Reminders({ state, onSaved }: { state: State; onSaved: () => void }): R
       )}
       <Card>
         <Stack gap={3}>
-          <CardTitle>Automated erasure</CardTitle>
+          <CardTitle>
+            {t('people.settings.organisation.automated_erasure', 'Automated erasure')}
+          </CardTitle>
           <Text variant="subhead" tone="muted">
-            Leavers whose data will be erased in the next three months.
+            {t(
+              'people.settings.organisation.leavers_whose_data_will_be_erased',
+              'Leavers whose data will be erased in the next three months.',
+            )}
           </Text>
           {state.upcomingErasures.length === 0 ? (
-            <Text tone="muted">Nobody is due.</Text>
+            <Text tone="muted">
+              {t('people.settings.organisation.nobody_is_due', 'Nobody is due.')}
+            </Text>
           ) : (
             <List>
               {state.upcomingErasures.map((e) => (
                 <ListItem
                   key={e.personId}
-                  description={`Due ${e.dueOn} · ${
-                    e.floors.length === 0
-                      ? 'The company’s policy'
-                      : e.floors.map((f) => FLOOR_NAMES[f] ?? f).join('; ')
-                  }`}
+                  description={t('people.settings.organisation.due', 'Due {{dueOn}} · {{value}}', {
+                    dueOn: e.dueOn,
+                    value:
+                      e.floors.length === 0
+                        ? 'The company’s policy'
+                        : e.floors.map((f) => FLOOR_NAMES()[f] ?? f).join('; '),
+                  })}
                   trailing={
                     <Badge size="sm" tone={e.waitingForReview.length > 0 ? 'warning' : 'neutral'}>
-                      {e.waitingForReview.length > 0 ? 'Waiting for review' : 'Scheduled'}
+                      {e.waitingForReview.length > 0
+                        ? t('people.settings.organisation.waiting_for_review', 'Waiting for review')
+                        : t('people.settings.organisation.scheduled', 'Scheduled')}
                     </Badge>
                   }
                 >
-                  {e.name ?? 'Name already erased'}
+                  {e.name ??
+                    t('people.settings.organisation.name_already_erased', 'Name already erased')}
                 </ListItem>
               ))}
             </List>

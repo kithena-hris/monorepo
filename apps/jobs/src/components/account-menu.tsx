@@ -12,6 +12,7 @@ import {
 } from '@reach/ui';
 import { useRouter } from 'next/navigation';
 import type { JSX } from 'react';
+import { t } from '../lib/i18n';
 
 /**
  * The signed-in candidate, at the top of every page: their picture and first
@@ -54,7 +55,7 @@ export function AccountMenu({
           }}
         >
           <icons.work />
-          Your applications
+          {t('components.account-menu.your_applications', 'Your applications')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
@@ -62,7 +63,7 @@ export function AccountMenu({
           }}
         >
           <icons.document />
-          Your CVs
+          {t('components.account-menu.your_cvs', 'Your CVs')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
@@ -70,7 +71,7 @@ export function AccountMenu({
           }}
         >
           <icons.assistant />
-          Write a CV with AI
+          {t('components.account-menu.write_a_cv_with_ai', 'Write a CV with AI')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -83,7 +84,7 @@ export function AccountMenu({
           }}
         >
           <icons.signOut />
-          Sign out
+          {t('components.account-menu.sign_out', 'Sign out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

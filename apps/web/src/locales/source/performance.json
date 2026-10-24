@@ -423,6 +423,10 @@
     "text": "Probation ends",
     "context": "Performance: reviews, goals, feedback, learning. automations.tsx, AutomationDialog: the options of <Choose>."
   },
+  "automations.probation_reviews": {
+    "text": "Probation reviews",
+    "context": "Performance: reviews, goals, feedback, learning. automations.tsx, AutomationDialog: a \"name\" value."
+  },
   "automations.probation_reviews_quarterly_check_ins_and": {
     "text": "Probation reviews, quarterly check-ins and half-yearly cycles can run on their own.",
     "context": "Performance: reviews, goals, feedback, learning. automations.tsx, Automations: the description of <EmptyState>."
@@ -625,7 +629,7 @@
   },
   "calibration.finalised": {
     "text": "Finalised",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"finalised\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.for_you_to_accept_or_leave": {
     "text": "{{length}}, for you to accept or leave",
@@ -649,7 +653,7 @@
   },
   "calibration.in_progress": {
     "text": "In progress",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"in_progress\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.low": {
     "text": "Low",
@@ -685,7 +689,7 @@
   },
   "calibration.not_started": {
     "text": "Not started",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"not_started\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.not_submitted": {
     "text": "Not submitted",
@@ -791,6 +795,34 @@
     "text": "Was",
     "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
   },
+  "cycle-plan.due": {
+    "text": "{{label}} due",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value. Filled in: {{label}}."
+  },
+  "cycle-plan.everyone_at_once": {
+    "text": "Everyone at once",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"meta\" value."
+  },
+  "cycle-plan.nominating": {
+    "text": "Nominating",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.nominations": {
+    "text": "Nominations",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.nominations_close": {
+    "text": "Nominations close",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.release": {
+    "text": "Release",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.released": {
+    "text": "Released",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
   "cycle-plan.reminder": {
     "text": "Reminder",
     "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
@@ -825,7 +857,7 @@
   },
   "cycles.acknowledged": {
     "text": "Acknowledged",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.acknowledgement": {
     "text": "Acknowledgement",
@@ -833,7 +865,7 @@
   },
   "cycles.active": {
     "text": "Active",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"active\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.activities": {
     "text": "Activities",
@@ -934,6 +966,10 @@
   "cycles.ask_who_to_show_in_words": {
     "text": "Ask who to show, in words",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PeopleToolbar: the aria-label of <Input>."
+  },
+  "cycles.asked_for": {
+    "text": "Asked for",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
   },
   "cycles.at": {
     "text": "At",
@@ -1071,6 +1107,10 @@
     "text": "Completed",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: the items of <Badge>."
   },
+  "cycles.completed_on_the_last_submitted_revision": {
+    "text": "Completed, on the last submitted revision",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: the items of <KeyValues>."
+  },
   "cycles.conditions": {
     "text": "Conditions",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, FilterChips: the label of <FilterBuilder>."
@@ -1082,6 +1122,10 @@
   "cycles.confirm": {
     "text": "Confirm",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CyclePlan: the footer of <Button>."
+  },
+  "cycles.contains": {
+    "text": "contains",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx: a \"label\" value."
   },
   "cycles.continue_to_setup": {
     "text": "Continue to setup",
@@ -1427,13 +1471,17 @@
     "text": "Inbox",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, ReminderOptions: the label of <SwitchRow>."
   },
+  "cycles.is": {
+    "text": "is",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PeopleToolbar: a \"label\" value."
+  },
   "cycles.is_after": {
     "text": "is after",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx: a \"label\" value."
   },
   "cycles.is_any_of": {
     "text": "is any of",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: text built in code."
   },
   "cycles.is_before": {
     "text": "is before",
@@ -1445,7 +1493,7 @@
   },
   "cycles.is_none_of": {
     "text": "is none of",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: text built in code."
   },
   "cycles.its_form_and_due_date_are": {
     "text": "Its form and due date are kept: turn it back on in Reviews.",
@@ -1471,6 +1519,10 @@
     "text": "Keep them unreleased",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: text inside <SegmentedControlItem>."
   },
+  "cycles.kept_back": {
+    "text": "Kept back",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
   "cycles.kind_due_in_days_one": {
     "text": "{{kindLabel}} due {{due}}, in {{count}} day",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the description of <ChartCard>. Filled in: {{kindLabel}}, {{due}}, {{count}}. Plural: the words for a {{count}} of one."
@@ -1486,6 +1538,10 @@
   "cycles.last_deadline": {
     "text": "Last deadline",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the label of <Stat>."
+  },
+  "cycles.late_joiner": {
+    "text": "Late joiner",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, AddDialog: the onClick of <Button>."
   },
   "cycles.later_so_it_will_be_scheduled": {
     "text": "Later, so it will be scheduled.",
@@ -1649,11 +1705,19 @@
   },
   "cycles.none": {
     "text": "None",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.none_overdue": {
     "text": "none overdue",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the description of <ChartCard>."
+  },
+  "cycles.not_allowed": {
+    "text": "Not allowed",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
+  "cycles.not_asked_for": {
+    "text": "Not asked for",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
   },
   "cycles.not_in_this_cycle": {
     "text": "Not in this cycle",
@@ -1661,11 +1725,11 @@
   },
   "cycles.not_part_of_this_cycle": {
     "text": "Not part of this cycle",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, GOALS_LABEL: a \"none\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, GOALS_LABEL: text built in code."
   },
   "cycles.not_started": {
     "text": "Not started",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.not_started_yet_so_all_of": {
     "text": "Not started yet, so all of it can still change.",
@@ -1701,7 +1765,7 @@
   },
   "cycles.on_leave": {
     "text": "On leave",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"on_leave\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.on_leave_until_january": {
     "text": "On leave until January",
@@ -1709,7 +1773,7 @@
   },
   "cycles.on_notice": {
     "text": "On notice",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"notice\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.on_the_day": {
     "text": "On the day",
@@ -1737,7 +1801,7 @@
   },
   "cycles.overdue": {
     "text": "Overdue",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.overdue_2": {
     "text": "{{overdue}} overdue",
@@ -1849,7 +1913,7 @@
   },
   "cycles.released": {
     "text": "Released",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.remind": {
     "text": "Remind",
@@ -2007,6 +2071,10 @@
     "text": "Share the peer summary",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Reviews: the label of <SwitchRow>."
   },
+  "cycles.shared_without_names": {
+    "text": "Shared, without names",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
   "cycles.shown_beside_the_review": {
     "text": "Shown beside the review",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Reviews: text inside <RadioCard>."
@@ -2037,7 +2105,7 @@
   },
   "cycles.starting_soon": {
     "text": "Starting soon",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"pre_hire\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.starts": {
     "text": "Starts",
@@ -2069,7 +2137,11 @@
   },
   "cycles.submitted": {
     "text": "Submitted",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
+  },
+  "cycles.submitted_center": {
+    "text": "submitted",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the centerLabel of <DonutChart>."
   },
   "cycles.take_back_in": {
     "text": "Take back in",
@@ -2145,7 +2217,7 @@
   },
   "cycles.the_person_2": {
     "text": "the person",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: a \"subject\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: text built in code."
   },
   "cycles.the_persons_team_same_manager_up": {
     "text": "The person’s team (same manager), up to {{max}}. Off: peers are nominated.",
@@ -2173,7 +2245,7 @@
   },
   "cycles.their_manager_2": {
     "text": "their manager",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: a \"manager\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: text built in code."
   },
   "cycles.their_manager_and_hr_always_see": {
     "text": "Their manager and HR always see who wrote what.",
@@ -2241,7 +2313,7 @@
   },
   "cycles.unlock_requested": {
     "text": "Unlock requested",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.unlocked_and_edited_once_submitted_before": {
     "text": "Unlocked and edited, once submitted before",
@@ -3293,7 +3365,7 @@
   },
   "home.new_cycle": {
     "text": "New cycle",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the actions of <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the onClick of <Button>."
   },
   "home.no_cycle_is_running": {
     "text": "No cycle is running",
@@ -3767,6 +3839,10 @@
     "text": "You can still open it.",
     "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Item: text inside <Alert>."
   },
+  "learning.your_company": {
+    "text": "Your company",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, NewItem: text built in code."
+  },
   "load.could_not_load": {
     "text": "Could not load {{what}}",
     "context": "Performance: reviews, goals, feedback, learning. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
@@ -3778,6 +3854,306 @@
   "load.try_again": {
     "text": "Try again",
     "context": "Performance: reviews, goals, feedback, learning. load.tsx, Loaded: the action of <Button>."
+  },
+  "nav./performance/automations.description": {
+    "text": "Cycles that make themselves, on a calendar or after an event",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/automations.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): the heading of the group it is listed under."
+  },
+  "nav./performance/automations.label": {
+    "text": "Automations",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/automations.summary": {
+    "text": "Automations",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): a short line under its name on a phone’s row."
+  },
+  "nav./performance/calibration.description": {
+    "text": "Scores compared across teams before release",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/calibration.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): the heading of the group it is listed under."
+  },
+  "nav./performance/calibration.label": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/calibration.summary": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): a short line under its name on a phone’s row."
+  },
+  "nav./performance/cycles.description": {
+    "text": "Review cycles: set up, live, closed",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/cycles.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): the heading of the group it is listed under."
+  },
+  "nav./performance/cycles.label": {
+    "text": "Cycles",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/cycles.summary": {
+    "text": "Cycles",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): a short line under its name on a phone’s row."
+  },
+  "nav./performance/feedback.description": {
+    "text": "Feedback and praise, given whenever it is useful",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/feedback.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): the heading of the group it is listed under."
+  },
+  "nav./performance/feedback.label": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback.summary": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): a short line under its name on a phone’s row."
+  },
+  "nav./performance/feedback/praise.label": {
+    "text": "Praise",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/praise): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback/requests.label": {
+    "text": "Requests",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/requests): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback/sent.label": {
+    "text": "Sent",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/sent): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals.description": {
+    "text": "Goals and key results, mine, my team's and the company's",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/goals.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): the heading of the group it is listed under."
+  },
+  "nav./performance/goals.label": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals.summary": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): a short line under its name on a phone’s row."
+  },
+  "nav./performance/goals/company.label": {
+    "text": "Company",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Goals (/performance/goals/company): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals/team.label": {
+    "text": "My team",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Goals (/performance/goals/team): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/home.description": {
+    "text": "What you owe, what is owed to you, and your goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/home.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): the heading of the group it is listed under."
+  },
+  "nav./performance/home.label": {
+    "text": "Home",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/home.summary": {
+    "text": "What needs you",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): a short line under its name on a phone’s row."
+  },
+  "nav./performance/learning.description": {
+    "text": "Courses, sessions and documents assigned to you, and the catalogue",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/learning.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): the heading of the group it is listed under."
+  },
+  "nav./performance/learning.label": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/learning.summary": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): a short line under its name on a phone’s row."
+  },
+  "nav./performance/learning/catalogue.label": {
+    "text": "Catalogue",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning/catalogue): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/learning/sessions.label": {
+    "text": "Sessions",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning/sessions): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/notes.label": {
+    "text": "Notes",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/notes): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews.description": {
+    "text": "Reviews you write, and the ones written about you",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/reviews.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): the heading of the group it is listed under."
+  },
+  "nav./performance/reviews.label": {
+    "text": "My reviews",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews.summary": {
+    "text": "Reviews",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): a short line under its name on a phone’s row."
+  },
+  "nav./performance/reviews/done.label": {
+    "text": "Done",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of My reviews (/performance/reviews/done): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews/owed.label": {
+    "text": "Owed to me",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of My reviews (/performance/reviews/owed): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/templates.description": {
+    "text": "The forms reviews and feedback are written on",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/templates.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): the heading of the group it is listed under."
+  },
+  "nav./performance/templates.label": {
+    "text": "Form templates",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/templates.summary": {
+    "text": "Templates",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): a short line under its name on a phone’s row."
+  },
+  "nav./performance/unlocks.label": {
+    "text": "Unlocks",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Cycles (/performance/unlocks): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/access.description": {
+    "text": "Who is HR to Performance.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/access): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/access.label": {
+    "text": "Access",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/access): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/ai-log.description": {
+    "text": "Every AI output, for whom and on what.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai-log): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/ai-log.label": {
+    "text": "AI log",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai-log): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/ai.description": {
+    "text": "Each AI feature, on or off; every output is logged.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/ai.label": {
+    "text": "AI",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/calibration.description": {
+    "text": "The nine-box guide and who sees what in a session.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/calibration): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/calibration.label": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/calibration): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/connected-tools.description": {
+    "text": "What Kithena may read of your own work for your reviews.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connected-tools): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/connected-tools.label": {
+    "text": "My connected tools",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connected-tools): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/connections.description": {
+    "text": "Calendars, chat and the tools people may let Kithena read.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connections): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/connections.label": {
+    "text": "Connections",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connections): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/feedback.description": {
+    "text": "Who gives feedback, whether names are shown, praise and company values.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/feedback): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/feedback.label": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/feedback): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/general.description": {
+    "text": "The rating scale and the parts of Performance the company uses.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/general): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/general.label": {
+    "text": "General",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/general): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/goals.description": {
+    "text": "Goal periods, check-in cadence and weighting.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/goals): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/goals.label": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/goals): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/learning.description": {
+    "text": "Learning platforms and session attendance.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/learning): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/learning.label": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/learning): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/release.description": {
+    "text": "The defaults a cycle starts from: who releases, the response minimum, acknowledgement.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/release): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/release.label": {
+    "text": "Release",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/release): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/retention.description": {
+    "text": "How long records are kept, and legal holds.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/retention): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/retention.label": {
+    "text": "Retention",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/retention): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/webhooks.description": {
+    "text": "Performance’s events sent to your own systems, signed.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/webhooks): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/webhooks.label": {
+    "text": "Webhooks",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/webhooks): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/works-councils.description": {
+    "text": "Where a works council has agreed, and to what.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/works-councils): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/works-councils.label": {
+    "text": "Works councils",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/works-councils): its name in the sidebar, the breadcrumb and the menus."
   },
   "reviews.a_note_for_the_writer": {
     "text": "A note for the writer",
@@ -3879,12 +4255,12 @@
     "text": "Context",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the items of <TertiaryNav>."
   },
-  "reviews.count_answers_one": {
-    "text": "{{count}} answer",
+  "reviews.count_answers_no_names_one": {
+    "text": "{{count}} answer, no names",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "reviews.count_answers_other": {
-    "text": "{{count}} answers",
+  "reviews.count_answers_no_names_other": {
+    "text": "{{count}} answers, no names",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "reviews.count_changes_one": {
@@ -3919,12 +4295,12 @@
     "text": "{{count}} required questions",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, SubmitDialog: the title of <Alert>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
-  "reviews.count_reviews_one": {
-    "text": "{{count}} review",
+  "reviews.count_reviews_names_hidden_one": {
+    "text": "{{count}} review, names hidden",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "reviews.count_reviews_other": {
-    "text": "{{count}} reviews",
+  "reviews.count_reviews_names_hidden_other": {
+    "text": "{{count}} reviews, names hidden",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "reviews.count_sentences_one": {
@@ -4083,6 +4459,10 @@
     "text": "Handed over from {{from}}",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the title of <Alert>. Filled in: {{from}}."
   },
+  "reviews.held_back_under": {
+    "text": "Held back: under {{minimum}}",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{minimum}}."
+  },
   "reviews.how_it_reads": {
     "text": "How it reads",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, ReadsChip: text inside <Button>."
@@ -4094,6 +4474,10 @@
   "reviews.instead": {
     "text": "Instead: “{{rewrite}}”",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, ReadFlags: text inside <span>. Filled in: {{rewrite}}."
+  },
+  "reviews.is_writing_it": {
+    "text": "{{by}} is writing it",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>. Filled in: {{by}}."
   },
   "reviews.it_could_not_be_read_just": {
     "text": "It could not be read just now.",
@@ -4171,6 +4555,10 @@
     "text": "Nobody else has written about them yet.",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: text inside <p>."
   },
+  "reviews.not_enough_responses_to_share_confidentially": {
+    "text": "Not enough responses to share confidentially",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>."
+  },
   "reviews.not_final_until_calibration": {
     "text": "Not final until calibration",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the title of <Alert>."
@@ -4182,6 +4570,10 @@
   "reviews.not_saved_yet": {
     "text": "Not saved yet",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: text built in code."
+  },
+  "reviews.not_submitted": {
+    "text": "Not submitted",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>."
   },
   "reviews.note_to_optional": {
     "text": "Note to {{approver}} (optional)",
@@ -4266,6 +4658,10 @@
   "reviews.prefill_with_ai": {
     "text": "Prefill with AI",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the actions of <Button>."
+  },
+  "reviews.read_s_review": {
+    "text": "Read {{by}}’s review",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{by}}."
   },
   "reviews.reading_what_others_said": {
     "text": "Reading what others said…",
@@ -4430,6 +4826,10 @@
   "reviews.submitted": {
     "text": "Submitted {{at}}",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the sub of <Person>. Filled in: {{at}}."
+  },
+  "reviews.submitted_not_released": {
+    "text": "Submitted by {{by}}, not released yet",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>. Filled in: {{by}}."
   },
   "reviews.summary_of_what_others_said": {
     "text": "Summary of what others said",
@@ -4657,7 +5057,7 @@
   },
   "settings.access": {
     "text": "Access",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"access\" value."
   },
   "settings.actions": {
     "text": "Actions",
@@ -4723,6 +5123,10 @@
     "text": "{{entity}} agreed on",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Body: the label of <DatePicker>. Filled in: {{entity}}."
   },
+  "settings.ai": {
+    "text": "AI",
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"ai\" value."
+  },
   "settings.ai_log": {
     "text": "AI log",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, AiLog: the title of <PageHeader>."
@@ -4781,11 +5185,11 @@
   },
   "settings.calendars_chat_and_the_tools_people": {
     "text": "Calendars, chat and the tools people may let Kithena read for their reviews.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"connections\" value."
   },
   "settings.calibration": {
     "text": "Calibration",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"calibration\" value."
   },
   "settings.calibration_suggestions": {
     "text": "Calibration suggestions",
@@ -4845,7 +5249,7 @@
   },
   "settings.confluence": {
     "text": "Confluence",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"confluence\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.connected": {
     "text": "Connected",
@@ -4853,7 +5257,7 @@
   },
   "settings.connections": {
     "text": "Connections",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"connections\" value."
   },
   "settings.copy_the_secret": {
     "text": "Copy the secret",
@@ -4937,7 +5341,7 @@
   },
   "settings.each_ai_feature_on_or_off_every": {
     "text": "Each AI feature, on or off. Every output is logged; a person confirms every number.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"ai\" value."
   },
   "settings.each_is_read_only_for_reviews": {
     "text": "Each is read only for reviews about you or by you, only for the review's period, and nothing read is kept.",
@@ -5009,7 +5413,7 @@
   },
   "settings.feedback": {
     "text": "Feedback",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"feedback\" value."
   },
   "settings.feedback_is_off_praise_and_reviews_are": {
     "text": "Feedback is off; praise and reviews are not.",
@@ -5045,15 +5449,15 @@
   },
   "settings.general": {
     "text": "General",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"general\" value."
   },
   "settings.goal_periods_their_check_in_cadence": {
     "text": "Goal periods, their check-in cadence, and whether goals are weighted.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"goals\" value."
   },
   "settings.goals": {
     "text": "Goals",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"goals\" value."
   },
   "settings.goals_key_results_and_check_ins": {
     "text": "Goals, key results and check-ins.",
@@ -5065,7 +5469,7 @@
   },
   "settings.google_meet": {
     "text": "Google Meet",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"meet\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.google_workspace": {
     "text": "Google Workspace",
@@ -5089,7 +5493,7 @@
   },
   "settings.how_long_each_kind_of_record": {
     "text": "How long each kind of record is kept after someone leaves, and legal holds.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"retention\" value."
   },
   "settings.how_long_each_kind_of_record_2": {
     "text": "How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names.",
@@ -5129,7 +5533,7 @@
   },
   "settings.jira": {
     "text": "Jira",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"jira\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.key_results_can_follow_a_linear": {
     "text": "Key results can follow a Linear project or Jira epic",
@@ -5153,7 +5557,7 @@
   },
   "settings.learning": {
     "text": "Learning",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"learning\" value."
   },
   "settings.learning_platforms": {
     "text": "Learning platforms",
@@ -5161,7 +5565,7 @@
   },
   "settings.learning_platforms_and_the_attendance_share": {
     "text": "Learning platforms and the attendance share that completes a session.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"learning\" value."
   },
   "settings.learning_suggestions": {
     "text": "Learning suggestions",
@@ -5189,7 +5593,7 @@
   },
   "settings.linear": {
     "text": "Linear",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"linear\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.linked_as": {
     "text": "Linked as {{account}}",
@@ -5477,7 +5881,7 @@
   },
   "settings.release": {
     "text": "Release",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"release\" value."
   },
   "settings.reminders_and_praise_in_google_chat": {
     "text": "Reminders and praise in Google Chat.",
@@ -5521,7 +5925,7 @@
   },
   "settings.retention": {
     "text": "Retention",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"retention\" value."
   },
   "settings.reviews": {
     "text": "reviews",
@@ -5645,15 +6049,15 @@
   },
   "settings.the_companys_rating_scale_and_the": {
     "text": "The company’s rating scale and the parts of Performance it uses.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"general\" value."
   },
   "settings.the_companys_rating_scale_its_scores": {
     "text": "The company’s rating scale, its scores, and the parts of Performance it uses.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, GENERAL: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, GENERAL: text built in code."
   },
   "settings.the_defaults_a_new_cycle_starts": {
     "text": "The defaults a new cycle starts from: who releases, the response minimum, acknowledgement.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"release\" value."
   },
   "settings.the_endpoints_secret": {
     "text": "The endpoint’s secret",
@@ -5669,7 +6073,7 @@
   },
   "settings.the_nine_box_guide_and_who": {
     "text": "The nine-box guide and who sees what in a session.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"calibration\" value."
   },
   "settings.the_receiver_and_their_manager": {
     "text": "The receiver and their manager",
@@ -5841,7 +6245,7 @@
   },
   "settings.where_a_works_council_has_agreed": {
     "text": "Where a works council has agreed to Performance, and to which parts.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"works-councils\" value."
   },
   "settings.which_events": {
     "text": "Which events",
@@ -5853,11 +6257,11 @@
   },
   "settings.who_is_hr_to_performance_beyond": {
     "text": "Who is HR to Performance, beyond the company’s administrators.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"access\" value."
   },
   "settings.who_may_give_feedback_whether_names": {
     "text": "Who may give feedback, whether names are shown, praise and its company values.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"feedback\" value."
   },
   "settings.who_sees_it": {
     "text": "Who sees it",
@@ -5885,7 +6289,7 @@
   },
   "settings.works_councils": {
     "text": "Works councils",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"works-councils\" value."
   },
   "settings.writers_names": {
     "text": "Writers’ names",
@@ -5949,7 +6353,7 @@
   },
   "shared.goals_review": {
     "text": "Goals review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"goals\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.handed_over": {
     "text": "Handed over",
@@ -5973,7 +6377,7 @@
   },
   "shared.manager_review": {
     "text": "Manager review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"manager\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.next": {
     "text": "Next",
@@ -5993,7 +6397,7 @@
   },
   "shared.peer_review": {
     "text": "Peer review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"peer\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.released": {
     "text": "Released",
@@ -6013,11 +6417,11 @@
   },
   "shared.self_review": {
     "text": "Self review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"self\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.skip_level_review": {
     "text": "Skip-level review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"skip\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.step_of": {
     "text": "Step {{value}} of {{length}}",
@@ -6053,7 +6457,7 @@
   },
   "shared.upward_review": {
     "text": "Upward review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"upward\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.who": {
     "text": "Who",

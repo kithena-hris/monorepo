@@ -4,6 +4,7 @@ import { useRef, type ReactNode } from 'react';
 
 import { FloatingRoot, useTriggerHandle, WEB, type FloatingState } from '../../lib/floating.tsx';
 import { menuParts } from '../dropdown-menu/menu-parts.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * The actions of the thing under a finger: a long press on a row (on the
@@ -81,7 +82,12 @@ export function ContextMenuTrigger({ children }: { children: ReactNode }): React
           },
         };
       }}
-      accessibilityActions={[{ name: 'longpress', label: 'Show actions' }]}
+      accessibilityActions={[
+        {
+          name: 'longpress',
+          label: t('components.context-menu.context-menu.show_actions', 'Show actions'),
+        },
+      ]}
       asChild
     >
       {children}

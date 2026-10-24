@@ -97,11 +97,36 @@ import { t } from '../i18n';
  * the form knows enough for the suggestion to be good.
  */
 const STEPS = [
-  { id: 'editor-field', label: t('settings.field-editor.the_field', 'The field') },
-  { id: 'editor-access', label: t('settings.field-editor.access', 'Access') },
-  { id: 'editor-when', label: t('settings.field-editor.when_its_asked', 'When it’s asked') },
-  { id: 'editor-sensitivity', label: t('settings.field-editor.sensitivity', 'Sensitivity') },
-  { id: 'editor-review', label: t('settings.field-editor.review', 'Review') },
+  {
+    id: 'editor-field',
+    get label(): string {
+      return t('settings.field-editor.the_field', 'The field');
+    },
+  },
+  {
+    id: 'editor-access',
+    get label(): string {
+      return t('settings.field-editor.access', 'Access');
+    },
+  },
+  {
+    id: 'editor-when',
+    get label(): string {
+      return t('settings.field-editor.when_its_asked', 'When it’s asked');
+    },
+  },
+  {
+    id: 'editor-sensitivity',
+    get label(): string {
+      return t('settings.field-editor.sensitivity', 'Sensitivity');
+    },
+  },
+  {
+    id: 'editor-review',
+    get label(): string {
+      return t('settings.field-editor.review', 'Review');
+    },
+  },
 ] as const;
 
 /** The tiles a new field starts with; the rest are a press away. */
@@ -138,8 +163,12 @@ const TEMPLATES: readonly Pick<
   'label' | 'description' | 'dataType' | 'options' | 'ownership' | 'collectAt' | 'visibility'
 >[] = [
   {
-    label: t('settings.field-editor.t_shirt_size', 'T-shirt size'),
-    description: t('settings.field-editor.for_company_clothing', 'For company clothing.'),
+    get label(): string {
+      return t('settings.field-editor.t_shirt_size', 'T-shirt size');
+    },
+    get description(): string {
+      return t('settings.field-editor.for_company_clothing', 'For company clothing.');
+    },
     dataType: 'select',
     options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
     ownership: ['employee', 'hr'],
@@ -147,11 +176,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: t('settings.field-editor.pronouns', 'Pronouns'),
-    description: t(
-      'settings.field-editor.how_they_would_like_to_be_referred',
-      'How they would like to be referred to.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.pronouns', 'Pronouns');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.how_they_would_like_to_be_referred',
+        'How they would like to be referred to.',
+      );
+    },
     dataType: 'text',
     options: [],
     ownership: ['employee'],
@@ -159,11 +192,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'manager', 'hr', 'directory'],
   },
   {
-    label: t('settings.field-editor.emergency_contact_name', 'Emergency contact name'),
-    description: t(
-      'settings.field-editor.who_to_call_if_something_happens_at',
-      'Who to call if something happens at work.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.emergency_contact_name', 'Emergency contact name');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.who_to_call_if_something_happens_at',
+        'Who to call if something happens at work.',
+      );
+    },
     dataType: 'text',
     options: [],
     ownership: ['employee', 'hr'],
@@ -171,11 +208,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: t('settings.field-editor.emergency_contact_phone', 'Emergency contact phone'),
-    description: t(
-      'settings.field-editor.their_number_with_the_country_code',
-      'Their number, with the country code.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.emergency_contact_phone', 'Emergency contact phone');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.their_number_with_the_country_code',
+        'Their number, with the country code.',
+      );
+    },
     dataType: 'phone',
     options: [],
     ownership: ['employee', 'hr'],
@@ -1661,7 +1702,11 @@ function Review({
       label: t('settings.field-editor.the_field', 'The field'),
       value: [
         `${draft.label.trim() || 'Unnamed'} · ${DATA_TYPE_LABEL[draft.dataType]} · ${where}`,
-        draft.description.trim() === '' ? null : `Help text: “${draft.description.trim()}”`,
+        draft.description.trim() === ''
+          ? null
+          : t('settings.field-editor.help_text_quoted', 'Help text: “{{trim}}”', {
+              trim: draft.description.trim(),
+            }),
       ]
         .filter((x) => x !== null)
         .join('. '),
@@ -1671,7 +1716,7 @@ function Review({
       label: t('settings.field-editor.access', 'Access'),
       value: `${opening(writers(draft.ownership))} can change it. ${
         seenByEveryone(draft.visibility)
-          ? 'Everyone can see it.'
+          ? t('settings.field-editor.everyone_can_see_it', 'Everyone can see it.')
           : `${opening(readers(draft.visibility))} can see it.`
       }`,
     },
@@ -1691,7 +1736,7 @@ function Review({
       label: t('settings.field-editor.sensitivity', 'Sensitivity'),
       value: [
         draft.classification === null
-          ? 'Still to choose'
+          ? t('settings.field-editor.still_to_choose', 'Still to choose')
           : CLASSIFICATION_LABEL[draft.classification].label,
         encrypted ? 'encrypted' : null,
         approval ? 'second HR approval' : null,
@@ -1968,13 +2013,21 @@ function StageNote({ draft }: { readonly draft: Draft }): JSX.Element | null {
           'The employee is never shown this field',
         )}
       >
-        {t(
-          'settings.field-editor.they_are_allowed_to_change_it',
-          'They are allowed to change it, but no form ever asks them, so in practice only',
-        )}{' '}
-        {listed(draft.ownership.filter((w) => w !== 'employee').map((w) => WRITER_LABEL[w])) ||
-          'nobody'}{' '}
-        {t('settings.field-editor.fills_it_in', 'fills it in.')}
+        {(() => {
+          const others = listed(
+            draft.ownership.filter((w) => w !== 'employee').map((w) => WRITER_LABEL[w]),
+          );
+          return others === ''
+            ? t(
+                'settings.field-editor.allowed_but_never_asked_nobody',
+                'They are allowed to change it, but no form ever asks them, so in practice nobody fills it in.',
+              )
+            : t(
+                'settings.field-editor.allowed_but_never_asked',
+                'They are allowed to change it, but no form ever asks them, so in practice only {{others}} fills it in.',
+                { others },
+              );
+        })()}
       </Alert>
     );
   }
@@ -2026,43 +2079,88 @@ function Changes({
   const lines: string[] = [];
   if (draft.dataType !== field.dataType) {
     lines.push(
-      `Type: ${DATA_TYPE_LABEL[field.dataType]} → ${DATA_TYPE_LABEL[draft.dataType]}. You review every value before it’s published`,
+      t(
+        'settings.field-editor.type_you_review_every_value_before',
+        'Type: {{value}} → {{value2}}. You review every value before it’s published',
+        { value: DATA_TYPE_LABEL[field.dataType], value2: DATA_TYPE_LABEL[draft.dataType] },
+      ),
     );
   }
   if (draft.label.trim() !== field.label)
-    lines.push(`Name: ${field.label} → ${draft.label.trim()}`);
-  if (draft.description.trim() !== (field.description ?? '')) lines.push('Help text reworded');
-  if (!sameSet(draft.options, field.options)) lines.push('Options changed');
+    lines.push(
+      t('settings.field-editor.name', 'Name: {{label}} → {{trim}}', {
+        label: field.label,
+        trim: draft.label.trim(),
+      }),
+    );
+  if (draft.description.trim() !== (field.description ?? ''))
+    lines.push(t('settings.field-editor.help_text_reworded', 'Help text reworded'));
+  if (!sameSet(draft.options, field.options))
+    lines.push(t('settings.field-editor.options_changed', 'Options changed'));
   if (draft.collectAt !== field.collectAt) {
     lines.push(
-      `When it is asked: ${COLLECT_LABEL[field.collectAt].label} → ${COLLECT_LABEL[draft.collectAt].label}`,
+      t('settings.field-editor.when_it_is_asked', 'When it is asked: {{label}} → {{label2}}', {
+        label: COLLECT_LABEL[field.collectAt].label,
+        label2: COLLECT_LABEL[draft.collectAt].label,
+      }),
     );
   }
   if (draft.requiredness !== field.requiredness) {
     lines.push(
-      `Required: ${REQUIREDNESS_LABEL[field.requiredness]} → ${REQUIREDNESS_LABEL[draft.requiredness]}`,
+      t('settings.field-editor.required', 'Required: {{value}} → {{value2}}', {
+        value: REQUIREDNESS_LABEL[field.requiredness],
+        value2: REQUIREDNESS_LABEL[draft.requiredness],
+      }),
     );
   } else if (
     draft.requiredness === 'conditional' &&
     JSON.stringify(draft.requiredWhen) !== JSON.stringify(field.requiredWhen)
   ) {
-    lines.push('The conditions that make it required');
+    lines.push(
+      t(
+        'settings.field-editor.the_conditions_that_make_it_required',
+        'The conditions that make it required',
+      ),
+    );
   }
   if (!sameSet(draft.ownership, field.ownership)) {
-    lines.push(`Who can change it: ${writers(field.ownership)} → ${writers(draft.ownership)}`);
+    lines.push(
+      t(
+        'settings.field-editor.who_can_change_it',
+        'Who can change it: {{writers}} → {{writers2}}',
+        { writers: writers(field.ownership), writers2: writers(draft.ownership) },
+      ),
+    );
   }
   if (!sameSet(draft.visibility, field.visibility)) {
-    lines.push(`Who can see it: ${readers(field.visibility)} → ${readers(draft.visibility)}`);
+    lines.push(
+      t('settings.field-editor.who_can_see_it', 'Who can see it: {{readers}} → {{readers2}}', {
+        readers: readers(field.visibility),
+        readers2: readers(draft.visibility),
+      }),
+    );
   }
   if (JSON.stringify(draft.visibilityRules) !== JSON.stringify(field.visibilityRules)) {
-    lines.push('Who else can see it, on some records');
+    lines.push(
+      t('settings.field-editor.who_else_can_see_it_on', 'Who else can see it, on some records'),
+    );
   }
   if (field.requiresApproval !== undefined && approval !== field.requiresApproval) {
-    lines.push(approval ? 'Changes will need approval' : 'Changes will no longer need approval');
+    lines.push(
+      approval
+        ? t('settings.field-editor.changes_will_need_approval', 'Changes will need approval')
+        : t(
+            'settings.field-editor.changes_will_no_longer_need_approval',
+            'Changes will no longer need approval',
+          ),
+    );
   }
   if (draft.classification !== null && draft.classification !== field.classification) {
     lines.push(
-      `What kind of data: ${CLASSIFICATION_LABEL[field.classification].label} → ${CLASSIFICATION_LABEL[draft.classification].label}`,
+      t('settings.field-editor.what_kind_of_data', 'What kind of data: {{label}} → {{label2}}', {
+        label: CLASSIFICATION_LABEL[field.classification].label,
+        label2: CLASSIFICATION_LABEL[draft.classification].label,
+      }),
     );
   }
   const tightened =

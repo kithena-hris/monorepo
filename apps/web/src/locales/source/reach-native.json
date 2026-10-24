@@ -1,0 +1,1842 @@
+{
+  "brand.reach-logo.design_system": {
+    "text": "Design system",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. brand/reach-logo.tsx, ReachLogo: text inside <CssText>."
+  },
+  "brand.reach-logo.reach": {
+    "text": "Reach",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. brand/reach-logo.tsx, ReachLogo: the accessibilityLabel of <View>."
+  },
+  "components.access-matrix.access-matrix.can": {
+    "text": "{{label}} can {{toLowerCase}}{{value}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/access-matrix/access-matrix.tsx, AccessMatrix: the accessibilityLabel of <Checkbox>. Filled in: {{label}}, {{toLowerCase}}, {{value}}."
+  },
+  "components.access-matrix.access-matrix.can_2": {
+    "text": "{{label}} can {{toLowerCase}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/access-matrix/access-matrix.tsx, AccessMatrix: the accessibilityLabel of <Checkbox>. Filled in: {{label}}, {{toLowerCase}}."
+  },
+  "components.access-matrix.access-matrix.change": {
+    "text": "Change",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/access-matrix/access-matrix.tsx, AccessMatrix: text built in code."
+  },
+  "components.access-matrix.access-matrix.group": {
+    "text": "Group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/access-matrix/access-matrix.tsx, AccessMatrix: text inside <Text>."
+  },
+  "components.access-matrix.access-matrix.see": {
+    "text": "See",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/access-matrix/access-matrix.tsx, AccessMatrix: text built in code."
+  },
+  "components.action-sheet.action-sheet.actions": {
+    "text": "Actions",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/action-sheet/action-sheet.tsx, ActionSheetContent: text built in code."
+  },
+  "components.action-sheet.action-sheet.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/action-sheet/action-sheet.tsx, SheetContent: text built in code."
+  },
+  "components.app-bar.app-bar.all": {
+    "text": "All",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/app-bar/app-bar.tsx, SelectionBar: text built in code."
+  },
+  "components.app-bar.app-bar.back_to": {
+    "text": "Back to {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/app-bar/app-bar.tsx, AppBar: the accessibilityLabel of <Pressable>. Filled in: {{label}}."
+  },
+  "components.app-bar.app-bar.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/app-bar/app-bar.tsx, SelectionBar: text built in code."
+  },
+  "components.app-bar.app-bar.sections": {
+    "text": "Sections",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/app-bar/app-bar.tsx, TabBar: text built in code."
+  },
+  "components.assistant.assistant.answer_again": {
+    "text": "Answer again",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantFeedback: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.answers_can_be_wrong_check_anything": {
+    "text": "Answers can be wrong. Check anything important.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: text built in code."
+  },
+  "components.assistant.assistant.ask_a_question": {
+    "text": "Ask a question…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: text built in code."
+  },
+  "components.assistant.assistant.assistant": {
+    "text": "Assistant",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantPanel: text built in code."
+  },
+  "components.assistant.assistant.attach_a_file": {
+    "text": "Attach a file",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.bad_answer": {
+    "text": "Bad answer",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantFeedback: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantAction: text built in code."
+  },
+  "components.assistant.assistant.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantPanel: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.copy_answer": {
+    "text": "Copy answer",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantFeedback: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.dictate": {
+    "text": "Dictate",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.dismiss": {
+    "text": "Dismiss",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantLauncher: the accessibilityLabel of <Pressable>."
+  },
+  "components.assistant.assistant.good_answer": {
+    "text": "Good answer",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantFeedback: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.minimise": {
+    "text": "Minimise",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantPanel: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.new_conversation": {
+    "text": "New conversation",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantPanel: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.open_the_assistant": {
+    "text": "Open the assistant",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantLauncher: text built in code."
+  },
+  "components.assistant.assistant.question": {
+    "text": "Question",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <TextInput>."
+  },
+  "components.assistant.assistant.send": {
+    "text": "Send",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <Button>."
+  },
+  "components.assistant.assistant.source": {
+    "text": "Source {{String}}: {{children}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantSource: text inside <Pressable>. Filled in: {{String}}, {{children}}."
+  },
+  "components.assistant.assistant.stop": {
+    "text": "Stop",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <Pressable>."
+  },
+  "components.avatar.avatar.and_others_one": {
+    "text": "{{value}} and {{count}} other",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/avatar/avatar.tsx, AvatarGroup: text built in code. Filled in: {{count}}, {{value}}. Plural: the words for a {{count}} of one."
+  },
+  "components.avatar.avatar.and_others_other": {
+    "text": "{{value}} and {{count}} others",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/avatar/avatar.tsx, AvatarGroup: text built in code. Filled in: {{count}}, {{value}}. Plural: the words for any other {{count}}."
+  },
+  "components.badge.badge.remove": {
+    "text": "Remove {{children}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/badge/badge.tsx, Badge: the accessibilityLabel of <Pressable>. Filled in: {{children}}."
+  },
+  "components.banner.banner.dismiss": {
+    "text": "Dismiss",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/banner/banner.tsx, Banner: text built in code."
+  },
+  "components.banner.banner.next_message": {
+    "text": "Next message",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/banner/banner.tsx, BannerStack: text built in code."
+  },
+  "components.banner.banner.of": {
+    "text": "{{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/banner/banner.tsx, BannerStack: text inside <CssText>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.banner.banner.previous_message": {
+    "text": "Previous message",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/banner/banner.tsx, BannerStack: text built in code."
+  },
+  "components.breadcrumb.breadcrumb.back_to": {
+    "text": "Back to {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/breadcrumb/breadcrumb.tsx, BreadcrumbBack: the accessibilityLabel of <Pressable>. Filled in: {{label}}."
+  },
+  "components.breadcrumb.breadcrumb.breadcrumb": {
+    "text": "Breadcrumb",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/breadcrumb/breadcrumb.tsx, Breadcrumb: text built in code."
+  },
+  "components.breadcrumb.breadcrumb.choose_another": {
+    "text": "{{label}}, choose another",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/breadcrumb/breadcrumb.tsx, Crumb: the accessibilityLabel of <Pressable>. Filled in: {{label}}."
+  },
+  "components.breadcrumb.breadcrumb.hidden_levels": {
+    "text": "Hidden levels",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/breadcrumb/breadcrumb.tsx, Folded: the label of <DropdownMenuContent>."
+  },
+  "components.breadcrumb.breadcrumb.more": {
+    "text": "{{String}} more",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/breadcrumb/breadcrumb.tsx, Folded: the accessibilityLabel of <Pressable>. Filled in: {{String}}."
+  },
+  "components.button.button.loading": {
+    "text": "Loading",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/button/button.tsx, Button: text built in code."
+  },
+  "components.calendar.calendar.calendar": {
+    "text": "Calendar",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, Calendar: text built in code."
+  },
+  "components.calendar.calendar.choose_a": {
+    "text": "{{value}}, choose a {{value2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, Calendar: the accessibilityLabel of <Button>. Filled in: {{value}}, {{value2}}."
+  },
+  "components.calendar.calendar.months_of": {
+    "text": "Months of {{String}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, Calendar: the aria-label of <View>. Filled in: {{String}}."
+  },
+  "components.calendar.calendar.next_month": {
+    "text": "Next month",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"next\" value."
+  },
+  "components.calendar.calendar.next_twelve_years": {
+    "text": "Next twelve years",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"next\" value."
+  },
+  "components.calendar.calendar.next_year": {
+    "text": "Next year",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"next\" value."
+  },
+  "components.calendar.calendar.previous_month": {
+    "text": "Previous month",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"previous\" value."
+  },
+  "components.calendar.calendar.previous_twelve_years": {
+    "text": "Previous twelve years",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"previous\" value."
+  },
+  "components.calendar.calendar.previous_year": {
+    "text": "Previous year",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, STEP: a \"previous\" value."
+  },
+  "components.calendar.calendar.years_to": {
+    "text": "Years {{String}} to {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/calendar/calendar.tsx, Calendar: the aria-label of <View>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.carousel.carousel.next": {
+    "text": "Next",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/carousel/carousel.tsx, Carousel: text built in code."
+  },
+  "components.carousel.carousel.of": {
+    "text": "{{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/carousel/carousel.tsx, Carousel: the aria-label of <View>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.carousel.carousel.previous": {
+    "text": "Previous",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/carousel/carousel.tsx, Carousel: text built in code."
+  },
+  "components.carousel.carousel.slide_of": {
+    "text": "Slide {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/carousel/carousel.tsx, Carousel: the accessibilityLabel of <Pressable>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.chart.bar-chart.more": {
+    "text": "+{{String}} more",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/bar-chart.tsx, HorizontalBarChart: text inside <CssText>. Filled in: {{String}}."
+  },
+  "components.chart.part-chart.target": {
+    "text": "{{label}}: {{shown}}, target {{String}}, {{value}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/part-chart.tsx, BulletChart: the accessibilityLabel of <View>. Filled in: {{label}}, {{shown}}, {{String}}, {{value}}."
+  },
+  "components.chart.parts.chart_options": {
+    "text": "Chart options",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartFrame: the accessibilityActions of <CssText>."
+  },
+  "components.chart.parts.chart_options_are_in_the_actions": {
+    "text": "Chart options are in the actions",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartFrame: the accessibilityHint of <CssText>."
+  },
+  "components.chart.parts.copied": {
+    "text": "Copied",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartFrame: a \"label\" value."
+  },
+  "components.chart.parts.copy_as_csv": {
+    "text": "Copy as CSV",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartFrame: a \"label\" value."
+  },
+  "components.chart.parts.period": {
+    "text": "Period",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartDataTable: text inside <CssText>."
+  },
+  "components.chart.parts.reset": {
+    "text": "Reset",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartZoomControls: text inside <Button>."
+  },
+  "components.chart.parts.reset_zoom": {
+    "text": "Reset zoom",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartFrame: a \"label\" value."
+  },
+  "components.chart.parts.value": {
+    "text": "Value",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartDataTable: text built in code."
+  },
+  "components.chart.parts.zoom_in": {
+    "text": "Zoom in",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartZoomControls: the accessibilityLabel of <Button>."
+  },
+  "components.chart.parts.zoom_out": {
+    "text": "Zoom out",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/parts.tsx, ChartZoomControls: the accessibilityLabel of <Button>."
+  },
+  "components.chart.pay-chart.band": {
+    "text": "Band",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/pay-chart.tsx, RangeChart: text built in code."
+  },
+  "components.chart.timeline-chart.days": {
+    "text": "Days",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/timeline-chart.tsx, TimelineChart: the valueLabel of <ChartFrame>."
+  },
+  "components.chart.timeline-chart.move_a_day_earlier": {
+    "text": "Move a day earlier",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/timeline-chart.tsx, TimelineChart: text inside <View>."
+  },
+  "components.chart.timeline-chart.move_a_day_later": {
+    "text": "Move a day later",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/timeline-chart.tsx, TimelineChart: text inside <View>."
+  },
+  "components.chart.trend-chart.to_of": {
+    "text": "{{String}} to {{String2}} of {{String3}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/trend-chart.tsx, ChartBrush: the accessibilityValue of <View>. Filled in: {{String}}, {{String2}}, {{String3}}."
+  },
+  "components.chart.trend-chart.visible_range": {
+    "text": "Visible range",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chart/trend-chart.tsx, ChartBrush: the accessibilityLabel of <View>."
+  },
+  "components.chat.chat.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatHeader: the accessibilityLabel of <Button>."
+  },
+  "components.chat.chat.message": {
+    "text": "Message",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatComposer: text built in code."
+  },
+  "components.chat.chat.minimise": {
+    "text": "Minimise",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatHeader: the accessibilityLabel of <Button>."
+  },
+  "components.chat.chat.send": {
+    "text": "Send",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatComposer: text built in code."
+  },
+  "components.chat.chat.send_again": {
+    "text": "Send again: {{children}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatMessage: the accessibilityLabel of <Pressable>. Filled in: {{children}}."
+  },
+  "components.chat.chat.waiting_for_the_reply": {
+    "text": "Waiting for the reply",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chat/chat.tsx, ChatComposer: the loadingLabel of <Button>."
+  },
+  "components.chip.chip.remove": {
+    "text": "Remove {{text}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/chip/chip.tsx, Chip: the accessibilityLabel of <Pressable>. Filled in: {{text}}."
+  },
+  "components.clipboard.clipboard.copied": {
+    "text": "Copied",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/clipboard/clipboard.tsx, CopyButton: text built in code."
+  },
+  "components.clipboard.clipboard.copy": {
+    "text": "Copy",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/clipboard/clipboard.tsx, CopyButton: text built in code."
+  },
+  "components.clipboard.clipboard.copy_2": {
+    "text": "Copy {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/clipboard/clipboard.tsx, CopyField: the label of <CopyButton>. Filled in: {{label}}."
+  },
+  "components.clipboard.clipboard.couldnt_copy": {
+    "text": "Couldn’t copy",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/clipboard/clipboard.tsx, CopyButton: text built in code."
+  },
+  "components.coach-mark.coach-mark.got_it": {
+    "text": "Got it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/coach-mark/coach-mark.tsx, CoachMark: text inside <Button>."
+  },
+  "components.coach-mark.coach-mark.next": {
+    "text": "Next",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/coach-mark/coach-mark.tsx, CoachMark: text inside <Button>."
+  },
+  "components.coach-mark.coach-mark.of": {
+    "text": "{{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/coach-mark/coach-mark.tsx, CoachMark: text inside <Text>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.coach-mark.coach-mark.skip": {
+    "text": "Skip",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/coach-mark/coach-mark.tsx, CoachMark: text built in code."
+  },
+  "components.column-chooser.column-chooser.columns": {
+    "text": "Columns",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, ColumnChooser: text built in code."
+  },
+  "components.column-chooser.column-chooser.done": {
+    "text": "Done",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, ColumnChooser: the done of <Button>."
+  },
+  "components.column-chooser.column-chooser.find_a_column": {
+    "text": "Find a column",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, Panel: the placeholder of <SearchField>."
+  },
+  "components.column-chooser.column-chooser.move": {
+    "text": "Move {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, Panel: the label of <ReorderHandle>. Filled in: {{label}}."
+  },
+  "components.column-chooser.column-chooser.no_column_called": {
+    "text": "No column called “{{query}}”.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, Panel: text inside <CssText>. Filled in: {{query}}."
+  },
+  "components.column-chooser.column-chooser.of": {
+    "text": "{{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, Panel: text inside <CssText>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.column-chooser.column-chooser.reset": {
+    "text": "Reset",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/column-chooser/column-chooser.tsx, Panel: text inside <Button>."
+  },
+  "components.combobox.combobox.choose": {
+    "text": "Choose…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text built in code."
+  },
+  "components.combobox.combobox.clear": {
+    "text": "Clear {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.combobox.combobox.create": {
+    "text": "Create “{{query}}”",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text built in code. Filled in: {{query}}."
+  },
+  "components.combobox.combobox.done": {
+    "text": "Done",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text inside <Button>."
+  },
+  "components.combobox.combobox.matches_one": {
+    "text": "{{count}} match",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.combobox.combobox.matches_other": {
+    "text": "{{count}} matches",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.combobox.combobox.nothing_matches": {
+    "text": "Nothing matches “{{query}}”",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text built in code. Filled in: {{query}}."
+  },
+  "components.combobox.combobox.search": {
+    "text": "Search",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text built in code."
+  },
+  "components.combobox.combobox.search_2": {
+    "text": "Search {{toLowerCase}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: the label of <SearchField>. Filled in: {{toLowerCase}}."
+  },
+  "components.combobox.combobox.searching": {
+    "text": "Searching…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: text built in code."
+  },
+  "components.combobox.combobox.searching_2": {
+    "text": "Searching",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: the label of <Spinner>."
+  },
+  "components.combobox.combobox.selected": {
+    "text": "{{placeholder}}, {{name}}, {{String}} selected",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, ChipsBox: the accessibilityLabel of <Pressable>. Filled in: {{placeholder}}, {{name}}, {{String}}."
+  },
+  "components.command-palette.command-palette.back_from": {
+    "text": "Back from {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: the accessibilityLabel of <Pressable>. Filled in: {{label}}."
+  },
+  "components.command-palette.command-palette.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code."
+  },
+  "components.command-palette.command-palette.command_palette": {
+    "text": "Command palette",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, CommandPalette: text built in code."
+  },
+  "components.command-palette.command-palette.no_results": {
+    "text": "No results",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code."
+  },
+  "components.command-palette.command-palette.results_one": {
+    "text": "{{count}} result",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.command-palette.command-palette.results_other": {
+    "text": "{{count}} results",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.command-palette.command-palette.search_or_run_a_command": {
+    "text": "Search or run a command",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code."
+  },
+  "components.command-palette.command-palette.search_or_type_a_command": {
+    "text": "Search or type a command",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code."
+  },
+  "components.command-palette.command-palette.searching": {
+    "text": "Searching",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: the label of <Spinner>."
+  },
+  "components.context-menu.context-menu.show_actions": {
+    "text": "Show actions",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/context-menu/context-menu.tsx, ContextMenuTrigger: the accessibilityActions of <ContextMenuPrimitive.Trigger>."
+  },
+  "components.date-picker.date-picker.choose_from_a_calendar": {
+    "text": "Choose {{toLowerCase}} from a calendar",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/date-picker.tsx, TypedDate: the accessibilityLabel of <Button>. Filled in: {{toLowerCase}}."
+  },
+  "components.date-picker.date-picker.no_date": {
+    "text": "No date",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/date-picker.tsx, DatePicker: the headline of <PickerDialog>."
+  },
+  "components.date-picker.date-picker.not_a_date_this_field_can": {
+    "text": "Not a date this field can read",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/date-picker.tsx, TypedDate: text inside <Input>."
+  },
+  "components.date-picker.date-picker.pick_a_date": {
+    "text": "Pick a date",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/date-picker.tsx, DatePicker: text built in code."
+  },
+  "components.date-picker.date-picker.pick_dates": {
+    "text": "Pick dates",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/date-picker.tsx, DatePicker: text built in code."
+  },
+  "components.date-picker.picker-dialog.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/picker-dialog.tsx, PickerDialog: text inside <Button>."
+  },
+  "components.date-picker.picker-dialog.done": {
+    "text": "Done",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/picker-dialog.tsx, PickerDialog: text built in code."
+  },
+  "components.date-picker.picker-dialog.ok": {
+    "text": "OK",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/date-picker/picker-dialog.tsx, PickerDialog: text inside <Button>."
+  },
+  "components.dialog.dialog.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dialog/dialog.tsx, DialogContent: text built in code."
+  },
+  "components.dropzone.dropzone.browse": {
+    "text": "Browse",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/dropzone.tsx, Dropzone: text inside <Button>."
+  },
+  "components.dropzone.dropzone.browse_2": {
+    "text": "Browse, {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/dropzone.tsx, Dropzone: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.dropzone.dropzone.choose_files": {
+    "text": "Choose files",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/dropzone.tsx, Dropzone: text built in code."
+  },
+  "components.dropzone.dropzone.drop_to_upload": {
+    "text": "Drop to upload",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/dropzone.tsx, Dropzone: text inside <CssText>."
+  },
+  "components.dropzone.dropzone.pdf_png_or_jpg_up_to": {
+    "text": "PDF, PNG or JPG, up to 10 MB",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/dropzone.tsx, Dropzone: text built in code."
+  },
+  "components.dropzone.files.blocked_this_is_a_program": {
+    "text": "Blocked: this is a program.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: a \"message\" value."
+  },
+  "components.dropzone.files.blocked_this_is_a_program_not": {
+    "text": "Blocked: this is a program, not a {{disguise}}.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: a \"message\" value. Filled in: {{disguise}}."
+  },
+  "components.dropzone.files.is_over_the_limit": {
+    "text": "{{formatBytes}} is over the {{formatBytes2}} limit.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: a \"message\" value. Filled in: {{formatBytes}}, {{formatBytes2}}."
+  },
+  "components.dropzone.files.is_use_at_least": {
+    "text": "{{name}} is {{String}} × {{String2}}. Use at least {{String3}} × {{String4}}.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: a \"message\" value. Filled in: {{name}}, {{String}}, {{String2}}, {{String3}}, {{String4}}."
+  },
+  "components.dropzone.files.use": {
+    "text": "{{kind}}. Use {{listTypes}}.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: a \"message\" value. Filled in: {{kind}}, {{listTypes}}."
+  },
+  "components.dropzone.files.videos_arent_accepted": {
+    "text": "Videos aren’t accepted",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/dropzone/files.ts: text built in code."
+  },
+  "components.feedback.feedback.dismiss": {
+    "text": "Dismiss",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/feedback/feedback.tsx, Alert: text built in code."
+  },
+  "components.field.field.missing": {
+    "text": "Missing",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/field/field.tsx, LabelMarks: text inside <CssText>."
+  },
+  "components.field.field.optional": {
+    "text": "Optional",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/field/field.tsx, LabelMarks: text inside <CssText>."
+  },
+  "components.field.field.optional_2": {
+    "text": " · optional",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/field/field.tsx, FloatingLabel: text inside <CssText>."
+  },
+  "components.field.field.private": {
+    "text": "Private",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/field/field.tsx, LabelMarks: text inside <CssText>."
+  },
+  "components.file-uploader.file-uploader.choose_files": {
+    "text": "Choose files",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileUploader: text built in code."
+  },
+  "components.file-uploader.file-uploader.files_at_most_remove_one_to": {
+    "text": "{{String}} files at most. Remove one to add another.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{String}}."
+  },
+  "components.file-uploader.file-uploader.of_files": {
+    "text": "{{String}} of {{String2}} files",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileUploader: the label of <Dropzone>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.file-uploader.file-uploader.pdf_png_or_jpg_up_to": {
+    "text": "PDF, PNG or JPG, up to 10 MB",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileUploader: text built in code."
+  },
+  "components.file-uploader.file-uploader.remove": {
+    "text": "Remove {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.remove_a_file_to_add_another": {
+    "text": "Remove a file to add another.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileUploader: the hint of <Dropzone>."
+  },
+  "components.file-uploader.file-uploader.retry": {
+    "text": "Retry",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: text inside <Button>."
+  },
+  "components.file-uploader.file-uploader.retry_2": {
+    "text": "Retry {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.stop_uploading": {
+    "text": "Stop uploading {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.upload_failed": {
+    "text": "Upload failed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: text built in code."
+  },
+  "components.file-uploader.file-uploader.uploaded": {
+    "text": "Uploaded",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: the label of <Icon>."
+  },
+  "components.file-uploader.file-uploader.uploading": {
+    "text": "Uploading {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: the label of <Progress>. Filled in: {{name}}."
+  },
+  "components.file-uploader.file-uploader.waiting": {
+    "text": "Waiting · {{formatBytes}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/file-uploader/file-uploader.tsx, FileRow: text built in code. Filled in: {{formatBytes}}."
+  },
+  "components.filter-builder.complex-filters.all": {
+    "text": "All",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: text inside <SegmentedControlItem>."
+  },
+  "components.filter-builder.complex-filters.any": {
+    "text": "Any",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: text inside <SegmentedControlItem>."
+  },
+  "components.filter-builder.complex-filters.completions": {
+    "text": "Completions",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, FilterQuery: the aria-label of <View>."
+  },
+  "components.filter-builder.complex-filters.condition": {
+    "text": "Condition",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: text inside <Button>."
+  },
+  "components.filter-builder.complex-filters.filter_group": {
+    "text": "Filter group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: the aria-label of <View>."
+  },
+  "components.filter-builder.complex-filters.filter_query": {
+    "text": "Filter query",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, FilterQuery: text built in code."
+  },
+  "components.filter-builder.complex-filters.group": {
+    "text": "Group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: text inside <Button>."
+  },
+  "components.filter-builder.complex-filters.group_matches": {
+    "text": "Group matches",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: the accessibilityLabel of <SegmentedControl>."
+  },
+  "components.filter-builder.complex-filters.nested_group": {
+    "text": "Nested group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: the aria-label of <View>."
+  },
+  "components.filter-builder.complex-filters.nested_group_matches": {
+    "text": "Nested group matches",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: the accessibilityLabel of <SegmentedControl>."
+  },
+  "components.filter-builder.complex-filters.of_these_are_true": {
+    "text": "of these are true",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: text inside <CssText>."
+  },
+  "components.filter-builder.complex-filters.remove": {
+    "text": "Remove {{name}} {{value}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, ConditionCard: the accessibilityLabel of <Pressable>. Filled in: {{name}}, {{value}}."
+  },
+  "components.filter-builder.complex-filters.remove_2": {
+    "text": "Remove {{t}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, FilterQuery: the accessibilityLabel of <Pressable>. Filled in: {{t}}."
+  },
+  "components.filter-builder.complex-filters.remove_this_group": {
+    "text": "Remove this group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, Group: the accessibilityLabel of <Button>."
+  },
+  "components.filter-builder.complex-filters.results": {
+    "text": "{{label}}, {{String}} results",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, FacetList: the accessibilityLabel of <Pressable>. Filled in: {{label}}, {{String}}."
+  },
+  "components.filter-builder.complex-filters.show_all": {
+    "text": "Show all",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/complex-filters.tsx, FacetList: text inside <Button>."
+  },
+  "components.filter-builder.fields.contract": {
+    "text": "Contract",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: text built in code."
+  },
+  "components.filter-builder.fields.is": {
+    "text": "is",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.is_above": {
+    "text": "is above",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.is_after": {
+    "text": "is after",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.is_before": {
+    "text": "is before",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.is_below": {
+    "text": "is below",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.is_not": {
+    "text": "is not",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: a \"operators\" value."
+  },
+  "components.filter-builder.fields.location": {
+    "text": "Location",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: text built in code."
+  },
+  "components.filter-builder.fields.salary": {
+    "text": "Salary",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: text built in code."
+  },
+  "components.filter-builder.fields.start_date": {
+    "text": "Start date",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: text built in code."
+  },
+  "components.filter-builder.fields.team": {
+    "text": "Team",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/fields.ts, PEOPLE_FIELDS: text built in code."
+  },
+  "components.filter-builder.filter-builder.add_a_condition_to_narrow_the": {
+    "text": "Add a condition to narrow the list.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text built in code."
+  },
+  "components.filter-builder.filter-builder.add_condition": {
+    "text": "Add condition",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.add_group": {
+    "text": "Add group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.all": {
+    "text": "All",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, MatchToggle: text inside <SegmentedControlItem>."
+  },
+  "components.filter-builder.filter-builder.and": {
+    "text": "and",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <CssText>."
+  },
+  "components.filter-builder.filter-builder.any": {
+    "text": "Any",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, MatchToggle: text inside <SegmentedControlItem>."
+  },
+  "components.filter-builder.filter-builder.choose_any": {
+    "text": "Choose any",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <Combobox>."
+  },
+  "components.filter-builder.filter-builder.choose_one": {
+    "text": "Choose one",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <Choice>."
+  },
+  "components.filter-builder.filter-builder.clear": {
+    "text": "Clear",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.clear_all": {
+    "text": "Clear all",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, AppliedFilters: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.condition": {
+    "text": "Condition",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Button>."
+  },
+  "components.filter-builder.filter-builder.conditions": {
+    "text": "Conditions",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text built in code."
+  },
+  "components.filter-builder.filter-builder.conditions_in_this_group": {
+    "text": "Conditions in this group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <View>."
+  },
+  "components.filter-builder.filter-builder.field": {
+    "text": "{{said}}, field",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ConditionCard: the label of <Choice>. Filled in: {{said}}."
+  },
+  "components.filter-builder.filter-builder.group_of_these": {
+    "text": "Group, {{match}} of these",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the aria-label of <View>. Filled in: {{match}}."
+  },
+  "components.filter-builder.filter-builder.match": {
+    "text": "Match",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the label of <MatchToggle>."
+  },
+  "components.filter-builder.filter-builder.match_in_this_group": {
+    "text": "Match in this group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the label of <MatchToggle>."
+  },
+  "components.filter-builder.filter-builder.no_filters_yet": {
+    "text": "No filters yet",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the title of <EmptyState>."
+  },
+  "components.filter-builder.filter-builder.of_these_are_true": {
+    "text": "of these are true",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <CssText>."
+  },
+  "components.filter-builder.filter-builder.operator": {
+    "text": "{{said}}, operator",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ConditionCard: the label of <Choice>. Filled in: {{said}}."
+  },
+  "components.filter-builder.filter-builder.or": {
+    "text": "or",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <CssText>."
+  },
+  "components.filter-builder.filter-builder.pick_a_period": {
+    "text": "Pick a period",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <DatePicker>."
+  },
+  "components.filter-builder.filter-builder.remove": {
+    "text": "Remove {{field}} {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, AppliedFilters: the removeLabel of <Chip>. Filled in: {{field}}, {{label}}."
+  },
+  "components.filter-builder.filter-builder.remove_condition": {
+    "text": "Remove condition {{String}}, {{fieldName}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ConditionCard: the accessibilityLabel of <Button>. Filled in: {{String}}, {{fieldName}}."
+  },
+  "components.filter-builder.filter-builder.remove_this_group": {
+    "text": "Remove this group",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: the accessibilityLabel of <Button>."
+  },
+  "components.filter-builder.filter-builder.up_to_conditions_remove_one_to": {
+    "text": "Up to {{String}} conditions. Remove one to add another.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, FilterBuilder: text inside <Text>. Filled in: {{String}}."
+  },
+  "components.filter-builder.filter-builder.value": {
+    "text": "Value",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ValueInput: the placeholder of <Input>."
+  },
+  "components.filter-builder.filter-builder.value_for": {
+    "text": "{{said}}, value for {{fieldName}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/filter-builder/filter-builder.tsx, ConditionCard: the label of <ValueInput>. Filled in: {{said}}, {{fieldName}}."
+  },
+  "components.floating-button.floating-button.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/floating-button/floating-button.tsx, SpeedDial: text built in code."
+  },
+  "components.form-sections.form-sections.discard": {
+    "text": "Discard",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/form-sections/form-sections.tsx, FormSaveBar: text built in code."
+  },
+  "components.form-sections.form-sections.save": {
+    "text": "Save",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/form-sections/form-sections.tsx, FormSaveBar: text built in code."
+  },
+  "components.form-sections.form-sections.unsaved_changes": {
+    "text": "Unsaved changes",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/form-sections/form-sections.tsx, FormSaveBar: text built in code."
+  },
+  "components.image-uploader.image-uploader.add": {
+    "text": "Add",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: the label of <AddTile>."
+  },
+  "components.image-uploader.image-uploader.add_a_photo": {
+    "text": "Add a photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AddTile: the accessibilityLabel of <Pressable>."
+  },
+  "components.image-uploader.image-uploader.add_photo": {
+    "text": "Add photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: the label of <AddTile>."
+  },
+  "components.image-uploader.image-uploader.add_photo_2": {
+    "text": "Add photo, {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.add_photos": {
+    "text": "Add photos",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: the label of <AddTile>."
+  },
+  "components.image-uploader.image-uploader.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
+  },
+  "components.image-uploader.image-uploader.change": {
+    "text": "Change",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, PhotoButton: text inside <CssText>."
+  },
+  "components.image-uploader.image-uploader.change_photo": {
+    "text": "Change photo, {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.change_photo_2": {
+    "text": "Change photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
+  },
+  "components.image-uploader.image-uploader.change_s_photo": {
+    "text": "Change {{name}}’s photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, PhotoButton: the accessibilityLabel of <Pressable>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.choose_a_new_photo": {
+    "text": "Choose a new photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
+  },
+  "components.image-uploader.image-uploader.only_allowed_one": {
+    "text": "Only {{count}} image allowed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.image-uploader.image-uploader.only_allowed_other": {
+    "text": "Only {{count}} images allowed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.image-uploader.image-uploader.remove": {
+    "text": "Remove {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageTile: the accessibilityLabel of <Pressable>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.remove_2": {
+    "text": "Remove",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
+  },
+  "components.image-uploader.image-uploader.remove_photo": {
+    "text": "Remove photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
+  },
+  "components.image-uploader.image-uploader.remove_s_photo": {
+    "text": "Remove {{name}}’s photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.s_photo": {
+    "text": "{{name}}’s photo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <DialogTitle>. Filled in: {{name}}."
+  },
+  "components.image-uploader.image-uploader.uploading": {
+    "text": "Uploading {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, Uploading: the accessibilityLabel of <View>. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.actions_for": {
+    "text": "Actions for {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <Button>. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.actions_for_2": {
+    "text": "Actions for {{title}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <Button>. Filled in: {{title}}."
+  },
+  "components.kanban.kanban.add_a_card_to": {
+    "text": "Add a card to {{title}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <Button>. Filled in: {{title}}."
+  },
+  "components.kanban.kanban.cards": {
+    "text": "{{count}} cards",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <CssText>. Filled in: {{count}}."
+  },
+  "components.kanban.kanban.cards_2": {
+    "text": "{{title}}, {{String}} cards",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the aria-label of <View>. Filled in: {{title}}, {{String}}."
+  },
+  "components.kanban.kanban.full": {
+    "text": "{{count}}, full",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <CssText>. Filled in: {{count}}."
+  },
+  "components.kanban.kanban.is_locked": {
+    "text": "{{title}} is locked",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the description of <DropdownMenuItem>. Filled in: {{title}}."
+  },
+  "components.kanban.kanban.locked": {
+    "text": "Locked",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the label of <Icon>."
+  },
+  "components.kanban.kanban.long_press_and_drag_or_use": {
+    "text": "Long-press and drag, or use the actions, to move it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityHint of <Pressable>."
+  },
+  "components.kanban.kanban.move": {
+    "text": "Move {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <Pressable>. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.move_down": {
+    "text": "Move down",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, MOVE_ACTIONS: text built in code."
+  },
+  "components.kanban.kanban.move_space_picks_it_up_arrows": {
+    "text": "Move {{name}}. Space picks it up, arrows move it, Escape puts it back",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text inside <Pressable>. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.move_to": {
+    "text": "Move to",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text inside <DropdownMenuItem>."
+  },
+  "components.kanban.kanban.move_to_bottom": {
+    "text": "Move to bottom",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text inside <DropdownMenuItem>."
+  },
+  "components.kanban.kanban.move_to_the_next_column": {
+    "text": "Move to the next column",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, MOVE_ACTIONS: text built in code."
+  },
+  "components.kanban.kanban.move_to_the_previous_column": {
+    "text": "Move to the previous column",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, MOVE_ACTIONS: text built in code."
+  },
+  "components.kanban.kanban.move_to_top": {
+    "text": "Move to top",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text inside <DropdownMenuItem>."
+  },
+  "components.kanban.kanban.move_up": {
+    "text": "Move up",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, MOVE_ACTIONS: text built in code."
+  },
+  "components.kanban.kanban.moving_was_cancelled_it_is_back": {
+    "text": "Moving {{name}} was cancelled. It is back where it started.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text built in code. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.moving_was_cancelled_it_is_back_2": {
+    "text": "Moving {{cardTitle}} was cancelled. It is back where it started.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text built in code. Filled in: {{cardTitle}}."
+  },
+  "components.kanban.kanban.picked_up_from_position": {
+    "text": "Picked up {{name}} from {{title}}, position {{String}}.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text built in code. Filled in: {{name}}, {{title}}, {{String}}."
+  },
+  "components.kanban.kanban.picked_up_from_position_2": {
+    "text": "Picked up {{cardTitle}} from {{titleOf}}, position {{String}}.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text built in code. Filled in: {{cardTitle}}, {{titleOf}}, {{String}}."
+  },
+  "components.kanban.kanban.select": {
+    "text": "Select {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <Pressable>. Filled in: {{name}}."
+  },
+  "components.kanban.kanban.selected": {
+    "text": "{{String}} selected",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: text inside <CssText>. Filled in: {{String}}."
+  },
+  "components.kanban.kanban.stage": {
+    "text": "{{label}}: stage",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kanban/kanban.tsx, Kanban: the accessibilityLabel of <SegmentedControl>. Filled in: {{label}}."
+  },
+  "components.kbd.kbd.key_alt": {
+    "text": "Alt",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_arrow_down": {
+    "text": "Arrow down",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_arrow_left": {
+    "text": "Arrow left",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_arrow_right": {
+    "text": "Arrow right",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_arrow_up": {
+    "text": "Arrow up",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_backspace": {
+    "text": "Backspace",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_command": {
+    "text": "Command",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_command_or_control": {
+    "text": "Command or Control",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_control": {
+    "text": "Control",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_enter": {
+    "text": "Enter",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_escape": {
+    "text": "Escape",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_option": {
+    "text": "Option",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_shift": {
+    "text": "Shift",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_space": {
+    "text": "Space",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.kbd.kbd.key_tab": {
+    "text": "Tab",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/kbd/kbd.tsx: text built in code."
+  },
+  "components.list-item.list-item.unread": {
+    "text": "Unread",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/list-item/list-item.tsx, Body: the accessibilityLabel of <View>."
+  },
+  "components.nav.grouped-nav.locked": {
+    "text": "Locked",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: the label of <Icon>."
+  },
+  "components.nav.grouped-nav.locked_2": {
+    "text": "locked",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: text inside <Unseen>."
+  },
+  "components.nav.grouped-nav.no_matches": {
+    "text": "No matches",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: text inside <Text>."
+  },
+  "components.nav.grouped-nav.pinned": {
+    "text": "Pinned",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: the label of <Icon>."
+  },
+  "components.nav.grouped-nav.pinned_2": {
+    "text": "pinned",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: text inside <Unseen>."
+  },
+  "components.nav.grouped-nav.search": {
+    "text": "Search",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: text built in code."
+  },
+  "components.nav.grouped-nav.try_a_shorter_or_different_word": {
+    "text": "Try a shorter or different word.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/nav/grouped-nav.tsx, GroupedNav: text built in code."
+  },
+  "components.notification-center.notification-center.mark_all_read": {
+    "text": "Mark all read",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/notification-center/notification-center.tsx, NotificationCenter: text built in code."
+  },
+  "components.notification-center.notification-center.notifications": {
+    "text": "Notifications",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/notification-center/notification-center.tsx, NotificationCenter: text built in code."
+  },
+  "components.notification-center.notification-center.unread": {
+    "text": "Unread. ",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/notification-center/notification-center.tsx, NotificationItem: text built in code."
+  },
+  "components.notification-center.notification-center.unread_2": {
+    "text": "Unread.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/notification-center/notification-center.tsx, NotificationItem: text inside <Unseen>."
+  },
+  "components.number-field.number-field.decrease": {
+    "text": "Decrease {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/number-field/number-field.tsx, NumberField: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.number-field.number-field.increase": {
+    "text": "Increase {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/number-field/number-field.tsx, NumberField: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.org-chart.org-chart.collapse": {
+    "text": "Collapse",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: the accessibilityActions of <Pressable>."
+  },
+  "components.org-chart.org-chart.expand": {
+    "text": "Expand",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: the accessibilityActions of <Pressable>."
+  },
+  "components.org-chart.org-chart.match": {
+    "text": "match",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text inside <Unseen>."
+  },
+  "components.org-chart.org-chart.open_role": {
+    "text": "Open role",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text built in code."
+  },
+  "components.org-chart.org-chart.report_to": {
+    "text": "Report to…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: the accessibilityActions of <Pressable>."
+  },
+  "components.org-chart.org-chart.reports_line_one": {
+    "text": " · {{count}} report",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text inside <CssText>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.org-chart.org-chart.reports_line_other": {
+    "text": " · {{count}} reports",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text inside <CssText>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.org-chart.org-chart.reports_one": {
+    "text": ", {{count}} report",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.org-chart.org-chart.reports_other": {
+    "text": ", {{count}} reports",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.pagination.pagination.next_page": {
+    "text": "Next page",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: the accessibilityLabel of <Button>."
+  },
+  "components.pagination.pagination.of": {
+    "text": "of ",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: text inside <Text>."
+  },
+  "components.pagination.pagination.of_2": {
+    "text": "of",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: text inside <Text>."
+  },
+  "components.pagination.pagination.page": {
+    "text": "Page",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: text inside <Text>."
+  },
+  "components.pagination.pagination.page_2": {
+    "text": "Page {{String}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, PageButton: the accessibilityLabel of <Pressable>. Filled in: {{String}}."
+  },
+  "components.pagination.pagination.pagination": {
+    "text": "Pagination",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: text built in code."
+  },
+  "components.pagination.pagination.previous_page": {
+    "text": "Previous page",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: the accessibilityLabel of <Button>."
+  },
+  "components.pagination.pagination.showing": {
+    "text": "Showing",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pagination/pagination.tsx, Pagination: text inside <Text>."
+  },
+  "components.password-field.password-field.a_number": {
+    "text": "A number",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.a_symbol": {
+    "text": "A symbol",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.at_least_12_characters": {
+    "text": "At least 12 characters",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.empty": {
+    "text": "Empty",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx, PasswordField: the aria-valuetext of <View>."
+  },
+  "components.password-field.password-field.fair": {
+    "text": "Fair",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.hide": {
+    "text": "Hide {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx, PasswordField: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.password-field.password-field.of": {
+    "text": "{{met}}  of  {{length}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx, PasswordField: text inside <CssText>. Filled in: {{met}}, {{length}}."
+  },
+  "components.password-field.password-field.show": {
+    "text": "Show {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx, PasswordField: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.password-field.password-field.strength": {
+    "text": "{{label}} strength",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx, PasswordField: the aria-label of <View>. Filled in: {{label}}."
+  },
+  "components.password-field.password-field.strong": {
+    "text": "Strong",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.upper_and_lower_case": {
+    "text": "Upper and lower case",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.very_strong": {
+    "text": "Very strong",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.very_weak": {
+    "text": "Very weak",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.password-field.password-field.weak": {
+    "text": "Weak",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/password-field/password-field.tsx: text built in code."
+  },
+  "components.pdf-pages.engine.web.pdf_renderer": {
+    "text": "PDF renderer",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pdf-pages/engine.web.tsx, PdfEngine: the title of <iframe>."
+  },
+  "components.pdf-pages.pdf-pages.check_the_connection_and_open_it": {
+    "text": "Check the connection and open it again.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pdf-pages/pdf-pages.tsx, PdfPages: text inside <Alert>."
+  },
+  "components.pdf-pages.pdf-pages.opening": {
+    "text": "Opening {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pdf-pages/pdf-pages.tsx, PdfPages: the accessibilityLabel of <View>. Filled in: {{label}}."
+  },
+  "components.pdf-pages.pdf-pages.page_of": {
+    "text": "{{label}}, page {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pdf-pages/pdf-pages.tsx, PdfPages: the accessibilityLabel of <Image>. Filled in: {{label}}, {{String}}, {{String2}}."
+  },
+  "components.pdf-pages.pdf-pages.the_document_could_not_be_shown": {
+    "text": "The document could not be shown",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pdf-pages/pdf-pages.tsx, PdfPages: the title of <Alert>."
+  },
+  "components.pin-input.pin-input.characters": {
+    "text": "{{label}}, {{String}} characters",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/pin-input/pin-input.tsx, PinInput: the accessibilityLabel of <TextInput>. Filled in: {{label}}, {{String}}."
+  },
+  "components.rating.rating.not_rated": {
+    "text": "Not rated",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rating/rating.tsx, Rating: text inside <CssText>."
+  },
+  "components.rating.rating.out_of": {
+    "text": "{{label}}: {{String}} out of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rating/rating.tsx, Rating: the aria-label of <View>. Filled in: {{label}}, {{String}}, {{String2}}."
+  },
+  "components.rich-text-editor.rich-text-editor.add": {
+    "text": "Add",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: text inside <Button>."
+  },
+  "components.rich-text-editor.rich-text-editor.add_a_link": {
+    "text": "Add a link",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: the accessibilityLabel of <Toggle>."
+  },
+  "components.rich-text-editor.rich-text-editor.address": {
+    "text": "Address",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: text inside <FieldLabel>."
+  },
+  "components.rich-text-editor.rich-text-editor.align_centre": {
+    "text": "Align centre",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"align\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.align_left": {
+    "text": "Align left",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"align\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.align_right": {
+    "text": "Align right",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"align\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.bold": {
+    "text": "Bold",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"inline\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.bulleted_list": {
+    "text": "Bulleted list",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"lists\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: text inside <Button>."
+  },
+  "components.rich-text-editor.rich-text-editor.characters": {
+    "text": "{{String}} characters",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, RichTextEditor: text inside <CssText>. Filled in: {{String}}."
+  },
+  "components.rich-text-editor.rich-text-editor.edit_the_link": {
+    "text": "Edit the link",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: the accessibilityLabel of <Toggle>."
+  },
+  "components.rich-text-editor.rich-text-editor.formatting": {
+    "text": "{{name}} formatting",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, RichTextEditor: the label of <Toolbar>. Filled in: {{name}}."
+  },
+  "components.rich-text-editor.rich-text-editor.heading_2": {
+    "text": "Heading 2",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"headings\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.heading_3": {
+    "text": "Heading 3",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"headings\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.horizontal_rule": {
+    "text": "Horizontal rule",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"blocks\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.inline_code": {
+    "text": "Inline code",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"blocks\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.italic": {
+    "text": "Italic",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"inline\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.numbered_list": {
+    "text": "Numbered list",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"lists\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.quote": {
+    "text": "Quote",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"lists\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.redo": {
+    "text": "Redo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"history\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.remove": {
+    "text": "Remove",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: text inside <Button>."
+  },
+  "components.rich-text-editor.rich-text-editor.save": {
+    "text": "Save",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, LinkTool: text inside <Button>."
+  },
+  "components.rich-text-editor.rich-text-editor.strikethrough": {
+    "text": "Strikethrough",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"inline\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.underline": {
+    "text": "Underline",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"inline\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.undo": {
+    "text": "Undo",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx: a \"history\" value."
+  },
+  "components.rich-text-editor.rich-text-editor.write_something": {
+    "text": "Write something…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/rich-text-editor/rich-text-editor.tsx, RichTextEditor: text built in code."
+  },
+  "components.scheduler.scheduler.all_day": {
+    "text": "All day",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/scheduler/scheduler.tsx, Agenda: text inside <View>."
+  },
+  "components.scheduler.scheduler.day": {
+    "text": "{{label}}: day",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/scheduler/scheduler.tsx, Scheduler: the aria-label of <View>. Filled in: {{label}}."
+  },
+  "components.scheduler.scheduler.picks_this_hour": {
+    "text": "Picks this hour",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/scheduler/scheduler.tsx, Scheduler: the accessibilityHint of <Pressable>."
+  },
+  "components.scheduler.scheduler.to": {
+    "text": "{{title}}{{value}}, {{formatMinutes}} to {{formatMinutes2}}{{value2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/scheduler/scheduler.tsx, Scheduler: the accessibilityLabel of <View>. Filled in: {{title}}, {{value}}, {{formatMinutes}}, {{formatMinutes2}}, {{value2}}."
+  },
+  "components.select.select.choose": {
+    "text": "Choose…",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/select/select.tsx, SelectValue: text built in code."
+  },
+  "components.select.select.choose_one": {
+    "text": "Choose one",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/select/select.tsx, SelectContent: text built in code."
+  },
+  "components.sheet.sheet.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sheet/sheet.tsx, SheetHeader: text built in code."
+  },
+  "components.signature-pad.signature-pad.clear": {
+    "text": "Clear",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature-pad/signature-pad.tsx, SignaturePad: text built in code."
+  },
+  "components.signature-pad.signature-pad.drawn": {
+    "text": "{{label}}: drawn",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature-pad/signature-pad.tsx, SignaturePad: the accessibilityLabel of <View>. Filled in: {{label}}."
+  },
+  "components.signature.adopt-signature.a_signature_is_your_legal_first": {
+    "text": "A signature is your legal first and last name, as your company keeps them.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <FieldDescription>."
+  },
+  "components.signature.adopt-signature.adopt": {
+    "text": "Adopt",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.adopt_a_signature": {
+    "text": "Adopt a signature, {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.signature.adopt-signature.adopt_a_signature_2": {
+    "text": "Adopt a signature",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: text inside <Button>."
+  },
+  "components.signature.adopt-signature.adopt_your_signature": {
+    "text": "Adopt your signature",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.by_adopting_it_you_agree_this": {
+    "text": "By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text built in code."
+  },
+  "components.signature.adopt-signature.cancel": {
+    "text": "Cancel",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <Button>."
+  },
+  "components.signature.adopt-signature.change_it": {
+    "text": "Change it, {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: the accessibilityLabel of <Button>. Filled in: {{label}}."
+  },
+  "components.signature.adopt-signature.change_it_2": {
+    "text": "Change it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: text inside <Button>."
+  },
+  "components.signature.adopt-signature.change_your_signature": {
+    "text": "Change your signature",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: the title of <AdoptSignatureDialog>."
+  },
+  "components.signature.adopt-signature.choose_a_style": {
+    "text": "Choose a style",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <SegmentedControlItem>."
+  },
+  "components.signature.adopt-signature.choose_how_it_looks_or_draw": {
+    "text": "Choose how it looks, or draw it.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <DialogDescription>."
+  },
+  "components.signature.adopt-signature.draw": {
+    "text": "Draw",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <SegmentedControlItem>."
+  },
+  "components.signature.adopt-signature.draw_your_signature": {
+    "text": "Draw your signature",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: the label of <SignaturePad>."
+  },
+  "components.signature.adopt-signature.how_you_sign": {
+    "text": "How you sign",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: the accessibilityLabel of <SegmentedControl>."
+  },
+  "components.signature.adopt-signature.in_the_style": {
+    "text": "{{shown}}, in the {{toLowerCase}} style",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: the label of <Signature>. Filled in: {{shown}}, {{toLowerCase}}."
+  },
+  "components.signature.adopt-signature.no_signature_yet": {
+    "text": "No signature yet",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: text inside <CssText>."
+  },
+  "components.signature.adopt-signature.signature": {
+    "text": "{{value}}: signature",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, SignatureInput: the label of <Signature>. Filled in: {{value}}."
+  },
+  "components.signature.adopt-signature.style": {
+    "text": "Style",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: the accessibilityLabel of <RadioGroup>."
+  },
+  "components.signature.adopt-signature.your_legal_name": {
+    "text": "Your legal name",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/signature/adopt-signature.tsx, AdoptSignatureDialog: text inside <FieldLabel>."
+  },
+  "components.sortable-list.sortable-list.long_press_and_drag_or_use": {
+    "text": "Long-press and drag, or use the actions, to move it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: text inside <View>."
+  },
+  "components.sortable-list.sortable-list.move_down": {
+    "text": "Move down",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: text inside <View>."
+  },
+  "components.sortable-list.sortable-list.move_of": {
+    "text": "Move {{name}}, {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: the label of <ReorderHandle>. Filled in: {{name}}, {{String}}, {{String2}}."
+  },
+  "components.sortable-list.sortable-list.move_up": {
+    "text": "Move up",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: text inside <View>."
+  },
+  "components.sortable-list.sortable-list.of": {
+    "text": "{{name}}, {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: text inside <View>. Filled in: {{name}}, {{String}}, {{String2}}."
+  },
+  "components.sortable-list.sortable-list.of_arrow_keys_move_it": {
+    "text": "{{name}}, {{String}} of {{String2}}. Arrow keys move it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/sortable-list/sortable-list.tsx, SortableList: text inside <View>. Filled in: {{name}}, {{String}}, {{String2}}."
+  },
+  "components.spinner.spinner.loading": {
+    "text": "Loading",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/spinner/spinner.tsx, Spinner: text built in code."
+  },
+  "components.stat.stat.from": {
+    "text": "from",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stat/stat.tsx, Stat: the accessibilityLabel of <CssText>."
+  },
+  "components.stepper.stepper.progress": {
+    "text": "Progress",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stepper/stepper.tsx, Stepper: text built in code."
+  },
+  "components.stepper.stepper.step": {
+    "text": "{{label}}, step {{reading}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stepper/stepper.tsx, StepperProgress: the label of <Progress>. Filled in: {{label}}, {{reading}}."
+  },
+  "components.stepper.stepper.step_2": {
+    "text": "Step {{reading}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stepper/stepper.tsx, StepperProgress: the label of <Progress>. Filled in: {{reading}}."
+  },
+  "components.stepper.stepper.step_of": {
+    "text": "step {{String}} of {{String2}}, {{value}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stepper/stepper.tsx, Step: text inside <Unseen>. Filled in: {{String}}, {{String2}}, {{value}}."
+  },
+  "components.stepper.stepper.step_of_2": {
+    "text": "Step {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/stepper/stepper.tsx, StepperDots: the accessibilityLabel of <View>. Filled in: {{String}}, {{String2}}."
+  },
+  "components.table.table.all_selected": {
+    "text": "All {{format}} selected",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <CssText>. Filled in: {{format}}."
+  },
+  "components.table.table.ascending": {
+    "text": "Ascending",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <DropdownMenuRadioItem>."
+  },
+  "components.table.table.changes_the_order": {
+    "text": "Changes the order",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: the accessibilityHint of <Pressable>."
+  },
+  "components.table.table.descending": {
+    "text": "Descending",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <DropdownMenuRadioItem>."
+  },
+  "components.table.table.loading": {
+    "text": "Loading {{label}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: the aria-label of <View>. Filled in: {{label}}."
+  },
+  "components.table.table.loading_more": {
+    "text": "Loading more",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, LoadingMore: text inside <CssText>."
+  },
+  "components.table.table.move_position_of": {
+    "text": "Move {{name}}, position {{String}} of {{String2}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, TableCardImpl: the label of <ReorderHandle>. Filled in: {{name}}, {{String}}, {{String2}}."
+  },
+  "components.table.table.select": {
+    "text": "Select {{name}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, TableCardImpl: the accessibilityLabel of <Pressable>. Filled in: {{name}}."
+  },
+  "components.table.table.select_all": {
+    "text": "Select all",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <CssText>."
+  },
+  "components.table.table.selected": {
+    "text": "{{format}} selected",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <CssText>. Filled in: {{format}}."
+  },
+  "components.table.table.sort_by": {
+    "text": "Sort by",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: the label of <DropdownMenuContent>."
+  },
+  "components.table.table.sorted_by": {
+    "text": "Sorted by {{describeSorts}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/table/table.tsx, DataTable: text inside <CssText>. Filled in: {{describeSorts}}."
+  },
+  "components.tags-input.tags-input.add_a_tag": {
+    "text": "Add a tag",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tags-input/tags-input.tsx, TagsInput: text built in code."
+  },
+  "components.tags-input.tags-input.add_a_tag_2": {
+    "text": "{{name}}, add a tag",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tags-input/tags-input.tsx, TagsInput: the accessibilityLabel of <TextInput>. Filled in: {{name}}."
+  },
+  "components.tags-input.tags-input.at_most_allowed": {
+    "text": "At most {{String}} allowed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tags-input/tags-input.tsx, TagsInput: text built in code. Filled in: {{String}}."
+  },
+  "components.tags-input.tags-input.remove": {
+    "text": "Remove {{tag}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tags-input/tags-input.tsx, TagsInput: the removeLabel of <Chip>. Filled in: {{tag}}."
+  },
+  "components.tertiary-nav.tertiary-nav.on_this_page": {
+    "text": "On this page",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tertiary-nav/tertiary-nav.tsx, TableOfContents: text built in code."
+  },
+  "components.time-picker.time-picker.am": {
+    "text": "AM",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeInput: text inside <RadioGroupItem>."
+  },
+  "components.time-picker.time-picker.am_or_pm": {
+    "text": "{{label}}, AM or PM",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeWheel: the label of <WheelColumn>. Filled in: {{label}}."
+  },
+  "components.time-picker.time-picker.am_or_pm_2": {
+    "text": "AM or PM",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeInput: the accessibilityLabel of <RadioGroup>."
+  },
+  "components.time-picker.time-picker.choose": {
+    "text": "Choose {{toLowerCase}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimePicker: the accessibilityLabel of <Button>. Filled in: {{toLowerCase}}."
+  },
+  "components.time-picker.time-picker.enter": {
+    "text": "Enter {{toLowerCase}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimePicker: the title of <PickerDialog>. Filled in: {{toLowerCase}}."
+  },
+  "components.time-picker.time-picker.hour": {
+    "text": "{{label}}, hour",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeWheel: the label of <WheelColumn>. Filled in: {{label}}."
+  },
+  "components.time-picker.time-picker.hour_2": {
+    "text": "Hour",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeInput: the label of <Box>."
+  },
+  "components.time-picker.time-picker.minute": {
+    "text": "Minute",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeInput: the label of <Box>."
+  },
+  "components.time-picker.time-picker.minutes": {
+    "text": "{{label}}, minutes",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeWheel: the label of <WheelColumn>. Filled in: {{label}}."
+  },
+  "components.time-picker.time-picker.not_a_time_this_field_can": {
+    "text": "Not a time this field can read",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimePicker: text inside <Input>."
+  },
+  "components.time-picker.time-picker.pm": {
+    "text": "PM",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/time-picker/time-picker.tsx, TimeInput: text inside <RadioGroupItem>."
+  },
+  "components.timeline.timeline.effective": {
+    "text": "Effective  {{effectiveFrom}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/timeline/timeline.tsx, TimelineItem: text inside <CssText>. Filled in: {{effectiveFrom}}."
+  },
+  "components.toast.toast.dismiss": {
+    "text": "Dismiss",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/toast/toast.tsx, Toast: text built in code."
+  },
+  "components.tree-view.tree-view.check": {
+    "text": "Check",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tree-view/tree-view.tsx, TreeView: text inside <Pressable>."
+  },
+  "components.tree-view.tree-view.close": {
+    "text": "Close",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tree-view/tree-view.tsx, TreeView: text inside <Pressable>."
+  },
+  "components.tree-view.tree-view.move": {
+    "text": "Move",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tree-view/tree-view.tsx, TreeView: text inside <Pressable>."
+  },
+  "components.tree-view.tree-view.open": {
+    "text": "Open",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tree-view/tree-view.tsx, TreeView: text inside <Pressable>."
+  },
+  "components.tree-view.tree-view.uncheck": {
+    "text": "Uncheck",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/tree-view/tree-view.tsx, TreeView: text inside <Pressable>."
+  },
+  "components.typed-fields.typed-fields.ask": {
+    "text": "Ask",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx, SearchField: the accessibilityLabel of <Button>."
+  },
+  "components.typed-fields.typed-fields.australia": {
+    "text": "Australia",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.brazil": {
+    "text": "Brazil",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.canada": {
+    "text": "Canada",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.clear": {
+    "text": "Clear {{toLowerCase}}",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx, SearchField: the accessibilityLabel of <Button>. Filled in: {{toLowerCase}}."
+  },
+  "components.typed-fields.typed-fields.country_code": {
+    "text": "Country code",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx, PhoneField: the label of <ChoiceButton>."
+  },
+  "components.typed-fields.typed-fields.currency": {
+    "text": "Currency",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx, CurrencyField: the label of <ChoiceButton>."
+  },
+  "components.typed-fields.typed-fields.france": {
+    "text": "France",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.germany": {
+    "text": "Germany",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.india": {
+    "text": "India",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.ireland": {
+    "text": "Ireland",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.japan": {
+    "text": "Japan",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.netherlands": {
+    "text": "Netherlands",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.nigeria": {
+    "text": "Nigeria",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.poland": {
+    "text": "Poland",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.search": {
+    "text": "Search",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx, SearchField: text built in code."
+  },
+  "components.typed-fields.typed-fields.singapore": {
+    "text": "Singapore",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.south_africa": {
+    "text": "South Africa",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.spain": {
+    "text": "Spain",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.united_kingdom": {
+    "text": "United Kingdom",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.typed-fields.typed-fields.united_states": {
+    "text": "United States",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/typed-fields/typed-fields.tsx: text built in code."
+  },
+  "components.virtual-list.virtual-list.loading_more": {
+    "text": "Loading more",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/virtual-list/virtual-list.tsx, VirtualList: the label of <Spinner>."
+  },
+  "lib.reorder.arrow_keys_move_it": {
+    "text": "{{label}}. Arrow keys move it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. lib/reorder.tsx, ReorderHandle: text inside <Pressable>. Filled in: {{label}}."
+  },
+  "lib.reorder.drag_or_use_the_actions_to": {
+    "text": "Drag, or use the actions, to move it",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. lib/reorder.tsx, ReorderHandle: the accessibilityHint of <Pressable>."
+  },
+  "lib.reorder.fixed_in_place": {
+    "text": "{{label}}: fixed in place",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. lib/reorder.tsx, ReorderHandle: the label of <Icon>. Filled in: {{label}}."
+  },
+  "lib.reorder.move_down": {
+    "text": "Move down",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. lib/reorder.tsx, ReorderHandle: the accessibilityActions of <Pressable>."
+  },
+  "lib.reorder.move_up": {
+    "text": "Move up",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. lib/reorder.tsx, ReorderHandle: the accessibilityActions of <Pressable>."
+  }
+}
