@@ -45,7 +45,6 @@
   "plan.day": "День {{d}}",
   "plan.day_2": "День {{day}}",
   "plan.day_one": "Первый день",
-  "plan.ends": "Заканчивается {{probationEnd}}{{value}}",
   "plan.every_open_task_that_hangs_off": "Все открытые задачи, привязанные к началу, сдвинутся вместе с ним, а конец испытательного срока — на столько же.",
   "plan.extend": "Продлить",
   "plan.extend_by_months": "Продлить на (мес.)",

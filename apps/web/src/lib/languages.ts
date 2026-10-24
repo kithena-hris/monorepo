@@ -6,9 +6,14 @@
  * menu writes it in the browser. US English is the default; the words in the
  * code are the English every other language is translated from.
  */
-import type { Language } from '@kithena/contracts';
+import type { Language } from '@kithena/contracts/language';
 
-export { DEFAULT_LANGUAGE, isLanguage, LANGUAGES, type Language } from '@kithena/contracts';
+export {
+  DEFAULT_LANGUAGE,
+  isLanguage,
+  LANGUAGES,
+  type Language,
+} from '@kithena/contracts/language';
 
 /**
  * Where the choice is kept besides the person's account: a cookie, so the

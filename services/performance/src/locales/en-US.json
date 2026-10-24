@@ -1,0 +1,4 @@
+{
+  "email.learning.cancelled": "Canceled",
+  "email.learning.on_utc_is_cancelled": "{{title}} on {{when}} (UTC) is canceled."
+}

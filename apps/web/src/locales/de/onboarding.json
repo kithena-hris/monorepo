@@ -39,7 +39,6 @@
   "plan.day": "Tag {{d}}",
   "plan.day_2": "Tag {{day}}",
   "plan.day_one": "Erster Arbeitstag",
-  "plan.ends": "Endet {{probationEnd}}{{value}}",
   "plan.every_open_task_that_hangs_off": "Jede offene Aufgabe, die am Startdatum hängt, verschiebt sich mit, und das Ende der Probezeit um denselben Zeitraum.",
   "plan.extend": "Verlängern",
   "plan.extend_by_months": "Verlängern um (Monate)",

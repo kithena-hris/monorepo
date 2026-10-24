@@ -1,5 +1,10 @@
 {
   "components.assistant.assistant.minimise": "Minimize",
+  "components.chart.timeline-chart.moving_was_cancelled": "Moving {{label}} was canceled. It is back where it started.",
+  "components.kanban.kanban.moving_was_cancelled": "Moving {{card}} was canceled. It is back where it started.",
+  "components.org-chart.org-chart.move_cancelled_stayed": "Move canceled. {{name}} stayed where they were.",
   "components.rich-text.rich-text.this_prop_is_inserted_verbatim_sanitise": "This prop is inserted verbatim. Sanitize it on the server.",
+  "components.sortable.sortable.move_cancelled_order_unchanged": "Move canceled. The order is unchanged.",
+  "components.table.data-table.move_cancelled_order_unchanged": "Move canceled. The order is unchanged.",
   "components.typed-fields.typed-fields.country_dialling_code": "Country dialing code"
 }

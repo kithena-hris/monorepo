@@ -4,6 +4,7 @@
   "calibration.finalise_2": "Finalize {{name}}?",
   "calibration.finalised": "Finalized",
   "calibration.submitted_manager_reviews_in_are_held": "Submitted manager reviews in {{cycleName}}{{value}} are held until the session is finalized. {{length}} besides HR.",
+  "cycles.bars_are_when_each_review_is_open": "Bars are when each review is open; pins in its color are its due date and, outlined, its reminders. Drag across the dates to zoom.",
   "cycles.started_reviews_about_them_become_detached": "Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are canceled.",
   "goals.cancelled": "Canceled",
   "learning.assign_it_from_the_catalogue": "Assign it from the catalog.",

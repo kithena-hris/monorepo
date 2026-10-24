@@ -32,8 +32,8 @@ describe('People inside the shell: its sections, and always a way to add somebod
   };
 
   it('takes HR from an empty directory to a new employee without leaving the shell', async () => {
-    await stack.sql`INSERT INTO platform.tenant (id, slug, display_name, address_line1, address_city, address_country)
-                    VALUES (${GLOBEX.tenant}, 'globex', 'Globex', 'Gran Vía 1', 'Madrid', 'ES')`;
+    await stack.sql`INSERT INTO platform.tenant (id, slug, display_name, address_line1, address_city, address_country, language)
+                    VALUES (${GLOBEX.tenant}, 'globex', 'Globex', 'Gran Vía 1', 'Madrid', 'ES', 'en-GB')`;
     await stack.sql`INSERT INTO platform.identity (id) VALUES (${GLOBEX.identity})`;
     await stack.sql`INSERT INTO platform.account (id, tenant_id, identity_id, status, work_email, time_zone,
                                                   employment_start, session_limit, given_name, family_name)
@@ -548,7 +548,7 @@ describe('A company the back office has just created, with nothing published', (
     await start.waitFor({ timeout: 30_000 });
     expect(await start.isDisabled()).toBe(true);
     await other
-      .getByText(/^An import is running\. Started by you at \d\d:\d\d\.$/)
+      .getByText(/^An import is running\. Started by you at \d{1,2}:\d\d(?: [AP]M)?\.$/)
       .first()
       .waitFor();
     expect(

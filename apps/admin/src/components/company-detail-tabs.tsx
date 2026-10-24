@@ -1,6 +1,6 @@
 'use client';
 
-import { LANGUAGES } from '@kithena/contracts';
+import { LANGUAGES } from '@kithena/contracts/language';
 import {
   Alert,
   Badge,

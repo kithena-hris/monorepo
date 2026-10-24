@@ -45,7 +45,6 @@
   "plan.day": "Dzień {{d}}",
   "plan.day_2": "Dzień {{day}}",
   "plan.day_one": "Pierwszy dzień",
-  "plan.ends": "Kończy się {{probationEnd}}{{value}}",
   "plan.every_open_task_that_hangs_off": "Każde otwarte zadanie zależne od startu przesunie się razem z nim, a koniec okresu próbnego o tyle samo.",
   "plan.extend": "Przedłuż",
   "plan.extend_by_months": "Przedłuż o (miesiące)",

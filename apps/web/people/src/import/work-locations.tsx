@@ -11,7 +11,6 @@ import {
   formatList,
   icons,
   Input,
-  locale,
   RadioCard,
   RadioGroup,
   Select,

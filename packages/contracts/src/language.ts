@@ -1,5 +1,3 @@
-import * as z from 'zod';
-
 /**
  * The languages Kithena speaks, each named in itself, so somebody who reads
  * only Polish finds "Polski" in a list written in German.
@@ -26,7 +24,6 @@ export const LANGUAGES = [
   { code: 'ta', name: 'தமிழ்' },
 ] as const;
 
-export const LanguageCode = z.enum(LANGUAGES.map((l) => l.code) as [Language, ...Language[]]);
 export type Language = (typeof LANGUAGES)[number]['code'];
 
 export const DEFAULT_LANGUAGE: Language = 'en-US';

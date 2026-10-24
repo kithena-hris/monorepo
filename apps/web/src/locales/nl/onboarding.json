@@ -40,7 +40,6 @@
   "plan.day": "Dag {{d}}",
   "plan.day_2": "Dag {{day}}",
   "plan.day_one": "Eerste werkdag",
-  "plan.ends": "Eindigt {{probationEnd}}{{value}}",
   "plan.every_open_task_that_hangs_off": "Elke open taak die aan de startdatum hangt, schuift mee, en het einde van de proeftijd evenveel.",
   "plan.extend": "Verlengen",
   "plan.extend_by_months": "Verlengen met (maanden)",

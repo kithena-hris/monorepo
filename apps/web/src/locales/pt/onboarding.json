@@ -45,7 +45,6 @@
   "plan.day": "Dia {{d}}",
   "plan.day_2": "Dia {{day}}",
   "plan.day_one": "Primeiro dia",
-  "plan.ends": "Termina a {{probationEnd}}{{value}}",
   "plan.every_open_task_that_hangs_off": "Cada tarefa aberta ligada ao início move-se com ele, e o fim do período experimental o mesmo.",
   "plan.extend": "Prolongar",
   "plan.extend_by_months": "Prolongar por (meses)",
