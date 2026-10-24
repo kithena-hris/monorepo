@@ -1616,7 +1616,10 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
         mediaType: file.type,
         size: file.size,
       });
-      if (!started.ok) return fail(started.message);
+      if (!started.ok) {
+        fail(started.message);
+        return;
+      }
       const put = started.data as {
         uploadId: string;
         url: string;
@@ -1625,15 +1628,18 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
       const sent = await fetch(put.url, { method: 'PUT', headers: put.headers, body: file }).catch(
         () => null,
       );
-      if (sent?.ok !== true)
-        return fail(
-          tr('offers.documents_did_not_take_it', 'Documents did not take the file. Try again.'),
-        );
+      if (sent?.ok !== true) {
+        fail(tr('offers.documents_did_not_take_it', 'Documents did not take the file. Try again.'));
+        return;
+      }
       const done = await act.call('SendOwnContract', {
         offerId,
         upload: { uploadId: put.uploadId, name: file.name },
       });
-      if (!done.ok) return fail(done.message);
+      if (!done.ok) {
+        fail(done.message);
+        return;
+      }
       setOwn([{ id: file.name, file, status: 'done' }]);
       const id = (done.data as { id?: string } | null)?.id;
       if (id !== undefined) props.onNavigate?.(`/documents/${id}`);

@@ -1195,7 +1195,7 @@ export async function completeEndedInterviews(ctx: Ctx): Promise<number> {
   const now = Date.parse(ctx.at);
   const since = new Date(now - 3 * 86_400_000).toISOString() as Instant;
   let done = 0;
-  for (const interview of await ctx.tx.interviews.startingBetween(since, ctx.at as Instant)) {
+  for (const interview of await ctx.tx.interviews.startingBetween(since, ctx.at)) {
     const ends = Date.parse(interview.startsAt) + interview.minutes * 60_000;
     if (interview.state !== 'scheduled' || ends > now) continue;
     const moved = moveInterview(interview, 'completed');
