@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "Bonjour {{name}}, vous avez des évaluations à rédiger dans {{name2}}. Ouvrez Kithena pour continuer.",
+  "email.cycles.reminder": "Rappel : {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} vous demande votre avis",
+  "email.feedback.on": " sur {{topic}}",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} aimerait votre avis{{value}}. Répondez dans Kithena, sous Performance › Feedback.",
+  "email.launch.due_a_review_in": "Échéance le {{due}} : une évaluation dans {{name}}",
+  "email.launch.hi_has_started_your_reviews_are": "Bonjour {{name}}, {{name2}} a commencé. Vos évaluations sont dans Kithena, sous Performance › Mes évaluations.",
+  "email.launch.hi_your_review_about_in_is": "Bonjour {{name}}, votre évaluation de {{name2}} dans {{name3}} est à rendre le {{due}}.",
+  "email.launch.overdue_a_review_in": "En retard : une évaluation dans {{name}}",
+  "email.launch.you_have_reviews_to_write": "Vous avez des évaluations à rédiger : {{name}}",
+  "email.learning.cancelled": "Annulé",
+  "email.learning.on_utc_is_cancelled": "{{title}} du {{when}} (UTC) est annulé.",
+  "email.learning.utc": "{{value}} : {{title}}, {{when}} UTC",
+  "email.learning.you_are_invited_to_on_utc": "Vous êtes invité(e) à {{title}} le {{when}} (UTC){{value}}. L’invitation est jointe pour votre agenda.",
+  "email.manager-change.a_cycle": "un cycle",
+  "email.manager-change.draft_stays": "Votre brouillon reste dans Kithena, consultable jusqu’à ce que vous le supprimiez.",
+  "email.manager-change.no_longer_reports_to_you": "Bonjour {{name}}, {{who}} ne dépend plus de vous ; vous n’êtes donc plus évaluateur manager pour cette personne dans {{where}} et n’avez pas à rendre l’évaluation.",
+  "email.manager-change.reports_to_someone_else_now": "Bonjour {{name}}, {{who}} dépend désormais de {{to}} ; vous n’êtes donc plus évaluateur manager pour cette personne dans {{where}} et n’avez pas à rendre l’évaluation.",
+  "email.manager-change.reports_to_you_now": "Bonjour {{name}}, {{who}} dépend désormais de vous ; c’est donc à vous de rédiger son évaluation manager dans {{where}}. Ouvrez Kithena pour commencer.",
+  "email.manager-change.someone": "Quelqu’un",
+  "email.manager-change.you_no_longer_write": "Vous ne rédigez plus l’évaluation manager de {{who}}",
+  "email.manager-change.you_write_their_review": "Vous rédigez l’évaluation manager de {{who}}",
+  "email.reviews.about": "{{title}} concernant {{name}} : « {{reason}} »",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} demande à déverrouiller une évaluation",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Les évaluateurs pairs de {{name}} vous attendent"
+}
