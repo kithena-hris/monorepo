@@ -1398,6 +1398,44 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
               }
             />
             <Refusal error={act.error} />
+            {s === 'declined' ? (
+              <Alert
+                tone="warning"
+                title={tr('offers.declined_version', '{{name}} declined version {{version}}', {
+                  name: data.candidate.name,
+                  version: String(v?.version ?? 1),
+                })}
+              >
+                <p>
+                  {data.offer.declineReason == null
+                    ? tr('offers.no_reason_given', 'No reason given.')
+                    : tr('offers.their_reason', 'Their reason: “{{reason}}”', {
+                        reason: data.offer.declineReason,
+                      })}
+                </p>
+                <p>
+                  {tr(
+                    'offers.change_the_terms_and_send_again',
+                    'Change the terms below and save: that makes a new version, which goes through approval and to {{name}} again. The declined one is kept.',
+                    { name: data.candidate.name },
+                  )}
+                </p>
+              </Alert>
+            ) : null}
+            {s === 'accepted' ? (
+              <Alert
+                tone="success"
+                title={tr('offers.accepted_hired', '{{name}} accepted and is hired', {
+                  name: data.candidate.name,
+                })}
+              >
+                {tr(
+                  'offers.prepare_the_contract_next',
+                  'Next, prepare the contract and send it to sign. Once it is signed, {{name}} is handed on to People.',
+                  { name: data.candidate.name },
+                )}
+              </Alert>
+            ) : null}
             {data.approval === null || s !== 'pending_approval' ? null : (
               <Alert
                 tone="info"

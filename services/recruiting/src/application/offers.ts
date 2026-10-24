@@ -63,7 +63,9 @@ import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } fr
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
-import { loadApplication, render, worksCouncilCleared } from './moves.js';
+import { loadApplication, render, sendNow, worksCouncilCleared } from './moves.js';
+import { tellMembers } from './notify.js';
+import { generalSettings } from './setup.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
 
@@ -211,8 +213,9 @@ export async function composeOffer(
   const loaded = await editableOffer(ctx, applicationId);
   if (!loaded.ok) return loaded;
   const { grade: _grade, outsideBandReason: _reason, ...version } = input;
+  // A declined offer is answered with a new version of it, so the declined terms and the reason stay beside the new ones.
   const existing = (await ctx.tx.offers.forApplication(applicationId)).find(
-    (o) => o.state !== 'withdrawn' && o.state !== 'declined' && o.state !== 'expired',
+    (o) => o.state !== 'withdrawn' && o.state !== 'expired',
   );
   let offer: Offer;
   if (existing === undefined) offer = draftOffer(ctx.deps.newId(), applicationId, version);
@@ -402,6 +405,13 @@ export async function candidateAccepts(
   await ctx.tx.offers.save(accepted.value);
   await publish(ctx, offerEvent(ctx, 'accepted', accepted.value));
   await prepareContract(ctx, accepted.value, app);
+  // Accepted is hired, in the pipeline: the contract to sign comes next, and the hand-over waits for it.
+  const job = await ctx.tx.jobs.get(app.jobId);
+  if (job !== null && app.outcome === 'active') {
+    const placed = await placeHire(ctx, accepted.value, app, job);
+    if (!placed.ok) return placed;
+  }
+  await tellReaction(ctx, accepted.value, app);
   return ok(accepted.value);
 }
 
@@ -418,7 +428,89 @@ export async function candidateDeclines(
   if (!declined.ok) return declined;
   await ctx.tx.offers.save(declined.value);
   await publish(ctx, offerEvent(ctx, 'declined', declined.value));
+  await tellReaction(ctx, declined.value, app);
   return ok(declined.value);
+}
+
+/**
+ * The candidate's answer, by email to them and to the hiring team: the
+ * candidate keeps a record of what they said, and the recruiter and the
+ * hiring manager know at once, with the reason on a decline and where to go
+ * next (the contract, or a new version of the terms).
+ */
+async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Promise<void> {
+  const { t } = await mailWords(ctx);
+  const candidate = await ctx.tx.candidates.get(app.candidateId);
+  const job = await ctx.tx.jobs.get(app.jobId);
+  if (candidate === null || job === null) return;
+  const settings = await generalSettings(ctx);
+  const first = candidate.name.split(' ')[0] ?? candidate.name;
+  const accepted = offer.state === 'accepted';
+  const version = latest(offer).version;
+  const vars = {
+    first,
+    name: candidate.name,
+    job: job.title,
+    company: settings.companyName,
+    reason: offer.declineReason ?? '',
+    version,
+  };
+  await sendNow(
+    ctx,
+    candidate,
+    app.id,
+    accepted
+      ? t('email.offer.you_accepted', 'You accepted: {{job}} at {{company}}', vars)
+      : t('email.offer.you_declined', 'You declined the offer: {{job}} at {{company}}', vars),
+    accepted
+      ? t(
+          'email.offer.you_accepted_body',
+          'Thank you, {{first}}, and welcome. {{company}} now prepares your contract, and you will get it to sign. Nothing else is needed from you until then.',
+          vars,
+        )
+      : t(
+          'email.offer.you_declined_body',
+          'Thank you for telling us, {{first}}. {{company}} has your reason: “{{reason}}”. If they can change the terms, they will send you a new version.',
+          vars,
+        ),
+    {
+      heading: accepted
+        ? t('email.offer.accepted_heading', 'Offer accepted')
+        : t('email.offer.declined_heading', 'Offer declined'),
+      facts: [
+        { label: t('email.offer.role', 'Role'), value: job.title },
+        { label: t('email.offer.version', 'Version'), value: String(version) },
+        ...(accepted ? [] : [{ label: t('email.offer.reason', 'Reason'), value: vars.reason }]),
+      ],
+    },
+  );
+  const team = (await ctx.tx.jobs.team(job.id))
+    .filter((m) => m.role === 'recruiter' || m.role === 'hiring_manager')
+    .map((m) => m.personId);
+  const base = ctx.deps.chat?.appBase;
+  const link =
+    base === undefined
+      ? `/recruiting/offers/${offer.id}${accepted ? '/contract' : ''}`
+      : `${base.replace('{slug}', settings.companySlug)}/recruiting/offers/${offer.id}${accepted ? '/contract' : ''}`;
+  await tellMembers(
+    ctx,
+    team,
+    accepted
+      ? t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars)
+      : t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
+    accepted
+      ? t(
+          'email.offer.team_accepted_body',
+          '{{name}} accepted version {{version}}. They are in the hired stage now. Next: prepare the contract and send it to sign.\n\n{{link}}',
+          { ...vars, link },
+        )
+      : t(
+          'email.offer.team_declined_body',
+          '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
+          { ...vars, link },
+        ),
+    `offer-${offer.state}:${offer.id}:${String(version)}`,
+  );
 }
 
 /** Offer the candidate reads (J7): the version, its hash, total rewards and the plain terms. */
@@ -550,17 +642,17 @@ export async function uploadSignedContract(
 }
 
 /**
- * The contract is signed: the application is hired, the candidate a pre-hire
- * with its conditions, the job and requisition count the hire, and
- * `recruiting.candidate.hired` hands the person on (PRD §21.3, §21.4).
+ * The candidate is placed in the hired stage and counted against the job and
+ * its requisition: when the offer is accepted (the owner's choice, against
+ * PRD §21.3's "hired when signed"), or at the signature for an acceptance
+ * from before. The hand-over to People waits for the signed contract.
  */
-async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<true>> {
-  const offer = await ctx.tx.offers.get(contract.offerId);
-  const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
-  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
-  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
-  if (offer === null || app === null || job === null || candidate === null)
-    return err(notFound('offer'));
+async function placeHire(
+  ctx: Ctx,
+  offer: Offer,
+  app: ApplicationRecord,
+  job: JobRecord,
+): Promise<Result<true>> {
   const stages = await ctx.tx.jobs.stages(job.id);
   const hired = hireApplication(app, stages, 'system', ctx.at, ctx.deps.newId());
   if (!hired.ok) return hired;
@@ -570,17 +662,6 @@ async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<tr
     [hired.value.move],
     latest(offer).startDate,
   );
-  const terms = await resolvedTermsOf(ctx, offer, job, latest(offer).startDate);
-  if (!terms.ok) return terms;
-  const references = (await ctx.tx.references.forApplication(app.id)).some(
-    (r) => r.state !== 'completed',
-  );
-  const conditions: ConditionKind[] = [
-    ...terms.value.conditions,
-    ...(references ? (['references'] as const) : []),
-  ];
-  const prehire = openPrehire(app.id, candidate.id, latest(offer).startDate, conditions);
-  await ctx.tx.prehires.save(prehire);
   const filled = hireInto(job);
   if (filled.ok) {
     await ctx.tx.jobs.save({ ...job, ...filled.value });
@@ -606,6 +687,37 @@ async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<tr
       break;
     }
   }
+  return ok(true);
+}
+
+/**
+ * The contract is signed: the candidate becomes a pre-hire with its
+ * conditions and `recruiting.candidate.hired` hands the person on (PRD
+ * §21.3, §21.4). The hired stage and the job's count usually came with the
+ * acceptance; an acceptance from before that is placed now.
+ */
+async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<true>> {
+  const offer = await ctx.tx.offers.get(contract.offerId);
+  const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  if (offer === null || app === null || job === null || candidate === null)
+    return err(notFound('offer'));
+  if (app.outcome === 'active') {
+    const placed = await placeHire(ctx, offer, app, job);
+    if (!placed.ok) return placed;
+  }
+  const terms = await resolvedTermsOf(ctx, offer, job, latest(offer).startDate);
+  if (!terms.ok) return terms;
+  const references = (await ctx.tx.references.forApplication(app.id)).some(
+    (r) => r.state !== 'completed',
+  );
+  const conditions: ConditionKind[] = [
+    ...terms.value.conditions,
+    ...(references ? (['references'] as const) : []),
+  ];
+  const prehire = openPrehire(app.id, candidate.id, latest(offer).startDate, conditions);
+  await ctx.tx.prehires.save(prehire);
   const version = latest(offer);
   const manager =
     (await ctx.tx.jobs.team(job.id)).find((t) => t.role === 'hiring_manager')?.personId ?? null;
