@@ -192,6 +192,48 @@ async function companyBrand(
   }
 }
 
+const URL_LINE = /^\s*(https:\/\/\S+)\s*$/u;
+const LABELLED_URL = /^\s*([^:\n]{1,60}):\s*(https:\/\/\S+)\s*$/u;
+
+/**
+ * An email's link as its button: the last line that is a link (or "Your
+ * page: https://…") is drawn as the email's button, labelled by the words
+ * before it, and leaves the text. An email that already has a button keeps
+ * its text as written.
+ */
+export function withButton(
+  text: string,
+  parts: MailParts | undefined,
+  open: string,
+): { readonly text: string; readonly parts: MailParts | undefined } {
+  if (parts?.action != null) return { text, parts };
+  const lines = text.split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i] ?? '';
+    const inline = LABELLED_URL.exec(line);
+    const bare = URL_LINE.exec(line);
+    if (inline === null && bare === null) continue;
+    let from = i;
+    let label = open;
+    let href = '';
+    if (inline !== null) {
+      label = (inline[1] ?? open).trim();
+      href = inline[2] ?? '';
+    } else {
+      href = bare?.[1] ?? '';
+      const before = (lines[i - 1] ?? '').trim();
+      if (before.endsWith(':') && before.length <= 61) {
+        label = before.slice(0, -1).trim();
+        from = i - 1;
+      }
+    }
+    const rest = [...lines.slice(0, from), ...lines.slice(i + 1)].join('\n').trim();
+    if (rest === '') return { text, parts };
+    return { text: rest, parts: { ...parts, action: { label, href } } };
+  }
+  return { text, parts };
+}
+
 export async function deliver(
   deps: Deps,
   tenantId: Caller['tenantId'],
@@ -202,7 +244,11 @@ export async function deliver(
   // hears from the company they applied to, never from Kithena. Read once, for
   // the emails that did not say; one that did keeps its own.
   const brand = await companyBrand(deps, tenantId);
-  for (const m of mail) {
+  const { t } = (await deps.mailer.words?.(tenantId).catch(() => null)) ?? ENGLISH;
+  const open = t('email.open', 'Open');
+  for (const raw of mail) {
+    const shaped = withButton(raw.text, raw.parts, open);
+    const m = { ...raw, text: shaped.text, parts: shaped.parts };
     try {
       await deps.mailer.send({
         tenantId,
