@@ -38,12 +38,12 @@ const held = new Map<string, Words>();
 /** The reader's language as a locale, for a date or a number beside the words. */
 export function readerLocale(): Language {
   const said = readerLanguage();
-  return said !== null && isLanguage(said) ? said : 'en-US';
+  return said !== null && isLanguage(said) ? said : 'en-GB';
 }
 
 /**
  * Recruiting's words for the person reading (`readerLanguage`): an Inbox task, a
- * refusal. US English outside a request, or for a language Kithena does not
+ * refusal. British English outside a request, or for a language Kithena does not
  * speak. An email is written in the company's language instead (`mailWords`).
  */
 export const t: Words = (key, fallback, vars) => {
