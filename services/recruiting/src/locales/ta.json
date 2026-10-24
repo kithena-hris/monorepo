@@ -150,5 +150,14 @@
   "email.requests.they_added": "\n\nஅவர்கள் சேர்த்தது: {{text}}",
   "email.requests.times_offered": "வழங்கப்பட்ட நேரங்கள் · {{zone}}",
   "email.sourced.subject": "{{company}} உங்களைச் சாத்தியமான வேட்பாளராகச் சேர்த்துள்ளது",
-  "email.sourced.text": "வணக்கம் {{name}},\n\n{{company}} உங்கள் பொதுச் சுயவிவரத்தைக் கண்டு, {{job}} க்கு உங்களைப் பரிசீலிக்கிறது. இந்தப் பணி பற்றி உங்களைத் தொடர்புகொள்ள உங்கள் பெயர், தொடர்பு விவரங்கள் மற்றும் கண்ட சுயவிவரத்தை வைத்திருக்கிறோம். நாங்கள் வைத்திருப்பதைப் பார்க்கலாம், அல்லது நீக்கக் கேட்கலாம், இங்கே:\n{{link}}"
+  "email.sourced.text": "வணக்கம் {{name}},\n\n{{company}} உங்கள் பொதுச் சுயவிவரத்தைக் கண்டு, {{job}} க்கு உங்களைப் பரிசீலிக்கிறது. இந்தப் பணி பற்றி உங்களைத் தொடர்புகொள்ள உங்கள் பெயர், தொடர்பு விவரங்கள் மற்றும் கண்ட சுயவிவரத்தை வைத்திருக்கிறோம். நாங்கள் வைத்திருப்பதைப் பார்க்கலாம், அல்லது நீக்கக் கேட்கலாம், இங்கே:\n{{link}}",
+  "inbox.screens.a_candidate": "ஒரு விண்ணப்பதாரர்",
+  "inbox.screens.approve_an_offer": "வாய்ப்பை அங்கீகரிக்கவும்",
+  "inbox.screens.approve_the_requisition": "பணியிடக் கோரிக்கையை அங்கீகரிக்கவும்: {{title}}",
+  "inbox.screens.choose_a_time": "நேரத்தைத் தேர்ந்தெடுக்கவும்: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "ஆட்சேர்ப்பு",
+  "inbox.screens.submit_your_scorecard": "உங்கள் மதிப்பெண் அட்டையைச் சமர்ப்பிக்கவும்: {{title}}",
+  "inbox.screens.the_role": "பணி",
+  "inbox.screens.times_offered_for_one": "{{title}} க்கு {{count}} முறை வழங்கப்பட்டது",
+  "inbox.screens.times_offered_for_other": "{{title}} க்கு {{count}} முறை வழங்கப்பட்டது"
 }

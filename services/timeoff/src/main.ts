@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { inReaderLanguage } from '@kithena/auth-kit';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 import manifest from '../module.manifest.js';
 import { composeTimeOff } from './composition.js';
@@ -17,7 +18,12 @@ wireConsumers(
 );
 wireBackground(process.env, storage?.db ?? null, storage?.reach);
 
-const server = createServer(listener);
+// Each request in its reader's language: the words the module writes for them.
+const server = createServer((request, response) => {
+  inReaderLanguage(request.headers, () => {
+    listener(request, response);
+  });
+});
 
 // SIGTERM drains it, then the process exits (PEO-118).
 onShutdown('http server', () => drain(server));

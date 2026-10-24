@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Вы пишете оценку руководителя для: {{who}}",
   "email.reviews.about": "{{title}} о сотруднике {{name}}: «{{reason}}»",
   "email.reviews.asks_to_unlock_a_review": "{{name}} просит разблокировать оценку",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Коллеги-оценщики сотрудника {{name}} ждут Вас"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Коллеги-оценщики сотрудника {{name}} ждут Вас",
+  "inbox.home.approve_s_peers": "Утвердить коллег {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} просит отзыв",
+  "inbox.home.draft_saved": " · черновик сохранён",
+  "inbox.home.handed_to_you_from": " · передано вам от {{from}}",
+  "inbox.home.nothing_to_submit": "; отправлять нечего",
+  "inbox.home.nothing_to_submit_draft_stays": "; отправлять нечего, ваш черновик остаётся для чтения",
+  "inbox.home.performance": "Эффективность",
+  "inbox.home.pick_peers_for": "Выбрать коллег для {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Выбрать своих рецензентов",
+  "inbox.home.they_no_longer_report_to_you": "Больше не подчиняется вам",
+  "inbox.home.they_report_to_now": "Теперь подчиняется {{to}}",
+  "inbox.home.unlock_request_from": "Запрос на разблокировку от {{authorId}}",
+  "inbox.home.write_your_self_review": "Написать самооценку",
+  "inbox.home.you_no_longer_write_s_manager": "Вы больше не пишете оценку руководителя для {{subjectId}}",
+  "inbox.home.your_review_was_released": "Ваша оценка опубликована"
 }

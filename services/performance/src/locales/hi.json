@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "आप {{who}} की मैनेजर समीक्षा लिखेंगे",
   "email.reviews.about": "{{name}} के बारे में {{title}}: “{{reason}}”",
   "email.reviews.asks_to_unlock_a_review": "{{name}} एक समीक्षा अनलॉक करने को कह रहे हैं",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "{{name}} के सहकर्मी समीक्षक आपका इंतज़ार कर रहे हैं"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "{{name}} के सहकर्मी समीक्षक आपका इंतज़ार कर रहे हैं",
+  "inbox.home.approve_s_peers": "{{subjectId}} के साथियों को मंज़ूरी दें",
+  "inbox.home.asked_for_feedback": "{{from}} ने फ़ीडबैक माँगा",
+  "inbox.home.draft_saved": " · ड्राफ़्ट सहेजा गया",
+  "inbox.home.handed_to_you_from": " · {{from}} ने आपको सौंपा",
+  "inbox.home.nothing_to_submit": "; जमा करने को कुछ नहीं",
+  "inbox.home.nothing_to_submit_draft_stays": "; जमा करने को कुछ नहीं, आपका ड्राफ़्ट पढ़ने के लिए रहता है",
+  "inbox.home.performance": "प्रदर्शन",
+  "inbox.home.pick_peers_for": "{{subjectId}} के लिए साथी चुनें",
+  "inbox.home.pick_your_peer_reviewers": "अपने समीक्षक साथी चुनें",
+  "inbox.home.they_no_longer_report_to_you": "अब आपको रिपोर्ट नहीं करते",
+  "inbox.home.they_report_to_now": "अब {{to}} को रिपोर्ट करते हैं",
+  "inbox.home.unlock_request_from": "{{authorId}} से अनलॉक अनुरोध",
+  "inbox.home.write_your_self_review": "अपनी स्व-समीक्षा लिखें",
+  "inbox.home.you_no_longer_write_s_manager": "अब आप {{subjectId}} की मैनेजर समीक्षा नहीं लिखते",
+  "inbox.home.your_review_was_released": "आपकी समीक्षा जारी हुई"
 }

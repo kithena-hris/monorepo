@@ -148,5 +148,14 @@
   "email.requests.they_added": "\n\nToegevoegd: {{text}}",
   "email.requests.times_offered": "Voorgestelde tijden · {{zone}}",
   "email.sourced.subject": "{{company}} heeft je toegevoegd als mogelijke kandidaat",
-  "email.sourced.text": "Hallo {{name}},\n\n{{company}} heeft je openbare profiel gevonden en overweegt je voor {{job}}. We bewaren je naam, contactgegevens en het gevonden profiel om contact met je op te nemen over deze functie. Hier zie je wat we bewaren, of vraag je ons het te verwijderen:\n{{link}}"
+  "email.sourced.text": "Hallo {{name}},\n\n{{company}} heeft je openbare profiel gevonden en overweegt je voor {{job}}. We bewaren je naam, contactgegevens en het gevonden profiel om contact met je op te nemen over deze functie. Hier zie je wat we bewaren, of vraag je ons het te verwijderen:\n{{link}}",
+  "inbox.screens.a_candidate": "een kandidaat",
+  "inbox.screens.approve_an_offer": "Een aanbod goedkeuren",
+  "inbox.screens.approve_the_requisition": "Vacatureaanvraag goedkeuren: {{title}}",
+  "inbox.screens.choose_a_time": "Kies een tijd: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Werving",
+  "inbox.screens.submit_your_scorecard": "Je scorekaart indienen: {{title}}",
+  "inbox.screens.the_role": "de functie",
+  "inbox.screens.times_offered_for_one": "{{count}} keer aangeboden voor {{title}}",
+  "inbox.screens.times_offered_for_other": "{{count}} keer aangeboden voor {{title}}"
 }

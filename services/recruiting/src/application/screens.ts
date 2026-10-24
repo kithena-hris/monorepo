@@ -25,6 +25,7 @@ import { generalSettings } from './setup.js';
 import { builtInEmails } from './emails.js';
 import { jobChannel } from './chat.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
+import { t } from './reader-words.js';
 
 /**
  * One read model per screen (PRD §29.2, REC-060): what the shell renders,
@@ -690,7 +691,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
   if (person === null) return { items: [] };
   const items: InboxItem[] = [];
   const base = {
-    area: 'Recruiting',
+    area: t('inbox.screens.recruiting', 'Recruiting'),
     tone: null,
     summary: null,
     from: null,
@@ -705,8 +706,10 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
   for (const a of await ctx.tx.approvals.waitingOn(person)) {
     const title =
       a.subject.kind === 'requisition'
-        ? `Approve the requisition: ${(await ctx.tx.requisitions.get(a.subject.id))?.title ?? ''}`
-        : 'Approve an offer';
+        ? t('inbox.screens.approve_the_requisition', 'Approve the requisition: {{title}}', {
+            title: (await ctx.tx.requisitions.get(a.subject.id))?.title ?? '',
+          })
+        : t('inbox.screens.approve_an_offer', 'Approve an offer');
     items.push({
       ...base,
       id: `recruiting:${a.subject.kind === 'requisition' ? 'requisition-approval' : 'offer-approval'}:${a.id}`,
@@ -725,7 +728,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         a.subject.kind === 'requisition'
           ? `/recruiting/requisitions/${a.subject.id}/approve`
           : `/recruiting/offers/${a.subject.id}/approve`,
-      openIn: 'Recruiting',
+      openIn: t('inbox.screens.recruiting', 'Recruiting'),
     });
   }
   for (const i of await ctx.tx.interviews.owedBy(person)) {
@@ -736,14 +739,16 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
       kind: RECRUITING_INBOX_KINDS.scorecard,
       module: 'recruiting',
       icon: 'edit',
-      title: `Submit your scorecard: ${i.title}`,
+      title: t('inbox.screens.submit_your_scorecard', 'Submit your scorecard: {{title}}', {
+        title: i.title,
+      }),
       at: i.startsAt as Instant,
       due: new Date(Date.parse(i.startsAt) + (i.minutes + 24 * 60) * 60_000)
         .toISOString()
         .slice(0, 10) as InboxItem['due'],
       dueVerb: 'due',
       link: `/recruiting/interviews/${i.id}`,
-      openIn: 'Recruiting',
+      openIn: t('inbox.screens.recruiting', 'Recruiting'),
     });
   }
   // Times a candidate gave for the person to choose from (PRD §16.4): a task until booked, or replaced.
@@ -762,13 +767,23 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
       kind: RECRUITING_INBOX_KINDS.chooseTime,
       module: 'recruiting',
       icon: 'meeting',
-      title: `Choose a time: ${candidate?.name ?? 'a candidate'}, ${ask.label.toLowerCase()}`,
-      summary: `${String(ask.times.length)} times offered for ${job?.title ?? 'the role'}`,
+      title: t('inbox.screens.choose_a_time', 'Choose a time: {{name}}, {{value}}', {
+        name: candidate?.name ?? t('inbox.screens.a_candidate', 'a candidate'),
+        value: ask.label.toLowerCase(),
+      }),
+      summary: t(
+        'inbox.screens.times_offered_for',
+        {
+          one: '{{count}} time offered for {{title}}',
+          other: '{{count}} times offered for {{title}}',
+        },
+        { count: ask.times.length, title: job?.title ?? t('inbox.screens.the_role', 'the role') },
+      ),
       at: ask.createdAt,
       due: (ask.times[0] ?? ask.createdAt).slice(0, 10) as InboxItem['due'],
       dueVerb: 'decide',
       link: `/recruiting/applications/${app.id}/schedule`,
-      openIn: 'Recruiting',
+      openIn: t('inbox.screens.recruiting', 'Recruiting'),
       detail: {
         applicationId: app.id,
         askId: ask.id,

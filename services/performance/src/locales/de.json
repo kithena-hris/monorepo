@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Sie schreiben das Führungskraft-Review für {{who}}",
   "email.reviews.about": "{{title}} zu {{name}}: „{{reason}}“",
   "email.reviews.asks_to_unlock_a_review": "{{name}} bittet, ein Review zu entsperren",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Die Peer-Reviewer:innen von {{name}} warten auf Sie"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Die Peer-Reviewer:innen von {{name}} warten auf Sie",
+  "inbox.home.approve_s_peers": "Peers von {{subjectId}} genehmigen",
+  "inbox.home.asked_for_feedback": "{{from}} bittet um Feedback",
+  "inbox.home.draft_saved": " · Entwurf gespeichert",
+  "inbox.home.handed_to_you_from": " · an Sie übergeben von {{from}}",
+  "inbox.home.nothing_to_submit": "; nichts einzureichen",
+  "inbox.home.nothing_to_submit_draft_stays": "; nichts einzureichen, Ihr Entwurf bleibt lesbar",
+  "inbox.home.performance": "Leistung",
+  "inbox.home.pick_peers_for": "Peers für {{subjectId}} auswählen",
+  "inbox.home.pick_your_peer_reviewers": "Ihre Peer-Reviewer auswählen",
+  "inbox.home.they_no_longer_report_to_you": "Die Person berichtet nicht mehr an Sie",
+  "inbox.home.they_report_to_now": "Berichtet jetzt an {{to}}",
+  "inbox.home.unlock_request_from": "Entsperranfrage von {{authorId}}",
+  "inbox.home.write_your_self_review": "Ihre Selbsteinschätzung schreiben",
+  "inbox.home.you_no_longer_write_s_manager": "Sie schreiben die Manager-Bewertung von {{subjectId}} nicht mehr",
+  "inbox.home.your_review_was_released": "Ihre Bewertung wurde freigegeben"
 }

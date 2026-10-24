@@ -1,0 +1,8 @@
+{
+  "inbox.inbox.a_document": "un document",
+  "inbox.inbox.add_your": "Afegir el teu {{name}}",
+  "inbox.inbox.asked_to_open": "{{displayName}} ha demanat obrir {{value}}",
+  "inbox.inbox.read_and_acknowledge": "Llegir i confirmar {{value}}",
+  "inbox.inbox.sign": "Signar {{value}}",
+  "inbox.inbox.someone": "Algú"
+}

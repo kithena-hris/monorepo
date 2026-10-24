@@ -5,6 +5,7 @@ import { audienceOf } from '../domain/acknowledge/campaign.js';
 import { canOpen, canShare } from '../domain/access/access.js';
 import { contextOf, factsOf } from './context.js';
 import type { Caller, Deps } from './ports.js';
+import { t } from './reader-words.js';
 
 /**
  * Documents in the Inbox (DOC-025, Inbox decision 1): no copy of anything,
@@ -26,7 +27,7 @@ export async function documentsInbox(
     );
     const base = {
       module: 'documents',
-      area: 'Documents',
+      area: t('inbox.inbox.documents', 'Documents'),
       due: null,
       dueVerb: 'due' as const,
       status: null,
@@ -34,7 +35,7 @@ export async function documentsInbox(
       count: null,
       team: null,
       replies: 0,
-      openIn: 'Documents',
+      openIn: t('inbox.inbox.documents', 'Documents'),
       detail: null,
     };
 
@@ -49,7 +50,9 @@ export async function documentsInbox(
           kind: 'documents.request',
           icon: 'upload',
           tone: 'accent',
-          title: `Add your ${types.get(r.typeKey)?.name ?? 'document'}`,
+          title: t('inbox.inbox.add_your', 'Add your {{name}}', {
+            name: types.get(r.typeKey)?.name ?? t('inbox.inbox.document', 'document'),
+          }),
           summary: r.message === '' ? null : r.message.slice(0, 400),
           from: asker === undefined ? null : { name: asker.displayName, personId: asker.personId },
           at: r.createdAt,
@@ -78,7 +81,9 @@ export async function documentsInbox(
           kind: 'documents.sign',
           icon: 'edit',
           tone: 'accent',
-          title: `Sign ${(doc?.title ?? 'a document').slice(0, 200)}`,
+          title: t('inbox.inbox.sign', 'Sign {{value}}', {
+            value: (doc?.title ?? t('inbox.inbox.a_document', 'a document')).slice(0, 200),
+          }),
           summary: env.message === '' ? null : env.message.slice(0, 400),
           from:
             sender === undefined ? null : { name: sender.displayName, personId: sender.personId },
@@ -102,7 +107,9 @@ export async function documentsInbox(
           kind: 'documents.acknowledge',
           icon: 'document',
           tone: 'info',
-          title: `Read and acknowledge ${doc.title.slice(0, 200)}`,
+          title: t('inbox.inbox.read_and_acknowledge', 'Read and acknowledge {{value}}', {
+            value: doc.title.slice(0, 200),
+          }),
           summary: null,
           from: byAccount.has(c.sentBy)
             ? {
@@ -131,7 +138,10 @@ export async function documentsInbox(
         kind: 'documents.access',
         icon: 'locked',
         tone: 'warning',
-        title: `${who?.displayName ?? 'Someone'} asked to open ${doc.title.slice(0, 160)}`,
+        title: t('inbox.inbox.asked_to_open', '{{displayName}} asked to open {{value}}', {
+          displayName: who?.displayName ?? t('inbox.inbox.someone', 'Someone'),
+          value: doc.title.slice(0, 160),
+        }),
         summary: r.reason.slice(0, 400),
         from: who === undefined ? null : { name: who.displayName, personId: who.personId },
         at: r.createdAt,

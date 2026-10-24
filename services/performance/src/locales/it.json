@@ -23,5 +23,19 @@
   "email.manager-change.you_write_their_review": "Scrivi tu la valutazione del responsabile per {{who}}",
   "email.reviews.about": "{{title}} su {{name}}: «{{reason}}»",
   "email.reviews.asks_to_unlock_a_review": "{{name}} chiede di sbloccare una valutazione",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "I valutatori pari di {{name}} aspettano te"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "I valutatori pari di {{name}} aspettano te",
+  "inbox.home.approve_s_peers": "Approva i colleghi di {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} ha chiesto un feedback",
+  "inbox.home.draft_saved": " · bozza salvata",
+  "inbox.home.handed_to_you_from": " · passato a te da {{from}}",
+  "inbox.home.nothing_to_submit": "; niente da inviare",
+  "inbox.home.nothing_to_submit_draft_stays": "; niente da inviare, la tua bozza resta leggibile",
+  "inbox.home.pick_peers_for": "Scegli i colleghi per {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Scegli i tuoi revisori",
+  "inbox.home.they_no_longer_report_to_you": "Non riporta più a te",
+  "inbox.home.they_report_to_now": "Ora riporta a {{to}}",
+  "inbox.home.unlock_request_from": "Richiesta di sblocco da {{authorId}}",
+  "inbox.home.write_your_self_review": "Scrivi la tua autovalutazione",
+  "inbox.home.you_no_longer_write_s_manager": "Non scrivi più la valutazione manager di {{subjectId}}",
+  "inbox.home.your_review_was_released": "La tua valutazione è stata pubblicata"
 }

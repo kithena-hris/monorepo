@@ -14,6 +14,7 @@ import type {
 
 import { visibleTo } from '../../domain/access/field-access.js';
 import { REPORTS_TO, type Asking } from '../person/person-access.js';
+import { readerLocale, t } from '../reader-words.js';
 import { run } from '../person/service.js';
 import { actors, ownDecidedView, ownRecord } from '../screens/people.js';
 import { formValues, nameOf, toForm, type ScreenDeps, type Tx } from '../screens/record.js';
@@ -58,9 +59,13 @@ const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() !
 const first = (name: string): string => name.split(' ')[0] ?? name;
 const addDays = (day: string, n: number): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "3 Nov", in the reader's language. */
 const dayLabel = (day: string): string =>
-  `${String(Number(day.slice(8, 10)))} ${MONTHS[Number(day.slice(5, 7)) - 1] ?? ''}`;
+  new Intl.DateTimeFormat(readerLocale(), {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${day}T00:00:00Z`));
 const lower = (label: string): string =>
   /^[A-Z][a-z]/u.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label;
 const filled = (v: unknown): boolean =>
@@ -94,25 +99,26 @@ function item(
     count: null,
     team: null,
     replies: 0,
-    openIn: 'People',
+    openIn: t('inbox.inbox.people', 'People'),
     message: null,
     detail: null,
     ...fields,
   } as InboxItem;
 }
 
-const ASK_OUTCOME: Record<Exclude<AskState, 'open'>, InboxItem['outcome']> = {
-  done: { label: 'Done', tone: 'success' },
-  sent_back: { label: 'Sent back', tone: 'neutral' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
-};
+const ASK_OUTCOME = (): Record<Exclude<AskState, 'open'>, InboxItem['outcome']> => ({
+  done: { label: t('inbox.inbox.done', 'Done'), tone: 'success' },
+  sent_back: { label: t('inbox.inbox.sent_back', 'Sent back'), tone: 'neutral' },
+  cancelled: { label: t('inbox.inbox.cancelled', 'Cancelled'), tone: 'neutral' },
+});
 
-const CHANGE_OUTCOME = {
-  approved: { label: 'Approved', tone: 'success' },
-  rejected: { label: 'Declined', tone: 'danger' },
-  lapsed: { label: 'Lapsed', tone: 'neutral' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
-} as const;
+const CHANGE_OUTCOME = () =>
+  ({
+    approved: { label: t('inbox.inbox.approved', 'Approved'), tone: 'success' },
+    rejected: { label: t('inbox.inbox.declined', 'Declined'), tone: 'danger' },
+    lapsed: { label: t('inbox.inbox.lapsed', 'Lapsed'), tone: 'neutral' },
+    withdrawn: { label: t('inbox.inbox.withdrawn', 'Withdrawn'), tone: 'neutral' },
+  }) as const;
 
 const field = (f: RecordField, value: unknown): Plain<InboxField> => ({
   key: f.key,
@@ -126,13 +132,34 @@ const field = (f: RecordField, value: unknown): Plain<InboxField> => ({
 });
 
 /** The queues the Review bundle counts, as HR's Review names and opens them. */
-const QUEUES = [
-  { key: 'changes', label: 'Changes to decide', link: '/people/review/waiting' },
-  { key: 'identifiers', label: 'Identifiers to check', link: '/people/review/waiting' },
-  { key: 'duplicates', label: 'Possible duplicates', link: '/people/review/waiting' },
-  { key: 'accessRequests', label: 'Requests for full values', link: '/people/review/waiting' },
-  { key: 'exports', label: 'Exports to approve', link: '/people/review/waiting' },
-] as const;
+const QUEUES = () =>
+  [
+    {
+      key: 'changes',
+      label: t('inbox.inbox.changes_to_decide', 'Changes to decide'),
+      link: '/people/review/waiting',
+    },
+    {
+      key: 'identifiers',
+      label: t('inbox.inbox.identifiers_to_check', 'Identifiers to check'),
+      link: '/people/review/waiting',
+    },
+    {
+      key: 'duplicates',
+      label: t('inbox.inbox.possible_duplicates', 'Possible duplicates'),
+      link: '/people/review/waiting',
+    },
+    {
+      key: 'accessRequests',
+      label: t('inbox.inbox.requests_for_full_values', 'Requests for full values'),
+      link: '/people/review/waiting',
+    },
+    {
+      key: 'exports',
+      label: t('inbox.inbox.exports_to_approve', 'Exports to approve'),
+      link: '/people/review/waiting',
+    },
+  ] as const;
 const QUEUE_BY = {
   changes: null,
   identifiers: 'identifiersBy',
@@ -143,9 +170,21 @@ const QUEUE_BY = {
 
 /** The checklist steps a manager has for somebody starting (G5); ticked in the Inbox. */
 const WELCOME_STEPS = (name: string) => [
-  { key: 'buddy', label: 'Pick a buddy', note: null },
-  { key: 'one-to-one', label: `Book your first 1:1 with ${first(name)}`, note: null },
-  { key: 'channels', label: `Add ${first(name)} to the team channels`, note: null },
+  { key: 'buddy', label: t('inbox.inbox.pick_a_buddy', 'Pick a buddy'), note: null },
+  {
+    key: 'one-to-one',
+    label: t('inbox.inbox.book_your_first_1_1_with', 'Book your first 1:1 with {{name}}', {
+      name: first(name),
+    }),
+    note: null,
+  },
+  {
+    key: 'channels',
+    label: t('inbox.inbox.add_to_the_team_channels', 'Add {{name}} to the team channels', {
+      name: first(name),
+    }),
+    note: null,
+  },
 ];
 
 export async function peopleInbox(
@@ -250,10 +289,12 @@ export async function peopleInbox(
                   icon: state === 'done' ? 'confirm' : state === 'sent_back' ? 'undo' : 'close',
                   text:
                     state === 'done'
-                      ? 'You added them'
+                      ? t('inbox.inbox.you_added_them', 'You added them')
                       : state === 'sent_back'
-                        ? 'You sent it back'
-                        : `${first(user(ask.closedBy ?? ask.requestedBy))} cancelled it`,
+                        ? t('inbox.inbox.you_sent_it_back', 'You sent it back')
+                        : t('inbox.inbox.cancelled_it', '{{closedBy}} cancelled it', {
+                            closedBy: first(user(ask.closedBy ?? ask.requestedBy)),
+                          }),
                   at: ask.closedAt,
                 },
               ]),
@@ -265,18 +306,28 @@ export async function peopleInbox(
           id: `people:details:${ask.id}`,
           lane: open ? 'task' : 'done',
           kind: 'people.details',
-          area: 'Details',
+          area: t('inbox.inbox.details', 'Details'),
           icon: 'edit',
           title:
             labels.length === 1
-              ? `Add your ${lower(labels[0] ?? '')}`
-              : `Add ${String(labels.length)} details for ${first(from)}`,
+              ? t('inbox.inbox.add_your', 'Add your {{labels}}', { labels: lower(labels[0] ?? '') })
+              : t('inbox.inbox.add_details_for', 'Add {{count}} details for {{from}}', {
+                  count: String(labels.length),
+                  from: first(from),
+                }),
           summary: labels.join(', '),
           from: { name: from, personId: null },
           at: ask.closedAt !== null && !open ? ask.closedAt : ask.requestedAt,
           due: open && state === 'open' ? ask.dueOn : null,
-          status: cancelledToday ? { label: `Cancelled by ${first(from)}`, tone: 'neutral' } : null,
-          outcome: state === 'open' ? null : ASK_OUTCOME[state],
+          status: cancelledToday
+            ? {
+                label: t('inbox.inbox.cancelled_by', 'Cancelled by {{from}}', {
+                  from: first(from),
+                }),
+                tone: 'neutral',
+              }
+            : null,
+          outcome: state === 'open' ? null : ASK_OUTCOME()[state],
           replies: messages.filter((m) => m.author !== me).length,
           link: '/people/me',
           message: ask.message,
@@ -304,12 +355,15 @@ export async function peopleInbox(
             id: `people:correct:${review.key}`,
             lane: 'task',
             kind: 'people.correct',
-            area: 'Identity',
+            area: t('inbox.inbox.identity', 'Identity'),
             icon: 'identifier',
             tone: 'warning',
-            title: `Correct your ${review.label}`,
-            summary: review.note ?? review.findings[0]?.message ?? 'HR sent it back',
-            from: { name: 'HR', personId: null },
+            title: t('inbox.inbox.correct_your', 'Correct your {{label}}', { label: review.label }),
+            summary:
+              review.note ??
+              review.findings[0]?.message ??
+              t('inbox.inbox.hr_sent_it_back', 'HR sent it back'),
+            from: { name: t('inbox.inbox.hr', 'HR'), personId: null },
             at: now,
             link: '/people/me',
             message: review.note,
@@ -322,12 +376,15 @@ export async function peopleInbox(
             id: `people:identifier:${review.key}`,
             lane: 'request',
             kind: 'people.identifier',
-            area: 'Identity',
+            area: t('inbox.inbox.identity', 'Identity'),
             icon: 'identifier',
-            title: `Check your ${review.label}`,
-            summary: 'HR checks it against your document',
+            title: t('inbox.inbox.check_your', 'Check your {{label}}', { label: review.label }),
+            summary: t(
+              'inbox.inbox.hr_checks_it_against_your_document',
+              'HR checks it against your document',
+            ),
             at: now,
-            status: { label: 'With HR', tone: 'warning' },
+            status: { label: t('inbox.inbox.with_hr', 'With HR'), tone: 'warning' },
             link: '/people/me',
           }),
         );
@@ -359,7 +416,8 @@ export async function peopleInbox(
           definition,
           await deps.relations.relations(tx, asking.tenantId, asking.viewer, c.personId),
         );
-      const name = (person.ok ? nameOf(person.value.attributes) : null) ?? 'Unnamed';
+      const name =
+        (person.ok ? nameOf(person.value.attributes) : null) ?? t('inbox.inbox.unnamed', 'Unnamed');
       const mine = c.personId === self;
       const fieldLabel = label(c.attributeKey);
       const at = c.approval.requestedAt;
@@ -374,16 +432,25 @@ export async function peopleInbox(
         effectiveFrom: c.effectiveFrom,
         state: 'pending',
         steps: [
-          { label: 'Sent', state: 'done', note: null },
+          { label: t('inbox.inbox.sent', 'Sent'), state: 'done', note: null },
           {
-            label: 'HR decides',
+            label: t('inbox.inbox.hr_decides', 'HR decides'),
             state: 'current',
-            note: days === 0 ? 'Today' : `${String(days)} day${days === 1 ? '' : 's'} so far`,
+            note:
+              days === 0
+                ? t('inbox.inbox.today', 'Today')
+                : t(
+                    'inbox.inbox.days_so_far',
+                    { one: '{{count}} day so far', other: '{{count}} days so far' },
+                    { count: days },
+                  ),
           },
           {
-            label: mine ? 'On your record' : 'On the record',
+            label: mine
+              ? t('inbox.inbox.on_your_record', 'On your record')
+              : t('inbox.inbox.on_the_record', 'On the record'),
             state: 'todo',
-            note: 'From the day it is approved',
+            note: t('inbox.inbox.from_the_day_it_is_approved', 'From the day it is approved'),
           },
         ],
         by: null,
@@ -398,14 +465,19 @@ export async function peopleInbox(
           id: `people:change:${c.approval.id}`,
           lane: 'request',
           kind: 'people.change',
-          area: definition?.sectionKey === undefined ? null : 'Profile',
+          area: definition?.sectionKey === undefined ? null : t('inbox.inbox.profile', 'Profile'),
           icon: 'edit',
           title: mine
-            ? `Change your ${lower(fieldLabel)}`
-            : `Change ${name}'s ${lower(fieldLabel)}`,
+            ? t('inbox.inbox.change_your', 'Change your {{fieldLabel}}', {
+                fieldLabel: lower(fieldLabel),
+              })
+            : t('inbox.inbox.change_s', "Change {{name}}'s {{fieldLabel}}", {
+                name,
+                fieldLabel: lower(fieldLabel),
+              }),
           summary: c.approval.reason === '' ? null : c.approval.reason,
           at,
-          status: { label: 'With HR', tone: 'warning' },
+          status: { label: t('inbox.inbox.with_hr', 'With HR'), tone: 'warning' },
           link: mine ? '/people/me' : `/people/${c.personId}`,
           detail,
         }),
@@ -426,21 +498,25 @@ export async function peopleInbox(
         effectiveFrom: c.effectiveFrom,
         state,
         steps: [
-          { label: 'Sent', state: 'done', note: null },
+          { label: t('inbox.inbox.sent', 'Sent'), state: 'done', note: null },
           {
             label:
               state === 'approved'
-                ? `${first(c.decidedBy ?? 'HR')} approved`
+                ? t('inbox.inbox.someone_approved', '{{by}} approved', {
+                    by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')),
+                  })
                 : state === 'rejected'
-                  ? `${first(c.decidedBy ?? 'HR')} declined`
-                  : CHANGE_OUTCOME[state].label,
+                  ? t('inbox.inbox.someone_declined', '{{by}} declined', {
+                      by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')),
+                    })
+                  : CHANGE_OUTCOME()[state].label,
             state: 'done',
             note: null,
           },
           ...(state === 'approved'
             ? [
                 {
-                  label: 'On the record from',
+                  label: t('inbox.inbox.on_the_record_from', 'On the record from'),
                   state: 'done' as const,
                   note: dayLabel(c.effectiveFrom),
                 },
@@ -451,10 +527,10 @@ export async function peopleInbox(
         note: c.note,
         nudge: null,
       };
-      const what = mine ? `your ${lower(c.label)}` : `${c.name}'s ${lower(c.label)}`;
+      const field = lower(c.label);
       const base = {
         kind: 'people.change',
-        area: 'Profile',
+        area: t('inbox.inbox.profile', 'Profile'),
         icon: 'edit',
         at: c.decidedAt,
         link: mine ? '/people/me' : `/people/${c.personId}`,
@@ -467,7 +543,30 @@ export async function peopleInbox(
             id: `people:decided:${c.id}`,
             lane: 'update',
             tone: state === 'approved' ? 'success' : 'danger',
-            title: `${first(c.decidedBy ?? 'HR')} ${state === 'approved' ? 'approved' : 'declined'} your change to ${what}`,
+            title:
+              state === 'approved'
+                ? mine
+                  ? t(
+                      'inbox.inbox.approved_your_change_to_your',
+                      '{{by}} approved your change to your {{field}}',
+                      { by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')), field },
+                    )
+                  : t(
+                      'inbox.inbox.approved_your_change_to_theirs',
+                      '{{by}} approved your change to {{name}}’s {{field}}',
+                      { by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')), name: c.name, field },
+                    )
+                : mine
+                  ? t(
+                      'inbox.inbox.declined_your_change_to_your',
+                      '{{by}} declined your change to your {{field}}',
+                      { by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')), field },
+                    )
+                  : t(
+                      'inbox.inbox.declined_your_change_to_theirs',
+                      '{{by}} declined your change to {{name}}’s {{field}}',
+                      { by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')), name: c.name, field },
+                    ),
             summary: c.note === null ? null : `“${c.note}”`,
             from: c.decidedBy === null ? null : { name: c.decidedBy, personId: null },
             message: c.note,
@@ -479,14 +578,22 @@ export async function peopleInbox(
           ...base,
           id: `people:change:${c.id}`,
           lane: 'done',
-          title: `Change ${what}`,
+          title: mine
+            ? t('inbox.inbox.change_your', 'Change your {{fieldLabel}}', { fieldLabel: field })
+            : t('inbox.inbox.change_s', "Change {{name}}'s {{fieldLabel}}", {
+                name: c.name,
+                fieldLabel: field,
+              }),
           summary:
             state === 'withdrawn'
-              ? 'You withdrew it'
+              ? t('inbox.inbox.you_withdrew_it', 'You withdrew it')
               : state === 'lapsed'
-                ? 'Nobody decided it in 7 days'
-                : `${CHANGE_OUTCOME[state].label} by ${first(c.decidedBy ?? 'HR')}`,
-          outcome: CHANGE_OUTCOME[state],
+                ? t('inbox.inbox.nobody_decided_it_in_7_days', 'Nobody decided it in 7 days')
+                : t('inbox.inbox.outcome_by', '{{outcome}} by {{by}}', {
+                    outcome: CHANGE_OUTCOME()[state].label,
+                    by: first(c.decidedBy ?? t('inbox.inbox.hr', 'HR')),
+                  }),
+          outcome: CHANGE_OUTCOME()[state],
         }),
       );
     }
@@ -495,7 +602,7 @@ export async function peopleInbox(
       if (r.outcome !== 'accepted') continue;
       const base = {
         kind: 'people.identifier',
-        area: 'Identity',
+        area: t('inbox.inbox.identity', 'Identity'),
         icon: 'identifier',
         at: r.decidedAt,
         link: '/people/me',
@@ -507,7 +614,9 @@ export async function peopleInbox(
             id: `people:accepted:${r.label}`,
             lane: 'update',
             tone: 'success',
-            title: `HR accepted your ${r.label}`,
+            title: t('inbox.inbox.hr_accepted_your', 'HR accepted your {{label}}', {
+              label: r.label,
+            }),
             from: { name: r.decidedBy, personId: null },
           }),
         );
@@ -517,9 +626,11 @@ export async function peopleInbox(
           ...base,
           id: `people:identifier:${r.label}`,
           lane: 'done',
-          title: `Check your ${r.label}`,
-          summary: `Accepted by ${first(r.decidedBy)}`,
-          outcome: { label: 'Accepted', tone: 'success' },
+          title: t('inbox.inbox.check_your', 'Check your {{label}}', { label: r.label }),
+          summary: t('inbox.inbox.accepted_by', 'Accepted by {{decidedBy}}', {
+            decidedBy: first(r.decidedBy),
+          }),
+          outcome: { label: t('inbox.inbox.accepted', 'Accepted'), tone: 'success' },
         }),
       );
     }
@@ -536,7 +647,11 @@ export async function peopleInbox(
     for (const d of outDocs) {
       if (docPeople.has(d.personId)) continue;
       const read = await deps.service.access.read(tx, { ...asking, personId: d.personId });
-      docPeople.set(d.personId, (read.ok ? nameOf(read.value.attributes) : null) ?? 'A colleague');
+      docPeople.set(
+        d.personId,
+        (read.ok ? nameOf(read.value.attributes) : null) ??
+          t('inbox.inbox.a_colleague', 'A colleague'),
+      );
     }
     const docWho = await actors(
       deps,
@@ -571,20 +686,23 @@ export async function peopleInbox(
       action,
     });
     const DOC_OUTCOME = {
-      kept: { label: 'Kept', tone: 'neutral' },
-      acknowledged: { label: 'Acknowledged', tone: 'success' },
-      signed: { label: 'Signed', tone: 'success' },
-      countersigned: { label: 'Signed', tone: 'success' },
-      declined: { label: 'Sent back', tone: 'neutral' },
-      cancelled: { label: 'Cancelled', tone: 'neutral' },
+      kept: { label: t('inbox.inbox.kept', 'Kept'), tone: 'neutral' },
+      acknowledged: { label: t('inbox.inbox.acknowledged', 'Acknowledged'), tone: 'success' },
+      signed: { label: t('inbox.inbox.signed', 'Signed'), tone: 'success' },
+      countersigned: { label: t('inbox.inbox.signed', 'Signed'), tone: 'success' },
+      declined: { label: t('inbox.inbox.sent_back', 'Sent back'), tone: 'neutral' },
+      cancelled: { label: t('inbox.inbox.cancelled', 'Cancelled'), tone: 'neutral' },
     } as const;
-    const myName = own === null ? 'You' : (nameOf(own.view.attributes) ?? 'You');
+    const myName =
+      own === null
+        ? t('inbox.inbox.you', 'You')
+        : (nameOf(own.view.attributes) ?? t('inbox.inbox.you', 'You'));
     for (const d of mineDocs) {
       const from = docUser(d.sentBy);
       const base = {
         id: `people:document:${d.id}`,
         kind: 'people.document',
-        area: 'Documents',
+        area: t('inbox.inbox.documents', 'Documents'),
         icon: d.mode === 'sign' ? 'document' : 'file',
         from: { name: from, personId: null },
         link: '/people/me',
@@ -596,7 +714,10 @@ export async function peopleInbox(
             ...base,
             lane: recent(d.sentAt) ? 'update' : 'done',
             title: `${first(from)} shared ${d.name}`,
-            summary: 'Also kept in your profile under Documents',
+            summary: t(
+              'inbox.inbox.also_kept_in_your_profile_under',
+              'Also kept in your profile under Documents',
+            ),
             at: d.sentAt,
             outcome: recent(d.sentAt) ? null : DOC_OUTCOME.kept,
             detail: docDetail(d, myName, null),
@@ -607,8 +728,13 @@ export async function peopleInbox(
           item({
             ...base,
             lane: 'task',
-            title: `${d.mode === 'sign' ? 'Sign' : 'Read and acknowledge'} ${d.name}`,
-            summary: `${first(from)} sent it`,
+            title:
+              d.mode === 'sign'
+                ? t('inbox.inbox.sign_document', 'Sign {{name}}', { name: d.name })
+                : t('inbox.inbox.read_and_acknowledge_document', 'Read and acknowledge {{name}}', {
+                    name: d.name,
+                  }),
+            summary: t('inbox.inbox.sent_it', '{{from}} sent it', { from: first(from) }),
             at: d.sentAt,
             due: d.dueOn,
             detail: docDetail(d, myName, d.mode),
@@ -619,13 +745,18 @@ export async function peopleInbox(
           item({
             ...base,
             lane: 'done',
-            title: `${d.mode === 'sign' ? 'Sign' : 'Read and acknowledge'} ${d.name}`,
+            title:
+              d.mode === 'sign'
+                ? t('inbox.inbox.sign_document', 'Sign {{name}}', { name: d.name })
+                : t('inbox.inbox.read_and_acknowledge_document', 'Read and acknowledge {{name}}', {
+                    name: d.name,
+                  }),
             summary:
               d.state === 'declined'
-                ? 'You sent it back'
+                ? t('inbox.inbox.you_sent_it_back', 'You sent it back')
                 : d.state === 'acknowledged'
-                  ? 'You acknowledged it'
-                  : 'You signed it',
+                  ? t('inbox.inbox.you_acknowledged_it', 'You acknowledged it')
+                  : t('inbox.inbox.you_signed_it', 'You signed it'),
             at: d.closedAt ?? d.sentAt,
             outcome: DOC_OUTCOME[d.state],
             detail: docDetail(d, myName, null),
@@ -634,7 +765,7 @@ export async function peopleInbox(
       }
     }
     for (const d of outDocs) {
-      const personName = docPeople.get(d.personId) ?? 'A colleague';
+      const personName = docPeople.get(d.personId) ?? t('inbox.inbox.a_colleague', 'A colleague');
       const link = `/people/${d.personId}`;
       if (d.countersigner === me && d.state === 'signed') {
         items.push(
@@ -642,10 +773,10 @@ export async function peopleInbox(
             id: `people:countersign:${d.id}`,
             lane: 'task',
             kind: 'people.document',
-            area: 'Documents',
+            area: t('inbox.inbox.documents', 'Documents'),
             icon: 'document',
-            title: `Countersign ${d.name}`,
-            summary: `${personName} signed it`,
+            title: t('inbox.inbox.countersign', 'Countersign {{name}}', { name: d.name }),
+            summary: t('inbox.inbox.signed_it', '{{personName}} signed it', { personName }),
             from: { name: personName, personId: d.personId },
             at: d.signature?.at ?? d.sentAt,
             link,
@@ -658,10 +789,10 @@ export async function peopleInbox(
             id: `people:countersign:${d.id}`,
             lane: 'done',
             kind: 'people.document',
-            area: 'Documents',
+            area: t('inbox.inbox.documents', 'Documents'),
             icon: 'document',
-            title: `Countersign ${d.name}`,
-            summary: `For ${personName}`,
+            title: t('inbox.inbox.countersign', 'Countersign {{name}}', { name: d.name }),
+            summary: t('inbox.inbox.for', 'For {{personName}}', { personName }),
             at: d.countersignedAt ?? d.sentAt,
             outcome: DOC_OUTCOME.countersigned,
             link,
@@ -677,13 +808,20 @@ export async function peopleInbox(
           id: `people:sent:${d.id}`,
           lane: open ? 'request' : 'done',
           kind: 'people.document',
-          area: 'Documents',
+          area: t('inbox.inbox.documents', 'Documents'),
           icon: 'send',
           title: `${personName} to ${verb} ${d.name}`,
-          summary: open ? `You sent it` : null,
+          summary: open ? t('inbox.inbox.you_sent_it', 'You sent it') : null,
           at: open ? d.sentAt : (d.closedAt ?? d.sentAt),
           due: open ? d.dueOn : null,
-          status: open ? { label: `With ${first(personName)}`, tone: 'warning' } : null,
+          status: open
+            ? {
+                label: t('inbox.inbox.with', 'With {{personName}}', {
+                  personName: first(personName),
+                }),
+                tone: 'warning',
+              }
+            : null,
           outcome: d.state === 'open' ? null : DOC_OUTCOME[d.state],
           link,
           detail: docDetail(d, personName, null),
@@ -695,7 +833,7 @@ export async function peopleInbox(
             id: `people:returned:${d.id}`,
             lane: 'update',
             kind: 'people.document',
-            area: 'Documents',
+            area: t('inbox.inbox.documents', 'Documents'),
             icon: d.state === 'declined' ? 'undo' : 'success',
             tone: d.state === 'declined' ? null : 'success',
             title:
@@ -725,7 +863,7 @@ export async function peopleInbox(
         const attributes = read.ok ? read.value.attributes : {};
         const state: AskState =
           a.state === 'open' && a.keys.every((k) => filled(attributes[k])) ? 'done' : a.state;
-        const personName = nameOf(attributes) ?? 'A colleague';
+        const personName = nameOf(attributes) ?? t('inbox.inbox.a_colleague', 'A colleague');
         people.push({
           askId: a.id,
           personId: a.personId,
@@ -741,13 +879,21 @@ export async function peopleInbox(
               id: `people:answered:${a.id}`,
               lane: 'update',
               kind: 'people.answered',
-              area: 'Details',
+              area: t('inbox.inbox.details', 'Details'),
               icon: state === 'done' ? 'success' : 'undo',
               tone: state === 'done' ? 'success' : null,
               title:
                 state === 'done'
-                  ? `${personName} added what you asked for`
-                  : `${personName} sent your request back`,
+                  ? t(
+                      'inbox.inbox.added_what_you_asked_for',
+                      '{{personName}} added what you asked for',
+                      { personName },
+                    )
+                  : t(
+                      'inbox.inbox.sent_your_request_back',
+                      '{{personName}} sent your request back',
+                      { personName },
+                    ),
               summary: state === 'done' ? a.keys.map(label).join(', ') : a.note,
               from: { name: personName, personId: a.personId },
               at: a.closedAt ?? a.requestedAt,
@@ -766,9 +912,13 @@ export async function peopleInbox(
               id: `people:question:${a.id}`,
               lane: 'update',
               kind: 'people.question',
-              area: 'Details',
+              area: t('inbox.inbox.details', 'Details'),
               icon: 'message',
-              title: `${user(last.author)} asked about your request`,
+              title: t(
+                'inbox.inbox.asked_about_your_request',
+                '{{author}} asked about your request',
+                { author: user(last.author) },
+              ),
               summary: last.body,
               from: { name: user(last.author), personId: a.personId },
               at: last.at,
@@ -789,20 +939,22 @@ export async function peopleInbox(
       };
       const whom =
         people.length === 1
-          ? (people[0]?.name ?? 'A colleague')
+          ? (people[0]?.name ?? t('inbox.inbox.a_colleague', 'A colleague'))
           : `${String(people.length)} people`;
       items.push(
         item({
           id: `people:asked:${batchId}`,
           lane: live > 0 ? 'request' : 'done',
           kind: 'people.asked',
-          area: 'Details',
+          area: t('inbox.inbox.details', 'Details'),
           icon: 'send',
           title:
             labels.length === 1
-              ? `Add ${lower(labels[0] ?? '')}`
-              : `Add ${String(labels.length)} details`,
-          summary: `You asked ${whom}`,
+              ? t('inbox.inbox.add', 'Add {{labels}}', { labels: lower(labels[0] ?? '') })
+              : t('inbox.inbox.add_details', 'Add {{count}} details', {
+                  count: String(labels.length),
+                }),
+          summary: t('inbox.inbox.you_asked', 'You asked {{whom}}', { whom }),
           at: head.requestedAt,
           due: live > 0 ? head.dueOn : null,
           status:
@@ -813,8 +965,8 @@ export async function peopleInbox(
             live > 0
               ? null
               : people.every((p) => p.state === 'cancelled')
-                ? ASK_OUTCOME.cancelled
-                : ASK_OUTCOME.done,
+                ? ASK_OUTCOME().cancelled
+                : ASK_OUTCOME().done,
           link:
             people.length === 1 ? `/people/${people[0]?.personId ?? ''}` : '/people/directory/list',
           message: head.message,
@@ -833,7 +985,7 @@ export async function peopleInbox(
           const done = s.fields.every((f) => f.readOnly || !f.required || values[f.key] != null);
           return {
             key: s.key,
-            label: `Fill in ${lower(s.label)}`,
+            label: t('inbox.inbox.fill_in', 'Fill in {{label}}', { label: lower(s.label) }),
             note: null,
             done,
             section: s.key,
@@ -843,7 +995,7 @@ export async function peopleInbox(
       if (steps.some((s) => !s.done)) {
         const detail: Plain<PeopleChecklistDetail> = {
           personId: self,
-          personName: nameOf(own.view.attributes) ?? 'You',
+          personName: nameOf(own.view.attributes) ?? t('inbox.inbox.you', 'You'),
           steps,
           others: [],
         };
@@ -852,9 +1004,11 @@ export async function peopleInbox(
             id: `people:onboarding:${self}`,
             lane: 'task',
             kind: 'people.checklist',
-            area: 'Onboarding',
+            area: t('inbox.inbox.onboarding', 'Onboarding'),
             icon: 'list',
-            title: starting ? 'Before your first day' : 'Finish your profile',
+            title: starting
+              ? t('inbox.inbox.before_your_first_day', 'Before your first day')
+              : t('inbox.inbox.finish_your_profile', 'Finish your profile'),
             summary: `${String(steps.filter((s) => s.done).length)} of ${String(steps.length)} done`,
             at: now,
             due: starting ? hired : null,
@@ -886,13 +1040,15 @@ export async function peopleInbox(
           deps.documents === undefined
             ? []
             : await deps.documents.store.openDueBy(tx, asking.tenantId, ids, by);
-        const nameOfReport = new Map(direct.map((p) => [p.id, nameOf(p.attributes) ?? 'Someone']));
+        const nameOfReport = new Map(
+          direct.map((p) => [p.id, nameOf(p.attributes) ?? t('inbox.inbox.someone', 'Someone')]),
+        );
         for (const late of [
           ...lateAsks.map((a) => ({
             id: a.id,
             personId: a.personId,
             due: a.dueOn ?? today,
-            what: 'details HR asked for',
+            what: t('inbox.inbox.details_hr_asked_for', 'details HR asked for'),
           })),
           ...lateDocs.map((d) => ({
             id: d.id,
@@ -901,7 +1057,7 @@ export async function peopleInbox(
             what: d.name,
           })),
         ]) {
-          const who = nameOfReport.get(late.personId) ?? 'Someone';
+          const who = nameOfReport.get(late.personId) ?? t('inbox.inbox.someone', 'Someone');
           const daysLate = Math.round(
             (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${late.due}T00:00:00Z`)) / DAY_MS,
           );
@@ -910,10 +1066,14 @@ export async function peopleInbox(
               id: `people:overdue:${late.id}`,
               lane: 'update',
               kind: 'people.overdue',
-              area: 'Your team',
+              area: t('inbox.inbox.your_team', 'Your team'),
               icon: 'warning',
               tone: 'warning',
-              title: `${who}'s task is ${String(daysLate)} days overdue`,
+              title: t(
+                'inbox.inbox.s_task_is_days_overdue',
+                "{{who}}'s task is {{daysLate}} days overdue",
+                { who, daysLate: String(daysLate) },
+              ),
               summary: late.what,
               from: { name: who, personId: late.personId },
               at: `${addDays(late.due, overdue)}T00:00:00.000Z`,
@@ -923,7 +1083,7 @@ export async function peopleInbox(
         }
       }
       for (const p of direct) {
-        const name = nameOf(p.attributes) ?? 'Someone';
+        const name = nameOf(p.attributes) ?? t('inbox.inbox.someone', 'Someone');
         const hired = text(p.attributes['hire_date'])?.slice(0, 10) ?? null;
         const leaving = text(p.attributes['last_working_day'])?.slice(0, 10) ?? null;
         const near = (day: string | null) =>
@@ -936,12 +1096,15 @@ export async function peopleInbox(
               id: `people:joins:${p.id}`,
               lane: 'update',
               kind: 'people.team',
-              area: 'Your team',
+              area: t('inbox.inbox.your_team', 'Your team'),
               icon: 'hire',
               title:
                 hired > today
-                  ? `${name} joins your team on ${dayLabel(hired)}`
-                  : `${name} joined your team`,
+                  ? t('inbox.inbox.joins_your_team_on', '{{name}} joins your team on {{hired}}', {
+                      name,
+                      hired: dayLabel(hired),
+                    })
+                  : t('inbox.inbox.joined_your_team', '{{name}} joined your team', { name }),
               from: { name, personId: p.id },
               at: `${addDays(hired, -TEAM_AHEAD_DAYS) < today ? today : hired}T00:00:00.000Z`,
               link: `/people/${p.id}`,
@@ -964,10 +1127,12 @@ export async function peopleInbox(
                 id: `people:welcome:${p.id}`,
                 lane: 'task',
                 kind: 'people.checklist',
-                area: 'Onboarding',
+                area: t('inbox.inbox.onboarding', 'Onboarding'),
                 icon: 'list',
-                title: `Get ready for ${first(name)}`,
-                summary: `Starts ${dayLabel(hired)}`,
+                title: t('inbox.inbox.get_ready_for', 'Get ready for {{name}}', {
+                  name: first(name),
+                }),
+                summary: t('inbox.inbox.starts', 'Starts {{hired}}', { hired: dayLabel(hired) }),
                 at: `${today}T00:00:00.000Z`,
                 due: addDays(hired, -1),
                 link: `/people/${p.id}`,
@@ -982,12 +1147,15 @@ export async function peopleInbox(
               id: `people:leaves:${p.id}`,
               lane: 'update',
               kind: 'people.team',
-              area: 'Your team',
+              area: t('inbox.inbox.your_team', 'Your team'),
               icon: 'offboard',
               title:
                 leaving >= today
-                  ? `${name}'s last day is ${dayLabel(leaving)}`
-                  : `${name} left your team`,
+                  ? t('inbox.inbox.s_last_day_is', "{{name}}'s last day is {{leaving}}", {
+                      name,
+                      leaving: dayLabel(leaving),
+                    })
+                  : t('inbox.inbox.left_your_team', '{{name}} left your team', { name }),
               from: { name, personId: p.id },
               at: `${leaving < today ? leaving : today}T00:00:00.000Z`,
               link: `/people/${p.id}`,
@@ -1001,7 +1169,7 @@ export async function peopleInbox(
     const queues = waiting === undefined ? null : await waiting(tx);
     if (queues?.ok === true) {
       const q = queues.value;
-      const rows = QUEUES.flatMap((d) => {
+      const rows = QUEUES().flatMap((d) => {
         const count = q[d.key];
         const byKey = QUEUE_BY[d.key];
         return count === null || count === 0
@@ -1024,14 +1192,18 @@ export async function peopleInbox(
             id: 'people:review:queue',
             lane: 'task',
             kind: 'people.review',
-            area: 'Review',
+            area: t('inbox.inbox.review', 'Review'),
             icon: 'review',
-            title: `${String(total)} waiting for you in Review`,
+            title: t(
+              'inbox.inbox.waiting_for_you_in_review',
+              '{{total}} waiting for you in Review',
+              { total: String(total) },
+            ),
             summary: rows.map((r) => `${String(r.count)} ${lower(r.label)}`).join(' · '),
             at: now,
             count: total,
             link: '/people/review/waiting',
-            openIn: 'Review',
+            openIn: t('inbox.inbox.review', 'Review'),
             detail,
           }),
         );
@@ -1066,16 +1238,24 @@ export async function peopleInbox(
             id,
             lane: 'task',
             kind: 'people.integration',
-            area: 'Integrations',
+            area: t('inbox.inbox.integrations', 'Integrations'),
             icon: 'system',
             tone: 'danger',
             title: f.disabled
-              ? `Webhooks to ${host} are switched off`
-              : `Webhooks to ${host} keep failing`,
-            summary: `${String(f.waiting)} waiting to send`,
+              ? t(
+                  'inbox.inbox.webhooks_to_are_switched_off',
+                  'Webhooks to {{host}} are switched off',
+                  { host },
+                )
+              : t('inbox.inbox.webhooks_to_keep_failing', 'Webhooks to {{host}} keep failing', {
+                  host,
+                }),
+            summary: t('inbox.inbox.waiting_to_send', '{{waiting}} waiting to send', {
+              waiting: String(f.waiting),
+            }),
             at: f.since,
             team: {
-              role: 'All admins',
+              role: t('inbox.inbox.all_admins', 'All admins'),
               takenBy:
                 claim === undefined
                   ? null
@@ -1084,7 +1264,7 @@ export async function peopleInbox(
               mine: claim?.by === me,
             },
             link: `/settings/people/integrations/webhooks/${f.endpointId}`,
-            openIn: 'Integrations',
+            openIn: t('inbox.inbox.integrations', 'Integrations'),
             detail,
           }),
         );
@@ -1101,12 +1281,20 @@ export async function peopleInbox(
           id: `people:viewed:${v.id}`,
           lane: recent(v.endedAt) ? 'update' : 'done',
           kind: 'people.viewed',
-          area: 'Privacy',
+          area: t('inbox.inbox.privacy', 'Privacy'),
           icon: 'visible',
-          title: `${v.by ?? 'A People administrator'} viewed Kithena as you`,
-          summary: `For ${String(minutes)} min, read-only: nothing was changed.${
-            v.specialCategory ? ' Your sensitive personal details were visible.' : ''
-          }`,
+          title: t('inbox.inbox.viewed_kithena_as_you', '{{by}} viewed Kithena as you', {
+            by: v.by ?? t('inbox.inbox.a_people_administrator', 'A People administrator'),
+          }),
+          summary: v.specialCategory
+            ? t(
+                'inbox.inbox.viewed_for_sensitive',
+                'For {{minutes}} min, read-only: nothing was changed. Your sensitive personal details were visible.',
+                { minutes },
+              )
+            : t('inbox.inbox.viewed_for', 'For {{minutes}} min, read-only: nothing was changed.', {
+                minutes,
+              }),
           from: { name: v.by, personId: null },
           at: v.endedAt,
           link: '/people/me',
@@ -1130,10 +1318,10 @@ export async function peopleInbox(
             id: `people:export:${r.id}`,
             lane: 'update',
             kind: 'people.export',
-            area: 'Export',
+            area: t('inbox.inbox.export', 'Export'),
             icon: 'download',
             tone: 'success',
-            title: 'Your export is ready',
+            title: t('inbox.inbox.your_export_is_ready', 'Your export is ready'),
             summary: `${String(r.rowCount)} rows · ${r.reason ?? r.fileNames?.[0] ?? r.format ?? 'file'}`,
             at: r.at,
             link: '/people/import-export',
@@ -1155,20 +1343,26 @@ export async function peopleInbox(
           id: `people:import:${n.id}`,
           lane,
           kind: 'people.import',
-          area: 'Import',
+          area: t('inbox.inbox.import', 'Import'),
           icon: failed ? 'warning' : 'upload',
           tone: failed ? 'danger' : 'success',
           title: failed
-            ? `Your import ${n.fileName ?? ''} stopped`.replace('  ', ' ')
-            : `Your import finished: ${String(n.people)} people`,
+            ? t('inbox.inbox.your_import_stopped', 'Your import {{fileName}} stopped', {
+                fileName: n.fileName ?? '',
+              }).replace('  ', ' ')
+            : t(
+                'inbox.inbox.your_import_finished_people',
+                'Your import finished: {{people}} people',
+                { people: String(n.people) },
+              ),
           summary: n.fileName,
           at: n.finishedAt,
           outcome:
             lane !== 'done'
               ? null
               : failed
-                ? { label: 'Stopped', tone: 'danger' }
-                : { label: 'Imported', tone: 'success' },
+                ? { label: t('inbox.inbox.stopped', 'Stopped'), tone: 'danger' }
+                : { label: t('inbox.inbox.imported', 'Imported'), tone: 'success' },
           link: '/people/import',
         }),
       );

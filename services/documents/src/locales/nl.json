@@ -1,0 +1,9 @@
+{
+  "inbox.inbox.a_document": "een document",
+  "inbox.inbox.add_your": "Je {{name}} toevoegen",
+  "inbox.inbox.asked_to_open": "{{displayName}} vraagt {{value}} te openen",
+  "inbox.inbox.documents": "Documenten",
+  "inbox.inbox.read_and_acknowledge": "{{value}} lezen en bevestigen",
+  "inbox.inbox.sign": "{{value}} ondertekenen",
+  "inbox.inbox.someone": "Iemand"
+}

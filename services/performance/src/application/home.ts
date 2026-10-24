@@ -11,6 +11,7 @@ import { stateFor } from './reviews.js';
 import { people, search, subtitle } from './members.js';
 import { EVIDENCE_SOURCES, settingsOf } from './settings.js';
 import { ensureSeeded } from './templates.js';
+import { t } from './reader-words.js';
 
 /**
  * Performance's home (PF1, PF1b), the Inbox items it answers (§5.3, PRF-059),
@@ -162,7 +163,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
   const cycles = new Map((await ctx.tx.cycles.find()).map((c) => [c.id, c]));
   const base = {
     module: 'performance',
-    area: 'Performance',
+    area: t('inbox.home.performance', 'Performance'),
     from: null,
     due: null,
     dueVerb: 'due' as const,
@@ -171,7 +172,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
     count: null,
     team: null,
     replies: 0,
-    openIn: 'Performance',
+    openIn: t('inbox.home.performance', 'Performance'),
     message: null,
     detail: null,
   };
@@ -190,8 +191,25 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           kind: PERFORMANCE_INBOX_KINDS.managerChanged,
           icon: 'people',
           tone: 'neutral',
-          title: `You no longer write ${name(r.subjectId)}’s manager review`,
-          summary: `${c.name} · ${former.to === null ? 'They no longer report to you' : `They report to ${name(former.to)} now`}; nothing to submit${r.status === 'cancelled' ? '' : ', your draft stays to read'}`,
+          title: t(
+            'inbox.home.you_no_longer_write_s_manager',
+            'You no longer write {{subjectId}}’s manager review',
+            { subjectId: name(r.subjectId) },
+          ),
+          summary: `${c.name} · ${
+            former.to === null
+              ? t('inbox.home.they_no_longer_report_to_you', 'They no longer report to you')
+              : t('inbox.home.they_report_to_now', 'They report to {{to}} now', {
+                  to: name(former.to),
+                })
+          }${
+            r.status === 'cancelled'
+              ? t('inbox.home.nothing_to_submit', '; nothing to submit')
+              : t(
+                  'inbox.home.nothing_to_submit_draft_stays',
+                  '; nothing to submit, your draft stays to read',
+                )
+          }`,
           at: former.at as InboxItem['at'],
           link: r.status === 'cancelled' ? '/performance/reviews' : `/performance/reviews/${r.id}`,
         });
@@ -215,9 +233,9 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         tone: r.due < ctx.today ? 'danger' : 'accent',
         title:
           r.kind === 'self'
-            ? 'Write your self review'
+            ? t('inbox.home.write_your_self_review', 'Write your self review')
             : `${cap(label(r.kind))}: ${name(r.subjectId)}`,
-        summary: `${c.name}${r.status === 'in_progress' ? ' · draft saved' : ''}${r.handover === null ? '' : ` · handed to you from ${name(r.handover.from)}`}`,
+        summary: `${c.name}${r.status === 'in_progress' ? t('inbox.home.draft_saved', ' · draft saved') : ''}${r.handover === null ? '' : t('inbox.home.handed_to_you_from', ' · handed to you from {{from}}', { from: name(r.handover.from) })}`,
         at: r.createdAt as InboxItem['at'],
         due: r.due,
         link: `/performance/reviews/${r.id}`,
@@ -236,8 +254,10 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           tone: 'accent',
           title:
             n.subjectId === personId
-              ? 'Pick your peer reviewers'
-              : `Pick peers for ${name(n.subjectId)}`,
+              ? t('inbox.home.pick_your_peer_reviewers', 'Pick your peer reviewers')
+              : t('inbox.home.pick_peers_for', 'Pick peers for {{subjectId}}', {
+                  subjectId: name(n.subjectId),
+                }),
           summary: c.name,
           at: n.at as InboxItem['at'],
           due: c.snapshot?.due.nominations ?? null,
@@ -251,7 +271,9 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           kind: PERFORMANCE_INBOX_KINDS.approveNominations,
           icon: 'people',
           tone: 'warning',
-          title: `Approve ${name(n.subjectId)}’s peers`,
+          title: t('inbox.home.approve_s_peers', 'Approve {{subjectId}}’s peers', {
+            subjectId: name(n.subjectId),
+          }),
           summary: `${String(n.nominees.length)} nominated · ${c.name}`,
           at: n.at as InboxItem['at'],
           dueVerb: 'decide',
@@ -267,7 +289,9 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           kind: PERFORMANCE_INBOX_KINDS.feedbackRequest,
           icon: 'message',
           tone: null,
-          title: `${name(q.from)} asked for feedback`,
+          title: t('inbox.home.asked_for_feedback', '{{from}} asked for feedback', {
+            from: name(q.from),
+          }),
           summary: q.topic ?? q.question,
           from: { name: name(q.from), personId: q.from },
           at: q.at as InboxItem['at'],
@@ -301,7 +325,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           kind: PERFORMANCE_INBOX_KINDS.released,
           icon: 'document',
           tone: 'accent',
-          title: 'Your review was released',
+          title: t('inbox.home.your_review_was_released', 'Your review was released'),
           summary: cycles.get(r.cycleId ?? '')?.name ?? null,
           at: r.released.at as InboxItem['at'],
           link: `/performance/released/${r.id}`,
@@ -316,7 +340,9 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         kind: PERFORMANCE_INBOX_KINDS.unlock,
         icon: 'locked',
         tone: 'warning',
-        title: `Unlock request from ${name(r.authorId)}`,
+        title: t('inbox.home.unlock_request_from', 'Unlock request from {{authorId}}', {
+          authorId: name(r.authorId),
+        }),
         summary: `${cap(label(r.kind))} · ${name(r.subjectId)}`,
         from: { name: name(r.authorId), personId: r.authorId },
         at: (r.unlock?.at ?? r.createdAt) as InboxItem['at'],

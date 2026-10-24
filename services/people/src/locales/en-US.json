@@ -1,0 +1,5 @@
+{
+  "inbox.inbox.cancelled": "Canceled",
+  "inbox.inbox.cancelled_by": "Canceled by {{from}}",
+  "inbox.inbox.cancelled_it": "{{closedBy}} canceled it"
+}

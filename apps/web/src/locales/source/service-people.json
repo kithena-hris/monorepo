@@ -1,0 +1,446 @@
+{
+  "inbox.inbox.a_colleague": {
+    "text": "A colleague",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: text built in code."
+  },
+  "inbox.inbox.a_people_administrator": {
+    "text": "A People administrator",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"by\" value."
+  },
+  "inbox.inbox.accepted": {
+    "text": "Accepted",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.accepted_by": {
+    "text": "Accepted by {{decidedBy}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{decidedBy}}."
+  },
+  "inbox.inbox.acknowledged": {
+    "text": "Acknowledged",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, DOC_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.add": {
+    "text": "Add {{labels}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{labels}}."
+  },
+  "inbox.inbox.add_details": {
+    "text": "Add {{count}} details",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{count}}."
+  },
+  "inbox.inbox.add_details_for": {
+    "text": "Add {{count}} details for {{from}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{count}}, {{from}}."
+  },
+  "inbox.inbox.add_to_the_team_channels": {
+    "text": "Add {{name}} to the team channels",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, WELCOME_STEPS: a \"label\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.add_your": {
+    "text": "Add your {{labels}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{labels}}."
+  },
+  "inbox.inbox.added_what_you_asked_for": {
+    "text": "{{personName}} added what you asked for",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.all_admins": {
+    "text": "All admins",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"role\" value."
+  },
+  "inbox.inbox.also_kept_in_your_profile_under": {
+    "text": "Also kept in your profile under Documents",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.approved": {
+    "text": "Approved",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, CHANGE_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.approved_your_change_to_theirs": {
+    "text": "{{by}} approved your change to {{name}}’s {{field}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{by}}, {{name}}, {{field}}."
+  },
+  "inbox.inbox.approved_your_change_to_your": {
+    "text": "{{by}} approved your change to your {{field}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{by}}, {{field}}."
+  },
+  "inbox.inbox.asked_about_your_request": {
+    "text": "{{author}} asked about your request",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{author}}."
+  },
+  "inbox.inbox.before_your_first_day": {
+    "text": "Before your first day",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value."
+  },
+  "inbox.inbox.book_your_first_1_1_with": {
+    "text": "Book your first 1:1 with {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, WELCOME_STEPS: a \"label\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.cancelled": {
+    "text": "Cancelled",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, ASK_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.cancelled_by": {
+    "text": "Cancelled by {{from}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{from}}."
+  },
+  "inbox.inbox.cancelled_it": {
+    "text": "{{closedBy}} cancelled it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"text\" value. Filled in: {{closedBy}}."
+  },
+  "inbox.inbox.change_s": {
+    "text": "Change {{name}}'s {{fieldLabel}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}, {{fieldLabel}}."
+  },
+  "inbox.inbox.change_your": {
+    "text": "Change your {{fieldLabel}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{fieldLabel}}."
+  },
+  "inbox.inbox.changes_to_decide": {
+    "text": "Changes to decide",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, QUEUES: a \"label\" value."
+  },
+  "inbox.inbox.check_your": {
+    "text": "Check your {{label}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{label}}."
+  },
+  "inbox.inbox.correct_your": {
+    "text": "Correct your {{label}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{label}}."
+  },
+  "inbox.inbox.countersign": {
+    "text": "Countersign {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.days_so_far_one": {
+    "text": "{{count}} day so far",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"note\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.inbox.days_so_far_other": {
+    "text": "{{count}} days so far",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"note\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.declined": {
+    "text": "Declined",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, CHANGE_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.declined_your_change_to_theirs": {
+    "text": "{{by}} declined your change to {{name}}’s {{field}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{by}}, {{name}}, {{field}}."
+  },
+  "inbox.inbox.declined_your_change_to_your": {
+    "text": "{{by}} declined your change to your {{field}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{by}}, {{field}}."
+  },
+  "inbox.inbox.details": {
+    "text": "Details",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.details_hr_asked_for": {
+    "text": "details HR asked for",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"what\" value."
+  },
+  "inbox.inbox.documents": {
+    "text": "Documents",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.done": {
+    "text": "Done",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, ASK_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.export": {
+    "text": "Export",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.exports_to_approve": {
+    "text": "Exports to approve",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, QUEUES: a \"label\" value."
+  },
+  "inbox.inbox.fill_in": {
+    "text": "Fill in {{label}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{label}}."
+  },
+  "inbox.inbox.finish_your_profile": {
+    "text": "Finish your profile",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value."
+  },
+  "inbox.inbox.for": {
+    "text": "For {{personName}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.from_the_day_it_is_approved": {
+    "text": "From the day it is approved",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"note\" value."
+  },
+  "inbox.inbox.get_ready_for": {
+    "text": "Get ready for {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.hr": {
+    "text": "HR",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"name\" value."
+  },
+  "inbox.inbox.hr_accepted_your": {
+    "text": "HR accepted your {{label}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{label}}."
+  },
+  "inbox.inbox.hr_checks_it_against_your_document": {
+    "text": "HR checks it against your document",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.hr_decides": {
+    "text": "HR decides",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.hr_sent_it_back": {
+    "text": "HR sent it back",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.identifiers_to_check": {
+    "text": "Identifiers to check",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, QUEUES: a \"label\" value."
+  },
+  "inbox.inbox.identity": {
+    "text": "Identity",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.import": {
+    "text": "Import",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.imported": {
+    "text": "Imported",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.integrations": {
+    "text": "Integrations",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.joined_your_team": {
+    "text": "{{name}} joined your team",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.joins_your_team_on": {
+    "text": "{{name}} joins your team on {{hired}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}, {{hired}}."
+  },
+  "inbox.inbox.kept": {
+    "text": "Kept",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, DOC_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.lapsed": {
+    "text": "Lapsed",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, CHANGE_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.left_your_team": {
+    "text": "{{name}} left your team",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.nobody_decided_it_in_7_days": {
+    "text": "Nobody decided it in 7 days",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.on_the_record": {
+    "text": "On the record",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.on_the_record_from": {
+    "text": "On the record from",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.on_your_record": {
+    "text": "On your record",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.onboarding": {
+    "text": "Onboarding",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.outcome_by": {
+    "text": "{{outcome}} by {{by}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{outcome}}, {{by}}."
+  },
+  "inbox.inbox.people": {
+    "text": "People",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"openIn\" value."
+  },
+  "inbox.inbox.pick_a_buddy": {
+    "text": "Pick a buddy",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, WELCOME_STEPS: a \"label\" value."
+  },
+  "inbox.inbox.possible_duplicates": {
+    "text": "Possible duplicates",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, QUEUES: a \"label\" value."
+  },
+  "inbox.inbox.privacy": {
+    "text": "Privacy",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.profile": {
+    "text": "Profile",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.read_and_acknowledge_document": {
+    "text": "Read and acknowledge {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.requests_for_full_values": {
+    "text": "Requests for full values",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, QUEUES: a \"label\" value."
+  },
+  "inbox.inbox.review": {
+    "text": "Review",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.s_last_day_is": {
+    "text": "{{name}}'s last day is {{leaving}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}, {{leaving}}."
+  },
+  "inbox.inbox.s_task_is_days_overdue": {
+    "text": "{{who}}'s task is {{daysLate}} days overdue",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{who}}, {{daysLate}}."
+  },
+  "inbox.inbox.sent": {
+    "text": "Sent",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.sent_back": {
+    "text": "Sent back",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, ASK_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.sent_it": {
+    "text": "{{from}} sent it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{from}}."
+  },
+  "inbox.inbox.sent_your_request_back": {
+    "text": "{{personName}} sent your request back",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.sign_document": {
+    "text": "Sign {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.signed": {
+    "text": "Signed",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, DOC_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.signed_it": {
+    "text": "{{personName}} signed it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.someone": {
+    "text": "Someone",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: text built in code."
+  },
+  "inbox.inbox.someone_approved": {
+    "text": "{{by}} approved",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{by}}."
+  },
+  "inbox.inbox.someone_declined": {
+    "text": "{{by}} declined",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{by}}."
+  },
+  "inbox.inbox.starts": {
+    "text": "Starts {{hired}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{hired}}."
+  },
+  "inbox.inbox.stopped": {
+    "text": "Stopped",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.today": {
+    "text": "Today",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"note\" value."
+  },
+  "inbox.inbox.unnamed": {
+    "text": "Unnamed",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: text built in code."
+  },
+  "inbox.inbox.viewed_for": {
+    "text": "For {{minutes}} min, read-only: nothing was changed.",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{minutes}}."
+  },
+  "inbox.inbox.viewed_for_sensitive": {
+    "text": "For {{minutes}} min, read-only: nothing was changed. Your sensitive personal details were visible.",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{minutes}}."
+  },
+  "inbox.inbox.viewed_kithena_as_you": {
+    "text": "{{by}} viewed Kithena as you",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{by}}."
+  },
+  "inbox.inbox.waiting_for_you_in_review": {
+    "text": "{{total}} waiting for you in Review",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{total}}."
+  },
+  "inbox.inbox.waiting_to_send": {
+    "text": "{{waiting}} waiting to send",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{waiting}}."
+  },
+  "inbox.inbox.webhooks_to_are_switched_off": {
+    "text": "Webhooks to {{host}} are switched off",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{host}}."
+  },
+  "inbox.inbox.webhooks_to_keep_failing": {
+    "text": "Webhooks to {{host}} keep failing",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{host}}."
+  },
+  "inbox.inbox.with": {
+    "text": "With {{personName}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.with_hr": {
+    "text": "With HR",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.withdrawn": {
+    "text": "Withdrawn",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts, CHANGE_OUTCOME: a \"label\" value."
+  },
+  "inbox.inbox.you": {
+    "text": "You",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: text built in code."
+  },
+  "inbox.inbox.you_acknowledged_it": {
+    "text": "You acknowledged it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.you_added_them": {
+    "text": "You added them",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"text\" value."
+  },
+  "inbox.inbox.you_asked": {
+    "text": "You asked {{whom}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{whom}}."
+  },
+  "inbox.inbox.you_sent_it": {
+    "text": "You sent it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.you_sent_it_back": {
+    "text": "You sent it back",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"text\" value."
+  },
+  "inbox.inbox.you_signed_it": {
+    "text": "You signed it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.you_withdrew_it": {
+    "text": "You withdrew it",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.your_export_is_ready": {
+    "text": "Your export is ready",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value."
+  },
+  "inbox.inbox.your_import_finished_people": {
+    "text": "Your import finished: {{people}} people",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{people}}."
+  },
+  "inbox.inbox.your_import_stopped": {
+    "text": "Your import {{fileName}} stopped",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{fileName}}."
+  },
+  "inbox.inbox.your_team": {
+    "text": "Your team",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  }
+}

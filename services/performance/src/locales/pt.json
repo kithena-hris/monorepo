@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Passa a escrever a avaliação da chefia de {{who}}",
   "email.reviews.about": "{{title}} sobre {{name}}: «{{reason}}»",
   "email.reviews.asks_to_unlock_a_review": "{{name}} pede para desbloquear uma avaliação",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Os avaliadores pares de {{name}} aguardam por si"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Os avaliadores pares de {{name}} aguardam por si",
+  "inbox.home.approve_s_peers": "Aprovar os pares de {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} pediu feedback",
+  "inbox.home.draft_saved": " · rascunho guardado",
+  "inbox.home.handed_to_you_from": " · passado a si por {{from}}",
+  "inbox.home.nothing_to_submit": "; nada a submeter",
+  "inbox.home.nothing_to_submit_draft_stays": "; nada a submeter, o seu rascunho continua para ler",
+  "inbox.home.performance": "Desempenho",
+  "inbox.home.pick_peers_for": "Escolher pares para {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Escolher os seus revisores",
+  "inbox.home.they_no_longer_report_to_you": "Já não reporta a si",
+  "inbox.home.they_report_to_now": "Agora reporta a {{to}}",
+  "inbox.home.unlock_request_from": "Pedido de desbloqueio de {{authorId}}",
+  "inbox.home.write_your_self_review": "Escrever a sua autoavaliação",
+  "inbox.home.you_no_longer_write_s_manager": "Já não escreve a avaliação de gestor de {{subjectId}}",
+  "inbox.home.your_review_was_released": "A sua avaliação foi publicada"
 }

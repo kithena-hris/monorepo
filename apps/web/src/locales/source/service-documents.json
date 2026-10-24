@@ -1,0 +1,34 @@
+{
+  "inbox.inbox.a_document": {
+    "text": "a document",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"value\" value."
+  },
+  "inbox.inbox.add_your": {
+    "text": "Add your {{name}}",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.asked_to_open": {
+    "text": "{{displayName}} asked to open {{value}}",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"title\" value. Filled in: {{displayName}}, {{value}}."
+  },
+  "inbox.inbox.document": {
+    "text": "document",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"name\" value."
+  },
+  "inbox.inbox.documents": {
+    "text": "Documents",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"area\" value."
+  },
+  "inbox.inbox.read_and_acknowledge": {
+    "text": "Read and acknowledge {{value}}",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"title\" value. Filled in: {{value}}."
+  },
+  "inbox.inbox.sign": {
+    "text": "Sign {{value}}",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"title\" value. Filled in: {{value}}."
+  },
+  "inbox.inbox.someone": {
+    "text": "Someone",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"displayName\" value."
+  }
+}

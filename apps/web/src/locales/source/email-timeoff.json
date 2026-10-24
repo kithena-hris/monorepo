@@ -1,34 +1,178 @@
 {
   "email.nudge.a_few_days_away": {
     "text": "A few days away do more than they look.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code."
   },
   "email.nudge.bridge": {
     "text": "Taking {{day}} gives you 4 days off with {{holiday}}.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{day}}, {{holiday}}."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code. Filled in: {{day}}, {{holiday}}."
   },
   "email.nudge.days_left_one": {
     "text": "You have {{count}} day left this year.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
   "email.nudge.days_left_other": {
     "text": "You have {{count}} days left this year.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "email.nudge.heading": {
     "text": "{{name}}, you haven’t had a day off since {{month}}",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: a \"heading\" value. Filled in: {{name}}, {{month}}."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: a \"heading\" value. Filled in: {{name}}, {{month}}."
   },
   "email.nudge.private": {
     "text": "Nobody else sees this message.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code."
   },
   "email.nudge.would_be_lost_one": {
     "text": "{{count}} of them would be lost on {{date}} if it stays unbooked.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for a {{count}} of one."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for a {{count}} of one."
   },
   "email.nudge.would_be_lost_other": {
     "text": "{{count}} of them would be lost on {{date}} if they stay unbooked.",
-    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for any other {{count}}."
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.a_change": {
+    "text": " · a change",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.added_to_your_calendar": {
+    "text": "Added to your calendar",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"note\" value."
+  },
+  "inbox.inbox.approved": {
+    "text": "Approved",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.approved_by": {
+    "text": "Approved by {{deciderFirst}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{deciderFirst}}."
+  },
+  "inbox.inbox.approved_your_time_off": {
+    "text": "{{deciderFirst}} approved your time off",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"title\" value. Filled in: {{deciderFirst}}."
+  },
+  "inbox.inbox.day_count_one": {
+    "text": "{{text}} day",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code. Filled in: {{count}}, {{text}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.inbox.day_count_other": {
+    "text": "{{text}} days",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code. Filled in: {{count}}, {{text}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.days_so_far_one": {
+    "text": "{{count}} day so far",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"note\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.inbox.days_so_far_other": {
+    "text": "{{count}} days so far",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"note\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.declined": {
+    "text": "Declined",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.declined_by": {
+    "text": "Declined by {{deciderFirst}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{deciderFirst}}."
+  },
+  "inbox.inbox.declined_your_time_off_on": {
+    "text": "{{deciderFirst}} declined your time off on {{label}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"title\" value. Filled in: {{deciderFirst}}, {{label}}."
+  },
+  "inbox.inbox.hr": {
+    "text": "HR",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code."
+  },
+  "inbox.inbox.left_this_year": {
+    "text": "{{label}} · {{workingDays}} · {{left}} left this year",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{label}}, {{workingDays}}, {{left}}."
+  },
+  "inbox.inbox.nudged_you": {
+    "text": "{{firstName}} nudged you",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value. Filled in: {{firstName}}."
+  },
+  "inbox.inbox.only_carry_over": {
+    "text": "Only {{cap}} carry over",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{cap}}."
+  },
+  "inbox.inbox.public_holidays_one": {
+    "text": "{{place}} · {{count}} public holiday",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{place}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.inbox.public_holidays_other": {
+    "text": "{{place}} · {{count}} public holidays",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value. Filled in: {{place}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.sent": {
+    "text": "Sent",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.since_today": {
+    "text": "Since today",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"note\" value."
+  },
+  "inbox.inbox.step_of": {
+    "text": "Step {{step}} of {{steps}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value. Filled in: {{step}}, {{steps}}."
+  },
+  "inbox.inbox.the_holiday_calendar_is_out": {
+    "text": "The {{next}} holiday calendar is out",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"title\" value. Filled in: {{next}}."
+  },
+  "inbox.inbox.they_don_t_carry_over_this": {
+    "text": "They don’t carry over this year",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.time_off": {
+    "text": "Time off",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"openIn\" value."
+  },
+  "inbox.inbox.time_off_2": {
+    "text": "Time off · {{label}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"title\" value. Filled in: {{label}}."
+  },
+  "inbox.inbox.use_before": {
+    "text": "Use {{lose}} before {{end}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"title\" value. Filled in: {{lose}}, {{end}}."
+  },
+  "inbox.inbox.where_you_work": {
+    "text": "Where you work",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code."
+  },
+  "inbox.inbox.which_was_declined": {
+    "text": "{{value}}, which was declined",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"firstAsk\" value. Filled in: {{value}}."
+  },
+  "inbox.inbox.with": {
+    "text": "With {{holderFirst}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value. Filled in: {{holderFirst}}."
+  },
+  "inbox.inbox.withdrawn": {
+    "text": "Withdrawn",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value."
+  },
+  "inbox.inbox.working_day_count_one": {
+    "text": "{{text}} working day",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code. Filled in: {{count}}, {{text}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.inbox.working_day_count_other": {
+    "text": "{{text}} working days",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: text built in code. Filled in: {{count}}, {{text}}. Plural: the words for any other {{count}}."
+  },
+  "inbox.inbox.you_approved_it": {
+    "text": "You approved it",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.you_asked_for_instead": {
+    "text": "You asked for {{value}} instead",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"label\" value. Filled in: {{value}}."
+  },
+  "inbox.inbox.you_declined_it": {
+    "text": "You declined it",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.you_withdrew_it": {
+    "text": "You withdrew it",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading. application/screens/inbox.ts: a \"summary\" value."
   }
 }

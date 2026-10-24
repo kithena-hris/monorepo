@@ -606,5 +606,41 @@
   "email.sourced.text": {
     "text": "Hello {{name}},\n\n{{company}} found your public profile and is considering you for {{job}}. We hold your name, contact details and the profile we found, to contact you about this role. You can see what we hold, or ask us to delete it, here:\n{{link}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{company}}, {{job}}, {{link}}."
+  },
+  "inbox.screens.a_candidate": {
+    "text": "a candidate",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"name\" value."
+  },
+  "inbox.screens.approve_an_offer": {
+    "text": "Approve an offer",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code."
+  },
+  "inbox.screens.approve_the_requisition": {
+    "text": "Approve the requisition: {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code. Filled in: {{title}}."
+  },
+  "inbox.screens.choose_a_time": {
+    "text": "Choose a time: {{name}}, {{value}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"title\" value. Filled in: {{name}}, {{value}}."
+  },
+  "inbox.screens.recruiting": {
+    "text": "Recruiting",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"area\" value."
+  },
+  "inbox.screens.submit_your_scorecard": {
+    "text": "Submit your scorecard: {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"title\" value. Filled in: {{title}}."
+  },
+  "inbox.screens.the_role": {
+    "text": "the role",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"title\" value."
+  },
+  "inbox.screens.times_offered_for_one": {
+    "text": "{{count}} time offered for {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"summary\" value. Filled in: {{count}}, {{title}}. Plural: the words for a {{count}} of one."
+  },
+  "inbox.screens.times_offered_for_other": {
+    "text": "{{count}} times offered for {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"summary\" value. Filled in: {{count}}, {{title}}. Plural: the words for any other {{count}}."
   }
 }

@@ -76,6 +76,13 @@ authorization:
 # is judged by that list: People keeps a copy from
 # `identity.tenant.entitlements_changed` and prefers it to anything forwarded.
 headers:
+  # The reader's language, which the shell sends on every request: each module
+  # writes its own words (an Inbox task, a refusal) in it. Passed on as sent; a
+  # module accepts only a language tag (`@kithena/auth-kit`'s `inReaderLanguage`).
+  all:
+    request:
+      - op: 'propagate'
+        named: 'x-kithena-language'
   subgraphs:
     people:
       request:

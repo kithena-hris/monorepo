@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Escrius l’avaluació del responsable de {{who}}",
   "email.reviews.about": "{{title}} sobre {{name}}: «{{reason}}»",
   "email.reviews.asks_to_unlock_a_review": "{{name}} demana desbloquejar una avaluació",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Els avaluadors parells de {{name}} t’esperen"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Els avaluadors parells de {{name}} t’esperen",
+  "inbox.home.approve_s_peers": "Aprovar els companys de {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} ha demanat feedback",
+  "inbox.home.draft_saved": " · esborrany desat",
+  "inbox.home.handed_to_you_from": " · te l’ha passat {{from}}",
+  "inbox.home.nothing_to_submit": "; res a enviar",
+  "inbox.home.nothing_to_submit_draft_stays": "; res a enviar, el teu esborrany es pot continuar llegint",
+  "inbox.home.performance": "Rendiment",
+  "inbox.home.pick_peers_for": "Triar companys per a {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Triar els teus revisors",
+  "inbox.home.they_no_longer_report_to_you": "Ja no depèn de tu",
+  "inbox.home.they_report_to_now": "Ara depèn de {{to}}",
+  "inbox.home.unlock_request_from": "Sol·licitud de desbloqueig de {{authorId}}",
+  "inbox.home.write_your_self_review": "Escriure la teva autoavaluació",
+  "inbox.home.you_no_longer_write_s_manager": "Ja no escrius l’avaluació de responsable de {{subjectId}}",
+  "inbox.home.your_review_was_released": "La teva avaluació s’ha publicat"
 }

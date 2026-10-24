@@ -11,7 +11,7 @@ import {
   type Prompt,
 } from '@kithena/telemetry';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { presentsInternalToken } from '@kithena/auth-kit';
+import { inReaderLanguage, presentsInternalToken } from '@kithena/auth-kit';
 import { sql } from 'drizzle-orm';
 
 import { recomputePerson } from '../application/completeness/recompute.js';
@@ -1240,13 +1240,16 @@ export function wirePeople(server: Server): void {
    */
   const apiToken = process.env['PEOPLE_API_TOKEN'] ?? process.env['INTERNAL_API_TOKEN'] ?? '';
   server.on('request', (request: IncomingMessage, response: ServerResponse) => {
-    if (viewingRequest({ headers: request.headers }, apiToken)) {
-      readOnly(() => {
-        handle(request, response);
-      });
-      return;
-    }
-    handle(request, response);
+    // In the reader's language: the words People writes for them (its Inbox, a refusal).
+    inReaderLanguage(request.headers, () => {
+      if (viewingRequest({ headers: request.headers }, apiToken)) {
+        readOnly(() => {
+          handle(request, response);
+        });
+        return;
+      }
+      handle(request, response);
+    });
   });
 
   function handle(request: IncomingMessage, response: ServerResponse): void {

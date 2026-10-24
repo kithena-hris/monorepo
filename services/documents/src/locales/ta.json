@@ -1,0 +1,10 @@
+{
+  "inbox.inbox.a_document": "ஒரு ஆவணம்",
+  "inbox.inbox.add_your": "உங்கள் {{name}} ஐச் சேர்க்கவும்",
+  "inbox.inbox.asked_to_open": "{{displayName}} {{value}} ஐத் திறக்கக் கேட்டார்",
+  "inbox.inbox.document": "ஆவணம்",
+  "inbox.inbox.documents": "ஆவணங்கள்",
+  "inbox.inbox.read_and_acknowledge": "{{value}} ஐப் படித்து உறுதிப்படுத்தவும்",
+  "inbox.inbox.sign": "{{value}} இல் கையொப்பமிடவும்",
+  "inbox.inbox.someone": "யாரோ"
+}

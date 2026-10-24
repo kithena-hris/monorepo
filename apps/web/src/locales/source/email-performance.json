@@ -102,5 +102,65 @@
   "email.reviews.s_peer_reviewers_are_waiting_for": {
     "text": "{{name}}’s peer reviewers are waiting for you",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/reviews.ts: a \"subject\" value. Filled in: {{name}}."
+  },
+  "inbox.home.approve_s_peers": {
+    "text": "Approve {{subjectId}}’s peers",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value. Filled in: {{subjectId}}."
+  },
+  "inbox.home.asked_for_feedback": {
+    "text": "{{from}} asked for feedback",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value. Filled in: {{from}}."
+  },
+  "inbox.home.draft_saved": {
+    "text": " · draft saved",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value."
+  },
+  "inbox.home.handed_to_you_from": {
+    "text": " · handed to you from {{from}}",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value. Filled in: {{from}}."
+  },
+  "inbox.home.nothing_to_submit": {
+    "text": "; nothing to submit",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value."
+  },
+  "inbox.home.nothing_to_submit_draft_stays": {
+    "text": "; nothing to submit, your draft stays to read",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value."
+  },
+  "inbox.home.performance": {
+    "text": "Performance",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"area\" value."
+  },
+  "inbox.home.pick_peers_for": {
+    "text": "Pick peers for {{subjectId}}",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value. Filled in: {{subjectId}}."
+  },
+  "inbox.home.pick_your_peer_reviewers": {
+    "text": "Pick your peer reviewers",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value."
+  },
+  "inbox.home.they_no_longer_report_to_you": {
+    "text": "They no longer report to you",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value."
+  },
+  "inbox.home.they_report_to_now": {
+    "text": "They report to {{to}} now",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"summary\" value. Filled in: {{to}}."
+  },
+  "inbox.home.unlock_request_from": {
+    "text": "Unlock request from {{authorId}}",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value. Filled in: {{authorId}}."
+  },
+  "inbox.home.write_your_self_review": {
+    "text": "Write your self review",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value."
+  },
+  "inbox.home.you_no_longer_write_s_manager": {
+    "text": "You no longer write {{subjectId}}’s manager review",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value. Filled in: {{subjectId}}."
+  },
+  "inbox.home.your_review_was_released": {
+    "text": "Your review was released",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/home.ts: a \"title\" value."
   }
 }

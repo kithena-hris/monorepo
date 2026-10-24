@@ -8,6 +8,7 @@ import { after } from 'next/server';
 import { cache } from 'react';
 
 import { CLIENT_NAME, OPERATIONS, type OperationName } from './people-operations';
+import { requestLanguage } from './server-words';
 import {
   OPERATIONS as TIMEOFF_OPERATIONS,
   type OperationName as TimeOffOperationName,
@@ -544,6 +545,8 @@ async function call(
           authorization: `Bearer ${token}`,
           'graphql-client-name': CLIENT_NAME,
           'content-type': 'application/json',
+          // The reader's language, for the words a module writes: an Inbox task, a refusal.
+          'x-kithena-language': await requestLanguage(),
         },
         body: JSON.stringify(operation),
         cache: 'no-store',

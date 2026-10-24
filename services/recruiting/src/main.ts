@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { inReaderLanguage } from '@kithena/auth-kit';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import manifest from '../module.manifest.js';
@@ -51,7 +52,12 @@ if (storage !== null) {
   every(24 * 60 * 60_000, 'recruiting daily', () => daily(storage.deps));
 }
 
-const server = createServer(listener);
+// Each request in its reader's language: the words the module writes for them.
+const server = createServer((request, response) => {
+  inReaderLanguage(request.headers, () => {
+    listener(request, response);
+  });
+});
 onShutdown('http server', () => drain(server));
 // 4005 by convention (modules on 40xx); `RECRUITING_PORT` for a second copy.
 const port = Number(process.env['RECRUITING_PORT'] ?? 4005);

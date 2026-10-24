@@ -1,0 +1,10 @@
+{
+  "inbox.inbox.a_document": "एक दस्तावेज़",
+  "inbox.inbox.add_your": "अपना {{name}} जोड़ें",
+  "inbox.inbox.asked_to_open": "{{displayName}} ने {{value}} खोलने को कहा",
+  "inbox.inbox.document": "दस्तावेज़",
+  "inbox.inbox.documents": "दस्तावेज़",
+  "inbox.inbox.read_and_acknowledge": "{{value}} पढ़ें और पुष्टि करें",
+  "inbox.inbox.sign": "{{value}} पर हस्ताक्षर करें",
+  "inbox.inbox.someone": "कोई"
+}

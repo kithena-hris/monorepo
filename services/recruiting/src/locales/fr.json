@@ -148,5 +148,15 @@
   "email.requests.they_added": "\n\nPrécision ajoutée : {{text}}",
   "email.requests.times_offered": "Créneaux proposés · {{zone}}",
   "email.sourced.subject": "{{company}} vous a ajouté(e) comme candidat potentiel",
-  "email.sourced.text": "Bonjour {{name}},\n\n{{company}} a trouvé votre profil public et envisage votre candidature pour le poste de {{job}}. Nous conservons votre nom, vos coordonnées et le profil trouvé afin de vous contacter pour ce poste. Vous pouvez voir ce que nous conservons, ou demander sa suppression, ici :\n{{link}}"
+  "email.sourced.text": "Bonjour {{name}},\n\n{{company}} a trouvé votre profil public et envisage votre candidature pour le poste de {{job}}. Nous conservons votre nom, vos coordonnées et le profil trouvé afin de vous contacter pour ce poste. Vous pouvez voir ce que nous conservons, ou demander sa suppression, ici :\n{{link}}",
+  "inbox.screens.a_candidate": "un candidat",
+  "inbox.screens.approve_an_offer": "Approuver une offre",
+  "inbox.screens.approve_the_requisition": "Approuver la demande de poste : {{title}}",
+  "inbox.screens.choose_a_time": "Choisir un créneau : {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Recrutement",
+  "inbox.screens.submit_your_scorecard": "Remettre votre grille : {{title}}",
+  "inbox.screens.the_role": "le poste",
+  "inbox.screens.times_offered_for_many": "Proposé {{count}} fois pour {{title}}",
+  "inbox.screens.times_offered_for_one": "Proposé {{count}} fois pour {{title}}",
+  "inbox.screens.times_offered_for_other": "Proposé {{count}} fois pour {{title}}"
 }

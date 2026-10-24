@@ -150,5 +150,14 @@
   "email.requests.they_added": "\n\nउन्होंने जोड़ा: {{text}}",
   "email.requests.times_offered": "दिए गए समय · {{zone}}",
   "email.sourced.subject": "{{company}} ने आपको संभावित उम्मीदवार के रूप में जोड़ा है",
-  "email.sourced.text": "नमस्ते {{name}},\n\n{{company}} को आपकी सार्वजनिक प्रोफ़ाइल मिली और वह {{job}} के लिए आप पर विचार कर रहा है। इस भूमिका के बारे में आपसे संपर्क करने के लिए हमारे पास आपका नाम, संपर्क जानकारी और मिली हुई प्रोफ़ाइल है। आप देख सकते हैं कि हमारे पास क्या है, या उसे हटाने को कह सकते हैं, यहाँ:\n{{link}}"
+  "email.sourced.text": "नमस्ते {{name}},\n\n{{company}} को आपकी सार्वजनिक प्रोफ़ाइल मिली और वह {{job}} के लिए आप पर विचार कर रहा है। इस भूमिका के बारे में आपसे संपर्क करने के लिए हमारे पास आपका नाम, संपर्क जानकारी और मिली हुई प्रोफ़ाइल है। आप देख सकते हैं कि हमारे पास क्या है, या उसे हटाने को कह सकते हैं, यहाँ:\n{{link}}",
+  "inbox.screens.a_candidate": "एक उम्मीदवार",
+  "inbox.screens.approve_an_offer": "ऑफ़र मंज़ूर करें",
+  "inbox.screens.approve_the_requisition": "पद अनुरोध मंज़ूर करें: {{title}}",
+  "inbox.screens.choose_a_time": "समय चुनें: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "भर्ती",
+  "inbox.screens.submit_your_scorecard": "अपना स्कोरकार्ड जमा करें: {{title}}",
+  "inbox.screens.the_role": "पद",
+  "inbox.screens.times_offered_for_one": "{{title}} के लिए {{count}} बार प्रस्तावित",
+  "inbox.screens.times_offered_for_other": "{{title}} के लिए {{count}} बार प्रस्तावित"
 }
