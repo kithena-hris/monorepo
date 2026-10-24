@@ -120,7 +120,14 @@ function vertical(b: Block, plan: Plan): { lead: string; title: string; detail: 
   switch (b.kind) {
     case 'mandatory':
       return {
-        lead: `From the birth · ${plan.birth === null ? `due ${shortDate(plan.childDate)}` : `born ${shortDate(plan.childDate)}`}`,
+        lead:
+          plan.birth === null
+            ? t('timeoff.parental.from_the_birth_due', 'From the birth · due {{date}}', {
+                date: shortDate(plan.childDate),
+              })
+            : t('timeoff.parental.from_the_birth_born', 'From the birth · born {{date}}', {
+                date: shortDate(plan.childDate),
+              }),
         title: t('timeoff.parental.mandatory', '{{duration}}, mandatory', {
           duration: duration(b.from, b.to),
         }),
@@ -147,7 +154,7 @@ function vertical(b: Block, plan: Plan): { lead: string; title: string; detail: 
         title: t('timeoff.parental.of_vacation', '{{duration}} of vacation', {
           duration: duration(b.from, b.to),
         }),
-        detail: 'Normal pay',
+        detail: t('timeoff.parental.normal_pay', 'Normal pay'),
       };
     case 'company':
       return {
@@ -155,7 +162,7 @@ function vertical(b: Block, plan: Plan): { lead: string; title: string; detail: 
         title: t('timeoff.parental.from_your_company', '{{duration}} from your company', {
           duration: duration(b.from, b.to),
         }),
-        detail: 'Normal pay',
+        detail: t('timeoff.parental.normal_pay', 'Normal pay'),
       };
     default:
       return {

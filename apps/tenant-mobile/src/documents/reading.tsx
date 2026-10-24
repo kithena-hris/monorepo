@@ -154,7 +154,10 @@ export function Reading({ documentId }: { readonly documentId: string }): React.
         onSubmit={ask}
         streaming={busy}
         placeholder={t('documents.reading.ask_about_this_document', 'Ask about this document…')}
-        disclaimer="Answers can be wrong; check the page."
+        disclaimer={t(
+          'documents.reading.answers_can_be_wrong_check_the',
+          'Answers can be wrong; check the page.',
+        )}
       />
     </Card>
   );

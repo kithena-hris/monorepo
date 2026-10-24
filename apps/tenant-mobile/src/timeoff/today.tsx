@@ -676,14 +676,14 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
   // What was already showing stays; only an empty screen says it failed.
   if (failed !== null && data === null) {
     return (
-      <Page large="Time off" trailing={request}>
+      <Page large={tr('timeoff.today.time_off', 'Time off')} trailing={request}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   }
   if (data === null) {
     return (
-      <Page large="Time off" trailing={request}>
+      <Page large={tr('timeoff.today.time_off', 'Time off')} trailing={request}>
         <Loading label={tr('timeoff.today.loading_your_time_off', 'Loading your time off')} />
       </Page>
     );
@@ -770,7 +770,7 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
 
   return (
     <Page
-      large="Time off"
+      large={tr('timeoff.today.time_off', 'Time off')}
       trailing={request}
       {...(answer !== null && answer.preview !== null
         ? {
@@ -1074,7 +1074,10 @@ export function TimeOffHome({ navigation }: PeopleScreen<'TimeOff'>): React.JSX.
                   : [
                       go({
                         label: tr('timeoff.today.balance_adjustments', 'Balance adjustments'),
-                        line: 'Add or take away days, saying why; HR approves',
+                        line: tr(
+                          'timeoff.today.add_or_take_away_days_saying',
+                          'Add or take away days, saying why; HR approves',
+                        ),
                         icon: Scale,
                         open: () => {
                           navigation.navigate('TimeOffAdjustments');

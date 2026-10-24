@@ -905,7 +905,17 @@ function Writing({
       />
       {former === null ? null : (
         <>
-          <Alert tone="warning">{`You are no longer ${data.review.subject.name}’s manager, so this review cannot be submitted; ${former.to ?? 'their new manager'} writes theirs. It stays here for you to read until you delete it.`}</Alert>
+          <Alert tone="warning">
+            {tr(
+              'performance.screens.you_are_no_longer_manager',
+              'You are no longer {{name}}’s manager, so this review cannot be submitted; {{newManager}} writes theirs. It stays here for you to read until you delete it.',
+              {
+                name: data.review.subject.name,
+                newManager:
+                  former.to ?? tr('performance.screens.their_new_manager', 'their new manager'),
+              },
+            )}
+          </Alert>
           {data.may.write ? (
             <Button
               size="sm"
@@ -2357,7 +2367,7 @@ export function PerformanceGoal({
           {data.checkIns.slice(0, 6).map((c) => (
             <Text
               key={c.at}
-            >{`${day(c.at)} · ${c.by} · ${(CONFIDENCE()[c.confidence] ?? ['On track'])[0]}${c.note === null ? '' : `: ${c.note}`}`}</Text>
+            >{`${day(c.at)} · ${c.by} · ${(CONFIDENCE()[c.confidence] ?? [tr('performance.screens.on_track', 'On track')])[0]}${c.note === null ? '' : `: ${c.note}`}`}</Text>
           ))}
         </>
       )}

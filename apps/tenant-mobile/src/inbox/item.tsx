@@ -1233,7 +1233,10 @@ function Document({ item, zone, writes, signed }: BodyArgs): React.JSX.Element {
                   value: `${when(signature.at, zone)}${signature.place === null ? '' : ` · ${signature.place}`} · ${signature.name}`,
                 },
               ]),
-          { label: t('inbox.item.kept_in', 'Kept in'), value: 'Your profile › Documents' },
+          {
+            label: t('inbox.item.kept_in', 'Kept in'),
+            value: t('inbox.item.your_profile_documents', 'Your profile › Documents'),
+          },
         ]}
       />
       {action === 'sign' || action === 'acknowledge' || counter ? (
@@ -1493,7 +1496,7 @@ function integration({ item, zone, writes, signed, navigation }: BodyArgs): Body
             },
             {
               label: t('inbox.item.who_sees_this', 'Who sees this'),
-              value: team?.role ?? 'All admins',
+              value: team?.role ?? t('inbox.item.all_admins', 'All admins'),
             },
           ]}
         />

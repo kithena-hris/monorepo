@@ -333,7 +333,10 @@ export function TimeOffAddLeaveType({
             />
             <FieldDescription>
               {defined !== null
-                ? 'Already added; rename it from the leave type.'
+                ? t(
+                    'timeoff.add-leave-type.already_added_rename_it_from_the',
+                    'Already added; rename it from the leave type.',
+                  )
                 : name.trim() === ''
                   ? t(
                       'timeoff.add-leave-type.what_people_see_when_they_ask',

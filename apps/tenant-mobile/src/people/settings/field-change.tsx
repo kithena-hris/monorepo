@@ -463,7 +463,10 @@ function FieldValues({
                       }}
                       problem={
                         shown && isEmpty(typed[u.personId] ?? null)
-                          ? 'Type the new value, or choose something else.'
+                          ? tr(
+                              'people.settings.field-change.type_the_new_value_or_choose',
+                              'Type the new value, or choose something else.',
+                            )
                           : undefined
                       }
                     />

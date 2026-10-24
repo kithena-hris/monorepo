@@ -142,7 +142,7 @@ export function Failed({
       tone="danger"
       title={t('frame.that_could_not_be_loaded', 'That could not be loaded')}
       description={message}
-      action={<Button onPress={onRetry}>Try again</Button>}
+      action={<Button onPress={onRetry}>{t('frame.try_again', 'Try again')}</Button>}
     />
   );
 }

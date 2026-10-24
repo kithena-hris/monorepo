@@ -603,7 +603,10 @@ export function FieldEditor({
                     <Textarea
                       value={description}
                       maxLength={500}
-                      placeholder="T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it."
+                      placeholder={tr(
+                        'people.settings.field-editor.t_shirt_size_for_the_offsite',
+                        'T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it.',
+                      )}
                       accessibilityLabel={tr(
                         'people.settings.field-editor.describe_the_field',
                         'Describe the field',
@@ -989,7 +992,7 @@ export function FieldEditor({
                 </SegmentedControl>
                 {draft.requiredness === 'conditional' ? (
                   <PredicateEditor
-                    legend="Required when"
+                    legend={tr('people.settings.field-editor.required_when', 'Required when')}
                     value={draft.requiredWhen}
                     registry={registry}
                     fields={others}

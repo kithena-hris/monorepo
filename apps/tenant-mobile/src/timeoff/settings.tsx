@@ -362,9 +362,9 @@ function LeaveTypes({
               description={[
                 t.definition.tracked
                   ? t.definition.unit === 'hour'
-                    ? 'Hours, from a balance'
-                    : 'Days, from a balance'
-                  : 'Not from a balance',
+                    ? tr('timeoff.settings.hours_from_a_balance', 'Hours, from a balance')
+                    : tr('timeoff.settings.days_from_a_balance', 'Days, from a balance')
+                  : tr('timeoff.settings.not_from_a_balance', 'Not from a balance'),
                 t.definition.paid === 'unpaid' ? 'unpaid' : 'paid',
                 t.definition.statutory ? 'by law' : null,
                 t.hidden ? 'hidden' : null,
@@ -740,15 +740,32 @@ function PolicyCard({
           value={
             def.earning === 'monthly'
               ? `${amount((Number(first?.days ?? '0') / 12).toFixed(3))} days on the 1st of each month`
-              : 'All of it at the start of the year'
+              : tr('timeoff.settings.all_of_it_at_the_start', 'All of it at the start of the year')
           }
         />
         <Rule
           label={tr('timeoff.settings.carry_over', 'Carry over')}
           value={
             def.carryOver === null
-              ? 'Nothing carried over'
-              : `Up to ${amount(def.carryOver.maxDays)} days${def.carryOver.useBy === null ? '' : `, used by ${String(def.carryOver.useBy.day)} ${months[def.carryOver.useBy.month - 1] ?? ''}`}`
+              ? tr('timeoff.settings.nothing_carried_over', 'Nothing carried over')
+              : def.carryOver.useBy === null
+                ? tr(
+                    'timeoff.settings.up_to_days',
+                    { one: 'Up to {{count}} day', other: 'Up to {{count}} days' },
+                    { count: Number(amount(def.carryOver.maxDays)) },
+                  )
+                : tr(
+                    'timeoff.settings.up_to_days_used_by',
+                    {
+                      one: 'Up to {{count}} day, used by {{day}} {{month}}',
+                      other: 'Up to {{count}} days, used by {{day}} {{month}}',
+                    },
+                    {
+                      count: Number(amount(def.carryOver.maxDays)),
+                      day: def.carryOver.useBy.day,
+                      month: months[def.carryOver.useBy.month - 1] ?? '',
+                    },
+                  )
           }
           onPress={() => {
             setOpen('carry');
@@ -758,8 +775,12 @@ function PolicyCard({
           label={tr('timeoff.settings.waiting_period', 'Waiting period')}
           value={
             def.probationMonths === 0
-              ? 'From day one'
-              : `After ${String(def.probationMonths)} months`
+              ? tr('timeoff.settings.from_day_one', 'From day one')
+              : tr(
+                  'timeoff.settings.after_months',
+                  { one: 'After {{count}} month', other: 'After {{count}} months' },
+                  { count: def.probationMonths },
+                )
           }
           onPress={() => {
             setOpen('probation');
@@ -1107,8 +1128,18 @@ function Negative(): React.JSX.Element {
             label={p.leaveTypeName}
             value={
               p.rule === null
-                ? 'Not allowed'
-                : `Up to ${amount(p.rule.limit)} days · ${NEG_APPROVERS()[p.rule.approvers] ?? p.rule.approvers}`
+                ? tr('timeoff.settings.not_allowed', 'Not allowed')
+                : tr(
+                    'timeoff.settings.up_to_days_approvers',
+                    {
+                      one: 'Up to {{count}} day · {{approvers}}',
+                      other: 'Up to {{count}} days · {{approvers}}',
+                    },
+                    {
+                      count: Number(amount(p.rule.limit)),
+                      approvers: NEG_APPROVERS()[p.rule.approvers] ?? p.rule.approvers,
+                    },
+                  )
             }
             onPress={() => {
               setEditing(p.policyId);
@@ -1371,7 +1402,7 @@ function Approvals(): React.JSX.Element {
             label={`${r.leaveTypes === null ? subject(r.subject) : r.leaveTypes.join(', ')}${r.when === 'always' ? '' : r.when === 'below_zero' ? ' · below zero' : ' · unpaid'}`}
             value={
               r.approvers.length === 0
-                ? 'Nobody. The manager is told'
+                ? tr('timeoff.settings.nobody_the_manager_is_told', 'Nobody. The manager is told')
                 : r.approvers.map((x) => APPROVER()[x] ?? x).join(', then ')
             }
           />
@@ -1806,7 +1837,7 @@ function Attendance(): React.JSX.Element {
           label={tr('timeoff.settings.offices', 'Offices')}
           value={
             r.offices.length === 0
-              ? 'None yet'
+              ? tr('timeoff.settings.none_yet', 'None yet')
               : r.offices.map((o) => `${o.name} · ${String(o.radiusMetres)} m`).join(', ')
           }
           onPress={() => {
@@ -1845,7 +1876,11 @@ function Attendance(): React.JSX.Element {
         />
         <Rule
           label={tr('timeoff.settings.overtime', 'Overtime')}
-          value={`Manager approves · ${BECOMES[r.overtime.becomes]} at ×${r.overtime.multiplier}`}
+          value={tr(
+            'timeoff.settings.manager_approves_at',
+            'Manager approves · {{becomes}} at ×{{multiplier}}',
+            { becomes: BECOMES[r.overtime.becomes], multiplier: r.overtime.multiplier },
+          )}
           onPress={() => {
             setOpen('overtime');
           }}
@@ -2589,7 +2624,7 @@ function Integrations(): React.JSX.Element {
                 k.revokedAt !== null
                   ? 'Revoked'
                   : k.lastSeenAt === null
-                    ? 'Never seen'
+                    ? tr('timeoff.settings.never_seen', 'Never seen')
                     : `Seen ${shortDate(k.lastSeenAt.slice(0, 10))}`,
               ].join(' · ')}
               {...(k.revokedAt === null

@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { useEffect, useState } from 'react';
 
 import { ask, useSigned, type Signed } from './api';
+import { t } from '../i18n';
 
 /**
  * Photos and files, as the web's shell handles them (`people-screen.tsx`):
@@ -133,7 +134,13 @@ export async function changePhoto(
   const target = await ask<Target>(signed, 'StartPhotoUpload', { personId, size: body.size });
   if (!target.ok) return { ok: false, message: target.message };
   if (!(await put(target.data, body))) {
-    return { ok: false, message: 'The upload did not go through; try again.' };
+    return {
+      ok: false,
+      message: t(
+        'people.media.the_upload_did_not_go_through',
+        'The upload did not go through; try again.',
+      ),
+    };
   }
   const done = await ask<{ avatarUrl: string | null }>(signed, 'CompletePhotoUpload', {
     personId,
@@ -201,7 +208,13 @@ export async function uploadFile(
   });
   if (!target.ok) return { ok: false, message: target.message };
   if (!(await put(target.data, body))) {
-    return { ok: false, message: 'The upload did not go through; try again.' };
+    return {
+      ok: false,
+      message: t(
+        'people.media.the_upload_did_not_go_through',
+        'The upload did not go through; try again.',
+      ),
+    };
   }
   const done = await ask<FileInfo>(signed, 'CompleteFileUpload', {
     personId,

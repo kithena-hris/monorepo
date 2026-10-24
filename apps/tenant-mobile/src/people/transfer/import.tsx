@@ -111,7 +111,12 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
       return;
     }
     if (!(await put(target.data, body))) {
-      fail('The upload did not go through; try again.');
+      fail(
+        t(
+          'people.transfer.import.the_upload_did_not_go_through',
+          'The upload did not go through; try again.',
+        ),
+      );
       return;
     }
     const done = await ask<MapStage>(signed, 'CompleteImportUpload', {
@@ -357,10 +362,10 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
             <Button
               variant="primary"
               loading={busy}
-              loadingLabel="Uploading"
+              loadingLabel={t('people.transfer.import.uploading', 'Uploading')}
               onPress={() => void pick()}
             >
-              Choose a file
+              {t('people.transfer.import.choose_a_file', 'Choose a file')}
             </Button>
           }
         />

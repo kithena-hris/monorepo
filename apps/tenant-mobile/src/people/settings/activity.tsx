@@ -93,7 +93,7 @@ const NONE: Filters = {
   to: null,
   search: null,
 };
-const SOMEONE = 'Someone at your company';
+const SOMEONE = t('people.settings.activity.someone_at_your_company', 'Someone at your company');
 
 const when = (iso: string): string =>
   dateFormat({
@@ -552,7 +552,10 @@ function EntryDialog({
                     'Signed in from the Kithena back office',
                   )
                 : e.supportSignIn === null
-                  ? 'By Kithena support; the sign-in it came from is not in the log'
+                  ? t(
+                      'people.settings.activity.by_kithena_support_the_sign_in',
+                      'By Kithena support; the sign-in it came from is not in the log',
+                    )
                   : t(
                       'people.settings.activity.during_kithena_supports_sign_in_at',
                       'During Kithena support’s sign-in at {{when}}{{value}}',

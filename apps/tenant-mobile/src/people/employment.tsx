@@ -462,7 +462,13 @@ export function MoveDialog({
             onChange={setDay}
             size="sm"
           />
-          <FieldDescription>{`A day on their calendar; today there is ${longDate(today)}.`}</FieldDescription>
+          <FieldDescription>
+            {t(
+              'people.employment.a_day_on_their_calendar_today',
+              'A day on their calendar; today there is {{date}}.',
+              { date: longDate(today) },
+            )}
+          </FieldDescription>
         </Field>
       ) : null}
       {kind === 'giveNotice' || kind === 'terminate' ? (
@@ -728,8 +734,14 @@ export function EmploymentPeriods({
               p.lastWorkingDay === null
                 ? 'Current'
                 : `Until ${longDate(p.lastWorkingDay)} · ${why(p.leavingReason)}`,
-              p.eligibleForRehire === false ? 'Not eligible for rehire' : null,
-              p.rehireOverrideReason === null ? null : `Rehired anyway: ${p.rehireOverrideReason}`,
+              p.eligibleForRehire === false
+                ? t('people.employment.not_eligible_for_rehire', 'Not eligible for rehire')
+                : null,
+              p.rehireOverrideReason === null
+                ? null
+                : t('people.employment.rehired_anyway', 'Rehired anyway: {{reason}}', {
+                    reason: p.rehireOverrideReason,
+                  }),
             ]
               .filter((x) => x !== null)
               .join(' · ')}

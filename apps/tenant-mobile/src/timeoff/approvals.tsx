@@ -32,7 +32,7 @@ import {
   Textarea,
   TimelineChart,
 } from '@reach/ui-native';
-import { dateFormat } from '@reach/ui-native/words';
+import { dateFormat, formatList } from '@reach/ui-native/words';
 import {
   Check,
   CheckCheck,
@@ -85,15 +85,25 @@ interface Approvals {
 function closer(r: Reason): string {
   switch (r.rule) {
     case 'below_zero':
-      return `Goes ${amount(r.amount ?? '0')} days below zero`;
+      return t(
+        'timeoff.approvals.goes_days_below_zero',
+        { one: 'Goes {{count}} day below zero', other: 'Goes {{count}} days below zero' },
+        { count: Number(amount(r.amount ?? '0')) },
+      );
     case 'over_banked':
-      return `${amount(r.amount ?? '0')} hours more than banked`;
+      return t(
+        'timeoff.approvals.hours_more_than_banked',
+        { one: '{{count}} hour more than banked', other: '{{count}} hours more than banked' },
+        { count: Number(amount(r.amount ?? '0')) },
+      );
     case 'below_minimum':
       return r.days.length === 0
-        ? 'Team below its minimum'
-        : `Team below its minimum on ${r.days.map(shortDate).join(', ')}`;
+        ? t('timeoff.approvals.team_below_its_minimum', 'Team below its minimum')
+        : t('timeoff.approvals.team_below_its_minimum_on', 'Team below its minimum on {{days}}', {
+            days: formatList(r.days.map(shortDate)),
+          });
     case 'protected_period':
-      return 'In a protected period';
+      return t('timeoff.approvals.in_a_protected_period', 'In a protected period');
     case 'sick_over_threshold':
       return `${amount(r.amount ?? '0')} sick days, past the threshold`;
     default:
@@ -963,7 +973,10 @@ export function ClashDialog({
                 impact={
                   a.swapped === null
                     ? `${days(String(a.spans.reduce((n, s) => n + (Date.parse(s.to) - Date.parse(s.from)) / 86_400_000 + 1, 0)))} instead`
-                    : 'Keeps the team at its minimum'
+                    : t(
+                        'timeoff.approvals.keeps_the_team_at_its_minimum',
+                        'Keeps the team at its minimum',
+                      )
                 }
               >
                 {words(a)}

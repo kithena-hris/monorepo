@@ -183,7 +183,10 @@ export function SendDocumentDialog({
       setBusy(false);
       toast({
         title: tr('inbox.profile-asks.not_sent', 'Not sent'),
-        description: 'The upload did not go through; try again.',
+        description: tr(
+          'inbox.profile-asks.the_upload_did_not_go_through',
+          'The upload did not go through; try again.',
+        ),
         tone: 'danger',
       });
       return;
@@ -265,7 +268,13 @@ export function SendDocumentDialog({
             >
               {tr('inbox.profile-asks.read_and_acknowledge', 'Read and acknowledge')}
             </RadioGroupItem>
-            <RadioGroupItem value="sign" description="They sign; then you countersign. A task.">
+            <RadioGroupItem
+              value="sign"
+              description={tr(
+                'inbox.profile-asks.they_sign_then_you_countersign_a',
+                'They sign; then you countersign. A task.',
+              )}
+            >
               {tr('inbox.profile-asks.sign_it', 'Sign it')}
             </RadioGroupItem>
           </RadioGroup>

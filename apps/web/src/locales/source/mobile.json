@@ -183,6 +183,10 @@
     "text": "Shared",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/api.ts: a \"label\" value."
   },
+  "documents.api.the_file_did_not_go_through": {
+    "text": "The file did not go through; try again.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/api.ts: a \"message\" value."
+  },
   "documents.api.your_document": {
     "text": "Your document",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/api.ts: text built in code."
@@ -262,6 +266,10 @@
   "documents.document.grant": {
     "text": "Grant",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/document.tsx, DocumentDetail: the trailing of <Button>."
+  },
+  "documents.document.its_owner": {
+    "text": "Its owner",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/document.tsx, DocumentDetail: the owner of <Closed>."
   },
   "documents.document.ive_read_it": {
     "text": "I’ve read it",
@@ -627,6 +635,10 @@
     "text": "Send for signature",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/draft.tsx, DocumentDraft: text inside <Button>."
   },
+  "documents.draft.what_do_you_need_tell_me": {
+    "text": "What do you need? Tell me what the document is, whom it is for and who signs it, in which order.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/draft.tsx, OPENING: text built in code."
+  },
   "documents.envelope.acknowledgements": {
     "text": "Acknowledgements",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/envelope.tsx, DocumentCampaign: the title of <Page>."
@@ -906,6 +918,10 @@
   "documents.person-file.required_of": {
     "text": "Required · {{String}} of {{String2}}",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/person-file.tsx, DocumentsPersonFile: the title of <Heading>. Filled in: {{String}}, {{String2}}."
+  },
+  "documents.reading.answers_can_be_wrong_check_the": {
+    "text": "Answers can be wrong; check the page.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. documents/reading.tsx, Reading: the disclaimer of <AssistantComposer>."
   },
   "documents.reading.ask_about_this_document": {
     "text": "Ask about this document…",
@@ -1307,6 +1323,10 @@
     "text": "That could not be loaded",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. frame.tsx, Failed: the title of <EmptyState>."
   },
+  "frame.try_again": {
+    "text": "Try again",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. frame.tsx, Failed: the action of <Button>."
+  },
   "inbox.api.kithena_could_not_be_reached_try": {
     "text": "Kithena could not be reached. Try again.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/api.ts: a \"message\" value."
@@ -1534,6 +1554,10 @@
   "inbox.item.added": {
     "text": "{{join}} added",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/item.tsx, Details: a \"title\" value. Filled in: {{join}}."
+  },
+  "inbox.item.all_admins": {
+    "text": "All admins",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/item.tsx: the items of <KeyValues>."
   },
   "inbox.item.all_done": {
     "text": "All done",
@@ -2059,6 +2083,10 @@
     "text": "Your full name",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/item.tsx, SignDialog: text inside <FieldLabel>."
   },
+  "inbox.item.your_profile_documents": {
+    "text": "Your profile › Documents",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/item.tsx, Document: the items of <KeyValues>."
+  },
   "inbox.model.days_one": {
     "text": "{{value}} day",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/model.ts: text built in code. Filled in: {{count}}, {{value}}. Plural: the words for a {{count}} of one."
@@ -2383,8 +2411,16 @@
     "text": "That did not open",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/profile-asks.tsx, Documents: a \"title\" value."
   },
+  "inbox.profile-asks.the_upload_did_not_go_through": {
+    "text": "The upload did not go through; try again.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/profile-asks.tsx, SendDocumentDialog: a \"description\" value."
+  },
   "inbox.profile-asks.they_confirm_theyve_read_it_a": {
     "text": "They confirm they’ve read it. A task.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/profile-asks.tsx, SendDocumentDialog: the description of <RadioGroupItem>."
+  },
+  "inbox.profile-asks.they_sign_then_you_countersign_a": {
+    "text": "They sign; then you countersign. A task.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/profile-asks.tsx, SendDocumentDialog: the description of <RadioGroupItem>."
   },
   "inbox.profile-asks.to_sign": {
@@ -2590,6 +2626,10 @@
   "inbox.time.dec": {
     "text": "Dec",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/time.ts, MONTHS: text built in code."
+  },
+  "inbox.time.decide_by": {
+    "text": "Decide by",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/time.ts: a \"label\" value."
   },
   "inbox.time.decide_by_tomorrow": {
     "text": "Decide by tomorrow",
@@ -2857,6 +2897,14 @@
   },
   "people.ask.i_couldnt_find_dates_that_fit": {
     "text": "I couldn’t find dates that fit. Try saying when, or how many days.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/ask.tsx, AskKithena: a \"text\" value."
+  },
+  "people.ask.im_not_sure_i_can_help": {
+    "text": "I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/ask.tsx, NOTHING: text built in code."
+  },
+  "people.ask.only_past_your_balance": {
+    "text": "Only past your balance.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/ask.tsx, AskKithena: a \"text\" value."
   },
   "people.ask.request": {
@@ -3251,6 +3299,10 @@
     "text": "This section is not on the record any more.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/edit-section.tsx, useSectionEdit: text inside <Text>."
   },
+  "people.employment.a_day_on_their_calendar_today": {
+    "text": "A day on their calendar; today there is {{date}}.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, MoveDialog: text inside <FieldDescription>. Filled in: {{date}}."
+  },
   "people.employment.a_new_employment_period_on_the": {
     "text": "A new employment period on the same record, starting on this day.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, WHAT: a \"rehire\" value."
@@ -3367,6 +3419,10 @@
     "text": "Legal entity",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, PlacementPickers: text inside <FieldLabel>."
   },
+  "people.employment.not_eligible_for_rehire": {
+    "text": "Not eligible for rehire",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, EmploymentPeriods: the description of <ListItem>."
+  },
   "people.employment.note": {
     "text": "Note",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, MoveDialog: text inside <FieldLabel>."
@@ -3386,6 +3442,10 @@
   "people.employment.rehire": {
     "text": "Rehire",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, MOVE_LABEL: text built in code."
+  },
+  "people.employment.rehired_anyway": {
+    "text": "Rehired anyway: {{reason}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/employment.tsx, EmploymentPeriods: the description of <ListItem>. Filled in: {{reason}}."
   },
   "people.employment.resigned": {
     "text": "Resigned",
@@ -3783,6 +3843,10 @@
     "text": "Fewer than {{String}} people in at least one answer, so nothing is shown.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Charts: text inside <Alert>. Filled in: {{String}}."
   },
+  "people.insights.insights.from_the_snapshot_quartiles_only": {
+    "text": "From the snapshot of {{asOf}} · quartiles only; groups under {{minimum}} people are not shown",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Charts: text built in code. Filled in: {{asOf}}, {{minimum}}."
+  },
   "people.insights.insights.groups_under_people_are_hidden": {
     "text": " Groups under {{String}} people are hidden.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Insights: text inside <Text>. Filled in: {{String}}."
@@ -3810,6 +3874,10 @@
   "people.insights.insights.here_now": {
     "text": "Here now",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Charts: the series of <StackedBarChart>."
+  },
+  "people.insights.insights.hide": {
+    "text": "Hide",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Section: the action of <Button>."
   },
   "people.insights.insights.hired_not_started": {
     "text": "hired, not started",
@@ -3846,6 +3914,10 @@
   "people.insights.insights.insufficient_data_fewer_than_people": {
     "text": "Insufficient data, fewer than {{String}} people: {{join}}. ",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx: text inside <Text>. Filled in: {{String}}, {{join}}."
+  },
+  "people.insights.insights.internal_moves": {
+    "text": "Internal moves",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Charts: the numbers of <Section>."
   },
   "people.insights.insights.is_the_org_shaped_sensibly": {
     "text": "Is the org shaped sensibly",
@@ -3938,6 +4010,10 @@
   "people.insights.insights.nothing_to_show_on_this_tab": {
     "text": "Nothing to show on this tab",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Charts: the title of <EmptyState>."
+  },
+  "people.insights.insights.numbers": {
+    "text": "Numbers",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/insights.tsx, Section: the action of <Button>."
   },
   "people.insights.insights.opening": {
     "text": "Opening",
@@ -4135,6 +4211,10 @@
     "text": "Each recipient gets only what they may see",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, ScheduleForm: text inside <DialogTitle>."
   },
+  "people.insights.reports.each_recipient_sees_only_the_people": {
+    "text": "Each recipient sees only the people and columns they have access to.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, EACH_SEES_THEIR_OWN: text built in code."
+  },
   "people.insights.reports.each_run_newest_first_a_run": {
     "text": "Each run, newest first. A run after the backend slept covers the periods it missed; only the latest is sent.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, ReportHistory: text inside <Text>."
@@ -4241,7 +4321,7 @@
   },
   "people.insights.reports.not_run_yet": {
     "text": "Not run yet",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, ReportHistory: the title of <EmptyState>."
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, ScheduledReports: the description of <ListItem>."
   },
   "people.insights.reports.on_whose_clock": {
     "text": "On whose clock",
@@ -4326,6 +4406,10 @@
   "people.insights.reports.skipped": {
     "text": "Skipped",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, RUN_OUTCOME: a \"label\" value."
+  },
+  "people.insights.reports.somebody_who_has_left": {
+    "text": "Somebody who has left",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/reports.tsx, ReportHistory: the description of <ListItem>."
   },
   "people.insights.reports.somebody_without_a_name_yet": {
     "text": "Somebody without a name yet",
@@ -4478,6 +4562,10 @@
   "people.insights.what-changed.you": {
     "text": "You",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/insights/what-changed.tsx, ShareDialog: text inside <SelectItem>."
+  },
+  "people.media.the_upload_did_not_go_through": {
+    "text": "The upload did not go through; try again.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/media.tsx: a \"message\" value."
   },
   "people.onboarding.all_done_you_can_change_any": {
     "text": "All done. You can change any of this later from your profile.",
@@ -5463,6 +5551,10 @@
     "text": "Note",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/review/id-check.tsx, Decide: text inside <FieldLabel>."
   },
+  "people.review.id-check.optional_kept_with_the_decision": {
+    "text": "Optional; kept with the decision.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/review/id-check.tsx, Decide: text inside <FieldDescription>."
+  },
   "people.review.id-check.reveal": {
     "text": "Reveal",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/review/id-check.tsx, ReviewId: text inside <Button>."
@@ -5975,6 +6067,10 @@
     "text": "By {{actorName}}",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/activity.tsx, Activity: text inside <Chip>. Filled in: {{actorName}}."
   },
+  "people.settings.activity.by_kithena_support_the_sign_in": {
+    "text": "By Kithena support; the sign-in it came from is not in the log",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/activity.tsx, EntryDialog: text inside <Text>."
+  },
   "people.settings.activity.close": {
     "text": "Close",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/activity.tsx, EntryDialog: text inside <Button>."
@@ -6102,6 +6198,10 @@
   "people.settings.activity.signed_in_from_the_kithena_back": {
     "text": "Signed in from the Kithena back office",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/activity.tsx, EntryDialog: text inside <Text>."
+  },
+  "people.settings.activity.someone_at_your_company": {
+    "text": "Someone at your company",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/activity.tsx, SOMEONE: text built in code."
   },
   "people.settings.activity.system": {
     "text": "System",
@@ -6234,6 +6334,10 @@
   "people.settings.field-change.to_2": {
     "text": "{{label}}: {{typeName}} to {{typeName2}}",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-change.tsx, FieldValues: text inside <Text>. Filled in: {{label}}, {{typeName}}, {{typeName2}}."
+  },
+  "people.settings.field-change.type_the_new_value_or_choose": {
+    "text": "Type the new value, or choose something else.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-change.tsx, FieldValues: the problem of <AttributeInput>."
   },
   "people.settings.field-change.type_the_right_value": {
     "text": "Type the right value",
@@ -6503,6 +6607,10 @@
     "text": "Remove this rule",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: text inside <Button>."
   },
+  "people.settings.field-editor.required_when": {
+    "text": "Required when",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: the legend of <PredicateEditor>."
+  },
   "people.settings.field-editor.rule_who_also_sees_it": {
     "text": "Rule {{String}}: who also sees it",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: the label of <Combobox>. Filled in: {{String}}."
@@ -6546,6 +6654,10 @@
   "people.settings.field-editor.suggested": {
     "text": "Suggested",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: the title of <Alert>."
+  },
+  "people.settings.field-editor.t_shirt_size_for_the_offsite": {
+    "text": "T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-editor.tsx, FieldEditor: the placeholder of <Textarea>."
   },
   "people.settings.field-editor.the_field": {
     "text": "The field",
@@ -6634,6 +6746,10 @@
   "people.settings.field-sentence.saved_as_a_draft": {
     "text": "Saved as a draft",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-sentence.tsx, AskedChange: the onPress of <Button>."
+  },
+  "people.settings.field-sentence.shown_masked_until_somebody_taps_show": {
+    "text": "Shown masked until somebody taps Show; every view is logged.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/field-sentence.tsx, AskedChange: the description of <ListItem>."
   },
   "people.settings.field-sentence.still_masked": {
     "text": "Still masked",
@@ -7515,6 +7631,10 @@
     "text": "Its token stops working, and it no longer adds or removes people here. To provision from it again, connect it as a new system.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/integrations.tsx, Connection: the body of <Confirm>."
   },
+  "people.settings.integrations.keep_it_connected": {
+    "text": "Keep it connected",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/integrations.tsx, ChatApps: the keep of <Confirm>."
+  },
   "people.settings.integrations.kithena_leaves_the_workspace_nobody_can": {
     "text": "Kithena leaves the workspace. Nobody can ask it questions there, and notices go by email only. Buttons on messages already sent stop working. You can connect it again at any time.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/integrations.tsx, ChatApps: the body of <Confirm>."
@@ -7586,6 +7706,10 @@
   "people.settings.integrations.only_these_details_are_sent_with": {
     "text": "Only these details are sent with each event. Choose the fewest the tool needs.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/integrations.tsx, AddEndpoint: the hint of <PickMany>."
+  },
+  "people.settings.integrations.only_time_it_is_shown": {
+    "text": "This is the only time it is shown for {{url}}. It cannot be retrieved later; if it is lost, rotate it.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/integrations.tsx, Webhooks: the body of <ShownOnce>. Filled in: {{url}}."
   },
   "people.settings.integrations.pending": {
     "text": "Pending",
@@ -7847,6 +7971,10 @@
     "text": "Automated erasure",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Reminders: text inside <CardTitle>."
   },
+  "people.settings.organisation.by_email_at_most_once_a": {
+    "text": "By email, at most once a week, until their profile is complete",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Reminders: the items of <KeyValues>."
+  },
   "people.settings.organisation.can_be_raised_never_lowered_in": {
     "text": "Can be raised, never lowered. In a smaller group, people can be picked out from an average.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Reminders: the hint of <NumberField>."
@@ -8067,6 +8195,10 @@
     "text": "No country packs",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Organisation: the title of <EmptyState>."
   },
+  "people.settings.organisation.no_entity_here": {
+    "text": "No entity here",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Organisation: the description of <ListItem>."
+  },
   "people.settings.organisation.no_legal_entities_to_number": {
     "text": "No legal entities to number",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Organisation: the title of <EmptyState>."
@@ -8218,6 +8350,10 @@
   "people.settings.organisation.statutory_retention": {
     "text": "Statutory retention",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Reminders: text inside <CardTitle>."
+  },
+  "people.settings.organisation.the_day_a_detail_goes_missing": {
+    "text": "The day a detail goes missing, then once a week",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/organisation.tsx, Reminders: the items of <KeyValues>."
   },
   "people.settings.organisation.the_day_of_anybody_with_no": {
     "text": "The day of anybody with no location or legal entity, and of every figure about the whole company.",
@@ -8987,6 +9123,10 @@
     "text": "Asked by",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/export.tsx, ExportRecord: the items of <KeyValues>."
   },
+  "people.transfer.export.being_made": {
+    "text": "Being made",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/export.tsx, ExportRecord: the items of <KeyValues>."
+  },
   "people.transfer.export.building_it": {
     "text": "Building it…",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/export.tsx, Export: text inside <Text>."
@@ -9379,6 +9519,10 @@
     "text": "The import did not start. Try again.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import-dialog.tsx, ImportDialog: text built in code."
   },
+  "people.transfer.import-dialog.the_upload_did_not_go_through": {
+    "text": "The upload did not go through; try again.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import-dialog.tsx, ImportDialog: text built in code."
+  },
   "people.transfer.import-dialog.this_cant_run_yet": {
     "text": "This can’t run yet",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import-dialog.tsx, ImportDialog: the title of <Alert>."
@@ -9591,6 +9735,10 @@
     "text": "The plan",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import.tsx, Import: text inside <Text>."
   },
+  "people.transfer.import.the_upload_did_not_go_through": {
+    "text": "The upload did not go through; try again.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import.tsx, Import: text built in code."
+  },
   "people.transfer.import.these_columns_arent_fields_yet": {
     "text": "These columns aren’t fields yet",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import.tsx, Import: text inside <Text>."
@@ -9618,6 +9766,10 @@
   "people.transfer.import.upload_and_map": {
     "text": "Upload and map",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import.tsx, Import: a \"label\" value."
+  },
+  "people.transfer.import.uploading": {
+    "text": "Uploading",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/transfer/import.tsx, Import: the loadingLabel of <Button>."
   },
   "people.transfer.import.work_locations_in_the_file": {
     "text": "Work locations in the file",
@@ -10431,6 +10583,10 @@
     "text": "The quiz is taken on the web.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. performance/screens.tsx, PerformanceItem: text inside <Text>."
   },
+  "performance.screens.their_new_manager": {
+    "text": "their new manager",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. performance/screens.tsx, Writing: text inside <Alert>."
+  },
   "performance.screens.this_form_has_no_questions": {
     "text": "This form has no questions.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. performance/screens.tsx, Writing: text inside <Text>."
@@ -10554,6 +10710,10 @@
   "performance.screens.you_are_marked_as_attending": {
     "text": "You are marked as attending.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. performance/screens.tsx, PerformanceLearning: the onPress of <Button>."
+  },
+  "performance.screens.you_are_no_longer_manager": {
+    "text": "You are no longer {{name}}’s manager, so this review cannot be submitted; {{newManager}} writes theirs. It stays here for you to read until you delete it.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. performance/screens.tsx, Writing: text inside <Alert>. Filled in: {{name}}, {{newManager}}."
   },
   "performance.screens.your_feedback": {
     "text": "Your feedback",
@@ -11006,6 +11166,10 @@
   "timeoff.add-leave-type.all_at_once": {
     "text": "All at once",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/add-leave-type.tsx, TimeOffAddLeaveType: text inside <SegmentedControlItem>."
+  },
+  "timeoff.add-leave-type.already_added_rename_it_from_the": {
+    "text": "Already added; rename it from the leave type.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/add-leave-type.tsx, TimeOffAddLeaveType: text inside <FieldDescription>."
   },
   "timeoff.add-leave-type.and_more": {
     "text": "and {{String}} more",
@@ -11547,9 +11711,33 @@
     "text": "From",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx, TimeOffDelegation: the label of <DatePicker>."
   },
+  "timeoff.approvals.goes_days_below_zero_one": {
+    "text": "Goes {{count}} day below zero",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.approvals.goes_days_below_zero_other": {
+    "text": "Goes {{count}} days below zero",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "timeoff.approvals.hours_more_than_banked_one": {
+    "text": "{{count}} hour more than banked",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.approvals.hours_more_than_banked_other": {
+    "text": "{{count}} hours more than banked",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "timeoff.approvals.in_a_protected_period": {
+    "text": "In a protected period",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code."
+  },
   "timeoff.approvals.include_decisions_that_touch_pay": {
     "text": "Include decisions that touch pay",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx, TimeOffDelegation: the accessibilityLabel of <Switch>."
+  },
+  "timeoff.approvals.keeps_the_team_at_its_minimum": {
+    "text": "Keeps the team at its minimum",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx, ClashDialog: the impact of <RadioCard>."
   },
   "timeoff.approvals.last_time_off": {
     "text": "Last time off: {{spanLabel}}",
@@ -11658,6 +11846,14 @@
   "timeoff.approvals.suggested": {
     "text": "Suggested",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx, ClashDialog: text inside <Badge>."
+  },
+  "timeoff.approvals.team_below_its_minimum": {
+    "text": "Team below its minimum",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code."
+  },
+  "timeoff.approvals.team_below_its_minimum_on": {
+    "text": "Team below its minimum on {{days}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/approvals.tsx: text built in code. Filled in: {{days}}."
   },
   "timeoff.approvals.the_swap": {
     "text": "The swap",
@@ -12014,6 +12210,10 @@
   "timeoff.attendance.save_pin": {
     "text": "Save PIN",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/attendance.tsx, TimeOffKioskCode: text inside <Button>."
+  },
+  "timeoff.attendance.saved_it_goes_to_your_manager": {
+    "text": "Saved; it goes to your manager",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/attendance.tsx, FixDialog: the onPress of <Button>."
   },
   "timeoff.attendance.short_rest": {
     "text": "Short rest",
@@ -12374,6 +12574,14 @@
   "timeoff.describe-answer.short": {
     "text": "Short",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/describe-answer.tsx, DescribedCard: the items of <KeyValues>."
+  },
+  "timeoff.describe-answer.the_team_has_enough_people_in": {
+    "text": "The team has enough people in.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/describe-answer.tsx, DescribedCard: the items of <KeyValues>."
+  },
+  "timeoff.describe-answer.the_team_stays_at": {
+    "text": "The team stays at {{in}} of {{of}}.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/describe-answer.tsx, DescribedCard: the items of <KeyValues>. Filled in: {{in}}, {{of}}."
   },
   "timeoff.describe-answer.who_decides": {
     "text": "Who decides",
@@ -12803,6 +13011,14 @@
     "text": "From",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx, PlanStep: the label of <DatePicker>."
   },
+  "timeoff.parental.from_the_birth_born": {
+    "text": "From the birth · born {{date}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx: a \"lead\" value. Filled in: {{date}}."
+  },
+  "timeoff.parental.from_the_birth_due": {
+    "text": "From the birth · due {{date}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx: a \"lead\" value. Filled in: {{date}}."
+  },
   "timeoff.parental.from_your_company": {
     "text": "{{duration}} from your company",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx: a \"title\" value. Filled in: {{duration}}."
@@ -12894,6 +13110,10 @@
   "timeoff.parental.none_yet": {
     "text": "None yet",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx: a \"value\" value."
+  },
+  "timeoff.parental.normal_pay": {
+    "text": "Normal pay",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/parental.tsx: a \"detail\" value."
   },
   "timeoff.parental.not_planned_here_yet": {
     "text": "Not planned here yet",
@@ -13210,6 +13430,10 @@
   "timeoff.request.note_optional": {
     "text": "Note (optional)",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/request.tsx, TimeOffRequest: text inside <FieldLabel>."
+  },
+  "timeoff.request.nothing_borrowed": {
+    "text": "Nothing borrowed",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/request.tsx, BelowZero: the impact of <RadioCard>."
   },
   "timeoff.request.of_in_below_the_team_minimum": {
     "text": "{{String}} of {{String2}} in, below the team minimum",
@@ -13619,6 +13843,14 @@
     "text": "Add where you are now",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Attendance: text inside <Button>."
   },
+  "timeoff.settings.after_months_one": {
+    "text": "After {{count}} month",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.settings.after_months_other": {
+    "text": "After {{count}} months",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "timeoff.settings.after_working_days": {
     "text": "After {{String}} working days",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Approvals: the label of <Rule>. Filled in: {{String}}."
@@ -13626,6 +13858,10 @@
   "timeoff.settings.after_years": {
     "text": "After years",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, LeaveTypes: the label of <NumberField>."
+  },
+  "timeoff.settings.all_of_it_at_the_start": {
+    "text": "All of it at the start of the year",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>."
   },
   "timeoff.settings.anyone_without_a_schedule_of_their": {
     "text": "Anyone without a schedule of their own works this week. Interviews are only offered inside it.",
@@ -13795,6 +14031,10 @@
     "text": "Days below zero, at most",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, NegativeDialog: the label of <NumberField>."
   },
+  "timeoff.settings.days_from_a_balance": {
+    "text": "Days, from a balance",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, LeaveTypes: the description of <ListItem>."
+  },
   "timeoff.settings.describe": {
     "text": "Describe",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the action of <Rules>."
@@ -13855,6 +14095,10 @@
     "text": "Friday",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, DAY_NAMES: text built in code."
   },
+  "timeoff.settings.from_day_one": {
+    "text": "From day one",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>."
+  },
   "timeoff.settings.going_below_zero": {
     "text": "Going below zero",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Negative: the title of <Rules>."
@@ -13866,6 +14110,10 @@
   "timeoff.settings.holidays": {
     "text": "Holidays",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, SECTIONS: a \"label\" value."
+  },
+  "timeoff.settings.hours_from_a_balance": {
+    "text": "Hours, from a balance",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, LeaveTypes: the description of <ListItem>."
   },
   "timeoff.settings.how_far_who_approves_and_what": {
     "text": "How far, who approves, and what happens after",
@@ -13955,6 +14203,10 @@
     "text": "Madrid office",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Attendance: the placeholder of <Input>."
   },
+  "timeoff.settings.manager_approves_at": {
+    "text": "Manager approves · {{becomes}} at ×{{multiplier}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Attendance: the value of <Rule>. Filled in: {{becomes}}, {{multiplier}}."
+  },
   "timeoff.settings.manager_chooses": {
     "text": "Manager chooses",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Attendance: text inside <SegmentedControlItem>."
@@ -13995,6 +14247,10 @@
     "text": "National, regional and city holidays",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, SECTIONS: a \"line\" value."
   },
+  "timeoff.settings.never_seen": {
+    "text": "Never seen",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Integrations: the description of <ListItem>."
+  },
   "timeoff.settings.no_holidays_for_in_yet": {
     "text": "No holidays for {{locationKey}} in {{String}} yet.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Holidays: text inside <Text>. Filled in: {{locationKey}}, {{String}}."
@@ -14015,6 +14271,18 @@
     "text": "No version yet.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: text inside <Text>."
   },
+  "timeoff.settings.nobody_the_manager_is_told": {
+    "text": "Nobody. The manager is told",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Approvals: the value of <Rule>."
+  },
+  "timeoff.settings.none_yet": {
+    "text": "None yet",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Attendance: the value of <Rule>."
+  },
+  "timeoff.settings.not_allowed": {
+    "text": "Not allowed",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Negative: the value of <Rule>."
+  },
   "timeoff.settings.not_confirmed": {
     "text": "Not confirmed",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Holidays: the trailing of <Badge>."
@@ -14022,6 +14290,10 @@
   "timeoff.settings.not_connected": {
     "text": "Not connected",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Integrations: the description of <ListItem>."
+  },
+  "timeoff.settings.not_from_a_balance": {
+    "text": "Not from a balance",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, LeaveTypes: the description of <ListItem>."
   },
   "timeoff.settings.not_set": {
     "text": "Not set",
@@ -14034,6 +14306,10 @@
   "timeoff.settings.not_taken_from_a_balance_so": {
     "text": "Not taken from a balance, so it has no policy.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, TimeOffLeaveType: text inside <Text>."
+  },
+  "timeoff.settings.nothing_carried_over": {
+    "text": "Nothing carried over",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>."
   },
   "timeoff.settings.offices": {
     "text": "Offices",
@@ -14283,6 +14559,30 @@
     "text": "Tuesday",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, DAY_NAMES: text built in code."
   },
+  "timeoff.settings.up_to_days_approvers_one": {
+    "text": "Up to {{count}} day · {{approvers}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Negative: the value of <Rule>. Filled in: {{count}}, {{approvers}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.settings.up_to_days_approvers_other": {
+    "text": "Up to {{count}} days · {{approvers}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, Negative: the value of <Rule>. Filled in: {{count}}, {{approvers}}. Plural: the words for any other {{count}}."
+  },
+  "timeoff.settings.up_to_days_one": {
+    "text": "Up to {{count}} day",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.settings.up_to_days_other": {
+    "text": "Up to {{count}} days",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "timeoff.settings.up_to_days_used_by_one": {
+    "text": "Up to {{count}} day, used by {{day}} {{month}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}, {{day}}, {{month}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.settings.up_to_days_used_by_other": {
+    "text": "Up to {{count}} days, used by {{day}} {{month}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: the value of <Rule>. Filled in: {{count}}, {{day}}, {{month}}. Plural: the words for any other {{count}}."
+  },
   "timeoff.settings.version_is_a_draft_nothing_changes": {
     "text": "Version {{String}} is a draft. Nothing changes for anyone until it is published below.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/settings.tsx, PolicyCard: text inside <Text>. Filled in: {{String}}."
@@ -14381,6 +14681,10 @@
   },
   "timeoff.today.absence_balances_and_nudges": {
     "text": "Absence, balances and nudges",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/today.tsx, TimeOffHome: text inside <List>."
+  },
+  "timeoff.today.add_or_take_away_days_saying": {
+    "text": "Add or take away days, saying why; HR approves",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/today.tsx, TimeOffHome: text inside <List>."
   },
   "timeoff.today.all": {
@@ -14622,6 +14926,10 @@
   "timeoff.today.team_this_week": {
     "text": "Team this week",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/today.tsx, TimeOffHome: the title of <Heading>."
+  },
+  "timeoff.today.time_off": {
+    "text": "Time off",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/today.tsx, TimeOffHome: the large of <Page>."
   },
   "timeoff.today.time_off_does_not_have_you": {
     "text": "Time Off does not have you as an employee yet, so there are no balances to show or time off to request. There will be once HR hires you in People.",

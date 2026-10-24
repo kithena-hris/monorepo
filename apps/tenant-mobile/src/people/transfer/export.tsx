@@ -696,7 +696,7 @@ export function ExportRecord({
               label: t('people.transfer.export.status', 'Status'),
               value:
                 record.status === 'queued'
-                  ? 'Being made'
+                  ? t('people.transfer.export.being_made', 'Being made')
                   : record.status === 'completed'
                     ? 'Ready'
                     : 'Expired',

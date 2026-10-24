@@ -166,7 +166,14 @@ export async function putFile(signed: Signed, file: Picked): Promise<Answer<File
     body: file.body,
   }).catch(() => null);
   if (sent?.ok !== true) {
-    return { ok: false, code: 'UPLOAD', message: 'The file did not go through; try again.' };
+    return {
+      ok: false,
+      code: 'UPLOAD',
+      message: t(
+        'documents.api.the_file_did_not_go_through',
+        'The file did not go through; try again.',
+      ),
+    };
   }
   return {
     ok: true,

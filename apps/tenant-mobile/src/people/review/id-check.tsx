@@ -101,7 +101,10 @@ function Decide({
             />
             <FieldDescription>
               {accept
-                ? 'Optional; kept with the decision.'
+                ? t(
+                    'people.review.id-check.optional_kept_with_the_decision',
+                    'Optional; kept with the decision.',
+                  )
                 : t(
                     'people.review.id-check.sees_it_on_their_record_so',
                     '{{name}} sees it on their record, so they know what to correct.',

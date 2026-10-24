@@ -241,7 +241,9 @@ function Section({
             setShown((s) => !s);
           }}
         >
-          {shown ? 'Hide' : 'Numbers'}
+          {shown
+            ? t('people.insights.insights.hide', 'Hide')
+            : t('people.insights.insights.numbers', 'Numbers')}
         </Button>
       }
     >
@@ -368,7 +370,7 @@ function Charts({ a, tab }: { a: Analytics; tab: string }): React.JSX.Element {
           numbers={[
             ['Opening', movement.opening],
             ['Joiners', movement.joiners],
-            ['Internal moves', movement.moves],
+            [t('people.insights.insights.internal_moves', 'Internal moves'), movement.moves],
             ['Leavers', -movement.leavers],
             ['Closing', movement.closing],
           ]}
@@ -680,7 +682,11 @@ function Charts({ a, tab }: { a: Analytics; tab: string }): React.JSX.Element {
           </Alert>,
         );
       } else {
-        const note = `From the snapshot of ${pay.asOf} · quartiles only; groups under ${String(pay.minimum)} people are not shown`;
+        const note = t(
+          'people.insights.insights.from_the_snapshot_quartiles_only',
+          'From the snapshot of {{asOf}} · quartiles only; groups under {{minimum}} people are not shown',
+          { asOf: pay.asOf, minimum: pay.minimum },
+        );
         const quartiles = (
           g: PayGroup,
           format: (v: number) => string,

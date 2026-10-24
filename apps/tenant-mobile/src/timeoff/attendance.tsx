@@ -498,7 +498,13 @@ function FixDialog({
                     reason: note.trim() === '' ? null : note.trim(),
                   },
                 },
-                (d) => (d.needsManager ? 'Saved; it goes to your manager' : 'Saved'),
+                (d) =>
+                  d.needsManager
+                    ? tr(
+                        'timeoff.attendance.saved_it_goes_to_your_manager',
+                        'Saved; it goes to your manager',
+                      )
+                    : 'Saved',
               ).then((done) => {
                 if (done !== null) onSaved();
               });

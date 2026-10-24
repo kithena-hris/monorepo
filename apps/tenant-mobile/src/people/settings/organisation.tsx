@@ -573,7 +573,9 @@ export function Organisation({ navigation }: PeopleScreen<'Organisation'>): Reac
                   description={[
                     `${String(p.fields)} fields`,
                     p.sections.map((s) => s.label).join(', '),
-                    used.length === 0 ? 'No entity here' : used.map((e) => e.name).join(', '),
+                    used.length === 0
+                      ? t('people.settings.organisation.no_entity_here', 'No entity here')
+                      : used.map((e) => e.name).join(', '),
                   ]
                     .filter((x) => x !== '')
                     .join(' · ')}
@@ -1464,11 +1466,17 @@ function Reminders({ state, onSaved }: { state: State; onSaved: () => void }): R
                   'people.settings.organisation.reminders_to_employees',
                   'Reminders to employees',
                 ),
-                value: 'By email, at most once a week, until their profile is complete',
+                value: t(
+                  'people.settings.organisation.by_email_at_most_once_a',
+                  'By email, at most once a week, until their profile is complete',
+                ),
               },
               {
                 label: t('people.settings.organisation.when', 'When'),
-                value: 'The day a detail goes missing, then once a week',
+                value: t(
+                  'people.settings.organisation.the_day_a_detail_goes_missing',
+                  'The day a detail goes missing, then once a week',
+                ),
               },
               {
                 label: t('people.settings.organisation.at', 'At'),

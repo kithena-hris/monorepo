@@ -62,5 +62,8 @@ export function dueOf(
         : t('inbox.time.due_tomorrow', 'Due tomorrow'),
       tone: 'warning',
     };
-  return { label: `${decide ? 'Decide by' : 'Due'} ${shortDay(item.due)}`, tone: 'neutral' };
+  return {
+    label: `${decide ? t('inbox.time.decide_by', 'Decide by') : 'Due'} ${shortDay(item.due)}`,
+    tone: 'neutral',
+  };
 }

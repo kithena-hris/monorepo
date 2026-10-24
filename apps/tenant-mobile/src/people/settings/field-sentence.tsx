@@ -115,7 +115,10 @@ export function AskedChange({
         <ListItem
           listitem={false}
           icon={EyeOff}
-          description="Shown masked until somebody taps Show; every view is logged."
+          description={t(
+            'people.settings.field-sentence.shown_masked_until_somebody_taps_show',
+            'Shown masked until somebody taps Show; every view is logged.',
+          )}
           className="bg-transparent px-0"
         >
           {t('people.settings.field-sentence.still_masked', 'Still masked')}

@@ -163,7 +163,7 @@ export function DocumentDetail({
       <Closed
         id={id}
         title={title}
-        owner={load.data.closed?.owner ?? 'Its owner'}
+        owner={load.data.closed?.owner ?? t('documents.document.its_owner', 'Its owner')}
         requested={load.data.closed?.requested === true}
         back={back}
       />

@@ -165,8 +165,15 @@ export function DescribedCard({
                   label: t('timeoff.describe-answer.no_clash', 'No clash'),
                   value:
                     best.fewest === null
-                      ? 'The team has enough people in.'
-                      : `The team stays at ${String(best.fewest.in)} of ${String(best.fewest.of)}.`,
+                      ? t(
+                          'timeoff.describe-answer.the_team_has_enough_people_in',
+                          'The team has enough people in.',
+                        )
+                      : t(
+                          'timeoff.describe-answer.the_team_stays_at',
+                          'The team stays at {{in}} of {{of}}.',
+                          { in: best.fewest.in, of: best.fewest.of },
+                        ),
                 }
               : {
                   id: 'clash',

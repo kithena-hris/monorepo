@@ -87,7 +87,10 @@ interface SchedulesState {
   readonly fields: readonly { key: string; label: string; section: string }[];
 }
 
-const EACH_SEES_THEIR_OWN = 'Each recipient sees only the people and columns they have access to.';
+const EACH_SEES_THEIR_OWN = t(
+  'people.insights.reports.each_recipient_sees_only_the_people',
+  'Each recipient sees only the people and columns they have access to.',
+);
 const WEEKDAYS = () => [
   t('people.insights.reports.monday', 'Monday'),
   t('people.insights.reports.tuesday', 'Tuesday'),
@@ -250,7 +253,7 @@ export function ScheduledReports({
                 row.paused
                   ? 'Paused'
                   : row.lastRun === null
-                    ? 'Not run yet'
+                    ? t('people.insights.reports.not_run_yet', 'Not run yet')
                     : outcomeOf(row.lastRun.outcome).label
               }`}
               onPress={() => {
@@ -871,7 +874,7 @@ export function ReportHistory({
                     ...run.recipients.map((r) =>
                       r.accountId === null
                         ? (WHY[r.outcome] ?? r.outcome)
-                        : `${r.name ?? 'Somebody who has left'}: ${WHY[r.outcome] ?? r.outcome}`,
+                        : `${r.name ?? t('people.insights.reports.somebody_who_has_left', 'Somebody who has left')}: ${WHY[r.outcome] ?? r.outcome}`,
                     ),
                   ]
                     .filter((x) => x !== null)

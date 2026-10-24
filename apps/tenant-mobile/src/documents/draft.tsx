@@ -57,8 +57,10 @@ interface Said {
   readonly text: string;
 }
 
-const OPENING =
-  'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.';
+const OPENING = t(
+  'documents.draft.what_do_you_need_tell_me',
+  'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.',
+);
 
 export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): React.JSX.Element {
   const signed = useSigned();

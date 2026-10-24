@@ -45,8 +45,10 @@ export interface TimeOffAsk {
 export const aboutTimeOff = (question: string): boolean =>
   /\b(time off|days? off|take|vacation|holiday|leave|long weekend|bridge|book)\b/iu.test(question);
 
-const NOTHING =
-  'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.';
+const NOTHING = tr(
+  'people.ask.im_not_sure_i_can_help',
+  'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.',
+);
 
 /**
  * Ask Kithena (design A4): a compact card above the tab bar, never the whole
@@ -100,7 +102,7 @@ export function AskKithena({
                 }
               : {
                   question,
-                  text: `${best.fits ? 'Yes.' : 'Only past your balance.'} ${spanLabel(best.from, best.to)} ${
+                  text: `${best.fits ? 'Yes.' : tr('people.ask.only_past_your_balance', 'Only past your balance.')} ${spanLabel(best.from, best.to)} ${
                     best.short.length === 0
                       ? 'is free on your team'
                       : `leaves ${String(best.short[0]?.in ?? 0)} of ${String(best.short[0]?.of ?? 0)} in`

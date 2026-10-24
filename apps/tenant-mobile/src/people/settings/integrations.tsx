@@ -696,7 +696,7 @@ function ChatApps({
             'people.settings.integrations.kithena_leaves_the_workspace_nobody_can',
             'Kithena leaves the workspace. Nobody can ask it questions there, and notices go by email only. Buttons on messages already sent stop working. You can connect it again at any time.',
           )}
-          keep="Keep it connected"
+          keep={t('people.settings.integrations.keep_it_connected', 'Keep it connected')}
           action={t('people.settings.integrations.disconnect', 'Disconnect')}
           busy={busy === 'DisconnectChatApp'}
           onClose={() => {
@@ -792,7 +792,11 @@ function Webhooks({
             'people.settings.integrations.copy_the_signing_secret_now',
             'Copy the signing secret now',
           )}
-          body={`This is the only time it is shown for ${secret.url}. It cannot be retrieved later; if it is lost, rotate it.`}
+          body={t(
+            'people.settings.integrations.only_time_it_is_shown',
+            'This is the only time it is shown for {{url}}. It cannot be retrieved later; if it is lost, rotate it.',
+            { url: secret.url },
+          )}
           value={secret.value}
           label={t(
             'people.settings.integrations.copy_the_signing_secret',
@@ -1495,7 +1499,7 @@ function Connection({
             'people.settings.integrations.its_token_stops_working_and_it',
             'Its token stops working, and it no longer adds or removes people here. To provision from it again, connect it as a new system.',
           )}
-          keep="Keep it connected"
+          keep={t('people.settings.integrations.keep_it_connected', 'Keep it connected')}
           action={t('people.settings.integrations.disconnect', 'Disconnect')}
           busy={busy === 'RevokeScimConnection'}
           onClose={() => {

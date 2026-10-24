@@ -737,7 +737,7 @@ function BelowZero({
             description={tr('timeoff.request.fits_your_balance', '{{days}} fits your balance.', {
               days: days(negative.shorten.days),
             })}
-            impact="Nothing borrowed"
+            impact={tr('timeoff.request.nothing_borrowed', 'Nothing borrowed')}
           >
             {tr('timeoff.request.shorten_to', 'Shorten to {{spanLabel}}{{value}}', {
               spanLabel: spanLabel(span.from, negative.shorten.to),

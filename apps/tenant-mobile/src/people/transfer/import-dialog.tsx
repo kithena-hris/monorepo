@@ -94,7 +94,12 @@ export function ImportDialog({
       return;
     }
     if (!(await put(target.data, body))) {
-      fail('The upload did not go through; try again.');
+      fail(
+        t(
+          'people.transfer.import-dialog.the_upload_did_not_go_through',
+          'The upload did not go through; try again.',
+        ),
+      );
       return;
     }
     const done = await ask<MapStage>(signed, 'CompleteImportUpload', {
