@@ -76,7 +76,9 @@ const BEFORE_START = new Set(['signup', 'enrolment', 'onboarding']);
 
 /** Whether this definition can be asked of a person in this state at all. */
 function askable(definition: AttributeDefinition, status: string): boolean {
-  return status !== 'pre_hire' || BEFORE_START.has(definition.collectAt);
+  return (
+    (status !== 'pre_hire' && status !== 'onboarding') || BEFORE_START.has(definition.collectAt)
+  );
 }
 
 function hasValue(value: unknown): boolean {

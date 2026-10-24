@@ -1293,6 +1293,10 @@ type Mutation {
     personId: ID!
   ): Person
   """
+  Invite a hire to the company: now, or on sendOn (their calendar), with the sign-up page filled in from their record. HR only.
+  """
+  invitePerson(idempotencyKey: String!, personId: ID!, sendOn: String): PeopleInvitation
+  """
   Its flags were not worth raising (design AI7): similar changes by the same requester are flagged less often. Decides nothing.
   """
   markPendingChangeNotUnusual(id: ID!, idempotencyKey: String!): WriteOutcome
@@ -1923,6 +1927,17 @@ type PeopleIntegrations {
   fields: [IntegrationField!]
   schemaVersion: Int
   scim: PeopleScim
+}
+
+"""Where a hire stands with their account at the company."""
+type PeopleInvitation {
+  personId: ID
+  sendOn: String
+  sentAt: String
+  """not_invited, scheduled (kept for sendOn), invited or signed_up."""
+  state: String
+  """The person’s state: pre_hire, onboarding…"""
+  status: String
 }
 
 type PeopleNamed {
@@ -2783,6 +2798,10 @@ type Query {
   """
   peopleWhatChangedWorded(from: String, period: String, segment: ID, to: String): String
   person(asOf: String, id: ID!): Person
+  """
+  The invitation of the person holding this work email; null for nobody. HR only.
+  """
+  personInvitation(email: String!): PeopleInvitation
 }
 
 """A field the viewer may read, as a form draws it."""

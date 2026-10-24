@@ -86,6 +86,7 @@ import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation
 import { adminRoutes } from './tenancy/http/admin-routes.js';
 import { moduleRoleRoutes } from './tenancy/http/module-role-routes.js';
 import { signupQuestionRoutes } from './tenancy/http/signup-question-routes.js';
+import { peopleInvitationRoutes } from './tenancy/http/people-invitation-routes.js';
 import { tenantLanguageRoutes } from './tenancy/http/tenant-language-routes.js';
 import { pendingQuestions } from './credential/domain/signup.js';
 import { hashEnrolmentToken } from './credential/domain/enrolment-token.js';
@@ -1323,13 +1324,22 @@ export async function compose(config: Config): Promise<RequestHandler> {
     signupQuestions: (tenantId, token) =>
       inTenantTransaction(tenantId, async (tx) => {
         const [row] = await tx.execute(sql`
-          SELECT s.schema_version, s.questions, a.signup_answered, e.purpose
+          SELECT s.schema_version, s.questions, a.signup_answered, a.signup_prefill, e.purpose
             FROM platform.enrolment_token e
             JOIN platform.account a ON a.id = e.account_id
             JOIN platform.signup_question_set s ON s.tenant_id = a.tenant_id
            WHERE e.token_hash = ${hashEnrolmentToken(token)}
         `);
         if (!row) return { schemaVersion: 0, questions: [] };
+        const held = row['signup_prefill'];
+        const prefill =
+          held !== null && typeof held === 'object' && !Array.isArray(held)
+            ? Object.fromEntries(
+                Object.entries(held as Record<string, unknown>).filter(
+                  (e): e is [string, string] => typeof e[1] === 'string',
+                ),
+              )
+            : {};
         // Parsed again on the way out: a row written by an older build is
         // exactly the one that would otherwise reach a form unchecked.
         const questions = SignupQuestion.array().safeParse(row['questions']);
@@ -1342,6 +1352,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
                 String(row['purpose']),
               )
             : [],
+          prefill,
         };
       }),
     /*
@@ -1474,6 +1485,10 @@ export async function compose(config: Config): Promise<RequestHandler> {
             `);
             },
             enrolAccount: async (accountId, credentialId, captured, answers) => {
+              // What HR filled in for the sign-up page is spent with the link.
+              await tx.execute(sql`
+                UPDATE platform.account SET signup_prefill = NULL WHERE id = ${accountId}::uuid
+              `);
               const snapshot = await accounts.load(tx, accountId);
               if (!snapshot) throw new Error('account vanished mid-enrolment');
               const account = Account.rehydrate(snapshot);
@@ -1702,6 +1717,55 @@ export async function compose(config: Config): Promise<RequestHandler> {
       }),
   };
 
+  /** One person into a company: the back office's invitation, and People's for a hire. */
+  const inviteOne = inviteAccount({
+    tenantById,
+    authOrigin: config.authOrigin,
+    clock: systemClock,
+    ...(notifier === undefined ? {} : { notifier }),
+    inTenantTransaction: (tenantId, fn) =>
+      inTenantTransaction(tenantId, (tx) =>
+        fn({
+          findByEmail: (email) => findAccountByEmail(tx, tenantId, email),
+          commission: (input) =>
+            commissionAccount(
+              tx,
+              accounts,
+              { tenantId, ...input },
+              // The commissioning act has no account inside the tenant to
+              // attribute it to — a back-office operator is not one of the
+              // customer's employees — so the actor is the process.
+              systemContext('invite-account'),
+            ),
+          invite: (input) =>
+            inviteCommissioned(
+              tx,
+              accounts,
+              { tenantId, ...input },
+              systemContext('invite-account'),
+            ),
+          /*
+           * The name only where the account has none and People has not
+           * corrected it (`recordCapturedName`), and the answers until
+           * enrolment clears them: the sign-up page shows both to confirm.
+           */
+          prefill: async (accountId, prefill) => {
+            if (prefill.name !== null) await recordCapturedName(tx, accountId, prefill.name);
+            await tx.execute(sql`
+              UPDATE platform.account
+                 SET signup_prefill = ${JSON.stringify(prefill.answers)}::jsonb
+               WHERE id = ${accountId}::uuid
+            `);
+          },
+        }),
+      ),
+  });
+
+  const peopleInvitations = peopleInvitationRoutes({
+    token: config.peopleToken ?? config.internalToken,
+    invite: inviteOne,
+  });
+
   const admin = adminRoutes({
     internalToken: config.internalToken,
     listTenants: async (page) => {
@@ -1906,35 +1970,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
 
         return ok(undefined);
       }),
-    invite: inviteAccount({
-      tenantById,
-      authOrigin: config.authOrigin,
-      clock: systemClock,
-      ...(notifier === undefined ? {} : { notifier }),
-      inTenantTransaction: (tenantId, fn) =>
-        inTenantTransaction(tenantId, (tx) =>
-          fn({
-            findByEmail: (email) => findAccountByEmail(tx, tenantId, email),
-            commission: (input) =>
-              commissionAccount(
-                tx,
-                accounts,
-                { tenantId, via: 'admin_api', ...input },
-                // The commissioning act has no account inside the tenant to
-                // attribute it to — a back-office operator is not one of the
-                // customer's employees — so the actor is the process.
-                systemContext('invite-account'),
-              ),
-            invite: (input) =>
-              inviteCommissioned(
-                tx,
-                accounts,
-                { tenantId, ...input },
-                systemContext('invite-account'),
-              ),
-          }),
-        ),
-    }),
+    invite: inviteOne,
     /*
      * Editing a company. One statement, and the row count is the answer to
      * "did that company exist" — see `amendTenant` for why it is not a read
@@ -2225,6 +2261,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await preferences(request, response)) ||
     (await moduleRoles(request, response)) ||
     (await signupQuestionSets(request, response)) ||
+    (await peopleInvitations(request, response)) ||
     (await tenantLanguage(request, response)) ||
     (await tenants(request, response));
 }

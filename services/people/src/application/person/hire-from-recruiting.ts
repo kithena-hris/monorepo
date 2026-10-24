@@ -121,7 +121,7 @@ export function hiresFromRecruiting(
     },
     async cancelled(tx, event) {
       if (event.payload.email === null) return { outcome: 'ignored' };
-      const found = await holder(tx, event, event.payload.email, ['pre_hire']);
+      const found = await holder(tx, event, event.payload.email, ['pre_hire', 'onboarding']);
       if (!found.ok) return { outcome: 'rejected', code: found.error.code };
       if (found.value === null) return { outcome: 'unchanged' };
       const discarded = await access.discard(tx, { ...asking(event), personId: found.value.id });
@@ -133,4 +133,4 @@ export function hiresFromRecruiting(
 }
 
 /** Somebody a hire would duplicate: anybody not discarded, merged or gone. */
-const ON_THE_BOOKS = ['provisional', 'pre_hire', 'active', 'on_leave', 'notice'];
+const ON_THE_BOOKS = ['provisional', 'pre_hire', 'onboarding', 'active', 'on_leave', 'notice'];

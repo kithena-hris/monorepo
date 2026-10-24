@@ -47,13 +47,18 @@ function deps(
       written.push(`invite:${input.accountId}/${input.secondChannel}`);
       return Promise.resolve(ok({ token: 'a-single-use-token', expiresAt: EXPIRES }));
     },
+    prefill: (accountId, prefill) => {
+      written.push(`prefill:${accountId}/${Object.keys(prefill.answers).join(',')}`);
+      return Promise.resolve();
+    },
     ...over,
   };
 
   return {
     written,
     sent: mail.sent,
-    tenantById: () => Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: LOGO, themeId: null }),
+    tenantById: () =>
+      Promise.resolve({ slug: 'acme', displayName: 'Acme Corp', logoUrl: LOGO, themeId: null }),
     inTenantTransaction: (_tenantId, fn) => fn(scope),
     authOrigin: AUTH_ORIGIN,
     clock: fixedClock(TODAY),
@@ -77,6 +82,25 @@ describe('inviting somebody new', () => {
     ]);
     expect(d.sent).toHaveLength(1);
     expect(result.value.delivery.delivered).toBe(true);
+  });
+
+  it('keeps what People filled in for the sign-up page, for a hire People invites', async () => {
+    const d = deps();
+    const result = await inviteAccount(d)({
+      ...request,
+      via: 'people_module',
+      secondChannel: 'known_value',
+      prefill: {
+        name: { given: 'Ada', family: 'Lovelace', preferred: null },
+        answers: { mobile_phone: '+44 20 7946 0000' },
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(d.written).toEqual([
+      'commission:ada@acme.example@2026-08-24/Etc/UTC',
+      'prefill:00000000-0000-4000-8000-0000000000a1/mobile_phone',
+      'invite:00000000-0000-4000-8000-0000000000a1/known_value',
+    ]);
   });
 
   it('normalises the address before anything is written or sent', async () => {

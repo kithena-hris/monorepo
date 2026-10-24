@@ -14,6 +14,8 @@ import { sweepReminders, type ReminderMailer } from '../application/completeness
 import { recomputePerson } from '../application/completeness/recompute.js';
 import { personAccess } from '../application/person/person-access.js';
 import { bringDueIntoForce, endAccessDue, startArrivals } from '../application/person/start.js';
+import { invitations } from '../application/person/invitations.js';
+import { drizzleInvitationStore, identityInviterFrom } from './invitations.js';
 import { reconcile } from '../application/reconcile.js';
 import { drizzleReportIndex } from '../application/import/ledger.js';
 import { anonymiseDue } from '../application/retention/anonymise.js';
@@ -400,6 +402,33 @@ export async function startBackground(
             refusals: drizzleScheduledRefusals(),
           }),
         });
+  // Invitations HR kept for a day (PRD §8.2 step 8), sent hourly once that
+  // day has begun on the person's calendar; without identity, none is kept.
+  const inviter = identityInviterFrom(env);
+  const kept =
+    inviter === undefined
+      ? null
+      : invitations({
+          reader: lifecycleDeps.reader,
+          people: lifecycleDeps.people,
+          schemas: drizzleSchemaVersions(),
+          relations: drizzleRelations(),
+          calendars: org,
+          clock: systemClock,
+          newId: uuidv7,
+          store: drizzleInvitationStore(),
+          inviter,
+        });
+  if (kept !== null) {
+    jobs.push(
+      every(HOUR, () =>
+        forEachTenant('invitations', async (tenantId) => {
+          const sent = await inTenant(tenantId, ({ tx }) => kept.sendDue(tx, tenantId));
+          if (sent > 0) logger.info({ tenantId, sent }, 'kept invitations sent');
+        }),
+      ),
+    );
+  }
   jobs.push(
     every(HOUR, () =>
       forEachTenant('lifecycle', async (tenantId) => {

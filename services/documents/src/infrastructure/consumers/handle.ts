@@ -35,7 +35,7 @@ const teamKeyOf = (orgUnitId: string) => `u_${orgUnitId.replaceAll('-', '')}`;
 const locationKeyOf = (locationId: string) => `l_${locationId.replaceAll('-', '')}`;
 
 const statusOf = (s: string): string | null => {
-  if (['pending', 'pre_hire', 'active', 'notice'].includes(s)) return 'active';
+  if (['pending', 'pre_hire', 'onboarding', 'active', 'notice'].includes(s)) return 'active';
   if (s === 'on_leave') return 'on_leave';
   return s === 'terminated' ? 'terminated' : null;
 };

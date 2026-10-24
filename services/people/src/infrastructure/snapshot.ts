@@ -67,7 +67,7 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
              'name', jsonb_build_object(
                'given', p.given_name, 'family', p.family_name, 'preferred', p.preferred_name),
              'workEmail', p.work_email,
-             'status', CASE p.status WHEN 'pre_hire' THEN 'pending' ELSE p.status END,
+             'status', CASE WHEN p.status IN ('pre_hire', 'onboarding') THEN 'pending' ELSE p.status END,
              'hireDate', to_char(p.hire_date, 'YYYY-MM-DD'),
              'lastWorkingDay', to_char(p.last_working_day, 'YYYY-MM-DD'),
              'managerId', p.manager_id,
@@ -76,7 +76,7 @@ export async function snapshotEveryone(tx: PostgresJsDatabase, tenantId: string)
              'legalEntityId', p.legal_entity_id,
              'title', left(NULLIF(trim(p.custom ->> 'job_title'), ''), 300)))
     FROM (SELECT uuidv7() AS event_id, r.* FROM people.person r
-           WHERE r.status IN ('pre_hire', 'active', 'on_leave', 'notice', 'terminated')
+           WHERE r.status IN ('pre_hire', 'onboarding', 'active', 'on_leave', 'notice', 'terminated')
              AND r.given_name IS NOT NULL AND r.given_name <> ''
              AND r.family_name IS NOT NULL AND r.family_name <> ''
              AND r.work_email IS NOT NULL AND r.work_email <> ''

@@ -43,6 +43,8 @@ import { scimConnections } from '../application/scim/connections.js';
 import { scimProvisioning } from '../application/scim/provisioning.js';
 import { drizzleScimStore } from '../infrastructure/drizzle-scim-store.js';
 import type { PeopleService } from '../application/person/service.js';
+import { invitations } from '../application/person/invitations.js';
+import { drizzleInvitationStore, identityInviterFrom } from '../infrastructure/invitations.js';
 import { configureGraphQL } from '../graphql/schema.js';
 import { readCacheFrom } from '../infrastructure/valkey-read-cache.js';
 import { chatAct, parseChatAction } from './chat.js';
@@ -376,6 +378,18 @@ export function peopleService(
     org: orgAdmin({ store: org, numbers, clock: systemClock, newId: uuidv7 }),
     roles: tenantRoles({ store: drizzleRoleStore(), clock: systemClock, newId: uuidv7 }),
     upcomingErasures: upcomingErasures({ store: drizzleRetentionStore(), clock: systemClock }),
+    // A hire's invitation to the company's Kithena, through identity (PRD §8.2 step 8).
+    invitations: invitations({
+      reader,
+      people: drizzlePersonRepository(),
+      schemas,
+      relations,
+      calendars: org,
+      clock: systemClock,
+      newId: uuidv7,
+      store: drizzleInvitationStore(),
+      inviter: identityInviterFrom(process.env),
+    }),
     payBands: payBands({
       clock: systemClock,
       newId: uuidv7,

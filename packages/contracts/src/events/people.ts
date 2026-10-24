@@ -29,6 +29,8 @@ export const EmploymentStatus = z.enum(['pending', 'active', 'on_leave', 'notice
 export const PersonState = z.enum([
   'provisional',
   'pre_hire',
+  /** Hired and signed up to their account, not started yet: completing onboarding. */
+  'onboarding',
   'active',
   'on_leave',
   'notice',
@@ -531,6 +533,7 @@ export const PersonStatusChanged = defineEvent(
         'discarded',
         'corrected',
         'rehired',
+        'signed_up',
         'notice_withdrawn',
         'merged',
         'unmerged',

@@ -23,6 +23,7 @@ import { enterAsSelf } from '../../application/person/self-entry.js';
 import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
 import { drizzleEmployeeNumbers } from '../drizzle-org-store.js';
 import { drizzlePersonRepository } from '../drizzle-person-repository.js';
+import { Person } from '../../domain/person/person.js';
 import { drizzleRelations, drizzleSchemaVersions } from '../drizzle-person-reader.js';
 import { drizzleScimStore } from '../drizzle-scim-store.js';
 import { drizzleDuplicates } from '../drizzle-duplicates.js';
@@ -148,6 +149,22 @@ export function consumerFrom(
         }),
     ...(approvals === null ? {} : { approvals }),
     inTenant,
+    signedUp: async (tx, tenantId, accountId, correlationId) => {
+      const people = drizzlePersonRepository();
+      const found = await people.findByAccount(tx, tenantId, accountId);
+      if (found === null || found.status !== 'pre_hire') return false;
+      const person = Person.rehydrate(found);
+      const moved = person.beginOnboarding({
+        clock: systemClock,
+        newEventId: uuidv7,
+        actor: { kind: 'system', process: 'people-identity' },
+        correlationId,
+        causationId: null,
+      });
+      if (!moved.ok) return false;
+      await people.save(tx, person);
+      return true;
+    },
     provisional: drizzleProvisionalPeople({ clock: systemClock, newEventId: uuidv7 }),
     recompute: recomputeCompleteness({
       schema: drizzleSchemaRepository(),

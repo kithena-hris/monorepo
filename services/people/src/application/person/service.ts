@@ -5,6 +5,7 @@ import type { OrgAdmin } from '../org/org.js';
 import type { PendingChangeDeps } from './pending-changes.js';
 import type { TenantRoles } from '../roles/roles.js';
 import { inTenantResult, type PersonAccess } from './person-access.js';
+import type { Invitations } from './invitations.js';
 import type { InTenant, SchemaVersions } from './ports.js';
 
 export type { InTenant } from './ports.js';
@@ -30,6 +31,8 @@ export interface PeopleService {
   readonly pending?: PendingChangeDeps;
   /** Who the retention job erases next (PEO-075). Absent, nobody is listed. */
   readonly upcomingErasures?: ReturnType<typeof upcomingErasures>;
+  /** A hire's invitation to the company's Kithena. Absent, those routes answer UNAVAILABLE. */
+  readonly invitations?: Invitations;
 }
 
 /** A use case in its own tenant transaction, rolled back when it refuses. */

@@ -282,7 +282,7 @@ export async function setupScreen(
     // Performance knows them, ids the shell names from People (locations, entities).
     fields: {
       departments,
-      statuses: ['active', 'on_leave', 'notice', 'pre_hire'],
+      statuses: ['active', 'on_leave', 'notice', 'pre_hire', 'onboarding'],
       locations: distinct(members.map((m) => m.locationId)),
       legalEntities: distinct(members.map((m) => m.legalEntityId)),
       managers: distinct(members.map((m) => m.managerId)).map((id) => ({

@@ -55,6 +55,23 @@ export interface InviteAccountRequest {
    * after the fact rather than assumed.
    */
   readonly secondChannel?: 'in_person' | 'known_value' | undefined;
+  /** Who is inviting: the back office (the default), or People for a hire. */
+  readonly via?: 'admin_api' | 'people_module' | undefined;
+  /**
+   * What the sign-up page shows already filled in, for the person to confirm:
+   * the name on file and answers to the tenant's own sign-up questions, by
+   * key. Kept on the account only until they enrol.
+   */
+  readonly prefill?:
+    | {
+        readonly name: {
+          readonly given: string;
+          readonly family: string;
+          readonly preferred: string | null;
+        } | null;
+        readonly answers: Readonly<Record<string, string>>;
+      }
+    | undefined;
 }
 
 export interface InvitedAccount {
@@ -96,7 +113,13 @@ export interface InviteScope {
     email: string;
     employmentStart: string;
     timeZone: string;
+    via: 'admin_api' | 'people_module';
   }) => Promise<{ accountId: string; identityId: string }>;
+  /** What the sign-up page shows filled in, until the account enrols. */
+  prefill: (
+    accountId: string,
+    prefill: NonNullable<InviteAccountRequest['prefill']>,
+  ) => Promise<void>;
   /**
    * Mints the single-use link and records the invitation on the aggregate,
    * which raises `identity.account.invited`.
@@ -185,7 +208,9 @@ export function inviteAccount(deps: InviteAccountDeps): InviteAccount {
             email,
             employmentStart: employment.value.employmentStart,
             timeZone: employment.value.timeZone,
+            via: request.via ?? 'admin_api',
           }));
+        if (request.prefill !== undefined) await scope.prefill(account.accountId, request.prefill);
 
         const issuedToken = await scope.invite({
           accountId: account.accountId,

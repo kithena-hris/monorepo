@@ -77,6 +77,7 @@ export type WorkModel = z.infer<typeof WorkModel>;
 export const PersonStatus = z.enum([
   'provisional',
   'pre_hire',
+  'onboarding',
   'active',
   'on_leave',
   'notice',
@@ -120,15 +121,17 @@ export const PredicateClause = z.discriminatedUnion('operand', [
    * form. Comparing against a rendered label would break the first time
    * somebody relabelled an option.
    */
-  z.object({
-    operand: z.literal('attribute'),
-    key: AttributeKey,
-    is: z.enum(['set', 'equals']).register(policy, asPublic()),
-    equals: z.string().max(200).nullable().default(null).register(policy, asInternal()),
-  }).refine((c) => c.is !== 'equals' || c.equals !== null, {
-    message: 'an `equals` clause needs something to equal',
-    path: ['equals'],
-  }),
+  z
+    .object({
+      operand: z.literal('attribute'),
+      key: AttributeKey,
+      is: z.enum(['set', 'equals']).register(policy, asPublic()),
+      equals: z.string().max(200).nullable().default(null).register(policy, asInternal()),
+    })
+    .refine((c) => c.is !== 'equals' || c.equals !== null, {
+      message: 'an `equals` clause needs something to equal',
+      path: ['equals'],
+    }),
 ]);
 export type PredicateClause = z.infer<typeof PredicateClause>;
 
