@@ -621,7 +621,11 @@
   },
   "candidate.make_an_offer": {
     "text": "Make an offer",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <Button>."
+  },
+  "candidate.make_the_offer_hint": {
+    "text": "Write the terms, pay and benefits for {{name}}: they are checked against the band and approved before {{name}} sees them.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <p>. Filled in: {{name}}."
   },
   "candidate.match_a_label_not_a_decision": {
     "text": "{{model}} · {{at}} · {{band}} match. A label, not a decision.",
@@ -747,9 +751,17 @@
     "text": "{{length}} of {{length2}} scorecards",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>. Filled in: {{length}}, {{length2}}."
   },
+  "candidate.offer_summary": {
+    "text": "{{pay}} · starts {{start}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <p>. Filled in: {{pay}}, {{start}}."
+  },
   "candidate.offer_v": {
     "text": "Offer v{{version}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <To>. Filled in: {{version}}."
+  },
+  "candidate.offer_version_state": {
+    "text": "Offer, version {{version}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <p>. Filled in: {{version}}."
   },
   "candidate.offers": {
     "text": "Offers",
@@ -757,7 +769,7 @@
   },
   "candidate.open_the_offer": {
     "text": "Open the offer",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <Button>."
   },
   "candidate.partly_met": {
     "text": "Partly met",
@@ -818,6 +830,10 @@
   "candidate.read_the_cv": {
     "text": "Read the CV",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ReadCv: text inside <Button>."
+  },
+  "candidate.ready_for_an_offer": {
+    "text": "Ready for an offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <p>."
   },
   "candidate.received": {
     "text": "Received {{createdAt}}",
@@ -1391,6 +1407,14 @@
     "text": "Connected, your calendar’s busy times are left out of the slots offered, and interviews go on it with a video link.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Connections: text inside <p>."
   },
+  "interviews.count_offered_one": {
+    "text": "{{count}} offered",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "interviews.count_offered_other": {
+    "text": "{{count}} offered",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "interviews.debrief": {
     "text": "Debrief: {{name}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, DebriefBody: the title of <PageHeader>. Filled in: {{name}}."
@@ -1570,6 +1594,10 @@
   "interviews.of_submitted": {
     "text": "{{submitted}} of {{expected}} submitted",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, DebriefBody: text inside <CardDescription>. Filled in: {{submitted}}, {{expected}}."
+  },
+  "interviews.offer_other_times_instead": {
+    "text": "Offer other times instead",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: text inside <Button>."
   },
   "interviews.offer_times_to_choose_from": {
     "text": "Offer times to choose from",
@@ -4055,6 +4083,10 @@
     "text": "Scorecards",
     "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/scorecards): its name in the sidebar, the breadcrumb and the menus."
   },
+  "offers.accepted_hired": {
+    "text": "{{name}} accepted and is hired",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the title of <Alert>. Filled in: {{name}}."
+  },
   "offers.added_up_by_kithena": {
     "text": "Added up by Kithena",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <CardDescription>."
@@ -4134,6 +4166,10 @@
   "offers.category": {
     "text": "Category",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, BenefitsTab: text inside <TableHead>."
+  },
+  "offers.change_the_terms_and_send_again": {
+    "text": "Change the terms below and save: that makes a new version, which goes through approval and to {{name}} again. The declined one is kept.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: text inside <p>. Filled in: {{name}}."
   },
   "offers.changing_an_earlier_answer_re_checks": {
     "text": "Changing an earlier answer re-checks every step after it.",
@@ -4219,9 +4255,17 @@
     "text": "Decide",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <span>."
   },
+  "offers.declined_version": {
+    "text": "{{name}} declined version {{version}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the title of <Alert>. Filled in: {{name}}, {{version}}."
+  },
   "offers.documents": {
     "text": "Documents",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: the items of <KeyValues>."
+  },
+  "offers.documents_did_not_take_it": {
+    "text": "Documents did not take the file. Try again.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text built in code."
   },
   "offers.documents_files_the_contract_once_they": {
     "text": "Documents files the contract once they are a member",
@@ -4359,6 +4403,10 @@
     "text": "No probation",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <label>."
   },
+  "offers.no_reason_given": {
+    "text": "No reason given.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: text inside <p>."
+  },
   "offers.non_compete_months": {
     "text": "Non-compete, months",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: the label of <NumberField>."
@@ -4382,6 +4430,10 @@
   "offers.not_ready": {
     "text": "Not ready",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: the title of <Alert>."
+  },
+  "offers.not_sent": {
+    "text": "Not sent",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the title of <Alert>."
   },
   "offers.not_waiting_on_you": {
     "text": "Not waiting on you",
@@ -4439,6 +4491,10 @@
     "text": "Options",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PayTab: the onChange of <NumberField>."
   },
+  "offers.or_attach_your_own": {
+    "text": "Or attach your own contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <h3>."
+  },
   "offers.out_for_signature_in_documents_it": {
     "text": "Out for signature in Documents. It is signed here the moment the last signature lands.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <p>."
@@ -4478,6 +4534,10 @@
   "offers.pre_start_conditions": {
     "text": "Pre-start conditions",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <CardTitle>."
+  },
+  "offers.prepare_the_contract_next": {
+    "text": "Next, prepare the contract and send it to sign. Once it is signed, {{name}} is handed on to People.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: text inside <Alert>. Filled in: {{name}}."
   },
   "offers.probation": {
     "text": "Probation",
@@ -4635,6 +4695,10 @@
     "text": "the contract",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the what of <Loaded>."
   },
+  "offers.the_contract_pdf": {
+    "text": "The contract, as a PDF",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the label of <FileUploader>."
+  },
   "offers.the_hired_webhook_carries_the_hire": {
     "text": "The hired webhook carries the hire to any HRIS",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <li>."
@@ -4643,9 +4707,17 @@
     "text": "the offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the what of <Loaded>."
   },
+  "offers.their_reason": {
+    "text": "Their reason: “{{reason}}”",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: text inside <p>. Filled in: {{reason}}."
+  },
   "offers.this_country_pack_is_awaiting_a": {
     "text": "This country pack is awaiting a country reviewer.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <p>."
+  },
+  "offers.through_documents": {
+    "text": "Through Documents",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
   },
   "offers.time_off_gives_the_entitlement_from": {
     "text": "Time Off gives the entitlement from the hire",
@@ -4734,6 +4806,10 @@
   "offers.you_see_the_offer_and_its": {
     "text": "You see the offer and its checks; nothing else about the candidate.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: text inside <p>."
+  },
+  "offers.your_own_pdf_is_sent": {
+    "text": "A PDF your company wrote: it is sent to {{name}} to sign in the same order, and signing it hires them the same way. Each signature goes beside a signature line the PDF already has.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <p>. Filled in: {{name}}."
   },
   "pipeline.a_label_on_each_card_not": {
     "text": "A label on each card, not a decision: every finding cites the CV and a person agrees or not.",

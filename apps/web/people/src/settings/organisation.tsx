@@ -733,10 +733,14 @@ function Locations({
                   {place.timeZone}
                   {later.map((z) => (
                     <span key={z.effectiveFrom} className="text-fg-muted">
-                      {tr('settings.organisation.zone_from', ' · {{timeZone}} from {{effectiveFrom}}', {
-                        timeZone: z.timeZone,
-                        effectiveFrom: z.effectiveFrom,
-                      })}
+                      {tr(
+                        'settings.organisation.zone_from',
+                        ' · {{timeZone}} from {{effectiveFrom}}',
+                        {
+                          timeZone: z.timeZone,
+                          effectiveFrom: z.effectiveFrom,
+                        },
+                      )}
                     </span>
                   ))}
                 </span>

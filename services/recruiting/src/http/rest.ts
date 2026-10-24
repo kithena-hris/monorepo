@@ -190,7 +190,7 @@ import {
   rediscover,
 } from '../application/matrix.js';
 import { summariseDebrief } from '../application/debrief-summary.js';
-import { askAboutJob, askRecruiter } from '../application/job-assistant.js';
+import { askAboutJob, askAboutOffer, askRecruiter } from '../application/job-assistant.js';
 import { askForChart } from '../application/chart-ask.js';
 import { SelfId, fairness, saveSelfId, selfIdQuestions } from '../application/fairness.js';
 import { importMembers } from '../application/members.js';
@@ -2163,6 +2163,19 @@ export const ROUTES: readonly Route[] = [
     public: true,
     run: (ctx, { params, body, headers }) =>
       asCandidate(ctx, headers, (id) => candidateDeclines(ctx, id, params.offerId, body.reason)),
+  }),
+  route({
+    name: 'publicOfferQuestion',
+    method: 'POST',
+    path: `${V1}/public/{company}/me/offers/{offerId}/questions`,
+    summary: 'J7: the offer assistant, an AI, answering from the offer the candidate holds',
+    params: z.object({ company: text(63), offerId: Id }),
+    body: z.object({ question: text(500).min(1) }),
+    public: true,
+    run: (ctx, { params, body, headers }) =>
+      allowed(ipOf(headers), Date.parse(ctx.at))
+        ? asCandidate(ctx, headers, (id) => askAboutOffer(ctx, id, params.offerId, body.question))
+        : Promise.resolve(err(failure('TOO_MANY', 'Too many questions; try again in an hour'))),
   }),
   route({
     name: 'publicProfile',

@@ -27,6 +27,11 @@ export interface SlotPickerProps {
   max?: number;
   /** Starts already taken by something booked, dotted on the calendar. */
   booked?: readonly string[];
+  /**
+   * Starts that stay on the day's list but cannot be chosen: someone else has
+   * them, or they were ruled out. Shown greyed out, so the gap is explained.
+   */
+  taken?: readonly string[];
   /** Today, injected, as the calendar needs it. */
   today: IsoDate;
   /** The zone the times are shown in; the viewer's by default. */
@@ -59,6 +64,7 @@ export function SlotPicker({
   onChange,
   max,
   booked = [],
+  taken = [],
   today,
   timeZone,
   locale = pageLocale(),
@@ -102,13 +108,23 @@ export function SlotPicker({
     }
     return map;
   }, [slots, timeZone]);
+  const takenSet = useMemo(() => new Set(taken), [taken]);
+  // Every start shown for a day, free and taken, in order.
+  const shownByDay = useMemo(() => {
+    const map = new Map<IsoDate, string[]>();
+    for (const s of [...new Set([...slots, ...taken])].toSorted()) {
+      const d = dayOf(s, timeZone);
+      map.set(d, [...(map.get(d) ?? []), s]);
+    }
+    return map;
+  }, [slots, taken, timeZone]);
   const bookedDays = useMemo(
     () => new Set(booked.map((b) => dayOf(b, timeZone))),
     [booked, timeZone],
   );
   const firstFree = [...byDay.keys()].find((d) => d >= today) ?? today;
   const [day, setDay] = useState<IsoDate>(firstFree);
-  const dayTimes = byDay.get(day) ?? [];
+  const dayTimes = shownByDay.get(day) ?? [];
   const chosenByDay = useMemo(() => {
     const map = new Map<IsoDate, string[]>();
     for (const s of [...value].toSorted()) {
@@ -122,6 +138,11 @@ export function SlotPicker({
     markers[d] = [
       { tone: 'success', label: t('components.slot-picker.slot-picker.times_free', 'Times free') },
     ];
+  for (const d of shownByDay.keys())
+    if (!byDay.has(d))
+      markers[d] = [
+        { tone: 'neutral', label: t('components.slot-picker.slot-picker.all_taken', 'All taken') },
+      ];
   for (const d of bookedDays)
     markers[d] = [
       ...(markers[d] ?? []),
@@ -142,7 +163,7 @@ export function SlotPicker({
   const last = new Date(Date.UTC(y ?? 1970, m ?? 1, 0)).getUTCDate();
   for (let i = 1; i <= last; i += 1) {
     const d = `${day.slice(0, 7)}-${String(i).padStart(2, '0')}`;
-    if (!byDay.has(d) && d >= today)
+    if (!shownByDay.has(d) && d >= today)
       dayStyles[d] = {
         appearance: 'struck',
         label:
@@ -171,7 +192,7 @@ export function SlotPicker({
         onSelect={(d) => {
           if (d !== null) setDay(d);
         }}
-        isDateDisabled={(d) => !byDay.has(d)}
+        isDateDisabled={(d) => !shownByDay.has(d)}
         markers={markers}
         dayStyles={dayStyles}
         locale={locale}
@@ -207,11 +228,21 @@ export function SlotPicker({
               'components.slot-picker.slot-picker.no_time_like_that',
               'No time like that',
             )}
-            options={dayTimes.map((s) => ({
-              value: s,
-              label: range(s),
-              disabled: full && !value.includes(s),
-            }))}
+            options={dayTimes.map((s) =>
+              takenSet.has(s) && !value.includes(s)
+                ? {
+                    value: s,
+                    label: t(
+                      'components.slot-picker.slot-picker.range_taken',
+                      '{{range}} · taken',
+                      {
+                        range: range(s),
+                      },
+                    ),
+                    disabled: true,
+                  }
+                : { value: s, label: range(s), disabled: full && !value.includes(s) },
+            )}
             value={
               max === 1
                 ? (value.find((v) => dayOf(v, timeZone) === day) ?? null)

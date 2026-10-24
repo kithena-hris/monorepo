@@ -804,6 +804,8 @@ export interface OfferData {
       readonly versionHash: string;
     } | null;
     readonly approvalReasons: readonly string[];
+    /** Why the candidate declined, in their words; null otherwise. */
+    readonly declineReason?: string | null;
   };
   readonly hash: string;
   readonly candidate: { readonly id: string; readonly name: string; readonly email: string };

@@ -36,16 +36,24 @@ const parts = (at: Date, timeZone: string) => {
   };
 };
 
-function free(person: Availability, start: Date, end: Date): boolean {
+/** Inside the person's working hours, on a day they are not away. */
+function working(person: Availability, start: Date, end: Date): boolean {
   const a = parts(start, person.timeZone);
   const b = parts(new Date(end.getTime() - 60_000), person.timeZone);
   if (a.date !== b.date || person.away.includes(a.date)) return false;
   const ranges = person.week[String(a.weekday)] ?? [];
-  if (!ranges.some(([from, to]) => a.minutes >= from && b.minutes + 1 <= to)) return false;
+  return ranges.some(([from, to]) => a.minutes >= from && b.minutes + 1 <= to);
+}
+
+/** Not already in an interview. */
+function clear(person: Availability, start: Date, end: Date): boolean {
   return !person.busy.some(
     ([s, e]) => Date.parse(s) < end.getTime() && Date.parse(e) > start.getTime(),
   );
 }
+
+const free = (person: Availability, start: Date, end: Date): boolean =>
+  working(person, start, end) && clear(person, start, end);
 
 /** Slot starts in [from, to) where everyone is free for `minutes`, on a grid of `step` minutes. */
 export function freeSlots(
@@ -64,6 +72,36 @@ export function freeSlots(
     const start = new Date(t);
     const end = new Date(t + minutes * 60_000);
     if (people.every((p) => free(p, start, end))) out.push(start.toISOString());
+  }
+  return out;
+}
+
+/**
+ * The times a candidate chooses from, with the ones already taken left on
+ * the grid and marked: a time inside everyone's working day that an
+ * interview has since filled, or that the team said it cannot make, shows
+ * greyed out rather than vanishing, so the candidate sees why it is gone.
+ */
+export function slotGrid(
+  people: readonly Availability[],
+  from: string,
+  to: string,
+  minutes: number,
+  step = 30,
+  notBefore?: string,
+  takenAlready: readonly string[] = [],
+): { at: string; taken: boolean }[] {
+  const out: { at: string; taken: boolean }[] = [];
+  const first = Math.ceil(Date.parse(from) / (step * 60_000)) * step * 60_000;
+  const floor = notBefore === undefined ? 0 : Date.parse(notBefore);
+  const marked = new Set(takenAlready.map((t) => new Date(t).toISOString()));
+  for (let t = first; t + minutes * 60_000 <= Date.parse(to); t += step * 60_000) {
+    if (t < floor) continue;
+    const start = new Date(t);
+    const end = new Date(t + minutes * 60_000);
+    if (!people.every((p) => working(p, start, end))) continue;
+    const at = start.toISOString();
+    out.push({ at, taken: marked.has(at) || !people.every((p) => clear(p, start, end)) });
   }
   return out;
 }

@@ -69,3 +69,19 @@ export const OneOnly: Story = {
     return <SlotPicker {...args} value={value} onChange={setValue} />;
   },
 };
+
+/** Times someone else has: still on the list, greyed out, so the gap is explained. */
+export const WithTakenTimes: Story = {
+  args: { max: 10, taken: [SLOTS[1] ?? '', SLOTS[2] ?? '', SLOTS[5] ?? ''] },
+  render: function WithTakenTimesStory(args) {
+    const [value, setValue] = useState<readonly string[]>(args.value);
+    return (
+      <SlotPicker
+        {...args}
+        slots={args.slots.filter((s) => !(args.taken ?? []).includes(s))}
+        value={value}
+        onChange={setValue}
+      />
+    );
+  },
+};

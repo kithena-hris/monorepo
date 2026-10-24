@@ -6,6 +6,7 @@ import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing, mailWords } from './context.js';
 import { portalLink } from './intake.js';
+import { completeEndedInterviews } from './interviews.js';
 import { rejectDueKnockouts } from './knockouts.js';
 import { sweepRetention } from './privacy.js';
 import { replyAddress } from './replies.js';
@@ -87,6 +88,17 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
     }
   }
   return sent;
+}
+
+/** Every few minutes: interviews that have ended are completed, and each interviewer is asked for a scorecard. */
+export async function completeInterviews(deps: Deps): Promise<number> {
+  let completed = 0;
+  for (const { tenantId } of await deps.uow.tenants()) {
+    const run = await asSystem(deps, tenantId, (ctx) => completeEndedInterviews(ctx));
+    completed += run.value;
+    await deliver(deps, tenantId, run.mail);
+  }
+  return completed;
 }
 
 /** Every minute: the knockouts whose next working morning has come are rejected, and told. */

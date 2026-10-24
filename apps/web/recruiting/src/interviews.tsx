@@ -32,6 +32,7 @@ import {
   Textarea,
   TimePicker,
   icons,
+  formatList,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX } from 'react';
 
@@ -1115,6 +1116,19 @@ function ScheduleBody({
                         'None works: ask for more times',
                       )}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        // The team's own times replace theirs once sent; choose them in the planner below.
+                        setHow('offer');
+                        setPicked([]);
+                        document
+                          .getElementById('interview-planner')
+                          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                    >
+                      {tr('interviews.offer_other_times_instead', 'Offer other times instead')}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -1299,7 +1313,7 @@ function ScheduleBody({
               </Card>
             )}
           </div>
-          <Card className="lg:sticky lg:top-4">
+          <Card id="interview-planner" className="scroll-mt-4 lg:sticky lg:top-4">
             <CardHeader>
               <CardTitle level={2}>{tr('interviews.how_to_book', 'How to book')}</CardTitle>
             </CardHeader>
@@ -1375,7 +1389,7 @@ function ScheduleBody({
                   items={[
                     {
                       label: tr('interviews.invited', 'Invited'),
-                      value: [data.candidate.name, ...data.interviewers.map(nameOf)].join(', '),
+                      value: formatList([data.candidate.name, ...data.interviewers.map(nameOf)]),
                     },
                     ...(how === 'link' || picked.length === 0
                       ? []
@@ -1388,7 +1402,11 @@ function ScheduleBody({
                             value:
                               picked.length === 1
                                 ? when(picked[0] ?? '')
-                                : `${String(picked.length)} offered`,
+                                : tr(
+                                    'interviews.count_offered',
+                                    { one: '{{count}} offered', other: '{{count}} offered' },
+                                    { count: picked.length },
+                                  ),
                           },
                         ]),
                   ]}

@@ -5,7 +5,7 @@ import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
 import { t as tr } from '../../../lib/i18n';
-import { locale } from '@reach/ui/intl';
+import { formatList, locale } from '@reach/ui/intl';
 
 interface Slots {
   readonly slots: readonly string[];
@@ -23,6 +23,8 @@ interface Slots {
   readonly excluded: number;
   /** An interview already booked for this step. */
   readonly booked: string | null;
+  /** Times someone else has, or the team ruled out: shown greyed out, never chosen. */
+  readonly taken?: readonly string[];
 }
 
 const LONG = (): Intl.DateTimeFormat =>
@@ -122,18 +124,27 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
             ? tr('app.schedule.[company].pick-time.change_your_times', 'Change your times')
             : tr('app.schedule.[company].pick-time.when_suits_you', 'When suits you?')}
         </h1>
-        <p className="text-fg-muted">{`${data.title} · ${String(data.minutes)} min · times in ${zone}, your time. Pick ${String(data.wanted)}; the team books one and sends the invitation.`}</p>
+        <p className="text-fg-muted">
+          {tr(
+            'app.schedule.[company].pick-time.pick_times_intro',
+            {
+              one: '{{title}} · {{minutes}} min · times in {{zone}}, your time. Pick {{count}}; the team books it and sends the invitation.',
+              other:
+                '{{title}} · {{minutes}} min · times in {{zone}}, your time. Pick {{count}}; the team books one and sends the invitation.',
+            },
+            { title: data.title, minutes: data.minutes, zone, count: data.wanted },
+          )}
+        </p>
         {data.organiser === null && data.interviewers.length === 0 ? null : (
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <icons.people aria-hidden className="size-4 text-fg-muted" />
             {tr(
-              'app.schedule.[company].pick-time.every_time_below_is_free_for',
-              'Every time below is free for {{replace}}: their working hours, holidays and meetings are already left out.',
+              'app.schedule.[company].pick-time.times_fit_everyone',
+              'The times below fit {{replace}}: their working hours, holidays and meetings are checked. A greyed-out time is already taken.',
               {
-                replace: [data.organiser, ...data.interviewers]
-                  .filter((n): n is string => n !== null)
-                  .join(', ')
-                  .replace(/, ([^,]*)$/u, ' and $1'),
+                replace: formatList(
+                  [data.organiser, ...data.interviewers].filter((n): n is string => n !== null),
+                ),
               },
             )}
           </p>
@@ -161,9 +172,12 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           )}
         >
           {tr(
-            'app.schedule.[company].pick-time.those_are_left_out_now_please',
-            'Those {{String}} are left out now. Please choose others.',
-            { String: String(data.excluded) },
+            'app.schedule.[company].pick-time.those_are_greyed_out_now',
+            {
+              one: 'That time is greyed out now. Please choose others.',
+              other: 'Those {{count}} times are greyed out now. Please choose others.',
+            },
+            { count: data.excluded },
           )}
         </Alert>
       )}
@@ -210,6 +224,7 @@ export function PickTime({ company }: { readonly company: string }): JSX.Element
           max={data.wanted}
           today={today}
           minutes={data.minutes}
+          taken={data.taken ?? []}
           unavailable={Object.fromEntries(data.holidays.map((h) => [h.date, h.name]))}
         />
       )}

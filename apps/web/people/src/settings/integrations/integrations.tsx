@@ -505,9 +505,13 @@ function Directory({
           : retrying > 0
             ? {
                 tone: 'warning',
-                text: t('settings.integrations.integrations.retrying_count', '{{String}} retrying', {
-                  String: String(retrying),
-                }),
+                text: t(
+                  'settings.integrations.integrations.retrying_count',
+                  '{{String}} retrying',
+                  {
+                    String: String(retrying),
+                  },
+                ),
               }
             : {
                 tone: 'success',

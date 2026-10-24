@@ -2,7 +2,12 @@ import { createServer } from 'node:http';
 import { drain, logger, onShutdown, startTelemetry } from '@kithena/telemetry';
 
 import manifest from '../module.manifest.js';
-import { daily, rejectKnockouts, sendDueMessages } from './application/background.js';
+import {
+  completeInterviews,
+  daily,
+  rejectKnockouts,
+  sendDueMessages,
+} from './application/background.js';
 import { composeRecruiting } from './composition.js';
 import { wireConsumers } from './infrastructure/consumers/wire.js';
 
@@ -27,6 +32,7 @@ if (storage !== null) {
   };
   every(60_000, 'recruiting messages', () => sendDueMessages(storage.deps));
   every(60_000, 'recruiting knockouts', () => rejectKnockouts(storage.deps));
+  every(5 * 60_000, 'recruiting interviews', () => completeInterviews(storage.deps));
   every(24 * 60 * 60_000, 'recruiting daily', () => daily(storage.deps));
 }
 

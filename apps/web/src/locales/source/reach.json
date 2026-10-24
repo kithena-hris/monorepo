@@ -2543,6 +2543,10 @@
     "text": "All picked",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: text inside <span>."
   },
+  "components.slot-picker.slot-picker.all_taken": {
+    "text": "All taken",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
+  },
   "components.slot-picker.slot-picker.already_booked": {
     "text": "Already booked",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: a \"label\" value."
@@ -2590,6 +2594,10 @@
   "components.slot-picker.slot-picker.picked_on": {
     "text": "Picked on {{format}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the aria-label of <ChipRow>. Filled in: {{format}}."
+  },
+  "components.slot-picker.slot-picker.range_taken": {
+    "text": "{{range}} · taken",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/slot-picker/slot-picker.tsx, SlotPicker: the options of <Combobox>. Filled in: {{range}}."
   },
   "components.slot-picker.slot-picker.remove": {
     "text": "Remove {{range}}",
