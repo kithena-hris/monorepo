@@ -1490,6 +1490,34 @@ until its setting exists. In this order:
      (`GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`) stays
      possible for Gmail accounts outside a Workspace, and is not needed for
      launch.
+   - **Meet calls, heard as they end.** An hour before a Meet interview,
+     Recruiting subscribes to its call through Google Workspace Events
+     (`google.workspace.meet.conference.v2.ended`), acting as the organiser
+     with the same service account. Google publishes to the Pub/Sub topic
+     `projects/kithena/topics/recruiting-meet-events`. Its push subscription
+     `recruiting-meet-events-push` posts to
+     `https://app.kithena.com/api/hooks/google-meet`, signed with an OIDC token
+     for the account `meet-events-push@kithena.iam.gserviceaccount.com` and that
+     audience. The shell passes the push to Recruiting's
+     `/v1/recruiting/public/hooks/google-meet` through the tunnel, waking the VM
+     if it sleeps (503 meanwhile, and Pub/Sub retries). Recruiting checks the
+     token and completes the interview at once.
+
+     Set up 2026-10-24 in the `kithena` project: the Pub/Sub, Workspace Events
+     and Meet APIs are on; `meet-api-event-push@system.gserviceaccount.com` may
+     publish to the topic; Pub/Sub's service agent may sign as the push
+     account. The three values are in `deploy/vm/compose.yaml`
+     (`MEET_EVENTS_TOPIC`, `MEET_PUSH_AUDIENCE`, `MEET_PUSH_ACCOUNT`). None is
+     a secret.
+
+     **Each company's Google Workspace admin** adds one scope to the
+     delegation they gave Kithena for calendars: Admin console › Security ›
+     Access and data control › API controls › Domain-wide delegation, client ID
+     `107687808140156883320`. Add
+     `https://www.googleapis.com/auth/meetings.space.readonly` beside
+     `https://www.googleapis.com/auth/calendar.events`. Without it the calendar
+     still works, and the scorecards go out at the booked end instead of the
+     call's real one.
    - **Microsoft**: the same Entra app as Time Off's Outlook calendar
      (TOF-110): the deploy writes `TIMEOFF_MICROSOFT_CLIENT_ID` and
      `TIMEOFF_MICROSOFT_CLIENT_SECRET` into `recruiting.env` as

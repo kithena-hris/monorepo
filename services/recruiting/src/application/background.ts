@@ -6,7 +6,7 @@ import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing, mailWords } from './context.js';
 import { portalLink } from './intake.js';
-import { completeEndedInterviews, completeInterview } from './interviews.js';
+import { completeEndedInterviews, completeInterview, listenToCall } from './interviews.js';
 import { rejectDueKnockouts } from './knockouts.js';
 import { sweepRetention } from './privacy.js';
 import { replyAddress } from './replies.js';
@@ -99,6 +99,30 @@ export async function completeAtItsEnd(
 ): Promise<boolean> {
   const run = await asSystem(deps, tenantId, (ctx) => completeInterview(ctx, interviewId));
   await deliver(deps, tenantId, run.mail);
+  return run.value;
+}
+
+/** The timer an hour before a Meet interview: its call is heard from now on. */
+export async function listenAtItsStart(
+  deps: Deps,
+  tenantId: TenantId,
+  interviewId: string,
+): Promise<boolean> {
+  const run = await asSystem(deps, tenantId, (ctx) => listenToCall(ctx, interviewId));
+  return run.value;
+}
+
+/**
+ * Meet said a call ended (its space): the interview it is completes now and
+ * asks for its scorecards. A space nobody here watches is nobody's.
+ */
+export async function meetCallEnded(deps: Deps, space: string): Promise<boolean> {
+  const at = await deps.meetEvents?.recall(space);
+  if (at === undefined || at === null) return false;
+  const run = await asSystem(deps, at.tenantId as TenantId, (ctx) =>
+    completeInterview(ctx, at.interviewId, true),
+  );
+  await deliver(deps, at.tenantId as TenantId, run.mail);
   return run.value;
 }
 

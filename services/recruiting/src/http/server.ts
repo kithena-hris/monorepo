@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createYoga } from 'graphql-yoga';
 import { systemClock } from '@kithena/domain-kit';
+import { logger } from '@kithena/telemetry';
 
 import type { Deps, Listings } from '../application/ports.js';
 import { configureGraphQL, yogaOptions } from '../graphql/schema.js';
@@ -8,6 +9,8 @@ import type { CallerFrom } from './caller.js';
 import { accountsAnswer, type AccountsAnswer } from './accounts.js';
 import { listingsAnswer } from './listings.js';
 import { LOGO_NAME } from '../application/company.js';
+import { meetCallEnded } from '../application/background.js';
+import { endedSpace, googlePushVerifier } from '../infrastructure/google-push.js';
 import { allowed } from './limits.js';
 import { planSearch } from '../application/job-assistant.js';
 import type { JobSearch } from '@kithena/contracts';
@@ -24,6 +27,8 @@ const SEARCH_PLAN = '/v1/recruiting/public/search-plan';
 const CONNECT_CALLBACK = '/v1/recruiting/public/calendar-callback';
 /** Where Indeed Apply posts every application (REC-132); the job names the company. */
 const INDEED_APPLY = '/v1/recruiting/public/indeed-apply';
+/** Pub/Sub's push of Google Meet's events: a call ended (Workspace Events), proved by Google's token. */
+const MEET_HOOK = '/v1/recruiting/public/hooks/google-meet';
 /** Internal: `platform/slack` relaying an Approve pressed in Slack (REC-137); never on the tunnel. */
 const SLACK_RELAY = '/v1/recruiting/integrations/slack/relay';
 /** Up to six files of 10 MB as base64, plus the answers. */
@@ -67,6 +72,8 @@ export function recruitingListener(
   ) => Promise<AccountsAnswer | null>,
   /** A company's uploaded logo, by its hashed name, for Kithena Jobs to serve. */
   logo?: (name: string) => Promise<Uint8Array | null>,
+  /** Meet's call-ended pushes: the status to answer Pub/Sub with. */
+  meetHook?: (authorization: string | undefined, body: string) => Promise<number>,
 ): Listener {
   const document = JSON.stringify(openApiDocument());
   return (request, response) => {
@@ -180,6 +187,13 @@ export function recruitingListener(
           return;
         }
       }
+      if (request.method === 'POST' && request.url === MEET_HOOK && body !== null) {
+        // 204 for what is not ours or not a call ending, so Pub/Sub stops; 5xx retries.
+        const status =
+          meetHook === undefined ? 404 : await meetHook(request.headers.authorization, body);
+        response.writeHead(status).end();
+        return;
+      }
       if (request.method === 'POST' && request.url === INDEED_APPLY && body !== null) {
         // `jobMeta` is what Kithena sent with the posting: `<company>/<jobId>`.
         let company = '';
@@ -285,6 +299,9 @@ export interface RecruitingServerOptions extends Pick<
   readonly mailer?: Deps['mailer'];
   readonly inbound?: Deps['inbound'];
   readonly interviewEnds?: Deps['interviewEnds'];
+  readonly meetEvents?: Deps['meetEvents'];
+  /** Who Pub/Sub's push tokens must name: the endpoint's address and the push account. */
+  readonly meetPush?: { readonly audience: string; readonly account: string };
   readonly model?: Deps['model'];
   readonly web?: Deps['web'];
   readonly sealer?: Deps['sealer'];
@@ -316,6 +333,7 @@ export function recruitingServer(
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.inbound === undefined ? {} : { inbound: options.inbound }),
     ...(options.interviewEnds === undefined ? {} : { interviewEnds: options.interviewEnds }),
+    ...(options.meetEvents === undefined ? {} : { meetEvents: options.meetEvents }),
     ...(options.model === undefined ? {} : { model: options.model }),
     ...(options.web === undefined ? {} : { web: options.web }),
     ...(options.sealer === undefined ? {} : { sealer: options.sealer }),
@@ -361,6 +379,27 @@ export function recruitingServer(
               body,
             ),
       (name) => deps.blobs.get(`logos/${name}`),
+      options.meetPush === undefined ? undefined : meetHook(deps, options.meetPush),
     ),
+  };
+}
+
+/** Pub/Sub's push of a Meet call ending: proved, then the interview it is completes now. */
+function meetHook(
+  deps: Deps,
+  push: { readonly audience: string; readonly account: string },
+): (authorization: string | undefined, body: string) => Promise<number> {
+  const proved = googlePushVerifier(push);
+  return async (authorization, body) => {
+    if (!(await proved(authorization))) return 401;
+    const space = endedSpace(body);
+    if (space === null) return 204;
+    try {
+      await meetCallEnded(deps, space);
+      return 204;
+    } catch (error) {
+      logger.error({ module: 'recruiting', err: error }, 'Meet call end not applied');
+      return 500;
+    }
   };
 }

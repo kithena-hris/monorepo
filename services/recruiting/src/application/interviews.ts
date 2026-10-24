@@ -21,7 +21,7 @@ import {
   slotGrid,
   type Availability,
 } from '../domain/interview/slots.js';
-import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
+import { calendarBusy, putOnCalendar, takeOffCalendar, watchMeetCall } from './calendars.js';
 import { tellInterviewers } from './chat.js';
 import {
   asPerson,
@@ -371,6 +371,7 @@ export async function bookInterview(
   const booked = videoUrl === null ? interview : { ...interview, videoUrl };
   await ctx.tx.interviews.save(booked);
   await endsAt(ctx, booked);
+  await listenFrom(ctx, booked);
   await publish(
     ctx,
     event(
@@ -1222,16 +1223,61 @@ async function endsAt(ctx: Ctx, interview: InterviewRecord): Promise<void> {
     .catch(() => undefined);
 }
 
+const MEET = /^https:\/\/meet\.google\.com\//u;
+const HOUR = 3_600_000;
+
+/**
+ * A Meet interview's call is heard as it ends: an hour before it starts, the
+ * timer subscribes to the call (`listenToCall`). Earlier, a subscription would
+ * only wait, and Google's last a few days at most.
+ */
+async function listenFrom(ctx: Ctx, interview: InterviewRecord): Promise<void> {
+  if (ctx.deps.meetEvents === undefined || !MEET.test(interview.videoUrl ?? '')) return;
+  await ctx.deps.interviewEnds
+    ?.watch(
+      ctx.caller.tenantId,
+      interview.id,
+      new Date(Date.parse(interview.startsAt) - HOUR).toISOString(),
+    )
+    .catch(() => undefined);
+}
+
+/**
+ * Hear the Meet call end (Google Workspace Events): subscribe to it, remember
+ * which interview its space is, and move the booked-end timer two hours on, so
+ * it only answers for a call nobody joined, which never ends. Not heard (a
+ * Workspace that has not allowed reading Meet spaces), the booked end stands.
+ */
+export async function listenToCall(ctx: Ctx, interviewId: string): Promise<boolean> {
+  const meet = ctx.deps.meetEvents;
+  const interview = await ctx.tx.interviews.get(interviewId);
+  if (meet === undefined || interview === null || interview.state !== 'scheduled') return false;
+  const ttl = Math.ceil((endOf(interview) + 6 * HOUR - Date.parse(ctx.at)) / 1000);
+  const watched = await watchMeetCall(ctx, interview, meet.topic, ttl);
+  if (watched === null) return false;
+  await meet.remember(watched.space, { tenantId: ctx.caller.tenantId, interviewId }, ttl);
+  await ctx.deps.interviewEnds
+    ?.at(ctx.caller.tenantId, interviewId, new Date(endOf(interview) + 2 * HOUR).toISOString())
+    .catch(() => undefined);
+  return true;
+}
+
 /**
  * The interview is over: it moves to completed and each interviewer is asked
  * for their scorecard, by email and in their Inbox, due a day later (PRD
  * §16.5). Run by the timer at its end, so nobody presses a button for the
  * scorecards to be owed. One cancelled, moved or already done is left alone.
  */
-export async function completeInterview(ctx: Ctx, interviewId: string): Promise<boolean> {
+export async function completeInterview(
+  ctx: Ctx,
+  interviewId: string,
+  /** Meet said the call ended: done now, whatever the booked end, once it has started. */
+  callEnded = false,
+): Promise<boolean> {
   const interview = await ctx.tx.interviews.get(interviewId);
   if (interview === null || interview.state !== 'scheduled') return false;
-  if (endOf(interview) > Date.parse(ctx.at)) return false;
+  const now = Date.parse(ctx.at);
+  if (callEnded ? Date.parse(interview.startsAt) > now : endOf(interview) > now) return false;
   const moved = moveInterview(interview, 'completed');
   if (!moved.ok) return false;
   const done = { ...interview, ...moved.value };
