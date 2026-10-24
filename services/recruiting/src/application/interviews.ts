@@ -644,6 +644,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
           }
         : {}),
     },
+    attachments,
   );
 }
 
