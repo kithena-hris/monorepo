@@ -4,6 +4,7 @@ import {
   Chip,
   ChipGroup,
   ChipGroupItem,
+  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -95,7 +96,7 @@ const NONE: Filters = {
 const SOMEONE = 'Someone at your company';
 
 const when = (iso: string): string =>
-  new Intl.DateTimeFormat(undefined, {
+  dateFormat({
     day: 'numeric',
     month: 'short',
     hour: '2-digit',
@@ -148,9 +149,9 @@ function changesIn(text: string): { what: string; from: string; to: string }[] |
  * the values. The search, the dates full width, who did it as pills, and the
  * areas; an entry opens in full with ways to narrow the log to it.
  */
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
-const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short' });
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const MONTH = dateFormat({ month: 'long', year: 'numeric' });
+const WEEKDAY = dateFormat({ weekday: 'short' });
+const DAY = dateFormat({ day: 'numeric', month: 'short' });
 
 /** "This week", then a month at a time, newest first. */
 function groupsOf<T extends { occurredAt: string }>(items: readonly T[]): [string, T[]][] {

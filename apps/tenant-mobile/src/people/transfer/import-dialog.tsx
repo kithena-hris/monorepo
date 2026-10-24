@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   ListItem,
+  locale,
   Spinner,
   Stat,
   Text,
@@ -243,7 +244,7 @@ export function ImportDialog({
                       'people.transfer.import-dialog.rows_columns',
                       '{{toLocaleString}} rows · {{String}} columns',
                       {
-                        toLocaleString: stage.file.rows.toLocaleString('en-GB'),
+                        toLocaleString: stage.file.rows.toLocaleString(locale()),
                         String: String(stage.columns.length),
                       },
                     ),

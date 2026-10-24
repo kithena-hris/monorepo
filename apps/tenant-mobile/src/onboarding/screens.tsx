@@ -7,6 +7,7 @@ import {
   FieldLabel,
   List,
   ListItem,
+  locale,
   SegmentedControl,
   SegmentedControlItem,
   Text,
@@ -28,7 +29,7 @@ import { t as tr } from '../i18n';
  */
 
 const day = (iso: string): string =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString(locale(), {
     weekday: 'short',
     day: 'numeric',
     month: 'short',

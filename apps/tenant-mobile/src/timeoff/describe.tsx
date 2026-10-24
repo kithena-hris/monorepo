@@ -4,6 +4,8 @@ import {
   Button,
   Card,
   Chip,
+  dateFormat,
+  ListItem,
   SearchField,
   Select,
   SelectContent,
@@ -13,7 +15,6 @@ import {
   Stack,
   Switch,
   Text,
-  ListItem,
 } from '@reach/ui-native';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -64,7 +65,7 @@ interface Asked {
 
 const LENGTHS = [1, 2, 3, 4, 5, 10, 15];
 const monthLabel = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+  dateFormat({ month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
     new Date(`${m}-01T00:00:00Z`),
   );
 

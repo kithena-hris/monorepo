@@ -1,10 +1,12 @@
-import { t } from '../i18n';
-
 /**
  * How the screens say what Time Off sends, as the web's `timeoff/src/words.ts`:
  * amounts, leave types' icons and colours, and dates, so a date reads the
  * same on every screen.
  */
+
+import { dateFormat as readerDate } from '@reach/ui-native';
+
+import { t } from '../i18n';
 
 export type Tone =
   'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5' | 'chart-6' | 'neutral';
@@ -24,15 +26,20 @@ export const signed = (value: string): string =>
 
 /** "1 day", "5 days", "0.5 days". */
 export const days = (value: string): string => {
-  const n = amount(value);
-  return `${n} ${n === '1' ? 'day' : 'days'}`;
+  return t(
+    'timeoff.words.days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    {
+      count: Number(amount(value)),
+    },
+  );
 };
 
 export const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
 const dateFormat = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+  readerDate({ ...options, timeZone: 'UTC' });
 export const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 export const longDate = (date: string): string =>
   dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(date));

@@ -5,6 +5,8 @@ import {
   Button,
   Card,
   ChartCard,
+  type ChartPoint,
+  type ChartTone,
   ChipGroup,
   ChipGroupItem,
   EmptyState,
@@ -13,6 +15,8 @@ import {
   Icon,
   List,
   ListItem,
+  numberFormat,
+  type RangeBand,
   RangeChart,
   Select,
   SelectContent,
@@ -24,12 +28,9 @@ import {
   Stat,
   Text,
   TimelineChart,
+  type TimelineRow,
   TrendChart,
   WaterfallChart,
-  type ChartPoint,
-  type ChartTone,
-  type RangeBand,
-  type TimelineRow,
 } from '@reach/ui-native';
 import { ChartColumn, Clock, Mail } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -177,8 +178,7 @@ function expiryRows(items: NonNullable<Analytics['expiries']>['items']): Timelin
 }
 
 const digits = (currency: string): number =>
-  new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
-    .maximumFractionDigits ?? 2;
+  numberFormat({ style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2;
 const money = (currency: string) => (value: number) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',

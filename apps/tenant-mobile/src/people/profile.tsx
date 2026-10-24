@@ -6,6 +6,7 @@ import {
   Card,
   Chip,
   CircularProgress,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -338,7 +339,7 @@ interface Needs {
 
 const clock = (zone: string): string => {
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return dateFormat({
       hour: '2-digit',
       minute: '2-digit',
       timeZone: zone,

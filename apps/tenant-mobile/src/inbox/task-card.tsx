@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -93,7 +94,7 @@ interface Short {
 export const shortOf = (item: Item): readonly Short[] =>
   ((d(item)['short'] ?? []) as readonly Short[]).filter((x) => x.in < x.required);
 
-const weekday = new Intl.DateTimeFormat('en-GB', {
+const weekday = dateFormat({
   weekday: 'short',
   day: 'numeric',
   timeZone: 'UTC',

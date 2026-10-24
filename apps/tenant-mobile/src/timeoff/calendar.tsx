@@ -4,8 +4,10 @@ import {
   Button,
   Calendar,
   CalendarHeatmap,
+  type CalendarMarker,
   Chip,
   CopyField,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -20,7 +22,6 @@ import {
   SegmentedControlItem,
   Text,
   TimelineChart,
-  type CalendarMarker,
   type TimelineRow,
 } from '@reach/ui-native';
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react-native';
@@ -162,7 +163,7 @@ export function TimeOffCalendar({
   const reload = view === 'year' ? yearly.reload : timeline.reload;
   const days = Array.from({ length: 5 }, (_, i) => addDays(week, i));
   const dayLabel = (d: string): string =>
-    new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+    dateFormat({ weekday: 'short', day: 'numeric', timeZone: 'UTC' })
       .format(asDate(d))
       .replace(',', '');
 
@@ -203,7 +204,7 @@ export function TimeOffCalendar({
           {view === 'week'
             ? spanLabel(week, addDays(week, 4))
             : view === 'month'
-              ? new Intl.DateTimeFormat('en-GB', {
+              ? dateFormat({
                   month: 'long',
                   year: 'numeric',
                   timeZone: 'UTC',
@@ -422,7 +423,7 @@ export function DayDialog({
                     leading={<Avatar name={who} size={36} />}
                     description={tr('timeoff.calendar.back', '{{value}} · back {{format}}', {
                       value: typeOf(e.leaveTypeKey)?.name ?? 'Off',
-                      format: new Intl.DateTimeFormat('en-GB', {
+                      format: dateFormat({
                         weekday: 'short',
                         timeZone: 'UTC',
                       }).format(asDate(nextWorkingDay(e.span.to))),

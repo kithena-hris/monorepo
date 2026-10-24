@@ -8,6 +8,7 @@ import {
   ChartCard,
   ChipGroup,
   ChipGroupItem,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -81,7 +82,7 @@ const TABS = () =>
   ] as const;
 
 const monthShort = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(asDate(`${m}-01`));
+  dateFormat({ month: 'short', timeZone: 'UTC' }).format(asDate(`${m}-01`));
 
 /**
  * Time Off's insights, for HR: the month in a few points (each opening the

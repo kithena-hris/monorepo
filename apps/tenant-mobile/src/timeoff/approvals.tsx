@@ -7,7 +7,9 @@ import {
   Calendar,
   Card,
   Combobox,
+  dateFormat,
   DatePicker,
+  type DateRange,
   Dialog,
   DialogBody,
   DialogContent,
@@ -30,7 +32,6 @@ import {
   Text,
   Textarea,
   TimelineChart,
-  type DateRange,
 } from '@reach/ui-native';
 import {
   Check,
@@ -852,7 +853,7 @@ export function TimeOffDelegation({
   );
 }
 
-const dayName = new Intl.DateTimeFormat('en-GB', {
+const dayName = dateFormat({
   weekday: 'short',
   day: 'numeric',
   month: 'short',

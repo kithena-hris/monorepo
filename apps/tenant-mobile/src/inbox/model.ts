@@ -101,6 +101,7 @@ export interface InboxAnswer {
 export { dayIn, dueOf, shortDay } from './time';
 import { dayIn, shortDay } from './time';
 import { t } from '../i18n';
+import { dateFormat, locale } from '@reach/ui-native';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
   people: 'People',
@@ -147,7 +148,7 @@ export const firstName = (name: string | null | undefined): string =>
 export function when(instant: string, zone: string): string {
   let time = instant.slice(11, 16);
   try {
-    time = new Intl.DateTimeFormat('en-GB', {
+    time = dateFormat({
       timeZone: zone,
       hour: '2-digit',
       minute: '2-digit',
@@ -179,7 +180,7 @@ export const days = (n: string | number): string => {
 /** "28–30 December", "30 December – 2 January". */
 export function spanLong(from: string, to: string): string {
   const long = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', {
+    new Date(`${d}T12:00:00Z`).toLocaleDateString(locale(), {
       day: 'numeric',
       month: 'long',
       timeZone: 'UTC',

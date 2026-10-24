@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CircularProgress,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -25,11 +26,11 @@ import {
   RadioCard,
   RadioGroup,
   RangeBar,
+  type RangeBarSegment,
   Stack,
   Stat,
   Text,
   TimePicker,
-  type RangeBarSegment,
 } from '@reach/ui-native';
 import { ChevronLeft, ChevronRight, Clock3, History, Sparkles, Timer } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
@@ -119,7 +120,7 @@ const mondayOf = (date: string): string => {
   return addDays(date, day === 0 ? -6 : 1 - day);
 };
 const weekday = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone: 'UTC' }).format(asDate(date));
+  dateFormat({ weekday: 'long', timeZone: 'UTC' }).format(asDate(date));
 
 const bar = (label: string, segments: readonly Segment[], now?: number, axis = false) => (
   <RangeBar
@@ -858,9 +859,7 @@ const monthRange = (m: string): { from: string; to: string } => ({
   to: addDays(`${addDays(`${m}-01`, 31).slice(0, 7)}-01`, -1),
 });
 const monthName = (m: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    asDate(`${m}-01`),
-  );
+  dateFormat({ month: 'long', year: 'numeric', timeZone: 'UTC' }).format(asDate(`${m}-01`));
 
 /** A month's attendance exceptions, for HR: missing clock-outs, short rests, overtime past the rules. */
 export function TimeOffExceptions({

@@ -1,5 +1,6 @@
 import type { Entry, Value } from '../api';
 import { t } from '../../i18n';
+import { dateFormat } from '@reach/ui-native';
 
 /**
  * Review's shapes and rules, as the web's (`people/src/review/review.tsx`,
@@ -320,7 +321,7 @@ export const firstName = (name: string): string =>
     ? 'the requester'
     : (name.split(' ')[0] ?? name);
 
-const shortDate = new Intl.DateTimeFormat('en-GB', {
+const shortDate = dateFormat({
   day: 'numeric',
   month: 'short',
   timeZone: 'UTC',

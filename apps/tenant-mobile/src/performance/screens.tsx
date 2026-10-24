@@ -15,6 +15,7 @@ import {
   Input,
   List,
   ListItem,
+  locale,
   NumberField,
   Progress,
   RadioCard,
@@ -50,7 +51,7 @@ type Tone = 'neutral' | 'accent' | 'info' | 'success' | 'warning' | 'danger';
 const day = (iso: string | null | undefined): string =>
   iso === null || iso === undefined || iso === ''
     ? '—'
-    : new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).toLocaleDateString('en-GB', {
+    : new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).toLocaleDateString(locale(), {
         weekday: 'short',
         day: 'numeric',
         month: 'short',

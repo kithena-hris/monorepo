@@ -4,6 +4,7 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -353,7 +354,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
   );
 }
 
-const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const day = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** P3: a flagged change in a centred modal, before and after, and why in plain words. */
 export function ChangeDialog({

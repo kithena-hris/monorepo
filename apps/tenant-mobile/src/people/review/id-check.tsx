@@ -17,6 +17,7 @@ import {
   FieldLabel,
   Icon,
   Inline,
+  locale,
   Stack,
   Text,
   Textarea,
@@ -32,7 +33,7 @@ import type { IdItem, IdState } from './model';
 import { t } from '../../i18n';
 
 const day = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** Accepting or sending back, confirmed, with what is wrong said when it goes back. */
 function Decide({

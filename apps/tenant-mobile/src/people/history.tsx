@@ -6,6 +6,7 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
+  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -14,8 +15,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Icon,
   EmptyState,
+  Icon,
   Inline,
   KeyValues,
   SegmentedControl,
@@ -55,7 +56,7 @@ interface HistoryData {
 }
 
 const ALL = 'all';
-const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
+const time = dateFormat({ hour: '2-digit', minute: '2-digit' });
 
 /** The day an instant fell on, here: what changes are grouped under. */
 const dayOf = (iso: string): string => {
@@ -311,7 +312,7 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
   );
 }
 
-const short = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const short = dateFormat({ day: 'numeric', month: 'short' });
 
 /**
  * History in a centred modal (design v3 P18): before and after on every

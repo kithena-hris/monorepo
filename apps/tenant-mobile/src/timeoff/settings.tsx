@@ -8,6 +8,7 @@ import {
   ChipGroup,
   ChipGroupItem,
   CopyField,
+  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -2145,8 +2146,8 @@ function Holidays(): React.JSX.Element {
   }
   const d = load.data;
   const place = d.locations.find((l) => l.locationKey === loc) ?? d.locations[0];
-  const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
-  const dayMonth = new Intl.DateTimeFormat('en-GB', {
+  const weekday = dateFormat({ weekday: 'short', timeZone: 'UTC' });
+  const dayMonth = dateFormat({
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',

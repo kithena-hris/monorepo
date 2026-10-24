@@ -1,11 +1,10 @@
 import type { FilterField, FilterOperator } from '@reach/ui-native';
 import { t } from '../i18n';
+import { dateFormat } from '@reach/ui-native';
 
 // display.tsx's, here so this module stays testable without React Native.
 const longDate = (iso: string): string =>
-  new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' }).format(
-    Date.parse(`${iso}T00:00:00Z`),
-  );
+  dateFormat({ dateStyle: 'long', timeZone: 'UTC' }).format(Date.parse(`${iso}T00:00:00Z`));
 
 /**
  * The Directory's conditions, as the web's (`directory.tsx`): which operators

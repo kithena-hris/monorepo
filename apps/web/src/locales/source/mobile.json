@@ -14543,6 +14543,14 @@
     "text": "Change waiting",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/words.ts, STATUS: a \"label\" value."
   },
+  "timeoff.words.days_one": {
+    "text": "{{count}} day",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/words.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "timeoff.words.days_other": {
+    "text": "{{count}} days",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/words.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "timeoff.words.declined": {
     "text": "Declined",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/words.ts, STATUS: a \"label\" value."

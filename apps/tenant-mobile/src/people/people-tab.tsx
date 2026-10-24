@@ -7,6 +7,7 @@ import {
   Checkbox,
   ChipGroup,
   ChipGroupItem,
+  dateFormat,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,14 +16,15 @@ import {
   EmptyState,
   Icon,
   ListItem,
+  locale,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Stat,
   Text,
   TreeView,
-  VirtualList,
   type TreeViewNode,
+  VirtualList,
 } from '@reach/ui-native';
 import {
   ChartColumn,
@@ -188,7 +190,7 @@ interface Starter {
 }
 
 /** "Mei on 1 Nov · Yuki on 2 Nov · 7 details missing". */
-const short = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const short = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' });
 function startersLine(starters: readonly Starter[]): string {
   const days = starters
     .slice(0, 2)
@@ -206,7 +208,7 @@ function startersTitle(starters: readonly Starter[]): string {
   const months = new Set(starters.map((s) => s.start?.slice(0, 7) ?? ''));
   const first = starters[0]?.start;
   if (months.size === 1 && first != null) {
-    const month = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(
+    const month = dateFormat({ month: 'long', timeZone: 'UTC' }).format(
       Date.parse(`${first}T00:00:00Z`),
     );
     return `${String(starters.length)} start in ${month}`;
@@ -740,7 +742,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                 <Stat
                   className="flex-1"
                   label={t('people.people-tab.people', 'People')}
-                  value={figures.headcount.value.toLocaleString('en-GB')}
+                  value={figures.headcount.value.toLocaleString(locale())}
                   size={26}
                   {...(figures.headcount.change === null || figures.headcount.change === 0
                     ? {}

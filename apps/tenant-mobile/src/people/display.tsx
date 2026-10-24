@@ -1,9 +1,9 @@
-import { cn, Money, Text } from '@reach/ui-native';
+import { cn, dateFormat, Money, Text } from '@reach/ui-native';
 
 import { isEmpty, type RecordField, type Value } from './api';
 import { t } from '../i18n';
 
-const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' });
+const date = dateFormat({ dateStyle: 'long', timeZone: 'UTC' });
 
 /** A calendar date, "14 March 1994": a date has no zone, so it is read as UTC. */
 export const longDate = (iso: string): string => date.format(Date.parse(`${iso}T00:00:00Z`));

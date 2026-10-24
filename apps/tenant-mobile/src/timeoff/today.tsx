@@ -5,8 +5,8 @@ import {
   Badge,
   Button,
   Card,
+  dateFormat,
   DayTiles,
-  SearchField,
   Dialog,
   DialogBody,
   DialogContent,
@@ -18,12 +18,13 @@ import {
   ListItem,
   Progress,
   RangeBar,
+  type RangeBarSegment,
+  SearchField,
   SegmentedControl,
   SegmentedControlItem,
   Stack,
   Stat,
   Text,
-  type RangeBarSegment,
 } from '@reach/ui-native';
 import {
   Baby,
@@ -583,7 +584,7 @@ function BalanceCard({
   );
 }
 
-const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
+const WEEKDAY = dateFormat({ weekday: 'short', timeZone: 'UTC' });
 
 /**
  * The Time off tab (design v3 T1, T2, T8): everything in one scroll and no

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
   List,
   ListItem,
+  locale,
   Stack,
   Text,
 } from '@reach/ui-native';
@@ -178,7 +179,7 @@ export function Account({ onSettings }: { onSettings: () => void }): React.JSX.E
   const until =
     person.expiresAt === null
       ? null
-      : new Date(person.expiresAt).toLocaleDateString(undefined, {
+      : new Date(person.expiresAt).toLocaleDateString(locale(), {
           day: 'numeric',
           month: 'long',
           year: 'numeric',

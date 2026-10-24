@@ -9,6 +9,7 @@ import {
   KeyValues,
   List,
   ListItem,
+  locale,
   Select,
   SelectContent,
   SelectItem,
@@ -372,7 +373,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
               'people.transfer.import.rows_of_columns_mapped',
               '{{toLocaleString}} rows · {{String}} of {{String2}} columns mapped',
               {
-                toLocaleString: stage.file.rows.toLocaleString('en-GB'),
+                toLocaleString: stage.file.rows.toLocaleString(locale()),
                 String: String(decided),
                 String2: String(stage.columns.length),
               },
@@ -532,7 +533,7 @@ export function Import({ navigation }: PeopleScreen<'Import'>): React.JSX.Elemen
                       'people.transfer.import.people_already_here_have_no',
                       '{{toLocaleString}} people already here have no {{label}}',
                       {
-                        toLocaleString: proposal.counts.existingWithout.toLocaleString('en-GB'),
+                        toLocaleString: proposal.counts.existingWithout.toLocaleString(locale()),
                         label: proposal.field.label,
                       },
                     )}
