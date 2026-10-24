@@ -14,7 +14,13 @@ import {
   type InterviewState,
   type Scorecard,
 } from '../domain/interview/interview.js';
-import { freeSlots, ics, OFFICE_WEEK, slotGrid, type Availability } from '../domain/interview/slots.js';
+import {
+  freeSlots,
+  ics,
+  OFFICE_WEEK,
+  slotGrid,
+  type Availability,
+} from '../domain/interview/slots.js';
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { tellInterviewers } from './chat.js';
 import {
@@ -494,10 +500,20 @@ async function inviteTeam(
         ],
         ...(video === null || cancelled
           ? {}
-          : { action: { label: t('email.interviews.join_the_meeting', 'Join the meeting'), href: video } }),
+          : {
+              action: {
+                label: t('email.interviews.join_the_meeting', 'Join the meeting'),
+                href: video,
+              },
+            }),
         ...(page === null
           ? {}
-          : { secondary: { label: t('email.interviews.open_in_kithena', 'Open in Kithena'), href: page } }),
+          : {
+              secondary: {
+                label: t('email.interviews.open_in_kithena', 'Open in Kithena'),
+                href: page,
+              },
+            }),
       },
     });
   }

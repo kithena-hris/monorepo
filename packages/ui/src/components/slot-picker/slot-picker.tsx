@@ -232,9 +232,13 @@ export function SlotPicker({
               takenSet.has(s) && !value.includes(s)
                 ? {
                     value: s,
-                    label: t('components.slot-picker.slot-picker.range_taken', '{{range}} · taken', {
-                      range: range(s),
-                    }),
+                    label: t(
+                      'components.slot-picker.slot-picker.range_taken',
+                      '{{range}} · taken',
+                      {
+                        range: range(s),
+                      },
+                    ),
                     disabled: true,
                   }
                 : { value: s, label: range(s), disabled: full && !value.includes(s) },

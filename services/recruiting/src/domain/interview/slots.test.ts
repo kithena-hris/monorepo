@@ -67,7 +67,12 @@ describe('free slots (PRD §16.4)', () => {
     ]);
     // Outside working hours or on a day off is not on the grid at all.
     expect(
-      slotGrid([{ ...marco, away: ['2026-10-19'] }], '2026-10-19T00:00:00Z', '2026-10-20T00:00:00Z', 60),
+      slotGrid(
+        [{ ...marco, away: ['2026-10-19'] }],
+        '2026-10-19T00:00:00Z',
+        '2026-10-20T00:00:00Z',
+        60,
+      ),
     ).toEqual([]);
     // The free ones are the same as freeSlots gives.
     const both = slotGrid([marco, sam], '2026-10-19T00:00:00Z', '2026-10-20T00:00:00Z', 60);

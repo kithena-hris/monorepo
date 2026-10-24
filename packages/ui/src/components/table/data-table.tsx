@@ -1424,7 +1424,13 @@ export function DataTable<T extends TableRow>({
                         (WCAG 2.5.3, Label in Name). */}
                     {value}{' '}
                     <span className="font-medium text-fg-muted tabular-nums">{leaves.length}</span>{' '}
-                    <span className="sr-only">{t('components.table.data-table.rows_word', { one: 'row', other: 'rows' }, { count: leaves.length })}</span>
+                    <span className="sr-only">
+                      {t(
+                        'components.table.data-table.rows_word',
+                        { one: 'row', other: 'rows' },
+                        { count: leaves.length },
+                      )}
+                    </span>
                   </button>
                 </TableHead>
                 {columns.slice(1).map((column) => (

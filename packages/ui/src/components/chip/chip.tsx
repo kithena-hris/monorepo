@@ -318,7 +318,9 @@ export function ChipRow({
         >
           {expanded
             ? t('components.chip.chip.show_fewer', 'Show fewer')
-            : t('components.chip.chip.more', '+{{String}} more', { String: String(items.length - max) })}
+            : t('components.chip.chip.more', '+{{String}} more', {
+                String: String(items.length - max),
+              })}
         </Chip>
       ) : null}
       {action === undefined ? null : <span className="shrink-0 whitespace-nowrap">{action}</span>}

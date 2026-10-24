@@ -11,9 +11,7 @@ import { serverWords } from '../../../../lib/server-words';
  * them to any device, and in the cookie, so the next page renders in it.
  * Checked against the languages there are, whatever the menu sent.
  */
-export async function saveLanguage(
-  input: unknown,
-): Promise<
+export async function saveLanguage(input: unknown): Promise<
   | { readonly ok: true }
   | {
       readonly ok: false;

@@ -517,7 +517,11 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
 export interface OfferSetting {
   readonly job: { readonly title: string };
   readonly company: { readonly name: string; readonly logoUrl: string | null };
-  readonly benefits: readonly { readonly id: string; readonly name: string; readonly description: string | null }[];
+  readonly benefits: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly description: string | null;
+  }[];
 }
 
 /** Offer the candidate reads (J7): the version, its hash, total rewards and the plain terms. */
