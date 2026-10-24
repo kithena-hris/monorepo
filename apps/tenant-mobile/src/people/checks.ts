@@ -27,12 +27,12 @@ export function nifSuggestion(typed: string): string | null {
  * still checks out, it is only not named.
  */
 const ES_BANKS = (): Readonly<Record<string, string>> => ({
-  '0049': t('people.checks.banco_santander', 'Banco Santander'),
-  '0075': t('people.checks.banco_santander', 'Banco Santander'),
-  '0081': t('people.checks.banco_sabadell', 'Banco Sabadell'),
+  '0049': 'Banco Santander',
+  '0075': 'Banco Santander',
+  '0081': 'Banco Sabadell',
   '0128': 'Bankinter',
   '0182': 'BBVA',
-  '0487': t('people.checks.banco_mare_nostrum', 'Banco Mare Nostrum'),
+  '0487': 'Banco Mare Nostrum',
   '1465': 'ING',
   '2038': 'CaixaBank',
   '2080': 'Abanca',
@@ -41,8 +41,8 @@ const ES_BANKS = (): Readonly<Record<string, string>> => ({
   '2100': 'CaixaBank',
   '2103': 'Unicaja',
   '3058': 'Cajamar',
-  '0238': t('people.checks.banco_pichincha', 'Banco Pichincha'),
-  '1491': t('people.checks.triodos_bank', 'Triodos Bank'),
+  '0238': 'Banco Pichincha',
+  '1491': 'Triodos Bank',
   '0073': 'Openbank',
 });
 

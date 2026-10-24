@@ -3187,26 +3187,6 @@
     "text": "{{join}} would wait for approval. Applied straight through, it is recorded as such.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/bulk.tsx, SetValues: the description of <ListItem>. Filled in: {{join}}."
   },
-  "people.checks.banco_mare_nostrum": {
-    "text": "Banco Mare Nostrum",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/checks.ts, ES_BANKS: a \"0487\" value."
-  },
-  "people.checks.banco_pichincha": {
-    "text": "Banco Pichincha",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/checks.ts, ES_BANKS: a \"0238\" value."
-  },
-  "people.checks.banco_sabadell": {
-    "text": "Banco Sabadell",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/checks.ts, ES_BANKS: a \"0081\" value."
-  },
-  "people.checks.banco_santander": {
-    "text": "Banco Santander",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/checks.ts, ES_BANKS: a \"0049\" value."
-  },
-  "people.checks.triodos_bank": {
-    "text": "Triodos Bank",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/checks.ts, ES_BANKS: a \"1491\" value."
-  },
   "people.display.no": {
     "text": "No",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/display.tsx, DisplayValue: text inside <Text>."
