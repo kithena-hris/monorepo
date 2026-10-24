@@ -1046,6 +1046,7 @@
   "import.import-plan.count_people_many": "{{count}} personnes",
   "import.import-plan.count_people_one": "{{count}} personne",
   "import.import-plan.count_people_other": "{{count}} personnes",
+  "import.import-plan.count_rows_were_many": "{{count}} de lignes ont été",
   "import.import-plan.count_rows_were_one": "{{count}} ligne a été",
   "import.import-plan.count_rows_were_other": "{{count}} lignes ont été",
   "import.import-plan.count_sensitive_values_wait_many": "{{count}} valeurs sensibles attendent",

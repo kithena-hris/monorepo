@@ -493,6 +493,7 @@
   "settings.settings.days": "Jours",
   "settings.settings.days_from_filing": "jours après le classement",
   "settings.settings.deleted_documents_are_kept_for_30": "Les documents supprimés sont conservés 30 jours, puis disparaissent.",
+  "settings.settings.document_many": "{{count}} de documents",
   "settings.settings.document_types": "Types de document",
   "settings.settings.draft_it": "Le rédiger",
   "settings.settings.drafted_by_kithena": "Rédigé par Kithena",

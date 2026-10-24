@@ -406,8 +406,12 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           counts.updates > 0
             ? t(
                 'components.inbox.screen.new_tasks_appear_here_and_on',
-                'New tasks appear here and on the red number. You have {{updates}} unread update{{value}}.',
-                { updates: String(counts.updates), value: counts.updates === 1 ? '' : 's' },
+                {
+                  one: 'New tasks appear here and on the red number. You have {{count}} unread update.',
+                  other:
+                    'New tasks appear here and on the red number. You have {{count}} unread updates.',
+                },
+                { count: counts.updates },
               )
             : t(
                 'components.inbox.screen.new_tasks_appear_here_and_on_2',

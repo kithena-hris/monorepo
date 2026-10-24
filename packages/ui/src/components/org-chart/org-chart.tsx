@@ -2304,10 +2304,11 @@ function OrgTreeList({
                 {[
                   node.title,
                   reports > 0
-                    ? t('components.org-chart.org-chart.report', '{{reports}} report{{value}}', {
-                        reports: String(reports),
-                        value: reports > 1 ? 's' : '',
-                      })
+                    ? t(
+                        'components.org-chart.org-chart.report',
+                        { one: '{{count}} report', other: '{{count}} reports' },
+                        { count: reports },
+                      )
                     : null,
                 ]
                   .filter(Boolean)

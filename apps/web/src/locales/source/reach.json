@@ -1855,13 +1855,17 @@
     "text": "Picked up {{name}}.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: a \"onDragStart\" value. Filled in: {{name}}."
   },
-  "components.org-chart.org-chart.report": {
-    "text": "{{reports}} report{{value}}",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgTreeList: text inside <p>. Filled in: {{reports}}, {{value}}."
-  },
   "components.org-chart.org-chart.report_into_a_circular_management_chain": {
     "text": "report into a circular management chain.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgChart: text inside <p>."
+  },
+  "components.org-chart.org-chart.report_one": {
+    "text": "{{count}} report",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgTreeList: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.org-chart.org-chart.report_other": {
+    "text": "{{count}} reports",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/org-chart/org-chart.tsx, OrgTreeList: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.org-chart.org-chart.report_to": {
     "text": "Report to",

@@ -235,8 +235,11 @@ export function DocumentTypes({
                         <Badge size="sm">{tr('settings.settings.expires', 'Expires')}</Badge>
                       )}
                       <Badge size="sm" tone="neutral">
-                        {t.used} {tr('settings.settings.document', 'document')}
-                        {t.used === 1 ? '' : 's'}
+                        {tr(
+                          'settings.settings.document',
+                          { one: '{{count}} document', other: '{{count}} documents' },
+                          { count: t.used },
+                        )}
                       </Badge>
                     </span>
                   }

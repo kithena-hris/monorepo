@@ -737,10 +737,11 @@ function Asked({ item, act }: BodyProps): JSX.Element {
               leading={<Avatar name={p.name} size="sm" />}
               description={
                 p.replies > 0
-                  ? t('components.inbox.detail-people.question', '{{replies}} question{{value}}', {
-                      replies: String(p.replies),
-                      value: p.replies === 1 ? '' : 's',
-                    })
+                  ? t(
+                      'components.inbox.detail-people.question',
+                      { one: '{{count}} question', other: '{{count}} questions' },
+                      { count: p.replies },
+                    )
                   : undefined
               }
               trailing={
@@ -1018,11 +1019,8 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
             count < d.steps.length
               ? t(
                   'components.inbox.detail-people.finish_more_step',
-                  'Finish {{value}} more step{{value2}}',
-                  {
-                    value: String(d.steps.length - count),
-                    value2: d.steps.length - count === 1 ? '' : 's',
-                  },
+                  { one: 'Finish {{count}} more step', other: 'Finish {{count}} more steps' },
+                  { count: d.steps.length - count },
                 )
               : undefined
           }

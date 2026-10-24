@@ -2071,10 +2071,6 @@
     "text": "Deleted documents are kept for 30 days, then gone.",
     "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: text inside <p>."
   },
-  "settings.settings.document": {
-    "text": "document",
-    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>."
-  },
   "settings.settings.document_2_one": {
     "text": "{{setBy}} · {{setAt}} · {{count}} document",
     "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: the description of <ListItem>. Filled in: {{count}}, {{setBy}}, {{setAt}}. Plural: the words for a {{count}} of one."
@@ -2082,6 +2078,14 @@
   "settings.settings.document_2_other": {
     "text": "{{setBy}} · {{setAt}} · {{count}} documents",
     "context": "Documents: files, e-signatures, letters. settings/settings.tsx, RetentionSettings: the description of <ListItem>. Filled in: {{count}}, {{setBy}}, {{setAt}}. Plural: the words for any other {{count}}."
+  },
+  "settings.settings.document_one": {
+    "text": "{{count}} document",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "settings.settings.document_other": {
+    "text": "{{count}} documents",
+    "context": "Documents: files, e-signatures, letters. settings/settings.tsx, DocumentTypes: the meta of <Badge>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "settings.settings.document_types": {
     "text": "Document types",

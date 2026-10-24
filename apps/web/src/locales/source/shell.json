@@ -1279,9 +1279,13 @@
     "text": "Fill this in on your profile",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: text inside <a>."
   },
-  "components.inbox.detail-people.finish_more_step": {
-    "text": "Finish {{value}} more step{{value2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>. Filled in: {{value}}, {{value2}}."
+  "components.inbox.detail-people.finish_more_step_one": {
+    "text": "Finish {{count}} more step",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.detail-people.finish_more_step_other": {
+    "text": "Finish {{count}} more steps",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the hint of <Actions>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.detail-people.from": {
     "text": "From {{join}}",
@@ -1475,9 +1479,13 @@
     "text": "Preview",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
   },
-  "components.inbox.detail-people.question": {
-    "text": "{{replies}} question{{value}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <ListItem>. Filled in: {{replies}}, {{value}}."
+  "components.inbox.detail-people.question_one": {
+    "text": "{{count}} question",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <ListItem>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.detail-people.question_other": {
+    "text": "{{count}} questions",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the description of <ListItem>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.detail-people.questions": {
     "text": "Questions",
@@ -2599,13 +2607,17 @@
     "text": "Move to Done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
   },
-  "components.inbox.screen.new_tasks_appear_here_and_on": {
-    "text": "New tasks appear here and on the red number. You have {{updates}} unread update{{value}}.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{updates}}, {{value}}."
-  },
   "components.inbox.screen.new_tasks_appear_here_and_on_2": {
     "text": "New tasks appear here and on the red number.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  },
+  "components.inbox.screen.new_tasks_appear_here_and_on_one": {
+    "text": "New tasks appear here and on the red number. You have {{count}} unread update.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.screen.new_tasks_appear_here_and_on_other": {
+    "text": "New tasks appear here and on the red number. You have {{count}} unread updates.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.screen.news_from_every_module_you_use": {
     "text": "News from every module you use lands here. Nothing is owed.",
