@@ -63,6 +63,19 @@ describe('landing from a handoff', () => {
     expect(calls.map((c) => c.path)).toEqual(['/api/internal/handoff/redeem']);
   });
 
+  it('lands where the signed-out visit was going, once, and only on this host', async () => {
+    jar.set('__Host-kreturnto', '/inbox/todo?item=recruiting%3Achoose-time%3Aa1');
+    identity(redeemed());
+    const response = await GET(new Request('http://localhost:3000/auth/callback?code=abc'));
+    expect(response.headers.get('location')).toBe('/inbox/todo?item=recruiting%3Achoose-time%3Aa1');
+    expect(response.headers.get('set-cookie')).toContain('__Host-kreturnto=;');
+
+    jar.set('__Host-kreturnto', '//evil.example/inbox');
+    identity(redeemed());
+    const away = await GET(new Request('http://localhost:3000/auth/callback?code=abc'));
+    expect(away.headers.get('location')).toBe('/');
+  });
+
   it('signs nobody out on a code identity refuses', async () => {
     jar.set('__Host-ksession', 'old-session');
     identity(new Response(null, { status: 401 }));

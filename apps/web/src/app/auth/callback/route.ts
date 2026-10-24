@@ -2,7 +2,12 @@ import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { appSignIn, bindCode } from '../../../lib/app-sign-in';
-import { RETURN_COOKIE, SESSION_COOKIE } from '../../../lib/session-cookie';
+import {
+  localPath,
+  RETURN_COOKIE,
+  RETURN_TO_COOKIE,
+  SESSION_COOKIE,
+} from '../../../lib/session-cookie';
 
 /**
  * Where a sign-in that happened on the auth origin lands.
@@ -133,7 +138,14 @@ export async function GET(request: Request): Promise<Response> {
    * `Secure` over plain HTTP would normally be refused, which is why local
    * development uses `*.localhost` — browsers treat it as a trustworthy origin.
    */
-  const landed = seeOther('/');
+  const landed = seeOther(localPath(jar.get(RETURN_TO_COOKIE)?.value) ?? '/');
+  landed.cookies.set(RETURN_TO_COOKIE, '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
   landed.cookies.set(SESSION_COOKIE, body.sessionId, {
     httpOnly: true,
     secure: true,

@@ -23,3 +23,15 @@ export const SESSION_COOKIE = '__Host-ksession';
  * (`returnCookie`, `lib/view-as.ts`). Absent the rest of the time.
  */
 export const RETURN_COOKIE = '__Host-kreturn';
+
+/**
+ * Where a signed-out visit was going (an email's button to an Inbox task), so
+ * signing in lands there rather than on the dashboard. Set by the proxy as it
+ * sends the visit to `/login`, used once by whichever sign-in finishes — a
+ * passkey's `api/session` or Google's `auth/callback` — and cleared.
+ */
+export const RETURN_TO_COOKIE = '__Host-kreturnto';
+
+/** A path on this host, or null: never `//elsewhere` or another origin. */
+export const localPath = (value: string | undefined): string | null =>
+  value !== undefined && /^\/(?![/\\])/u.test(value) ? value : null;

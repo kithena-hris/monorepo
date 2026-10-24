@@ -1,9 +1,10 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { appSignIn, bindCode } from '../../../lib/app-sign-in';
 import { ceremonyOrigin } from '../../../lib/ceremony-origin';
 import { revokeSession, SESSION_COOKIE } from '../../../lib/session';
+import { localPath, RETURN_TO_COOKIE } from '../../../lib/session-cookie';
 
 /**
  * Turning a completed passkey assertion into a session on this origin.
@@ -132,7 +133,18 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const landed = NextResponse.json({ ok: true });
+  const jar = await cookies();
+  const landed = NextResponse.json({
+    ok: true,
+    redirect: localPath(jar.get(RETURN_TO_COOKIE)?.value) ?? '/',
+  });
+  landed.cookies.set(RETURN_TO_COOKIE, '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 0,
+  });
 
   /*
    * `__Host-` is a promise the browser keeps rather than one a reviewer has to

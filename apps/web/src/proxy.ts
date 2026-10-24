@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { AREAS, remoteBase, remotePath, type Area } from './lib/remotes';
 import { resolveTenant, type Tenant } from './lib/tenant';
-import { RETURN_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
+import { RETURN_COOKIE, RETURN_TO_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
 
 /**
  * Tenant resolution, before anything else runs.
@@ -155,7 +155,18 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     // A view as somebody whose cookie expired with it (thirty minutes): put
     // the administrator's own session back rather than asking them to sign in.
     const to = request.cookies.has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login';
-    return NextResponse.redirect(new URL(to, request.url));
+    const away = NextResponse.redirect(new URL(to, request.url));
+    // Where they were going, for signing in to land there (an email's button).
+    const going = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    if (to === '/login' && going !== '/' && request.method === 'GET')
+      away.cookies.set(RETURN_TO_COOKIE, going, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 15 * 60,
+      });
+    return away;
   }
 
   return NextResponse.next({ request: { headers } });
