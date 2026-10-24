@@ -57,6 +57,7 @@ import {
   saveWorkingHours,
   myWorkingHours,
   selfScheduleLink,
+  setInterviewLink,
   setInterviewState,
   scheduleScreen,
 } from '../application/interviews.js';
@@ -1349,6 +1350,15 @@ export const ROUTES: readonly Route[] = [
     summary: 'R11, R16: the team has dealt with what was asked',
     params: z.object({ applicationId: Id, askId: Id }),
     run: (ctx, { params }) => closeAsk(ctx, params.applicationId, params.askId),
+  }),
+  route({
+    name: 'setInterviewLink',
+    method: 'PUT',
+    path: `${V1}/interviews/{interviewId}/link`,
+    summary: 'The meeting link, when none was made: the invitation goes again with it',
+    params: z.object({ interviewId: Id }),
+    body: z.object({ videoUrl: z.url().max(500) }),
+    run: (ctx, { params, body }) => setInterviewLink(ctx, params.interviewId, body.videoUrl),
   }),
   route({
     name: 'setInterviewState',

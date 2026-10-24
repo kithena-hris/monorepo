@@ -543,6 +543,15 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  The meeting link, when none was made: the invitation goes again with it
+  """
+  setInterviewLink(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    interviewId: String!
+  ): JSON
   """Completed, no-show or cancelled"""
   setInterviewState(
     idempotencyKey: String!

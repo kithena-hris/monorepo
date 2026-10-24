@@ -661,6 +661,8 @@ export interface KitData {
   readonly job: { readonly id: string; readonly title: string };
   readonly names: Readonly<Record<string, string>>;
   readonly me: string;
+  /** Whether the viewer books it, so may give its meeting link. */
+  readonly schedules: boolean;
 }
 
 /** What the team asked of the candidate, or the candidate of the team (`asks.ts` in Recruiting). */

@@ -83,6 +83,7 @@ const WRITES = new Set<OperationName>([
   'SuggestKitQuestions',
   'AgreeWithFinding',
   'SetInterviewState',
+  'SetInterviewLink',
   'SaveScorecard',
   'DecideApplication',
   'RequestReference',

@@ -229,6 +229,7 @@ export const OPERATIONS = {
     'applicationId: $applicationId',
   ),
   SetInterviewState: write('SetInterviewState', 'setInterviewState', ...ID('interviewId')),
+  SetInterviewLink: write('SetInterviewLink', 'setInterviewLink', ...ID('interviewId')),
   SaveScorecard: write('SaveScorecard', 'saveScorecard', ...ID('interviewId')),
   DecideApplication: write('DecideApplication', 'decideApplication', ...ID('applicationId')),
   RequestReference: write(

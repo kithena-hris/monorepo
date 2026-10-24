@@ -602,6 +602,7 @@ describe('R15, the kit and scorecard', () => {
     job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)' },
     names: { 'p-adam': 'Adam Novak' },
     me: 'p-adam',
+    schedules: false,
   };
 
   it('rates each competency on four labelled anchors, and hides the others until submitted', async () => {
@@ -609,6 +610,19 @@ describe('R15, the kit and scorecard', () => {
     expect(screen.getByRole('radiogroup', { name: 'System design' })).toBeTruthy();
     expect(screen.getAllByRole('radio', { name: '4 · Strong yes' }).length).toBe(2);
     expect(screen.getByText('Hidden until you submit')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('lets whoever books it add the meeting link when none was made', async () => {
+    const booked = { ...interview, state: 'scheduled' as const, videoUrl: null };
+    const { container } = render(
+      <screens.Kit
+        load={ready({ ...kit, interview: booked, schedules: true })}
+        params={{ id: 'i1' }}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Meeting link' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add link and send' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });
 });
