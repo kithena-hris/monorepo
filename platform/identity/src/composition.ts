@@ -13,6 +13,7 @@ import {
   SupportSessionStarted,
   moduleEntitlements,
   type ModuleEntitlement,
+  DEFAULT_LANGUAGE,
 } from '@kithena/contracts';
 
 import { startSession } from './account/application/start-session.js';
@@ -85,6 +86,7 @@ import { httpInvitationNotifier } from './tenancy/infrastructure/http-invitation
 import { adminRoutes } from './tenancy/http/admin-routes.js';
 import { moduleRoleRoutes } from './tenancy/http/module-role-routes.js';
 import { signupQuestionRoutes } from './tenancy/http/signup-question-routes.js';
+import { tenantLanguageRoutes } from './tenancy/http/tenant-language-routes.js';
 import { pendingQuestions } from './credential/domain/signup.js';
 import { hashEnrolmentToken } from './credential/domain/enrolment-token.js';
 import {
@@ -879,6 +881,18 @@ export async function compose(config: Config): Promise<RequestHandler> {
    * the fields it asks at `collectAt: signup | enrolment`. Newest `asOf`
    * wins, like the role report above.
    */
+  // The company's language, for messaging to write its emails in.
+  const tenantLanguage = tenantLanguageRoutes({
+    token: config.internalToken,
+    read: async (tenantId) => {
+      const rows = await db.execute(
+        sql`SELECT language FROM platform.tenant WHERE id = ${tenantId}::uuid`,
+      );
+      const row = [...rows][0];
+      return row === undefined ? null : String(row['language'] ?? DEFAULT_LANGUAGE);
+    },
+  });
+
   const signupQuestionSets = signupQuestionRoutes({
     token: config.peopleToken ?? config.internalToken,
     record: (tenantId, set) =>
@@ -1758,7 +1772,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
     tenantDetail: async (id) => {
       const rows = await db.execute(sql`
         SELECT id, slug, display_name, status, created_at, theme_id,
-               logo_url, cover_image_url, branding_public, google_sign_in, entitlements,
+               logo_url, cover_image_url, branding_public, google_sign_in, language, entitlements,
                address_country, address_line1,
                address_line2, address_city, address_subdivision, address_postcode
           FROM platform.tenant
@@ -1819,6 +1833,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
         coverImageUrl: textOrNull(row['cover_image_url']),
         brandingPublic: row['branding_public'] !== false,
         googleSignIn: row['google_sign_in'] === true,
+        language: textOrNull(row['language']) ?? DEFAULT_LANGUAGE,
         address,
         entitlements: modulesOrNull(row['entitlements']),
         effectiveEntitlements: effectiveEntitlements(
@@ -1942,6 +1957,7 @@ export async function compose(config: Config): Promise<RequestHandler> {
                  cover_image_url = ${change.coverImageUrl},
                  branding_public = ${change.brandingPublic},
                  google_sign_in = COALESCE(${change.googleSignIn ?? null}, google_sign_in),
+                 language = COALESCE(${change.language ?? null}, language),
                  address_country = COALESCE(${change.address?.country.toUpperCase() ?? null}, address_country),
                  address_line1 = COALESCE(${change.address?.line1 ?? null}, address_line1),
                  address_line2 = CASE WHEN ${change.address !== undefined} THEN ${change.address?.line2 ?? null} ELSE address_line2 END,
@@ -2205,5 +2221,6 @@ export async function compose(config: Config): Promise<RequestHandler> {
     (await preferences(request, response)) ||
     (await moduleRoles(request, response)) ||
     (await signupQuestionSets(request, response)) ||
+    (await tenantLanguage(request, response)) ||
     (await tenants(request, response));
 }

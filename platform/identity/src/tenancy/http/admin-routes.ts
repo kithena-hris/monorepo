@@ -125,6 +125,8 @@ export interface TenantDetail {
   readonly brandingPublic: boolean;
   /** Whether its sign-in page offers Google beside the passkey. */
   readonly googleSignIn: boolean;
+  /** What its emails are written in (`LanguageCode`). */
+  readonly language: string;
   readonly address: {
     readonly country: string;
     readonly line1: string;
@@ -450,6 +452,8 @@ export function adminRoutes({
           ...(typeof asked['googleSignIn'] === 'boolean'
             ? { googleSignIn: asked['googleSignIn'] }
             : {}),
+          // Absent keeps the language held; an unknown one is refused by `checkAmendable`.
+          ...(typeof asked['language'] === 'string' ? { language: asked['language'] } : {}),
           // Absent keeps the address held: an edit that leaves it alone.
           ...(asked['address'] === undefined
             ? {}

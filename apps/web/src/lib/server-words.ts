@@ -24,7 +24,8 @@ import { wordsIn } from './words';
 
 /**
  * The person's language: the cookie this device keeps, else the one their
- * account keeps (identity's `language` preference), else US English.
+ * account keeps (identity's `language` preference), else their company's
+ * (the back office's setting), else US English.
  */
 export const requestLanguage = cache(async (): Promise<Language> => {
   // Outside a request (a test, a job) there is no cookie and no account: US English.
@@ -39,7 +40,11 @@ export const requestLanguage = cache(async (): Promise<Language> => {
   const kept = await readPreference('language').catch(() => null);
   const code: unknown =
     kept !== null && typeof kept === 'object' ? Reflect.get(kept, 'code') : null;
-  return isLanguage(code) ? code : DEFAULT_LANGUAGE;
+  if (isLanguage(code)) return code;
+  // Nobody chose: the company's language, as its emails are.
+  // Loaded here, not at the top: `branding` is server-only, and a test of an action has no tenant.
+  const { currentTenant } = await import('./branding');
+  return (await currentTenant().catch(() => null))?.language ?? DEFAULT_LANGUAGE;
 });
 
 /** A `t` that also says its language, for the dates and numbers written beside its words. */

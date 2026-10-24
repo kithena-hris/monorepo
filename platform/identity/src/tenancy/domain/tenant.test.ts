@@ -23,6 +23,7 @@ const acme: Tenant = {
   },
   location: null,
   googleSignIn: false,
+  language: 'en-US',
 };
 
 describe('isLookupWorthwhile', () => {

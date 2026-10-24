@@ -29,6 +29,7 @@ function detailOf(overrides: Partial<TenantDetail> = {}): TenantDetail {
     coverImageUrl: null,
     brandingPublic: true,
     googleSignIn: false,
+    language: 'en-US',
     address: null,
     people: [],
     entitlements: null,
