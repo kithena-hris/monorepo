@@ -12043,10 +12043,6 @@
     "text": "Loading your week",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/attendance.tsx, TimeOffTimesheet: the label of <Loading>."
   },
-  "timeoff.attendance.m_h_v1h_z": {
-    "text": "M{{String}} {{String2}}h{{String3}}v1h-{{String3}}z",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/attendance.tsx: text built in code. Filled in: {{String}}, {{String2}}, {{String3}}."
-  },
   "timeoff.attendance.making_your_code": {
     "text": "Making your code",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. timeoff/attendance.tsx, TimeOffKioskCode: the label of <Loading>."

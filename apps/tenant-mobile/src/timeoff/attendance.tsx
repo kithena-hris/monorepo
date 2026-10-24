@@ -1181,11 +1181,7 @@ function qrPath(text: string): { path: string; size: number } {
       }
       const start = x;
       while (row[x] === true) x++;
-      path += tr(
-        'timeoff.attendance.m_h_v1h_z',
-        'M{{String}} {{String2}}h{{String3}}v1h-{{String3}}z',
-        { String: String(start), String2: String(y), String3: String(x - start) },
-      );
+      path += `M${start} ${y}h${x - start}v1h-${x - start}z`;
     }
   });
   return { path, size };
