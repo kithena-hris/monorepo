@@ -5,6 +5,7 @@ import { dueText, parseDue, progress, startIfDue, type Template } from '../domai
 import { adminOnly, nameOf, rolesOf, type Ctx } from './context.js';
 import { loadPlan, maySee, owns } from './plans.js';
 import type { PlanRecord } from './ports.js';
+import { t } from './reader-words.js';
 
 /**
  * The read models Onboarding's screens are drawn from (Recruiting PRD §O10,
@@ -270,14 +271,14 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         lane: 'task',
         kind: 'onboarding.task',
         module: 'onboarding',
-        area: 'Onboarding',
+        area: t('inbox.screens.onboarding', 'Onboarding'),
         icon: 'hire',
         title: `${r.title}: ${r.name}`,
         at: `${r.dueOn}T00:00:00.000Z` as Instant,
         due: r.dueOn,
         dueVerb: 'due',
         link: `/onboarding/plans/${r.planId}`,
-        openIn: 'Onboarding',
+        openIn: t('inbox.screens.onboarding', 'Onboarding'),
         tone: r.late ? 'danger' : null,
         summary: null,
         from: null,

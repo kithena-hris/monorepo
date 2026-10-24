@@ -151,5 +151,15 @@
   "email.requests.they_added": "\n\nHa afegit: {{text}}",
   "email.requests.times_offered": "Horaris proposats · {{zone}}",
   "email.sourced.subject": "{{company}} t’ha afegit com a possible candidat",
-  "email.sourced.text": "Hola, {{name}}:\n\n{{company}} ha trobat el teu perfil públic i et té en compte per a {{job}}. Conservem el teu nom, les teves dades de contacte i el perfil que vam trobar, per contactar amb tu sobre aquest lloc. Aquí pots veure què conservem o demanar-nos que ho eliminem:\n{{link}}"
+  "email.sourced.text": "Hola, {{name}}:\n\n{{company}} ha trobat el teu perfil públic i et té en compte per a {{job}}. Conservem el teu nom, les teves dades de contacte i el perfil que vam trobar, per contactar amb tu sobre aquest lloc. Aquí pots veure què conservem o demanar-nos que ho eliminem:\n{{link}}",
+  "inbox.screens.a_candidate": "un candidat",
+  "inbox.screens.approve_an_offer": "Aprovar una oferta",
+  "inbox.screens.approve_the_requisition": "Aprovar la sol·licitud de lloc: {{title}}",
+  "inbox.screens.choose_a_time": "Triar una hora: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Selecció",
+  "inbox.screens.submit_your_scorecard": "Enviar la teva fitxa: {{title}}",
+  "inbox.screens.the_role": "el lloc",
+  "inbox.screens.times_offered_for_many": "Ofert {{count}} vegades per a {{title}}",
+  "inbox.screens.times_offered_for_one": "Ofert {{count}} vegada per a {{title}}",
+  "inbox.screens.times_offered_for_other": "Ofert {{count}} vegades per a {{title}}"
 }

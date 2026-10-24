@@ -23,5 +23,19 @@
   "email.manager-change.you_write_their_review": "Vous rédigez l’évaluation manager de {{who}}",
   "email.reviews.about": "{{title}} concernant {{name}} : « {{reason}} »",
   "email.reviews.asks_to_unlock_a_review": "{{name}} demande à déverrouiller une évaluation",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Les évaluateurs pairs de {{name}} vous attendent"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Les évaluateurs pairs de {{name}} vous attendent",
+  "inbox.home.approve_s_peers": "Approuver les pairs de {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} demande un retour",
+  "inbox.home.draft_saved": " · brouillon enregistré",
+  "inbox.home.handed_to_you_from": " · confié par {{from}}",
+  "inbox.home.nothing_to_submit": "; rien à soumettre",
+  "inbox.home.nothing_to_submit_draft_stays": "; rien à soumettre, votre brouillon reste lisible",
+  "inbox.home.pick_peers_for": "Choisir les pairs de {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Choisir vos pairs évaluateurs",
+  "inbox.home.they_no_longer_report_to_you": "Cette personne ne vous est plus rattachée",
+  "inbox.home.they_report_to_now": "Rattaché à {{to}} désormais",
+  "inbox.home.unlock_request_from": "Demande de déverrouillage de {{authorId}}",
+  "inbox.home.write_your_self_review": "Rédiger votre auto-évaluation",
+  "inbox.home.you_no_longer_write_s_manager": "Vous ne rédigez plus l’évaluation manager de {{subjectId}}",
+  "inbox.home.your_review_was_released": "Votre évaluation a été publiée"
 }

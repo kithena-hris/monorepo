@@ -151,5 +151,16 @@
   "email.requests.they_added": "\n\nDodano: {{text}}",
   "email.requests.times_offered": "Proponowane terminy · {{zone}}",
   "email.sourced.subject": "{{company}} dodała Cię jako potencjalnego kandydata",
-  "email.sourced.text": "Dzień dobry {{name}},\n\n{{company}} znalazła Twój publiczny profil i rozważa Twoją kandydaturę na stanowisko {{job}}. Przechowujemy Twoje imię i nazwisko, dane kontaktowe i znaleziony profil, aby skontaktować się w sprawie tej roli. Tutaj możesz sprawdzić, co przechowujemy, lub poprosić o usunięcie:\n{{link}}"
+  "email.sourced.text": "Dzień dobry {{name}},\n\n{{company}} znalazła Twój publiczny profil i rozważa Twoją kandydaturę na stanowisko {{job}}. Przechowujemy Twoje imię i nazwisko, dane kontaktowe i znaleziony profil, aby skontaktować się w sprawie tej roli. Tutaj możesz sprawdzić, co przechowujemy, lub poprosić o usunięcie:\n{{link}}",
+  "inbox.screens.a_candidate": "kandydat",
+  "inbox.screens.approve_an_offer": "Zatwierdź ofertę",
+  "inbox.screens.approve_the_requisition": "Zatwierdź zapotrzebowanie: {{title}}",
+  "inbox.screens.choose_a_time": "Wybierz termin: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Rekrutacja",
+  "inbox.screens.submit_your_scorecard": "Wyślij kartę oceny: {{title}}",
+  "inbox.screens.the_role": "stanowisko",
+  "inbox.screens.times_offered_for_few": "Zaproponowano {{count}} razy: {{title}}",
+  "inbox.screens.times_offered_for_many": "Zaproponowano {{count}} razy: {{title}}",
+  "inbox.screens.times_offered_for_one": "Zaproponowano {{count}} raz: {{title}}",
+  "inbox.screens.times_offered_for_other": "Zaproponowano {{count}} razy: {{title}}"
 }

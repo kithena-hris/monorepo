@@ -1,0 +1,10 @@
+{
+  "inbox.inbox.a_document": "ein Dokument",
+  "inbox.inbox.add_your": "Ihr Dokument hinzufügen: {{name}}",
+  "inbox.inbox.asked_to_open": "{{displayName}} möchte {{value}} öffnen",
+  "inbox.inbox.document": "Dokument",
+  "inbox.inbox.documents": "Dokumente",
+  "inbox.inbox.read_and_acknowledge": "{{value}} lesen und bestätigen",
+  "inbox.inbox.sign": "{{value}} unterschreiben",
+  "inbox.inbox.someone": "Jemand"
+}

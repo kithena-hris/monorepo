@@ -103,6 +103,10 @@
     "text": "Give your provident fund UAN, or ask for a new one",
     "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"IN\" value."
   },
+  "inbox.screens.onboarding": {
+    "text": "Onboarding",
+    "context": "An email welcoming a new hire before their first day. application/screens.ts: a \"area\" value."
+  },
   "meet_team": {
     "text": "Meet the team",
     "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."

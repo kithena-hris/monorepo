@@ -88,7 +88,20 @@ export const SOURCES = {
   },
   'email-timeoff': {
     dir: 'services/timeoff/src',
-    area: 'A personal email from HR encouraging one employee to take a break, with their own numbers',
+    area: 'A personal email from HR encouraging one employee to take a break, with their own numbers, or one of Time Off’s Inbox tasks for the person reading',
+    email: true,
+  },
+  // A service's words for the person reading, in their language: the Inbox
+  // tasks it builds, the refusals it gives. Kept beside the service, as its
+  // emails are (`<dir>/locales/<language>.json`).
+  'service-people': {
+    dir: 'services/people/src',
+    area: 'People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining)',
+    email: true,
+  },
+  'service-documents': {
+    dir: 'services/documents/src',
+    area: 'Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload)',
     email: true,
   },
 };

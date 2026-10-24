@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Piszesz ocenę przełożonego dla: {{who}}",
   "email.reviews.about": "{{title}} dotycząca {{name}}: „{{reason}}”",
   "email.reviews.asks_to_unlock_a_review": "{{name}} prosi o odblokowanie oceny",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Oceniający współpracownicy osoby {{name}} czekają na Ciebie"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Oceniający współpracownicy osoby {{name}} czekają na Ciebie",
+  "inbox.home.approve_s_peers": "Zatwierdź współpracowników: {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} prosi o feedback",
+  "inbox.home.draft_saved": " · szkic zapisany",
+  "inbox.home.handed_to_you_from": " · przekazane przez: {{from}}",
+  "inbox.home.nothing_to_submit": "; nic do wysłania",
+  "inbox.home.nothing_to_submit_draft_stays": "; nic do wysłania, Twój szkic zostaje do wglądu",
+  "inbox.home.performance": "Wyniki",
+  "inbox.home.pick_peers_for": "Wybierz współpracowników dla: {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Wybierz osoby oceniające",
+  "inbox.home.they_no_longer_report_to_you": "Nie podlega już Tobie",
+  "inbox.home.they_report_to_now": "Teraz podlega: {{to}}",
+  "inbox.home.unlock_request_from": "Prośba o odblokowanie od: {{authorId}}",
+  "inbox.home.write_your_self_review": "Napisz samoocenę",
+  "inbox.home.you_no_longer_write_s_manager": "Nie piszesz już oceny menedżerskiej: {{subjectId}}",
+  "inbox.home.your_review_was_released": "Twoja ocena została udostępniona"
 }

@@ -152,5 +152,16 @@
   "email.requests.they_added": "\n\nДобавлено: {{text}}",
   "email.requests.times_offered": "Предложенное время · {{zone}}",
   "email.sourced.subject": "{{company}} добавила Вас как возможного кандидата",
-  "email.sourced.text": "Здравствуйте, {{name}}!\n\n{{company}} нашла Ваш открытый профиль и рассматривает Вас на вакансию {{job}}. Мы храним Ваше имя, контакты и найденный профиль, чтобы связаться с Вами по этой вакансии. Здесь можно посмотреть, что мы храним, или попросить удалить:\n{{link}}"
+  "email.sourced.text": "Здравствуйте, {{name}}!\n\n{{company}} нашла Ваш открытый профиль и рассматривает Вас на вакансию {{job}}. Мы храним Ваше имя, контакты и найденный профиль, чтобы связаться с Вами по этой вакансии. Здесь можно посмотреть, что мы храним, или попросить удалить:\n{{link}}",
+  "inbox.screens.a_candidate": "кандидат",
+  "inbox.screens.approve_an_offer": "Утвердить оффер",
+  "inbox.screens.approve_the_requisition": "Утвердить заявку на вакансию: {{title}}",
+  "inbox.screens.choose_a_time": "Выбрать время: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Подбор",
+  "inbox.screens.submit_your_scorecard": "Отправить оценочный лист: {{title}}",
+  "inbox.screens.the_role": "должность",
+  "inbox.screens.times_offered_for_few": "Предложено {{count}} раза: {{title}}",
+  "inbox.screens.times_offered_for_many": "Предложено {{count}} раз: {{title}}",
+  "inbox.screens.times_offered_for_one": "Предложено {{count}} раз: {{title}}",
+  "inbox.screens.times_offered_for_other": "Предложено {{count}} раза: {{title}}"
 }

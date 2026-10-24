@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Redactas la evaluación como responsable de {{who}}",
   "email.reviews.about": "{{title}} sobre {{name}}: «{{reason}}»",
   "email.reviews.asks_to_unlock_a_review": "{{name}} pide desbloquear una evaluación",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "Los compañeros evaluadores de {{name}} te esperan"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Los compañeros evaluadores de {{name}} te esperan",
+  "inbox.home.approve_s_peers": "Aprobar los compañeros de {{subjectId}}",
+  "inbox.home.asked_for_feedback": "{{from}} ha pedido feedback",
+  "inbox.home.draft_saved": " · borrador guardado",
+  "inbox.home.handed_to_you_from": " · te lo ha pasado {{from}}",
+  "inbox.home.nothing_to_submit": "; nada que enviar",
+  "inbox.home.nothing_to_submit_draft_stays": "; nada que enviar, tu borrador sigue disponible para leer",
+  "inbox.home.performance": "Desempeño",
+  "inbox.home.pick_peers_for": "Elegir compañeros para {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Elegir tus revisores",
+  "inbox.home.they_no_longer_report_to_you": "Ya no depende de ti",
+  "inbox.home.they_report_to_now": "Ahora depende de {{to}}",
+  "inbox.home.unlock_request_from": "Solicitud de desbloqueo de {{authorId}}",
+  "inbox.home.write_your_self_review": "Escribir tu autoevaluación",
+  "inbox.home.you_no_longer_write_s_manager": "Ya no escribes la evaluación de responsable de {{subjectId}}",
+  "inbox.home.your_review_was_released": "Tu evaluación se ha publicado"
 }

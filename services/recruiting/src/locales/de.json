@@ -146,5 +146,13 @@
   "email.requests.they_added": "\n\nErgänzung: {{text}}",
   "email.requests.times_offered": "Angebotene Termine · {{zone}}",
   "email.sourced.subject": "{{company}} hat Sie als mögliche Kandidatin oder möglichen Kandidaten aufgenommen",
-  "email.sourced.text": "Hallo {{name}},\n\n{{company}} ist auf Ihr öffentliches Profil gestoßen und zieht Sie für die Stelle {{job}} in Betracht. Wir speichern Ihren Namen, Ihre Kontaktdaten und das gefundene Profil, um Sie zu dieser Stelle zu kontaktieren. Hier sehen Sie, was wir gespeichert haben, oder können die Löschung verlangen:\n{{link}}"
+  "email.sourced.text": "Hallo {{name}},\n\n{{company}} ist auf Ihr öffentliches Profil gestoßen und zieht Sie für die Stelle {{job}} in Betracht. Wir speichern Ihren Namen, Ihre Kontaktdaten und das gefundene Profil, um Sie zu dieser Stelle zu kontaktieren. Hier sehen Sie, was wir gespeichert haben, oder können die Löschung verlangen:\n{{link}}",
+  "inbox.screens.a_candidate": "eine Kandidatin oder ein Kandidat",
+  "inbox.screens.approve_an_offer": "Angebot genehmigen",
+  "inbox.screens.approve_the_requisition": "Stellenanforderung genehmigen: {{title}}",
+  "inbox.screens.choose_a_time": "Zeit wählen: {{name}}, {{value}}",
+  "inbox.screens.submit_your_scorecard": "Ihren Bewertungsbogen einreichen: {{title}}",
+  "inbox.screens.the_role": "die Stelle",
+  "inbox.screens.times_offered_for_one": "{{count}}-mal angeboten für {{title}}",
+  "inbox.screens.times_offered_for_other": "{{count}}-mal angeboten für {{title}}"
 }

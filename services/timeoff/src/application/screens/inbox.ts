@@ -29,6 +29,7 @@ import {
   type Tx,
 } from '../ports.js';
 import { balanceFor, leaveYear, policyFor, transact } from '../shared.js';
+import { readerLocale, t } from '../reader-words.js';
 
 /**
  * Time Off in the Inbox (Inbox design A2, rows "Time off"): what it has for
@@ -58,7 +59,7 @@ const DONE_DAYS = 365;
 const EXPIRY_NOTICE_DAYS = 92;
 
 const shortDate = (d: CalendarDate, withYear = false): string =>
-  new Intl.DateTimeFormat('en-GB', {
+  new Intl.DateTimeFormat(readerLocale(), {
     day: 'numeric',
     month: 'short',
     ...(withYear ? { year: 'numeric' } : {}),
@@ -76,13 +77,24 @@ export function spanLabel(from: CalendarDate, to: CalendarDate): string {
 const dayCount = (n: string): string => {
   const v = days(n);
   const text = v.isInteger() ? v.toFixed(0) : v.toString();
-  return `${text} ${v.eq(1) ? 'day' : 'days'}`;
+  return t(
+    'inbox.inbox.day_count',
+    { one: '{{text}} day', other: '{{text}} days' },
+    {
+      count: v.eq(1) ? 1 : 2,
+      text,
+    },
+  );
 };
 
 const workingDayCount = (n: string): string => {
   const v = days(n);
   const text = v.isInteger() ? v.toFixed(0) : v.toString();
-  return `${text} working ${v.eq(1) ? 'day' : 'days'}`;
+  return t(
+    'inbox.inbox.working_day_count',
+    { one: '{{text}} working day', other: '{{text}} working days' },
+    { count: v.eq(1) ? 1 : 2, text },
+  );
 };
 
 const isWeekday = (d: CalendarDate): boolean => {
@@ -167,7 +179,7 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
       team: null,
       replies: 0,
       link: `/time-off/requests/${id}`,
-      openIn: 'Time off',
+      openIn: t('inbox.inbox.time_off', 'Time off'),
       message: null,
     };
     const balance = await balanceFor(tx, me, request.leaveType.key, today);
@@ -181,20 +193,32 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
           : role === 'manager' && me.managerPersonId !== null
             ? byId.get(me.managerPersonId)
             : undefined;
-      const holderName = holderMember?.displayName ?? 'HR';
-      const holderFirst = holderMember?.firstName ?? 'HR';
+      const holderName = holderMember?.displayName ?? t('inbox.inbox.hr', 'HR');
+      const holderFirst = holderMember?.firstName ?? t('inbox.inbox.hr', 'HR');
       const waitingDays = Math.max(0, daysBetween(routing.since, today));
       const steps: InboxStep[] = [
-        { label: 'Sent', state: 'done', note: formatWhen(record.requestedAt) },
+        {
+          label: t('inbox.inbox.sent', 'Sent'),
+          state: 'done',
+          note: formatWhen(record.requestedAt),
+        },
         {
           label: `${holderFirst} decides`,
           state: 'current',
           note:
             waitingDays === 0
-              ? 'Since today'
-              : `${String(waitingDays)} ${waitingDays === 1 ? 'day' : 'days'} so far`,
+              ? t('inbox.inbox.since_today', 'Since today')
+              : t(
+                  'inbox.inbox.days_so_far',
+                  { one: '{{count}} day so far', other: '{{count}} days so far' },
+                  { count: waitingDays },
+                ),
         },
-        { label: 'Approved', state: 'todo', note: 'Added to your calendar' },
+        {
+          label: t('inbox.inbox.approved', 'Approved'),
+          state: 'todo',
+          note: t('inbox.inbox.added_to_your_calendar', 'Added to your calendar'),
+        },
       ];
       const detail: TimeOffRequestDetail = {
         requestId: id,
@@ -218,10 +242,13 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
         id: `timeoff:request:${id}`,
         lane: 'request',
         kind: 'timeoff.request',
-        title: `Time off · ${label}`,
+        title: t('inbox.inbox.time_off_2', 'Time off · {{label}}', { label }),
         summary: `${workingDayCount(span.workingDays)} · ${leaveTypeName}`,
         at: record.requestedAt,
-        status: { label: `With ${holderFirst}`, tone: 'warning' },
+        status: {
+          label: t('inbox.inbox.with', 'With {{holderFirst}}', { holderFirst }),
+          tone: 'warning',
+        },
         outcome: null,
         detail,
       });
@@ -241,11 +268,11 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
           lane: 'done',
           kind: 'timeoff.request',
           icon: 'reject',
-          title: `Time off · ${label}`,
-          summary: 'You withdrew it',
+          title: t('inbox.inbox.time_off_2', 'Time off · {{label}}', { label }),
+          summary: t('inbox.inbox.you_withdrew_it', 'You withdrew it'),
           at: record.requestedAt,
           status: null,
-          outcome: { label: 'Withdrawn', tone: 'neutral' },
+          outcome: { label: t('inbox.inbox.withdrawn', 'Withdrawn'), tone: 'neutral' },
           detail: null,
         });
       }
@@ -253,7 +280,7 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
     }
     const decidedAt = last?.decidedAt ?? record.requestedAt;
     const decider = last === undefined ? null : (byAccount.get(last.decidedBy) ?? null);
-    const deciderFirst = decider?.firstName ?? 'HR';
+    const deciderFirst = decider?.firstName ?? t('inbox.inbox.hr', 'HR');
     const followUp = declined
       ? (mine.find((r) => r.requestedAt > decidedAt && r.request.id !== id) ?? null)
       : null;
@@ -273,7 +300,9 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
           ? null
           : {
               requestId: followUp.request.id,
-              label: `You asked for ${spanLabel(followUp.request.span.from, followUp.request.span.to)} instead`,
+              label: t('inbox.inbox.you_asked_for_instead', 'You asked for {{value}} instead', {
+                value: spanLabel(followUp.request.span.from, followUp.request.span.to),
+              }),
               holder: null,
             },
     };
@@ -286,10 +315,20 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
         kind: 'timeoff.decided',
         icon: approved ? 'approve' : 'reject',
         title: approved
-          ? `${deciderFirst} approved your time off`
-          : `${deciderFirst} declined your time off on ${label}`,
+          ? t('inbox.inbox.approved_your_time_off', '{{deciderFirst}} approved your time off', {
+              deciderFirst,
+            })
+          : t(
+              'inbox.inbox.declined_your_time_off_on',
+              '{{deciderFirst}} declined your time off on {{label}}',
+              { deciderFirst, label },
+            ),
         summary: approved
-          ? `${label} · ${dayCount(span.workingDays)} · ${dayCount(balance.left)} left this year`
+          ? t(
+              'inbox.inbox.left_this_year',
+              '{{label}} · {{workingDays}} · {{left}} left this year',
+              { label, workingDays: dayCount(span.workingDays), left: dayCount(balance.left) },
+            )
           : last?.reason === null || last?.reason === undefined
             ? `${label} · ${dayCount(span.workingDays)}`
             : `“${last.reason}”`,
@@ -307,13 +346,15 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
       lane: 'done',
       kind: 'timeoff.request',
       icon: approved ? 'approve' : 'reject',
-      title: `Time off · ${label}`,
-      summary: `${approved ? 'Approved' : 'Declined'} by ${deciderFirst}`,
+      title: t('inbox.inbox.time_off_2', 'Time off · {{label}}', { label }),
+      summary: approved
+        ? t('inbox.inbox.approved_by', 'Approved by {{deciderFirst}}', { deciderFirst })
+        : t('inbox.inbox.declined_by', 'Declined by {{deciderFirst}}', { deciderFirst }),
       at: decidedAt,
       status: null,
       outcome: approved
-        ? { label: 'Approved', tone: 'success' }
-        : { label: 'Declined', tone: 'danger' },
+        ? { label: t('inbox.inbox.approved', 'Approved'), tone: 'success' }
+        : { label: t('inbox.inbox.declined', 'Declined'), tone: 'danger' },
       detail,
     });
   }
@@ -334,20 +375,22 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
       icon: approved ? 'approve' : 'reject',
       tone: null,
       title: `${member.displayName} · ${spanLabel(span.from, span.to)}`,
-      summary: `You ${approved ? 'approved' : 'declined'} it`,
+      summary: approved
+        ? t('inbox.inbox.you_approved_it', 'You approved it')
+        : t('inbox.inbox.you_declined_it', 'You declined it'),
       from: person(member),
       at: decision.decidedAt,
       due: null,
       dueVerb: 'decide',
       status: null,
       outcome: approved
-        ? { label: 'Approved', tone: 'success' }
-        : { label: 'Declined', tone: 'danger' },
+        ? { label: t('inbox.inbox.approved', 'Approved'), tone: 'success' }
+        : { label: t('inbox.inbox.declined', 'Declined'), tone: 'danger' },
       count: null,
       team: null,
       replies: 0,
       link: `/time-off/requests/${record.request.id}`,
-      openIn: 'Time off',
+      openIn: t('inbox.inbox.time_off', 'Time off'),
       message: decision.reason,
       detail: null,
     });
@@ -370,7 +413,9 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
     if (ofYear.length > 0 && savedAt !== undefined) {
       const dates = [...new Set(ofYear.map((h) => h.date))].toSorted();
       const first = ofYear.find((h) => h.date === dates[0]) ?? null;
-      const place = [me.city, me.country].filter((x) => x !== null).join(' · ') || 'Where you work';
+      const place =
+        [me.city, me.country].filter((x) => x !== null).join(' · ') ||
+        t('inbox.inbox.where_you_work', 'Where you work');
       const detail: TimeOffHolidaysDetail = {
         calendar: place,
         year: next,
@@ -385,8 +430,19 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
         area: null,
         icon: 'leave',
         tone: null,
-        title: `The ${String(next)} holiday calendar is out`,
-        summary: `${place} · ${String(dates.length)} public holidays`,
+        title: t(
+          'inbox.inbox.the_holiday_calendar_is_out',
+          'The {{next}} holiday calendar is out',
+          { next: String(next) },
+        ),
+        summary: t(
+          'inbox.inbox.public_holidays',
+          {
+            one: '{{place}} · {{count}} public holiday',
+            other: '{{place}} · {{count}} public holidays',
+          },
+          { place, count: dates.length },
+        ),
         from: null,
         at: savedAt as Instant,
         due: null,
@@ -397,7 +453,7 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
         team: null,
         replies: 0,
         link: `/time-off/holidays/${String(next)}`,
-        openIn: 'Time off',
+        openIn: t('inbox.inbox.time_off', 'Time off'),
         message: null,
         detail,
       });
@@ -405,34 +461,39 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
   }
 
   // Days that will not carry over, as the year end comes (C9).
-  for (const t of types.values()) {
-    if (!t.definition.tracked || t.deleted || t.definition.category !== 'annual_leave') continue;
-    const policy = await policyFor(tx, me, t.definition.key, today);
+  for (const type of types.values()) {
+    if (!type.definition.tracked || type.deleted || type.definition.category !== 'annual_leave') continue;
+    const policy = await policyFor(tx, me, type.definition.key, today);
     if (policy === null) continue;
     const { end } = leaveYear(policy.definition, today);
     if (daysBetween(today, end) > EXPIRY_NOTICE_DAYS) continue;
-    const balance = await balanceFor(tx, me, t.definition.key, today);
+    const balance = await balanceFor(tx, me, type.definition.key, today);
     const cap = days(policy.definition.carryOver?.maxDays ?? '0');
     const lose = days(balance.left).minus(cap);
     if (lose.lte(0)) continue;
     const detail: TimeOffExpiringDetail = {
-      leaveTypeKey: t.definition.key,
-      leaveTypeName: t.definition.name.default,
+      leaveTypeKey: type.definition.key,
+      leaveTypeName: type.definition.name.default,
       days: amount(lose),
       by: end,
     };
     items.push({
-      id: `timeoff:expiring:${t.definition.key}-${end}`,
+      id: `timeoff:expiring:${type.definition.key}-${end}`,
       lane: 'task',
       kind: 'timeoff.expiring',
       module: 'timeoff',
       area: null,
       icon: 'pending',
       tone: null,
-      title: `Use ${dayCount(amount(lose))} before ${shortDate(end)}`,
+      title: t('inbox.inbox.use_before', 'Use {{lose}} before {{end}}', {
+        lose: dayCount(amount(lose)),
+        end: shortDate(end),
+      }),
       summary: cap.isZero()
-        ? 'They don’t carry over this year'
-        : `Only ${dayCount(amount(cap))} carry over`,
+        ? t('inbox.inbox.they_don_t_carry_over_this', 'They don’t carry over this year')
+        : t('inbox.inbox.only_carry_over', 'Only {{cap}} carry over', {
+            cap: dayCount(amount(cap)),
+          }),
       from: null,
       at: `${addDays(end, -EXPIRY_NOTICE_DAYS)}T00:00:00.000Z` as Instant,
       due: end,
@@ -443,7 +504,7 @@ async function gather(tx: Tx, deps: InboxDeps, caller: Caller) {
       team: null,
       replies: 0,
       link: `/time-off/request`,
-      openIn: 'Time off',
+      openIn: t('inbox.inbox.time_off', 'Time off'),
       message: null,
       detail,
     });
@@ -566,7 +627,9 @@ async function approvalItem(
     firstAsk:
       earlier === undefined
         ? null
-        : `${spanLabel(earlier.request.span.from, earlier.request.span.to)}, which was declined`,
+        : t('inbox.inbox.which_was_declined', '{{value}}, which was declined', {
+            value: spanLabel(earlier.request.span.from, earlier.request.span.to),
+          }),
     note: record.note,
   };
   return {
@@ -578,17 +641,25 @@ async function approvalItem(
     icon: 'leave',
     tone: null,
     title: `${member.displayName} · ${spanLabel(span.from, span.to)}`,
-    summary: `${workingDayCount(span.workingDays)} · ${leaveTypeName}${request.status === 'change_pending' ? ' · a change' : ''}`,
+    summary: `${workingDayCount(span.workingDays)} · ${leaveTypeName}${request.status === 'change_pending' ? t('inbox.inbox.a_change', ' · a change') : ''}`,
     from: person(member),
     at: record.requestedAt,
     due,
     dueVerb: 'decide',
     status:
       (record.nudgedAt ?? null) !== null
-        ? { label: `${member.firstName} nudged you`, tone: 'warning' }
+        ? {
+            label: t('inbox.inbox.nudged_you', '{{firstName}} nudged you', {
+              firstName: member.firstName,
+            }),
+            tone: 'warning',
+          }
         : routing.chain.length > 1
           ? {
-              label: `Step ${String(routing.step + 1)} of ${String(routing.chain.length)}`,
+              label: t('inbox.inbox.step_of', 'Step {{step}} of {{steps}}', {
+                step: routing.step + 1,
+                steps: routing.chain.length,
+              }),
               tone: 'neutral',
             }
           : null,
@@ -597,7 +668,7 @@ async function approvalItem(
     team: null,
     replies: 0,
     link: `/time-off/approvals/waiting/${request.id}`,
-    openIn: 'Time off',
+    openIn: t('inbox.inbox.time_off', 'Time off'),
     message: record.note,
     detail,
   };

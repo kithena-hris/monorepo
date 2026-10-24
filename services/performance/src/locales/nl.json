@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "Jij schrijft de leidinggevendebeoordeling van {{who}}",
   "email.reviews.about": "{{title}} over {{name}}: ‘{{reason}}’",
   "email.reviews.asks_to_unlock_a_review": "{{name}} vraagt om een beoordeling te ontgrendelen",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "De collega-beoordelaars van {{name}} wachten op je"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "De collega-beoordelaars van {{name}} wachten op je",
+  "inbox.home.approve_s_peers": "Collega’s van {{subjectId}} goedkeuren",
+  "inbox.home.asked_for_feedback": "{{from}} vraagt om feedback",
+  "inbox.home.draft_saved": " · concept opgeslagen",
+  "inbox.home.handed_to_you_from": " · aan jou overgedragen door {{from}}",
+  "inbox.home.nothing_to_submit": "; niets in te dienen",
+  "inbox.home.nothing_to_submit_draft_stays": "; niets in te dienen, je concept blijft leesbaar",
+  "inbox.home.performance": "Prestaties",
+  "inbox.home.pick_peers_for": "Collega’s kiezen voor {{subjectId}}",
+  "inbox.home.pick_your_peer_reviewers": "Je peer-reviewers kiezen",
+  "inbox.home.they_no_longer_report_to_you": "Rapporteert niet meer aan jou",
+  "inbox.home.they_report_to_now": "Rapporteert nu aan {{to}}",
+  "inbox.home.unlock_request_from": "Ontgrendelverzoek van {{authorId}}",
+  "inbox.home.write_your_self_review": "Je zelfevaluatie schrijven",
+  "inbox.home.you_no_longer_write_s_manager": "Je schrijft de managerbeoordeling van {{subjectId}} niet meer",
+  "inbox.home.your_review_was_released": "Je beoordeling is vrijgegeven"
 }

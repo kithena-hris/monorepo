@@ -150,5 +150,15 @@
   "email.requests.they_added": "\n\nAcrescentou: {{text}}",
   "email.requests.times_offered": "Horários propostos · {{zone}}",
   "email.sourced.subject": "{{company}} adicionou-o como possível candidato",
-  "email.sourced.text": "Olá, {{name}}:\n\n{{company}} encontrou o seu perfil público e está a considerá-lo para {{job}}. Guardamos o seu nome, os seus contactos e o perfil encontrado, para o contactar sobre esta função. Pode ver o que guardamos, ou pedir que seja apagado, aqui:\n{{link}}"
+  "email.sourced.text": "Olá, {{name}}:\n\n{{company}} encontrou o seu perfil público e está a considerá-lo para {{job}}. Guardamos o seu nome, os seus contactos e o perfil encontrado, para o contactar sobre esta função. Pode ver o que guardamos, ou pedir que seja apagado, aqui:\n{{link}}",
+  "inbox.screens.a_candidate": "um candidato",
+  "inbox.screens.approve_an_offer": "Aprovar uma proposta",
+  "inbox.screens.approve_the_requisition": "Aprovar a requisição: {{title}}",
+  "inbox.screens.choose_a_time": "Escolher uma hora: {{name}}, {{value}}",
+  "inbox.screens.recruiting": "Recrutamento",
+  "inbox.screens.submit_your_scorecard": "Submeter a sua ficha: {{title}}",
+  "inbox.screens.the_role": "a função",
+  "inbox.screens.times_offered_for_many": "Oferecido {{count}} vezes para {{title}}",
+  "inbox.screens.times_offered_for_one": "Oferecido {{count}} vez para {{title}}",
+  "inbox.screens.times_offered_for_other": "Oferecido {{count}} vezes para {{title}}"
 }

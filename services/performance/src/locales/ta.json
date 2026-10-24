@@ -23,5 +23,20 @@
   "email.manager-change.you_write_their_review": "{{who}} அவர்களின் மேலாளர் மதிப்பாய்வை நீங்கள் எழுதுவீர்கள்",
   "email.reviews.about": "{{name}} பற்றிய {{title}}: “{{reason}}”",
   "email.reviews.asks_to_unlock_a_review": "{{name}} ஒரு மதிப்பாய்வைத் திறக்கக் கேட்கிறார்",
-  "email.reviews.s_peer_reviewers_are_waiting_for": "{{name}} அவர்களின் சக மதிப்பாய்வாளர்கள் உங்களுக்காகக் காத்திருக்கிறார்கள்"
+  "email.reviews.s_peer_reviewers_are_waiting_for": "{{name}} அவர்களின் சக மதிப்பாய்வாளர்கள் உங்களுக்காகக் காத்திருக்கிறார்கள்",
+  "inbox.home.approve_s_peers": "{{subjectId}} இன் சக பணியாளர்களை அங்கீகரிக்கவும்",
+  "inbox.home.asked_for_feedback": "{{from}} கருத்து கேட்டார்",
+  "inbox.home.draft_saved": " · வரைவு சேமிக்கப்பட்டது",
+  "inbox.home.handed_to_you_from": " · {{from}} உங்களிடம் ஒப்படைத்தார்",
+  "inbox.home.nothing_to_submit": "; சமர்ப்பிக்க எதுவும் இல்லை",
+  "inbox.home.nothing_to_submit_draft_stays": "; சமர்ப்பிக்க எதுவும் இல்லை, உங்கள் வரைவு படிக்க இருக்கும்",
+  "inbox.home.performance": "செயல்திறன்",
+  "inbox.home.pick_peers_for": "{{subjectId}} க்கு சக பணியாளர்களைத் தேர்ந்தெடுக்கவும்",
+  "inbox.home.pick_your_peer_reviewers": "உங்கள் சக மதிப்பாய்வாளர்களைத் தேர்ந்தெடுக்கவும்",
+  "inbox.home.they_no_longer_report_to_you": "இனி உங்களுக்குக் கீழ் இல்லை",
+  "inbox.home.they_report_to_now": "இப்போது {{to}} க்குக் கீழ்",
+  "inbox.home.unlock_request_from": "{{authorId}} இடமிருந்து திறப்புக் கோரிக்கை",
+  "inbox.home.write_your_self_review": "உங்கள் சுய மதிப்பாய்வை எழுதவும்",
+  "inbox.home.you_no_longer_write_s_manager": "{{subjectId}} இன் மேலாளர் மதிப்பாய்வை இனி நீங்கள் எழுதவில்லை",
+  "inbox.home.your_review_was_released": "உங்கள் மதிப்பாய்வு வெளியிடப்பட்டது"
 }

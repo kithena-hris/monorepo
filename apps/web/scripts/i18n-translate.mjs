@@ -58,6 +58,9 @@ const EMAIL_DIRS = {
   'email-onboarding': 'services/onboarding/src',
   'email-performance': 'services/performance/src',
   'email-timeoff': 'services/timeoff/src',
+  // A service's words for the person reading: its Inbox tasks, its refusals.
+  'service-people': 'services/people/src',
+  'service-documents': 'services/documents/src',
 };
 /** The phone's and the job site's namespaces, kept beside the app that bundles them. */
 const PHONE_DIRS = {
