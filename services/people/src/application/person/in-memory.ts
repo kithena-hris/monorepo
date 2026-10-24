@@ -246,7 +246,10 @@ export function inMemoryPeople(
           all: found.length,
           active: found.filter((r) => r.snapshot.status === 'active').length,
           notStarted: found.filter(
-            (r) => r.snapshot.status === 'provisional' || r.snapshot.status === 'pre_hire',
+            (r) =>
+              r.snapshot.status === 'provisional' ||
+              r.snapshot.status === 'pre_hire' ||
+              r.snapshot.status === 'onboarding',
           ).length,
         });
       },

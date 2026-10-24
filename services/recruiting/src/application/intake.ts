@@ -245,6 +245,21 @@ export async function portalLink(ctx: Ctx, candidateId: string): Promise<string>
   return `${ctx.deps.jobsOrigin}/me/${company}#${token}`;
 }
 
+/**
+ * A page of the candidate's own that needs them signed in: the offer to
+ * accept, the contract. No token rides on it, so a forwarded email opens
+ * nothing; the job site sends whoever is not signed in to its sign-in, then
+ * straight back to this page.
+ */
+export async function signedInLink(
+  ctx: Ctx,
+  view: { readonly offer: string } | { readonly contract: string },
+): Promise<string> {
+  const company = (await generalSettings(ctx)).companySlug;
+  const query = 'offer' in view ? `offer=${view.offer}` : `contract=${view.contract}`;
+  return `${ctx.deps.jobsOrigin}/me/${company}?${query}`;
+}
+
 /** Shared by the public form, a referral and an agency: one application, its files, consents and event. */
 async function land(
   ctx: Ctx,

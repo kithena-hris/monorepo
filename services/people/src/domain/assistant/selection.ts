@@ -750,6 +750,7 @@ const STATUS_WORDS: Readonly<Record<string, readonly string[]>> = {
     'given notice',
   ],
   pre_hire: ['pre hire', 'prehire', 'not started yet', 'yet to start'],
+  onboarding: ['onboarding', 'signed up', 'new joiner'],
   terminated: ['left', 'former employee', 'ex employee', 'former staff'],
 };
 

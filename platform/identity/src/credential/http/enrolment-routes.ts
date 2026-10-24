@@ -78,7 +78,12 @@ export interface EnrolmentRoutesDeps {
   readonly signupQuestions: (
     tenantId: string,
     token: string,
-  ) => Promise<{ schemaVersion: number; questions: readonly SignupQuestion[] }>;
+  ) => Promise<{
+    schemaVersion: number;
+    questions: readonly SignupQuestion[];
+    /** Answers HR already holds, by key, for the person to confirm rather than type. */
+    prefill?: Readonly<Record<string, string>>;
+  }>;
   readonly internalToken: string;
 }
 
@@ -173,6 +178,16 @@ export function enrolmentRoutes({
              * passkey. Labels and rules only — nothing anybody has answered.
              */
             questions: signup.questions,
+            /*
+             * What HR already holds for those questions, shown filled in for
+             * the person to confirm. Their own details, to the holder of
+             * their own link, and cleared once they enrol.
+             */
+            prefill: Object.fromEntries(
+              Object.entries(signup.prefill ?? {}).filter(([key]) =>
+                signup.questions.some((q) => q.key === key),
+              ),
+            ),
           }),
         );
       return true;

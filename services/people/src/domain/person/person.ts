@@ -34,6 +34,8 @@ import { mergeRefusal } from './merge.js';
 export type PersonState =
   | 'provisional'
   | 'pre_hire'
+  /** Hired, signed up to their account, not started: completing onboarding. */
+  | 'onboarding'
   | 'active'
   | 'on_leave'
   | 'notice'
@@ -124,7 +126,11 @@ type StatusReason =
   | 'rehired'
   | 'notice_withdrawn'
   | 'merged'
-  | 'unmerged';
+  | 'unmerged'
+  | 'signed_up';
+
+/** Hired and not started yet: a pre-hire, and one who has signed up and is onboarding. */
+export const NOT_STARTED: ReadonlySet<PersonState> = new Set(['pre_hire', 'onboarding']);
 
 /** Why employment is ending: the `status_changed` reasons notice and termination may carry. */
 export type LeavingReason = Extract<StatusReason, 'resigned' | 'dismissed' | 'end_of_contract'>;
@@ -136,7 +142,11 @@ export const LEAVING_REASONS = [
 
 /** What identity caches about a person, as `identity_facts_changed` carries it. */
 export interface IdentityFacts {
-  readonly name: { readonly given: string; readonly family: string; readonly preferred: string | null } | null;
+  readonly name: {
+    readonly given: string;
+    readonly family: string;
+    readonly preferred: string | null;
+  } | null;
   readonly employmentStart: string | null;
 }
 
@@ -178,7 +188,11 @@ export function identityFactsOf(values: Readonly<Record<string, unknown>>): Iden
  */
 export interface HireFacts {
   readonly legalEntityId: string | null;
-  readonly name: { readonly given: string; readonly family: string; readonly preferred: string | null };
+  readonly name: {
+    readonly given: string;
+    readonly family: string;
+    readonly preferred: string | null;
+  };
   readonly workEmail: string;
   readonly managerId: string | null;
   readonly orgUnitId: string | null;
@@ -552,7 +566,7 @@ export class Person extends AggregateRoot<string> {
    * the scheduler got round to it.
    */
   start(ctx: EventContext, timeZone: string): Result<void> {
-    if (this.#status !== 'pre_hire') return err(InvalidTransition(this.#status, 'started'));
+    if (!NOT_STARTED.has(this.#status)) return err(InvalidTransition(this.#status, 'started'));
     const hireDate = this.#hireDate;
     if (hireDate === null || hireDate > ctx.clock.date(timeZone)) {
       return err(
@@ -565,6 +579,17 @@ export class Person extends AggregateRoot<string> {
     // A rehire that had not started yet gets its access back today (PEO-110).
     this.#restoreAccess(ctx, hireDate);
     return moved;
+  }
+
+  /**
+   * A pre-hire signed up to their account: they are onboarding, filling in
+   * what the company asks before the first day, and start on it as any
+   * pre-hire does. Signing up again is no move.
+   */
+  beginOnboarding(ctx: EventContext): Result<void> {
+    if (this.#status === 'onboarding') return ok(undefined);
+    if (this.#status !== 'pre_hire') return err(InvalidTransition(this.#status, 'signed_up'));
+    return this.#moveTo('onboarding', 'signed_up', ctx);
   }
 
   /**
@@ -581,9 +606,11 @@ export class Person extends AggregateRoot<string> {
     }
     if (this.#hireDate !== null && day < this.#hireDate) {
       return err(
-        failure('LEAVE_BEFORE_HIRE', `Leave from ${day} precedes the hire date of ${this.#hireDate}`, [
-          'from',
-        ]),
+        failure(
+          'LEAVE_BEFORE_HIRE',
+          `Leave from ${day} precedes the hire date of ${this.#hireDate}`,
+          ['from'],
+        ),
       );
     }
     return this.#moveTo('on_leave', 'leave_started', ctx, day);
@@ -704,14 +731,18 @@ export class Person extends AggregateRoot<string> {
       readonly eligibleForRehire?: boolean | null;
     },
   ): Result<void> {
-    if (this.#status === 'terminated' || this.#status === 'discarded' || this.#status === 'provisional') {
+    if (
+      this.#status === 'terminated' ||
+      this.#status === 'discarded' ||
+      this.#status === 'provisional'
+    ) {
       return err(InvalidTransition(this.#status, 'terminated'));
     }
 
     const ordered = this.#checkLastDay(lastWorkingDay);
     if (!ordered.ok) return ordered;
 
-    if (this.#status !== 'pre_hire' && lastWorkingDay > ctx.clock.date(timeZone)) {
+    if (!NOT_STARTED.has(this.#status) && lastWorkingDay > ctx.clock.date(timeZone)) {
       return err(
         failure(
           'LAST_DAY_NOT_REACHED',
@@ -755,7 +786,7 @@ export class Person extends AggregateRoot<string> {
    * retention schedule.
    */
   discard(ctx: EventContext): Result<void> {
-    if (this.#status !== 'provisional' && this.#status !== 'pre_hire') {
+    if (this.#status !== 'provisional' && !NOT_STARTED.has(this.#status)) {
       return err(InvalidTransition(this.#status, 'discarded'));
     }
     return this.#moveTo('discarded', 'discarded', ctx);
@@ -797,6 +828,23 @@ export class Person extends AggregateRoot<string> {
   }
 
   /** The account a record absorbed into this one signed in with (PEO-074). One per person. */
+  /**
+   * HR invited this person and identity made their account (PRD §8.2, step
+   * 8): the record signs in with it from now on, and the modules that know
+   * people by account are told.
+   */
+  linkAccount(accountId: string, ctx: EventContext): Result<void> {
+    if (this.#identityAccountId === accountId) return ok(undefined);
+    const adopted = this.adoptAccount(accountId);
+    if (!adopted.ok) return adopted;
+    this.#raise(
+      'people.person.identity_linked',
+      { personId: this.id, identityAccountId: accountId, direction: 'person_first' },
+      ctx,
+    );
+    return ok(undefined);
+  }
+
   adoptAccount(accountId: string): Result<void> {
     if (this.#identityAccountId !== null && this.#identityAccountId !== accountId) {
       return err(failure('MERGE_TWO_ACCOUNTS', 'This record already signs in with an account'));
@@ -1141,7 +1189,7 @@ export class Person extends AggregateRoot<string> {
     const began = this.#employment?.startedOn ?? superseded;
     this.#period(began === superseded ? { startedOn: hireDate } : {});
     const today = ctx.clock.date(timeZone);
-    if (this.#status === 'pre_hire' && hireDate <= today) {
+    if (NOT_STARTED.has(this.#status) && hireDate <= today) {
       return this.#moveTo('active', 'corrected', ctx, hireDate);
     }
     if (this.#status === 'active' && hireDate > today) {
@@ -1289,7 +1337,7 @@ export class Person extends AggregateRoot<string> {
     if (
       current.legalEntityId === null ||
       legalEntityId === null ||
-      this.#status === 'pre_hire' ||
+      NOT_STARTED.has(this.#status) ||
       began === null ||
       effectiveFrom <= began
     ) {

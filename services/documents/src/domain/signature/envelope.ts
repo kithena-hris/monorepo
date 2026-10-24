@@ -163,13 +163,42 @@ export function fieldsAt(
   signerIds: readonly string[],
   lines: readonly SignatureLine[],
   lastPage: number,
+  options: { readonly initialEachPage?: boolean } = {},
 ): Field[] {
   const placed = signerIds.slice(0, lines.length).flatMap((signerId, i): Field[] => {
     const line = lines[i];
     if (line === undefined) return [];
     return [dated(signerId, line.page, clamp(line.x, DATED.w), clamp(line.y, DATED.h))];
   });
-  return [...placed, ...defaultFields(signerIds.slice(lines.length), lastPage)];
+  return [
+    ...placed,
+    ...defaultFields(signerIds.slice(lines.length), lastPage),
+    ...(options.initialEachPage === true ? initialled(signerIds, lastPage) : []),
+  ];
+}
+
+const INITIALS = { w: 0.1, h: 0.045 } as const;
+
+/**
+ * A contract initialled on every page before the one it is signed on, as
+ * Spanish and Indian practice expects and every reader of a long contract
+ * can check: each signer's initials, side by side in the bottom margin.
+ */
+function initialled(signerIds: readonly string[], lastPage: number): Field[] {
+  const pages = Array.from({ length: Math.max(lastPage - 1, 0) }, (_, i) => i + 1);
+  return pages.flatMap((page) =>
+    signerIds.map((signerId, i) => ({
+      id: `${signerId}-initials-${String(page)}`,
+      signerId,
+      kind: 'initials' as const,
+      page,
+      x: clamp(0.88 - (signerIds.length - 1 - i) * (INITIALS.w + 0.02), INITIALS.w),
+      y: 1 - INITIALS.h - 0.02,
+      ...INITIALS,
+      required: true,
+      label: null,
+    })),
+  );
 }
 
 const within = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;

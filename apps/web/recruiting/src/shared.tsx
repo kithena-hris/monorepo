@@ -147,6 +147,7 @@ export const CATEGORY_TONE: Readonly<Record<Category, Tone>> = {
   assessment: 'accent',
   works_council: 'warning',
   offer: 'success',
+  contract: 'success',
   hired: 'success',
 };
 

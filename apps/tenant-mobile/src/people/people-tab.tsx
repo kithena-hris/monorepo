@@ -109,15 +109,15 @@ const EVERYONE: Query = {
   incomplete: false,
   segment: null,
 };
-const status = (value: string): Query => ({
+const status = (...values: string[]): Query => ({
   ...EVERYONE,
-  conditions: [{ key: 'status', op: 'in', values: [value] }],
+  conditions: [{ key: 'status', op: 'in', values }],
 });
 
 /** The web's views (`Views` in the Directory), each a query People applies. */
 const VIEWS: Readonly<Record<string, Query>> = {
   everyone: EVERYONE,
-  starting: status('pre_hire'),
+  starting: status('pre_hire', 'onboarding'),
   leaving: status('notice'),
   incomplete: { ...EVERYONE, incomplete: true },
 };
@@ -359,7 +359,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
           missing: number | null;
         }[];
       }>(signed, 'Directory', {
-        conditions: [{ key: 'status', op: 'in', values: ['pre_hire'] }],
+        conditions: [{ key: 'status', op: 'in', values: ['pre_hire', 'onboarding'] }],
         sort: 'hire_date:asc',
       }),
     ]).then(([a, s]) => {

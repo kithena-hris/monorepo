@@ -56,7 +56,7 @@ const teamKeyOf = (orgUnitId: string) => `u_${orgUnitId.replaceAll('-', '')}`;
 const locationKeyOf = (locationId: string) => `l_${locationId.replaceAll('-', '')}`;
 
 const statusOf = (s: string): string | null => {
-  if (['pending', 'pre_hire', 'active', 'notice'].includes(s)) return 'active';
+  if (['pending', 'pre_hire', 'onboarding', 'active', 'notice'].includes(s)) return 'active';
   if (s === 'on_leave') return 'on_leave';
   return s === 'terminated' ? 'terminated' : null;
 };
@@ -397,7 +397,12 @@ export function recruitingConsumer(
             personId: null,
             correlationId: event.correlationId,
           });
-          const signed = await contractSignedByEnvelope(ctx, ref, dateOf(event));
+          const signed = await contractSignedByEnvelope(
+            ctx,
+            ref,
+            dateOf(event),
+            event.payload.signatures,
+          );
           if (signed.ok) return 'applied';
           if (signed.error.code === 'CONTRACT_STATE') return 'unchanged';
           logger.warn(

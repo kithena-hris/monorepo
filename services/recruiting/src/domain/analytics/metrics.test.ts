@@ -57,6 +57,7 @@ describe('metric definitions (PRD §23.2)', () => {
       ['interview', 3, '75'],
       ['assessment', 1, '33'],
       ['offer', 1, '100'],
+      ['contract', 1, '100'],
       ['hired', 1, '100'],
     ]);
   });

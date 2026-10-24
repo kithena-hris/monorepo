@@ -908,6 +908,10 @@ provisional ──▶ pre_hire ──▶ active ──▶ on_leave ──▶ act
 
 - **provisional** — an account exists, a person record has been created from it,
   and no HR has confirmed it is an employee. Required fields do not apply.
+- **onboarding** — a pre-hire who signed up to the account HR invited them
+  to (§8.2 step 8): identity's `account.enrolled` moves them here. Treated as
+  a pre-hire everywhere — the same fields asked, off the headcount, started
+  on their start date by the same job — and shown as Onboarding.
 - **pre_hire** — confirmed, with a start date in the future. Required fields
   apply to whatever is `collectAt: signup | enrolment | onboarding`; an
   `hr_only` or `anytime` field waits for the start date. The filter is in the

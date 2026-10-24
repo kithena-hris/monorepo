@@ -310,6 +310,7 @@ export default function Enrol(): JSX.Element {
           employmentStart?: string | null;
           timeZone?: string | null;
           questions?: SignupQuestion[];
+          prefill?: Record<string, string>;
         };
       })
       .then(
@@ -320,15 +321,23 @@ export default function Enrol(): JSX.Element {
           employmentStart: starts,
           timeZone: stored,
           questions: asked,
+          prefill,
         }) => {
           if (!current) return;
 
           const pending = asked ?? [];
           setQuestions(pending);
           // A yes/no has an answer from the start — off — so a required one is
-          // never blocked on a switch nobody touched.
+          // never blocked on a switch nobody touched. What HR already holds is
+          // filled in, for the person to confirm or correct.
           setAnswers(
-            Object.fromEntries(pending.map((q) => [q.key, q.dataType === 'boolean' ? false : ''])),
+            Object.fromEntries(
+              pending.map((q): [string, Answer] => {
+                const held = prefill?.[q.key];
+                if (q.dataType === 'boolean') return [q.key, held === 'true'];
+                return [q.key, held ?? ''];
+              }),
+            ),
           );
 
           if (typeof starts === 'string') setEmploymentStart(starts);

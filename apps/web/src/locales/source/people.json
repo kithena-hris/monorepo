@@ -3459,6 +3459,10 @@
     "text": "On notice",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"notice\" value."
   },
+  "home.people-home.onboarding": {
+    "text": "Onboarding",
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"onboarding\" value."
+  },
   "home.people-home.open_inbox": {
     "text": "Open Inbox",
     "context": "People: employee records, org chart, HR settings. home/people-home.tsx, HostList: the action of <SeeAll>."
@@ -5809,6 +5813,10 @@
   },
   "profile.employment.on_notice": {
     "text": "On notice",
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
+  },
+  "profile.employment.onboarding": {
+    "text": "Onboarding",
     "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.optional": {

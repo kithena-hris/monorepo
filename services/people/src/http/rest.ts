@@ -443,7 +443,9 @@ export const SettingsBody = z.object({
     .nullable()
     .describe('Where the company signs in, <slug>.app…; the back office sets it, read-only here.'),
   displayName: z.string().nullable().describe('The company name; the back office sets it.'),
-  inboxRules: InboxRulesBody.describe('The company’s Inbox rules: reminders, escalation, due dates.'),
+  inboxRules: InboxRulesBody.describe(
+    'The company’s Inbox rules: reminders, escalation, due dates.',
+  ),
 });
 
 export const PatchSettingsBody = z.strictObject({
@@ -717,6 +719,15 @@ const withStatus = (response: RestResponse, status: number): RestResponse =>
   response.status < 300 ? { ...response, status } : response;
 
 /* ------------------------------------------------------------ handler -- */
+
+/** A hire's invitation: now, or kept for a day on their calendar. */
+export const InvitationBody = z.strictObject({
+  sendOn: z.iso
+    .date()
+    .nullable()
+    .optional()
+    .describe('The day it goes, on the person’s calendar; now when absent or today or before.'),
+});
 
 export interface RestDeps {
   readonly service: PeopleService;
@@ -1497,6 +1508,58 @@ export function restRoutes(deps: RestDeps): Route[] {
             return dismissed.ok ? ok(personIds[0]) : dismissed;
           },
           () => Promise.resolve({ status: 200, body: { personIds, decision: 'not_duplicate' } }),
+        );
+      },
+    },
+    // A hire's invitation to the company's Kithena (PRD §8.2 step 8): where it stands, by work email.
+    {
+      method: 'GET',
+      pattern: /^\/v1\/invitations$/,
+      handle: async (asking, _request, _params, query) => {
+        const invitations = service.invitations;
+        if (!invitations) return refused(failure('UNAVAILABLE', 'Inviting is not configured'));
+        return respond(
+          await run(service, asking.tenantId, (tx) =>
+            invitations.forEmail(tx, { ...asking, email: query.get('email') ?? '' }),
+          ),
+          200,
+          (view) => ({ invitation: view }),
+        );
+      },
+    },
+    // Send it now, or keep it for the day given; HR only.
+    {
+      method: 'POST',
+      pattern: new RegExp(`^/v1/people/${UUID}/invitation$`),
+      handle: async (asking, request, params) => {
+        const invitations = service.invitations;
+        if (!invitations) return refused(failure('UNAVAILABLE', 'Inviting is not configured'));
+        const input = bodyAs(InvitationBody, request);
+        if (!input.ok) return refused(input.error);
+        const personId = params['id'] ?? '';
+        let shown: unknown = null;
+        return idempotent(
+          deps,
+          asking,
+          request,
+          200,
+          async (tx) => {
+            const invited = await invitations.invite(tx, {
+              ...asking,
+              personId,
+              sendOn: input.value.sendOn ?? null,
+            });
+            if (!invited.ok) return invited;
+            shown = invited.value;
+            return ok(personId);
+          },
+          async () => {
+            if (shown !== null) return { status: 200, body: { invitation: shown } };
+            const again = await run(service, asking.tenantId, (tx) =>
+              invitations.forPerson(tx, { ...asking, personId }),
+            );
+            return { status: 200, body: { invitation: again.ok ? again.value : null } };
+          },
         );
       },
     },

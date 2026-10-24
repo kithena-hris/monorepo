@@ -641,6 +641,12 @@ export const FACT_VALUES: Record<'status', readonly Choice[]> = {
       },
     },
     {
+      value: 'onboarding',
+      get label(): string {
+        return t('settings.words.onboarding', 'Onboarding');
+      },
+    },
+    {
       value: 'active',
       get label(): string {
         return t('settings.words.active', 'Active');

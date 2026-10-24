@@ -180,6 +180,9 @@ export async function moveApplication(
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'pipeline.move')) return err(forbidden());
   const council = await worksCouncilCleared(ctx, loaded.value);
+  const offerAccepted = (await ctx.tx.offers.forApplication(applicationId)).some(
+    (o) => o.state === 'accepted',
+  );
   const moved = moveTo(
     loaded.value.app,
     loaded.value.stages,
@@ -187,7 +190,7 @@ export async function moveApplication(
     ctx.caller.personId ?? ctx.caller.accountId,
     ctx.at,
     ctx.deps.newId(),
-    { ...needs, worksCouncilCleared: council },
+    { ...needs, worksCouncilCleared: council, offerAccepted },
   );
   if (!moved.ok) return moved;
   const app: ApplicationRecord = { ...loaded.value.app, history: moved.value.application.history };

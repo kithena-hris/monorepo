@@ -351,7 +351,9 @@ async function chartsView(
     viewer.kind === 'hr' && filters === undefined
       ? await deps.service.access.count(tx, {
           ...asking,
-          refine: { conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }] },
+          refine: {
+            conditions: [{ key: 'status', op: 'in', values: ['pre_hire', 'onboarding'] }],
+          },
         })
       : null;
   const points = trend.value.points;

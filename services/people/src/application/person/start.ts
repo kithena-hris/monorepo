@@ -3,7 +3,12 @@ import { localDate, type Clock } from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
 import { personZone, placementOf } from '../../domain/org/calendar.js';
-import { identityFactsOf, Person, type EventContext } from '../../domain/person/person.js';
+import {
+  identityFactsOf,
+  NOT_STARTED,
+  Person,
+  type EventContext,
+} from '../../domain/person/person.js';
 import type { RecomputePerson } from '../completeness/recompute.js';
 import type { Calendars } from '../org/org.js';
 import type { TenantRoles } from '../roles/roles.js';
@@ -74,7 +79,7 @@ export function startArrivals(
   deps: StartDeps,
 ): (tenantId: string, correlationId: string) => Promise<Run & { readonly started: number }> {
   const run = lifecycleJob(deps, deps.arrivals, true, (record, person, zone, ctx) => {
-    if (record.snapshot.status !== 'pre_hire' || !person.start(ctx, zone).ok) return false;
+    if (!NOT_STARTED.has(record.snapshot.status) || !person.start(ctx, zone).ok) return false;
     person.shareIdentityFacts(
       identityFactsOf({ ...record.values, hire_date: person.hireDate }),
       ctx,
@@ -248,7 +253,6 @@ export interface EffectiveDeps {
   readonly limit?: number;
 }
 
-
 export function bringDueIntoForce(deps: EffectiveDeps) {
   return async (
     tenantId: string,
@@ -268,7 +272,11 @@ export function bringDueIntoForce(deps: EffectiveDeps) {
       // eslint-disable-next-line no-await-in-loop -- one transaction at a time is the bound
       await deps
         .inTenant(tenantId, async ({ tx }) => {
-          const brought = await deps.access.bringIntoForce(tx, { tenantId, personId, correlationId });
+          const brought = await deps.access.bringIntoForce(tx, {
+            tenantId,
+            personId,
+            correlationId,
+          });
           // Thrown so the transaction rolls back: nothing half-applied.
           if (!brought.ok) throw new Refused(brought.error.code, brought.error.message);
           await deps.scheduled.through(tx, tenantId, personId, brought.value.day);

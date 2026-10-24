@@ -1,7 +1,7 @@
 'use server';
 
 import { contractText, contractTitle } from '../../../lib/contract-text';
-import { documents, recruiting } from '../../../lib/people';
+import { documents, people, recruiting } from '../../../lib/people';
 import type { OperationName } from '../../../lib/recruiting-operations';
 import { signingOrigin } from '../../../lib/signing-origin';
 import { serverWords } from '../../../lib/server-words';
@@ -152,8 +152,12 @@ export async function recruitingAct(
   const t = await serverWords();
   if (name === 'SendContract') {
     const offerId = variables['offerId'];
-    return sendContract(typeof offerId === 'string' ? offerId : '');
+    return sendContract(typeof offerId === 'string' ? offerId : '', textOf(variables));
   }
+  if (name === 'DraftContract') return draftContract(variables);
+  if (name === 'PreviewContract') return previewContract(variables);
+  if (name === 'HireAccount') return hireAccount(variables);
+  if (name === 'InviteHire') return inviteHire(variables);
   if (name === 'StartContractUpload') return startContractUpload(variables);
   if (name === 'SendOwnContract') return sendOwnContract(variables);
   if (!WRITES.has(name as OperationName))
@@ -177,12 +181,132 @@ type OfferScreen = Parameters<typeof contractText>[0] & {
   readonly signatoryPersonId: string | null;
 };
 
+/** The contract HR checked and edited, as the screen sends it; null for the one drawn from the terms. */
+function textOf(
+  variables: Readonly<Record<string, unknown>>,
+): { readonly title: string; readonly body: string } | null {
+  const title = variables['title'];
+  const body = variables['body'];
+  return typeof title === 'string' && typeof body === 'string' && body.trim() !== ''
+    ? { title: title.trim(), body }
+    : null;
+}
+
+/** A draft still asking somebody to confirm a fact is not a contract yet. */
+const UNCONFIRMED = /\[\[TO CONFIRM:/u;
+
+interface Particular {
+  readonly key: string;
+  readonly law: string;
+  readonly value: string | null;
+}
+
+/**
+ * The contract, drafted: Recruiting writes it from the accepted offer and
+ * the statutory particulars of the entity's country (`draftContract`). With
+ * the writer off, the contract is drawn from the accepted terms here
+ * (`contractText`), and the particulars still come back for HR to check.
+ */
+async function draftContract(variables: Readonly<Record<string, unknown>>): Promise<Done> {
+  const t = await serverWords();
+  const offerId = typeof variables['offerId'] === 'string' ? variables['offerId'] : '';
+  const read = await recruiting<OfferScreen>('RecruitingOffer', { offerId });
+  if (!read.ok) return { ok: false, message: read.message, code: read.code };
+  const drafted = await recruiting<{
+    readonly particulars: readonly Particular[];
+    readonly draft: {
+      readonly title: string;
+      readonly body: string;
+      readonly toConfirm: readonly string[];
+      readonly figures: readonly string[];
+    } | null;
+  }>('DraftContract', { offerId });
+  if (!drafted.ok) return { ok: false, message: drafted.message, code: drafted.code };
+  const { companyName } = await signingOrigin();
+  const draft = drafted.data.draft ?? {
+    title: contractTitle(read.data, t),
+    body: contractText(read.data, companyName, t, t.language),
+    toConfirm: [],
+    figures: [],
+  };
+  return {
+    ok: true,
+    data: {
+      ai: drafted.data.draft !== null,
+      particulars: drafted.data.particulars,
+      ...draft,
+      signers: [
+        { name: read.data.candidate.name, order: 1, who: 'candidate' },
+        { name: companyName, order: 2, who: 'company' },
+      ],
+    },
+  };
+}
+
+/** The contract drawn as Documents would file it, with each signer's line, to read before sending. */
+async function previewContract(variables: Readonly<Record<string, unknown>>): Promise<Done> {
+  const t = await serverWords();
+  const text = textOf(variables);
+  const offerId = typeof variables['offerId'] === 'string' ? variables['offerId'] : '';
+  if (text === null)
+    return {
+      ok: false,
+      message: t('app.app.recruiting.actions.write_the_contract_first', 'Write the contract first'),
+    };
+  const read = await recruiting<OfferScreen>('RecruitingOffer', { offerId });
+  if (!read.ok) return { ok: false, message: read.message, code: read.code };
+  const { companyName } = await signingOrigin();
+  const drawn = await documents<{ readonly base64: string; readonly mediaType: string }>(
+    'PreviewDraft',
+    {
+      input: {
+        title: text.title,
+        body: text.body,
+        signers: [
+          { name: read.data.candidate.name, order: 1 },
+          { name: companyName, order: 2 },
+        ],
+      },
+    },
+  );
+  return drawn.ok
+    ? { ok: true, data: drawn.data }
+    : { ok: false, message: drawn.message, code: drawn.code };
+}
+
+/** Where the hire stands with their account at the company, by the email they applied with. */
+async function hireAccount(variables: Readonly<Record<string, unknown>>): Promise<Done> {
+  const email = typeof variables['email'] === 'string' ? variables['email'] : '';
+  const found = await people<{ readonly personInvitation: unknown }>('PersonInvitation', { email });
+  return found.ok
+    ? { ok: true, data: found.data.personInvitation }
+    : { ok: false, message: found.message, code: found.code };
+}
+
+/** Invite the hire to the company now, or on the day given (their calendar). */
+async function inviteHire(variables: Readonly<Record<string, unknown>>): Promise<Done> {
+  const personId = typeof variables['personId'] === 'string' ? variables['personId'] : '';
+  const sendOn = typeof variables['sendOn'] === 'string' ? variables['sendOn'] : null;
+  const invited = await people<{ readonly invitePerson: unknown }>('InvitePerson', {
+    personId,
+    sendOn,
+  });
+  return invited.ok
+    ? { ok: true, data: invited.data.invitePerson }
+    : { ok: false, message: invited.message, code: invited.code };
+}
+
 /**
  * The contract, filed and sent: the candidate signs first with the emailed
- * code, then whoever pressed the button for the company. Answers Documents'
- * document id, which the screen opens.
+ * code, then whoever pressed the button for the company, each initialling
+ * every page before the last. Answers Documents' document id, which the
+ * screen opens. The text is the one HR checked on the screen, or, without
+ * one, the contract drawn from the accepted terms.
  */
-async function sendContract(offerId: string): Promise<Done> {
+async function sendContract(
+  offerId: string,
+  text: { readonly title: string; readonly body: string } | null = null,
+): Promise<Done> {
   const t = await serverWords();
   const read = await recruiting<OfferScreen>('RecruitingOffer', { offerId });
   if (!read.ok) return { ok: false, message: read.message, code: read.code };
@@ -205,15 +329,24 @@ async function sendContract(offerId: string): Promise<Done> {
       ),
     };
   }
+  if (text !== null && UNCONFIRMED.test(text.body))
+    return {
+      ok: false,
+      message: t(
+        'app.app.recruiting.actions.fill_in_every_fact_first',
+        'Fill in every fact the contract still asks you to confirm before sending it',
+      ),
+    };
   const { origin, companyName } = await signingOrigin();
   const filed = await documents<{ readonly id: string; readonly envelopeId: string | null }>(
     'FileDraft',
     {
       input: {
-        title: contractTitle(o, t),
+        title: text === null || text.title === '' ? contractTitle(o, t) : text.title,
         typeKey: null,
         aboutPersonId: null,
-        body: contractText(o, companyName, t, t.language),
+        body: text?.body ?? contractText(o, companyName, t, t.language),
+        initialEachPage: true,
         signers: [
           { personId: null, email: o.candidate.email, name: o.candidate.name, order: 1 },
           { personId: o.signatoryPersonId, email: null, name: companyName, order: 2 },

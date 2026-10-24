@@ -87,7 +87,7 @@ const fieldsOf = (m: Member): MemberFields => {
  * Somebody starting later or working their notice is a member now.
  */
 const statusOf = (s: string): Member['status'] | null => {
-  if (['pending', 'pre_hire', 'active', 'notice'].includes(s)) return 'active';
+  if (['pending', 'pre_hire', 'onboarding', 'active', 'notice'].includes(s)) return 'active';
   if (s === 'on_leave') return 'on_leave';
   return s === 'terminated' ? 'left' : null;
 };

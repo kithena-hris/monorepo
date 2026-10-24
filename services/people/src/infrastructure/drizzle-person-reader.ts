@@ -576,7 +576,7 @@ export function drizzlePersonReader(): PersonReader {
         .select({
           all: sql<number>`count(*)::int`,
           active: sql<number>`(count(*) FILTER (WHERE ${person.status} = 'active'))::int`,
-          notStarted: sql<number>`(count(*) FILTER (WHERE ${person.status} IN ('provisional', 'pre_hire')))::int`,
+          notStarted: sql<number>`(count(*) FILTER (WHERE ${person.status} IN ('provisional', 'pre_hire', 'onboarding')))::int`,
         })
         .from(person)
         .where(
@@ -610,7 +610,7 @@ export function drizzleArrivals(): Arrivals {
         .where(
           and(
             eq(person.tenantId, tenantId),
-            eq(person.status, 'pre_hire'),
+            inArray(person.status, ['pre_hire', 'onboarding']),
             lte(person.hireDate, onOrBefore),
           ),
         )

@@ -463,6 +463,50 @@
     "text": "A model reads the masked application against the job’s criteria and quotes what it found. You decide.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <CardDescription>."
   },
+  "candidate.account_invited": {
+    "text": "Invitation sent on {{date}}. {{name}} confirms the details already filled in, adds what is missing, and signs up.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}, {{date}}."
+  },
+  "candidate.account_loading": {
+    "text": "Looking up {{name}}’s account…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}."
+  },
+  "candidate.account_no_record_yet": {
+    "text": "{{name}}’s record in People is being made from the signed contract. It is here in a moment.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}."
+  },
+  "candidate.account_not_invited": {
+    "text": "Invite {{name}} to set up their account at the company, now or on a day you choose. The sign-up page has their details filled in from the contract.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}."
+  },
+  "candidate.account_scheduled": {
+    "text": "The invitation goes to {{name}} on {{date}}.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}, {{date}}."
+  },
+  "candidate.account_signed_up": {
+    "text": "{{name}} signed up and is an employee, onboarding until their first day.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text built in code. Filled in: {{name}}."
+  },
+  "candidate.account_state_invited": {
+    "text": "Invited",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <StateBadge>."
+  },
+  "candidate.account_state_not_invited": {
+    "text": "Not invited",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <StateBadge>."
+  },
+  "candidate.account_state_onboarding": {
+    "text": "Onboarding",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <StateBadge>."
+  },
+  "candidate.account_state_scheduled": {
+    "text": "Scheduled",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <StateBadge>."
+  },
+  "candidate.account_title": {
+    "text": "Account at the company",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <p>."
+  },
   "candidate.activity": {
     "text": "Activity",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
@@ -771,6 +815,10 @@
     "text": "Open the offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <Button>."
   },
+  "candidate.or_send_it_on": {
+    "text": "Or send it on",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <DatePicker>."
+  },
   "candidate.partly_met": {
     "text": "Partly met",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"partly_met\" value."
@@ -790,6 +838,18 @@
   "candidate.pre_hire": {
     "text": "Pre-hire",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>."
+  },
+  "candidate.prepare_the_contract": {
+    "text": "Prepare the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <Button>."
+  },
+  "candidate.prepare_the_contract_hint": {
+    "text": "{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>. Filled in: {{name}}."
+  },
+  "candidate.prepare_the_contract_title": {
+    "text": "Prepare the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>."
   },
   "candidate.private_to_the_hiring_team_interviewers": {
     "text": "Private to the hiring team; interviewers see them only after their scorecard",
@@ -855,6 +915,10 @@
     "text": "Schedule",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
   },
+  "candidate.schedule_invitation": {
+    "text": "Schedule",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
+  },
   "candidate.search": {
     "text": "Search",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, SearchBox: text inside <Button>."
@@ -866,6 +930,14 @@
   "candidate.send": {
     "text": "Send",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <Button>."
+  },
+  "candidate.send_invitation_again": {
+    "text": "Send it again",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
+  },
+  "candidate.send_invitation_now": {
+    "text": "Send the invitation now",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
   },
   "candidate.sends": {
     "text": "Sends {{sendAt}}",
@@ -4175,6 +4247,14 @@
     "text": "Changing an earlier answer re-checks every step after it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <p>."
   },
+  "offers.check_these_figures": {
+    "text": "Check these figures",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
+  },
+  "offers.check_these_figures_hint": {
+    "text": "The draft has figures no fact gave: {{figures}}. Correct or remove each one.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Alert>. Filled in: {{figures}}."
+  },
   "offers.checks": {
     "text": "Checks",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <CardTitle>."
@@ -4231,6 +4311,26 @@
     "text": "Contract: {{name}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the title of <PageHeader>. Filled in: {{name}}."
   },
+  "offers.contract_draft": {
+    "text": "The contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <CardTitle>."
+  },
+  "offers.contract_draft_hint": {
+    "text": "Drafted from the accepted offer and the law of the employing entity. Check every fact, edit what you need, then send it to sign.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <CardDescription>."
+  },
+  "offers.contract_text": {
+    "text": "Contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <FieldLabel>."
+  },
+  "offers.contract_text_hint": {
+    "text": "Each signer’s signature line and initials on every page are added when it is filed.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <FieldDescription>."
+  },
+  "offers.contract_title": {
+    "text": "Title",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <FieldLabel>."
+  },
   "offers.contract_type": {
     "text": "Contract type",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
@@ -4271,13 +4371,37 @@
     "text": "Documents files the contract once they are a member",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <li>."
   },
+  "offers.draft_again": {
+    "text": "Draft again",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Button>."
+  },
+  "offers.drafted_by_ai": {
+    "text": "Drafted by AI",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
+  },
+  "offers.drafted_by_ai_hint": {
+    "text": "An AI wrote this from the facts on the right and never saw a name. It is a draft: you are responsible for what is sent, so read it in full.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Alert>."
+  },
+  "offers.drafting_the_contract": {
+    "text": "Drafting the contract…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <EmptyState>."
+  },
+  "offers.drafting_the_contract_hint": {
+    "text": "From the accepted terms, the pay and the law of the country it is signed under.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the description of <EmptyState>."
+  },
   "offers.drafts_those_waiting_on_an_approver": {
     "text": "Drafts, those waiting on an approver, those sent and those accepted.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: the description of <PageHeader>."
   },
-  "offers.drawn_from_the_accepted_terms_signs": {
-    "text": "Drawn from the accepted terms; {{name}} signs first with an emailed code, then you for the company.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <p>. Filled in: {{name}}."
+  "offers.drawn_from_the_terms": {
+    "text": "Drawn from the terms",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
+  },
+  "offers.drawn_from_the_terms_hint": {
+    "text": "Kithena drew this from the accepted terms. Switch on the AI writer in Recruiting settings for a full contract under the law of the country.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Alert>."
   },
   "offers.duration": {
     "text": "Duration",
@@ -4303,9 +4427,21 @@
     "text": "Expires",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
   },
+  "offers.facts_to_check": {
+    "text": "Facts to check",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <h3>."
+  },
+  "offers.facts_to_check_hint": {
+    "text": "What the law of the employing entity says the contract states, and where each comes from.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <p>."
+  },
   "offers.file_reference": {
     "text": "File reference",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <FieldLabel>."
+  },
+  "offers.fill_in_before_sending": {
+    "text": "Fill in before sending",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
   },
   "offers.fixed_term_reason": {
     "text": "Fixed-term reason",
@@ -4346,6 +4482,10 @@
   "offers.hybrid": {
     "text": "Hybrid",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <SegmentedControlItem>."
+  },
+  "offers.i_checked_every_fact": {
+    "text": "I checked every fact against the accepted offer and the law",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <FieldLabel>."
   },
   "offers.included": {
     "text": "Included",
@@ -4422,6 +4562,10 @@
   "offers.not_complete": {
     "text": "Not complete",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferApproval: the items of <KeyValues>."
+  },
+  "offers.not_drafted": {
+    "text": "Not drafted",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
   },
   "offers.not_lawful": {
     "text": "Not lawful",
@@ -4515,6 +4659,122 @@
     "text": "{{country}} pack {{version}} · awaiting a country reviewer",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <CardDescription>. Filled in: {{country}}, {{version}}."
   },
+  "offers.particular.at_will": {
+    "text": "At-will employment",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"at_will\" value."
+  },
+  "offers.particular.benefits": {
+    "text": "Benefits",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"benefits\" value."
+  },
+  "offers.particular.collective_agreement": {
+    "text": "Collective agreement",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"collective_agreement\" value."
+  },
+  "offers.particular.conditions": {
+    "text": "Conditions before the start",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"conditions\" value."
+  },
+  "offers.particular.continuous_employment": {
+    "text": "Continuous employment from",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"continuous_employment\" value."
+  },
+  "offers.particular.contract_type": {
+    "text": "Type of contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"contract_type\" value."
+  },
+  "offers.particular.disciplinary": {
+    "text": "Disciplinary and grievance rules",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"disciplinary\" value."
+  },
+  "offers.particular.dismissal_procedure": {
+    "text": "Dismissal procedure",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"dismissal_procedure\" value."
+  },
+  "offers.particular.employee_address": {
+    "text": "Employee’s address",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"employee_address\" value."
+  },
+  "offers.particular.employer_address": {
+    "text": "Employer’s registered address",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"employer_address\" value."
+  },
+  "offers.particular.end": {
+    "text": "End of the fixed term",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"end\" value."
+  },
+  "offers.particular.governing_law": {
+    "text": "Governing law",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"governing_law\" value."
+  },
+  "offers.particular.holiday": {
+    "text": "Holiday",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"holiday\" value."
+  },
+  "offers.particular.hours": {
+    "text": "Working hours",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"hours\" value."
+  },
+  "offers.particular.non_compete": {
+    "text": "Non-compete",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"non_compete\" value."
+  },
+  "offers.particular.notice": {
+    "text": "Notice periods",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"notice\" value."
+  },
+  "offers.particular.overtime": {
+    "text": "Overtime",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"overtime\" value."
+  },
+  "offers.particular.overtime_status": {
+    "text": "Overtime status",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"overtime_status\" value."
+  },
+  "offers.particular.parties": {
+    "text": "The parties",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"parties\" value."
+  },
+  "offers.particular.pay": {
+    "text": "Pay",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"pay\" value."
+  },
+  "offers.particular.pay_timing": {
+    "text": "When and how pay is paid",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"pay_timing\" value."
+  },
+  "offers.particular.pension": {
+    "text": "Pension",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"pension\" value."
+  },
+  "offers.particular.place_of_work": {
+    "text": "Place of work",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"place_of_work\" value."
+  },
+  "offers.particular.probation": {
+    "text": "Probation",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"probation\" value."
+  },
+  "offers.particular.role": {
+    "text": "Job title",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"role\" value."
+  },
+  "offers.particular.sick_pay": {
+    "text": "Sick pay",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"sick_pay\" value."
+  },
+  "offers.particular.start": {
+    "text": "Start date",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"start\" value."
+  },
+  "offers.particular.training": {
+    "text": "Training",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"training\" value."
+  },
+  "offers.particular.variable_pay": {
+    "text": "Bonus and other payments",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PARTICULAR: a \"variable_pay\" value."
+  },
   "offers.pay": {
     "text": "Pay",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, STEP_LABEL: text built in code."
@@ -4538,6 +4798,10 @@
   "offers.prepare_the_contract_next": {
     "text": "Next, prepare the contract and send it to sign. Once it is signed, {{name}} is handed on to People.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: text inside <Alert>. Filled in: {{name}}."
+  },
+  "offers.preview": {
+    "text": "Preview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Button>."
   },
   "offers.probation": {
     "text": "Probation",
@@ -4613,7 +4877,7 @@
   },
   "offers.send_to_sign": {
     "text": "Send to sign",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <Button>."
   },
   "offers.send_to_the_candidate": {
     "text": "Send to the candidate",
@@ -4634,6 +4898,18 @@
   "offers.signed_contract_uploaded": {
     "text": "Signed contract uploaded",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: the items of <KeyValues>."
+  },
+  "offers.signer_candidate": {
+    "text": "{{name}}, with a code sent to their email",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <li>. Filled in: {{name}}."
+  },
+  "offers.signer_company": {
+    "text": "{{name}}, for the company",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <li>. Filled in: {{name}}."
+  },
+  "offers.signers_initial_hint": {
+    "text": "Each initials every page and signs and dates the last.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <p>."
   },
   "offers.signing": {
     "text": "Signing",
@@ -4731,6 +5007,10 @@
     "text": "{{title}} · {{count}} earlier versions kept",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the description of <PageHeader>. Filled in: {{title}}, {{count}}. Plural: the words for any other {{count}}."
   },
+  "offers.to_fill_in": {
+    "text": "To fill in",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the items of <Badge>."
+  },
   "offers.total": {
     "text": "Total",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the items of <KeyValues>."
@@ -4770,6 +5050,10 @@
   "offers.when_its_signed": {
     "text": "When it’s signed",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <h2>."
+  },
+  "offers.who_signs": {
+    "text": "Who signs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: text inside <h3>."
   },
   "offers.why_outside_the_band": {
     "text": "Why outside the band",

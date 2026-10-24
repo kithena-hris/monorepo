@@ -44,7 +44,17 @@ const day = (iso: string) =>
   });
 
 /** J6: each application under the candidate-facing stage names, with what is asked of them. */
-export function CandidateHome({ company }: { readonly company: string }): JSX.Element {
+export function CandidateHome({
+  company,
+  sessionToken = null,
+  openOffer = null,
+}: {
+  readonly company: string;
+  /** The signed-in account's token for this company, when there is a session. */
+  readonly sessionToken?: string | null;
+  /** The offer an email linked to: opened at once. */
+  readonly openOffer?: string | null;
+}): JSX.Element {
   const [token, setToken] = useState('');
   const [page, setPage] = useState<CandidatePage | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,16 +71,16 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
       else setError(a.message);
     });
   useEffect(() => {
-    const t = tokenFromHash();
+    const t = tokenFromHash() || (sessionToken ?? '');
     setToken(t);
-    if (t === '')
-      setError(
-        tr(
-          'app.me.[company].candidate-home.open_this_page_from_the_link',
-          'Open this page from the link in one of our emails.',
-        ),
-      );
-    else load(t);
+    if (t === '') {
+      // Not signed in and no link's token: sign in, then straight back to this page.
+      const here = `${window.location.pathname}${window.location.search}`;
+      window.location.replace(`/sign-in?next=${encodeURIComponent(here)}`);
+      return;
+    }
+    load(t);
+    if (openOffer !== null) setOffer(openOffer);
   }, []);
   const post = (path: string, body: unknown, done: string) => {
     start(async () => {

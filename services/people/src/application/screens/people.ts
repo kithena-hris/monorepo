@@ -1911,6 +1911,7 @@ function shownByDefault(d: AttributeDefinition): boolean {
 export const STATUS_OPTIONS = [
   { value: 'provisional', label: 'Not started' },
   { value: 'pre_hire', label: 'Starting soon' },
+  { value: 'onboarding', label: 'Onboarding' },
   { value: 'active', label: 'Active' },
   { value: 'on_leave', label: 'On leave' },
   { value: 'notice', label: 'On notice' },

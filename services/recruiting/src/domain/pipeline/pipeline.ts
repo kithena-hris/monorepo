@@ -31,6 +31,7 @@ const ORDER: readonly StageCategory[] = [
   'assessment',
   'works_council',
   'offer',
+  'contract',
   'hired',
 ];
 export const categoryRank = (category: StageCategory): number => ORDER.indexOf(category);
@@ -83,6 +84,24 @@ export function withWorksCouncil(stages: readonly Stage[], newId: () => string):
   return at === -1 ? [...stages] : [...stages.slice(0, at), council, ...stages.slice(at)];
 }
 
+/**
+ * The contract stage between the accepted offer and the hire, for a pipeline
+ * made before it existed: an accepted offer moves there, and the signature
+ * moves on to the hired stage. A pipeline that has one is left as it is.
+ */
+export function withContractStage(stages: readonly Stage[], newId: () => string): Stage[] {
+  if (stages.some((s) => s.category === 'contract')) return [...stages];
+  const at = stages.findIndex((s) => s.category === 'hired');
+  const contract: Stage = {
+    id: newId(),
+    name: 'Contract',
+    candidateName: 'Contract',
+    category: 'contract',
+    automations: [],
+  };
+  return at === -1 ? [...stages] : [...stages.slice(0, at), contract, ...stages.slice(at)];
+}
+
 /** The template every company starts with. */
 export function defaultPipeline(newId: () => string): Stage[] {
   const stage = (
@@ -103,6 +122,7 @@ export function defaultPipeline(newId: () => string): Stage[] {
     stage('Interview', 'interview', 'Interviews', [{ kind: 'request_scorecards' }]),
     stage('Assessment', 'assessment', 'Assessment'),
     stage('Offer', 'offer', 'Offer'),
+    stage('Contract', 'contract', 'Contract'),
     stage('Hired', 'hired', 'Hired'),
   ];
 }

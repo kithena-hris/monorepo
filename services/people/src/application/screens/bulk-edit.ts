@@ -378,6 +378,7 @@ export interface BulkHire {
 const STATUS_WORD: Readonly<Record<string, string>> = {
   provisional: 'Not started',
   pre_hire: 'Starting soon',
+  onboarding: 'Onboarding',
   active: 'Active',
 };
 

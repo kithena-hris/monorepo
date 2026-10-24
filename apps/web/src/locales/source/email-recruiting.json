@@ -135,6 +135,30 @@
     "text": "What to expect next: {{stage}} with {{company}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
   },
+  "email.contract.signed_heading": {
+    "text": "Contract signed",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.contract.start": {
+    "text": "Start",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.contract.team_signed": {
+    "text": "{{name}} signed: invite them to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.contract.team_signed_body": {
+    "text": "{{name}} signed the contract for {{job}} and is hired, starting {{start}}.\n\nNext: send their account invitation, now or on a date you choose, from their profile. They confirm the details already on file and add what is missing, and become an employee in onboarding.\n\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{link}}."
+  },
+  "email.contract.you_signed": {
+    "text": "Signed: welcome to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.contract.you_signed_body": {
+    "text": "Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
   "email.emails.see_your_application": {
     "text": "See your application",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"label\" value."
@@ -375,9 +399,9 @@
     "text": "{{name}} accepted the offer for {{job}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
-  "email.offer.team_accepted_body": {
-    "text": "{{name}} accepted version {{version}}. They are in the hired stage now. Next: prepare the contract and send it to sign.\n\n{{link}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{link}}."
+  "email.offer.team_accepted_contract": {
+    "text": "{{name}} accepted version {{version}} and is in the contract stage now.\n\nNext: prepare the contract. Open their profile and the contract card: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.\n\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{entity}}, {{link}}."
   },
   "email.offer.team_declined": {
     "text": "{{name}} declined the offer for {{job}}",

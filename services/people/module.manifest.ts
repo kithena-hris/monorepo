@@ -83,6 +83,8 @@ export default ModuleManifest.parse({
    */
   consumes: [
     'identity.account.provisioned',
+    // A hire signing up to the account People invited them to: they are onboarding.
+    'identity.account.enrolled',
     'identity.account.profile_captured',
     // The tenant's sign-up questions, answered on identity's page.
     'identity.account.signup_answered',

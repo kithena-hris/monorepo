@@ -602,7 +602,7 @@ function hrFigures() {
       accessRequestsBy?: string[] | null;
     }>('Waiting'),
     people<{ people: DirectoryRow[] }>('Directory', {
-      conditions: [{ key: 'status', op: 'is', values: ['pre_hire'] }],
+      conditions: [{ key: 'status', op: 'in', values: ['pre_hire', 'onboarding'] }],
       sort: 'hire_date:asc',
     }),
   ]);

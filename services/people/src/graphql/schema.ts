@@ -37,6 +37,7 @@ import { defineSelectionPlans } from './selection.js';
 import { defineExportShare } from './export-share.js';
 import { defineWhatChanged } from './what-changed.js';
 import { defineTransfers } from './transfers.js';
+import { defineInvitations } from './invitations.js';
 import type { PayBandView } from '../application/analytics/pay.js';
 
 export type { RequestContext } from './builder.js';
@@ -1410,6 +1411,7 @@ defineReports(builder, viaRest);
 defineOverview(builder, viaRest);
 defineImportFields(builder, viaRest);
 defineTransfers(builder, viaRest);
+defineInvitations(builder, viaRest);
 // Search and export in words.
 defineSelectionPlans(builder, viaRest);
 // An export sent to somebody else (design AI13, AI14, MA10).

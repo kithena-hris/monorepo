@@ -31,7 +31,14 @@ export interface ScreenProps<T> {
 }
 
 export type Category =
-  'applied' | 'screening' | 'interview' | 'assessment' | 'works_council' | 'offer' | 'hired';
+  | 'applied'
+  | 'screening'
+  | 'interview'
+  | 'assessment'
+  | 'works_council'
+  | 'offer'
+  | 'contract'
+  | 'hired';
 
 export interface Stage {
   readonly id: string;

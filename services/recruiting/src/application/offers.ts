@@ -9,7 +9,8 @@ import type {
 } from '@kithena/contracts';
 
 import { may, worksCouncilMay } from '../domain/access/access.js';
-import { hire as hireApplication } from '../domain/pipeline/application.js';
+import { hire as hireApplication, toContract } from '../domain/pipeline/application.js';
+import { withContractStage } from '../domain/pipeline/pipeline.js';
 import {
   isEligible,
   offerBenefits,
@@ -63,11 +64,12 @@ import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } fr
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
-import { loadApplication, render, sendNow, worksCouncilCleared } from './moves.js';
+import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
 import { tellMembers } from './notify.js';
 import { generalSettings } from './setup.js';
-import type { ApplicationRecord, JobRecord } from './ports.js';
+import type { ApplicationRecord, Candidate, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
+import { signedInLink } from './intake.js';
 
 /**
  * Offers to the hire (PRD §18, §21, REC-054, REC-055, REC-058): composed on
@@ -196,7 +198,10 @@ export async function checkOffer(
   });
 }
 
-async function editableOffer(ctx: Ctx, applicationId: string) {
+export async function editableOffer(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<Result<Loaded & { readonly job: JobRecord }>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'offer.edit')) return err(forbidden());
@@ -363,7 +368,11 @@ export async function sendTheOffer(ctx: Ctx, offerId: string): Promise<Result<Of
   await publish(ctx, offerEvent(ctx, 'sent', sent.value));
   // The company's offer email when it has one (`emails.ts`), with the page link and the date it is open until.
   const words = await emailFor(ctx, 'offer', loaded.value.candidate.language);
-  const values = await emailValues(ctx, loaded.value);
+  // Through the job site's sign-in: accepting an offer is a signed-in act.
+  const values = {
+    ...(await emailValues(ctx, loaded.value, { link: false })),
+    link: await signedInLink(ctx, { offer: offerId }),
+  };
   ctx.mail.push({
     to: loaded.value.candidate.email,
     subject: render(words.subject, values),
@@ -405,10 +414,9 @@ export async function candidateAccepts(
   await ctx.tx.offers.save(accepted.value);
   await publish(ctx, offerEvent(ctx, 'accepted', accepted.value));
   await prepareContract(ctx, accepted.value, app);
-  // Accepted is hired, in the pipeline: the contract to sign comes next, and the hand-over waits for it.
-  const job = await ctx.tx.jobs.get(app.jobId);
-  if (job !== null && app.outcome === 'active') {
-    const placed = await placeHire(ctx, accepted.value, app, job);
+  // Accepted moves to the contract stage: the contract is prepared and signed there, and the signature hires.
+  if (app.outcome === 'active') {
+    const placed = await placeInContract(ctx, app);
     if (!placed.ok) return placed;
   }
   await tellReaction(ctx, accepted.value, app);
@@ -484,25 +492,29 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
       ],
     },
   );
-  const team = (await ctx.tx.jobs.team(job.id))
-    .filter((m) => m.role === 'recruiter' || m.role === 'hiring_manager')
-    .map((m) => m.personId);
-  const base = ctx.deps.chat?.appBase;
-  const link =
-    base === undefined
-      ? `/recruiting/offers/${offer.id}${accepted ? '/contract' : ''}`
-      : `${base.replace('{slug}', settings.companySlug)}/recruiting/offers/${offer.id}${accepted ? '/contract' : ''}`;
+  const link = await appLink(
+    ctx,
+    accepted
+      ? `/recruiting/candidates/${candidate.id}?application=${app.id}`
+      : `/recruiting/offers/${offer.id}`,
+  );
   await tellMembers(
     ctx,
-    team,
+    await hiringTeam(ctx, job.id),
     accepted
       ? t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars)
       : t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
     accepted
       ? t(
-          'email.offer.team_accepted_body',
-          '{{name}} accepted version {{version}}. They are in the hired stage now. Next: prepare the contract and send it to sign.\n\n{{link}}',
-          { ...vars, link },
+          'email.offer.team_accepted_contract',
+          '{{name}} accepted version {{version}} and is in the contract stage now.\n\nNext: prepare the contract. Open their profile and the contract card: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.\n\n{{link}}',
+          {
+            ...vars,
+            entity:
+              (job.entityId === null ? null : await ctx.tx.entities.get(job.entityId))?.name ??
+              settings.companyName,
+            link,
+          },
         )
       : t(
           'email.offer.team_declined_body',
@@ -510,6 +522,75 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
           { ...vars, link },
         ),
     `offer-${offer.state}:${offer.id}:${String(version)}`,
+  );
+}
+
+/** The job's recruiters and hiring manager, who hear each step of a hire. */
+async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
+  return (await ctx.tx.jobs.team(jobId))
+    .filter((m) => m.role === 'recruiter' || m.role === 'hiring_manager')
+    .map((m) => m.personId);
+}
+
+/** A page of the tenant app, on the company's own host when the chat apps know it. */
+async function appLink(ctx: Ctx, path: string): Promise<string> {
+  const base = ctx.deps.chat?.appBase;
+  if (base === undefined) return path;
+  return `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+}
+
+/**
+ * The contract is signed: the candidate hears they are hired and that an
+ * invitation to set up their account comes next, and the hiring team is
+ * told to send or schedule that invitation from the candidate's profile.
+ */
+async function tellSigned(
+  ctx: Ctx,
+  app: ApplicationRecord,
+  candidate: Candidate,
+  job: JobRecord,
+  startDate: CalendarDate,
+): Promise<void> {
+  const { t } = await mailWords(ctx);
+  const settings = await generalSettings(ctx);
+  const vars = {
+    first: candidate.name.split(' ')[0] ?? candidate.name,
+    name: candidate.name,
+    job: job.title,
+    company: settings.companyName,
+    start: startDate,
+  };
+  await sendNow(
+    ctx,
+    candidate,
+    app.id,
+    t('email.contract.you_signed', 'Signed: welcome to {{company}}', vars),
+    t(
+      'email.contract.you_signed_body',
+      'Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.',
+      vars,
+    ),
+    {
+      heading: t('email.contract.signed_heading', 'Contract signed'),
+      facts: [
+        { label: t('email.offer.role', 'Role'), value: job.title },
+        { label: t('email.contract.start', 'Start'), value: startDate },
+      ],
+    },
+  );
+  await tellMembers(
+    ctx,
+    await hiringTeam(ctx, job.id),
+    t('email.contract.team_signed', '{{name}} signed: invite them to {{company}}', vars),
+    t(
+      'email.contract.team_signed_body',
+      '{{name}} signed the contract for {{job}} and is hired, starting {{start}}.\n\nNext: send their account invitation, now or on a date you choose, from their profile. They confirm the details already on file and add what is missing, and become an employee in onboarding.\n\n{{link}}',
+      {
+        ...vars,
+        link: await appLink(ctx, `/recruiting/candidates/${candidate.id}?application=${app.id}`),
+      },
+    ),
+    `contract-signed:${app.id}`,
   );
 }
 
@@ -571,7 +652,7 @@ async function documentsPresent(ctx: Ctx): Promise<boolean> {
   return entitlements.includes('module.documents');
 }
 
-async function resolvedTermsOf(
+export async function resolvedTermsOf(
   ctx: Ctx,
   offer: Offer,
   job: JobRecord,
@@ -636,13 +717,14 @@ export async function contractSignedByEnvelope(
   ctx: Ctx,
   subjectRef: string,
   on: CalendarDate,
+  signatures: readonly { readonly email: string | null; readonly mark: string }[] = [],
 ): Promise<Result<true>> {
   const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
   if (contract === null) return ok(true);
   const signed = signedByEnvelope(contract, subjectRef, on);
   if (!signed.ok) return signed;
   await ctx.tx.contracts.save({ ...signed.value, fileId: contract.fileId });
-  return hireFromContract(ctx, signed.value);
+  return hireFromContract(ctx, signed.value, signatures);
 }
 
 /** A signed copy uploaded by HR: wet ink, or no Documents (PRD §21.2). */
@@ -672,10 +754,47 @@ export async function uploadSignedContract(
 }
 
 /**
+ * The accepted offer's application, in the contract stage. A pipeline made
+ * before that stage existed gains it first, between the offer and the hire.
+ */
+async function placeInContract(ctx: Ctx, app: ApplicationRecord): Promise<Result<true>> {
+  const before = await ctx.tx.jobs.stages(app.jobId);
+  const stages = withContractStage(before, ctx.deps.newId);
+  if (stages.length !== before.length) await ctx.tx.jobs.setStages(app.jobId, stages);
+  const moved = toContract(app, stages, 'system', ctx.at, ctx.deps.newId());
+  if (!moved.ok) return moved;
+  const move = moved.value.move;
+  if (move === null) return ok(true);
+  await ctx.tx.applications.save(
+    { ...app, history: moved.value.application.history },
+    'contract',
+    [move],
+    ctx.today,
+  );
+  await publish(
+    ctx,
+    event(
+      ctx,
+      'recruiting.application.moved',
+      { type: 'Application', id: app.id },
+      {
+        applicationId: app.id,
+        jobId: app.jobId,
+        from: move.from ?? move.to,
+        to: move.to,
+        category: 'contract',
+        by: 'system',
+        supersedes: null,
+      },
+    ),
+  );
+  return ok(true);
+}
+
+/**
  * The candidate is placed in the hired stage and counted against the job and
- * its requisition: when the offer is accepted (the owner's choice, against
- * PRD §21.3's "hired when signed"), or at the signature for an acceptance
- * from before. The hand-over to People waits for the signed contract.
+ * its requisition when the contract is signed (PRD §21.3), from the contract
+ * stage the acceptance moved them to.
  */
 async function placeHire(
   ctx: Ctx,
@@ -723,10 +842,15 @@ async function placeHire(
 /**
  * The contract is signed: the candidate becomes a pre-hire with its
  * conditions and `recruiting.candidate.hired` hands the person on (PRD
- * §21.3, §21.4). The hired stage and the job's count usually came with the
- * acceptance; an acceptance from before that is placed now.
+ * §21.3, §21.4), and moves to the hired stage, counted against the job. The
+ * hiring team is told to invite them to the company's Kithena next.
  */
-async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<true>> {
+async function hireFromContract(
+  ctx: Ctx,
+  contract: Contract,
+  /** Who signed the envelope with what: the candidate's becomes the signature on their record. */
+  signatures: readonly { readonly email: string | null; readonly mark: string }[] = [],
+): Promise<Result<true>> {
   const offer = await ctx.tx.offers.get(contract.offerId);
   const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
   const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
@@ -785,6 +909,9 @@ async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<tr
         locationId: job.locationIds[0] ?? null,
         legalEntityId: job.entityId,
         conditions: prehire.conditions.map((c) => ({ kind: c.kind, state: c.state })),
+        signature:
+          signatures.find((s) => s.email?.toLowerCase() === candidate.email.toLowerCase())?.mark ??
+          null,
       },
       version.startDate,
     ),
@@ -800,6 +927,7 @@ async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<tr
       ),
     );
   }
+  await tellSigned(ctx, app, candidate, job, version.startDate);
   return ok(true);
 }
 

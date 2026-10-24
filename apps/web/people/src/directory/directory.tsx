@@ -771,14 +771,14 @@ function Views({
   readonly onView?: DirectoryProps['onView'];
 }): JSX.Element | null {
   const statuses = (state.fields ?? []).some((f) => f.key === 'status');
-  const statusIs = (value: string) =>
+  const statusIs = (...values: string[]) =>
     conditions.length === 1 &&
     conditions[0]?.key === 'status' &&
-    conditions[0].values.length === 1 &&
-    conditions[0].values[0] === value;
+    conditions[0].values.length === values.length &&
+    values.every((v) => conditions[0]?.values.includes(v));
   const everyone = conditions.length === 0 && !incomplete && segmentId === null;
-  const status = (value: string) => ({
-    conditions: [{ key: 'status', op: 'in', values: [value] }],
+  const status = (...values: string[]) => ({
+    conditions: [{ key: 'status', op: 'in', values }],
     incomplete: false,
     segmentId: null,
   });
@@ -796,8 +796,9 @@ function Views({
             id: 'starting',
             label: t('directory.directory.starting_soon', 'Starting soon'),
             count: everyone ? state.notStarted : null,
-            on: statusIs('pre_hire'),
-            view: status('pre_hire'),
+            // Hired and not started: a pre-hire, and one who signed up and is onboarding.
+            on: statusIs('pre_hire', 'onboarding'),
+            view: status('pre_hire', 'onboarding'),
           },
           {
             id: 'leaving',

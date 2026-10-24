@@ -454,7 +454,7 @@ export function AccountHome({
                             </Link>
                             {a.offer !== null && a.outcome === 'active' ? (
                               <a
-                                href={ownPage}
+                                href={`/me/${row.company.slug}?offer=${a.offer.offerId}#${row.company.token}`}
                                 className="ms-2 text-sm text-accent-fg underline underline-offset-4"
                               >
                                 {t('app.me.account-home.read_your_offer', 'Read your offer')}

@@ -1,5 +1,6 @@
 import type * as z from 'zod';
 import {
+  AccountEnrolled,
   AccountProfileCaptured,
   AccountProvisioned,
   AccountSignupAnswered,
@@ -110,6 +111,16 @@ export interface ConsumerDeps {
    * `enterAsSelf` is; the event is then ignored and said so.
    */
   readonly hires?: HiresFromRecruiting;
+  /**
+   * A hire signed up to the account People invited them to: a pre-hire
+   * becomes `onboarding`. Whether a record moved.
+   */
+  readonly signedUp?: (
+    tx: Parameters<Parameters<InTenantTransaction>[1]>[0]['tx'],
+    tenantId: string,
+    accountId: string,
+    correlationId: string,
+  ) => Promise<boolean>;
 }
 
 /**
@@ -142,6 +153,10 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
         const event = parse(AccountProvisioned, raw);
         if (!event) return 'rejected';
         const { payload } = event;
+        // An account People asked for, for a person it already holds: the
+        // invitation links it, and a provisional record beside it would be a
+        // duplicate of that person.
+        if (payload.via === 'people_module') return 'ignored';
         const wrote = await deps.inTenant(event.tenantId, async ({ tx }) => {
           await rememberTenant(tx, event.tenantId);
           return deps.provisional.provision(
@@ -158,6 +173,21 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           );
         });
         return wrote ? 'applied' : 'unchanged';
+      }
+
+      /*
+       * A first passkey on an account People invited a hire to: they have
+       * signed up, and are onboarding until their first day.
+       */
+      case AccountEnrolled.name: {
+        const event = parse(AccountEnrolled, raw);
+        if (!event) return 'rejected';
+        const { signedUp } = deps;
+        if (!signedUp) return 'ignored';
+        const moved = await deps.inTenant(event.tenantId, ({ tx }) =>
+          signedUp(tx, event.tenantId, event.payload.accountId, event.correlationId),
+        );
+        return moved ? 'applied' : 'unchanged';
       }
 
       /*

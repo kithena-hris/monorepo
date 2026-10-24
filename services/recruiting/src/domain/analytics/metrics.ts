@@ -21,6 +21,7 @@ export const CATEGORIES: readonly StageCategory[] = [
   'assessment',
   'works_council',
   'offer',
+  'contract',
   'hired',
 ];
 

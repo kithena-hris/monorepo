@@ -100,6 +100,7 @@ const CATEGORIES = [
   'assessment',
   'works_council',
   'offer',
+  'contract',
   'hired',
 ] as const;
 const EMPLOYMENT_TYPES = [

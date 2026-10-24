@@ -140,7 +140,9 @@ describe('what is refused', () => {
   });
 
   it('refuses leave for somebody who has not started', () => {
-    expect(person({ status: 'pre_hire', hireDate: '2026-12-01' }).startLeave(ctx, UTC).ok).toBe(false);
+    expect(person({ status: 'pre_hire', hireDate: '2026-12-01' }).startLeave(ctx, UTC).ok).toBe(
+      false,
+    );
   });
 
   it('refuses to end leave for somebody who is not on it', () => {
@@ -208,6 +210,41 @@ describe('discarding', () => {
   it('leaves every other state undeletable', () => {
     expect(person({ status: 'active' }).deletable).toBe(false);
     expect(person({ status: 'terminated' }).deletable).toBe(false);
+  });
+});
+
+describe('onboarding: signed up, not started (§8.1)', () => {
+  const preHire = () => person({ status: 'pre_hire', hireDate: '2026-12-01' });
+
+  it('is a pre-hire who has signed up to their account, and starts on the day as one would', () => {
+    const p = preHire();
+    expect(p.beginOnboarding(ctx).ok).toBe(true);
+    expect(p.status).toBe('onboarding');
+    // Signing up again changes nothing and raises nothing more.
+    expect(p.beginOnboarding(ctx).ok).toBe(true);
+    expect(
+      p.drainEvents().filter((e) => e.eventName === 'people.person.status_changed'),
+    ).toHaveLength(1);
+    expect(p.start(context('2026-12-01T09:00:00.000Z'), UTC).ok).toBe(true);
+    expect(p.status).toBe('active');
+  });
+
+  it('is only for somebody hired and not started', () => {
+    for (const status of ['provisional', 'active', 'on_leave', 'notice', 'terminated'] as const) {
+      expect(person({ status, hireDate: '2026-01-01' }).beginOnboarding(ctx).ok, status).toBe(
+        false,
+      );
+    }
+  });
+
+  it('can still fall through before the start, and be corrected to a start already past', () => {
+    const fell = preHire();
+    fell.beginOnboarding(ctx);
+    expect(fell.discard(ctx).ok).toBe(true);
+    const corrected = preHire();
+    corrected.beginOnboarding(ctx);
+    expect(corrected.correctHireDate('2026-09-01', ctx, UTC).ok).toBe(true);
+    expect(corrected.status).toBe('active');
   });
 });
 
@@ -390,7 +427,11 @@ describe('a value dated in the future, on its day (PEO-124)', () => {
   it('says once that a scheduled value was refused on its day, with the code and never the value', () => {
     const p = person({ status: 'notice' });
     p.refuseScheduled(
-      { historyId: '01890000-0000-7000-8000-0000000000f1', attributeKey: 'legal_entity_id', code: 'TRANSFER_ON_NOTICE' },
+      {
+        historyId: '01890000-0000-7000-8000-0000000000f1',
+        attributeKey: 'legal_entity_id',
+        code: 'TRANSFER_ON_NOTICE',
+      },
       ctx,
       '2026-10-10',
     );
@@ -1072,7 +1113,9 @@ describe('employment periods and rehire (PEO-110)', () => {
   it('rehires into a new period on the same record, pre-hire until the start on their calendar', () => {
     const p = leaver();
     // The 1st has begun in Auckland, not in Los Angeles.
-    expect(p.rehire('2026-10-01', { ...HIRED, legalEntityId: US }, noonUtc, 'America/Los_Angeles').ok).toBe(true);
+    expect(
+      p.rehire('2026-10-01', { ...HIRED, legalEntityId: US }, noonUtc, 'America/Los_Angeles').ok,
+    ).toBe(true);
     expect(p.status).toBe('pre_hire');
     expect(p.snapshot).toMatchObject({
       hireDate: '2026-10-01',
@@ -1170,8 +1213,20 @@ describe('employment periods and rehire (PEO-110)', () => {
   });
 
   it('refuses from anything but terminated, and a start inside the old employment', () => {
-    for (const status of ['provisional', 'pre_hire', 'active', 'on_leave', 'notice', 'discarded'] as const) {
-      const r = person({ status, hireDate: '2024-01-08' }).rehire('2026-10-01', HIRED, noonUtc, UTC);
+    for (const status of [
+      'provisional',
+      'pre_hire',
+      'active',
+      'on_leave',
+      'notice',
+      'discarded',
+    ] as const) {
+      const r = person({ status, hireDate: '2024-01-08' }).rehire(
+        '2026-10-01',
+        HIRED,
+        noonUtc,
+        UTC,
+      );
       expect(!r.ok && r.error.code, status).toBe('INVALID_TRANSITION');
     }
     const overlapping = leaver().rehire('2025-06-30', HIRED, noonUtc, UTC);
@@ -1282,7 +1337,9 @@ describe('correcting a notice’s last working day forward after access ended', 
       },
     ]);
     // …and the job can end it again when the new day ends.
-    expect(p.endAccess(context('2026-10-02T07:00:00.000Z'), 'America/Los_Angeles', 'day_ended').ok).toBe(true);
+    expect(
+      p.endAccess(context('2026-10-02T07:00:00.000Z'), 'America/Los_Angeles', 'day_ended').ok,
+    ).toBe(true);
   });
 
   it('keeps it ended when the corrected day has already ended where they work', () => {
@@ -1335,7 +1392,11 @@ describe('placement and transfer (PEO-123)', () => {
       rehireOverrideReason: null,
     });
     // Continuous service: the hire date, the status and access are the employment's, untouched.
-    expect(p.snapshot).toMatchObject({ status: 'active', hireDate: '2024-01-08', lastWorkingDay: null });
+    expect(p.snapshot).toMatchObject({
+      status: 'active',
+      hireDate: '2024-01-08',
+      lastWorkingDay: null,
+    });
     expect(p.drainEvents()).toEqual([]);
     expect(p.drainClosedPeriod()).toBeNull();
   });
@@ -1345,8 +1406,14 @@ describe('placement and transfer (PEO-123)', () => {
     const p = person({ status: 'active', hireDate: '2024-01-08' });
     const placed = p.place(PT, '2026-10-01', ES);
     expect(placed.ok && placed.value).toBe('transferred');
-    expect(p.drainClosedPeriod()).toMatchObject({ period: 1, legalEntityId: ES, lastWorkingDay: '2026-09-30' });
-    expect(person({ status: 'active', hireDate: '2024-01-08' }).place(ES, '2026-10-01', ES)).toEqual({
+    expect(p.drainClosedPeriod()).toMatchObject({
+      period: 1,
+      legalEntityId: ES,
+      lastWorkingDay: '2026-09-30',
+    });
+    expect(
+      person({ status: 'active', hireDate: '2024-01-08' }).place(ES, '2026-10-01', ES),
+    ).toEqual({
       ok: true,
       value: 'unchanged',
     });
@@ -1376,7 +1443,11 @@ describe('placement and transfer (PEO-123)', () => {
     const placed = p.place(PT, '2026-10-01');
     expect(placed.ok && placed.value).toBe('placed');
     expect(p.drainClosedPeriod()).toBeNull();
-    expect(p.drainPeriod()).toMatchObject({ period: 2, legalEntityId: PT, startedOn: '2026-10-01' });
+    expect(p.drainPeriod()).toMatchObject({
+      period: 2,
+      legalEntityId: PT,
+      startedOn: '2026-10-01',
+    });
   });
 
   it('changes nothing when the entity is the one they are in, or for a record never hired', () => {
@@ -1389,7 +1460,10 @@ describe('placement and transfer (PEO-123)', () => {
   });
 
   it('refuses a transfer for somebody on notice, and any placement of a leaver', () => {
-    const leaving = employed({ status: 'notice', lastWorkingDay: '2026-12-31' }).place(PT, '2026-10-01');
+    const leaving = employed({ status: 'notice', lastWorkingDay: '2026-12-31' }).place(
+      PT,
+      '2026-10-01',
+    );
     expect(!leaving.ok && leaving.error.code).toBe('TRANSFER_ON_NOTICE');
     for (const status of ['terminated', 'discarded'] as const) {
       const r = employed({ status }).place(PT, '2026-10-01');
@@ -1469,7 +1543,8 @@ describe('a merge undone (PEO-074 follow-up)', () => {
   const SURVIVOR = '00000000-0000-4000-8000-0000000000a9';
   const ACCOUNT = '00000000-0000-4000-8000-0000000000b1';
   const DECISION = '00000000-0000-4000-8000-0000000000d1';
-  const tombstone = () => person({ status: 'merged', mergedInto: SURVIVOR, identityAccountId: null });
+  const tombstone = () =>
+    person({ status: 'merged', mergedInto: SURVIVOR, identityAccountId: null });
   const undo = {
     survivorId: SURVIVOR,
     supersedes: DECISION,
@@ -1482,7 +1557,11 @@ describe('a merge undone (PEO-074 follow-up)', () => {
   it('returns the tombstone to provisional, its account back, and says what it reversed and kept', () => {
     const p = tombstone();
     expect(p.restoreFromMerge(undo, ctx).ok).toBe(true);
-    expect(p.snapshot).toMatchObject({ status: 'provisional', mergedInto: null, identityAccountId: ACCOUNT });
+    expect(p.snapshot).toMatchObject({
+      status: 'provisional',
+      mergedInto: null,
+      identityAccountId: ACCOUNT,
+    });
     expect(p.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
       [
         'people.person.status_changed',
@@ -1504,7 +1583,10 @@ describe('a merge undone (PEO-074 follow-up)', () => {
   });
 
   it('is refused for a record that is not a tombstone of that survivor', () => {
-    for (const p of [person(), person({ status: 'merged', mergedInto: PERSON.replace('a1', 'a8') })]) {
+    for (const p of [
+      person(),
+      person({ status: 'merged', mergedInto: PERSON.replace('a1', 'a8') }),
+    ]) {
       const r = p.restoreFromMerge(undo, ctx);
       expect(!r.ok && r.error.code).toBe('UNMERGE_NOT_MERGED');
       expect(p.drainEvents()).toEqual([]);
@@ -1512,7 +1594,12 @@ describe('a merge undone (PEO-074 follow-up)', () => {
   });
 
   it('gives an account back only from the record holding it', () => {
-    const s = person({ id: SURVIVOR, status: 'active', hireDate: '2026-01-05', identityAccountId: ACCOUNT });
+    const s = person({
+      id: SURVIVOR,
+      status: 'active',
+      hireDate: '2026-01-05',
+      identityAccountId: ACCOUNT,
+    });
     const other = s.releaseAccount('00000000-0000-4000-8000-0000000000b2');
     expect(!other.ok && other.error.code).toBe('ACCOUNT_NOT_HELD');
     expect(s.releaseAccount(ACCOUNT).ok).toBe(true);
@@ -1521,12 +1608,21 @@ describe('a merge undone (PEO-074 follow-up)', () => {
 
   it('is adopted by an upstream system, and says so, but never as a tombstone', () => {
     const p = person();
-    const adopted = { provider: 'Okta', externalId: 'ada@acme.test', matchedOn: 'work_email' } as const;
+    const adopted = {
+      provider: 'Okta',
+      externalId: 'ada@acme.test',
+      matchedOn: 'work_email',
+    } as const;
     expect(p.adoptedByExternal(adopted, ctx, '2026-09-22').ok).toBe(true);
     expect(p.drainEvents().map((e) => [e.eventName, e.payload])).toEqual([
       [
         'people.person.adopted_by_external',
-        { personId: PERSON, provider: 'Okta', externalId: 'ada@acme.test', matchedOn: 'work_email' },
+        {
+          personId: PERSON,
+          provider: 'Okta',
+          externalId: 'ada@acme.test',
+          matchedOn: 'work_email',
+        },
       ],
     ]);
     for (const status of ['merged', 'discarded'] as const) {

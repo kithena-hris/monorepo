@@ -39,9 +39,15 @@ import {
   icons,
   DatePicker,
   FileUploader,
+  ModalPage,
+  ModalPageBody,
+  ModalPageContent,
+  ModalPageHeader,
+  PdfPages,
   type UploadItem,
 } from '@reach/ui';
-import { useState, useTransition, type JSX } from 'react';
+import { useEffect, useState, useTransition, type JSX } from 'react';
+import { formatList } from '@reach/ui/intl';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, words } from './shared';
@@ -1595,6 +1601,370 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
 }
 
 /** R22: the contract, its signing, and the conditions before the start. */
+interface Particular {
+  readonly key: string;
+  readonly law: string;
+  readonly value: string | null;
+}
+
+interface Drafted {
+  readonly ai: boolean;
+  readonly title: string;
+  readonly body: string;
+  readonly particulars: readonly Particular[];
+  readonly figures: readonly string[];
+  readonly signers: readonly {
+    readonly name: string;
+    readonly order: number;
+    readonly who: string;
+  }[];
+}
+
+/** What each statutory particular is called, whichever country's law asks for it. */
+const PARTICULAR = (): Readonly<Record<string, string>> => ({
+  parties: tr('offers.particular.parties', 'The parties'),
+  employer_address: tr('offers.particular.employer_address', 'Employer’s registered address'),
+  employee_address: tr('offers.particular.employee_address', 'Employee’s address'),
+  start: tr('offers.particular.start', 'Start date'),
+  continuous_employment: tr(
+    'offers.particular.continuous_employment',
+    'Continuous employment from',
+  ),
+  end: tr('offers.particular.end', 'End of the fixed term'),
+  role: tr('offers.particular.role', 'Job title'),
+  place_of_work: tr('offers.particular.place_of_work', 'Place of work'),
+  contract_type: tr('offers.particular.contract_type', 'Type of contract'),
+  pay: tr('offers.particular.pay', 'Pay'),
+  pay_timing: tr('offers.particular.pay_timing', 'When and how pay is paid'),
+  variable_pay: tr('offers.particular.variable_pay', 'Bonus and other payments'),
+  hours: tr('offers.particular.hours', 'Working hours'),
+  overtime: tr('offers.particular.overtime', 'Overtime'),
+  holiday: tr('offers.particular.holiday', 'Holiday'),
+  sick_pay: tr('offers.particular.sick_pay', 'Sick pay'),
+  benefits: tr('offers.particular.benefits', 'Benefits'),
+  pension: tr('offers.particular.pension', 'Pension'),
+  probation: tr('offers.particular.probation', 'Probation'),
+  notice: tr('offers.particular.notice', 'Notice periods'),
+  dismissal_procedure: tr('offers.particular.dismissal_procedure', 'Dismissal procedure'),
+  training: tr('offers.particular.training', 'Training'),
+  disciplinary: tr('offers.particular.disciplinary', 'Disciplinary and grievance rules'),
+  collective_agreement: tr('offers.particular.collective_agreement', 'Collective agreement'),
+  at_will: tr('offers.particular.at_will', 'At-will employment'),
+  overtime_status: tr('offers.particular.overtime_status', 'Overtime status'),
+  conditions: tr('offers.particular.conditions', 'Conditions before the start'),
+  non_compete: tr('offers.particular.non_compete', 'Non-compete'),
+  governing_law: tr('offers.particular.governing_law', 'Governing law'),
+});
+
+const TO_CONFIRM = /\[\[TO CONFIRM:\s*([^\]]+?)\s*\]\]/gu;
+
+/** A draft kept in this tab while HR works on it: a reload does not lose an edit. */
+const kept = (offerId: string): { title: string; body: string } | null => {
+  try {
+    const raw = sessionStorage.getItem(`contract-draft:${offerId}`);
+    return raw === null ? null : (JSON.parse(raw) as { title: string; body: string });
+  } catch {
+    return null;
+  }
+};
+const keep = (offerId: string, draft: { title: string; body: string } | null): void => {
+  try {
+    if (draft === null) sessionStorage.removeItem(`contract-draft:${offerId}`);
+    else sessionStorage.setItem(`contract-draft:${offerId}`, JSON.stringify(draft));
+  } catch {
+    // A private window keeps nothing; the draft is still on the screen.
+  }
+};
+
+/**
+ * The contract, drafted and checked (PRD §21.1): Kithena writes it from the
+ * accepted offer and what the law of the employing entity's country says a
+ * written contract states. HR reads every fact beside the law that asks for
+ * it, fills in what Kithena does not hold, edits the text, previews it as it
+ * will be filed, and sends it: the candidate signs first, then the company,
+ * each initialling every page before the last.
+ */
+function ContractDraft({
+  data,
+  props,
+}: {
+  readonly data: OfferData;
+  readonly props: ScreenProps<OfferData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const offerId = data.offer.id;
+  const [drafted, setDrafted] = useState<Drafted | null>(null);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [checked, setChecked] = useState(false);
+  const [preview, setPreview] = useState<Uint8Array | null>(null);
+  const [drafting, startDrafting] = useTransition();
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const draft = (fresh: boolean): void => {
+    setDraftError(null);
+    startDrafting(async () => {
+      const done = await act.call('DraftContract', { offerId });
+      if (!done.ok) {
+        setDraftError(done.message);
+        return;
+      }
+      const made = done.data as Drafted;
+      setDrafted(made);
+      const held = fresh ? null : kept(offerId);
+      setTitle(held?.title ?? made.title);
+      setBody(held?.body ?? made.body);
+      setChecked(false);
+      if (fresh) keep(offerId, null);
+    });
+  };
+  useEffect(() => {
+    draft(false);
+  }, [offerId]);
+  const edit = (next: { title?: string; body?: string }): void => {
+    const now = { title: next.title ?? title, body: next.body ?? body };
+    setTitle(now.title);
+    setBody(now.body);
+    setChecked(false);
+    keep(offerId, now);
+  };
+  const open = Array.from(body.matchAll(TO_CONFIRM), (m) => m[1] ?? '');
+  const labels = PARTICULAR();
+  const ready = drafted !== null && body.trim() !== '' && open.length === 0 && checked;
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle level={2}>{tr('offers.contract_draft', 'The contract')}</CardTitle>
+            <CardDescription>
+              {tr(
+                'offers.contract_draft_hint',
+                'Drafted from the accepted offer and the law of the employing entity. Check every fact, edit what you need, then send it to sign.',
+              )}
+            </CardDescription>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={drafting}
+            startIcon={<icons.assistant aria-hidden />}
+            onClick={() => {
+              draft(true);
+            }}
+          >
+            {tr('offers.draft_again', 'Draft again')}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {draftError === null ? null : (
+          <Alert tone="danger" title={tr('offers.not_drafted', 'Not drafted')}>
+            {draftError}
+          </Alert>
+        )}
+        {drafted === null ? (
+          <EmptyState
+            icon={<icons.assistant aria-hidden />}
+            title={tr('offers.drafting_the_contract', 'Drafting the contract…')}
+            description={tr(
+              'offers.drafting_the_contract_hint',
+              'From the accepted terms, the pay and the law of the country it is signed under.',
+            )}
+          />
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="flex flex-col gap-4">
+              {drafted.ai ? (
+                <Alert tone="info" title={tr('offers.drafted_by_ai', 'Drafted by AI')}>
+                  {tr(
+                    'offers.drafted_by_ai_hint',
+                    'An AI wrote this from the facts on the right and never saw a name. It is a draft: you are responsible for what is sent, so read it in full.',
+                  )}
+                </Alert>
+              ) : (
+                <Alert
+                  tone="info"
+                  title={tr('offers.drawn_from_the_terms', 'Drawn from the terms')}
+                >
+                  {tr(
+                    'offers.drawn_from_the_terms_hint',
+                    'Kithena drew this from the accepted terms. Switch on the AI writer in Recruiting settings for a full contract under the law of the country.',
+                  )}
+                </Alert>
+              )}
+              {open.length === 0 ? null : (
+                <Alert
+                  tone="warning"
+                  title={tr('offers.fill_in_before_sending', 'Fill in before sending')}
+                >
+                  {formatList(open)}
+                </Alert>
+              )}
+              {drafted.figures.length === 0 ? null : (
+                <Alert
+                  tone="warning"
+                  title={tr('offers.check_these_figures', 'Check these figures')}
+                >
+                  {tr(
+                    'offers.check_these_figures_hint',
+                    'The draft has figures no fact gave: {{figures}}. Correct or remove each one.',
+                    { figures: formatList(drafted.figures) },
+                  )}
+                </Alert>
+              )}
+              <Field required>
+                <FieldLabel>{tr('offers.contract_title', 'Title')}</FieldLabel>
+                <FieldControl>
+                  <Input
+                    value={title}
+                    onChange={(e) => {
+                      edit({ title: e.target.value });
+                    }}
+                  />
+                </FieldControl>
+              </Field>
+              <Field required>
+                <FieldLabel>{tr('offers.contract_text', 'Contract')}</FieldLabel>
+                <FieldControl>
+                  <Textarea
+                    rows={28}
+                    value={body}
+                    onChange={(e) => {
+                      edit({ body: e.target.value });
+                    }}
+                  />
+                </FieldControl>
+                <FieldDescription>
+                  {tr(
+                    'offers.contract_text_hint',
+                    'Each signer’s signature line and initials on every page are added when it is filed.',
+                  )}
+                </FieldDescription>
+              </Field>
+            </div>
+            <aside className="flex flex-col gap-4">
+              <div>
+                <h3 className="font-semibold">{tr('offers.facts_to_check', 'Facts to check')}</h3>
+                <p className="text-sm text-fg-muted">
+                  {tr(
+                    'offers.facts_to_check_hint',
+                    'What the law of the employing entity says the contract states, and where each comes from.',
+                  )}
+                </p>
+              </div>
+              <KeyValues
+                items={drafted.particulars.map((p) => ({
+                  label: labels[p.key] ?? words(p.key),
+                  value: (
+                    <span className="flex flex-col gap-0.5">
+                      {p.value === null ? (
+                        <Badge size="sm" tone="warning">
+                          {tr('offers.to_fill_in', 'To fill in')}
+                        </Badge>
+                      ) : (
+                        <span>{p.value}</span>
+                      )}
+                      <span className="text-xs text-fg-muted">{p.law}</span>
+                    </span>
+                  ),
+                }))}
+              />
+              <div>
+                <h3 className="font-semibold">{tr('offers.who_signs', 'Who signs')}</h3>
+                <ol className="mt-1 list-decimal pl-5 text-sm">
+                  {drafted.signers.map((s) => (
+                    <li key={s.order}>
+                      {s.who === 'candidate'
+                        ? tr(
+                            'offers.signer_candidate',
+                            '{{name}}, with a code sent to their email',
+                            {
+                              name: s.name,
+                            },
+                          )
+                        : tr('offers.signer_company', '{{name}}, for the company', {
+                            name: s.name,
+                          })}
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-1 text-xs text-fg-muted">
+                  {tr(
+                    'offers.signers_initial_hint',
+                    'Each initials every page and signs and dates the last.',
+                  )}
+                </p>
+              </div>
+              <Field orientation="horizontal" className="justify-start">
+                <FieldControl>
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(on) => {
+                      setChecked(on === true);
+                    }}
+                  />
+                </FieldControl>
+                <FieldLabel>
+                  {tr(
+                    'offers.i_checked_every_fact',
+                    'I checked every fact against the accepted offer and the law',
+                  )}
+                </FieldLabel>
+              </Field>
+              <Refusal error={act.error} />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={body.trim() === ''}
+                  loading={act.pending}
+                  startIcon={<icons.visible aria-hidden />}
+                  onClick={() => {
+                    void act.call('PreviewContract', { offerId, title, body }).then((done) => {
+                      if (done.ok) {
+                        const b64 = (done.data as { base64: string }).base64;
+                        setPreview(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+                      }
+                    });
+                  }}
+                >
+                  {tr('offers.preview', 'Preview')}
+                </Button>
+                <Button
+                  disabled={!ready}
+                  loading={act.pending}
+                  startIcon={<icons.send aria-hidden />}
+                  onClick={() => {
+                    act.run('SendContract', { offerId, title, body }, (made) => {
+                      keep(offerId, null);
+                      const id = (made as { id?: string } | null)?.id;
+                      if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
+                    });
+                  }}
+                >
+                  {tr('offers.send_to_sign', 'Send to sign')}
+                </Button>
+              </div>
+            </aside>
+          </div>
+        )}
+      </CardContent>
+      <ModalPage
+        open={preview !== null}
+        onOpenChange={(o) => {
+          if (!o) setPreview(null);
+        }}
+      >
+        <ModalPageContent size="inset">
+          <ModalPageHeader title={title} />
+          <ModalPageBody>
+            {preview === null ? null : <PdfPages src={preview} label={title} />}
+          </ModalPageBody>
+        </ModalPageContent>
+      </ModalPage>
+    </Card>
+  );
+}
+
 export function Contract(props: ScreenProps<OfferData>): JSX.Element {
   const act = useAct(props);
   const [fileId, setFileId] = useState('');
@@ -1670,6 +2040,12 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
               }
             />
             <Refusal error={act.error} />
+            {k !== null &&
+            k.route === 'documents' &&
+            k.state === 'generated' &&
+            data.offer.acceptance !== null ? (
+              <ContractDraft data={data} props={props} />
+            ) : null}
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
               <div className="flex flex-col gap-4">
                 <Card>
@@ -1725,28 +2101,6 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                         ]}
                       />
                     )}
-                    {k !== null && k.route === 'documents' && k.state === 'generated' ? (
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-sm text-fg-muted">
-                          {tr(
-                            'offers.drawn_from_the_accepted_terms_signs',
-                            'Drawn from the accepted terms; {{name}} signs first with an emailed code, then you for the company.',
-                            { name: data.candidate.name },
-                          )}
-                        </p>
-                        <Button
-                          loading={act.pending}
-                          onClick={() => {
-                            act.run('SendContract', { offerId: data.offer.id }, (made) => {
-                              const id = (made as { id?: string } | null)?.id;
-                              if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
-                            });
-                          }}
-                        >
-                          {tr('offers.send_to_sign', 'Send to sign')}
-                        </Button>
-                      </div>
-                    ) : null}
                     {k !== null && k.route === 'documents' && k.state === 'generated' ? (
                       <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
                         <div>

@@ -25,6 +25,7 @@ import {
   IdentifierRevealedBody,
   IdentifierReviewBody,
   IdentifierReviewDecisionBody,
+  InvitationBody,
   LegalEntityBody,
   ListQuery,
   LocationBody,
@@ -129,6 +130,18 @@ const components = {
   DuplicateDismissal: DuplicateDismissalBody,
   IdentifierReviewDecision: IdentifierReviewDecisionBody,
   IdentifierDecided: IdentifierDecidedBody,
+  Invitation: InvitationBody,
+  InvitationState: z.object({
+    invitation: z
+      .object({
+        personId: z.uuid(),
+        status: z.string(),
+        state: z.enum(['not_invited', 'scheduled', 'invited', 'signed_up']),
+        sendOn: z.iso.date().nullable(),
+        sentAt: z.iso.datetime().nullable(),
+      })
+      .nullable(),
+  }),
   IdentifierReveal: IdentifierRevealBody,
   IdentifierRevealed: IdentifierRevealedBody,
   CreatePerson: CreatePersonBody,
@@ -1191,6 +1204,31 @@ export function openApiDocument(): Record<string, unknown> {
           requestBody: { required: true, ...json('DuplicateDismissal') },
           responses: {
             200: { description: 'The decision', ...json('DuplicateDismissal') },
+            ...failure,
+          },
+        },
+      },
+      '/v1/invitations': {
+        get: {
+          summary:
+            'Where the hire holding a work email stands with their account at the company (?email=); HR only',
+          responses: {
+            200: {
+              description: 'Their invitation, or null for nobody',
+              ...json('InvitationState'),
+            },
+            ...failure,
+          },
+        },
+      },
+      '/v1/people/{id}/invitation': {
+        post: {
+          summary:
+            'Invite a hire to the company: now, or on sendOn on their calendar, with the sign-up page filled in from their record; HR only',
+          parameters: [id, idempotencyKey],
+          requestBody: { required: true, ...json('Invitation') },
+          responses: {
+            200: { description: 'Where it stands now', ...json('InvitationState') },
             ...failure,
           },
         },

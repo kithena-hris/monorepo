@@ -47,9 +47,20 @@ export type LaunchCountry = z.infer<typeof LaunchCountry>;
  * (PRD §12.1). `works_council` is the § 99 BetrVG stage a German entity with
  * a works council gains before `offer` (§19.9): its own category because an
  * offer may not be sent before it ends, and that rule reads the category.
+ * `contract` sits between the accepted offer and the hire: the contract is
+ * prepared, checked and signed there, and its signature is the hire.
  */
 export const StageCategory = z
-  .enum(['applied', 'screening', 'interview', 'assessment', 'works_council', 'offer', 'hired'])
+  .enum([
+    'applied',
+    'screening',
+    'interview',
+    'assessment',
+    'works_council',
+    'offer',
+    'contract',
+    'hired',
+  ])
   .register(policy, asPublic());
 export type StageCategory = z.infer<typeof StageCategory>;
 

@@ -443,10 +443,6 @@
     "text": "Nobody is contacted until you name them here.",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <DialogDescription>."
   },
-  "app.me.[company].candidate-home.open_this_page_from_the_link": {
-    "text": "Open this page from the link in one of our emails.",
-    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text built in code."
-  },
   "app.me.[company].candidate-home.read_your_offer": {
     "text": "Read your offer",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."

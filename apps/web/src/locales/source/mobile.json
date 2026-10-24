@@ -4987,6 +4987,10 @@
     "text": "On notice",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/profile.tsx, STATUS: a \"notice\" value."
   },
+  "people.profile.onboarding": {
+    "text": "Onboarding",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/profile.tsx, STATUS: a \"onboarding\" value."
+  },
   "people.profile.only_what_you_can_see_the": {
     "text": "Only what you can see. The link works once and expires.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/profile.tsx, Profile: the description of <ReasonDialog>."
@@ -6994,6 +6998,10 @@
   "people.settings.fields-model.on_the_account_setup_page_before": {
     "text": "On the account setup page, before they can use Kithena.",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/fields-model.ts, COLLECT: text built in code."
+  },
+  "people.settings.fields-model.onboarding": {
+    "text": "Onboarding",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. people/settings/fields-model.ts, STATUS_VALUES: text built in code."
   },
   "people.settings.fields-model.one_of_a_list": {
     "text": "One of a list",

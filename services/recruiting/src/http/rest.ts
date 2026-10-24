@@ -120,6 +120,7 @@ import {
   withdrawTheOffer,
   worksCouncilDecides,
 } from '../application/offers.js';
+import { draftContract } from '../application/contract-draft.js';
 import {
   anonymise,
   candidateByToken,
@@ -370,6 +371,7 @@ const Stage = z.object({
     'assessment',
     'works_council',
     'offer',
+    'contract',
     'hired',
   ]),
   automations: z.array(z.record(z.string(), z.unknown())).max(10),
@@ -1567,6 +1569,15 @@ export const ROUTES: readonly Route[] = [
     body: z.object({ fileId: Id, signedOn: CalendarDate }),
     run: (ctx, { params, body }) =>
       uploadSignedContract(ctx, params.offerId, body.fileId, body.signedOn),
+  }),
+  route({
+    name: 'draftContract',
+    method: 'POST',
+    path: `${V1}/offers/{offerId}/contract/draft`,
+    summary:
+      'R22: the contract drafted from the accepted offer and the statutory particulars of the entity’s country',
+    params: z.object({ offerId: Id }),
+    run: (ctx, { params }) => draftContract(ctx, params.offerId),
   }),
   route({
     name: 'contractSent',
