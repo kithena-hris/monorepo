@@ -104,7 +104,7 @@ export function ColumnChooser({
   value,
   onChange,
   onReset,
-  label = 'Columns',
+  label = t('components.table.column-chooser.columns', 'Columns'),
   size = 'md',
   inline = false,
 }: ColumnChooserProps): JSX.Element {

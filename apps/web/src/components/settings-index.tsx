@@ -104,7 +104,7 @@ export function SettingsIndex({
           'How your company’s workspace works. Open a setting to see it in full and change it.',
         )}
       />
-      <Waking area="People" waking={waking}>
+      <Waking area={t('components.settings-index.people', 'People')} waking={waking}>
         {waking ? null : modules.length === 0 || module === undefined ? (
           <EmptyState
             icon={<icons.settings />}

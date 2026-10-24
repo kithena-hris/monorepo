@@ -1726,7 +1726,7 @@ export function HeatmapChart({
 
       <ChartScaleKey
         tone={tone}
-        low="Less"
+        low={t('components.chart.chart.less', 'Less')}
         high={t('components.chart.chart.more_up_to', 'More · up to {{format}}', {
           format: format(ceiling),
         })}
@@ -1876,9 +1876,14 @@ export function FunnelChart({
                   <StepIcon aria-hidden className="size-3 shrink-0" />
                   {Math.round(stepRate * 100)}%{' '}
                   {grew
-                    ? '· more than the step before'
-                    : `continue · ${format((previous ?? 0) - stage.value)} lost`}
-                  {worst ? ' · biggest drop' : null}
+                    ? t(
+                        'components.chart.chart.more_than_the_step_before',
+                        '· more than the step before',
+                      )
+                    : t('components.chart.chart.continue_lost', 'continue · {{lost}} lost', {
+                        lost: format((previous ?? 0) - stage.value),
+                      })}
+                  {worst ? t('components.chart.chart.biggest_drop', ' · biggest drop') : null}
                 </p>
               ) : null}
               <div className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-3 touch:grid-cols-1 touch:gap-1.5 @max-[26rem]:grid-cols-1 @max-[26rem]:gap-1.5">

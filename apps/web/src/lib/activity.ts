@@ -1,3 +1,5 @@
+import { t } from './t';
+
 /**
  * Settings › Activity, the company's central activity log (`docs/audit.md`):
  * what its address means, and what it asks the router for.
@@ -8,16 +10,66 @@
  */
 
 export const AREAS = [
-  { value: 'fields', label: 'Employee fields' },
-  { value: 'organisation', label: 'Organisation' },
-  { value: 'roles', label: 'Roles' },
-  { value: 'integrations', label: 'Integrations' },
-  { value: 'imports_exports', label: 'Imports and exports' },
-  { value: 'sensitive_access', label: 'Sensitive access' },
-  { value: 'sign_in', label: 'Sign-in and support' },
-  { value: 'settings', label: 'Settings' },
-  { value: 'records', label: 'Records' },
-  { value: 'access', label: 'Reads and exports' },
+  {
+    value: 'fields',
+    get label() {
+      return t('lib.activity.employee_fields', 'Employee fields');
+    },
+  },
+  {
+    value: 'organisation',
+    get label() {
+      return t('lib.activity.organisation', 'Organisation');
+    },
+  },
+  {
+    value: 'roles',
+    get label() {
+      return t('lib.activity.roles', 'Roles');
+    },
+  },
+  {
+    value: 'integrations',
+    get label() {
+      return t('lib.activity.integrations', 'Integrations');
+    },
+  },
+  {
+    value: 'imports_exports',
+    get label() {
+      return t('lib.activity.imports_and_exports', 'Imports and exports');
+    },
+  },
+  {
+    value: 'sensitive_access',
+    get label() {
+      return t('lib.activity.sensitive_access', 'Sensitive access');
+    },
+  },
+  {
+    value: 'sign_in',
+    get label() {
+      return t('lib.activity.sign_in_and_support', 'Sign-in and support');
+    },
+  },
+  {
+    value: 'settings',
+    get label() {
+      return t('lib.activity.settings', 'Settings');
+    },
+  },
+  {
+    value: 'records',
+    get label() {
+      return t('lib.activity.records', 'Records');
+    },
+  },
+  {
+    value: 'access',
+    get label() {
+      return t('lib.activity.reads_and_exports', 'Reads and exports');
+    },
+  },
   { value: 'ai', label: 'AI' },
 ] as const;
 export type Area = (typeof AREAS)[number]['value'];
@@ -33,13 +85,48 @@ export const MODULE_AREAS: readonly Area[] = [
 
 /** Whose activity: every module that keeps a log, and identity's sign-ins. */
 export const MODULES = [
-  { value: 'people', label: 'People' },
-  { value: 'identity', label: 'Sign-in' },
-  { value: 'timeoff', label: 'Time Off' },
-  { value: 'documents', label: 'Documents' },
-  { value: 'recruiting', label: 'Recruiting' },
-  { value: 'onboarding', label: 'Onboarding' },
-  { value: 'performance', label: 'Performance' },
+  {
+    value: 'people',
+    get label() {
+      return t('lib.activity.people', 'People');
+    },
+  },
+  {
+    value: 'identity',
+    get label() {
+      return t('lib.activity.sign_in', 'Sign-in');
+    },
+  },
+  {
+    value: 'timeoff',
+    get label() {
+      return t('lib.activity.time_off', 'Time Off');
+    },
+  },
+  {
+    value: 'documents',
+    get label() {
+      return t('lib.activity.documents', 'Documents');
+    },
+  },
+  {
+    value: 'recruiting',
+    get label() {
+      return t('lib.activity.recruiting', 'Recruiting');
+    },
+  },
+  {
+    value: 'onboarding',
+    get label() {
+      return t('lib.activity.onboarding', 'Onboarding');
+    },
+  },
+  {
+    value: 'performance',
+    get label() {
+      return t('lib.activity.performance', 'Performance');
+    },
+  },
 ] as const;
 export type Module = (typeof MODULES)[number]['value'];
 
@@ -48,10 +135,30 @@ export const moduleName = (module: string): string =>
   MODULES.find((m) => m.value === module)?.label ?? module;
 
 export const WHO = [
-  { value: 'person', label: 'People' },
-  { value: 'support', label: 'Kithena support' },
-  { value: 'system', label: 'System' },
-  { value: 'integration', label: 'Integrations' },
+  {
+    value: 'person',
+    get label() {
+      return t('lib.activity.people', 'People');
+    },
+  },
+  {
+    value: 'support',
+    get label() {
+      return t('lib.activity.kithena_support', 'Kithena support');
+    },
+  },
+  {
+    value: 'system',
+    get label() {
+      return t('lib.activity.system', 'System');
+    },
+  },
+  {
+    value: 'integration',
+    get label() {
+      return t('lib.activity.integrations', 'Integrations');
+    },
+  },
 ] as const;
 export type Who = (typeof WHO)[number]['value'];
 

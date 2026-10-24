@@ -60,7 +60,12 @@ export function BulletChart({ data, label, summary, className }: BulletChartProp
         const readout = t(
           'components.chart.bullet-chart.target',
           '{{label}}: {{shown}}, target {{target}}{{value}}',
-          { label: row.label, shown, target: String(row.target), value: met ? ', met' : '' },
+          {
+            label: row.label,
+            shown,
+            target: String(row.target),
+            value: met ? t('components.chart.bullet-chart.met_suffix', ', met') : '',
+          },
         );
 
         return (

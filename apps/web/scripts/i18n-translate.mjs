@@ -16,6 +16,20 @@
  * `ASSISTANT_BASE_URL` and `ASSISTANT_MODEL` as the services read them
  * (Groq's `openai/gpt-oss-120b` by default). Stops at `--minutes` and keeps
  * what it has, so a long first run can be finished by running it again.
+ *
+ * A plural message (`key_one`, `key_other` in the source) is translated into
+ * the forms each language has (`Intl.PluralRules`): Polish and Russian get
+ * `key_few` and `key_many` from the English `other`, with examples of the
+ * numbers each form is for.
+ *
+ * Too much for the model's quota at once, the same work goes by hand:
+ *
+ *   node apps/web/scripts/i18n-translate.mjs --export pending.json
+ *   node apps/web/scripts/i18n-translate.mjs --import done.json
+ *
+ * `--export` writes what needs translating, with its context, and stops;
+ * `--import` takes `{ "<language>": { "<ns>": { "<key>": "…" } } }` and keeps
+ * what passes the placeholder check, as an answer from the model would be.
  */
 import { createHash } from 'node:crypto';
 import {
@@ -39,6 +53,8 @@ const arg = (name) => {
   return i < 0 ? undefined : process.argv[i + 1];
 };
 const MINUTES = Number(arg('minutes') ?? '300');
+const EXPORT = arg('export');
+const IMPORT = arg('import');
 const ONLY = arg('only')?.split(',');
 const ONLY_NS = arg('ns')?.split(',');
 const BATCH = 50;
@@ -550,6 +566,62 @@ const LANGUAGES = {
       'Dark mode': 'Тёмная тема',
     },
   },
+  hi: {
+    name: 'Hindi (hi-IN)',
+    register:
+      'Formal, polite register: address the reader as "आप". Write the Hindi an Indian HR team reads at work every day: clear Devanagari, with the English loanwords Indian offices use as such written in Devanagari (ईमेल, डैशबोर्ड, लिंक) rather than Sanskritised coinages. Buttons and menu items are short imperatives ("सहेजें", "हटाएँ"). Keep numbers as digits.',
+    glossary: {
+      People: 'कर्मचारी',
+      'Time Off': 'छुट्टी',
+      Recruiting: 'भर्ती',
+      Onboarding: 'ऑनबोर्डिंग',
+      Documents: 'दस्तावेज़',
+      Performance: 'प्रदर्शन',
+      Inbox: 'इनबॉक्स',
+      Settings: 'सेटिंग्स',
+      employee: 'कर्मचारी',
+      manager: 'मैनेजर',
+      'leave request': 'छुट्टी का अनुरोध',
+      approve: 'मंज़ूर करें',
+      decline: 'अस्वीकार करें',
+      candidate: 'उम्मीदवार',
+      job: 'नौकरी',
+      offer: 'ऑफ़र',
+      interview: 'इंटरव्यू',
+      review: 'समीक्षा',
+      goal: 'लक्ष्य',
+      policy: 'नीति',
+      'e-signature': 'ई-हस्ताक्षर',
+    },
+  },
+  ta: {
+    name: 'Tamil (ta-IN)',
+    register:
+      'Formal, polite register: address the reader as "நீங்கள்". Write the Tamil an HR team in Tamil Nadu reads at work: clear modern Tamil, with English loanwords common in offices (ஈமெயில், லிங்க்) used where a pure-Tamil coinage would read as stiff. Buttons and menu items are short polite imperatives ("சேமிக்கவும்", "நீக்கவும்"). Keep numbers as digits.',
+    glossary: {
+      People: 'பணியாளர்கள்',
+      'Time Off': 'விடுப்பு',
+      Recruiting: 'பணியமர்த்தல்',
+      Onboarding: 'பணியில் சேர்த்தல்',
+      Documents: 'ஆவணங்கள்',
+      Performance: 'செயல்திறன்',
+      Inbox: 'இன்பாக்ஸ்',
+      Settings: 'அமைப்புகள்',
+      employee: 'பணியாளர்',
+      manager: 'மேலாளர்',
+      'leave request': 'விடுப்பு கோரிக்கை',
+      approve: 'அங்கீகரிக்கவும்',
+      decline: 'நிராகரிக்கவும்',
+      candidate: 'வேட்பாளர்',
+      job: 'வேலை',
+      offer: 'வேலை வாய்ப்பு',
+      interview: 'நேர்காணல்',
+      review: 'மதிப்பாய்வு',
+      goal: 'இலக்கு',
+      policy: 'கொள்கை',
+      'e-signature': 'மின்-கையொப்பம்',
+    },
+  },
 };
 
 const instruction = (
@@ -598,6 +670,41 @@ const sources = Object.fromEntries(
   namespaces.map((ns) => [ns, readJson(join(SOURCE, `${ns}.json`), {})]),
 );
 const lockPath = join(LOCALES, 'lock.json');
+
+/** Numbers that take a form in a language, for the context: `few` in Polish is 2, 3, 4, 22… */
+function examplesOf(language, form) {
+  const rules = new Intl.PluralRules(language);
+  const found = [];
+  for (const n of [0, 1, 2, 3, 4, 5, 11, 12, 21, 22, 25, 101, 1.5, 1_000_000])
+    if (rules.select(n) === form && found.length < 5) found.push(n);
+  return found.join(', ');
+}
+
+/**
+ * A namespace's source as one language translates it: each plural message
+ * as the forms that language has, each with the English it comes from.
+ */
+function sourceFor(language, ns) {
+  const source = sources[ns];
+  const out = {};
+  const forms = new Intl.PluralRules(language).resolvedOptions().pluralCategories;
+  for (const [key, entry] of Object.entries(source)) {
+    const base = key.endsWith('_other') ? key.slice(0, -'_other'.length) : null;
+    const plural = base !== null && source[`${base}_one`] !== undefined;
+    if (key.endsWith('_one') && source[`${key.slice(0, -4)}_other`] !== undefined) continue;
+    if (!plural) {
+      out[key] = entry;
+      continue;
+    }
+    const one = source[`${base}_one`];
+    for (const form of forms)
+      out[`${base}_${form}`] = {
+        text: form === 'one' ? one.text : entry.text,
+        context: `${entry.context.replace(/ Plural: .*$/u, '')} Plural: the "${form}" form in ${language}, for a {{count}} such as ${examplesOf(language, form)}. English has "${one.text}" for one and "${entry.text}" otherwise.`,
+      };
+  }
+  return out;
+}
 const lock = readJson(lockPath, {});
 
 /* ---------------------------------------------------------------- model -- */
@@ -670,7 +777,7 @@ async function translate(lang, items) {
 /* ------------------------------------------------------------------ run -- */
 
 const targets = Object.keys(LANGUAGES).filter((l) => ONLY === undefined || ONLY.includes(l));
-if (KEY === '') {
+if (KEY === '' && EXPORT === undefined && IMPORT === undefined) {
   console.error('ASSISTANT_API_KEY is not set: nothing translated.');
   process.exit(1);
 }
@@ -684,7 +791,7 @@ for (const language of targets) {
   for (const ns of namespaces) {
     const path = join(LOCALES, language, `${ns}.json`);
     const held = readJson(path, {});
-    const source = sources[ns];
+    const source = sourceFor(language, ns);
     // What the code no longer says goes.
     for (const key of Object.keys(held)) if (source[key] === undefined) delete held[key];
     for (const key of Object.keys(lock[language]))
@@ -710,6 +817,40 @@ const save = () => {
     else rmSync(path, { force: true });
   writeJson(lockPath, lock);
 };
+
+if (EXPORT !== undefined) {
+  writeJson(
+    EXPORT,
+    Object.fromEntries(
+      jobs
+        .flatMap((j) => j.items.map((item) => ({ ...item, language: j.language, ns: j.ns })))
+        .map((item, i) => [String(i).padStart(6, '0'), item]),
+    ),
+  );
+  console.log(`written to ${EXPORT}; nothing translated`);
+  process.exit(0);
+}
+
+if (IMPORT !== undefined) {
+  const given = readJson(IMPORT, {});
+  for (const job of jobs) {
+    const held = files.get(job.path);
+    for (const item of job.items) {
+      const text = given[job.language]?.[job.ns]?.[item.key];
+      if (typeof text !== 'string' || text.trim() === '') continue;
+      if (placeholders(text) !== placeholders(item.en)) {
+        console.error(`placeholders differ: ${job.language} ${job.ns}:${item.key}`);
+        failed++;
+        continue;
+      }
+      if (text === item.en) delete held[item.key];
+      else held[item.key] = text;
+      lock[job.language][`${job.ns}:${item.key}`] = hash(item.en);
+      translated++;
+    }
+  }
+  jobs.length = 0;
+}
 
 let next = 0;
 let sinceSave = 0;

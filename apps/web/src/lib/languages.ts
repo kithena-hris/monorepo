@@ -18,6 +18,8 @@ export const LANGUAGES = [
   { code: 'pt', name: 'Português' },
   { code: 'pl', name: 'Polski' },
   { code: 'ru', name: 'Русский' },
+  { code: 'hi', name: 'हिन्दी' },
+  { code: 'ta', name: 'தமிழ்' },
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]['code'];

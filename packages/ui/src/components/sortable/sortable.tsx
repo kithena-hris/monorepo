@@ -27,6 +27,7 @@ import { ChevronDown, ChevronUp, GripVertical, Lock } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { t } from '../../lib/i18n';
+import { formatNumber } from '../../lib/intl';
 
 /**
  * A list whose order is the data.
@@ -160,12 +161,31 @@ export function SortableList<T extends SortableItem>({
   };
 
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${nameOf(ids.indexOf(String(active.id)))}.`,
+    onDragStart: ({ active }) =>
+      t('components.sortable.sortable.picked_up', 'Picked up {{name}}.', {
+        name: nameOf(ids.indexOf(String(active.id))),
+      }),
     onDragOver: ({ over }) =>
-      over ? `Now over position ${String(ids.indexOf(String(over.id)) + 1)}.` : undefined,
+      over
+        ? t('components.sortable.sortable.now_over_position', 'Now over position {{position}}.', {
+            position: formatNumber(ids.indexOf(String(over.id)) + 1),
+          })
+        : undefined,
     onDragEnd: ({ over }) =>
-      over ? `Dropped at position ${String(ids.indexOf(String(over.id)) + 1)}.` : 'Dropped.',
-    onDragCancel: () => 'Move cancelled. The order is unchanged.',
+      over
+        ? t(
+            'components.sortable.sortable.dropped_at_position',
+            'Dropped at position {{position}}.',
+            {
+              position: formatNumber(ids.indexOf(String(over.id)) + 1),
+            },
+          )
+        : t('components.sortable.sortable.dropped', 'Dropped.'),
+    onDragCancel: () =>
+      t(
+        'components.sortable.sortable.move_cancelled_order_unchanged',
+        'Move cancelled. The order is unchanged.',
+      ),
   };
 
   return (

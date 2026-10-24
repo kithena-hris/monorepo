@@ -14,6 +14,7 @@ import { readInbox, type Run } from '../../../../lib/inbox/sources';
 import { peopleFor } from '../../../../lib/people';
 import { readPreferenceFor, writePreferenceFor } from '../../../../lib/preferences';
 import { personFor } from '../../../../lib/session';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * The Inbox for the phone (INB-040): the same merge as the web's
@@ -74,6 +75,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const t = await serverWords();
   const found = await who(request);
   if (found === null) return unauthenticated();
   const input = StateChangeInput.safeParse(await request.json().catch(() => null));
@@ -113,8 +115,14 @@ export async function POST(request: Request): Promise<Response> {
           code: saved === 'view_only' ? 'VIEW_ONLY' : 'UNAVAILABLE',
           message:
             saved === 'view_only'
-              ? 'Viewing as somebody is read-only'
-              : 'That did not save; try again',
+              ? t(
+                  'app.api.mobile.inbox.route.viewing_as_somebody_is_read_only',
+                  'Viewing as somebody is read-only',
+                )
+              : t(
+                  'app.api.mobile.inbox.route.that_did_not_save_try_again',
+                  'That did not save; try again',
+                ),
         },
         { headers: NO_STORE },
       );

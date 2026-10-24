@@ -384,11 +384,13 @@ export function ImageUploader({
         onChange(next);
         setAnnouncement(
           t(
-            'components.image-uploader.image-uploader.added_of_in_total',
-            '{{length}} {{value}} added. {{length2}} of {{maxFiles}} in total.',
+            'components.image-uploader.image-uploader.images_added_of_in_total',
             {
-              length: String(passed.length),
-              value: passed.length === 1 ? 'image' : 'images',
+              one: '{{count}} image added. {{length2}} of {{maxFiles}} in total.',
+              other: '{{count}} images added. {{length2}} of {{maxFiles}} in total.',
+            },
+            {
+              count: passed.length,
               length2: String(next.length),
               maxFiles: String(maxFiles),
             },
@@ -678,7 +680,14 @@ export function ImageUploader({
                 {t('components.image-uploader.image-uploader.up_to', '· up to')}{' '}
                 {formatBytes(maxSize)}
                 {minDimensions
-                  ? ` · at least ${String(minDimensions.width)}×${String(minDimensions.height)}`
+                  ? t(
+                      'components.image-uploader.image-uploader.at_least_size',
+                      ' · at least {{width}}×{{height}}',
+                      {
+                        width: String(minDimensions.width),
+                        height: String(minDimensions.height),
+                      },
+                    )
                   : ''}
               </p>
 
@@ -1000,7 +1009,12 @@ export function AvatarUploader({
                 aria-label={t(
                   'components.image-uploader.image-uploader.replace_or_remove',
                   '{{value}}: replace or remove',
-                  { value: typeof label === 'string' ? label : 'Image' },
+                  {
+                    value:
+                      typeof label === 'string'
+                        ? label
+                        : t('components.image-uploader.image-uploader.image', 'Image'),
+                  },
                 )}
                 className={cn(
                   target,

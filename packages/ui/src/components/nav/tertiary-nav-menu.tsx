@@ -45,7 +45,9 @@ export function TertiaryNavMenu({
         <Button
           aria-label={t('components.nav.tertiary-nav-menu.text', '{{label}}: {{value}}', {
             label,
-            value: active?.label ?? 'choose a section',
+            value:
+              active?.label ??
+              t('components.nav.tertiary-nav-menu.choose_a_section', 'choose a section'),
           })}
           endIcon={<ChevronsUpDown aria-hidden />}
           className={cn('touch:w-full touch:justify-between', className)}

@@ -186,7 +186,7 @@ export interface AssistantPanelProps extends Omit<ComponentPropsWithoutRef<'sect
 }
 
 export function AssistantPanel({
-  title = 'Assistant',
+  title = t('components.assistant.assistant.assistant', 'Assistant'),
   subtitle,
   badge,
   onNewChat,
@@ -480,9 +480,12 @@ export function AssistantComposer({
   onSubmit,
   streaming = false,
   onStop,
-  placeholder = 'Ask a question…',
+  placeholder = t('components.assistant.assistant.ask_a_question', 'Ask a question…'),
   tools,
-  disclaimer = 'Answers can be wrong. Check anything important.',
+  disclaimer = t(
+    'components.assistant.assistant.answers_can_be_wrong_check_anything_important',
+    'Answers can be wrong. Check anything important.',
+  ),
   className,
   ...props
 }: AssistantComposerProps): JSX.Element {
@@ -572,7 +575,7 @@ export function AssistantLauncher({
   onOpen,
   nudge,
   onDismissNudge,
-  label = 'Open assistant',
+  label = t('components.assistant.assistant.open_assistant', 'Open assistant'),
   shortcut,
   className,
   style,

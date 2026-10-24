@@ -7,6 +7,8 @@ import {
   type Place,
   type SlotName,
 } from './remotes';
+import { inSentence } from '@reach/ui/intl';
+import { t } from './t';
 
 /**
  * What the shell draws around every screen, beyond the person: People's
@@ -232,19 +234,44 @@ export interface ImportNotice {
   readonly fileName: string | null;
 }
 
-const counted = (n: number, one: string, many: string): string =>
-  `${n.toLocaleString('en-GB')} ${n === 1 ? one : many}`;
-
 /** "Import finished: 1,000 people, 95 new fields", or "Import failed"; the file under it. */
 export function importNotice(i: ImportNotice): Pick<ShellNotice, 'title' | 'detail'> {
   return {
     title:
       i.status === 'failed'
-        ? 'Import failed'
-        : `Import finished: ${counted(i.people, 'person', 'people')}${
-            i.fields > 0 ? `, ${counted(i.fields, 'new field', 'new fields')}` : ''
-          }`,
-    detail: i.fileName ?? 'An imported file',
+        ? t('lib.shell-data.import_failed', 'Import failed')
+        : i.fields > 0
+          ? t(
+              'lib.shell-data.import_finished_people_and_fields',
+              'Import finished: {{people}}, {{fields}}',
+              {
+                people: t(
+                  'lib.shell-data.people_count',
+                  { one: '{{count}} person', other: '{{count}} people' },
+                  {
+                    count: i.people,
+                  },
+                ),
+                fields: t(
+                  'lib.shell-data.new_fields_count',
+                  { one: '{{count}} new field', other: '{{count}} new fields' },
+                  {
+                    count: i.fields,
+                  },
+                ),
+              },
+            )
+          : t(
+              'lib.shell-data.import_finished_people',
+              {
+                one: 'Import finished: {{count}} person',
+                other: 'Import finished: {{count}} people',
+              },
+              {
+                count: i.people,
+              },
+            ),
+    detail: i.fileName ?? t('lib.shell-data.an_imported_file', 'An imported file'),
   };
 }
 
@@ -255,9 +282,25 @@ const TOLD_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 export function viewedAsNotice(v: ViewedAs): Pick<ShellNotice, 'title' | 'detail'> {
   const minutes = Math.max(1, Math.round((Date.parse(v.endedAt) - Date.parse(v.at)) / 60_000));
   return {
-    title: `${v.by ?? 'A People administrator'} viewed Kithena as you`,
-    detail: `For ${String(minutes)} min, read-only: nothing was changed.${
-      v.specialCategory ? ' Your sensitive personal details were visible.' : ''
+    title: t('lib.shell-data.viewed_kithena_as_you', '{{name}} viewed Kithena as you', {
+      name: v.by ?? t('lib.shell-data.a_people_administrator', 'A People administrator'),
+    }),
+    detail: `${t(
+      'lib.shell-data.for_minutes_read_only',
+      {
+        one: 'For {{count}} min, read-only: nothing was changed.',
+        other: 'For {{count}} min, read-only: nothing was changed.',
+      },
+      {
+        count: minutes,
+      },
+    )}${
+      v.specialCategory
+        ? t(
+            'lib.shell-data.your_sensitive_personal_details_were_visible',
+            ' Your sensitive personal details were visible.',
+          )
+        : ''
     }`,
   };
 }
@@ -268,16 +311,29 @@ export function noticesOf(overview: Overview): ShellNotice[] {
     id: `approval:${a.id}`,
     title:
       a.asked === true
-        ? `HR asked about your ${a.label.toLowerCase()} change`
+        ? t('lib.shell-data.hr_asked_about_your_change', 'HR asked about your {{field}} change', {
+            field: inSentence(a.label),
+          })
         : overview.approvals?.isHr === true
-          ? `Approve a ${a.label.toLowerCase()} change`
-          : `${a.label} is waiting for approval`,
+          ? t('lib.shell-data.approve_a_change', 'Approve a {{field}} change', {
+              field: inSentence(a.label),
+            })
+          : t('lib.shell-data.is_waiting_for_approval', '{{field}} is waiting for approval', {
+              field: a.label,
+            }),
     detail:
       a.asked === true
-        ? `${a.name} · answer it to move it on`
+        ? t('lib.shell-data.answer_it_to_move_it_on', '{{name}} · answer it to move it on', {
+            name: a.name,
+          })
         : overview.approvals?.isHr === true
-          ? `${a.name} · asked by ${a.requestedBy}`
-          : `Asked ${a.requestedBy === a.name ? 'by you' : `by ${a.requestedBy}`}`,
+          ? t('lib.shell-data.asked_by', '{{name}} · asked by {{by}}', {
+              name: a.name,
+              by: a.requestedBy,
+            })
+          : a.requestedBy === a.name
+            ? t('lib.shell-data.asked_by_you', 'Asked by you')
+            : t('lib.shell-data.asked_by_name', 'Asked by {{by}}', { by: a.requestedBy }),
     at: a.requestedAt,
     // Its own item in Review: HR's own change waits under I asked, anybody
     // else's under Waiting, and a change to decide under Waiting for me.
@@ -293,7 +349,7 @@ export function noticesOf(overview: Overview): ShellNotice[] {
     .filter((m) => m.ownedBy === null)
     .map((m): ShellNotice => ({
       id: `missing:${m.key}`,
-      title: `Add your ${m.label.toLowerCase()}`,
+      title: t('lib.shell-data.add_your', 'Add your {{field}}', { field: inSentence(m.label) }),
       detail: m.section,
       at: null,
       href: `/people/me?field=${encodeURIComponent(m.key)}`,
@@ -438,17 +494,20 @@ export function areaFrame(
       trail: [{ href: area.home, label: area.label }],
     };
   }
-  const settings = own.settings.map((p) => ({ ...p, group: `${area.label} settings` }));
+  const settings = own.settings.map((p) => ({
+    ...p,
+    group: t('lib.shell-data.area_settings', '{{area}} settings', { area: area.label }),
+  }));
   const here = currentPlace(settings, route);
   return {
     section: here?.label ?? null,
     // The module's crumb opens Settings on that module, not on the first one.
     trail: [
-      { href: '/settings', label: 'Settings' },
+      { href: '/settings', label: t('lib.shell-data.settings', 'Settings') },
       { href: `/settings?area=${area.settings.split('/').pop() ?? ''}`, label: area.label },
     ],
     actions: [],
     siblings: siblingsOf(settings, here),
-    siblingsLabel: `${area.label} settings`,
+    siblingsLabel: t('lib.shell-data.area_settings', '{{area}} settings', { area: area.label }),
   };
 }

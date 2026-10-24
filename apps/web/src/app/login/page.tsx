@@ -8,6 +8,7 @@ import { PasskeySignIn } from '../../components/passkey-sign-in';
 import { appSignIn } from '../../lib/app-sign-in';
 import { currentTenant } from '../../lib/branding';
 import { currentPerson } from '../../lib/session';
+import { serverWords } from '../../lib/server-words';
 
 /**
  * The company's own sign-in page, on the company's own hostname.
@@ -26,6 +27,7 @@ export default async function Login({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<JSX.Element> {
+  const t = await serverWords();
   const tenant = await currentTenant();
   // `proxy.ts` 404s an unresolvable hostname before anything renders, so this
   // is only reachable when a tenant exists.
@@ -80,11 +82,17 @@ export default async function Login({
             )}
             <PageHeader
               className="mt-1"
-              title="Sign in"
+              title={t('app.login.page.sign_in', 'Sign in')}
               description={
                 tenant.googleSignIn
-                  ? 'Use the passkey on this device, or your work Google account. There is no password to remember.'
-                  : 'Use the passkey on this device. There is no password to remember.'
+                  ? t(
+                      'app.login.page.use_the_passkey_on_this_device_or',
+                      'Use the passkey on this device, or your work Google account. There is no password to remember.',
+                    )
+                  : t(
+                      'app.login.page.use_the_passkey_on_this_device_there',
+                      'Use the passkey on this device. There is no password to remember.',
+                    )
               }
             />
           </div>
@@ -94,8 +102,17 @@ export default async function Login({
               account was fine and simply has no account here is not the
               asker's to learn. */}
           {tenant.googleSignIn && one('error') === 'google' ? (
-            <Alert tone="danger" title="That Google account could not sign you in">
-              Choose the work Google account your HR team invited, or use your passkey.
+            <Alert
+              tone="danger"
+              title={t(
+                'app.login.page.that_google_account_could_not_sign_you',
+                'That Google account could not sign you in',
+              )}
+            >
+              {t(
+                'app.login.page.choose_the_work_google_account_your_hr',
+                'Choose the work Google account your HR team invited, or use your passkey.',
+              )}
             </Alert>
           ) : null}
 
@@ -105,7 +122,7 @@ export default async function Login({
             <>
               <div className="flex items-center gap-3">
                 <Separator className="flex-1" />
-                <span className="text-fg-muted text-xs">or</span>
+                <span className="text-fg-muted text-xs">{t('app.login.page.or', 'or')}</span>
                 <Separator className="flex-1" />
               </div>
               <GoogleSignIn slug={tenant.slug} app={app} />

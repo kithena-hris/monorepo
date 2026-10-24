@@ -227,7 +227,7 @@ export function VirtualList<T>({
   label,
   estimateItemHeight = 44,
   overscan = 8,
-  empty = 'Nothing to show.',
+  empty = t('components.virtual-list.virtual-list.nothing_to_show', 'Nothing to show.'),
   scroll = 'self',
   listItems = false,
   navigable = false,

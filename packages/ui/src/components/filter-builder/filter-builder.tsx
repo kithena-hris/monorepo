@@ -99,13 +99,16 @@ export function FilterBuilder({
   fields,
   value,
   onChange,
-  label = 'Conditions',
+  label = t('components.filter-builder.filter-builder.conditions', 'Conditions'),
   maxConditions = 10,
   newId = () => crypto.randomUUID(),
   allowGroups = false,
   errors = {},
   title,
-  emptyDescription = 'Add a condition to narrow the list.',
+  emptyDescription = t(
+    'components.filter-builder.filter-builder.add_a_condition_to_narrow_the_list',
+    'Add a condition to narrow the list.',
+  ),
   action,
   className,
 }: FilterBuilderProps): JSX.Element {

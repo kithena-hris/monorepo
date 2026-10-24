@@ -6,6 +6,7 @@ import { AccountSheet } from '../../../../components/app-shell';
 import { PeopleMenu } from '../../../../components/people-nav';
 import { people } from '../../../../lib/people';
 import { signedIn } from '../../../../lib/signed-in';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * People as a phone's tab (MV1): People's six sections as rows, each with
@@ -15,6 +16,7 @@ import { signedIn } from '../../../../lib/signed-in';
  * for this page alone; refused or unreachable, it just says "Search people".
  */
 export default async function PeopleMenuPage(): Promise<JSX.Element> {
+  const t = await serverWords();
   const [{ person, entitlements, shell }, headcount] = await Promise.all([
     signedIn(),
     people<number>('Headcount'),
@@ -22,7 +24,11 @@ export default async function PeopleMenuPage(): Promise<JSX.Element> {
   if (!entitlements.includes('module.people')) notFound();
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="People" actions={<AccountSheet person={person} />} touchBarActions />
+      <PageHeader
+        title={t('app.app.people.menu.page.people', 'People')}
+        actions={<AccountSheet person={person} />}
+        touchBarActions
+      />
       <PeopleMenu
         sections={shell.sections}
         route={null}

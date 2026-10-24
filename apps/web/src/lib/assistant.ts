@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { people } from './people';
+import { moduleName } from './activity';
+import { t } from './t';
 
 /**
  * The assistant in the app, across every module the company has.
@@ -39,7 +41,9 @@ const MODULES: readonly {
 }[] = [
   {
     entitlement: 'module.people',
-    name: 'People',
+    get name() {
+      return moduleName('people');
+    },
     ask: async (question, earlier) => {
       const answer = await people<ModuleAnswer>('Ask', { question, earlier });
       return answer.ok ? answer.data : null;
@@ -47,8 +51,11 @@ const MODULES: readonly {
   },
 ];
 
-const NOTHING =
-  'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.';
+const nothing = (): string =>
+  t(
+    'lib.assistant.not_sure_i_can_help',
+    'I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.',
+  );
 
 export async function askAcross(
   entitlements: readonly string[],
@@ -66,7 +73,7 @@ export async function askAcross(
   if (answered.length === 0) {
     // A module's own "not for me" is kinder than a generic one when there is only one.
     const only = answers.length === 1 ? answers[0]?.answer : null;
-    return { text: only?.text ?? NOTHING, people: [], from: [] };
+    return { text: only?.text ?? nothing(), people: [], from: [] };
   }
   return {
     text:

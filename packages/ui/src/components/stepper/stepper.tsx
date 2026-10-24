@@ -98,10 +98,18 @@ function statusOf(step: StepperStep, index: number, current: number): StepStatus
 
 /** Said out loud, because the ring around a circle is not a word. */
 const statusText: Record<StepStatus, string> = {
-  complete: 'Completed',
-  current: 'In progress',
-  upcoming: 'Not started',
-  error: 'Needs attention',
+  get complete() {
+    return t('components.stepper.stepper.completed', 'Completed');
+  },
+  get current() {
+    return t('components.stepper.stepper.in_progress', 'In progress');
+  },
+  get upcoming() {
+    return t('components.stepper.stepper.not_started', 'Not started');
+  },
+  get error() {
+    return t('components.stepper.stepper.needs_attention', 'Needs attention');
+  },
 };
 
 /**

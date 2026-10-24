@@ -8,6 +8,7 @@ import { extractText, getDocumentProxy } from 'unpdf';
 
 import { nifIn, offerFacts } from '../../../../lib/mobile/read';
 import { personFor } from '../../../../lib/session';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * Reading for the phone app instead of typing (Kithena Mobile v3): a photo of
@@ -26,6 +27,7 @@ const MOST = 3_200_000;
 export const maxDuration = 60;
 
 export async function POST(request: Request): Promise<Response> {
+  const t = await serverWords();
   const tenantId = (await headers()).get('x-tenant-id');
   const bearer = request.headers.get('authorization') ?? '';
   const sessionId = /^Bearer \S+$/.test(bearer) ? bearer.slice('Bearer '.length) : null;
@@ -43,7 +45,14 @@ export async function POST(request: Request): Promise<Response> {
   const data = read('data');
   if ((kind !== 'id-card' && kind !== 'offer') || typeof data !== 'string' || data.length > MOST) {
     return NextResponse.json(
-      { ok: false, code: 'BAD_REQUEST', message: 'Send a photo or a PDF of up to 2 MB.' },
+      {
+        ok: false,
+        code: 'BAD_REQUEST',
+        message: t(
+          'app.api.mobile.read.route.send_a_photo_or_a_pdf_of',
+          'Send a photo or a PDF of up to 2 MB.',
+        ),
+      },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -62,7 +71,10 @@ export async function POST(request: Request): Promise<Response> {
         {
           ok: false,
           code: 'UNREADABLE',
-          message: 'That photo could not be read. Try again in better light.',
+          message: t(
+            'app.api.mobile.read.route.that_photo_could_not_be_read_try',
+            'That photo could not be read. Try again in better light.',
+          ),
         },
         { headers: NO_STORE },
       );
@@ -77,7 +89,14 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ ok: true, data: offerFacts(text) }, { headers: NO_STORE });
   } catch {
     return NextResponse.json(
-      { ok: false, code: 'UNREADABLE', message: 'That file is not a PDF with text in it.' },
+      {
+        ok: false,
+        code: 'UNREADABLE',
+        message: t(
+          'app.api.mobile.read.route.that_file_is_not_a_pdf_with',
+          'That file is not a PDF with text in it.',
+        ),
+      },
       { headers: NO_STORE },
     );
   }

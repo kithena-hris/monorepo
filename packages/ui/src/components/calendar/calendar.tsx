@@ -6,6 +6,7 @@ import { useMemo, useState, type JSX } from 'react';
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
 import { t as tr } from '../../lib/i18n';
+import { locale as pageLocale } from '../../lib/intl';
 
 /**
  * A month grid for choosing calendar dates.
@@ -100,12 +101,22 @@ function monthNames(locale: string): Map<string, number> {
   return names;
 }
 
+/** How the locale writes a date in numbers, for a hint: 14.03.1996, 03/14/1996. */
+export function typedDateExample(locale = pageLocale()): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(Date.UTC(1996, 2, 14));
+}
+
 /**
  * A date as a person types it, as an ISO date, or null: "14/03/1996",
  * "1996-03-14", "14 March 1996", "March 14, 1996", "14 mar 96". Numbers are
  * read day first, as the locale writes them; month first in US English.
  */
-export function parseTypedDate(text: string, locale = 'en-GB'): IsoDate | null {
+export function parseTypedDate(text: string, locale = pageLocale()): IsoDate | null {
   const t = text.trim().toLowerCase().replaceAll(',', ' ').replaceAll(/\s+/gu, ' ');
   if (t === '') return null;
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/u.exec(t);
@@ -264,9 +275,33 @@ const dotTone: Record<CalendarTone, string> = {
 
 /** What each level's arrows do: a month, a year, or a page of twelve years. */
 const STEP = {
-  days: { months: 1, previous: 'Previous month', next: 'Next month' },
-  months: { months: 12, previous: 'Previous year', next: 'Next year' },
-  years: { months: 144, previous: 'Previous twelve years', next: 'Next twelve years' },
+  days: {
+    months: 1,
+    get previous() {
+      return tr('components.calendar.calendar.previous_month', 'Previous month');
+    },
+    get next() {
+      return tr('components.calendar.calendar.next_month', 'Next month');
+    },
+  },
+  months: {
+    months: 12,
+    get previous() {
+      return tr('components.calendar.calendar.previous_year', 'Previous year');
+    },
+    get next() {
+      return tr('components.calendar.calendar.next_year', 'Next year');
+    },
+  },
+  years: {
+    months: 144,
+    get previous() {
+      return tr('components.calendar.calendar.previous_twelve_years', 'Previous twelve years');
+    },
+    get next() {
+      return tr('components.calendar.calendar.next_twelve_years', 'Next twelve years');
+    },
+  },
 } as const;
 
 /** A month or a year to choose: the day circle's treatment, as a wider pill. */
@@ -304,7 +339,7 @@ export function Calendar(props: CalendarProps): JSX.Element {
     dayStyles,
     highlight,
     weekStartsOn = 1,
-    locale = 'en-GB',
+    locale = pageLocale(),
     today = formatIsoDate(Date.now()),
     className,
     label = tr('components.calendar.calendar.calendar', 'Calendar'),

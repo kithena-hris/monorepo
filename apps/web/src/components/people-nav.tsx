@@ -185,9 +185,11 @@ export function PeopleMenu({
         placeholder={
           total == null
             ? t('components.people-nav.search_people', 'Search people')
-            : t('components.people-nav.search_people_2', 'Search {{toLocaleString}} people', {
-                toLocaleString: total.toLocaleString('en-GB'),
-              })
+            : t(
+                'components.people-nav.search_count_people',
+                { one: 'Search {{count}} person', other: 'Search {{count}} people' },
+                { count: total },
+              )
         }
         value={query}
         onValueChange={setQuery}

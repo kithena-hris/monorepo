@@ -1,4 +1,6 @@
 import 'server-only';
+// Server code's `t` answers in the request's language (actions, routes, server components).
+import './rsc-words';
 import { createHash, randomUUID } from 'node:crypto';
 import { refresh, revalidatePath } from 'next/cache';
 import { cookies, headers } from 'next/headers';
@@ -31,6 +33,8 @@ import { SESSION_COOKIE } from './session-cookie';
 import { timed } from './timing';
 import { WAKING_MESSAGE, wakingCause, wakingErrors, wakingStatus } from './waking';
 import { wakeWorkspace, workspaceConfig } from './workspace';
+import { moduleName } from './activity';
+import { t } from './t';
 
 /**
  * People, through the Cosmo Router, as the person signed in (PEO-113).
@@ -67,8 +71,20 @@ export type PeopleAnswer<T> =
       readonly link?: string;
     };
 
-const signedOut = { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again' } as const;
-const unreachable = { ok: false, code: 'UNREACHABLE', message: WAKING_MESSAGE } as const;
+const signedOut = {
+  ok: false,
+  code: 'UNAUTHENTICATED',
+  get message() {
+    return t('lib.people.sign_in_again', 'Sign in again');
+  },
+} as const;
+const unreachable = {
+  ok: false,
+  code: 'UNREACHABLE',
+  get message() {
+    return t('lib.people.kithena_is_waking_up', WAKING_MESSAGE);
+  },
+} as const;
 
 /**
  * Not up yet: start it, after the response, so nobody waits on AWS. Every
@@ -219,12 +235,42 @@ interface Area {
 const AREAS: Readonly<
   Record<'people' | 'timeoff' | 'documents' | 'recruiting' | 'onboarding' | 'performance', Area>
 > = {
-  people: { service: 'People', operations: OPERATIONS },
-  timeoff: { service: 'Time Off', operations: TIMEOFF_OPERATIONS },
-  documents: { service: 'Documents', operations: DOCUMENTS_OPERATIONS },
-  recruiting: { service: 'Recruiting', operations: RECRUITING_OPERATIONS },
-  onboarding: { service: 'Onboarding', operations: ONBOARDING_OPERATIONS },
-  performance: { service: 'Performance', operations: PERFORMANCE_OPERATIONS },
+  people: {
+    get service() {
+      return moduleName('people');
+    },
+    operations: OPERATIONS,
+  },
+  timeoff: {
+    get service() {
+      return moduleName('timeoff');
+    },
+    operations: TIMEOFF_OPERATIONS,
+  },
+  documents: {
+    get service() {
+      return moduleName('documents');
+    },
+    operations: DOCUMENTS_OPERATIONS,
+  },
+  recruiting: {
+    get service() {
+      return moduleName('recruiting');
+    },
+    operations: RECRUITING_OPERATIONS,
+  },
+  onboarding: {
+    get service() {
+      return moduleName('onboarding');
+    },
+    operations: ONBOARDING_OPERATIONS,
+  },
+  performance: {
+    get service() {
+      return moduleName('performance');
+    },
+    operations: PERFORMANCE_OPERATIONS,
+  },
 };
 
 /**
@@ -522,7 +568,9 @@ async function call(
       return {
         ok: false,
         code: typeof code === 'string' ? code : 'UNAVAILABLE',
-        message: error?.message ?? `${service} did not answer`,
+        message:
+          error?.message ??
+          t('lib.people.module_did_not_answer', '{{module}} did not answer', { module: service }),
         // Only a path in this app: a refusal never sends the browser elsewhere.
         ...(typeof link === 'string' && link.startsWith('/') && !link.startsWith('//')
           ? { link }
@@ -536,6 +584,14 @@ async function call(
   } catch (cause) {
     return wakingCause(cause, writes)
       ? wakeSoon()
-      : { ok: false, code: 'UNAVAILABLE', message: `${service} did not answer in time` };
+      : {
+          ok: false,
+          code: 'UNAVAILABLE',
+          message: t(
+            'lib.people.module_did_not_answer_in_time',
+            '{{module}} did not answer in time',
+            { module: service },
+          ),
+        };
   }
 }

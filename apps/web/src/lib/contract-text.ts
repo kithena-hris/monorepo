@@ -10,6 +10,8 @@
  * line is still the contract the candidate accepted, hash and all.
  */
 
+import type { T } from '@reach/ui';
+
 interface Length {
   readonly count: number;
   readonly unit: string;
@@ -50,23 +52,83 @@ interface Offer {
   }[];
 }
 
-const words = (key: string): string => key.replaceAll('_', ' ');
+/** A term's key in words: the known ones translated, a country pack's own name as written. */
+function words(key: string, t: T): string {
+  switch (key) {
+    case 'permanent':
+      return t('lib.contract-text.permanent', 'permanent');
+    case 'fixed_term':
+      return t('lib.contract-text.fixed_term', 'fixed term');
+    case 'contractor':
+      return t('lib.contract-text.contractor', 'contractor');
+    case 'full_time':
+      return t('lib.contract-text.full_time', 'full time');
+    case 'part_time':
+      return t('lib.contract-text.part_time', 'part time');
+    case 'onsite':
+      return t('lib.contract-text.on_site', 'on site');
+    case 'hybrid':
+      return t('lib.contract-text.hybrid', 'hybrid');
+    case 'remote':
+      return t('lib.contract-text.remote', 'remote');
+    default:
+      return key.replaceAll('_', ' ');
+  }
+}
 
-const money = (minor: number, currency: string): string =>
-  new Intl.NumberFormat('en', { style: 'currency', currency, minimumFractionDigits: 2 }).format(
+const money = (minor: number, currency: string, language: string): string =>
+  new Intl.NumberFormat(language, { style: 'currency', currency, minimumFractionDigits: 2 }).format(
     minor / 100,
   );
 
-const length = (l: unknown): string | null =>
-  typeof l === 'object' && l !== null && 'count' in l && 'unit' in l
-    ? `${String((l as Length).count)} ${(l as Length).unit}`
-    : null;
+function length(l: unknown, t: T): string | null {
+  if (typeof l !== 'object' || l === null || !('count' in l) || !('unit' in l)) return null;
+  const { count, unit } = l as Length;
+  switch (unit) {
+    case 'days':
+      return t(
+        'lib.contract-text.days',
+        { one: '{{count}} day', other: '{{count}} days' },
+        { count },
+      );
+    case 'weeks':
+      return t(
+        'lib.contract-text.weeks',
+        { one: '{{count}} week', other: '{{count}} weeks' },
+        { count },
+      );
+    case 'months':
+      return t(
+        'lib.contract-text.months',
+        { one: '{{count}} month', other: '{{count}} months' },
+        { count },
+      );
+    default:
+      return `${String(count)} ${unit}`;
+  }
+}
 
-const hours = (minutes: number): string => {
+function hours(minutes: number, t: T): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return m === 0 ? `${String(h)} hours` : `${String(h)} hours ${String(m)} minutes`;
-};
+  const whole = t(
+    'lib.contract-text.hours',
+    { one: '{{count}} hour', other: '{{count}} hours' },
+    { count: h },
+  );
+  return m === 0
+    ? whole
+    : t('lib.contract-text.hours_and_minutes', '{{hours}} {{minutes}}', {
+        hours: whole,
+        minutes: t(
+          'lib.contract-text.minutes',
+          { one: '{{count}} minute', other: '{{count}} minutes' },
+          {
+            count: m,
+          },
+        ),
+      });
+}
 
 /** The version the candidate accepted; the latest when the screen has no acceptance yet. */
 function accepted(o: Offer) {
@@ -74,83 +136,213 @@ function accepted(o: Offer) {
   return o.offer.versions.find((v) => v.version === n) ?? o.offer.versions.at(-1) ?? null;
 }
 
-export function contractTitle(o: Offer): string {
-  return `Employment contract – ${o.candidate.name}`;
+/**
+ * The words are the company's language (`t`, `language`), not the reader's:
+ * the contract is the company's document, whoever presses the button.
+ */
+export function contractTitle(o: Offer, t: T): string {
+  return t('lib.contract-text.employment_contract', 'Employment contract – {{name}}', {
+    name: o.candidate.name,
+  });
 }
 
-export function contractText(o: Offer, companyName: string): string {
+export function contractText(o: Offer, companyName: string, t: T, language = 'en-US'): string {
   const v = accepted(o);
-  const t = o.checked?.terms ?? null;
-  if (v === null) return `${companyName} engages ${o.candidate.name} as ${o.job.title}.`;
+  const checked = o.checked?.terms ?? null;
+  const name = o.candidate.name;
+  if (v === null)
+    return t('lib.contract-text.engages_as', '{{company}} engages {{name}} as {{role}}.', {
+      company: companyName,
+      name,
+      role: o.job.title,
+    });
   const terms = v.terms;
-  const per = { year: 'a year', month: 'a month', hour: 'an hour' }[v.pay.frequency];
+  const pay = money(v.pay.baseMinor, v.pay.currency, language);
+  const payments = typeof terms['paymentsPerYear'] === 'number' ? terms['paymentsPerYear'] : null;
   const lines: (string | null)[] = [
-    `This contract is between ${companyName} (the employer) and ${o.candidate.name} (the employee).`,
-    `Role: ${o.job.title}.`,
-    t === null
+    t(
+      'lib.contract-text.this_contract_is_between',
+      'This contract is between {{company}} (the employer) and {{name}} (the employee).',
+      { company: companyName, name },
+    ),
+    t('lib.contract-text.role', 'Role: {{role}}.', { role: o.job.title }),
+    checked === null
       ? null
-      : `Contract: ${words(t.contractType)}, ${words(t.employmentType)}${
-          typeof terms['contractEnd'] === 'string' ? `, ending ${terms['contractEnd']}` : ''
-        }.`,
-    `Start date: ${v.startDate}.`,
-    `Pay: ${money(v.pay.baseMinor, v.pay.currency)} ${per}${
-      typeof terms['paymentsPerYear'] === 'number'
-        ? `, paid in ${String(terms['paymentsPerYear'])} payments a year`
-        : ''
-    }.`,
+      : typeof terms['contractEnd'] === 'string'
+        ? t(
+            'lib.contract-text.contract_ending',
+            'Contract: {{contract}}, {{employment}}, ending {{end}}.',
+            {
+              contract: words(checked.contractType, t),
+              employment: words(checked.employmentType, t),
+              end: terms['contractEnd'],
+            },
+          )
+        : t('lib.contract-text.contract', 'Contract: {{contract}}, {{employment}}.', {
+            contract: words(checked.contractType, t),
+            employment: words(checked.employmentType, t),
+          }),
+    t('lib.contract-text.start_date', 'Start date: {{date}}.', { date: v.startDate }),
+    payments === null
+      ? v.pay.frequency === 'year'
+        ? t('lib.contract-text.pay_a_year', 'Pay: {{pay}} a year.', { pay })
+        : v.pay.frequency === 'month'
+          ? t('lib.contract-text.pay_a_month', 'Pay: {{pay}} a month.', { pay })
+          : t('lib.contract-text.pay_an_hour', 'Pay: {{pay}} an hour.', { pay })
+      : v.pay.frequency === 'year'
+        ? t(
+            'lib.contract-text.pay_a_year_in_payments',
+            'Pay: {{pay}} a year, paid in {{payments}} payments a year.',
+            {
+              pay,
+              payments: String(payments),
+            },
+          )
+        : v.pay.frequency === 'month'
+          ? t(
+              'lib.contract-text.pay_a_month_in_payments',
+              'Pay: {{pay}} a month, paid in {{payments}} payments a year.',
+              {
+                pay,
+                payments: String(payments),
+              },
+            )
+          : t(
+              'lib.contract-text.pay_an_hour_in_payments',
+              'Pay: {{pay}} an hour, paid in {{payments}} payments a year.',
+              {
+                pay,
+                payments: String(payments),
+              },
+            ),
     v.pay.variableTargetMinor > 0
-      ? `Variable pay at target: ${money(v.pay.variableTargetMinor, v.pay.currency)} a year.`
+      ? t('lib.contract-text.variable_pay_at_target', 'Variable pay at target: {{pay}} a year.', {
+          pay: money(v.pay.variableTargetMinor, v.pay.currency, language),
+        })
       : null,
-    v.pay.signOnMinor > 0 ? `Signing bonus: ${money(v.pay.signOnMinor, v.pay.currency)}.` : null,
+    v.pay.signOnMinor > 0
+      ? t('lib.contract-text.signing_bonus', 'Signing bonus: {{pay}}.', {
+          pay: money(v.pay.signOnMinor, v.pay.currency, language),
+        })
+      : null,
     v.pay.relocationMinor > 0
-      ? `Relocation: ${money(v.pay.relocationMinor, v.pay.currency)}.`
+      ? t('lib.contract-text.relocation', 'Relocation: {{pay}}.', {
+          pay: money(v.pay.relocationMinor, v.pay.currency, language),
+        })
       : null,
-    t === null
+    checked === null
       ? null
-      : `Working time: ${hours(t.weeklyMinutes)} a week (${t.fte} FTE)${
-          typeof terms['workMode'] === 'string'
-            ? `, ${words(terms['workMode'])}${
-                typeof terms['hybridDaysOnsite'] === 'number'
-                  ? ` with ${String(terms['hybridDaysOnsite'])} days on site`
-                  : ''
-              }`
-            : ''
-        }.`,
-    length(terms['probation']) === null
-      ? 'Probation: none.'
-      : `Probation: ${length(terms['probation']) ?? ''}.`,
-    length(terms['noticeEmployee']) === null || length(terms['noticeEmployer']) === null
+      : typeof terms['workMode'] !== 'string'
+        ? t('lib.contract-text.working_time', 'Working time: {{hours}} a week ({{fte}} FTE).', {
+            hours: hours(checked.weeklyMinutes, t),
+            fte: checked.fte,
+          })
+        : typeof terms['hybridDaysOnsite'] === 'number'
+          ? t(
+              'lib.contract-text.working_time_mode_days',
+              {
+                one: 'Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} day on site.',
+                other:
+                  'Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} days on site.',
+              },
+              {
+                hours: hours(checked.weeklyMinutes, t),
+                fte: checked.fte,
+                mode: words(terms['workMode'], t),
+                count: terms['hybridDaysOnsite'],
+              },
+            )
+          : t(
+              'lib.contract-text.working_time_mode',
+              'Working time: {{hours}} a week ({{fte}} FTE), {{mode}}.',
+              {
+                hours: hours(checked.weeklyMinutes, t),
+                fte: checked.fte,
+                mode: words(terms['workMode'], t),
+              },
+            ),
+    length(terms['probation'], t) === null
+      ? t('lib.contract-text.probation_none', 'Probation: none.')
+      : t('lib.contract-text.probation', 'Probation: {{length}}.', {
+          length: length(terms['probation'], t) ?? '',
+        }),
+    length(terms['noticeEmployee'], t) === null || length(terms['noticeEmployer'], t) === null
       ? null
-      : `Notice: ${length(terms['noticeEmployee']) ?? ''} by the employee, ${length(terms['noticeEmployer']) ?? ''} by the employer.`,
+      : t(
+          'lib.contract-text.notice',
+          'Notice: {{employee}} by the employee, {{employer}} by the employer.',
+          {
+            employee: length(terms['noticeEmployee'], t) ?? '',
+            employer: length(terms['noticeEmployer'], t) ?? '',
+          },
+        ),
     typeof terms['nonCompeteMonths'] === 'number' && terms['nonCompeteMonths'] > 0
-      ? `Non-compete: ${String(terms['nonCompeteMonths'])} months after the employment ends${
-          typeof terms['nonCompeteCompensationPercent'] === 'number'
-            ? `, compensated at ${String(terms['nonCompeteCompensationPercent'])}% of pay`
-            : ''
-        }.`
+      ? typeof terms['nonCompeteCompensationPercent'] === 'number'
+        ? t(
+            'lib.contract-text.non_compete_compensated',
+            {
+              one: 'Non-compete: {{count}} month after the employment ends, compensated at {{percent}} of pay.',
+              other:
+                'Non-compete: {{count}} months after the employment ends, compensated at {{percent}} of pay.',
+            },
+            {
+              count: terms['nonCompeteMonths'],
+              percent: new Intl.NumberFormat(language, { style: 'percent' }).format(
+                terms['nonCompeteCompensationPercent'] / 100,
+              ),
+            },
+          )
+        : t(
+            'lib.contract-text.non_compete',
+            {
+              one: 'Non-compete: {{count}} month after the employment ends.',
+              other: 'Non-compete: {{count}} months after the employment ends.',
+            },
+            { count: terms['nonCompeteMonths'] },
+          )
       : null,
     terms['mobilityClause'] === true
-      ? 'Mobility: the employee may be asked to work from another of the employer’s locations.'
+      ? t(
+          'lib.contract-text.mobility',
+          'Mobility: the employee may be asked to work from another of the employer’s locations.',
+        )
       : null,
     v.benefitIds.length === 0
       ? null
-      : `Benefits: ${v.benefitIds
-          .map((id) => {
-            const b = o.benefits.find((x) => x.id === id);
-            return b === undefined
-              ? words(id.replace(/^statutory:/u, ''))
-              : (Object.values(b.names)[0] ?? id);
-          })
-          .join(', ')}.`,
-    t === null || t.documents.filter((d) => d !== 'contract').length === 0
+      : t('lib.contract-text.benefits', 'Benefits: {{benefits}}.', {
+          benefits: new Intl.ListFormat(language, { type: 'unit', style: 'short' }).format(
+            v.benefitIds.map((id) => {
+              const b = o.benefits.find((x) => x.id === id);
+              return b === undefined
+                ? words(id.replace(/^statutory:/u, ''), t)
+                : (b.names[language] ??
+                    b.names[language.slice(0, 2)] ??
+                    Object.values(b.names)[0] ??
+                    id);
+            }),
+          ),
+        }),
+    checked === null || checked.documents.filter((d) => d !== 'contract').length === 0
       ? null
-      : `Signed with this contract: ${t.documents
-          .filter((d) => d !== 'contract')
-          .map(words)
-          .join(', ')}.`,
+      : t(
+          'lib.contract-text.signed_with_this_contract',
+          'Signed with this contract: {{documents}}.',
+          {
+            documents: new Intl.ListFormat(language, { type: 'unit', style: 'short' }).format(
+              checked.documents.filter((d) => d !== 'contract').map((d) => words(d, t)),
+            ),
+          },
+        ),
     o.offer.acceptance === null
       ? null
-      : `These are the terms of offer version ${String(o.offer.acceptance.version)} (${o.offer.acceptance.versionHash.slice(0, 12)}), which the employee accepted.`,
+      : t(
+          'lib.contract-text.these_are_the_terms_of_offer_version',
+          'These are the terms of offer version {{version}} ({{hash}}), which the employee accepted.',
+          {
+            version: String(o.offer.acceptance.version),
+            hash: o.offer.acceptance.versionHash.slice(0, 12),
+          },
+        ),
   ];
   return lines.filter((l): l is string => l !== null).join('\n\n');
 }

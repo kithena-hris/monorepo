@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '../dialog/dialog';
 import { KbdShortcut } from '../kbd/kbd';
+import { t } from '../../lib/i18n';
 
 /**
  * Every keyboard shortcut an app has, by group: what `?` opens.
@@ -44,7 +45,7 @@ export function ShortcutsDialog({
   open,
   onOpenChange,
   groups,
-  title = 'Keyboard shortcuts',
+  title = t('components.shortcuts.shortcuts-dialog.keyboard_shortcuts', 'Keyboard shortcuts'),
   description,
   footer,
 }: ShortcutsDialogProps): JSX.Element {

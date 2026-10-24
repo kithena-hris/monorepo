@@ -11,6 +11,7 @@ import {
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * A message about the whole app or account, across the top of the page.
@@ -127,7 +128,7 @@ export function Banner({
   icon,
   actions,
   onDismiss,
-  dismissLabel = 'Dismiss',
+  dismissLabel = t('components.banner.banner.dismiss', 'Dismiss'),
   children,
   ...props
 }: BannerProps): JSX.Element {

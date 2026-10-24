@@ -89,7 +89,8 @@ function useZone(): string | undefined {
   return zone;
 }
 
-const SOMEONE = 'Someone at your company';
+const someone = (): string =>
+  t('components.activity-log.someone_at_your_company', 'Someone at your company');
 
 /** Who did it, as the log names them: a person by name, support and the system by kind. */
 function who(e: ActivityEntry, named: Named): { name: string; avatar: ReactNode } {
@@ -112,7 +113,7 @@ function who(e: ActivityEntry, named: Named): { name: string; avatar: ReactNode 
       };
     default: {
       const face = e.actorAccountId === null ? undefined : named[e.actorAccountId];
-      const name = face?.name ?? SOMEONE;
+      const name = face?.name ?? someone();
       return {
         name,
         avatar: <Avatar size="sm" name={name} src={face?.avatarUrl ?? undefined} />,
@@ -386,7 +387,10 @@ export function ActivityLog({
           </div>
         )}
       </div>
-      <Waking area="Activity" waking={load.status === 'waking'}>
+      <Waking
+        area={t('components.activity-log.activity', 'Activity')}
+        waking={load.status === 'waking'}
+      >
         {load.status === 'waking' ? null : load.status === 'forbidden' ? (
           <EmptyState
             icon={<icons.locked />}
@@ -680,7 +684,10 @@ function Detail({
             e.via === null
               ? null
               : t('components.activity-log.from', 'From {{value}}.', {
-                  value: e.via === 'Kithena' ? 'Kithena itself' : e.via,
+                  value:
+                    e.via === 'Kithena'
+                      ? t('components.activity-log.kithena_itself', 'Kithena itself')
+                      : e.via,
                 }),
             e.ai
               ? t(
@@ -701,14 +708,21 @@ function Detail({
                 'Signed in from the Kithena back office',
               )
             : e.supportSignIn === null
-              ? 'By Kithena support; the sign-in it came from is not in the log'
+              ? t(
+                  'components.activity-log.by_kithena_support_sign_in_not_in_log',
+                  'By Kithena support; the sign-in it came from is not in the log',
+                )
               : t(
                   'components.activity-log.during_kithena_supports_sign_in_at',
                   'During Kithena support’s sign-in at {{at}}{{value}}',
                   {
                     at: when(e.supportSignIn.at),
                     value:
-                      e.supportSignIn.reason === null ? '' : `, for: ${e.supportSignIn.reason}`,
+                      e.supportSignIn.reason === null
+                        ? ''
+                        : t('components.activity-log.for_reason', ', for: {{reason}}', {
+                            reason: e.supportSignIn.reason,
+                          }),
                   },
                 )}
         </p>

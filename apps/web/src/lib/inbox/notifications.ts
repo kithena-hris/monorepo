@@ -1,5 +1,7 @@
 import * as z from 'zod';
 
+import { t } from '../t';
+
 /**
  * Where a person's tasks and updates reach them (P1, M:I1): their account
  * preference `notifications`, beside the Inbox's own state. The Inbox always
@@ -71,16 +73,69 @@ export function updateRow(kind: string): keyof Notifications['updates'] {
 export const TASK_ROWS = [
   {
     key: 'asked',
-    label: 'Someone asks you to do something',
-    detail: 'Details, documents, approvals, checklists',
+    get label(): string {
+      return t('lib.inbox.notifications.someone_asks_you', 'Someone asks you to do something');
+    },
+    get detail(): string | null {
+      return t(
+        'lib.inbox.notifications.details_documents_approvals',
+        'Details, documents, approvals, checklists',
+      );
+    },
   },
-  { key: 'reminders', label: 'Reminders before a task is due', detail: null },
-  { key: 'handedOver', label: 'Tasks handed to you while someone is away', detail: null },
+  {
+    key: 'reminders',
+    get label(): string {
+      return t('lib.inbox.notifications.reminders_before_due', 'Reminders before a task is due');
+    },
+    detail: null,
+  },
+  {
+    key: 'handedOver',
+    get label(): string {
+      return t(
+        'lib.inbox.notifications.tasks_handed_to_you',
+        'Tasks handed to you while someone is away',
+      );
+    },
+    detail: null,
+  },
 ] as const;
 
 export const UPDATE_ROWS = [
-  { key: 'decided', label: 'Your requests are decided', detail: 'People and Time off' },
-  { key: 'documents', label: 'Documents shared with you', detail: null },
-  { key: 'team', label: 'Someone joins or leaves your team', detail: null },
-  { key: 'calendars', label: 'Calendars and balances', detail: 'Time off' },
+  {
+    key: 'decided',
+    get label(): string {
+      return t('lib.inbox.notifications.your_requests_are_decided', 'Your requests are decided');
+    },
+    get detail(): string | null {
+      return t('lib.inbox.notifications.people_and_time_off', 'People and Time Off');
+    },
+  },
+  {
+    key: 'documents',
+    get label(): string {
+      return t('lib.inbox.notifications.documents_shared_with_you', 'Documents shared with you');
+    },
+    detail: null,
+  },
+  {
+    key: 'team',
+    get label(): string {
+      return t(
+        'lib.inbox.notifications.someone_joins_or_leaves',
+        'Someone joins or leaves your team',
+      );
+    },
+    detail: null,
+  },
+  {
+    key: 'calendars',
+    get label(): string {
+      return t('lib.inbox.notifications.calendars_and_balances', 'Calendars and balances');
+    },
+    get detail(): string | null {
+      return t('lib.inbox.notifications.time_off', 'Time Off');
+    },
+  },
 ] as const;

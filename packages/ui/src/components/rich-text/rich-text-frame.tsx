@@ -180,10 +180,11 @@ export function RichTextFrame({
                 characterLimit: String(characterLimit),
               })
             : countUnit === 'words'
-              ? t('components.rich-text.rich-text-frame.text_2', '{{words}} {{value}}', {
-                  words: String(words),
-                  value: words === 1 ? 'word' : 'words',
-                })
+              ? t(
+                  'components.rich-text.rich-text-frame.words',
+                  { one: '{{count}} word', other: '{{count}} words' },
+                  { count: words },
+                )
               : t('components.rich-text.rich-text-frame.characters', '{{used}} characters', {
                   used: String(used),
                 })}

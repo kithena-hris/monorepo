@@ -309,7 +309,10 @@ export function ScatterChart({
                 'components.chart.scatter-chart.fit_line_at_at',
                 'Fit line{{value}}: {{yLabel}} {{formatY}} at {{xLabel}} {{formatX}}, {{formatY2}} at {{formatX2}}',
                 {
-                  value: name === undefined ? '' : ` for ${name}`,
+                  value:
+                    name === undefined
+                      ? ''
+                      : t('components.chart.scatter-chart.for_name', ' for {{name}}', { name }),
                   yLabel,
                   formatY: formatY(fit.slope * xMin + fit.intercept),
                   xLabel,

@@ -486,7 +486,7 @@ export function OrgChart({
   defaultFocusId = null,
   focusMode = 'chain',
   searchable = false,
-  searchPlaceholder = 'Search people',
+  searchPlaceholder = t('components.org-chart.org-chart.search_people', 'Search people'),
   toolbar: controls,
   zoom: controlledZoom,
   onZoomChange,
@@ -1053,27 +1053,65 @@ export function OrgChart({
     id === null ? null : (nodeIndex.get(id) ?? null);
 
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${nodeById(String(active.id))?.name ?? 'person'}.`,
+    onDragStart: ({ active }) =>
+      t('components.org-chart.org-chart.picked_up', 'Picked up {{name}}.', {
+        name:
+          nodeById(String(active.id))?.name ?? t('components.org-chart.org-chart.person', 'person'),
+      }),
     onDragOver: ({ active, over }) => {
       if (!over) return undefined;
       const source = nodeById(String(active.id));
       const target = nodeById(String(over.id));
       if (!source || !target) return undefined;
       return isValidMove(source.id, target.id)
-        ? `${source.name} will report to ${target.name}.`
-        : `${target.name} is not a valid manager for ${source.name}.`;
+        ? t(
+            'components.org-chart.org-chart.will_report_to',
+            '{{name}} will report to {{manager}}.',
+            {
+              name: source.name,
+              manager: target.name,
+            },
+          )
+        : t(
+            'components.org-chart.org-chart.is_not_a_valid_manager_for',
+            '{{manager}} is not a valid manager for {{name}}.',
+            {
+              name: source.name,
+              manager: target.name,
+            },
+          );
     },
     onDragEnd: ({ active, over }) => {
       const source = nodeById(String(active.id));
       if (!source) return undefined;
-      if (!over) return `${source.name} was not moved.`;
+      if (!over)
+        return t('components.org-chart.org-chart.was_not_moved', '{{name}} was not moved.', {
+          name: source.name,
+        });
       const target = nodeById(String(over.id));
       return target && isValidMove(source.id, target.id)
-        ? `${source.name} now reports to ${target.name}.`
-        : `${source.name} was not moved.`;
+        ? t(
+            'components.org-chart.org-chart.now_reports_to',
+            '{{name}} now reports to {{manager}}.',
+            {
+              name: source.name,
+              manager: target.name,
+            },
+          )
+        : t('components.org-chart.org-chart.was_not_moved', '{{name}} was not moved.', {
+            name: source.name,
+          });
     },
     onDragCancel: ({ active }) =>
-      `Move cancelled. ${nodeById(String(active.id))?.name ?? 'The person'} stayed where they were.`,
+      t(
+        'components.org-chart.org-chart.move_cancelled_stayed',
+        'Move cancelled. {{name}} stayed where they were.',
+        {
+          name:
+            nodeById(String(active.id))?.name ??
+            t('components.org-chart.org-chart.the_person', 'The person'),
+        },
+      ),
   };
 
   const keyHandler = useRef<(event: KeyboardEvent<HTMLElement>, row: VisibleRow) => void>(

@@ -6,6 +6,9 @@ import { keepMySignature } from '../../../lib/my-signature';
 import { documents, people, timeOff } from '../../../lib/people';
 import { signingOrigin } from '../../../lib/signing-origin';
 import { requestExport } from '../people/actions';
+import { serverWords } from '../../../lib/server-words';
+import type { T } from '@reach/ui/i18n';
+import { formatList } from '@reach/ui/intl';
 
 /**
  * What the Documents screens' buttons do: server actions, each one operation
@@ -20,8 +23,13 @@ export type Outcome = { readonly ok: true } | { readonly ok: false; readonly mes
 export type Created =
   { readonly ok: true; readonly id: string } | { readonly ok: false; readonly message: string };
 
-const outcome = (a: { ok: boolean; message?: string }): Outcome =>
-  a.ok ? { ok: true } : { ok: false, message: a.message ?? 'Documents refused' };
+const outcome = (a: { ok: boolean; message?: string }, t: T): Outcome =>
+  a.ok
+    ? { ok: true }
+    : {
+        ok: false,
+        message: a.message ?? t('app.app.documents.actions.documents_refused', 'Documents refused'),
+      };
 
 export interface PresignedPut {
   readonly uploadId: string;
@@ -66,7 +74,8 @@ export async function addVersion(
   upload: FileRef,
   note: string | null,
 ): Promise<Outcome> {
-  return outcome(await documents('AddDocumentVersion', { documentId, input: { upload, note } }));
+  const t = await serverWords();
+  return outcome(await documents('AddDocumentVersion', { documentId, input: { upload, note } }), t);
 }
 
 export interface GrantInput {
@@ -82,35 +91,43 @@ export async function shareDocument(
   documentId: string,
   grants: readonly GrantInput[],
 ): Promise<Outcome> {
-  return outcome(await documents('ShareDocument', { documentId, input: { grants } }));
+  const t = await serverWords();
+  return outcome(await documents('ShareDocument', { documentId, input: { grants } }), t);
 }
 
 export async function setConfidential(documentId: string, on: boolean): Promise<Outcome> {
-  return outcome(await documents('SetDocumentConfidential', { documentId, input: { on } }));
+  const t = await serverWords();
+  return outcome(await documents('SetDocumentConfidential', { documentId, input: { on } }), t);
 }
 
 export async function renameDocument(documentId: string, title: string): Promise<Outcome> {
-  return outcome(await documents('RenameDocument', { documentId, input: { title } }));
+  const t = await serverWords();
+  return outcome(await documents('RenameDocument', { documentId, input: { title } }), t);
 }
 
 export async function setExpiry(documentId: string, expiresOn: string | null): Promise<Outcome> {
-  return outcome(await documents('SetDocumentExpiry', { documentId, input: { expiresOn } }));
+  const t = await serverWords();
+  return outcome(await documents('SetDocumentExpiry', { documentId, input: { expiresOn } }), t);
 }
 
 export async function deleteDocument(documentId: string): Promise<Outcome> {
-  return outcome(await documents('DeleteDocument', { documentId }));
+  const t = await serverWords();
+  return outcome(await documents('DeleteDocument', { documentId }), t);
 }
 
 export async function restoreDocument(documentId: string): Promise<Outcome> {
-  return outcome(await documents('RestoreDocument', { documentId }));
+  const t = await serverWords();
+  return outcome(await documents('RestoreDocument', { documentId }), t);
 }
 
 export async function requestAccess(documentId: string, reason: string): Promise<Outcome> {
-  return outcome(await documents('RequestDocumentAccess', { documentId, input: { reason } }));
+  const t = await serverWords();
+  return outcome(await documents('RequestDocumentAccess', { documentId, input: { reason } }), t);
 }
 
 export async function decideAccess(requestId: string, grant: boolean): Promise<Outcome> {
-  return outcome(await documents('DecideDocumentAccess', { requestId, input: { grant } }));
+  const t = await serverWords();
+  return outcome(await documents('DecideDocumentAccess', { requestId, input: { grant } }), t);
 }
 
 export async function createSection(input: {
@@ -126,7 +143,8 @@ export async function changeSection(
   sectionId: string,
   input: { name?: string; add?: readonly string[]; remove?: readonly string[]; delete?: boolean },
 ): Promise<Outcome> {
-  return outcome(await documents('ChangeDocumentSection', { sectionId, input }));
+  const t = await serverWords();
+  return outcome(await documents('ChangeDocumentSection', { sectionId, input }), t);
 }
 
 export async function askForDocument(input: {
@@ -135,41 +153,51 @@ export async function askForDocument(input: {
   dueOn: string | null;
   message: string;
 }): Promise<Outcome> {
-  return outcome(await documents('AskForDocument', { input }));
+  const t = await serverWords();
+  return outcome(await documents('AskForDocument', { input }), t);
 }
 
 export async function remindRequest(requestId: string): Promise<Outcome> {
-  return outcome(await documents('RemindDocumentRequest', { requestId }));
+  const t = await serverWords();
+  return outcome(await documents('RemindDocumentRequest', { requestId }), t);
 }
 
 export async function cancelRequest(requestId: string): Promise<Outcome> {
-  return outcome(await documents('CancelDocumentRequest', { requestId }));
+  const t = await serverWords();
+  return outcome(await documents('CancelDocumentRequest', { requestId }), t);
 }
 
 export async function placeHold(name: string, documentIds: readonly string[]): Promise<Outcome> {
-  return outcome(await documents('PlaceLegalHold', { input: { name, documentIds } }));
+  const t = await serverWords();
+  return outcome(await documents('PlaceLegalHold', { input: { name, documentIds } }), t);
 }
 
 export async function liftHold(holdId: string): Promise<Outcome> {
-  return outcome(await documents('LiftLegalHold', { holdId }));
+  const t = await serverWords();
+  return outcome(await documents('LiftLegalHold', { holdId }), t);
 }
 
 export async function confirmDeletion(documentIds: readonly string[]): Promise<Outcome> {
-  return outcome(await documents('ConfirmDocumentDeletion', { input: { documentIds } }));
+  const t = await serverWords();
+  return outcome(await documents('ConfirmDocumentDeletion', { input: { documentIds } }), t);
 }
 
 export async function saveType(type: Record<string, unknown>, archived: boolean): Promise<Outcome> {
+  const t = await serverWords();
   return outcome(
     await documents('SaveDocumentType', { typeKey: type['key'], input: { type, archived } }),
+    t,
   );
 }
 
 export async function setAccessSettings(input: Record<string, unknown>): Promise<Outcome> {
-  return outcome(await documents('SetDocumentAccessSettings', { input }));
+  const t = await serverWords();
+  return outcome(await documents('SetDocumentAccessSettings', { input }), t);
 }
 
 export async function setAskAfterUpload(ask: boolean): Promise<Outcome> {
-  return outcome(await documents('SetAskAfterUpload', { input: { ask } }));
+  const t = await serverWords();
+  return outcome(await documents('SetAskAfterUpload', { input: { ask } }), t);
 }
 
 /** A link to a version's copy for ten minutes: watermarked when Confidential. */
@@ -306,20 +334,27 @@ export async function signEnvelope(
 }
 
 export async function declineEnvelope(envelopeId: string, reason: string): Promise<Outcome> {
-  return outcome(await documents('DeclineEnvelope', { envelopeId, input: { reason } }));
+  const t = await serverWords();
+  return outcome(await documents('DeclineEnvelope', { envelopeId, input: { reason } }), t);
 }
 
 export async function askEnvelopeSender(envelopeId: string, question: string): Promise<Outcome> {
-  return outcome(await documents('AskEnvelopeSender', { envelopeId, input: { question } }));
+  const t = await serverWords();
+  return outcome(await documents('AskEnvelopeSender', { envelopeId, input: { question } }), t);
 }
 
 export async function voidEnvelope(envelopeId: string, reason: string): Promise<Outcome> {
-  return outcome(await documents('VoidEnvelope', { envelopeId, input: { reason } }));
+  const t = await serverWords();
+  return outcome(await documents('VoidEnvelope', { envelopeId, input: { reason } }), t);
 }
 
 /** K8: an email to whoever it waits on now, and nobody else. */
 export async function remindEnvelope(envelopeId: string): Promise<Outcome> {
-  return outcome(await documents('RemindEnvelope', { envelopeId, input: { ...(await origin()) } }));
+  const t = await serverWords();
+  return outcome(
+    await documents('RemindEnvelope', { envelopeId, input: { ...(await origin()) } }),
+    t,
+  );
 }
 
 export async function reassignSigner(
@@ -327,14 +362,17 @@ export async function reassignSigner(
   signerId: string,
   personId: string,
 ): Promise<Outcome> {
+  const t = await serverWords();
   return outcome(
     await documents('ReassignEnvelopeSigner', { envelopeId, input: { signerId, personId } }),
+    t,
   );
 }
 
 export async function sealEnvelope(envelopeId: string): Promise<Outcome> {
+  const t = await serverWords();
   const { companyName } = await origin();
-  return outcome(await documents('SealEnvelope', { envelopeId, input: { companyName } }));
+  return outcome(await documents('SealEnvelope', { envelopeId, input: { companyName } }), t);
 }
 
 /** The version being signed, as a link that lasts minutes. */
@@ -385,7 +423,8 @@ export async function sendForAcknowledgement(
 }
 
 export async function acknowledgeDocument(campaignId: string): Promise<Outcome> {
-  return outcome(await documents('AcknowledgeDocument', { campaignId }));
+  const t = await serverWords();
+  return outcome(await documents('AcknowledgeDocument', { campaignId }), t);
 }
 
 /* ------------------------------------- Kithena reading (DOC-050 to 056) -- */
@@ -427,7 +466,8 @@ export async function describeType(text: string): Promise<Read<unknown>> {
 }
 
 export async function setAiSettings(input: Record<string, boolean>): Promise<Outcome> {
-  return outcome(await documents('SetDocumentsAiSettings', { input }));
+  const t = await serverWords();
+  return outcome(await documents('SetDocumentsAiSettings', { input }), t);
 }
 
 /* ------------------------------------------- with People (DOC-057 to 064) -- */
@@ -447,17 +487,35 @@ const MAX_INLINE = 25 * 1024 * 1024;
  * Confidential to HR and deleted after 90 days by its type.
  */
 export async function keepExport(choice: Parameters<typeof requestExport>[0]): Promise<Created> {
+  const t = await serverWords();
   // People's export is run here, never handed in: the link fetched is People's own.
   const exported = await requestExport(choice);
   if (!exported.ok) return exported;
   const link = exported.links[0];
-  if (link === undefined) return { ok: false, message: 'People made no file' };
+  if (link === undefined)
+    return {
+      ok: false,
+      message: t('app.app.documents.actions.people_made_no_file', 'People made no file'),
+    };
   const response = await fetch(link.url).catch(() => null);
   if (response === null || !response.ok)
-    return { ok: false, message: 'The export could not be read' };
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.the_export_could_not_be_read',
+        'The export could not be read',
+      ),
+    };
   const bytes = Buffer.from(await response.arrayBuffer());
   // ponytail: inline up to 25 MB; a presigned PUT from here when exports grow past it.
-  if (bytes.length > MAX_INLINE) return { ok: false, message: 'Exports over 25 MB are downloaded' };
+  if (bytes.length > MAX_INLINE)
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.exports_over_25_mb_are_downloaded',
+        'Exports over 25 MB are downloaded',
+      ),
+    };
   const a = await documents<{ id: string }>('UploadDocument', {
     input: {
       title: link.name.replace(/\.[^.]+$/u, ''),
@@ -478,6 +536,7 @@ const SPREADSHEETS = new Set(['text/csv', EXPORT_TYPES['xlsx']]);
 export async function importableDocuments(): Promise<
   readonly { readonly id: string; readonly name: string; readonly detail: string }[]
 > {
+  const t = await serverWords();
   const a = await documents<{
     rows: readonly {
       id: string;
@@ -495,7 +554,7 @@ export async function importableDocuments(): Promise<
     .map((r) => ({
       id: r.id,
       name: r.title,
-      detail: `${r.typeName ?? 'Your document'} · ${new Date(r.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`,
+      detail: `${r.typeName ?? t('app.app.documents.actions.your_document', 'Your document')} · ${new Date(r.updatedAt).toLocaleDateString(t.language, { day: 'numeric', month: 'short', year: 'numeric' })}`,
     }));
 }
 
@@ -510,6 +569,7 @@ export async function importFromDocuments(
   | { readonly ok: true; readonly uploadId: string }
   | { readonly ok: false; readonly message: string }
 > {
+  const t = await serverWords();
   const file = await documents<{
     fileName: string;
     url: string | null;
@@ -520,7 +580,13 @@ export async function importFromDocuments(
   if (file.data.url !== null) {
     const response = await fetch(file.data.url).catch(() => null);
     if (response === null || !response.ok) {
-      return { ok: false, message: 'The file could not be read from Documents' };
+      return {
+        ok: false,
+        message: t(
+          'app.app.documents.actions.the_file_could_not_be_read_from',
+          'The file could not be read from Documents',
+        ),
+      };
     }
     bytes = Buffer.from(await response.arrayBuffer());
   } else {
@@ -539,7 +605,13 @@ export async function importFromDocuments(
     body: new Uint8Array(bytes),
   }).catch(() => null);
   if (put === null || !put.ok)
-    return { ok: false, message: 'The file could not be handed to People' };
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.the_file_could_not_be_handed_to',
+        'The file could not be handed to People',
+      ),
+    };
   return { ok: true, uploadId: target.data.uploadId };
 }
 
@@ -567,6 +639,7 @@ interface NoteRow {
 export async function notesToAttach(
   personId: string,
 ): Promise<readonly { readonly id: string; readonly name: string; readonly detail: string }[]> {
+  const t = await serverWords();
   // The viewer's own, from their library; somebody else's (HR's, MH4) from their file.
   const library = await documents<{
     viewer: { personId: string | null };
@@ -590,7 +663,7 @@ export async function notesToAttach(
     .map((r) => ({
       id: r.id,
       name: r.title,
-      detail: `${r.kind === 'Medical' ? 'Sick note' : 'Your document'} · ${new Date(r.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+      detail: `${r.kind === 'Medical' ? t('app.app.documents.actions.sick_note', 'Sick note') : t('app.app.documents.actions.your_document', 'Your document')} · ${new Date(r.updatedAt).toLocaleDateString(t.language, { day: 'numeric', month: 'short' })}`,
     }));
 }
 
@@ -599,7 +672,11 @@ export async function attachNoteFromDocuments(
   requestId: string,
   documentId: string,
 ): Promise<Outcome> {
-  return outcome(await timeOff('AttachTimeOffNote', { requestId, input: { fileId: documentId } }));
+  const t = await serverWords();
+  return outcome(
+    await timeOff('AttachTimeOffNote', { requestId, input: { fileId: documentId } }),
+    t,
+  );
 }
 
 /**
@@ -611,10 +688,15 @@ export async function attachNewNote(
   file: File,
   personId: string,
 ): Promise<Outcome> {
-  if (file.size > MAX_INLINE) return { ok: false, message: 'Notes are up to 25 MB' };
+  const t = await serverWords();
+  if (file.size > MAX_INLINE)
+    return {
+      ok: false,
+      message: t('app.app.documents.actions.notes_are_up_to_25_mb', 'Notes are up to 25 MB'),
+    };
   const filed = await documents<{ id: string }>('UploadDocument', {
     input: {
-      title: 'Sick note',
+      title: t('app.app.documents.actions.sick_note', 'Sick note'),
       typeKey: 'sick_note',
       subjectPersonId: personId,
       file: {
@@ -649,11 +731,14 @@ export interface RecordRow {
   readonly found: { readonly value: string; readonly page: number } | null;
 }
 
-const shown = (e: ProfileEntry | undefined): string | null => {
+const shown = (e: ProfileEntry | undefined, t: T): string | null => {
   if (e === undefined) return null;
   if (typeof e['text'] === 'string') return e['text'];
-  if (typeof e['flag'] === 'boolean') return e['flag'] ? 'Yes' : 'No';
-  if (Array.isArray(e['items'])) return e['items'].join(', ');
+  if (typeof e['flag'] === 'boolean')
+    return e['flag']
+      ? t('app.app.documents.actions.yes', 'Yes')
+      : t('app.app.documents.actions.no', 'No');
+  if (Array.isArray(e['items'])) return formatList(e['items'].map(String));
   return null;
 };
 
@@ -670,12 +755,20 @@ export async function recordFromDocument(documentId: string): Promise<
     readonly rows: readonly RecordRow[];
   }>
 > {
+  const t = await serverWords();
   const doc = await documents<{
     document: { row: { subject: { personId: string; name: string } | null } } | null;
   }>('DocumentsDocument', { documentId });
   if (!doc.ok) return doc;
   const subject = doc.data.document?.row.subject ?? null;
-  if (subject === null) return { ok: false, message: 'This document is about nobody' };
+  if (subject === null)
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.this_document_is_about_nobody',
+        'This document is about nobody',
+      ),
+    };
   const profile = await people<{
     sections: readonly { fields: readonly ProfileField[] }[];
     values: readonly ProfileEntry[];
@@ -685,7 +778,14 @@ export async function recordFromDocument(documentId: string): Promise<
     .flatMap((s) => s.fields)
     .filter((f) => !f.readOnly && FILLABLE.has(f.dataType))
     .slice(0, 40);
-  if (fields.length === 0) return { ok: false, message: 'There is nothing here you can change' };
+  if (fields.length === 0)
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.there_is_nothing_here_you_can_change',
+        'There is nothing here you can change',
+      ),
+    };
   const read = await documents<{
     available: boolean;
     fields: readonly { name: string; value: string; page: number }[];
@@ -703,7 +803,7 @@ export async function recordFromDocument(documentId: string): Promise<
         return {
           key: f.key,
           label: f.label,
-          current: shown(values.get(f.key)),
+          current: shown(values.get(f.key), t),
           found: hit === undefined ? null : { value: hit.value, page: hit.page },
         };
       }),
@@ -721,7 +821,8 @@ export async function fileSplit(
   upload: FileRef,
   parts: readonly Record<string, unknown>[],
 ): Promise<Outcome> {
-  return outcome(await documents('FileDocumentSplit', { input: { upload, parts } }));
+  const t = await serverWords();
+  return outcome(await documents('FileDocumentSplit', { input: { upload, parts } }), t);
 }
 
 /* --------------------------------------- a letter that changes a record (J7) -- */
@@ -737,12 +838,20 @@ export async function letterOutcome(documentId: string): Promise<
     readonly lastWorkingDay: { readonly value: string; readonly page: number } | null;
   }>
 > {
+  const t = await serverWords();
   const doc = await documents<{
     document: { row: { subject: { personId: string; name: string } | null } } | null;
   }>('DocumentsDocument', { documentId });
   if (!doc.ok) return doc;
   const subject = doc.data.document?.row.subject ?? null;
-  if (subject === null) return { ok: false, message: 'This letter is about nobody' };
+  if (subject === null)
+    return {
+      ok: false,
+      message: t(
+        'app.app.documents.actions.this_letter_is_about_nobody',
+        'This letter is about nobody',
+      ),
+    };
   const read = await documents<{
     fields: readonly { name: string; value: string; page: number }[];
   }>('ReadDocumentFields', { documentId, input: { names: ['Last working day'] } });
@@ -823,6 +932,7 @@ export async function lookFor(documentIds: readonly string[]): Promise<Read<read
 
 /** Each of a person's record values by its label, as People shows them to the viewer. */
 async function valuesOf(personId: string): Promise<ReadonlyMap<string, string> | null> {
+  const t = await serverWords();
   const profile = await people<{
     sections: readonly { fields: readonly ProfileField[] }[];
     values: readonly ProfileEntry[];
@@ -831,7 +941,7 @@ async function valuesOf(personId: string): Promise<ReadonlyMap<string, string> |
   const entries = new Map(profile.data.values.map((v) => [v.key, v]));
   const out = new Map<string, string>();
   for (const f of profile.data.sections.flatMap((s) => s.fields)) {
-    const value = shown(entries.get(f.key));
+    const value = shown(entries.get(f.key), t);
     if (value !== null && value.trim() !== '') out.set(f.label.toLowerCase(), value);
   }
   return out;

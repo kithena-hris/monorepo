@@ -133,12 +133,18 @@ export function AccessMatrix({
   value,
   onChange,
   allSee = false,
-  allSeeReason = 'because everyone can see it',
+  allSeeReason = t(
+    'components.access-matrix.access-matrix.because_everyone_can_see_it',
+    'because everyone can see it',
+  ),
   highlight,
   footer,
-  seeLabel = 'Can see',
-  changeLabel = 'Can change',
-  label = 'Who can see and change it',
+  seeLabel = t('components.access-matrix.access-matrix.can_see', 'Can see'),
+  changeLabel = t('components.access-matrix.access-matrix.can_change', 'Can change'),
+  label = t(
+    'components.access-matrix.access-matrix.who_can_see_and_change_it',
+    'Who can see and change it',
+  ),
   className,
   ...props
 }: AccessMatrixProps): JSX.Element {
@@ -270,7 +276,11 @@ export function AccessStrip({
     const see = change || value.see.includes(a.id);
     return t('components.access-matrix.access-matrix.text', '{{label}}: {{value}}', {
       label: a.label,
-      value: change ? 'changes' : see ? 'sees' : 'no access',
+      value: change
+        ? t('components.access-matrix.access-matrix.changes', 'changes')
+        : see
+          ? t('components.access-matrix.access-matrix.sees', 'sees')
+          : t('components.access-matrix.access-matrix.no_access', 'no access'),
     });
   });
   return (

@@ -86,6 +86,7 @@ import {
   type SortDirection,
 } from './table';
 import { t } from '../../lib/i18n';
+import { formatNumber } from '../../lib/intl';
 
 /**
  * The table, with everything a table is asked for.
@@ -586,7 +587,7 @@ export function DataTable<T extends TableRow>({
   rowActions,
   rowMenuOnCard = false,
   activeRowId = null,
-  empty = 'Nothing to show.',
+  empty = t('components.table.data-table.nothing_to_show', 'Nothing to show.'),
   fill = false,
   stickyHeader = fill,
   scroll = 'self',
@@ -793,12 +794,31 @@ export function DataTable<T extends TableRow>({
   );
 
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up row ${String(ids.indexOf(String(active.id)) + 1)}.`,
+    onDragStart: ({ active }) =>
+      t('components.table.data-table.picked_up_row', 'Picked up row {{row}}.', {
+        row: formatNumber(ids.indexOf(String(active.id)) + 1),
+      }),
     onDragOver: ({ over }) =>
-      over ? `Now over position ${String(ids.indexOf(String(over.id)) + 1)}.` : undefined,
+      over
+        ? t('components.table.data-table.now_over_position', 'Now over position {{position}}.', {
+            position: formatNumber(ids.indexOf(String(over.id)) + 1),
+          })
+        : undefined,
     onDragEnd: ({ over }) =>
-      over ? `Dropped at position ${String(ids.indexOf(String(over.id)) + 1)}.` : 'Dropped.',
-    onDragCancel: () => 'Move cancelled. The order is unchanged.',
+      over
+        ? t(
+            'components.table.data-table.dropped_at_position',
+            'Dropped at position {{position}}.',
+            {
+              position: formatNumber(ids.indexOf(String(over.id)) + 1),
+            },
+          )
+        : t('components.table.data-table.dropped', 'Dropped.'),
+    onDragCancel: () =>
+      t(
+        'components.table.data-table.move_cancelled_order_unchanged',
+        'Move cancelled. The order is unchanged.',
+      ),
   };
 
   /*
@@ -1721,10 +1741,11 @@ const BodyRow = memo(function BodyRow<T>({
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={`${base}-${id}`}
-                aria-label={t('components.table.data-table.text', '{{value}} {{name}}', {
-                  value: isOpen ? 'Collapse' : 'Expand',
-                  name,
-                })}
+                aria-label={
+                  isOpen
+                    ? t('components.table.data-table.collapse_name', 'Collapse {{name}}', { name })
+                    : t('components.table.data-table.expand_name', 'Expand {{name}}', { name })
+                }
                 onClick={(event) => {
                   event.stopPropagation();
                   events.toggle(id);

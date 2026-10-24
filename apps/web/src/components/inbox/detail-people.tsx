@@ -15,9 +15,12 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
+  formatNumber,
+  icons,
   Input,
-  KeyValues,
   Kbd,
+  KeyValues,
   List,
   ListItem,
   Progress,
@@ -29,7 +32,6 @@ import {
   Stepper,
   Switch,
   Textarea,
-  icons,
 } from '@reach/ui';
 import {
   PeopleAskedDetail,
@@ -114,10 +116,9 @@ const text = (v: unknown): string =>
 function objectShown(o: Record<string, unknown>): string {
   if ('last4' in o) return `•••• ${text(o['last4'])}`;
   if ('amountMinor' in o)
-    return t('components.inbox.detail-people.text', '{{text}} {{text2}}', {
-      text: text(o['amountMinor']),
-      text2: text(o['currency']),
-    });
+    return typeof o['amountMinor'] === 'number' && typeof o['currency'] === 'string'
+      ? formatNumber(o['amountMinor'] / 100, { style: 'currency', currency: o['currency'] })
+      : `${text(o['amountMinor'])} ${text(o['currency'])}`;
   return JSON.stringify(o);
 }
 
@@ -278,8 +279,12 @@ function Thread({
           inputRef={box}
           onSend={(text) => {
             act.run(() => replyToAsk(askId, text), {
-              title: 'Sent',
-              description: `${sender} gets an update`,
+              title: t('components.inbox.detail-people.sent', 'Sent'),
+              description: t(
+                'components.inbox.detail-people.sender_gets_an_update',
+                '{{sender}} gets an update',
+                { sender },
+              ),
             });
           }}
         />
@@ -314,10 +319,14 @@ function Details({
   );
   const submit = (): void => {
     const previous = Object.fromEntries(detail.fields.map((f) => [f.key, f.value ?? null]));
-    const labels = detail.fields.map((f) => f.label).join(', ');
+    const labels = formatList(detail.fields.map((f) => f.label));
     act.run(() => completeAsk(detail.askId, values), {
-      title: `${labels} added`,
-      description: `On your record now · ${sender} gets an update`,
+      title: t('components.inbox.detail-people.labels_added', '{{labels}} added', { labels }),
+      description: t(
+        'components.inbox.detail-people.on_your_record_now',
+        'On your record now · {{sender}} gets an update',
+        { sender },
+      ),
       undo: () => undoAsk(detail.askId, previous),
       next: true,
     });
@@ -456,7 +465,10 @@ function Details({
         >
           <Button
             onClick={() => {
-              act.run(() => moveToDone([item.id]), { title: 'Moved to Done', next: true });
+              act.run(() => moveToDone([item.id]), {
+                title: t('components.inbox.detail-people.moved_to_done', 'Moved to Done'),
+                next: true,
+              });
             }}
           >
             {t('components.inbox.detail-people.move_to_done', 'Move to Done')}
@@ -549,7 +561,14 @@ function CorrectBody({ item, act }: BodyProps): JSX.Element {
                 const saved = await saveOwnSection('', { [field.key]: value });
                 return saved.ok ? { ok: true } : saved;
               },
-              { title: `${field.label} sent to HR`, next: true },
+              {
+                title: t(
+                  'components.inbox.detail-people.field_sent_to_hr',
+                  '{{field}} sent to HR',
+                  { field: field.label },
+                ),
+                next: true,
+              },
             );
           }}
         >
@@ -595,9 +614,12 @@ function Change({ item, zone, now, act }: BodyProps): JSX.Element {
         <KeyValues
           items={[
             {
-              label: t('components.inbox.detail-people.s_note', '{{value}}’s note', {
-                value: d.by ?? 'HR',
-              }),
+              label:
+                d.by === null
+                  ? t('components.inbox.detail-people.hrs_note', 'HR’s note')
+                  : t('components.inbox.detail-people.persons_note', '{{name}}’s note', {
+                      name: d.by,
+                    }),
               value: `“${d.note}”`,
             },
           ]}
@@ -632,7 +654,9 @@ function Change({ item, zone, now, act }: BodyProps): JSX.Element {
               disabled={!canNudge}
               loading={act.pending}
               onClick={() => {
-                act.run(() => nudgeChange(d.changeId), { title: 'HR was nudged' });
+                act.run(() => nudgeChange(d.changeId), {
+                  title: t('components.inbox.detail-people.hr_was_nudged', 'HR was nudged'),
+                });
               }}
             >
               {t('components.inbox.detail-people.nudge_hr', 'Nudge HR')}
@@ -660,16 +684,16 @@ function Change({ item, zone, now, act }: BodyProps): JSX.Element {
             'HR stops seeing it and the record keeps {{shown}}. You can ask again any time.',
             { shown: shown(d.before) },
           )}
-          confirm="Withdraw"
-          cancel="Keep it"
+          confirm={t('components.inbox.detail-people.withdraw', 'Withdraw')}
+          cancel={t('components.inbox.detail-people.keep_it', 'Keep it')}
           onClose={() => {
             setWithdrawing(false);
           }}
           onConfirm={() => {
             setWithdrawing(false);
             act.run(() => withdrawChange(d.changeId), {
-              title: 'Withdrawn',
-              description: 'It moves to Done',
+              title: t('components.inbox.detail-people.withdrawn', 'Withdrawn'),
+              description: t('components.inbox.detail-people.it_moves_to_done', 'It moves to Done'),
             });
           }}
         />
@@ -776,8 +800,15 @@ function Asked({ item, act }: BodyProps): JSX.Element {
             loading={act.pending}
             onClick={() => {
               act.run(() => changeAskBatch(d.batchId, 'remind'), {
-                title: `Reminded ${String(left.length)}`,
-                description: 'Anyone reminded in the last day is not emailed again',
+                title: t(
+                  'components.inbox.detail-people.reminded_count',
+                  { one: 'Reminded {{count}} person', other: 'Reminded {{count}} people' },
+                  { count: left.length },
+                ),
+                description: t(
+                  'components.inbox.detail-people.anyone_reminded_in_the_last_day_is',
+                  'Anyone reminded in the last day is not emailed again',
+                ),
               });
             }}
           >
@@ -814,7 +845,7 @@ function Asked({ item, act }: BodyProps): JSX.Element {
             onPick={(dueOn) => {
               setDialog(null);
               act.run(() => changeAskBatch(d.batchId, 'due', { dueOn }), {
-                title: 'Due date changed',
+                title: t('components.inbox.detail-people.due_date_changed', 'Due date changed'),
               });
             }}
           />
@@ -830,7 +861,7 @@ function Asked({ item, act }: BodyProps): JSX.Element {
             'The fields lock, it stops counting for them, and they see your note.',
           )}
           label={t('components.inbox.detail-people.note', 'Note')}
-          confirm="Cancel it"
+          confirm={t('components.inbox.detail-people.cancel_it', 'Cancel it')}
           optional
           onClose={() => {
             setCancelling(null);
@@ -838,7 +869,9 @@ function Asked({ item, act }: BodyProps): JSX.Element {
           onConfirm={(note) => {
             const askId = cancelling.askId;
             setCancelling(null);
-            act.run(() => cancelAsk(askId, note === '' ? null : note), { title: 'Cancelled' });
+            act.run(() => cancelAsk(askId, note === '' ? null : note), {
+              title: t('components.inbox.detail-people.cancelled', 'Cancelled'),
+            });
           }}
         />
       )}
@@ -852,14 +885,19 @@ function Asked({ item, act }: BodyProps): JSX.Element {
             'components.inbox.detail-people.the_fields_lock_for_everyone_still',
             'The fields lock for everyone still asked, and it leaves their To do.',
           )}
-          confirm="Cancel for everyone"
-          cancel="Keep it"
+          confirm={t('components.inbox.detail-people.cancel_for_everyone', 'Cancel for everyone')}
+          cancel={t('components.inbox.detail-people.keep_it', 'Keep it')}
           onClose={() => {
             setDialog(null);
           }}
           onConfirm={() => {
             setDialog(null);
-            act.run(() => changeAskBatch(d.batchId, 'cancel'), { title: 'Cancelled for everyone' });
+            act.run(() => changeAskBatch(d.batchId, 'cancel'), {
+              title: t(
+                'components.inbox.detail-people.cancelled_for_everyone',
+                'Cancelled for everyone',
+              ),
+            });
           }}
         />
       ) : null}
@@ -993,7 +1031,10 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
             variant="primary"
             disabled={count < d.steps.length}
             onClick={() => {
-              act.run(() => moveToDone([item.id]), { title: 'Done', next: true });
+              act.run(() => moveToDone([item.id]), {
+                title: t('components.inbox.detail-people.done', 'Done'),
+                next: true,
+              });
             }}
           >
             {t('components.inbox.detail-people.mark_done', 'Mark done')}
@@ -1019,11 +1060,12 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
 
 const size = (bytes: number): string =>
   bytes < 1024 * 1024
-    ? t('components.inbox.detail-people.kb', '{{max}} KB', {
-        max: String(Math.max(1, Math.round(bytes / 1024))),
-      })
-    : t('components.inbox.detail-people.mb', '{{value}} MB', {
-        value: (bytes / 1024 / 1024).toFixed(1),
+    ? formatNumber(Math.max(1, Math.round(bytes / 1024)), { style: 'unit', unit: 'kilobyte' })
+    : formatNumber(bytes / 1024 / 1024, {
+        style: 'unit',
+        unit: 'megabyte',
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
       });
 
 /** Open the document's file in a new tab, from its bytes: never a link anybody else can use. */
@@ -1066,7 +1108,10 @@ function Document({ item, zone, act }: BodyProps): JSX.Element {
           icon={<icons.file aria-hidden />}
           description={t('components.inbox.detail-people.text_2', '{{size}} · {{value}}', {
             size: size(d.size),
-            value: d.mediaType === 'application/pdf' ? 'PDF' : 'Image',
+            value:
+              d.mediaType === 'application/pdf'
+                ? t('components.inbox.detail-people.pdf', 'PDF')
+                : t('components.inbox.detail-people.image', 'Image'),
           })}
           trailing={
             <>
@@ -1146,8 +1191,12 @@ function Document({ item, zone, act }: BodyProps): JSX.Element {
               if (d.action === 'sign') setDialog('sign');
               else
                 act.run(() => actOnDocument(d.documentId, 'acknowledge'), {
-                  title: 'Acknowledged',
-                  description: `${sender} gets an update`,
+                  title: t('components.inbox.detail-people.acknowledged', 'Acknowledged'),
+                  description: t(
+                    'components.inbox.detail-people.sender_gets_an_update',
+                    '{{sender}} gets an update',
+                    { sender },
+                  ),
                   next: true,
                 });
             }}
@@ -1195,8 +1244,14 @@ function Document({ item, zone, act }: BodyProps): JSX.Element {
                   ? actOnDocument(d.documentId, 'countersign', { name: signature.name })
                   : actOnDocument(d.documentId, 'sign', signature),
               {
-                title: dialog === 'countersign' ? 'Countersigned' : 'Signed',
-                description: 'Kept in the profile under Documents',
+                title:
+                  dialog === 'countersign'
+                    ? t('components.inbox.detail-people.countersigned', 'Countersigned')
+                    : t('components.inbox.detail-people.signed', 'Signed'),
+                description: t(
+                  'components.inbox.detail-people.kept_in_the_profile_under_documents',
+                  'Kept in the profile under Documents',
+                ),
                 next: true,
               },
             );
@@ -1216,14 +1271,14 @@ function Document({ item, zone, act }: BodyProps): JSX.Element {
             { sender },
           )}
           label={t('components.inbox.detail-people.note_for', 'Note for {{sender}}', { sender })}
-          confirm="Send back"
+          confirm={t('components.inbox.detail-people.send_back', 'Send back')}
           onClose={() => {
             setDialog(null);
           }}
           onConfirm={(note) => {
             setDialog(null);
             act.run(() => actOnDocument(d.documentId, 'send-back', { note }), {
-              title: 'Sent back',
+              title: t('components.inbox.detail-people.sent_back', 'Sent back'),
               next: true,
             });
           }}
@@ -1261,7 +1316,9 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
             'The last answer was {{value}}. Nothing new reaches it until it is fixed.',
             {
               value:
-                d.lastResponse === null ? 'no answer at all' : `HTTP ${String(d.lastResponse)}`,
+                d.lastResponse === null
+                  ? t('components.inbox.detail-people.no_answer_at_all', 'no answer at all')
+                  : `HTTP ${String(d.lastResponse)}`,
             },
           )}
       </Alert>
@@ -1293,16 +1350,28 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
               )
             : team.mine
               ? t('components.inbox.detail-people.youre_on_it', 'You’re on it')
-              : t('components.inbox.detail-people.took_it', '{{value}} took it{{value2}}', {
-                  value: team.takenBy?.name ?? 'Somebody',
-                  value2:
-                    team.takenAt === null
-                      ? ''
-                      : ' ' +
-                        t('components.inbox.detail-people.at', 'at {{takenAt}}', {
-                          takenAt: when(team.takenAt, zone),
-                        }),
-                })
+              : team.takenAt === null
+                ? team.takenBy?.name == null
+                  ? t('components.inbox.detail-people.somebody_took_it', 'Somebody took it')
+                  : t('components.inbox.detail-people.name_took_it', '{{name}} took it', {
+                      name: team.takenBy.name,
+                    })
+                : team.takenBy?.name == null
+                  ? t(
+                      'components.inbox.detail-people.somebody_took_it_at',
+                      'Somebody took it at {{when}}',
+                      {
+                        when: when(team.takenAt, zone),
+                      },
+                    )
+                  : t(
+                      'components.inbox.detail-people.name_took_it_at',
+                      '{{name}} took it at {{when}}',
+                      {
+                        name: team.takenBy.name,
+                        when: when(team.takenAt, zone),
+                      },
+                    )
         }
       >
         {taken ? null : (
@@ -1311,8 +1380,11 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
             loading={act.pending}
             onClick={() => {
               act.run(() => takeTask(item.id, null), {
-                title: 'It’s yours',
-                description: 'It stops counting for the other admins',
+                title: t('components.inbox.detail-people.its_yours', 'It’s yours'),
+                description: t(
+                  'components.inbox.detail-people.it_stops_counting_for_the_other_admins',
+                  'It stops counting for the other admins',
+                ),
               });
             }}
           >
@@ -1341,10 +1413,14 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
           description={t(
             'components.inbox.detail-people.sees_that_you_have_it_now',
             '{{value}} sees that you have it now.',
-            { value: team.takenBy?.name ?? 'Whoever has it' },
+            {
+              value:
+                team.takenBy?.name ??
+                t('components.inbox.detail-people.whoever_has_it', 'Whoever has it'),
+            },
           )}
           label={t('components.inbox.detail-people.note', 'Note')}
-          confirm="Take it over"
+          confirm={t('components.inbox.detail-people.take_it_over', 'Take it over')}
           optional
           onClose={() => {
             setOver(false);
@@ -1352,7 +1428,7 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
           onConfirm={(note) => {
             setOver(false);
             act.run(() => takeTask(item.id, note === '' ? null : note), {
-              title: 'It’s yours now',
+              title: t('components.inbox.detail-people.its_yours_now', 'It’s yours now'),
             });
           }}
         />

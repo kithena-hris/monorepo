@@ -36,28 +36,53 @@ export interface KbdProps extends ComponentPropsWithoutRef<'kbd'> {
   keyName?: 'mod' | 'shift' | 'alt' | 'enter' | 'esc' | 'tab' | 'backspace' | 'up' | 'down';
 }
 
-const glyph: Record<NonNullable<KbdProps['keyName']>, { apple: string; other: string }> = {
-  mod: { apple: '⌘', other: 'Ctrl' },
-  shift: { apple: '⇧', other: 'Shift' },
-  alt: { apple: '⌥', other: 'Alt' },
-  enter: { apple: '↵', other: 'Enter' },
-  esc: { apple: 'esc', other: 'Esc' },
-  tab: { apple: '⇥', other: 'Tab' },
-  backspace: { apple: '⌫', other: 'Bksp' },
-  up: { apple: '↑', other: '↑' },
-  down: { apple: '↓', other: '↓' },
+/** The key as a keyboard prints it, in the reader's language (Strg, Entf). */
+const glyph = (
+  key: NonNullable<KbdProps['keyName']>,
+): { readonly apple: string; readonly other: string } => {
+  switch (key) {
+    case 'mod':
+      return { apple: '⌘', other: t('components.kbd.kbd.key_ctrl', 'Ctrl') };
+    case 'shift':
+      return { apple: '⇧', other: t('components.kbd.kbd.key_shift', 'Shift') };
+    case 'alt':
+      return { apple: '⌥', other: t('components.kbd.kbd.key_alt', 'Alt') };
+    case 'enter':
+      return { apple: '↵', other: t('components.kbd.kbd.key_enter', 'Enter') };
+    case 'esc':
+      return { apple: 'esc', other: t('components.kbd.kbd.key_esc', 'Esc') };
+    case 'tab':
+      return { apple: '⇥', other: t('components.kbd.kbd.key_tab', 'Tab') };
+    case 'backspace':
+      return { apple: '⌫', other: t('components.kbd.kbd.key_bksp', 'Bksp') };
+    case 'up':
+      return { apple: '↑', other: '↑' };
+    case 'down':
+      return { apple: '↓', other: '↓' };
+  }
 };
 
-const accessibleName: Record<NonNullable<KbdProps['keyName']>, string> = {
-  mod: 'Command or Control',
-  shift: 'Shift',
-  alt: 'Alt',
-  enter: 'Enter',
-  esc: 'Escape',
-  tab: 'Tab',
-  backspace: 'Backspace',
-  up: 'Arrow up',
-  down: 'Arrow down',
+const accessibleName = (key: NonNullable<KbdProps['keyName']>): string => {
+  switch (key) {
+    case 'mod':
+      return t('components.kbd.kbd.command_or_control', 'Command or Control');
+    case 'shift':
+      return t('components.kbd.kbd.key_shift', 'Shift');
+    case 'alt':
+      return t('components.kbd.kbd.key_alt', 'Alt');
+    case 'enter':
+      return t('components.kbd.kbd.key_enter', 'Enter');
+    case 'esc':
+      return t('components.kbd.kbd.key_escape', 'Escape');
+    case 'tab':
+      return t('components.kbd.kbd.key_tab', 'Tab');
+    case 'backspace':
+      return t('components.kbd.kbd.key_backspace', 'Backspace');
+    case 'up':
+      return t('components.kbd.kbd.arrow_up', 'Arrow up');
+    case 'down':
+      return t('components.kbd.kbd.arrow_down', 'Arrow down');
+  }
 };
 
 export function Kbd({ className, keyName, children, ...props }: KbdProps): JSX.Element {
@@ -67,13 +92,13 @@ export function Kbd({ className, keyName, children, ...props }: KbdProps): JSX.E
     isAppleStore.getServerSnapshot,
   );
 
-  const content = keyName ? (isApple ? glyph[keyName].apple : glyph[keyName].other) : children;
+  const content = keyName ? (isApple ? glyph(keyName).apple : glyph(keyName).other) : children;
 
   return (
     <kbd
       // The glyph is unreadable aloud, "⌘" is announced as nothing at all by
       // most screen readers, so the name is carried separately.
-      aria-label={keyName ? accessibleName[keyName] : undefined}
+      aria-label={keyName ? accessibleName(keyName) : undefined}
       className={cn(
         // A keycap: a fill with a hairline along the bottom edge, which is the
         // one detail that makes it read as a key rather than a badge.
@@ -143,18 +168,22 @@ const named: Readonly<Record<string, NonNullable<KbdProps['keyName']>>> = {
   arrowdown: 'down',
 };
 
-const drawn: Readonly<Record<string, string>> = {
-  space: 'Space',
-  arrowleft: '←',
-  arrowright: '→',
-  delete: 'Del',
-};
+const drawn = (name: string): string | undefined =>
+  name === 'space'
+    ? t('components.kbd.kbd.key_space', 'Space')
+    : name === 'delete'
+      ? t('components.kbd.kbd.key_del', 'Del')
+      : name === 'arrowleft'
+        ? '←'
+        : name === 'arrowright'
+          ? '→'
+          : undefined;
 
 /** One key of a chord: a named key with its glyph, a letter in capitals, anything else as written. */
 function Key({ name }: { readonly name: string }): JSX.Element {
   const keyName = named[name];
   if (keyName !== undefined) return <Kbd keyName={keyName} />;
-  return <Kbd>{drawn[name] ?? (name.length === 1 ? name.toUpperCase() : name)}</Kbd>;
+  return <Kbd>{drawn(name) ?? (name.length === 1 ? name.toUpperCase() : name)}</Kbd>;
 }
 
 export interface KbdShortcutProps extends ComponentPropsWithoutRef<'span'> {

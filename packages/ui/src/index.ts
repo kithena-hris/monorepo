@@ -852,8 +852,20 @@ export type { IconGroup, IconName, LucideIcon } from './icons/index';
 
 export { brandRamp } from './lib/brand-ramp';
 export { cn } from './lib/cn';
-export { interpolate, setTranslate, translator } from './lib/i18n';
-export type { T, Translate, TranslateVars } from './lib/i18n';
+export { englishOf, interpolate, setTranslate, translator } from './lib/i18n';
+export type { Plural, T, Translate, TranslateVars } from './lib/i18n';
+export {
+  dateFormat,
+  formatList,
+  formatNumber,
+  formatRelative,
+  inSentence,
+  languageName,
+  locale,
+  numberFormat,
+  regionName,
+  setLocale,
+} from './lib/intl';
 export {
   LIST_KEYS,
   armSequence,

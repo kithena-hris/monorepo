@@ -3,6 +3,7 @@ import 'server-only';
 import { SignatureMark } from '@kithena/contracts';
 
 import { people } from './people';
+import { t } from './t';
 
 /**
  * A person's own signature, where People keeps one: the first field of type
@@ -99,11 +100,29 @@ export async function keepMySignature(
   onlyIfNone: boolean,
 ): Promise<{ ok: true; held: boolean } | { ok: false; message: string }> {
   const parsed = SignatureMark.safeParse(mark);
-  if (!parsed.success) return { ok: false, message: 'That is not a signature' };
+  if (!parsed.success)
+    return {
+      ok: false,
+      message: t('lib.my-signature.that_is_not_a_signature', 'That is not a signature'),
+    };
   const mine = await mySignature();
-  if (mine === null) return { ok: false, message: 'Your company keeps no signature on file' };
+  if (mine === null)
+    return {
+      ok: false,
+      message: t(
+        'lib.my-signature.your_company_keeps_no_signature',
+        'Your company keeps no signature on file',
+      ),
+    };
   if (onlyIfNone && !mine.canKeep) return { ok: true, held: mine.pending };
-  if (!mine.canChange) return { ok: false, message: 'Your signature is HR’s to change' };
+  if (!mine.canChange)
+    return {
+      ok: false,
+      message: t(
+        'lib.my-signature.your_signature_is_hrs_to_change',
+        'Your signature is HR’s to change',
+      ),
+    };
   const saved = await people<{ ok: boolean; held: boolean | null }>('SaveOwnSection', {
     changed: [{ key: mine.key, text: JSON.stringify(parsed.data) }],
   });

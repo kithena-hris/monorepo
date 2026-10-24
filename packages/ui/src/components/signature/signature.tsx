@@ -23,9 +23,15 @@ export type SignatureValue =
   | { readonly kind: 'drawn'; readonly path: string };
 
 export const SIGNATURE_STYLE_LABEL: Readonly<Record<SignatureStyle, string>> = {
-  flowing: 'Flowing',
-  light: 'Light',
-  bold: 'Bold',
+  get flowing() {
+    return t('components.signature.signature.flowing', 'Flowing');
+  },
+  get light() {
+    return t('components.signature.signature.light', 'Light');
+  },
+  get bold() {
+    return t('components.signature.signature.bold', 'Bold');
+  },
 };
 
 /** The CSS family of each face (`styles/signature.css`). */

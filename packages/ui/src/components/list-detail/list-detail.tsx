@@ -15,6 +15,7 @@ import {
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /**
  * Hierarchical navigation: a list, and the thing you picked from it.
@@ -142,11 +143,11 @@ export function ListDetail({
   emptyDetail,
   selected = false,
   onBack,
-  backLabel = 'Back to the list',
+  backLabel = t('components.list-detail.list-detail.back_to_the_list', 'Back to the list'),
   listWidth = '22rem',
   splitFrom = 'lg',
-  listLabel = 'List',
-  detailLabel = 'Details',
+  listLabel = t('components.list-detail.list-detail.list', 'List'),
+  detailLabel = t('components.list-detail.list-detail.details', 'Details'),
   ...props
 }: ListDetailProps): JSX.Element {
   const detailRef = useRef<HTMLDivElement>(null);

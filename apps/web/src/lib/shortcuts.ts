@@ -1,4 +1,5 @@
 import { currentPlace, currentTab, type Place } from './remotes';
+import { t } from './t';
 
 /**
  * Every keyboard shortcut in the tenant app, in one table.
@@ -51,70 +52,114 @@ export interface Shortcut {
   readonly scope?: 'list' | `row:${string}`;
 }
 
-const go = (id: string, label: string, letter: string, href: string, icon?: string): Shortcut => ({
+/** Words in the reader's language, read when they are shown: the table itself is made once. */
+type Words = () => string;
+
+const go = (id: string, label: Words, letter: string, href: string, icon?: string): Shortcut => ({
   id: `go.${id}`,
   group: 'Navigation',
-  label,
-  does: `opens ${label}`,
+  get label() {
+    return label();
+  },
+  get does() {
+    return t('lib.shortcuts.opens_label', 'opens {{label}}', { label: label() });
+  },
   keys: ['g', letter],
   href,
   ...(icon === undefined ? {} : { icon }),
 });
 
-const list = (id: string, label: string, does: string, keys: readonly string[]): Shortcut => ({
+const list = (id: string, label: Words, does: Words, keys: readonly string[]): Shortcut => ({
   id: `list.${id}`,
   group: 'Lists',
-  label,
-  does,
+  get label() {
+    return label();
+  },
+  get does() {
+    return does();
+  },
   keys,
   scope: 'list',
 });
 
-const row = (screen: string, id: string, label: string, does: string, key: string): Shortcut => ({
+const row = (screen: string, id: string, label: Words, does: Words, key: string): Shortcut => ({
   id: `row.${id}`,
   group: 'Actions',
-  label,
-  does,
+  get label() {
+    return label();
+  },
+  get does() {
+    return does();
+  },
   keys: [key],
   scope: `row:${screen}`,
 });
 
 export const SHORTCUTS: readonly Shortcut[] = [
-  go('home', 'Home', 'h', '/', 'home'),
-  go('time-off', 'Time off', 't', '/time-off', 'leave'),
-  go('people', 'People', 'p', '/people', 'people'),
-  go('directory', 'Directory', 'd', '/people/directory'),
+  go('home', () => t('lib.shortcuts.home', 'Home'), 'h', '/', 'home'),
+  go('time-off', () => t('lib.shortcuts.time_off', 'Time off'), 't', '/time-off', 'leave'),
+  go('people', () => t('lib.shortcuts.people', 'People'), 'p', '/people', 'people'),
+  go('directory', () => t('lib.shortcuts.directory', 'Directory'), 'd', '/people/directory'),
   // R for Review: every decision and missing detail, in one queue.
-  go('review', 'Review', 'r', '/people/review'),
-  go('import-export', 'Import & export', 'x', '/people/import-export'),
-  go('insights', 'Insights', 'i', '/people/insights'),
-  go('inbox', 'Inbox', 'n', '/inbox', 'inbox'),
-  go('me', 'My profile', 'm', '/people/me', 'person'),
-  go('settings', 'Settings', 's', '/settings', 'settings'),
+  go('review', () => t('lib.shortcuts.review', 'Review'), 'r', '/people/review'),
+  go(
+    'import-export',
+    () => t('lib.shortcuts.import_export', 'Import & export'),
+    'x',
+    '/people/import-export',
+  ),
+  go('insights', () => t('lib.shortcuts.insights', 'Insights'), 'i', '/people/insights'),
+  go('inbox', () => t('lib.shortcuts.inbox', 'Inbox'), 'n', '/inbox', 'inbox'),
+  go('me', () => t('lib.shortcuts.my_profile', 'My profile'), 'm', '/people/me', 'person'),
+  go('settings', () => t('lib.shortcuts.settings', 'Settings'), 's', '/settings', 'settings'),
   // L for log: who did what, when.
-  go('activity', 'Activity', 'l', '/settings/activity', 'history'),
-  go('shortcuts', 'Keyboard shortcuts', 'k', '/settings/shortcuts', 'shortcuts'),
+  go(
+    'activity',
+    () => t('lib.shortcuts.activity', 'Activity'),
+    'l',
+    '/settings/activity',
+    'history',
+  ),
+  go(
+    'shortcuts',
+    () => t('lib.shortcuts.keyboard_shortcuts', 'Keyboard shortcuts'),
+    'k',
+    '/settings/shortcuts',
+    'shortcuts',
+  ),
   {
     id: 'page.search',
     group: 'Navigation',
-    label: 'Search this page',
-    does: 'searches the page',
+    get label() {
+      return t('lib.shortcuts.search_this_page', 'Search this page');
+    },
+    get does() {
+      return t('lib.shortcuts.searches_the_page', 'searches the page');
+    },
     keys: ['/'],
     fixed: true,
   },
   {
     id: 'page.previous',
     group: 'Navigation',
-    label: 'Previous tab or view',
-    does: 'moves to the previous tab',
+    get label() {
+      return t('lib.shortcuts.previous_tab_or_view', 'Previous tab or view');
+    },
+    get does() {
+      return t('lib.shortcuts.moves_to_the_previous_tab', 'moves to the previous tab');
+    },
     keys: ['['],
     fixed: true,
   },
   {
     id: 'page.next',
     group: 'Navigation',
-    label: 'Next tab or view',
-    does: 'moves to the next tab',
+    get label() {
+      return t('lib.shortcuts.next_tab_or_view', 'Next tab or view');
+    },
+    get does() {
+      return t('lib.shortcuts.moves_to_the_next_tab', 'moves to the next tab');
+    },
     keys: [']'],
     fixed: true,
   },
@@ -122,41 +167,133 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'page.close',
     group: 'Everywhere',
-    label: 'Close what is open',
-    does: 'closes what is open',
+    get label() {
+      return t('lib.shortcuts.close_what_is_open', 'Close what is open');
+    },
+    get does() {
+      return t('lib.shortcuts.closes_what_is_open', 'closes what is open');
+    },
     keys: ['escape'],
     fixed: true,
   },
-  list('next', 'Next row (or ↓)', 'moves to the next row', ['j']),
-  list('previous', 'Previous row (or ↑)', 'moves to the previous row', ['k']),
-  list('open', 'Open the row (or Enter)', 'opens the row', ['o']),
-  list('select', 'Select the row', 'selects the row', ['x']),
-  list('extend-next', 'Select down (or ⇧↓)', 'extends the selection down', ['shift+j']),
-  list('extend-previous', 'Select up (or ⇧↑)', 'extends the selection up', ['shift+k']),
-  list('preview', 'Quick look', 'opens the quick look', ['space']),
+  list(
+    'next',
+    () => t('lib.shortcuts.next_row_or', 'Next row (or ↓)'),
+    () => t('lib.shortcuts.moves_to_the_next_row', 'moves to the next row'),
+    ['j'],
+  ),
+  list(
+    'previous',
+    () => t('lib.shortcuts.previous_row_or', 'Previous row (or ↑)'),
+    () => t('lib.shortcuts.moves_to_the_previous_row', 'moves to the previous row'),
+    ['k'],
+  ),
+  list(
+    'open',
+    () => t('lib.shortcuts.open_the_row_or_enter', 'Open the row (or Enter)'),
+    () => t('lib.shortcuts.opens_the_row', 'opens the row'),
+    ['o'],
+  ),
+  list(
+    'select',
+    () => t('lib.shortcuts.select_the_row', 'Select the row'),
+    () => t('lib.shortcuts.selects_the_row', 'selects the row'),
+    ['x'],
+  ),
+  list(
+    'extend-next',
+    () => t('lib.shortcuts.select_down_or', 'Select down (or ⇧↓)'),
+    () => t('lib.shortcuts.extends_the_selection_down', 'extends the selection down'),
+    ['shift+j'],
+  ),
+  list(
+    'extend-previous',
+    () => t('lib.shortcuts.select_up_or', 'Select up (or ⇧↑)'),
+    () => t('lib.shortcuts.extends_the_selection_up', 'extends the selection up'),
+    ['shift+k'],
+  ),
+  list(
+    'preview',
+    () => t('lib.shortcuts.quick_look', 'Quick look'),
+    () => t('lib.shortcuts.opens_the_quick_look', 'opens the quick look'),
+    ['space'],
+  ),
   {
     id: 'list.clear',
     group: 'Lists',
-    label: 'Clear the selection, then leave',
-    does: 'clears the selection',
+    get label() {
+      return t('lib.shortcuts.clear_the_selection_then_leave', 'Clear the selection, then leave');
+    },
+    get does() {
+      return t('lib.shortcuts.clears_the_selection', 'clears the selection');
+    },
     keys: ['escape'],
     fixed: true,
     scope: 'list',
   },
-  row('approvals', 'approve', 'Approve (Review)', 'approves the change', 'a'),
-  row('approvals', 'decline', 'Decline (Review)', 'declines the change', 'r'),
-  row('duplicates', 'merge', 'Merge (Review)', 'compares the pair', 'm'),
-  row('duplicates', 'not-same', 'Not the same person (Review)', 'keeps the pair apart', 'n'),
-  row('completeness', 'fill', 'Fill in (Review)', 'fills in the gaps', 'f'),
-  row('completeness', 'remind', 'Remind (Review)', 'sends a reminder', 'r'),
-  row('directory', 'edit', 'Edit the profile (Directory)', 'edits the profile', 'e'),
+  row(
+    'approvals',
+    'approve',
+    () => t('lib.shortcuts.approve_review', 'Approve (Review)'),
+    () => t('lib.shortcuts.approves_the_change', 'approves the change'),
+    'a',
+  ),
+  row(
+    'approvals',
+    'decline',
+    () => t('lib.shortcuts.decline_review', 'Decline (Review)'),
+    () => t('lib.shortcuts.declines_the_change', 'declines the change'),
+    'r',
+  ),
+  row(
+    'duplicates',
+    'merge',
+    () => t('lib.shortcuts.merge_review', 'Merge (Review)'),
+    () => t('lib.shortcuts.compares_the_pair', 'compares the pair'),
+    'm',
+  ),
+  row(
+    'duplicates',
+    'not-same',
+    () => t('lib.shortcuts.not_the_same_person_review', 'Not the same person (Review)'),
+    () => t('lib.shortcuts.keeps_the_pair_apart', 'keeps the pair apart'),
+    'n',
+  ),
+  row(
+    'completeness',
+    'fill',
+    () => t('lib.shortcuts.fill_in_review', 'Fill in (Review)'),
+    () => t('lib.shortcuts.fills_in_the_gaps', 'fills in the gaps'),
+    'f',
+  ),
+  row(
+    'completeness',
+    'remind',
+    () => t('lib.shortcuts.remind_review', 'Remind (Review)'),
+    () => t('lib.shortcuts.sends_a_reminder', 'sends a reminder'),
+    'r',
+  ),
+  row(
+    'directory',
+    'edit',
+    () => t('lib.shortcuts.edit_the_profile_directory', 'Edit the profile (Directory)'),
+    () => t('lib.shortcuts.edits_the_profile', 'edits the profile'),
+    'e',
+  ),
   // V for view: on a profile an administrator may view as, it asks why and
   // starts; while viewing as somebody, it ends the view.
   {
     id: 'view-as',
     group: 'Actions',
-    label: 'View as this person, or end viewing as them',
-    does: 'views as them, or ends it',
+    get label() {
+      return t(
+        'lib.shortcuts.view_as_this_person_or_end_viewing',
+        'View as this person, or end viewing as them',
+      );
+    },
+    get does() {
+      return t('lib.shortcuts.views_as_them_or_ends_it', 'views as them, or ends it');
+    },
     keys: ['v'],
     icon: 'visible',
   },
@@ -165,66 +302,119 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'clock',
     group: 'Everywhere',
-    label: 'Open or close the clock',
-    does: 'opens the clock',
+    get label() {
+      return t('lib.shortcuts.open_or_close_the_clock', 'Open or close the clock');
+    },
+    get does() {
+      return t('lib.shortcuts.opens_the_clock', 'opens the clock');
+    },
     keys: ['alt+t'],
     icon: 'scheduled',
   },
   {
     id: 'create',
     group: 'Create',
-    label: 'Create what this page makes: a person, a schedule, an export',
-    does: 'creates',
+    get label() {
+      return t(
+        'lib.shortcuts.create_what_this_page_makes_a_person',
+        'Create what this page makes: a person, a schedule, an export',
+      );
+    },
+    get does() {
+      return t('lib.shortcuts.creates', 'creates');
+    },
     keys: ['c'],
   },
   {
     id: 'form.submit',
     group: 'Forms',
-    label: 'Submit the form or dialog',
-    does: 'submits the form',
+    get label() {
+      return t('lib.shortcuts.submit_the_form_or_dialog', 'Submit the form or dialog');
+    },
+    get does() {
+      return t('lib.shortcuts.submits_the_form', 'submits the form');
+    },
     keys: ['mod+enter'],
   },
   {
     id: 'form.cancel',
     group: 'Forms',
-    label: 'Cancel',
-    does: 'cancels',
+    get label() {
+      return t('lib.shortcuts.cancel', 'Cancel');
+    },
+    get does() {
+      return t('lib.shortcuts.cancels', 'cancels');
+    },
     keys: ['escape'],
     fixed: true,
   },
   {
     id: 'help',
     group: 'Everywhere',
-    label: 'Show keyboard shortcuts',
-    does: 'shows the keyboard shortcuts',
+    get label() {
+      return t('lib.shortcuts.show_keyboard_shortcuts', 'Show keyboard shortcuts');
+    },
+    get does() {
+      return t('lib.shortcuts.shows_the_keyboard_shortcuts', 'shows the keyboard shortcuts');
+    },
     keys: ['?'],
     fixed: true,
   },
   {
     id: 'palette',
     group: 'Everywhere',
-    label: 'Search and run a command',
-    does: 'opens search',
+    get label() {
+      return t('lib.shortcuts.search_and_run_a_command', 'Search and run a command');
+    },
+    get does() {
+      return t('lib.shortcuts.opens_search', 'opens search');
+    },
     keys: ['mod+k'],
     fixed: true,
   },
   {
     id: 'sidebar',
     group: 'Everywhere',
-    label: 'Collapse or expand the sidebar',
-    does: 'collapses the sidebar',
+    get label() {
+      return t('lib.shortcuts.collapse_or_expand_the_sidebar', 'Collapse or expand the sidebar');
+    },
+    get does() {
+      return t('lib.shortcuts.collapses_the_sidebar', 'collapses the sidebar');
+    },
     keys: ['mod+\\'],
     fixed: true,
   },
   {
     id: 'assistant',
     group: 'Everywhere',
-    label: 'Open the assistant',
-    does: 'opens the assistant',
+    get label() {
+      return t('lib.shortcuts.open_the_assistant', 'Open the assistant');
+    },
+    get does() {
+      return t('lib.shortcuts.opens_the_assistant', 'opens the assistant');
+    },
     keys: ['mod+j'],
     fixed: true,
   },
 ];
+
+/** A group's heading, in the reader's language. */
+export function groupName(group: ShortcutGroupName): string {
+  switch (group) {
+    case 'Navigation':
+      return t('lib.shortcuts.group_navigation', 'Navigation');
+    case 'Lists':
+      return t('lib.shortcuts.group_lists', 'Lists');
+    case 'Actions':
+      return t('lib.shortcuts.group_actions', 'Actions');
+    case 'Create':
+      return t('lib.shortcuts.group_create', 'Create');
+    case 'Forms':
+      return t('lib.shortcuts.group_forms', 'Forms');
+    case 'Everywhere':
+      return t('lib.shortcuts.group_everywhere', 'Everywhere');
+  }
+}
 
 export const GROUPS: readonly ShortcutGroupName[] = [
   'Navigation',
@@ -253,29 +443,34 @@ export function isCharacterKey(chord: string): boolean {
   return keys.slice(0, -1).every((k) => k === 'shift') && (key.length === 1 || key === 'space');
 }
 
-const WORDS: Readonly<Record<string, readonly [apple: string, other: string]>> = {
-  mod: ['⌘', 'Ctrl'],
-  shift: ['⇧', 'Shift'],
-  alt: ['⌥', 'Alt'],
-  escape: ['Esc', 'Esc'],
-  enter: ['Return', 'Enter'],
-  space: ['Space', 'Space'],
-  tab: ['Tab', 'Tab'],
-  backspace: ['Delete', 'Backspace'],
-  delete: ['Del', 'Delete'],
+/** A key's name as printed on the keyboard in the reader's language: Ctrl is Strg on a German one. */
+const WORDS = (): Readonly<Record<string, readonly [apple: string, other: string]>> => ({
+  mod: ['⌘', t('lib.shortcuts.key_ctrl', 'Ctrl')],
+  shift: ['⇧', t('lib.shortcuts.key_shift', 'Shift')],
+  alt: ['⌥', t('lib.shortcuts.key_alt', 'Alt')],
+  escape: [t('lib.shortcuts.key_esc', 'Esc'), t('lib.shortcuts.key_esc', 'Esc')],
+  enter: [t('lib.shortcuts.key_return', 'Return'), t('lib.shortcuts.key_enter', 'Enter')],
+  space: [t('lib.shortcuts.key_space', 'Space'), t('lib.shortcuts.key_space', 'Space')],
+  tab: [t('lib.shortcuts.key_tab', 'Tab'), t('lib.shortcuts.key_tab', 'Tab')],
+  backspace: [
+    t('lib.shortcuts.key_delete_mac', 'Delete'),
+    t('lib.shortcuts.key_backspace', 'Backspace'),
+  ],
+  delete: [t('lib.shortcuts.key_del', 'Del'), t('lib.shortcuts.key_delete', 'Delete')],
   arrowup: ['↑', '↑'],
   arrowdown: ['↓', '↓'],
   arrowleft: ['←', '←'],
   arrowright: ['→', '→'],
-};
+});
 
 /** Keys as words, for a sentence: "G then D", "⌘K" on a Mac, "Ctrl+K" elsewhere. */
 export function spoken(keys: readonly string[], apple = false): string {
+  const words = WORDS();
   return keys
     .map((chord) =>
       keysOf(chord)
         .map((key) => {
-          const word = WORDS[key];
+          const word = words[key];
           if (word !== undefined) return apple ? word[0] : word[1];
           return key.length === 1
             ? key.toUpperCase()
@@ -283,7 +478,7 @@ export function spoken(keys: readonly string[], apple = false): string {
         })
         .join(apple ? '' : '+'),
     )
-    .join(' then ');
+    .join(t('lib.shortcuts.then', ' then '));
 }
 
 /**
@@ -377,15 +572,27 @@ export function problemWith(
   const say = (k: readonly string[]): string => spoken(k, apple);
   const self = table.find((s) => s.id === id) ?? SHORTCUTS.find((s) => s.id === id);
   const initial = SHORTCUTS.find((s) => s.id === id)?.keys ?? [];
-  if (keys.length === 0) return 'Press the keys for this shortcut.';
-  if (keys.length > 2) return 'A shortcut is one key or two in a row. Choose another.';
+  if (keys.length === 0)
+    return t('lib.shortcuts.press_the_keys', 'Press the keys for this shortcut.');
+  if (keys.length > 2)
+    return t(
+      'lib.shortcuts.one_key_or_two',
+      'A shortcut is one key or two in a row. Choose another.',
+    );
   if (self?.scope !== undefined && keys.length > 1) {
-    return 'A key for a list or a row is one key, with or without a modifier. Choose another.';
+    return t(
+      'lib.shortcuts.a_list_key_is_one_key',
+      'A key for a list or a row is one key, with or without a modifier. Choose another.',
+    );
   }
   // Its own default is allowed: Space previews a list, where nothing scrolls.
   const owned = same(keys, initial) ? undefined : keys.find((chord) => RESERVED.has(chord));
   if (owned !== undefined) {
-    return `${say([owned])} belongs to your browser or computer. Choose another.`;
+    return t(
+      'lib.shortcuts.belongs_to_your_browser',
+      '{{keys}} belongs to your browser or computer. Choose another.',
+      { keys: say([owned]) },
+    );
   }
   for (const other of table) {
     if (other.id === id) continue;
@@ -393,13 +600,24 @@ export function problemWith(
     if (self?.fixed === true && other.fixed === true) continue;
     if (self !== undefined && !together(self, other)) continue;
     if (same(keys, other.keys)) {
-      return `${say(keys)} already ${other.does}. Choose another.`;
+      return t('lib.shortcuts.already_does', '{{keys}} already {{does}}. Choose another.', {
+        keys: say(keys),
+        does: other.does,
+      });
     }
     if (startsWith(other.keys, keys)) {
-      return `${say(keys)} starts ${say(other.keys)}, which ${other.does}. Choose another.`;
+      return t(
+        'lib.shortcuts.starts_another',
+        '{{keys}} starts {{other}}, which {{does}}. Choose another.',
+        { keys: say(keys), other: say(other.keys), does: other.does },
+      );
     }
     if (startsWith(keys, other.keys)) {
-      return `${say(other.keys)} already ${other.does}, so ${say(keys)} could never be reached. Choose another.`;
+      return t(
+        'lib.shortcuts.could_never_be_reached',
+        '{{other}} already {{does}}, so {{keys}} could never be reached. Choose another.',
+        { keys: say(keys), other: say(other.keys), does: other.does },
+      );
     }
   }
   return null;
@@ -410,8 +628,12 @@ export function problemIn(bindings: ShortcutPrefs['bindings'], apple = false): s
   const table = effective(bindings);
   for (const [id, keys] of Object.entries(bindings)) {
     const shortcut = SHORTCUTS.find((s) => s.id === id);
-    if (shortcut === undefined) return 'That shortcut does not exist.';
-    if (shortcut.fixed === true) return `${spoken(shortcut.keys, apple)} cannot be changed.`;
+    if (shortcut === undefined)
+      return t('lib.shortcuts.that_shortcut_does_not_exist', 'That shortcut does not exist.');
+    if (shortcut.fixed === true)
+      return t('lib.shortcuts.cannot_be_changed', '{{keys}} cannot be changed.', {
+        keys: spoken(shortcut.keys, apple),
+      });
     const problem = problemWith(table, id, keys, apple);
     if (problem !== null) return problem;
   }
@@ -461,7 +683,8 @@ export function createOn(
     a.on === undefined ? pathname.startsWith('/people') : a.on.includes(here),
   );
   if (action !== undefined) return { label: action.label, path: action.path };
-  if (pathname === '/people/import-export') return { label: 'New export', path: '/people/export' };
+  if (pathname === '/people/import-export')
+    return { label: t('lib.shortcuts.new_export', 'New export'), path: '/people/export' };
   return null;
 }
 

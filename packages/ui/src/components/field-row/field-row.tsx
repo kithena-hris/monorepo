@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * One field in a schema editor, readable without opening it.
@@ -56,7 +57,10 @@ export function FieldRow({
   handle,
   selected = false,
   changed = false,
-  changedLabel = 'Changed, not published',
+  changedLabel = t(
+    'components.field-row.field-row.changed_not_published',
+    'Changed, not published',
+  ),
   href,
   onOpen,
   className,

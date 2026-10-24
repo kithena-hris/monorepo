@@ -297,10 +297,11 @@ export function FileUploader({
       setAnnouncement(
         [
           passed.length > 0
-            ? t('components.file-uploader.file-uploader.added', '{{length}} {{value}} added.', {
-                length: String(passed.length),
-                value: passed.length === 1 ? 'file' : 'files',
-              })
+            ? t(
+                'components.file-uploader.file-uploader.files_added',
+                { one: '{{count}} file added.', other: '{{count}} files added.' },
+                { count: passed.length },
+              )
             : '',
           failed.length > 0
             ? t('components.file-uploader.file-uploader.refused', '{{length}} refused. {{value}}', {

@@ -1,6 +1,7 @@
 import type { SettingsModule } from '../components/settings-index';
 import { moduleName } from './activity';
 import type { ShellData } from './shell-data';
+import { t } from './t';
 
 type Place = SettingsModule['settings'][number];
 
@@ -10,8 +11,12 @@ type Place = SettingsModule['settings'][number];
  */
 const activityOf = (module: string): Place => ({
   path: `/settings/activity?module=${module}`,
-  label: 'Activity log',
-  description: `Who did what in ${moduleName(module)}, and when. Never the values themselves.`,
+  label: t('lib.settings-modules.activity_log', 'Activity log'),
+  description: t(
+    'lib.settings-modules.who_did_what_in_module',
+    'Who did what in {{module}}, and when. Never the values themselves.',
+    { module: moduleName(module) },
+  ),
   icon: 'history',
   now: null,
   attention: null,

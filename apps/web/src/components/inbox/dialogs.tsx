@@ -201,8 +201,12 @@ export function SendBackDialog({
             onClick={() => {
               onClose();
               act.run(() => sendBackAsk(askId, reason, note.trim() === '' ? null : note.trim()), {
-                title: 'Sent back',
-                description: `${sender} gets an update`,
+                title: t('components.inbox.dialogs.sent_back', 'Sent back'),
+                description: t(
+                  'components.inbox.detail-people.sender_gets_an_update',
+                  '{{sender}} gets an update',
+                  { sender },
+                ),
                 next: true,
               });
             }}
@@ -289,7 +293,7 @@ export function MuteDialog({
               act.run(
                 () =>
                   mute({ what: what === 'kind' ? item.kind : item.module, email, phone, inbox }),
-                { title: 'Muted' },
+                { title: t('components.inbox.dialogs.muted', 'Muted') },
               );
             }}
           >
@@ -364,10 +368,13 @@ export function SignDialog({
   const ready = name.trim() !== '' && agreed && (how === 'typed' || mark !== '');
   return (
     <Frame
-      title={t('components.inbox.dialogs.text', '{{value}} {{documentName}}', {
-        value: counter ? 'Countersign' : 'Sign',
-        documentName,
-      })}
+      title={
+        counter
+          ? t('components.inbox.dialogs.countersign_document', 'Countersign {{documentName}}', {
+              documentName,
+            })
+          : t('components.inbox.dialogs.sign_document', 'Sign {{documentName}}', { documentName })
+      }
       description={t(
         'components.inbox.dialogs.a_signed_copy_is_kept_in',
         'A signed copy is kept in the profile under Documents.',
@@ -468,13 +475,27 @@ export function BulkDecideDialog({
   readonly onClose: () => void;
 }): JSX.Element {
   const [note, setNote] = useState('');
-  const n = String(items.length);
   return (
     <Frame
-      title={t('components.inbox.dialogs.time_off_requests', '{{value}} {{n}} time-off requests?', {
-        value: decision === 'approve' ? 'Approve' : 'Decline',
-        n,
-      })}
+      title={
+        decision === 'approve'
+          ? t(
+              'components.inbox.dialogs.approve_time_off_requests',
+              {
+                one: 'Approve {{count}} time-off request?',
+                other: 'Approve {{count}} time-off requests?',
+              },
+              { count: items.length },
+            )
+          : t(
+              'components.inbox.dialogs.decline_time_off_requests',
+              {
+                one: 'Decline {{count}} time-off request?',
+                other: 'Decline {{count}} time-off requests?',
+              },
+              { count: items.length },
+            )
+      }
       onClose={onClose}
       footer={
         <>
@@ -486,10 +507,21 @@ export function BulkDecideDialog({
               onConfirm(note.trim() === '' ? null : note.trim());
             }}
           >
-            {t('components.inbox.dialogs.text_2', '{{value}} {{n}}', {
-              value: decision === 'approve' ? 'Approve' : 'Decline',
-              n,
-            })}
+            {decision === 'approve'
+              ? t(
+                  'components.inbox.dialogs.approve_count',
+                  { one: 'Approve {{count}}', other: 'Approve {{count}}' },
+                  {
+                    count: items.length,
+                  },
+                )
+              : t(
+                  'components.inbox.dialogs.decline_count',
+                  { one: 'Decline {{count}}', other: 'Decline {{count}}' },
+                  {
+                    count: items.length,
+                  },
+                )}
           </Button>
         </>
       }

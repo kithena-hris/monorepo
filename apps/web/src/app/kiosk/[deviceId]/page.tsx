@@ -1,9 +1,14 @@
 import type { Metadata } from 'next';
+
+import { serverWords } from '../../../lib/server-words';
 import type { JSX } from 'react';
 
 import { KioskShell } from '../../../components/kiosk-shell';
 
-export const metadata: Metadata = { title: 'Kiosk' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await serverWords();
+  return { title: t('app.kiosk.deviceid.page.kiosk', 'Kiosk') };
+}
 
 /**
  * A wall kiosk (T25, T26; TOF-108), outside the signed-in app: no sidebar,

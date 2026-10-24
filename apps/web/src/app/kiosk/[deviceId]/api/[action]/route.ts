@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { tenantOfToken } from '../../../../../lib/kiosk';
+import { serverWords } from '../../../../../lib/server-words';
 
 /**
  * A kiosk's three requests (TOF-108), on the company's own origin, passed to
@@ -26,6 +27,7 @@ async function forward(
   request: Request,
   params: Promise<{ deviceId: string; action: string }>,
 ): Promise<Response> {
+  const t = await serverWords();
   const { deviceId, action } = await params;
   if (!(action in ACTIONS) || ACTIONS[action as Action] !== request.method) {
     return NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 });
@@ -35,7 +37,15 @@ async function forward(
   const tenantId = (await headers()).get('x-tenant-id');
   if (tenantId === null || tenantOfToken(token) !== tenantId) {
     return NextResponse.json(
-      { error: { code: 'INVALID_TOKEN', message: 'This kiosk is not registered here' } },
+      {
+        error: {
+          code: 'INVALID_TOKEN',
+          message: t(
+            'app.kiosk.deviceId.api.action.route.this_kiosk_is_not_registered_here',
+            'This kiosk is not registered here',
+          ),
+        },
+      },
       { status: 401 },
     );
   }
@@ -49,7 +59,15 @@ async function forward(
   }).catch(() => null);
   if (answer === null) {
     return NextResponse.json(
-      { error: { code: 'UNREACHABLE', message: 'Time Off could not be reached' } },
+      {
+        error: {
+          code: 'UNREACHABLE',
+          message: t(
+            'app.kiosk.deviceId.api.action.route.time_off_could_not_be_reached',
+            'Time Off could not be reached',
+          ),
+        },
+      },
       { status: 503 },
     );
   }

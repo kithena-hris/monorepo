@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { Notifications, notificationsOf } from '../../../../lib/inbox/notifications';
 import { readPreferenceFor, writePreferenceFor } from '../../../../lib/preferences';
 import { personFor } from '../../../../lib/session';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * Me › Settings › Notifications on the phone (M:I1): the same preference the
@@ -29,6 +30,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PUT(request: Request): Promise<Response> {
+  const t = await serverWords();
   const found = await who(request);
   if (found === null)
     return NextResponse.json({ ok: false, code: 'UNAUTHENTICATED' }, { status: 401 });
@@ -50,8 +52,14 @@ export async function PUT(request: Request): Promise<Response> {
           code: saved === 'view_only' ? 'VIEW_ONLY' : 'UNAVAILABLE',
           message:
             saved === 'view_only'
-              ? 'Viewing as somebody is read-only'
-              : 'That did not save; try again',
+              ? t(
+                  'app.api.mobile.notifications.route.viewing_as_somebody_is_read_only',
+                  'Viewing as somebody is read-only',
+                )
+              : t(
+                  'app.api.mobile.notifications.route.that_did_not_save_try_again',
+                  'That did not save; try again',
+                ),
         },
     { headers: NO_STORE },
   );

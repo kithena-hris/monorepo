@@ -4,6 +4,7 @@ import { icons } from '../../icons';
 import { cn } from '../../lib/cn';
 import { Badge } from '../badge/badge';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 export interface ScrollPositionProps extends ComponentPropsWithoutRef<'div'> {
   /** Where the reader is, in words: "150 of 388". */
@@ -24,7 +25,7 @@ export interface ScrollPositionProps extends ComponentPropsWithoutRef<'div'> {
  */
 export function ScrollPosition({
   onBackToTop,
-  backToTopLabel = 'Back to top',
+  backToTopLabel = t('components.scroll-position.scroll-position.back_to_top', 'Back to top'),
   className,
   children,
   ...props

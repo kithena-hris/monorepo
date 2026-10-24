@@ -12,6 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '../dropdown-menu/dropdown-menu';
+import { t } from '../../lib/i18n';
 
 /**
  * A short list of actions, as the device expects them.
@@ -109,9 +110,9 @@ const card = 'overflow-hidden rounded-[1.125rem] bg-surface-raised shadow-lg';
 export function ActionSheetContent({
   title,
   description,
-  label = 'Actions',
+  label = t('components.action-sheet.action-sheet.actions', 'Actions'),
   header,
-  cancelLabel = 'Cancel',
+  cancelLabel = t('components.action-sheet.action-sheet.cancel', 'Cancel'),
   className,
   children,
 }: ActionSheetContentProps): JSX.Element {
