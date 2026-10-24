@@ -7,7 +7,7 @@ import {
   renderCorrespondence,
   type CorrespondenceParts,
 } from '../domain/correspondence.js';
-import { inEnglish, type CompanyLanguage } from './company-language.js';
+import { inEnglish, type CompanyBrand, type CompanyLanguage } from './company-language.js';
 import type { DeliveryLog } from './delivery-log.js';
 import type { EmailTransport } from './email-transport.js';
 import type { SendRefusal } from './send-invitation.js';
@@ -46,6 +46,8 @@ export function sendCorrespondence(deps: {
   readonly onRefusal?: (reason: SendRefusal, detail: Record<string, string>) => void;
   /** The company's language, for the frame around the module's words. US English when absent. */
   readonly language?: CompanyLanguage;
+  /** The company's name, mark and colour, for an email that did not say. */
+  readonly brand?: CompanyBrand;
 }): SendCorrespondence {
   const refuse = (reason: SendRefusal, detail: Record<string, string> = {}): Result<never> => {
     deps.onRefusal?.(reason, detail);
@@ -56,11 +58,21 @@ export function sendCorrespondence(deps: {
     if (!recipient.ok) return refuse('address');
     const replyTo = request.replyTo === null ? null : toAddress(request.replyTo);
     if (replyTo !== null && !replyTo.ok) return refuse('address');
+    // Every email in the company's name, mark and colours: what the module
+    // did not say, the company's own settings do; Kithena is never the sender.
+    const brand = (await deps.brand?.(request.tenantId).catch(() => null)) ?? null;
+    const parts = request.parts ?? {};
     const message = renderCorrespondence(
       request.subject,
       request.text,
-      request.companyName,
-      request.parts ?? {},
+      brand !== null && (request.companyName === '' || request.companyName === 'Kithena')
+        ? brand.companyName
+        : request.companyName,
+      {
+        ...parts,
+        logoUrl: parts.logoUrl ?? brand?.logoUrl ?? null,
+        themeId: parts.themeId ?? brand?.themeId ?? null,
+      },
       await (deps.language ?? inEnglish)(request.tenantId),
     );
     if (!message.ok) return refuse('unrenderable');

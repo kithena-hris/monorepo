@@ -6,7 +6,7 @@ import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
 import { contextOf, deliver, type Ctx, type Outgoing, mailWords } from './context.js';
 import { portalLink } from './intake.js';
-import { completeEndedInterviews } from './interviews.js';
+import { completeEndedInterviews, completeInterview } from './interviews.js';
 import { rejectDueKnockouts } from './knockouts.js';
 import { sweepRetention } from './privacy.js';
 import { replyAddress } from './replies.js';
@@ -91,6 +91,18 @@ export async function sendDueMessages(deps: Deps): Promise<number> {
 }
 
 /** Every few minutes: interviews that have ended are completed, and each interviewer is asked for a scorecard. */
+/** The timer at an interview's end: completed, and its scorecards asked for, at once. */
+export async function completeAtItsEnd(
+  deps: Deps,
+  tenantId: TenantId,
+  interviewId: string,
+): Promise<boolean> {
+  const run = await asSystem(deps, tenantId, (ctx) => completeInterview(ctx, interviewId));
+  await deliver(deps, tenantId, run.mail);
+  return run.value;
+}
+
+/** At start: interviews that ended while Recruiting was not running, completed once. */
 export async function completeInterviews(deps: Deps): Promise<number> {
   let completed = 0;
   for (const { tenantId } of await deps.uow.tenants()) {

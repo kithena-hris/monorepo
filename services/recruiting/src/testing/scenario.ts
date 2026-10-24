@@ -1333,8 +1333,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const mailing = {
     ...deps,
     mailer: {
-      send: (m: { to: string; text: string }) => {
-        alertMail.push(m);
+      send: (m: { to: string; text: string; parts?: { action?: { href: string } | null } }) => {
+        // The link is the email's button now; its plain text carries it too.
+        alertMail.push({ to: m.to, text: `${m.text}\n${m.parts?.action?.href ?? ''}` });
         return Promise.resolve();
       },
     },

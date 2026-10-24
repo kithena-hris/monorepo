@@ -22,6 +22,7 @@
     "@kithena/domain-kit": "workspace:*",
     "@kithena/graphql-kit": "workspace:*",
     "@kithena/telemetry": "workspace:*",
+    "bullmq": "^6.3.12",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.4",
     "graphql": "^16.11.0",

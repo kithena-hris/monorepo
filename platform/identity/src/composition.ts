@@ -885,6 +885,12 @@ export async function compose(config: Config): Promise<RequestHandler> {
   // The company's language, for messaging to write its emails in.
   const tenantLanguage = tenantLanguageRoutes({
     token: config.internalToken,
+    brand: async (tenantId) => {
+      const found = await tenantById(tenantId);
+      return found === null
+        ? null
+        : { companyName: found.displayName, logoUrl: found.logoUrl, themeId: found.themeId };
+    },
     read: async (tenantId) => {
       const rows = await db.execute(
         sql`SELECT language FROM platform.tenant WHERE id = ${tenantId}::uuid`,

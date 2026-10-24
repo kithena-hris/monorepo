@@ -1,6 +1,8 @@
 import { ok, type Result } from '@kithena/domain-kit';
 
 import { asPerson, type Ctx } from './context.js';
+import type { MailParts } from './ports.js';
+import { generalSettings } from './setup.js';
 
 /**
  * Whether a member is emailed when a candidate acts (gives times, asks for a
@@ -41,6 +43,8 @@ export async function tellMembers(
   subject: string,
   text: string,
   dedupe: string,
+  /** A heading, times and buttons beside the words. */
+  parts?: MailParts,
 ): Promise<void> {
   const sent = new Set<string>();
   for (const id of new Set(personIds)) {
@@ -48,6 +52,26 @@ export async function tellMembers(
     const email = (await ctx.tx.members.get(id as never))?.workEmail;
     if (!email || sent.has(email)) continue;
     sent.add(email);
-    ctx.mail.push({ to: email, subject, text, dedupeKey: `${dedupe}:${email}` });
+    ctx.mail.push({
+      to: email,
+      subject,
+      text,
+      dedupeKey: `${dedupe}:${email}`,
+      ...(parts === undefined ? {} : { parts }),
+    });
   }
 }
+
+/**
+ * A page of the tenant app as a link an email can carry: on the company's
+ * own host when it is known, else null (an email's button is never a path).
+ */
+export async function appUrl(ctx: Ctx, path: string): Promise<string | null> {
+  const base = ctx.deps.chat?.appBase;
+  if (base === undefined) return null;
+  return `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+}
+
+/** An Inbox task, as the Inbox addresses it: the email's button opens the task itself. */
+export const inboxTask = (itemId: string): string =>
+  `/inbox/todo?item=${encodeURIComponent(itemId)}`;

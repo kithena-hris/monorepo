@@ -1,6 +1,8 @@
 import { err, ok, wordsIn, type Result, type Words } from '@kithena/domain-kit';
 
-import { escapeHtml, safeHref } from './markup.js';
+import { accentHex } from '@kithena/contracts';
+
+import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
 import { dark, light, scale } from './palette.js';
 import { Unrenderable, type RenderedMessage } from './invitation.js';
 
@@ -783,6 +785,11 @@ export function renderNotice(
   companyName: string,
   /** The company's language, and its words for it: every email is in the company's language. */
   words: { readonly language: string; readonly t: Words } = { language: 'en-US', t: ENGLISH },
+  /** The company's mark and colour: the email is the company's, never Kithena's. */
+  brand: { readonly logoUrl: string | null; readonly themeId: string | null } = {
+    logoUrl: null,
+    themeId: null,
+  },
 ): Result<RenderedMessage> {
   const company = companyName.trim();
   if (company.length === 0 || company.length > MAX_COMPANY_NAME) return err(Unrenderable);
@@ -818,7 +825,11 @@ export function renderNotice(
 
   return ok({
     subject: plain.subject,
-    html: html(marked, href, escapeHtml(url), words),
+    html: html(marked, href, escapeHtml(url), words, {
+      company: escapeHtml(company),
+      logo: safeImageSrc(brand.logoUrl),
+      accent: accentHex(brand.themeId) ?? light['accent-solid'],
+    }),
     text: [plain.heading, '', plain.lede, '', `${plain.action}:`, url, '', plain.footer, ''].join(
       '\n',
     ),
@@ -837,9 +848,10 @@ function html(
   href: string,
   plainUrl: string,
   words: { readonly language: string; readonly t: Words },
+  brand: { readonly company: string; readonly logo: string | null; readonly accent: string },
 ): string {
   const pad = scale.cardPadding;
-  const accent = light['accent-solid'];
+  const accent = brand.accent;
   return `<!doctype html>
 <html lang="${escapeHtml(words.language)}" style="margin:0;padding:0;">
   <head>
@@ -870,7 +882,7 @@ function html(
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:544px;">
             <tr>
               <td style="padding:0 4px 18px 4px;">
-                <span class="k-accent" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:${light.accent};">Kithena</span>
+                <span style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};font-weight:600;letter-spacing:0.16em;text-transform:uppercase;color:${accent};">${brand.company}</span>
               </td>
             </tr>
             <!-- Card variant="outlined". -->
@@ -878,8 +890,17 @@ function html(
               <td class="k-surface" style="background:${light.surface};border:1px solid ${light.border};border-radius:${scale.radiusCard};overflow:hidden;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr><td style="height:3px;line-height:3px;font-size:0;background:${accent};">&nbsp;</td></tr>
-                  <tr>
-                    <td class="k-pad" style="padding:28px ${pad} 0 ${pad};">
+${
+  brand.logo === null
+    ? ''
+    : `                  <tr>
+                    <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
+                      <img src="${brand.logo}" alt="${brand.company}" height="28" style="height:28px;max-width:180px;width:auto;border:0;outline:none;display:block;" />
+                    </td>
+                  </tr>
+`
+}                  <tr>
+                    <td class="k-pad" style="padding:${brand.logo === null ? '28px' : '18px'} ${pad} 0 ${pad};">
                       <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">${copy.heading}</h1>
                     </td>
                   </tr>

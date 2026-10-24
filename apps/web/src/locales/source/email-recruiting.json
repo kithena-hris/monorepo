@@ -203,10 +203,6 @@
     "text": "{{title}}: {{value}} at {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{title}}, {{value}}, {{companyName}}."
   },
-  "email.interviews.can_do_utc_choose_one_in": {
-    "text": "{{name}} ({{value}}) can do:\n{{map}}\n(UTC)\n\nChoose one in your Inbox, or ask for more times; the invitation goes out with the meeting link and the agenda.",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{value}}, {{map}}."
-  },
   "email.interviews.cancelled_with": {
     "text": "Cancelled: {{title}} with {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
@@ -215,9 +211,21 @@
     "text": "Change my times",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
   },
+  "email.interviews.choose_a_time": {
+    "text": "Choose a time",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"action\" value."
+  },
+  "email.interviews.choose_a_time_heading": {
+    "text": "Choose a time for {{name}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value. Filled in: {{name}}."
+  },
   "email.interviews.choose_my_times": {
     "text": "Choose my times",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.choose_one_of_the_times": {
+    "text": "{{name}} ({{value}}) gave the times below. Choose one, offer other times, or ask for more: the invitation then goes to everyone with the meeting link and the agenda.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{value}}."
   },
   "email.interviews.choose_other_times": {
     "text": "Choose other times",
@@ -230,6 +238,10 @@
   "email.interviews.could_you_give_us_other_times": {
     "text": "Could you give us other times?",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value."
+  },
+  "email.interviews.due": {
+    "text": "Due",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
   },
   "email.interviews.hello_thank_you_for_your_times": {
     "text": "Hello {{value}},\n\nThank you for your times. The team cannot make any of them, so please choose others. The ones below are left out, as are holidays and the team's time off.{{value2}}",
@@ -315,6 +327,10 @@
     "text": "{{title}} with {{name}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{name}}."
   },
+  "email.interviews.their_times_utc": {
+    "text": "Their {{length}} times · UTC",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{length}}."
+  },
   "email.interviews.these_did_not_work": {
     "text": "These did not work",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value."
@@ -369,7 +385,7 @@
   },
   "email.interviews.write_my_scorecard": {
     "text": "Write my scorecard",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"action\" value."
   },
   "email.interviews.your_is_booked": {
     "text": "Your {{title}} is booked",
@@ -430,6 +446,10 @@
   "email.offer.you_declined_body": {
     "text": "Thank you for telling us, {{first}}. {{company}} has your reason: “{{reason}}”. If they can change the terms, they will send you a new version.",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.open": {
+    "text": "Open",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/context.ts: text built in code."
   },
   "email.pool_ask.subject": {
     "text": "May {{company}} keep your details for future roles?",

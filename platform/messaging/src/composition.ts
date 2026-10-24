@@ -24,7 +24,7 @@ import { sendCorrespondence } from './message/application/send-correspondence.js
 import { digestRoutes } from './message/http/digest-routes.js';
 import { deliverInbox, flushDigests } from './message/application/inbox-delivery.js';
 import { drizzleDigestStore } from './message/infrastructure/drizzle-digest-store.js';
-import { companyLanguage } from './message/infrastructure/company-language.js';
+import { companyProfile } from './message/infrastructure/company-language.js';
 import { inEnglish } from './message/application/company-language.js';
 import { languageRoutes } from './message/http/language-routes.js';
 import { identityChoices } from './message/infrastructure/identity-choices.js';
@@ -318,10 +318,13 @@ export function compose(config: Config): RequestHandler {
 
   // The company's language, which every email is written in, where identity
   // can be asked; US English otherwise.
-  const language =
+  const profile =
     config.identityUrl !== undefined && config.identityUrl !== '' && config.identityToken
-      ? companyLanguage({ baseUrl: config.identityUrl, token: config.identityToken })
+      ? companyProfile({ baseUrl: config.identityUrl, token: config.identityToken })
       : undefined;
+  const language = profile?.language;
+  // The company's name, mark and colour, which every email is drawn in.
+  const brand = profile?.brand;
 
   const send = sendInvitation({
     transport,
@@ -387,6 +390,7 @@ export function compose(config: Config): RequestHandler {
     // '' matches no link at all, so every notice is refused as untrusted.
     tenantAppBase: base ?? '',
     ...(language === undefined ? {} : { language }),
+    ...(brand === undefined ? {} : { brand }),
     onRefusal: (reason, detail) => {
       logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
     },
@@ -433,6 +437,7 @@ export function compose(config: Config): RequestHandler {
       transport,
       deliveries,
       ...(language === undefined ? {} : { language }),
+      ...(brand === undefined ? {} : { brand }),
       onRefusal: (reason, detail) => {
         logger.info({ reason, transport: transport.name, ...detail }, 'correspondence refused');
       },

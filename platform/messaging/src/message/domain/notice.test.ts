@@ -284,3 +284,20 @@ describe('renderNotice in the company’s language', () => {
     expect(result.value.html).not.toContain('&amp;amp;');
   });
 });
+
+describe('a notice is the company’s, in its name, mark and colour', () => {
+  it('draws the company’s name and logo, never Kithena’s wordmark', () => {
+    const result = renderNotice(
+      { kind: 'approval_requested' },
+      'https://acme.app.kithena.com/inbox',
+      ACME,
+      undefined,
+      { logoUrl: 'https://cdn.example.com/acme.png', themeId: 'forest' },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.html).toContain('Acme Corp');
+    expect(result.value.html).toContain('src="https://cdn.example.com/acme.png"');
+    expect(result.value.html).not.toContain('>Kithena<');
+  });
+});

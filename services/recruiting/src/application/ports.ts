@@ -1098,6 +1098,16 @@ export interface IncomingUpload {
   readonly bytes: Uint8Array;
 }
 
+/**
+ * A timer at each interview's end (Valkey, BullMQ): the moment it ends, the
+ * interview is completed and each interviewer is asked for their scorecard.
+ * Set again when it is booked or moved, dropped when it is cancelled.
+ */
+export interface InterviewEnds {
+  at(tenantId: string, interviewId: string, endsAt: string): Promise<void>;
+  drop(tenantId: string, interviewId: string): Promise<void>;
+}
+
 export interface Deps {
   readonly uow: UnitOfWork;
   readonly blobs: Blobs;
@@ -1124,6 +1134,8 @@ export interface Deps {
    */
   readonly sealer?: Sealer;
   readonly chat?: Chat;
+  /** Absent without Valkey: an interview is then completed by hand, or at the next start. */
+  readonly interviewEnds?: InterviewEnds;
   /** The boards a job may be published to beyond Kithena's own pages; Google and the feed by default. */
   readonly boards?: readonly JobBoard[];
   /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */
