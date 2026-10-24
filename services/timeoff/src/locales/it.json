@@ -1,1 +1,12 @@
-{}
+{
+  "email.nudge.a_few_days_away": "Pochi giorni di pausa valgono più di quanto sembri.",
+  "email.nudge.bridge": "Se prendi il {{day}}, hai 4 giorni liberi con {{holiday}}.",
+  "email.nudge.days_left_many": "Ti restano {{count}} giorni quest’anno.",
+  "email.nudge.days_left_one": "Ti resta {{count}} giorno quest’anno.",
+  "email.nudge.days_left_other": "Ti restano {{count}} giorni quest’anno.",
+  "email.nudge.heading": "{{name}}, non prendi un giorno libero da {{month}}",
+  "email.nudge.private": "Nessun altro vede questo messaggio.",
+  "email.nudge.would_be_lost_many": "{{count}} andrebbero persi il {{date}} se restano non prenotati.",
+  "email.nudge.would_be_lost_one": "{{count}} andrebbe perso il {{date}} se resta non prenotato.",
+  "email.nudge.would_be_lost_other": "{{count}} andrebbero persi il {{date}} se restano non prenotati."
+}

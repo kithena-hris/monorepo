@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "Ciao {{name}}, hai delle valutazioni da scrivere in {{name2}}. Apri Kithena per continuare.",
+  "email.cycles.reminder": "Promemoria: {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} ha chiesto il tuo feedback",
+  "email.feedback.on": " su {{topic}}",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} vorrebbe il tuo feedback{{value}}. Rispondi in Kithena, in Performance › Feedback.",
+  "email.launch.due_a_review_in": "Scadenza {{due}}: una valutazione in {{name}}",
+  "email.launch.hi_has_started_your_reviews_are": "Ciao {{name}}, {{name2}} è iniziato. Le tue valutazioni sono in Kithena, in Performance › Le mie valutazioni.",
+  "email.launch.hi_your_review_about_in_is": "Ciao {{name}}, la tua valutazione su {{name2}} in {{name3}} scade il {{due}}.",
+  "email.launch.overdue_a_review_in": "In ritardo: una valutazione in {{name}}",
+  "email.launch.you_have_reviews_to_write": "Hai valutazioni da scrivere: {{name}}",
+  "email.learning.cancelled": "Annullato",
+  "email.learning.invitation": "Invito",
+  "email.learning.on_utc_is_cancelled": "{{title}} del {{when}} (UTC) è annullato.",
+  "email.learning.you_are_invited_to_on_utc": "Sei invitato a {{title}} il {{when}} (UTC){{value}}. L’invito è allegato per il tuo calendario.",
+  "email.manager-change.a_cycle": "un ciclo",
+  "email.manager-change.draft_stays": "La tua bozza resta in Kithena e puoi leggerla finché non la elimini.",
+  "email.manager-change.no_longer_reports_to_you": "Ciao {{name}}, {{who}} non riporta più a te, quindi non sei più tra i responsabili che lo valutano in {{where}} e non devi inviare la valutazione.",
+  "email.manager-change.reports_to_someone_else_now": "Ciao {{name}}, {{who}} ora riporta a {{to}}, quindi non sei più tra i responsabili che lo valutano in {{where}} e non devi inviare la valutazione.",
+  "email.manager-change.reports_to_you_now": "Ciao {{name}}, {{who}} ora riporta a te, quindi la sua valutazione del responsabile in {{where}} spetta a te. Apri Kithena per iniziarla.",
+  "email.manager-change.someone": "Qualcuno",
+  "email.manager-change.you_no_longer_write": "Non scrivi più la valutazione del responsabile per {{who}}",
+  "email.manager-change.you_write_their_review": "Scrivi tu la valutazione del responsabile per {{who}}",
+  "email.reviews.about": "{{title}} su {{name}}: «{{reason}}»",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} chiede di sbloccare una valutazione",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "I valutatori pari di {{name}} aspettano te"
+}
