@@ -45,6 +45,7 @@ import {
   Timeline,
   TimelineItem,
   icons,
+  IconTile,
 } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
@@ -347,6 +348,64 @@ function ReadCv({
           </>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * The offer, on the candidate's profile, from the offer stage on: one card
+ * to press, whether there is an offer yet or not. With none it starts one;
+ * with one it shows where it stands and opens it.
+ */
+function OfferCard({
+  name,
+  offer,
+  onOpen,
+}: {
+  readonly name: string;
+  readonly offer: {
+    readonly state: string;
+    readonly version: number;
+    readonly startDate: string;
+    readonly baseMinor: number;
+    readonly currency: string;
+  } | null;
+  readonly onOpen: () => void;
+}): JSX.Element {
+  return (
+    <Card padded className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <IconTile tone="accent">
+          <icons.document aria-hidden />
+        </IconTile>
+        <div className="min-w-0">
+          <p className="font-semibold">
+            {offer === null
+              ? tr('candidate.ready_for_an_offer', 'Ready for an offer')
+              : tr('candidate.offer_version_state', 'Offer, version {{version}}', {
+                  version: offer.version,
+                })}
+          </p>
+          <p className="text-sm text-fg-muted">
+            {offer === null
+              ? tr(
+                  'candidate.make_the_offer_hint',
+                  'Write the terms, pay and benefits for {{name}}: they are checked against the band and approved before {{name}} sees them.',
+                  { name },
+                )
+              : tr('candidate.offer_summary', '{{pay}} · starts {{start}}', {
+                  pay: money(offer.baseMinor, offer.currency),
+                  start: day(offer.startDate),
+                })}
+          </p>
+        </div>
+        {offer === null ? null : <StateBadge state={offer.state} />}
+      </div>
+      <Button onClick={onOpen} startIcon={offer === null ? <icons.add aria-hidden /> : undefined}>
+        {offer === null
+          ? tr('candidate.make_an_offer', 'Make an offer')
+          : tr('candidate.open_the_offer', 'Open the offer')}
+      </Button>
     </Card>
   );
 }
@@ -894,26 +953,24 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                           {tr('candidate.reject', 'Reject…')}
                         </Button>
                       ) : null}
-                      {chosen.outcome === 'active' &&
-                      chosen.may.includes('offer.edit') &&
-                      (stage?.category === 'offer' || chosen.offers.length > 0) ? (
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            props.onNavigate?.(
-                              chosen.offers[0] === undefined
-                                ? `/recruiting/offers/new?application=${chosen.applicationId}`
-                                : `/recruiting/offers/${chosen.offers[0].id}`,
-                            )
-                          }
-                        >
-                          {chosen.offers[0] === undefined
-                            ? tr('candidate.make_an_offer', 'Make an offer')
-                            : tr('candidate.open_the_offer', 'Open the offer')}
-                        </Button>
-                      ) : null}
                     </div>
                   </Card>
+                  {chosen.may.includes('offer.edit') &&
+                  (stage?.category === 'offer' ||
+                    stage?.category === 'hired' ||
+                    chosen.offers.length > 0) ? (
+                    <OfferCard
+                      name={data.candidate.name}
+                      offer={chosen.offers[0] ?? null}
+                      onOpen={() =>
+                        props.onNavigate?.(
+                          chosen.offers[0] === undefined
+                            ? `/recruiting/offers/new?application=${chosen.applicationId}`
+                            : `/recruiting/offers/${chosen.offers[0].id}`,
+                        )
+                      }
+                    />
+                  ) : null}
                   <Tabs
                     value={tab}
                     onValueChange={(v) => props.onFilter?.({ tab: v === 'profile' ? null : v })}
