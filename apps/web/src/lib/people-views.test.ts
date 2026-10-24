@@ -92,6 +92,9 @@ describe('the shell', () => {
     const root = join(import.meta.dirname, '..');
     const files = (await readdir(root, { recursive: true }))
       .filter((f) => /\.(ts|tsx|mjs)$/.test(f) && !f.endsWith('.test.ts'))
+      // A provider's push (`app/api/hooks/*`) is handed to a module's public,
+      // self-proving route through the tunnel, as the provider would; never People's.
+      .filter((f) => !f.startsWith(join('app', 'api', 'hooks')))
       .map((f) => join(root, f));
     const offending: string[] = [];
     for (const file of files) {
