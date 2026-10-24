@@ -145,7 +145,7 @@ describe('a hire Recruiting made', () => {
     ]);
     const access = personAccess({ ...store.deps, relations: withSupport(store.deps.relations) });
     const hires = hiresFromRecruiting(access, store.deps.schemas);
-    const signed = { ...hired, payload: { ...hired.payload, signature: mark } };
+    const signed = { ...hired, payload: { ...hired.payload, signature: JSON.stringify(mark) } };
     expect(await hires.hired(tx, signed as never)).toEqual({ outcome: 'applied' });
     const [row] = [...store.rows.values()];
     expect(JSON.parse(String(row?.fields.custom['my_signature']))).toEqual(mark);

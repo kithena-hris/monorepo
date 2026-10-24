@@ -624,7 +624,7 @@ export async function sealEnvelope(
               : env.signers.flatMap((s) =>
                   s.signature === null
                     ? []
-                    : [{ email: s.email, personId: s.personId, mark: s.signature }],
+                    : [{ email: s.email, personId: s.personId, mark: JSON.stringify(s.signature) }],
                 ),
         },
       ),

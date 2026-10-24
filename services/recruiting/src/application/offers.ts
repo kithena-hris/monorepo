@@ -2,7 +2,6 @@ import { everyCatalogue, keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
-  SignatureMark,
   ConditionKind,
   ConditionState,
   PrehireCancelReason,
@@ -718,7 +717,7 @@ export async function contractSignedByEnvelope(
   ctx: Ctx,
   subjectRef: string,
   on: CalendarDate,
-  signatures: readonly { readonly email: string | null; readonly mark: SignatureMark }[] = [],
+  signatures: readonly { readonly email: string | null; readonly mark: string }[] = [],
 ): Promise<Result<true>> {
   const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
   if (contract === null) return ok(true);
@@ -850,7 +849,7 @@ async function hireFromContract(
   ctx: Ctx,
   contract: Contract,
   /** Who signed the envelope with what: the candidate's becomes the signature on their record. */
-  signatures: readonly { readonly email: string | null; readonly mark: SignatureMark }[] = [],
+  signatures: readonly { readonly email: string | null; readonly mark: string }[] = [],
 ): Promise<Result<true>> {
   const offer = await ctx.tx.offers.get(contract.offerId);
   const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);

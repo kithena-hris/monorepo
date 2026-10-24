@@ -89,7 +89,9 @@ describe('inviting a hire to the company', () => {
     expect(kept).toMatchObject({ ok: true, value: { state: 'scheduled', sendOn: '2026-10-01' } });
     expect(asked).toHaveLength(0);
     expect(await service.sendDue(tx, TENANT)).toBe(0);
-    rows.set(ADA, { ...rows.get(ADA)!, sendOn: '2026-09-20' });
+    const held = rows.get(ADA);
+    if (held === undefined) throw new Error('kept');
+    rows.set(ADA, { ...held, sendOn: '2026-09-20' });
     expect(await service.sendDue(tx, TENANT)).toBe(1);
     expect(asked).toHaveLength(1);
     expect(rows.get(ADA)?.sentAt).not.toBeNull();
@@ -100,7 +102,8 @@ describe('inviting a hire to the company', () => {
     expect(
       await service.invite(tx, { ...asking, viewer: NOT_HR, personId: ADA, sendOn: null }),
     ).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
-    const row = store.rows.get(ADA)!;
+    const row = store.rows.get(ADA);
+    if (row === undefined) throw new Error('seeded');
     store.rows.set(ADA, { ...row, snapshot: { ...row.snapshot, status: 'onboarding' } });
     expect(await service.invite(tx, { ...asking, personId: ADA, sendOn: null })).toMatchObject({
       ok: false,

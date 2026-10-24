@@ -107,7 +107,7 @@ export function hiresFromRecruiting(
         ),
         ...(signatureField === undefined || (event.payload.signature ?? null) === null
           ? {}
-          : { [signatureField.key]: JSON.stringify(event.payload.signature) }),
+          : { [signatureField.key]: event.payload.signature }),
       };
       const created = await access.create(tx, {
         ...asking(event),

@@ -352,7 +352,7 @@ async function chartsView(
       ? await deps.service.access.count(tx, {
           ...asking,
           refine: {
-            conditions: [{ key: 'status', op: 'is', values: ['pre_hire', 'onboarding'] }],
+            conditions: [{ key: 'status', op: 'in', values: ['pre_hire', 'onboarding'] }],
           },
         })
       : null;

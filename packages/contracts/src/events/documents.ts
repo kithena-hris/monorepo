@@ -8,7 +8,6 @@ import {
   asPublic,
   policy,
 } from '../classification.js';
-import { SignatureMark } from '../signature.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, PersonId } from '../primitives.js';
@@ -236,7 +235,8 @@ export const EnvelopeCompleted = defineEvent(
         z.object({
           email: z.string().max(254).nullable().register(policy, asContact()),
           personId: PersonId.nullable(),
-          mark: SignatureMark,
+          /** The mark as its JSON text (`SignatureMark`), as People keeps a signature. */
+          mark: z.string().max(50_000).register(policy, asIdentity()),
         }),
       )
       .max(10)

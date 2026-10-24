@@ -1,7 +1,6 @@
 import * as z from 'zod';
 
 import { asContact, asIdentity, asInternal, asPublic, policy } from '../classification.js';
-import { SignatureMark } from '../signature.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
@@ -205,7 +204,8 @@ export const CandidateHired = defineEvent(
     legalEntityId: LegalEntityId,
     conditions: z.array(z.object({ kind: ConditionKind, state: ConditionState })),
     /** The signature they signed the contract with, for their record; null when signed elsewhere. */
-    signature: SignatureMark.nullable().default(null).register(policy, asIdentity()),
+    /** As its JSON text (`SignatureMark`), the form People keeps a signature in. */
+    signature: z.string().max(50_000).nullable().default(null).register(policy, asIdentity()),
   }),
 );
 
