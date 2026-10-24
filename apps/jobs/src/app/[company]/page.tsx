@@ -6,6 +6,7 @@ import type { JSX } from 'react';
 import { JobAlert } from '../../components/job-alert';
 import { JobCard } from '../../components/job-card';
 import { company as readCompany } from '../../lib/api';
+import { t } from '../../lib/i18n';
 
 type Params = Promise<{ company: string }>;
 
@@ -13,10 +14,15 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const answer = await readCompany((await params).company);
   return answer.ok
     ? {
-        title: `Jobs at ${answer.data.company.name}`,
+        title: t('app.[company].page.jobs_at', 'Jobs at {{name}}', {
+          name: answer.data.company.name,
+        }),
         description: answer.data.company.about ?? undefined,
       }
-    : { title: 'Company not found', robots: { index: false } };
+    : {
+        title: t('app.[company].page.company_not_found', 'Company not found'),
+        robots: { index: false },
+      };
 }
 
 /** J10: a company's careers page, every open job of theirs whether or not it is on the shared search. */
@@ -35,16 +41,30 @@ export default async function CareersPage({ params }: { params: Params }): Promi
             shape="rounded"
             size="2xl"
           />
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{`Jobs at ${company.name}`}</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {t('app.[company].page.jobs_at', 'Jobs at {{name}}', { name: company.name })}
+          </h1>
         </div>
         {company.about === null ? null : (
           <p className="max-w-prose text-lg text-fg-muted">{company.about}</p>
         )}
       </section>
-      <section aria-label="Open jobs" className="flex flex-col gap-3">
-        <h2 className="font-semibold">{`${String(jobs.length)} open job${jobs.length === 1 ? '' : 's'}`}</h2>
+      <section
+        aria-label={t('app.[company].page.open_jobs', 'Open jobs')}
+        className="flex flex-col gap-3"
+      >
+        <h2 className="font-semibold">
+          {t(
+            'app.[company].page.open_jobs',
+            { one: '{{count}} open job', other: '{{count}} open jobs' },
+            { count: jobs.length },
+          )}
+        </h2>
         {jobs.length === 0 ? (
-          <EmptyState icon={<icons.work aria-hidden />} title="No open jobs right now" />
+          <EmptyState
+            icon={<icons.work aria-hidden />}
+            title={t('app.[company].page.no_open_jobs_right_now', 'No open jobs right now')}
+          />
         ) : (
           jobs.map((j) => <JobCard key={`${j.jobId}:${j.language}`} job={j} showCompany={false} />)
         )}

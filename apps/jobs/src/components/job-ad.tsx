@@ -15,6 +15,7 @@ import type { JSX, ReactNode } from 'react';
 
 import { countryName, hours as hoursOf, salary as salaryOf, where } from '../lib/format';
 import { StickyTitle } from './sticky-title';
+import { t } from '../lib/i18n';
 
 /** The rail's Apply now, which the bars watch so only one is ever on screen. */
 const APPLY_ID = 'apply-now';
@@ -32,24 +33,24 @@ const APPLY_ID = 'apply-now';
  * a phone at the thumb. One entrance, staggered down the hero, and nothing else moves.
  */
 
-const SENIORITY: Readonly<Record<string, string>> = {
-  entry: 'Entry level',
-  mid: 'Mid level',
-  senior: 'Senior',
-  lead: 'Lead',
-  executive: 'Executive',
-};
-const MODE: Readonly<Record<string, string>> = {
-  onsite: 'On site',
-  hybrid: 'Hybrid',
-  remote: 'Remote',
-};
-const LANGUAGE: Readonly<Record<string, string>> = {
-  en: 'English',
-  es: 'Spanish',
-  de: 'German',
-  hi: 'Hindi',
-};
+const SENIORITY = (): Readonly<Record<string, string>> => ({
+  entry: t('components.job-ad.entry_level', 'Entry level'),
+  mid: t('components.job-ad.mid_level', 'Mid level'),
+  senior: t('components.job-ad.senior', 'Senior'),
+  lead: t('components.job-ad.lead', 'Lead'),
+  executive: t('components.job-ad.executive', 'Executive'),
+});
+const MODE = (): Readonly<Record<string, string>> => ({
+  onsite: t('components.job-ad.on_site', 'On site'),
+  hybrid: t('components.job-ad.hybrid', 'Hybrid'),
+  remote: t('components.job-ad.remote', 'Remote'),
+});
+const LANGUAGE = (): Readonly<Record<string, string>> => ({
+  en: t('components.job-ad.english', 'English'),
+  es: t('components.job-ad.spanish', 'Spanish'),
+  de: t('components.job-ad.german', 'German'),
+  hi: t('components.job-ad.hindi', 'Hindi'),
+});
 
 const BENEFIT_ICON: Readonly<Record<string, string>> = {
   health: 'health',
@@ -144,27 +145,44 @@ export function JobAd({
   const applyHref = `/${company}/${slug}/apply?lang=${job.language}`;
   const place = job.places[0];
   const facts = [
-    { label: 'Location', value: where(job) },
-    { label: 'Work mode', value: MODE[job.workMode] ?? job.workMode },
-    { label: 'Contract', value: job.contractType },
-    { label: 'Hours', value: hoursOf(job.hours) },
+    { label: t('components.job-ad.location', 'Location'), value: where(job) },
+    {
+      label: t('components.job-ad.work_mode', 'Work mode'),
+      value: MODE()[job.workMode] ?? job.workMode,
+    },
+    { label: t('components.job-ad.contract', 'Contract'), value: job.contractType },
+    { label: t('components.job-ad.hours', 'Hours'), value: hoursOf(job.hours) },
     ...(job.seniority === null
       ? []
-      : [{ label: 'Level', value: SENIORITY[job.seniority] ?? job.seniority }]),
-    ...(job.department === null ? [] : [{ label: 'Team', value: job.department }]),
-    ...(place === undefined ? [] : [{ label: 'Country', value: countryName(place.country) }]),
-    { label: 'Ad language', value: LANGUAGE[job.language] ?? job.language.toUpperCase() },
-    { label: 'Posted', value: day(job.postedAt) },
-    ...(job.validThrough === null ? [] : [{ label: 'Open until', value: day(job.validThrough) }]),
+      : [
+          {
+            label: t('components.job-ad.level', 'Level'),
+            value: SENIORITY()[job.seniority] ?? job.seniority,
+          },
+        ]),
+    ...(job.department === null
+      ? []
+      : [{ label: t('components.job-ad.team', 'Team'), value: job.department }]),
+    ...(place === undefined
+      ? []
+      : [{ label: t('components.job-ad.country', 'Country'), value: countryName(place.country) }]),
+    {
+      label: t('components.job-ad.ad_language', 'Ad language'),
+      value: LANGUAGE()[job.language] ?? job.language.toUpperCase(),
+    },
+    { label: t('components.job-ad.posted', 'Posted'), value: day(job.postedAt) },
+    ...(job.validThrough === null
+      ? []
+      : [{ label: t('components.job-ad.open_until', 'Open until'), value: day(job.validThrough) }]),
   ];
   const apply = preview ? (
     <Button id={APPLY_ID} variant="primary" size="lg" disabled className="w-full">
-      Apply now
+      {t('components.job-ad.apply_now', 'Apply now')}
     </Button>
   ) : (
     <Button asChild variant="primary" size="lg" className="w-full">
       <Link id={APPLY_ID} href={applyHref}>
-        Apply now
+        {t('components.job-ad.apply_now', 'Apply now')}
       </Link>
     </Button>
   );
@@ -192,7 +210,10 @@ export function JobAd({
           >
             {job.title}
           </h1>
-          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-base text-fg" aria-label="At a glance">
+          <ul
+            className="flex flex-wrap gap-x-6 gap-y-2 text-base text-fg"
+            aria-label={t('components.job-ad.at_a_glance', 'At a glance')}
+          >
             <Fact index={0} icon={<icons.location aria-hidden />}>
               {where(job)}
             </Fact>
@@ -206,13 +227,16 @@ export function JobAd({
             )}
             {job.seniority === null ? null : (
               <Fact index={3} icon={<icons.goal aria-hidden />}>
-                {SENIORITY[job.seniority] ?? job.seniority}
+                {SENIORITY()[job.seniority] ?? job.seniority}
               </Fact>
             )}
           </ul>
           {job.otherLanguages.length === 0 ? null : (
-            <nav aria-label="Read in" className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-fg-muted">Read in</span>
+            <nav
+              aria-label={t('components.job-ad.read_in', 'Read in')}
+              className="flex flex-wrap items-center gap-2 text-sm"
+            >
+              <span className="text-fg-muted">{t('components.job-ad.read_in', 'Read in')}</span>
               {[job.language, ...job.otherLanguages].map((l) => (
                 <Button
                   key={l}
@@ -221,7 +245,7 @@ export function JobAd({
                   variant={l === job.language ? 'primary' : 'secondary'}
                 >
                   <Link href={`/${company}/${slug}?lang=${l}`} lang={l}>
-                    {LANGUAGE[l] ?? l.toUpperCase()}
+                    {LANGUAGE()[l] ?? l.toUpperCase()}
                   </Link>
                 </Button>
               ))}
@@ -242,14 +266,18 @@ export function JobAd({
         <div className="flex min-w-0 flex-col gap-10">
           {job.nycNotice ? (
             <p className="rounded-lg bg-surface-sunken px-4 py-3 text-sm text-fg-muted">
-              This employer uses an automated tool in New York City to help assess applications (NYC
-              Local Law 144). You may ask for an alternative process.
+              {t(
+                'components.job-ad.this_employer_uses_an_automated_tool',
+                'This employer uses an automated tool in New York City to help assess applications (NYC Local Law 144). You may ask for an alternative process.',
+              )}
             </p>
           ) : null}
           <RichTextContent sanitisedHtml={job.html} className="job-ad" />
           {job.benefits.length === 0 ? null : (
             <section className="flex flex-col gap-6">
-              <h2 className="text-2xl font-bold tracking-[-0.01em]">What we offer</h2>
+              <h2 className="text-2xl font-bold tracking-[-0.01em]">
+                {t('components.job-ad.what_we_offer', 'What we offer')}
+              </h2>
               {/* By category, each led by its icon and name; every benefit a name and a line. */}
               <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
                 {benefitGroups(job.benefits).map((g) => {
@@ -283,7 +311,9 @@ export function JobAd({
           )}
           {job.process.length === 0 ? null : (
             <section className="flex flex-col gap-4">
-              <h2 className="text-2xl font-bold tracking-[-0.01em]">How we hire</h2>
+              <h2 className="text-2xl font-bold tracking-[-0.01em]">
+                {t('components.job-ad.how_we_hire', 'How we hire')}
+              </h2>
               <Timeline>
                 {job.process.map((step, i) => (
                   <TimelineItem
@@ -302,18 +332,26 @@ export function JobAd({
         <aside className="flex flex-col gap-4 lg:self-start">
           <div className="flex flex-col gap-5 rounded-2xl bg-surface p-6 shadow-md">
             {pay === null ? (
-              <p className="text-lg font-semibold text-fg-muted">Pay not shown</p>
+              <p className="text-lg font-semibold text-fg-muted">
+                {t('components.job-ad.pay_not_shown', 'Pay not shown')}
+              </p>
             ) : (
               <div className="flex flex-col">
-                <span className="text-sm text-fg-muted">Pays</span>
+                <span className="text-sm text-fg-muted">{t('components.job-ad.pays', 'Pays')}</span>
                 <span className="text-2xl font-bold tracking-[-0.01em]">{pay}</span>
               </div>
             )}
             {apply}
             <p className="text-sm text-fg-muted">
               {preview
-                ? 'A preview: nobody can apply from here.'
-                : 'No account needed. Your CV fills most of the form.'}
+                ? t(
+                    'components.job-ad.a_preview_nobody_can_apply_from',
+                    'A preview: nobody can apply from here.',
+                  )
+                : t(
+                    'components.job-ad.no_account_needed_your_cv_fills',
+                    'No account needed. Your CV fills most of the form.',
+                  )}
             </p>
             <KeyValues items={facts} layout="aligned" labelWidth="7rem" className="text-sm" />
           </div>

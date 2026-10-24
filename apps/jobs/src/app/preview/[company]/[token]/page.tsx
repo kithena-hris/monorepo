@@ -5,8 +5,14 @@ import type { JSX } from 'react';
 
 import { JobAd } from '../../../../components/job-ad';
 import { preview as readPreview } from '../../../../lib/api';
+import { t } from '../../../../lib/i18n';
 
-export const metadata: Metadata = { title: 'Preview', robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  get title(): string {
+    return t('app.preview.[company].[token].page.preview', 'Preview');
+  },
+  robots: { index: false, follow: false },
+};
 
 /**
  * R7: a job as it will look here, for the team that is writing it. Behind a
@@ -24,9 +30,15 @@ export default async function PreviewPage({
   const j = answer.data;
   return (
     <>
-      <Alert tone="info" title="A preview" className="-mb-2">
-        This is how candidates will see the ad. It is not published, and this link is the team’s
-        for a day.
+      <Alert
+        tone="info"
+        title={t('app.preview.[company].[token].page.a_preview', 'A preview')}
+        className="-mb-2"
+      >
+        {t(
+          'app.preview.[company].[token].page.this_is_how_candidates_will_see',
+          'This is how candidates will see the ad. It is not published, and this link is the team’s for a day.',
+        )}
       </Alert>
       <JobAd job={j} company={company} slug={j.slug} preview />
     </>

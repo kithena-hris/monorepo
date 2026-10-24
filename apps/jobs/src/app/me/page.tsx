@@ -4,8 +4,14 @@ import type { JSX } from 'react';
 
 import { applicationsOf, me } from '../../lib/account';
 import { AccountHome } from './account-home';
+import { t } from '../../lib/i18n';
 
-export const metadata: Metadata = { title: 'Your applications', robots: { index: false } };
+export const metadata: Metadata = {
+  get title(): string {
+    return t('app.me.page.your_applications', 'Your applications');
+  },
+  robots: { index: false },
+};
 
 /**
  * The candidate's home (PRD §10.5, extended): every application across every

@@ -17,6 +17,7 @@ import { useState, useTransition, type JSX } from 'react';
 
 import { planSearch } from '../lib/browser-api';
 import { countryName } from '../lib/format';
+import { t } from '../lib/i18n';
 
 /**
  * The search (J1, J2, J8): one bar, two ways to say it. Keywords and a
@@ -47,15 +48,19 @@ export function SearchBar({
   return (
     <div className="flex w-full max-w-3xl flex-col gap-3">
       <SegmentedControl
-        aria-label="How to search"
+        aria-label={t('components.search-bar.how_to_search', 'How to search')}
         size="sm"
         value={mode}
         onValueChange={(v) => {
           if (v === 'keywords' || v === 'describe') setMode(v);
         }}
       >
-        <SegmentedControlItem value="keywords">Keywords</SegmentedControlItem>
-        <SegmentedControlItem value="describe">Describe it</SegmentedControlItem>
+        <SegmentedControlItem value="keywords">
+          {t('components.search-bar.keywords', 'Keywords')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="describe">
+          {t('components.search-bar.describe_it', 'Describe it')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {mode === 'keywords' ? (
         <form action="/search" method="get" role="search" className="flex w-full flex-col gap-2">
@@ -64,16 +69,28 @@ export function SearchBar({
               name="q"
               size={control}
               defaultValue={q}
-              aria-label="Job title, skill or company"
-              placeholder="Job title, skill or company"
+              aria-label={t(
+                'components.search-bar.job_title_skill_or_company',
+                'Job title, skill or company',
+              )}
+              placeholder={t(
+                'components.search-bar.job_title_skill_or_company',
+                'Job title, skill or company',
+              )}
               className="flex-1"
             />
             <Select name="country" defaultValue={country === '' ? 'any' : country}>
-              <SelectTrigger aria-label="Country" size={control} className="sm:w-48">
+              <SelectTrigger
+                aria-label={t('components.search-bar.country', 'Country')}
+                size={control}
+                className="sm:w-48"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="any">Anywhere</SelectItem>
+                <SelectItem value="any">
+                  {t('components.search-bar.anywhere', 'Anywhere')}
+                </SelectItem>
                 {['DE', 'ES', 'GB', 'IN', 'US'].map((c) => (
                   <SelectItem key={c} value={c}>
                     {countryName(c)}
@@ -82,11 +99,14 @@ export function SearchBar({
               </SelectContent>
             </Select>
             <Button type="submit" size={control} startIcon={<icons.search aria-hidden />}>
-              Search
+              {t('components.search-bar.search', 'Search')}
             </Button>
           </div>
           <p className="text-sm text-fg-muted">
-            A title, a skill or a company; a country narrows it. Every filter is in the address.
+            {t(
+              'components.search-bar.a_title_a_skill_or_a',
+              'A title, a skill or a company; a country narrows it. Every filter is in the address.',
+            )}
           </p>
         </form>
       ) : (
@@ -115,8 +135,14 @@ export function SearchBar({
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               size={control}
-              aria-label="Describe the job you want"
-              placeholder="Remote design jobs in Spain paying over 50k"
+              aria-label={t(
+                'components.search-bar.describe_the_job_you_want',
+                'Describe the job you want',
+              )}
+              placeholder={t(
+                'components.search-bar.remote_design_jobs_in_spain_paying',
+                'Remote design jobs in Spain paying over 50k',
+              )}
               value={sentence}
               onChange={(e) => {
                 setSentence(e.target.value);
@@ -130,13 +156,19 @@ export function SearchBar({
               loading={pending}
               disabled={sentence.trim().length < 3}
             >
-              Find jobs
+              {t('components.search-bar.find_jobs', 'Find jobs')}
             </Button>
           </div>
           <p className="text-sm text-fg-muted">
             {failed
-              ? 'That one did not turn into filters. Try keywords, or say it another way.'
-              : 'An AI turns your words into filters you can see and change. It never ranks you.'}
+              ? t(
+                  'components.search-bar.that_one_did_not_turn_into',
+                  'That one did not turn into filters. Try keywords, or say it another way.',
+                )
+              : t(
+                  'components.search-bar.an_ai_turns_your_words_into',
+                  'An AI turns your words into filters you can see and change. It never ranks you.',
+                )}
           </p>
         </form>
       )}

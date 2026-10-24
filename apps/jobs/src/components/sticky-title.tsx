@@ -3,6 +3,7 @@
 import { Button } from '@reach/ui';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type JSX } from 'react';
+import { t } from '../lib/i18n';
 
 /** The site header's height and its line: what is under it is not on screen. */
 const UNDER_HEADER = '-65px 0px 0px 0px';
@@ -82,7 +83,7 @@ export function StickyTitle({
               tabIndex={shown ? 0 : -1}
               className="max-lg:hidden"
             >
-              <Link href={applyHref}>Apply now</Link>
+              <Link href={applyHref}>{t('components.sticky-title.apply_now', 'Apply now')}</Link>
             </Button>
           )}
         </div>
@@ -95,7 +96,7 @@ export function StickyTitle({
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">{thumb}</span>
             <Button asChild variant="primary" size="md" tabIndex={thumbShown ? 0 : -1}>
-              <Link href={applyHref}>Apply now</Link>
+              <Link href={applyHref}>{t('components.sticky-title.apply_now', 'Apply now')}</Link>
             </Button>
           </div>
         </div>

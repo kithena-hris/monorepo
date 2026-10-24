@@ -4,6 +4,7 @@ import type { CandidatePage } from '@kithena/contracts';
 import { cookies } from 'next/headers';
 
 import { publicCall, type Answer } from './api';
+import { t } from './i18n';
 
 /**
  * The candidate's account on this site (PRD §10.5, extended): one across
@@ -62,7 +63,14 @@ export async function accountCall<T>(
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
   } catch {
-    return { ok: false, status: 503, message: 'Kithena Jobs is not reachable right now.' };
+    return {
+      ok: false,
+      status: 503,
+      message: t(
+        'lib.account.kithena_jobs_is_not_reachable_right',
+        'Kithena Jobs is not reachable right now.',
+      ),
+    };
   }
   const body = (await response.json().catch(() => null)) as
     { error?: { message?: string } } | T | null;
@@ -71,7 +79,8 @@ export async function accountCall<T>(
       ok: false,
       status: response.status,
       message:
-        (body as { error?: { message?: string } } | null)?.error?.message ?? 'Something went wrong',
+        (body as { error?: { message?: string } } | null)?.error?.message ??
+        t('lib.account.something_went_wrong', 'Something went wrong'),
     };
   return { ok: true, data: body as T };
 }

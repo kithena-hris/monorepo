@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useState, useTransition, type JSX } from 'react';
 
 import { asUpload, publicApi } from '../../../lib/browser-api';
+import { t } from '../../../lib/i18n';
 
 interface Portal {
   readonly agency: string;
@@ -57,29 +58,39 @@ type Submission = Portal['submissions'][number];
 const submissionId = (s: Submission): string => s.id;
 const submissionName = (s: Submission): string => s.candidate;
 
-const SUBMISSION_COLUMNS: readonly DataColumn<Submission>[] = [
-  { id: 'candidate', header: 'Candidate', sortBy: (s) => s.candidate, cell: (s) => s.candidate },
-  { id: 'job', header: 'Job', sortBy: (s) => s.job, cell: (s) => s.job },
+const SUBMISSION_COLUMNS = (): readonly DataColumn<Submission>[] => [
+  {
+    id: 'candidate',
+    header: t('app.agency.[company].agency-portal.candidate', 'Candidate'),
+    sortBy: (s) => s.candidate,
+    cell: (s) => s.candidate,
+  },
+  {
+    id: 'job',
+    header: t('app.agency.[company].agency-portal.job', 'Job'),
+    sortBy: (s) => s.job,
+    cell: (s) => s.job,
+  },
   {
     id: 'stage',
-    header: 'Stage',
+    header: t('app.agency.[company].agency-portal.stage', 'Stage'),
     cardTrailing: true,
     sortBy: (s) => s.outcome,
     cell: (s) => (
       <Badge size="sm" tone={s.outcome === 'active' ? 'info' : 'neutral'}>
         {s.outcome === 'active'
-          ? (s.stage ?? 'In review')
+          ? (s.stage ?? t('app.agency.[company].agency-portal.in_review', 'In review'))
           : s.outcome === 'hired'
-            ? 'Hired'
+            ? t('app.agency.[company].agency-portal.hired', 'Hired')
             : s.outcome === 'rejected'
-              ? 'Not progressed'
-              : 'Withdrawn'}
+              ? t('app.agency.[company].agency-portal.not_progressed', 'Not progressed')
+              : t('app.agency.[company].agency-portal.withdrawn', 'Withdrawn')}
       </Badge>
     ),
   },
   {
     id: 'submitted',
-    header: 'Submitted',
+    header: t('app.agency.[company].agency-portal.submitted', 'Submitted'),
     sortBy: (s) => s.submittedOn,
     cell: (s) => s.submittedOn,
   },
@@ -152,17 +163,30 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
           });
         }}
       >
-        <h1 className="text-2xl font-bold">Agency portal</h1>
+        <h1 className="text-2xl font-bold">
+          {t('app.agency.[company].agency-portal.agency_portal', 'Agency portal')}
+        </h1>
         <p className="text-fg-muted">
-          For agencies the company has invited. We send a code to the address it has for you.
+          {t(
+            'app.agency.[company].agency-portal.for_agencies_the_company_has_invited',
+            'For agencies the company has invited. We send a code to the address it has for you.',
+          )}
         </p>
         {error === null ? null : (
-          <Alert tone="danger" title="That did not go through">
+          <Alert
+            tone="danger"
+            title={t(
+              'app.agency.[company].agency-portal.that_did_not_go_through',
+              'That did not go through',
+            )}
+          >
             {error}
           </Alert>
         )}
         <Field required>
-          <FieldLabel>Your email</FieldLabel>
+          <FieldLabel>
+            {t('app.agency.[company].agency-portal.your_email', 'Your email')}
+          </FieldLabel>
           <FieldControl>
             <Input
               type="email"
@@ -178,9 +202,18 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
         {asked ? (
           <>
             <p className="text-sm text-fg-muted">
-              If this address belongs to an invited agency, a code is on its way.
+              {t(
+                'app.agency.[company].agency-portal.if_this_address_belongs_to_an',
+                'If this address belongs to an invited agency, a code is on its way.',
+              )}
             </p>
-            <PinInput label="The code" length={6} value={code} onChange={setCode} type="numeric" />
+            <PinInput
+              label={t('app.agency.[company].agency-portal.the_code', 'The code')}
+              length={6}
+              value={code}
+              onChange={setCode}
+              type="numeric"
+            />
           </>
         ) : null}
         <Button
@@ -188,7 +221,9 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
           loading={pending}
           disabled={email === '' || (asked && code.length !== 6)}
         >
-          {asked ? 'Sign in' : 'Send me a code'}
+          {asked
+            ? t('app.agency.[company].agency-portal.sign_in', 'Sign in')
+            : t('app.agency.[company].agency-portal.send_me_a_code', 'Send me a code')}
         </Button>
       </form>
     );
@@ -197,15 +232,29 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">{portal.agency}</h1>
-        <p className="text-fg-muted">{`Your candidates for ${portal.company}`}</p>
+        <p className="text-fg-muted">
+          {t(
+            'app.agency.[company].agency-portal.your_candidates_for',
+            'Your candidates for {{company}}',
+            { company: portal.company },
+          )}
+        </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Submit a candidate</CardTitle>
+          <CardTitle level={2}>
+            {t('app.agency.[company].agency-portal.submit_a_candidate', 'Submit a candidate')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {portal.jobs.length === 0 ? (
-            <EmptyState icon={<icons.work aria-hidden />} title="No open jobs for you right now" />
+            <EmptyState
+              icon={<icons.work aria-hidden />}
+              title={t(
+                'app.agency.[company].agency-portal.no_open_jobs_for_you_right',
+                'No open jobs for you right now',
+              )}
+            />
           ) : (
             <form
               className="flex flex-col gap-4"
@@ -233,16 +282,33 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
               }}
             >
               {error === null ? null : (
-                <Alert tone="danger" title="Not submitted">
+                <Alert
+                  tone="danger"
+                  title={t('app.agency.[company].agency-portal.not_submitted', 'Not submitted')}
+                >
                   {error}
                 </Alert>
               )}
-              {sent === null ? null : <Alert tone="success" title={`${sent} is submitted`} />}
+              {sent === null ? null : (
+                <Alert
+                  tone="success"
+                  title={t(
+                    'app.agency.[company].agency-portal.is_submitted',
+                    '{{sent}} is submitted',
+                    { sent },
+                  )}
+                />
+              )}
               <Field required>
-                <FieldLabel>Job</FieldLabel>
+                <FieldLabel>{t('app.agency.[company].agency-portal.job', 'Job')}</FieldLabel>
                 <Select value={jobId} onValueChange={setJobId}>
-                  <SelectTrigger aria-label="Job">
-                    <SelectValue placeholder="Choose a job" />
+                  <SelectTrigger aria-label={t('app.agency.[company].agency-portal.job', 'Job')}>
+                    <SelectValue
+                      placeholder={t(
+                        'app.agency.[company].agency-portal.choose_a_job',
+                        'Choose a job',
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {portal.jobs.map((j) => (
@@ -254,7 +320,9 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
                 </Select>
               </Field>
               <Field required>
-                <FieldLabel>Candidate’s name</FieldLabel>
+                <FieldLabel>
+                  {t('app.agency.[company].agency-portal.candidates_name', 'Candidate’s name')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     value={name}
@@ -265,7 +333,9 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
                 </FieldControl>
               </Field>
               <Field required>
-                <FieldLabel>Candidate’s email</FieldLabel>
+                <FieldLabel>
+                  {t('app.agency.[company].agency-portal.candidates_email', 'Candidate’s email')}
+                </FieldLabel>
                 <FieldControl>
                   <Input
                     type="email"
@@ -277,8 +347,11 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
                 </FieldControl>
               </Field>
               <Dropzone
-                label="CV (optional)"
-                hint="PDF, DOCX, ODT or RTF, up to 10 MB"
+                label={t('app.agency.[company].agency-portal.cv_optional', 'CV (optional)')}
+                hint={t(
+                  'app.agency.[company].agency-portal.pdf_docx_odt_or_rtf_up',
+                  'PDF, DOCX, ODT or RTF, up to 10 MB',
+                )}
                 accept=".pdf,.docx,.odt,.rtf,application/pdf"
                 onFiles={(picked) => {
                   const file = picked[0];
@@ -296,7 +369,7 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
                 loading={pending}
                 disabled={jobId === '' || name === '' || candidateEmail === ''}
               >
-                Submit
+                {t('app.agency.[company].agency-portal.submit', 'Submit')}
               </Button>
             </form>
           )}
@@ -304,20 +377,31 @@ export function AgencyPortal({ company }: { readonly company: string }): JSX.Ele
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle level={2}>Submitted</CardTitle>
+          <CardTitle level={2}>
+            {t('app.agency.[company].agency-portal.submitted', 'Submitted')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {portal.submissions.length === 0 ? (
-            <EmptyState icon={<icons.people aria-hidden />} title="Nobody submitted yet" />
+            <EmptyState
+              icon={<icons.people aria-hidden />}
+              title={t(
+                'app.agency.[company].agency-portal.nobody_submitted_yet',
+                'Nobody submitted yet',
+              )}
+            />
           ) : (
             <DataTable<Submission>
-              label="Submitted candidates"
+              label={t(
+                'app.agency.[company].agency-portal.submitted_candidates',
+                'Submitted candidates',
+              )}
               rows={portal.submissions}
               rowId={submissionId}
               describeRow={submissionName}
               stickyHeader
               containerClassName="max-h-[70dvh] min-h-64"
-              columns={SUBMISSION_COLUMNS}
+              columns={SUBMISSION_COLUMNS()}
             />
           )}
         </CardContent>

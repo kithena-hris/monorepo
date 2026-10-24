@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../../../lib/browser-api';
+import { t } from '../../../lib/i18n';
 
 const words = (s: string) => s.replaceAll('_', ' ').replace(/^./u, (c) => c.toUpperCase());
 
@@ -46,31 +47,61 @@ export function SelfIdForm({
     });
   }, [company, token, path]);
   if (asked === null || (asked.gender === null && asked.ethnicity === null)) return null;
-  if (done) return <Alert tone="success" title="Thank you. Your answers are sealed." />;
+  if (done)
+    return (
+      <Alert
+        tone="success"
+        title={t(
+          'app.me.[company].self-id.thank_you_your_answers_are_sealed',
+          'Thank you. Your answers are sealed.',
+        )}
+      />
+    );
   return (
     <div className="flex flex-col gap-3 border-t border-[var(--reach-line)] pt-3">
-      <p className="font-medium">Optional: help us check we hire fairly</p>
+      <p className="font-medium">
+        {t(
+          'app.me.[company].self-id.optional_help_us_check_we_hire',
+          'Optional: help us check we hire fairly',
+        )}
+      </p>
       <p className="text-sm text-fg-muted">
-        Your answers are sealed and kept apart from your application. Nobody deciding on it sees
-        them, and they are only ever counted in groups of five or more people.
+        {t(
+          'app.me.[company].self-id.your_answers_are_sealed_and_kept',
+          'Your answers are sealed and kept apart from your application. Nobody deciding on it sees them, and they are only ever counted in groups of five or more people.',
+        )}
       </p>
       {(['gender', 'ethnicity'] as const).map((k) =>
         asked[k] === null ? null : (
           <Field key={k}>
-            <FieldLabel>{k === 'gender' ? 'Gender' : 'Race or ethnicity'}</FieldLabel>
+            <FieldLabel>
+              {k === 'gender'
+                ? t('app.me.[company].self-id.gender', 'Gender')
+                : t('app.me.[company].self-id.race_or_ethnicity', 'Race or ethnicity')}
+            </FieldLabel>
             <Select
               value={answers[k] ?? ''}
               onValueChange={(v) => {
                 setAnswers({ ...answers, [k]: v });
               }}
             >
-              <SelectTrigger aria-label={k === 'gender' ? 'Gender' : 'Race or ethnicity'}>
-                <SelectValue placeholder="Prefer not to say" />
+              <SelectTrigger
+                aria-label={
+                  k === 'gender'
+                    ? t('app.me.[company].self-id.gender', 'Gender')
+                    : t('app.me.[company].self-id.race_or_ethnicity', 'Race or ethnicity')
+                }
+              >
+                <SelectValue
+                  placeholder={t('app.me.[company].self-id.prefer_not_to_say', 'Prefer not to say')}
+                />
               </SelectTrigger>
               <SelectContent>
                 {(asked[k] ?? []).map((o) => (
                   <SelectItem key={o} value={o}>
-                    {o === 'undisclosed' ? 'Prefer not to say' : words(o)}
+                    {o === 'undisclosed'
+                      ? t('app.me.[company].self-id.prefer_not_to_say', 'Prefer not to say')
+                      : words(o)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -93,7 +124,7 @@ export function SelfIdForm({
             });
           }}
         >
-          Send
+          {t('app.me.[company].self-id.send', 'Send')}
         </Button>
         <Button
           size="sm"
@@ -102,7 +133,7 @@ export function SelfIdForm({
             setDone(true);
           }}
         >
-          Skip
+          {t('app.me.[company].self-id.skip', 'Skip')}
         </Button>
       </div>
     </div>

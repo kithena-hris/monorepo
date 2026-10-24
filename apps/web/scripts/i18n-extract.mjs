@@ -57,6 +57,12 @@ export const SOURCES = {
     dir: 'apps/tenant-mobile/src',
     area: 'Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone',
   },
+  // The public job site. Its words, and its copy of Reach's, live beside it
+  // (`apps/jobs/src/locales/`): it is its own app and cannot import the web's.
+  jobs: {
+    dir: 'apps/jobs/src',
+    area: 'Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee',
+  },
   // Emails, always in the company's language whatever the reader chose for
   // screens: each service keeps its own words beside its code, so a module's
   // emails never live outside the module (`<dir>/locales/<language>.json`).
@@ -204,7 +210,11 @@ function extract(ns) {
   const routes = join(ROOT, dir, '../public/routes.json');
   if (existsSync(routes)) {
     const manifest = JSON.parse(readFileSync(routes, 'utf8'));
-    const PLACES = { sections: 'a section of the area', actions: 'an action the area offers', settings: 'a page of the area’s settings' };
+    const PLACES = {
+      sections: 'a section of the area',
+      actions: 'an action the area offers',
+      settings: 'a page of the area’s settings',
+    };
     const FIELDS = {
       label: 'its name in the sidebar, the breadcrumb and the menus',
       short: 'its short name, on a tab under a finger',
@@ -215,12 +225,19 @@ function extract(ns) {
     const place = (p, what) => {
       for (const [field, role] of Object.entries(FIELDS))
         if (typeof p[field] === 'string')
-          out[`nav.${p.path}.${field}`] ??= { text: p[field], context: `${area}. Navigation, ${what} (${p.path}): ${role}.` };
+          out[`nav.${p.path}.${field}`] ??= {
+            text: p[field],
+            context: `${area}. Navigation, ${what} (${p.path}): ${role}.`,
+          };
       for (const [r, text] of Object.entries(p.labelFor ?? {}))
-        out[`nav.${p.path}.label_for.${r}`] ??= { text, context: `${area}. Navigation, ${what} (${p.path}): its name for a viewer whose role is ${r}.` };
+        out[`nav.${p.path}.label_for.${r}`] ??= {
+          text,
+          context: `${area}. Navigation, ${what} (${p.path}): its name for a viewer whose role is ${r}.`,
+        };
       for (const tab of p.tabs ?? []) place(tab, `a tab of ${p.label}`);
     };
-    for (const [list, what] of Object.entries(PLACES)) for (const p of manifest[list] ?? []) place(p, what);
+    for (const [list, what] of Object.entries(PLACES))
+      for (const p of manifest[list] ?? []) place(p, what);
   }
   return {
     catalogue: Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b))),
@@ -252,5 +269,21 @@ for (const ns of Object.keys(SOURCES)) {
     writeFileSync(path, next);
     console.log(`${ns}: ${String(Object.keys(catalogue).length)} keys`);
   }
+}
+// The job site's copy of Reach's words is the web's, word for word.
+const WEB_LOCALES = join(ROOT, 'apps/web/src/locales');
+const JOBS_REACH = join(ROOT, 'apps/jobs/src/locales/reach');
+for (const language of execFileSync('ls', [WEB_LOCALES], { encoding: 'utf8' })
+  .split('\n')
+  .filter((name) => /^[a-z]{2}(-[A-Z]{2})?$/u.test(name))) {
+  const web = join(WEB_LOCALES, language, 'reach.json');
+  const copy = join(JOBS_REACH, `${language}.json`);
+  if (!existsSync(web) && !existsSync(copy)) continue;
+  const want = existsSync(web) ? readFileSync(web, 'utf8') : '{}\n';
+  if (existsSync(copy) && readFileSync(copy, 'utf8') === want) continue;
+  console.error(
+    `apps/jobs/src/locales/reach/${language}.json is not the web's: run pnpm --filter @kithena/web i18n:translate`,
+  );
+  failed = true;
 }
 if (failed) process.exit(1);

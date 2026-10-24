@@ -1,4 +1,3 @@
-import { t } from '../i18n';
 
 /**
  * What the phone works out from a value as it is typed (design v3 P15, P20):

@@ -4,12 +4,13 @@ import Link from 'next/link';
 import type { JSX } from 'react';
 
 import { ago, hours, salary, where } from '../lib/format';
+import { t } from '../lib/i18n';
 
-const MODE: Readonly<Record<string, string>> = {
-  onsite: 'On site',
-  hybrid: 'Hybrid',
-  remote: 'Remote',
-};
+const MODE = (): Readonly<Record<string, string>> => ({
+  onsite: t('components.job-card.on_site', 'On site'),
+  hybrid: t('components.job-card.hybrid', 'Hybrid'),
+  remote: t('components.job-card.remote', 'Remote'),
+});
 
 /**
  * One job in a list: the search, the front page, the careers page, a closed
@@ -60,7 +61,7 @@ export function JobCard({
           )}
           <Badge size="sm">{`${job.contractType} · ${hours(job.hours)}`}</Badge>
           <Badge size="sm" variant="outline">
-            {MODE[job.workMode] ?? job.workMode}
+            {MODE()[job.workMode] ?? job.workMode}
           </Badge>
           {job.department === null ? null : (
             <Badge size="sm" variant="outline">

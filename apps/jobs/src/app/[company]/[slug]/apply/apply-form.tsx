@@ -30,26 +30,33 @@ import Link from 'next/link';
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { asUpload, publicApi } from '../../../../lib/browser-api';
+import { t } from '../../../../lib/i18n';
 
 type FormField = PublicJob['form'][number];
 
 /** What goes in a box, by the field's key first and its kind after: a shape, never an instruction. */
-const PLACEHOLDER: Readonly<Record<string, string>> = {
-  name: 'Ada Lovelace',
+const PLACEHOLDER = (): Readonly<Record<string, string>> => ({
+  name: t('app.[company].[slug].apply.apply-form.ada_lovelace', 'Ada Lovelace'),
   email: 'ada@example.com',
   phone: '+44 7700 900123',
   url: 'https://',
   linkedin: 'https://www.linkedin.com/in/…',
   portfolio: 'https://',
   number: '0',
-};
+});
 type Value = string | boolean | readonly string[];
 
-const STEPS = [
-  { id: 'cv', label: 'Your CV' },
-  { id: 'details', label: 'Your details' },
-  { id: 'consent', label: 'Before you send' },
-  { id: 'code', label: 'Check your email' },
+const STEPS = () => [
+  { id: 'cv', label: t('app.[company].[slug].apply.apply-form.your_cv', 'Your CV') },
+  { id: 'details', label: t('app.[company].[slug].apply.apply-form.your_details', 'Your details') },
+  {
+    id: 'consent',
+    label: t('app.[company].[slug].apply.apply-form.before_you_send', 'Before you send'),
+  },
+  {
+    id: 'code',
+    label: t('app.[company].[slug].apply.apply-form.check_your_email', 'Check your email'),
+  },
 ];
 
 /** One answer, drawn as its kind asks. */
@@ -74,8 +81,12 @@ function Answer({
             onChange(v === 'yes');
           }}
         >
-          <SegmentedControlItem value="yes">Yes</SegmentedControlItem>
-          <SegmentedControlItem value="no">No</SegmentedControlItem>
+          <SegmentedControlItem value="yes">
+            {t('app.[company].[slug].apply.apply-form.yes', 'Yes')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="no">
+            {t('app.[company].[slug].apply.apply-form.no', 'No')}
+          </SegmentedControlItem>
         </SegmentedControl>
       </Field>
     );
@@ -86,7 +97,9 @@ function Answer({
         <Select value={typeof value === 'string' ? value : ''} onValueChange={onChange}>
           <FieldControl>
             <SelectTrigger>
-              <SelectValue placeholder="Choose…" />
+              <SelectValue
+                placeholder={t('app.[company].[slug].apply.apply-form.choose', 'Choose…')}
+              />
             </SelectTrigger>
           </FieldControl>
           <SelectContent>
@@ -160,7 +173,7 @@ function Answer({
                       ? 'number'
                       : 'text'
             }
-            placeholder={PLACEHOLDER[field.key] ?? PLACEHOLDER[field.kind]}
+            placeholder={PLACEHOLDER()[field.key] ?? PLACEHOLDER()[field.kind]}
             autoComplete={
               field.key === 'name'
                 ? 'name'
@@ -297,11 +310,17 @@ export function ApplyForm({
       <Card padded>
         <EmptyState
           icon={<icons.success aria-hidden />}
-          title="Application sent"
-          description={`${job.company.name} will be in touch. Every email has a link to follow your application.`}
+          title={t('app.[company].[slug].apply.apply-form.application_sent', 'Application sent')}
+          description={t(
+            'app.[company].[slug].apply.apply-form.will_be_in_touch_every_email',
+            '{{name}} will be in touch. Every email has a link to follow your application.',
+            { name: job.company.name },
+          )}
           action={
             <Button asChild variant="secondary">
-              <Link href="/search">See more jobs</Link>
+              <Link href="/search">
+                {t('app.[company].[slug].apply.apply-form.see_more_jobs', 'See more jobs')}
+              </Link>
             </Button>
           }
         />
@@ -311,14 +330,20 @@ export function ApplyForm({
   return (
     <div className="flex flex-col gap-6">
       <Stepper
-        label="Applying"
-        steps={account === null ? STEPS : STEPS.slice(0, 3)}
+        label={t('app.[company].[slug].apply.apply-form.applying', 'Applying')}
+        steps={account === null ? STEPS() : STEPS().slice(0, 3)}
         current={step}
         orientation="horizontal"
         size="sm"
       />
       {error === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t(
+            'app.[company].[slug].apply.apply-form.that_did_not_go_through',
+            'That did not go through',
+          )}
+        >
           {error}
         </Alert>
       )}
@@ -338,13 +363,18 @@ export function ApplyForm({
       {step === 0 ? (
         <section className="flex flex-col gap-4">
           <h2 className="text-2xl font-semibold">
-            {fileFields.length === 0 ? 'Nothing to upload' : 'Start with your CV'}
+            {fileFields.length === 0
+              ? t('app.[company].[slug].apply.apply-form.nothing_to_upload', 'Nothing to upload')
+              : t('app.[company].[slug].apply.apply-form.start_with_your_cv', 'Start with your CV')}
           </h2>
           {fileFields.map((f) => (
             <div key={f.key} className="flex flex-col gap-2">
               <Dropzone
                 label={`${f.label}${f.required ? '' : ' (optional)'}`}
-                hint="PDF, DOCX, ODT or RTF, up to 10 MB"
+                hint={t(
+                  'app.[company].[slug].apply.apply-form.pdf_docx_odt_or_rtf_up',
+                  'PDF, DOCX, ODT or RTF, up to 10 MB',
+                )}
                 accept=".pdf,.docx,.odt,.rtf,application/pdf"
                 onFiles={(picked) => {
                   const file = picked[0];
@@ -359,10 +389,21 @@ export function ApplyForm({
               />
               {files[f.key] === undefined ? (
                 f.key === 'cv' && account?.defaultCv != null ? (
-                  <p className="text-sm text-fg-muted">{`Nothing attached: ${account.defaultCv}, your default CV, goes with this application.`}</p>
+                  <p className="text-sm text-fg-muted">
+                    {t(
+                      'app.[company].[slug].apply.apply-form.nothing_attached_your_default_cv_goes',
+                      'Nothing attached: {{defaultCv}}, your default CV, goes with this application.',
+                      { defaultCv: account.defaultCv },
+                    )}
+                  </p>
                 ) : null
               ) : (
-                <p className="text-sm">{`${files[f.key]?.name ?? ''} · ${String(Math.ceil((files[f.key]?.size ?? 0) / 1024))} KB`}</p>
+                <p className="text-sm">
+                  {t('app.[company].[slug].apply.apply-form.kb', '{{value}} · {{String}} KB', {
+                    value: files[f.key]?.name ?? '',
+                    String: String(Math.ceil((files[f.key]?.size ?? 0) / 1024)),
+                  })}
+                </p>
               )}
             </div>
           ))}
@@ -374,13 +415,15 @@ export function ApplyForm({
               setStep(1);
             }}
           >
-            Next
+            {t('app.[company].[slug].apply.apply-form.next', 'Next')}
           </Button>
         </section>
       ) : null}
       {step === 1 ? (
         <section className="flex flex-col gap-4">
-          <h2 className="text-2xl font-semibold">Your details</h2>
+          <h2 className="text-2xl font-semibold">
+            {t('app.[company].[slug].apply.apply-form.your_details', 'Your details')}
+          </h2>
           {answerFields.map((f) => (
             <Answer
               key={f.key}
@@ -392,7 +435,12 @@ export function ApplyForm({
             />
           ))}
           <Field>
-            <FieldLabel>Anything we can adjust for you?</FieldLabel>
+            <FieldLabel>
+              {t(
+                'app.[company].[slug].apply.apply-form.anything_we_can_adjust_for_you',
+                'Anything we can adjust for you?',
+              )}
+            </FieldLabel>
             <FieldControl>
               <Textarea
                 autoResize
@@ -400,10 +448,18 @@ export function ApplyForm({
                 onChange={(e) => {
                   setAdjustments(e.target.value);
                 }}
-                placeholder="Step-free access, extra time, another format…"
+                placeholder={t(
+                  'app.[company].[slug].apply.apply-form.step_free_access_extra_time_another',
+                  'Step-free access, extra time, another format…',
+                )}
               />
             </FieldControl>
-            <FieldDescription>Goes to the recruiter, never into anyone’s score.</FieldDescription>
+            <FieldDescription>
+              {t(
+                'app.[company].[slug].apply.apply-form.goes_to_the_recruiter_never_into',
+                'Goes to the recruiter, never into anyone’s score.',
+              )}
+            </FieldDescription>
           </Field>
           <div className="flex justify-between">
             <Button
@@ -412,7 +468,7 @@ export function ApplyForm({
                 setStep(0);
               }}
             >
-              Back
+              {t('app.[company].[slug].apply.apply-form.back', 'Back')}
             </Button>
             <Button
               variant="primary"
@@ -421,25 +477,45 @@ export function ApplyForm({
                 setStep(2);
               }}
             >
-              Next
+              {t('app.[company].[slug].apply.apply-form.next', 'Next')}
             </Button>
           </div>
         </section>
       ) : null}
       {step === 2 ? (
         <section className="flex flex-col gap-4">
-          <h2 className="text-2xl font-semibold">Before you send</h2>
+          <h2 className="text-2xl font-semibold">
+            {t('app.[company].[slug].apply.apply-form.before_you_send', 'Before you send')}
+          </h2>
           <Card padded className="flex flex-col gap-2">
-            <h3 className="font-semibold">Processing for this application</h3>
+            <h3 className="font-semibold">
+              {t(
+                'app.[company].[slug].apply.apply-form.processing_for_this_application',
+                'Processing for this application',
+              )}
+            </h3>
             <p className="text-sm text-fg-muted">
-              {`${job.company.name} processes your data to consider you for this job, as a step before a contract, and deletes it on the schedule the law in its country sets after a decision.`}
+              {t(
+                'app.[company].[slug].apply.apply-form.processes_your_data_to_consider_you',
+                '{{name}} processes your data to consider you for this job, as a step before a contract, and deletes it on the schedule the law in its country sets after a decision.',
+                { name: job.company.name },
+              )}
             </p>
           </Card>
           {aedt === null ? null : (
             <Card padded className="flex flex-col gap-2">
-              <h3 className="font-semibold">An automated tool reads applications for this job</h3>
+              <h3 className="font-semibold">
+                {t(
+                  'app.[company].[slug].apply.apply-form.an_automated_tool_reads_applications_for',
+                  'An automated tool reads applications for this job',
+                )}
+              </h3>
               <p className="text-sm text-fg-muted">
-                {`${job.company.name} may use an automated employment decision tool, at the earliest ten business days from today, to compare what you send with the job’s criteria. A person decides. You may ask the recruiter for another way to be assessed, or for an accommodation, and what data it uses and how long it is kept. A summary of its latest bias audit is published by ${job.company.name}.`}
+                {t(
+                  'app.[company].[slug].apply.apply-form.may_use_an_automated_employment_decision',
+                  '{{name}} may use an automated employment decision tool, at the earliest ten business days from today, to compare what you send with the job’s criteria. A person decides. You may ask the recruiter for another way to be assessed, or for an accommodation, and what data it uses and how long it is kept. A summary of its latest bias audit is published by {{name}}.',
+                  { name: job.company.name },
+                )}
               </p>
               {aedt.length === 0 ? null : (
                 <ul className="list-disc ps-5 text-sm">
@@ -458,7 +534,13 @@ export function ApplyForm({
                 setConsent(on === true);
               }}
             />
-            <label htmlFor="consent">{`I agree to ${job.company.name} processing my application.`}</label>
+            <label htmlFor="consent">
+              {t(
+                'app.[company].[slug].apply.apply-form.i_agree_to_processing_my_application',
+                'I agree to {{name}} processing my application.',
+                { name: job.company.name },
+              )}
+            </label>
           </div>
           <div className="flex items-start gap-3">
             <Checkbox
@@ -468,7 +550,13 @@ export function ApplyForm({
                 setPool(on === true);
               }}
             />
-            <label htmlFor="pool">{`Keep me in ${job.company.name}’s talent pool for other jobs for 12 months (optional)`}</label>
+            <label htmlFor="pool">
+              {t(
+                'app.[company].[slug].apply.apply-form.keep_me_in_s_talent_pool',
+                'Keep me in {{name}}’s talent pool for other jobs for 12 months (optional)',
+                { name: job.company.name },
+              )}
+            </label>
           </div>
           {job.nycNotice ? (
             <div className="flex items-start gap-3">
@@ -480,8 +568,10 @@ export function ApplyForm({
                 }}
               />
               <label htmlFor="nyc">
-                I have read the notice that an automated tool helps review applications for this New
-                York City job.
+                {t(
+                  'app.[company].[slug].apply.apply-form.i_have_read_the_notice_that',
+                  'I have read the notice that an automated tool helps review applications for this New York City job.',
+                )}
               </label>
             </div>
           ) : null}
@@ -492,7 +582,7 @@ export function ApplyForm({
                 setStep(1);
               }}
             >
-              Back
+              {t('app.[company].[slug].apply.apply-form.back', 'Back')}
             </Button>
             {account === null ? (
               <Button
@@ -503,7 +593,7 @@ export function ApplyForm({
                 loading={pending}
                 onClick={askCode}
               >
-                Email me a code
+                {t('app.[company].[slug].apply.apply-form.email_me_a_code', 'Email me a code')}
               </Button>
             ) : (
               <Button
@@ -514,7 +604,7 @@ export function ApplyForm({
                 loading={pending}
                 onClick={send}
               >
-                Send application
+                {t('app.[company].[slug].apply.apply-form.send_application', 'Send application')}
               </Button>
             )}
           </div>
@@ -522,15 +612,29 @@ export function ApplyForm({
       ) : null}
       {step === 3 ? (
         <section className="flex flex-col gap-4">
-          <h2 className="text-2xl font-semibold">Check your email</h2>
-          <p className="text-fg-muted">{`We sent a six-digit code to ${email}. It confirms it’s you and keeps spam out.`}</p>
-          <PinInput label="The code" length={6} value={code} onChange={setCode} type="numeric" />
+          <h2 className="text-2xl font-semibold">
+            {t('app.[company].[slug].apply.apply-form.check_your_email', 'Check your email')}
+          </h2>
+          <p className="text-fg-muted">
+            {t(
+              'app.[company].[slug].apply.apply-form.we_sent_a_six_digit_code',
+              'We sent a six-digit code to {{email}}. It confirms it’s you and keeps spam out.',
+              { email },
+            )}
+          </p>
+          <PinInput
+            label={t('app.[company].[slug].apply.apply-form.the_code', 'The code')}
+            length={6}
+            value={code}
+            onChange={setCode}
+            type="numeric"
+          />
           <div className="flex justify-between">
             <Button variant="ghost" loading={pending} onClick={askCode}>
-              Send a new code
+              {t('app.[company].[slug].apply.apply-form.send_a_new_code', 'Send a new code')}
             </Button>
             <Button variant="primary" disabled={code.length !== 6} loading={pending} onClick={send}>
-              Send application
+              {t('app.[company].[slug].apply.apply-form.send_application', 'Send application')}
             </Button>
           </div>
         </section>

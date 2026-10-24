@@ -34,6 +34,8 @@ import { useMemo, useState, useTransition, type JSX } from 'react';
 import type { AccountHome as Home } from '../../lib/account';
 import { accountApi, asUpload, publicApi } from '../../lib/browser-api';
 import { NoticeDialog, NoticeList, noticesOf, type Notice } from '../../components/asks';
+import { t } from '../../lib/i18n';
+import { locale } from '@reach/ui/intl';
 
 /**
  * Every application, across every company, in one place: searched, filtered
@@ -48,12 +50,12 @@ type Row = {
   readonly application: CandidatePage['applications'][number];
 };
 
-const OUTCOME: Readonly<Record<string, string>> = {
-  active: 'In progress',
-  hired: 'Hired',
-  rejected: 'Not this time',
-  withdrawn: 'Withdrawn',
-};
+const OUTCOME = (): Readonly<Record<string, string>> => ({
+  active: t('app.me.account-home.in_progress', 'In progress'),
+  hired: t('app.me.account-home.hired', 'Hired'),
+  rejected: t('app.me.account-home.not_this_time', 'Not this time'),
+  withdrawn: t('app.me.account-home.withdrawn', 'Withdrawn'),
+});
 const TONE: Readonly<Record<string, 'accent' | 'success' | 'neutral' | 'warning'>> = {
   active: 'accent',
   hired: 'success',
@@ -61,9 +63,13 @@ const TONE: Readonly<Record<string, 'accent' | 'success' | 'neutral' | 'warning'
   withdrawn: 'neutral',
 };
 
-const kb = (n: number): string => `${String(Math.ceil(n / 1024))} KB`;
-const CONSENT_NOTICE =
-  'Kithena Jobs keeps your name, address and the CVs you upload so you can apply to any company here without typing them again. You can take this back any time; what you already sent to a company stays with that company.';
+const kb = (n: number): string =>
+  t('app.me.account-home.kb', '{{size}} KB', { size: Math.ceil(n / 1024) });
+const CONSENT_NOTICE = (): string =>
+  t(
+    'app.me.account-home.consent_notice',
+    'Kithena Jobs keeps your name, address and the CVs you upload so you can apply to any company here without typing them again. You can take this back any time; what you already sent to a company stays with that company.',
+  );
 
 export function AccountHome({
   home,
@@ -107,7 +113,7 @@ export function AccountHome({
     const key =
       group === 'company'
         ? row.company.name
-        : (OUTCOME[row.application.outcome] ?? row.application.outcome);
+        : (OUTCOME()[row.application.outcome] ?? row.application.outcome);
     groups.set(key, [...(groups.get(key) ?? []), row]);
   }
 
@@ -121,7 +127,12 @@ export function AccountHome({
       );
       if (!answer.ok) setError(answer.message);
       else {
-        setNotice(`Withdrawn from ${row.application.job.title} at ${row.company.name}.`);
+        setNotice(
+          t('app.me.account-home.withdrawn_from_at', 'Withdrawn from {{title}} at {{name}}.', {
+            title: row.application.job.title,
+            name: row.company.name,
+          }),
+        );
         router.refresh();
       }
     });
@@ -156,13 +167,34 @@ export function AccountHome({
         <div className="flex items-center gap-4">
           <Avatar name={home.name} src={home.pictureUrl ?? undefined} size="xl" aria-hidden />
           <div className="flex flex-col gap-1">
-            <h1 className="text-3xl font-bold tracking-[-0.02em]">{`Hello, ${home.name.split(' ')[0] ?? home.name}`}</h1>
-            <p className="text-fg-muted">{`${String(rows.length)} application${rows.length === 1 ? '' : 's'} across ${String(home.companies.length)} compan${home.companies.length === 1 ? 'y' : 'ies'}`}</p>
+            <h1 className="text-3xl font-bold tracking-[-0.02em]">
+              {t('app.me.account-home.hello', 'Hello, {{name}}', {
+                name: home.name.split(' ')[0] ?? home.name,
+              })}
+            </h1>
+            <p className="text-fg-muted">
+              {t(
+                'app.me.account-home.applications_across_companies',
+                '{{applications}} across {{companies}}',
+                {
+                  applications: t(
+                    'app.me.account-home.applications',
+                    { one: '{{count}} application', other: '{{count}} applications' },
+                    { count: rows.length },
+                  ),
+                  companies: t(
+                    'app.me.account-home.companies',
+                    { one: '{{count}} company', other: '{{count}} companies' },
+                    { count: home.companies.length },
+                  ),
+                },
+              )}
+            </p>
           </div>
         </div>
         <form action="/auth/sign-out" method="post">
           <Button type="submit" variant="ghost" size="sm" startIcon={<icons.signOut aria-hidden />}>
-            Sign out
+            {t('app.me.account-home.sign_out', 'Sign out')}
           </Button>
         </form>
       </div>
@@ -176,7 +208,10 @@ export function AccountHome({
         />
       )}
       {error === null ? null : (
-        <Alert tone="danger" title="That did not go through">
+        <Alert
+          tone="danger"
+          title={t('app.me.account-home.that_did_not_go_through', 'That did not go through')}
+        >
           {error}
         </Alert>
       )}
@@ -184,14 +219,22 @@ export function AccountHome({
       <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="flex min-w-0 flex-col gap-8">
           {notices.length === 0 ? null : (
-            <section aria-label="Notifications" className="flex min-w-0 flex-col gap-3">
+            <section
+              aria-label={t('app.me.account-home.notifications', 'Notifications')}
+              className="flex min-w-0 flex-col gap-3"
+            >
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold tracking-[-0.01em]">Notifications</h2>
+                <h2 className="text-lg font-semibold tracking-[-0.01em]">
+                  {t('app.me.account-home.notifications', 'Notifications')}
+                </h2>
                 {waiting === 0 ? null : (
-                  <Badge
-                    size="sm"
-                    tone="warning"
-                  >{`${String(waiting)} need${waiting === 1 ? 's' : ''} you`}</Badge>
+                  <Badge size="sm" tone="warning">
+                    {t(
+                      'app.me.account-home.need_you',
+                      { one: '{{count}} needs you', other: '{{count}} need you' },
+                      { count: waiting },
+                    )}
+                  </Badge>
                 )}
               </div>
               <NoticeList
@@ -203,15 +246,23 @@ export function AccountHome({
               />
             </section>
           )}
-          <section aria-label="Your applications" className="flex min-w-0 flex-col gap-4">
+          <section
+            aria-label={t('app.me.account-home.your_applications', 'Your applications')}
+            className="flex min-w-0 flex-col gap-4"
+          >
             {rows.length === 0 ? (
               <EmptyState
                 icon={<icons.work aria-hidden />}
-                title="No applications yet"
-                description="Apply to a job and it will be here, with every step it goes through."
+                title={t('app.me.account-home.no_applications_yet', 'No applications yet')}
+                description={t(
+                  'app.me.account-home.apply_to_a_job_and_it',
+                  'Apply to a job and it will be here, with every step it goes through.',
+                )}
                 action={
                   <Button asChild variant="secondary">
-                    <Link href="/">Every open job</Link>
+                    <Link href="/">
+                      {t('app.me.account-home.every_open_job', 'Every open job')}
+                    </Link>
                   </Button>
                 }
               />
@@ -221,8 +272,14 @@ export function AccountHome({
                   <Field className="min-w-56 flex-1">
                     <FieldControl>
                       <Input
-                        aria-label="Search your applications"
-                        placeholder="Search by job or company"
+                        aria-label={t(
+                          'app.me.account-home.search_your_applications',
+                          'Search your applications',
+                        )}
+                        placeholder={t(
+                          'app.me.account-home.search_by_job_or_company',
+                          'Search by job or company',
+                        )}
                         value={q}
                         onChange={(e) => {
                           setQ(e.target.value);
@@ -231,7 +288,7 @@ export function AccountHome({
                     </FieldControl>
                   </Field>
                   <SegmentedControl
-                    aria-label="Which applications"
+                    aria-label={t('app.me.account-home.which_applications', 'Which applications')}
                     size="sm"
                     value={state}
                     onValueChange={(v) => {
@@ -239,10 +296,18 @@ export function AccountHome({
                         setState(v);
                     }}
                   >
-                    <SegmentedControlItem value="all">All</SegmentedControlItem>
-                    <SegmentedControlItem value="active">In progress</SegmentedControlItem>
-                    <SegmentedControlItem value="hired">Hired</SegmentedControlItem>
-                    <SegmentedControlItem value="closed">Closed</SegmentedControlItem>
+                    <SegmentedControlItem value="all">
+                      {t('app.me.account-home.all', 'All')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="active">
+                      {t('app.me.account-home.in_progress', 'In progress')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="hired">
+                      {t('app.me.account-home.hired', 'Hired')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="closed">
+                      {t('app.me.account-home.closed', 'Closed')}
+                    </SegmentedControlItem>
                   </SegmentedControl>
                   <Select
                     value={group}
@@ -250,18 +315,29 @@ export function AccountHome({
                       if (v === 'company' || v === 'state') setGroup(v);
                     }}
                   >
-                    <SelectTrigger aria-label="Group by" size="sm" className="w-44">
+                    <SelectTrigger
+                      aria-label={t('app.me.account-home.group_by', 'Group by')}
+                      size="sm"
+                      className="w-44"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="company">By company</SelectItem>
-                      <SelectItem value="state">By state</SelectItem>
+                      <SelectItem value="company">
+                        {t('app.me.account-home.by_company', 'By company')}
+                      </SelectItem>
+                      <SelectItem value="state">
+                        {t('app.me.account-home.by_state', 'By state')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {shown.length === 0 ? (
                   <p className="text-sm text-fg-muted">
-                    Nothing matches. Clear the search or the filter.
+                    {t(
+                      'app.me.account-home.nothing_matches_clear_the_search_or',
+                      'Nothing matches. Clear the search or the filter.',
+                    )}
                   </p>
                 ) : null}
                 {[...groups.entries()].map(([title, members]) => (
@@ -282,7 +358,7 @@ export function AccountHome({
                               <span className="flex flex-col gap-2">
                                 <span>
                                   {group === 'company'
-                                    ? (OUTCOME[a.outcome] ?? a.outcome)
+                                    ? (OUTCOME()[a.outcome] ?? a.outcome)
                                     : row.company.name}
                                   {a.outcome === 'active' && a.stage !== null
                                     ? ` · ${a.stage}`
@@ -290,7 +366,10 @@ export function AccountHome({
                                 </span>
                                 {a.outcome === 'active' && a.steps.length > 0 ? (
                                   <Stepper
-                                    label="Where it stands"
+                                    label={t(
+                                      'app.me.account-home.where_it_stands',
+                                      'Where it stands',
+                                    )}
                                     size="sm"
                                     orientation="horizontal"
                                     steps={a.steps.map((s, i) => ({
@@ -304,7 +383,7 @@ export function AccountHome({
                                   <span className="text-fg">
                                     {`Interview: ${a.interviews
                                       .map((i) =>
-                                        new Date(i.startsAt).toLocaleString('en-GB', {
+                                        new Date(i.startsAt).toLocaleString(locale(), {
                                           weekday: 'short',
                                           day: 'numeric',
                                           month: 'short',
@@ -321,15 +400,17 @@ export function AccountHome({
                               <span className="flex items-center gap-2">
                                 <Badge size="sm" tone={TONE[a.outcome] ?? 'neutral'}>
                                   {a.offer !== null && a.outcome === 'active'
-                                    ? 'Offer'
-                                    : (OUTCOME[a.outcome] ?? a.outcome)}
+                                    ? t('app.me.account-home.offer', 'Offer')
+                                    : (OUTCOME()[a.outcome] ?? a.outcome)}
                                 </Badge>
                                 <RowMenu
                                   name={a.job.title}
                                   actions={[
                                     {
                                       id: 'open',
-                                      label: `Open at ${row.company.name}`,
+                                      label: t('app.me.account-home.open_at', 'Open at {{name}}', {
+                                        name: row.company.name,
+                                      }),
                                       icon: <icons.externalLink aria-hidden />,
                                       onSelect: () => {
                                         window.location.assign(ownPage);
@@ -337,7 +418,7 @@ export function AccountHome({
                                     },
                                     {
                                       id: 'job',
-                                      label: 'See the job',
+                                      label: t('app.me.account-home.see_the_job', 'See the job'),
                                       icon: <icons.work aria-hidden />,
                                       onSelect: () => {
                                         router.push(`/${row.company.slug}/${a.job.slug}`);
@@ -347,7 +428,10 @@ export function AccountHome({
                                       ? [
                                           {
                                             id: 'withdraw',
-                                            label: 'Withdraw application',
+                                            label: t(
+                                              'app.me.account-home.withdraw_application',
+                                              'Withdraw application',
+                                            ),
                                             icon: <icons.close aria-hidden />,
                                             destructive: true,
                                             disabled: pending,
@@ -373,7 +457,7 @@ export function AccountHome({
                                 href={ownPage}
                                 className="ms-2 text-sm text-accent-fg underline underline-offset-4"
                               >
-                                Read your offer
+                                {t('app.me.account-home.read_your_offer', 'Read your offer')}
                               </a>
                             ) : null}
                           </ListItem>
@@ -389,9 +473,14 @@ export function AccountHome({
 
         <aside className="flex flex-col gap-6">
           <section className="flex flex-col gap-3 rounded-2xl bg-surface p-5 shadow-sm">
-            <h2 className="text-lg font-semibold tracking-[-0.01em]">Your CVs</h2>
+            <h2 className="text-lg font-semibold tracking-[-0.01em]">
+              {t('app.me.account-home.your_cvs', 'Your CVs')}
+            </h2>
             <p className="text-sm text-fg-muted">
-              Keep up to five. The default one goes with an application when you attach none.
+              {t(
+                'app.me.account-home.keep_up_to_five_the_default',
+                'Keep up to five. The default one goes with an application when you attach none.',
+              )}
             </p>
             <Button
               asChild
@@ -399,21 +488,26 @@ export function AccountHome({
               size="sm"
               startIcon={<icons.assistant aria-hidden />}
             >
-              <Link href="/me/cv">Write one from scratch with AI</Link>
+              <Link href="/me/cv">
+                {t(
+                  'app.me.account-home.write_one_from_scratch_with_ai',
+                  'Write one from scratch with AI',
+                )}
+              </Link>
             </Button>
             {home.cvs.length === 0 ? null : (
               <List>
                 {home.cvs.map((cv) => (
                   <ListItem
                     key={cv.id}
-                    description={`${kb(cv.size)} · ${new Date(cv.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                    description={`${kb(cv.size)} · ${new Date(cv.uploadedAt).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`}
                     trailing={
                       <RowMenu
                         name={cv.fileName}
                         actions={[
                           {
                             id: 'open',
-                            label: 'Open',
+                            label: t('app.me.account-home.open', 'Open'),
                             icon: <icons.externalLink aria-hidden />,
                             onSelect: () => {
                               window.open(`/me/cv/${cv.id}`, '_blank', 'noopener');
@@ -421,7 +515,7 @@ export function AccountHome({
                           },
                           {
                             id: 'download',
-                            label: 'Download',
+                            label: t('app.me.account-home.download', 'Download'),
                             icon: <icons.download aria-hidden />,
                             onSelect: () => {
                               window.location.assign(`/me/cv/${cv.id}?download=1`);
@@ -432,7 +526,10 @@ export function AccountHome({
                             : [
                                 {
                                   id: 'default',
-                                  label: 'Make it the default',
+                                  label: t(
+                                    'app.me.account-home.make_it_the_default',
+                                    'Make it the default',
+                                  ),
                                   icon: <icons.starred aria-hidden />,
                                   onSelect: () => {
                                     act(
@@ -446,7 +543,7 @@ export function AccountHome({
                               ]),
                           {
                             id: 'remove',
-                            label: 'Remove',
+                            label: t('app.me.account-home.remove', 'Remove'),
                             icon: <icons.delete aria-hidden />,
                             destructive: true,
                             onSelect: () => {
@@ -461,7 +558,7 @@ export function AccountHome({
                       <span className="truncate">{cv.fileName}</span>
                       {cv.isDefault ? (
                         <Badge size="xs" tone="accent">
-                          Default
+                          {t('app.me.account-home.default', 'Default')}
                         </Badge>
                       ) : null}
                     </span>
@@ -471,8 +568,11 @@ export function AccountHome({
             )}
             {home.cvs.length >= 5 ? null : (
               <Dropzone
-                label="Add a CV"
-                hint="PDF, DOCX, ODT or RTF, up to 10 MB"
+                label={t('app.me.account-home.add_a_cv', 'Add a CV')}
+                hint={t(
+                  'app.me.account-home.pdf_docx_odt_or_rtf_up',
+                  'PDF, DOCX, ODT or RTF, up to 10 MB',
+                )}
                 accept=".pdf,.docx,.odt,.rtf,application/pdf"
                 onFiles={(picked) => {
                   const file = picked[0];
@@ -488,25 +588,38 @@ export function AccountHome({
           </section>
 
           <section className="flex flex-col gap-3 rounded-2xl bg-surface p-5 shadow-sm">
-            <h2 className="text-lg font-semibold tracking-[-0.01em]">Your account</h2>
+            <h2 className="text-lg font-semibold tracking-[-0.01em]">
+              {t('app.me.account-home.your_account', 'Your account')}
+            </h2>
             <dl className="flex flex-col gap-1 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-fg-muted">Name</dt>
+                <dt className="text-fg-muted">{t('app.me.account-home.name', 'Name')}</dt>
                 <dd className="text-end">{home.name}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-fg-muted">Email</dt>
+                <dt className="text-fg-muted">{t('app.me.account-home.email', 'Email')}</dt>
                 <dd className="text-end">{home.email}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-fg-muted">Signs in with</dt>
-                <dd className="text-end">{home.google ? 'Google' : 'A code by email'}</dd>
+                <dt className="text-fg-muted">
+                  {t('app.me.account-home.signs_in_with', 'Signs in with')}
+                </dt>
+                <dd className="text-end">
+                  {home.google
+                    ? t('app.me.account-home.google', 'Google')
+                    : t('app.me.account-home.a_code_by_email', 'A code by email')}
+                </dd>
               </div>
             </dl>
             <Field orientation="horizontal">
               <span className="flex min-w-0 flex-col">
-                <FieldLabel>Keep my data to apply faster</FieldLabel>
-                <FieldDescription>{CONSENT_NOTICE}</FieldDescription>
+                <FieldLabel>
+                  {t(
+                    'app.me.account-home.keep_my_data_to_apply_faster',
+                    'Keep my data to apply faster',
+                  )}
+                </FieldLabel>
+                <FieldDescription>{CONSENT_NOTICE()}</FieldDescription>
               </span>
               <FieldControl>
                 <Switch
@@ -516,18 +629,26 @@ export function AccountHome({
                     act(
                       '/consent',
                       'POST',
-                      { given: on, notice: CONSENT_NOTICE },
+                      { given: on, notice: CONSENT_NOTICE() },
                       on
-                        ? 'We will keep your data to apply faster.'
-                        : 'We will not keep your data beyond this session’s applications.',
+                        ? t(
+                            'app.me.account-home.we_will_keep_your_data_to',
+                            'We will keep your data to apply faster.',
+                          )
+                        : t(
+                            'app.me.account-home.we_will_not_keep_your_data',
+                            'We will not keep your data beyond this session’s applications.',
+                          ),
                     );
                   }}
                 />
               </FieldControl>
             </Field>
             <p className="text-xs text-fg-muted">
-              To download or delete what a company holds about you, open your page at that company
-              from the menu beside an application.
+              {t(
+                'app.me.account-home.to_download_or_delete_what_a',
+                'To download or delete what a company holds about you, open your page at that company from the menu beside an application.',
+              )}
             </p>
           </section>
         </aside>

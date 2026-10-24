@@ -4,6 +4,7 @@ import { Alert, Button, Chip, ChipRow, Field, FieldControl, FieldLabel, Textarea
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../../../lib/browser-api';
+import { t } from '../../../lib/i18n';
 
 interface Said {
   readonly value: string;
@@ -46,18 +47,39 @@ export function ReadProfile({
   }, [company, token, applicationId]);
   if (mine === null) return null;
   if (done || mine.confirmedAt !== null)
-    return <Alert tone="success" title="You checked what we read from your CV" />;
+    return (
+      <Alert
+        tone="success"
+        title={t(
+          'app.me.[company].read-profile.you_checked_what_we_read_from',
+          'You checked what we read from your CV',
+        )}
+      />
+    );
   return (
     <div className="flex flex-col gap-3">
-      <p className="font-medium">What we read from your CV</p>
+      <p className="font-medium">
+        {t('app.me.[company].read-profile.what_we_read_from_your_cv', 'What we read from your CV')}
+      </p>
       <p className="text-sm text-fg-muted">
-        A program read your CV without your name or personal details. Check it; the hiring team sees
-        what you say.
+        {t(
+          'app.me.[company].read-profile.a_program_read_your_cv_without',
+          'A program read your CV without your name or personal details. Check it; the hiring team sees what you say.',
+        )}
       </p>
       <ul className="flex flex-col gap-1 text-sm">
         {mine.profile.work.map((w) => (
           <li key={`${w.employer.value}:${w.from.value}`}>
-            {`${w.title.value}, ${w.employer.value} · ${w.from.value} – ${w.to?.value ?? 'now'}`}
+            {t(
+              'app.me.[company].read-profile.work',
+              '{{title}}, {{employer}} · {{from}} – {{to}}',
+              {
+                title: w.title.value,
+                employer: w.employer.value,
+                from: w.from.value,
+                to: w.to?.value ?? t('app.me.[company].read-profile.now', 'now'),
+              },
+            )}
           </li>
         ))}
       </ul>
@@ -71,7 +93,12 @@ export function ReadProfile({
       </ChipRow>
       {error === null ? null : <Alert tone="danger" title={error} />}
       <Field>
-        <FieldLabel>Anything wrong or missing? (optional)</FieldLabel>
+        <FieldLabel>
+          {t(
+            'app.me.[company].read-profile.anything_wrong_or_missing_optional',
+            'Anything wrong or missing? (optional)',
+          )}
+        </FieldLabel>
         <FieldControl>
           <Textarea
             autoResize
@@ -97,7 +124,9 @@ export function ReadProfile({
           });
         }}
       >
-        {note === '' ? 'It is right' : 'Send my corrections'}
+        {note === ''
+          ? t('app.me.[company].read-profile.it_is_right', 'It is right')
+          : t('app.me.[company].read-profile.send_my_corrections', 'Send my corrections')}
       </Button>
     </div>
   );

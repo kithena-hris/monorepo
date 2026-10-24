@@ -1,0 +1,2082 @@
+{
+  "app.[company].[slug].apply.apply-form.ada_lovelace": {
+    "text": "Ada Lovelace",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, PLACEHOLDER: a \"name\" value."
+  },
+  "app.[company].[slug].apply.apply-form.an_automated_tool_reads_applications_for": {
+    "text": "An automated tool reads applications for this job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <h3>."
+  },
+  "app.[company].[slug].apply.apply-form.anything_we_can_adjust_for_you": {
+    "text": "Anything we can adjust for you?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <FieldLabel>."
+  },
+  "app.[company].[slug].apply.apply-form.application_sent": {
+    "text": "Application sent",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the title of <EmptyState>."
+  },
+  "app.[company].[slug].apply.apply-form.applying": {
+    "text": "Applying",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the label of <Stepper>."
+  },
+  "app.[company].[slug].apply.apply-form.back": {
+    "text": "Back",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <Button>."
+  },
+  "app.[company].[slug].apply.apply-form.before_you_send": {
+    "text": "Before you send",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, STEPS: a \"label\" value."
+  },
+  "app.[company].[slug].apply.apply-form.check_your_email": {
+    "text": "Check your email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, STEPS: a \"label\" value."
+  },
+  "app.[company].[slug].apply.apply-form.choose": {
+    "text": "Choose…",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, Answer: the placeholder of <SelectValue>."
+  },
+  "app.[company].[slug].apply.apply-form.email_me_a_code": {
+    "text": "Email me a code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <Button>."
+  },
+  "app.[company].[slug].apply.apply-form.goes_to_the_recruiter_never_into": {
+    "text": "Goes to the recruiter, never into anyone’s score.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <FieldDescription>."
+  },
+  "app.[company].[slug].apply.apply-form.i_agree_to_processing_my_application": {
+    "text": "I agree to {{name}} processing my application.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>. Filled in: {{name}}."
+  },
+  "app.[company].[slug].apply.apply-form.i_have_read_the_notice_that": {
+    "text": "I have read the notice that an automated tool helps review applications for this New York City job.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>."
+  },
+  "app.[company].[slug].apply.apply-form.kb": {
+    "text": "{{value}} · {{String}} KB",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <p>. Filled in: {{value}}, {{String}}."
+  },
+  "app.[company].[slug].apply.apply-form.keep_me_in_s_talent_pool": {
+    "text": "Keep me in {{name}}’s talent pool for other jobs for 12 months (optional)",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <label>. Filled in: {{name}}."
+  },
+  "app.[company].[slug].apply.apply-form.may_use_an_automated_employment_decision": {
+    "text": "{{name}} may use an automated employment decision tool, at the earliest ten business days from today, to compare what you send with the job’s criteria. A person decides. You may ask the recruiter for another way to be assessed, or for an accommodation, and what data it uses and how long it is kept. A summary of its latest bias audit is published by {{name}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <p>. Filled in: {{name}}."
+  },
+  "app.[company].[slug].apply.apply-form.next": {
+    "text": "Next",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <Button>."
+  },
+  "app.[company].[slug].apply.apply-form.no": {
+    "text": "No",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, Answer: text inside <SegmentedControlItem>."
+  },
+  "app.[company].[slug].apply.apply-form.nothing_attached_your_default_cv_goes": {
+    "text": "Nothing attached: {{defaultCv}}, your default CV, goes with this application.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <p>. Filled in: {{defaultCv}}."
+  },
+  "app.[company].[slug].apply.apply-form.nothing_to_upload": {
+    "text": "Nothing to upload",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <h2>."
+  },
+  "app.[company].[slug].apply.apply-form.pdf_docx_odt_or_rtf_up": {
+    "text": "PDF, DOCX, ODT or RTF, up to 10 MB",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the hint of <Dropzone>."
+  },
+  "app.[company].[slug].apply.apply-form.processes_your_data_to_consider_you": {
+    "text": "{{name}} processes your data to consider you for this job, as a step before a contract, and deletes it on the schedule the law in its country sets after a decision.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <p>. Filled in: {{name}}."
+  },
+  "app.[company].[slug].apply.apply-form.processing_for_this_application": {
+    "text": "Processing for this application",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <h3>."
+  },
+  "app.[company].[slug].apply.apply-form.see_more_jobs": {
+    "text": "See more jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the action of <Link>."
+  },
+  "app.[company].[slug].apply.apply-form.send_a_new_code": {
+    "text": "Send a new code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <Button>."
+  },
+  "app.[company].[slug].apply.apply-form.send_application": {
+    "text": "Send application",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <Button>."
+  },
+  "app.[company].[slug].apply.apply-form.start_with_your_cv": {
+    "text": "Start with your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <h2>."
+  },
+  "app.[company].[slug].apply.apply-form.step_free_access_extra_time_another": {
+    "text": "Step-free access, extra time, another format…",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the placeholder of <Textarea>."
+  },
+  "app.[company].[slug].apply.apply-form.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the title of <Alert>."
+  },
+  "app.[company].[slug].apply.apply-form.the_code": {
+    "text": "The code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the label of <PinInput>."
+  },
+  "app.[company].[slug].apply.apply-form.we_sent_a_six_digit_code": {
+    "text": "We sent a six-digit code to {{email}}. It confirms it’s you and keeps spam out.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: text inside <p>. Filled in: {{email}}."
+  },
+  "app.[company].[slug].apply.apply-form.will_be_in_touch_every_email": {
+    "text": "{{name}} will be in touch. Every email has a link to follow your application.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, ApplyForm: the description of <EmptyState>. Filled in: {{name}}."
+  },
+  "app.[company].[slug].apply.apply-form.yes": {
+    "text": "Yes",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, Answer: text inside <SegmentedControlItem>."
+  },
+  "app.[company].[slug].apply.apply-form.your_cv": {
+    "text": "Your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, STEPS: a \"label\" value."
+  },
+  "app.[company].[slug].apply.apply-form.your_details": {
+    "text": "Your details",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/apply-form.tsx, STEPS: a \"label\" value."
+  },
+  "app.[company].[slug].apply.page.apply": {
+    "text": "Apply",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/page.tsx: text built in code."
+  },
+  "app.[company].[slug].apply.page.apply_2": {
+    "text": "Apply: {{title}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/page.tsx, Apply: text inside <h1>. Filled in: {{title}}."
+  },
+  "app.[company].[slug].apply.page.sign_in_to_apply": {
+    "text": "Sign in to apply without a code, with the CV you keep here.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/apply/page.tsx, Apply: text inside <Link>."
+  },
+  "app.[company].[slug].page.at": {
+    "text": "{{title}} at {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/page.tsx: a \"title\" value. Filled in: {{title}}, {{name}}."
+  },
+  "app.[company].[slug].page.job_not_found": {
+    "text": "Job not found",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/[slug]/page.tsx: a \"title\" value."
+  },
+  "app.[company].page.company_not_found": {
+    "text": "Company not found",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx: a \"title\" value."
+  },
+  "app.[company].page.jobs_at": {
+    "text": "Jobs at {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx: a \"title\" value. Filled in: {{name}}."
+  },
+  "app.[company].page.no_open_jobs_right_now": {
+    "text": "No open jobs right now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx, CareersPage: the title of <EmptyState>."
+  },
+  "app.[company].page.open_jobs": {
+    "text": "Open jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx, CareersPage: the aria-label of <section>."
+  },
+  "app.[company].page.open_jobs_one": {
+    "text": "{{count}} open job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx, CareersPage: text inside <h2>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.[company].page.open_jobs_other": {
+    "text": "{{count}} open jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/[company]/page.tsx, CareersPage: text inside <h2>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.agency.[company].agency-portal.agency_portal": {
+    "text": "Agency portal",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <h1>."
+  },
+  "app.agency.[company].agency-portal.candidate": {
+    "text": "Candidate",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: a \"header\" value."
+  },
+  "app.agency.[company].agency-portal.candidates_email": {
+    "text": "Candidate’s email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <FieldLabel>."
+  },
+  "app.agency.[company].agency-portal.candidates_name": {
+    "text": "Candidate’s name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <FieldLabel>."
+  },
+  "app.agency.[company].agency-portal.choose_a_job": {
+    "text": "Choose a job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the placeholder of <SelectValue>."
+  },
+  "app.agency.[company].agency-portal.cv_optional": {
+    "text": "CV (optional)",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the label of <Dropzone>."
+  },
+  "app.agency.[company].agency-portal.for_agencies_the_company_has_invited": {
+    "text": "For agencies the company has invited. We send a code to the address it has for you.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <p>."
+  },
+  "app.agency.[company].agency-portal.hired": {
+    "text": "Hired",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: text inside <Badge>."
+  },
+  "app.agency.[company].agency-portal.if_this_address_belongs_to_an": {
+    "text": "If this address belongs to an invited agency, a code is on its way.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <p>."
+  },
+  "app.agency.[company].agency-portal.in_review": {
+    "text": "In review",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: text inside <Badge>."
+  },
+  "app.agency.[company].agency-portal.is_submitted": {
+    "text": "{{sent}} is submitted",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the title of <Alert>. Filled in: {{sent}}."
+  },
+  "app.agency.[company].agency-portal.job": {
+    "text": "Job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: a \"header\" value."
+  },
+  "app.agency.[company].agency-portal.no_open_jobs_for_you_right": {
+    "text": "No open jobs for you right now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the title of <EmptyState>."
+  },
+  "app.agency.[company].agency-portal.nobody_submitted_yet": {
+    "text": "Nobody submitted yet",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the title of <EmptyState>."
+  },
+  "app.agency.[company].agency-portal.not_progressed": {
+    "text": "Not progressed",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: text inside <Badge>."
+  },
+  "app.agency.[company].agency-portal.not_submitted": {
+    "text": "Not submitted",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the title of <Alert>."
+  },
+  "app.agency.[company].agency-portal.pdf_docx_odt_or_rtf_up": {
+    "text": "PDF, DOCX, ODT or RTF, up to 10 MB",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the hint of <Dropzone>."
+  },
+  "app.agency.[company].agency-portal.send_me_a_code": {
+    "text": "Send me a code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <Button>."
+  },
+  "app.agency.[company].agency-portal.sign_in": {
+    "text": "Sign in",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <Button>."
+  },
+  "app.agency.[company].agency-portal.stage": {
+    "text": "Stage",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: a \"header\" value."
+  },
+  "app.agency.[company].agency-portal.submit": {
+    "text": "Submit",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <Button>."
+  },
+  "app.agency.[company].agency-portal.submit_a_candidate": {
+    "text": "Submit a candidate",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <CardTitle>."
+  },
+  "app.agency.[company].agency-portal.submitted": {
+    "text": "Submitted",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: a \"header\" value."
+  },
+  "app.agency.[company].agency-portal.submitted_candidates": {
+    "text": "Submitted candidates",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the label of <DataTable>."
+  },
+  "app.agency.[company].agency-portal.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the title of <Alert>."
+  },
+  "app.agency.[company].agency-portal.the_code": {
+    "text": "The code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: the label of <PinInput>."
+  },
+  "app.agency.[company].agency-portal.withdrawn": {
+    "text": "Withdrawn",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, SUBMISSION_COLUMNS: text inside <Badge>."
+  },
+  "app.agency.[company].agency-portal.your_candidates_for": {
+    "text": "Your candidates for {{company}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <p>. Filled in: {{company}}."
+  },
+  "app.agency.[company].agency-portal.your_email": {
+    "text": "Your email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/agency-portal.tsx, AgencyPortal: text inside <FieldLabel>."
+  },
+  "app.agency.[company].page.agency_portal": {
+    "text": "Agency portal",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/agency/[company]/page.tsx: text built in code."
+  },
+  "app.alerts.[company].alert-link.new_jobs_that_match_arrive_by": {
+    "text": "New jobs that match arrive by email. Every email has a link to stop them.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the description of <EmptyState>."
+  },
+  "app.alerts.[company].alert-link.one_moment": {
+    "text": "One moment",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the label of <Spinner>."
+  },
+  "app.alerts.[company].alert-link.this_link_has_expired_or_was": {
+    "text": "This link has expired or was already used",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the title of <Alert>."
+  },
+  "app.alerts.[company].alert-link.you_will_get_no_more_emails": {
+    "text": "You will get no more emails from this alert.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the description of <EmptyState>."
+  },
+  "app.alerts.[company].alert-link.your_alert_is_off": {
+    "text": "Your alert is off",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the title of <EmptyState>."
+  },
+  "app.alerts.[company].alert-link.your_alert_is_on": {
+    "text": "Your alert is on",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/alert-link.tsx, AlertLink: the title of <EmptyState>."
+  },
+  "app.alerts.[company].page.job_alert": {
+    "text": "Job alert",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/alerts/[company]/page.tsx: text built in code."
+  },
+  "app.auth.code.route.check_the_address": {
+    "text": "Check the address",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/auth/code/route.ts, POST: a \"message\" value."
+  },
+  "app.layout.all_jobs": {
+    "text": "All jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <Link>."
+  },
+  "app.layout.careers_at": {
+    "text": "Careers at {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx: a \"default\" value. Filled in: {{name}}."
+  },
+  "app.layout.every_open_job_at_companies_that": {
+    "text": "Every open job at companies that hire on Kithena. No account needed to apply.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx: a \"description\" value."
+  },
+  "app.layout.jobs": {
+    "text": "Jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <Link>."
+  },
+  "app.layout.jobs_published_by_companies_that_hire": {
+    "text": "Jobs published by companies that hire on Kithena.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <span>."
+  },
+  "app.layout.kithena_jobs": {
+    "text": "Kithena Jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx: a \"default\" value."
+  },
+  "app.layout.open_jobs_at": {
+    "text": "Open jobs at {{name}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx: a \"description\" value. Filled in: {{name}}."
+  },
+  "app.layout.search": {
+    "text": "Search",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <Link>."
+  },
+  "app.layout.sign_in": {
+    "text": "Sign in",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <Link>."
+  },
+  "app.layout.site": {
+    "text": "Site",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: the aria-label of <nav>."
+  },
+  "app.layout.what_you_send_goes_to_and": {
+    "text": "What you send goes to {{name}}, and stays with them.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <span>. Filled in: {{name}}."
+  },
+  "app.layout.your_data_stays_with_the_company": {
+    "text": "Your data stays with the company you apply to.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/layout.tsx, RootLayout: text inside <span>."
+  },
+  "app.me.[company].candidate-home.accept_offer": {
+    "text": "Accept offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.add_referee": {
+    "text": "Add referee",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.application_withdrawn": {
+    "text": "Application withdrawn",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the onClick of <Button>."
+  },
+  "app.me.[company].candidate-home.bonus_at_target": {
+    "text": "Bonus at target",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.close": {
+    "text": "Close",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.contract": {
+    "text": "Contract",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.contract_signed_on": {
+    "text": "Contract signed on {{day}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>. Filled in: {{day}}."
+  },
+  "app.me.[company].candidate-home.decline": {
+    "text": "Decline",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.decline_the_offer": {
+    "text": "Decline the offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.delete_my_data": {
+    "text": "Delete my data",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.deleting_is_immediate_except_where_a": {
+    "text": "Deleting is immediate, except where a company must keep it by law.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <p>."
+  },
+  "app.me.[company].candidate-home.done_the_company_has_been_told": {
+    "text": "Done. The company has been told.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the onDone of <OfferDialog>."
+  },
+  "app.me.[company].candidate-home.download_my_data": {
+    "text": "Download my data",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.email": {
+    "text": "Email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <FieldLabel>."
+  },
+  "app.me.[company].candidate-home.hours": {
+    "text": "Hours",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.in_progress": {
+    "text": "In progress",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Badge>."
+  },
+  "app.me.[company].candidate-home.leave_the_talent_pool": {
+    "text": "Leave the talent pool",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.loading_the_offer": {
+    "text": "Loading the offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the label of <Spinner>."
+  },
+  "app.me.[company].candidate-home.loading_your_applications": {
+    "text": "Loading your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the label of <Spinner>."
+  },
+  "app.me.[company].candidate-home.name": {
+    "text": "Name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <FieldLabel>."
+  },
+  "app.me.[company].candidate-home.name_a_referee": {
+    "text": "Name a referee",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.no_applications": {
+    "text": "No applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <EmptyState>."
+  },
+  "app.me.[company].candidate-home.nobody_is_contacted_until_you_name": {
+    "text": "Nobody is contacted until you name them here.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <DialogDescription>."
+  },
+  "app.me.[company].candidate-home.notice": {
+    "text": "Notice",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.open_this_page_from_the_link": {
+    "text": "Open this page from the link in one of our emails.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text built in code."
+  },
+  "app.me.[company].candidate-home.pay": {
+    "text": "Pay",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.probation": {
+    "text": "Probation",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.read_your_offer": {
+    "text": "Read your offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.referee_added": {
+    "text": "Referee added",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the onClick of <Button>."
+  },
+  "app.me.[company].candidate-home.start": {
+    "text": "Start",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.the_company_will_send_it_to": {
+    "text": "The company will send it to you to sign and return.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>."
+  },
+  "app.me.[company].candidate-home.the_pay_the_start_date_another": {
+    "text": "The pay, the start date, another offer…",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the placeholder of <Textarea>."
+  },
+  "app.me.[company].candidate-home.the_recruiter_reads_this_they_may": {
+    "text": "The recruiter reads this. They may come back with an updated offer.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <FieldDescription>."
+  },
+  "app.me.[company].candidate-home.this_contract_is_signed_by_hand": {
+    "text": "This contract is signed by hand, by both sides, before you start. The company will send it.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>."
+  },
+  "app.me.[company].candidate-home.version_expires": {
+    "text": "Version {{String}} · expires {{day}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <DialogDescription>. Filled in: {{String}}, {{day}}."
+  },
+  "app.me.[company].candidate-home.we_cant_show_your_applications": {
+    "text": "We can’t show your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.when_you_join": {
+    "text": "When you join",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: the items of <KeyValues>."
+  },
+  "app.me.[company].candidate-home.where_it_stands": {
+    "text": "Where it stands",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the label of <Stepper>."
+  },
+  "app.me.[company].candidate-home.why_you_are_declining": {
+    "text": "Why you are declining",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <FieldLabel>."
+  },
+  "app.me.[company].candidate-home.withdraw": {
+    "text": "Withdraw",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Button>."
+  },
+  "app.me.[company].candidate-home.you_are_hired_will_be_in": {
+    "text": "You are hired. {{company}} will be in touch about your first day.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>. Filled in: {{company}}."
+  },
+  "app.me.[company].candidate-home.you_have_an_email_with_a": {
+    "text": "You have an email with a link and a code to sign it online. Once you sign, you are hired.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>."
+  },
+  "app.me.[company].candidate-home.you_have_left_the_talent_pool": {
+    "text": "You have left the talent pool",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the onClick of <Button>."
+  },
+  "app.me.[company].candidate-home.your_applications": {
+    "text": "Your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <h1>."
+  },
+  "app.me.[company].candidate-home.your_contract_is_being_prepared": {
+    "text": "Your contract is being prepared",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.your_contract_is_on_its_way": {
+    "text": "Your contract is on its way",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.your_contract_is_on_paper": {
+    "text": "Your contract is on paper",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.your_contract_is_ready_to_sign": {
+    "text": "Your contract is ready to sign",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the title of <Alert>."
+  },
+  "app.me.[company].candidate-home.your_data": {
+    "text": "Your data",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <CardTitle>."
+  },
+  "app.me.[company].candidate-home.your_data_is_deleted_except_where": {
+    "text": "Your data is deleted, except where the law says it must be kept",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: the onClick of <Button>."
+  },
+  "app.me.[company].candidate-home.your_offer": {
+    "text": "Your offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, OfferDialog: text inside <DialogTitle>."
+  },
+  "app.me.[company].candidate-home.your_start_is_being_arranged": {
+    "text": "Your start is being arranged.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/candidate-home.tsx, CandidateHome: text inside <Alert>."
+  },
+  "app.me.[company].page.your_applications": {
+    "text": "Your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/page.tsx: text built in code."
+  },
+  "app.me.[company].read-profile.a_program_read_your_cv_without": {
+    "text": "A program read your CV without your name or personal details. Check it; the hiring team sees what you say.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <p>."
+  },
+  "app.me.[company].read-profile.anything_wrong_or_missing_optional": {
+    "text": "Anything wrong or missing? (optional)",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <FieldLabel>."
+  },
+  "app.me.[company].read-profile.it_is_right": {
+    "text": "It is right",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <Button>."
+  },
+  "app.me.[company].read-profile.now": {
+    "text": "now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <li>."
+  },
+  "app.me.[company].read-profile.send_my_corrections": {
+    "text": "Send my corrections",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <Button>."
+  },
+  "app.me.[company].read-profile.what_we_read_from_your_cv": {
+    "text": "What we read from your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <p>."
+  },
+  "app.me.[company].read-profile.work": {
+    "text": "{{title}}, {{employer}} · {{from}} – {{to}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: text inside <li>. Filled in: {{title}}, {{employer}}, {{from}}, {{to}}."
+  },
+  "app.me.[company].read-profile.you_checked_what_we_read_from": {
+    "text": "You checked what we read from your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/read-profile.tsx, ReadProfile: the title of <Alert>."
+  },
+  "app.me.[company].self-id.gender": {
+    "text": "Gender",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <FieldLabel>."
+  },
+  "app.me.[company].self-id.optional_help_us_check_we_hire": {
+    "text": "Optional: help us check we hire fairly",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <p>."
+  },
+  "app.me.[company].self-id.prefer_not_to_say": {
+    "text": "Prefer not to say",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: the placeholder of <SelectValue>."
+  },
+  "app.me.[company].self-id.race_or_ethnicity": {
+    "text": "Race or ethnicity",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <FieldLabel>."
+  },
+  "app.me.[company].self-id.send": {
+    "text": "Send",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <Button>."
+  },
+  "app.me.[company].self-id.skip": {
+    "text": "Skip",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <Button>."
+  },
+  "app.me.[company].self-id.thank_you_your_answers_are_sealed": {
+    "text": "Thank you. Your answers are sealed.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: the title of <Alert>."
+  },
+  "app.me.[company].self-id.your_answers_are_sealed_and_kept": {
+    "text": "Your answers are sealed and kept apart from your application. Nobody deciding on it sees them, and they are only ever counted in groups of five or more people.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/self-id.tsx, SelfIdForm: text inside <p>."
+  },
+  "app.me.account-home.a_code_by_email": {
+    "text": "A code by email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <dd>."
+  },
+  "app.me.account-home.add_a_cv": {
+    "text": "Add a CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the label of <Dropzone>."
+  },
+  "app.me.account-home.all": {
+    "text": "All",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <SegmentedControlItem>."
+  },
+  "app.me.account-home.applications_across_companies": {
+    "text": "{{applications}} across {{companies}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>. Filled in: {{applications}}, {{companies}}."
+  },
+  "app.me.account-home.applications_one": {
+    "text": "{{count}} application",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.me.account-home.applications_other": {
+    "text": "{{count}} applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.me.account-home.apply_to_a_job_and_it": {
+    "text": "Apply to a job and it will be here, with every step it goes through.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the description of <EmptyState>."
+  },
+  "app.me.account-home.by_company": {
+    "text": "By company",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <SelectItem>."
+  },
+  "app.me.account-home.by_state": {
+    "text": "By state",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <SelectItem>."
+  },
+  "app.me.account-home.closed": {
+    "text": "Closed",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <SegmentedControlItem>."
+  },
+  "app.me.account-home.companies_one": {
+    "text": "{{count}} company",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.me.account-home.companies_other": {
+    "text": "{{count}} companies",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.me.account-home.consent_notice": {
+    "text": "Kithena Jobs keeps your name, address and the CVs you upload so you can apply to any company here without typing them again. You can take this back any time; what you already sent to a company stays with that company.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, CONSENT_NOTICE: text built in code."
+  },
+  "app.me.account-home.default": {
+    "text": "Default",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <Badge>."
+  },
+  "app.me.account-home.download": {
+    "text": "Download",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.email": {
+    "text": "Email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <dt>."
+  },
+  "app.me.account-home.every_open_job": {
+    "text": "Every open job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the action of <Link>."
+  },
+  "app.me.account-home.google": {
+    "text": "Google",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <dd>."
+  },
+  "app.me.account-home.group_by": {
+    "text": "Group by",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the aria-label of <SelectTrigger>."
+  },
+  "app.me.account-home.hello": {
+    "text": "Hello, {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <h1>. Filled in: {{name}}."
+  },
+  "app.me.account-home.hired": {
+    "text": "Hired",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, OUTCOME: a \"hired\" value."
+  },
+  "app.me.account-home.in_progress": {
+    "text": "In progress",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, OUTCOME: a \"active\" value."
+  },
+  "app.me.account-home.kb": {
+    "text": "{{size}} KB",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx: text built in code. Filled in: {{size}}."
+  },
+  "app.me.account-home.keep_my_data_to_apply_faster": {
+    "text": "Keep my data to apply faster",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <FieldLabel>."
+  },
+  "app.me.account-home.keep_up_to_five_the_default": {
+    "text": "Keep up to five. The default one goes with an application when you attach none.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>."
+  },
+  "app.me.account-home.make_it_the_default": {
+    "text": "Make it the default",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.name": {
+    "text": "Name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <dt>."
+  },
+  "app.me.account-home.need_you_one": {
+    "text": "{{count}} needs you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <Badge>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.me.account-home.need_you_other": {
+    "text": "{{count}} need you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <Badge>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.me.account-home.no_applications_yet": {
+    "text": "No applications yet",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the title of <EmptyState>."
+  },
+  "app.me.account-home.not_this_time": {
+    "text": "Not this time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, OUTCOME: a \"rejected\" value."
+  },
+  "app.me.account-home.nothing_matches_clear_the_search_or": {
+    "text": "Nothing matches. Clear the search or the filter.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>."
+  },
+  "app.me.account-home.notifications": {
+    "text": "Notifications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the aria-label of <section>."
+  },
+  "app.me.account-home.offer": {
+    "text": "Offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the trailing of <Badge>."
+  },
+  "app.me.account-home.open": {
+    "text": "Open",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.open_at": {
+    "text": "Open at {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>. Filled in: {{name}}."
+  },
+  "app.me.account-home.pdf_docx_odt_or_rtf_up": {
+    "text": "PDF, DOCX, ODT or RTF, up to 10 MB",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the hint of <Dropzone>."
+  },
+  "app.me.account-home.read_your_offer": {
+    "text": "Read your offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <a>."
+  },
+  "app.me.account-home.remove": {
+    "text": "Remove",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.search_by_job_or_company": {
+    "text": "Search by job or company",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the placeholder of <Input>."
+  },
+  "app.me.account-home.search_your_applications": {
+    "text": "Search your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the aria-label of <Input>."
+  },
+  "app.me.account-home.see_the_job": {
+    "text": "See the job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.sign_out": {
+    "text": "Sign out",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <Button>."
+  },
+  "app.me.account-home.signs_in_with": {
+    "text": "Signs in with",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <dt>."
+  },
+  "app.me.account-home.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the title of <Alert>."
+  },
+  "app.me.account-home.to_download_or_delete_what_a": {
+    "text": "To download or delete what a company holds about you, open your page at that company from the menu beside an application.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <p>."
+  },
+  "app.me.account-home.we_will_keep_your_data_to": {
+    "text": "We will keep your data to apply faster.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the onCheckedChange of <Switch>."
+  },
+  "app.me.account-home.we_will_not_keep_your_data": {
+    "text": "We will not keep your data beyond this session’s applications.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the onCheckedChange of <Switch>."
+  },
+  "app.me.account-home.where_it_stands": {
+    "text": "Where it stands",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the label of <Stepper>."
+  },
+  "app.me.account-home.which_applications": {
+    "text": "Which applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the aria-label of <SegmentedControl>."
+  },
+  "app.me.account-home.withdraw_application": {
+    "text": "Withdraw application",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the actions of <RowMenu>."
+  },
+  "app.me.account-home.withdrawn": {
+    "text": "Withdrawn",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, OUTCOME: a \"withdrawn\" value."
+  },
+  "app.me.account-home.withdrawn_from_at": {
+    "text": "Withdrawn from {{title}} at {{name}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text built in code. Filled in: {{title}}, {{name}}."
+  },
+  "app.me.account-home.write_one_from_scratch_with_ai": {
+    "text": "Write one from scratch with AI",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <Link>."
+  },
+  "app.me.account-home.your_account": {
+    "text": "Your account",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <h2>."
+  },
+  "app.me.account-home.your_applications": {
+    "text": "Your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: the aria-label of <section>."
+  },
+  "app.me.account-home.your_cvs": {
+    "text": "Your CVs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/account-home.tsx, AccountHome: text inside <h2>."
+  },
+  "app.me.cv.cv-writer.about_you": {
+    "text": "About you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.add_one": {
+    "text": "Add one",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <Button>."
+  },
+  "app.me.cv.cv-writer.back": {
+    "text": "Back",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Link>."
+  },
+  "app.me.cv.cv-writer.backend_engineer_berlin_or_remote": {
+    "text": "Backend engineer, Berlin or remote",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Input>."
+  },
+  "app.me.cv.cv-writer.degrees_courses_certificates_with_the_years": {
+    "text": "Degrees, courses, certificates, with the years.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Textarea>."
+  },
+  "app.me.cv.cv-writer.education": {
+    "text": "Education",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the label of <EntryFields>."
+  },
+  "app.me.cv.cv-writer.education_and_training": {
+    "text": "Education and training",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.email": {
+    "text": "Email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.english_spanish": {
+    "text": "English, Spanish",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Input>."
+  },
+  "app.me.cv.cv-writer.experience": {
+    "text": "Experience",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the label of <EntryFields>."
+  },
+  "app.me.cv.cv-writer.find_a_job": {
+    "text": "Find a job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Link>."
+  },
+  "app.me.cv.cv-writer.for": {
+    "text": "For {{name}}, {{email}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <p>. Filled in: {{name}}, {{email}}."
+  },
+  "app.me.cv.cv-writer.from": {
+    "text": "From",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.go_postgres_kubernetes_on_call": {
+    "text": "Go, Postgres, Kubernetes, on call",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Input>."
+  },
+  "app.me.cv.cv-writer.headline": {
+    "text": "Headline",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.in_your_library": {
+    "text": "In your library",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, STEPS: a \"label\" value."
+  },
+  "app.me.cv.cv-writer.it_goes_with_your_applications_when": {
+    "text": "It goes with your applications when you attach none, once you make it the default.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Alert>."
+  },
+  "app.me.cv.cv-writer.keep_it_as_a_pdf": {
+    "text": "Keep it as a PDF",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Button>."
+  },
+  "app.me.cv.cv-writer.languages_comma_separated": {
+    "text": "Languages, comma separated",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.languages_you_speak": {
+    "text": "Languages you speak",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.location": {
+    "text": "Location",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.madrid": {
+    "text": "Madrid",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Input>."
+  },
+  "app.me.cv.cv-writer.name": {
+    "text": "Name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.now": {
+    "text": "now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: the placeholder of <Input>."
+  },
+  "app.me.cv.cv-writer.one_job_per_paragraph_the_title": {
+    "text": "One job per paragraph: the title, the company, the years, and what you did there. Numbers help: \"cut deploy time from 40 to 8 minutes\".",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Textarea>."
+  },
+  "app.me.cv.cv-writer.only_what_you_write_here_goes": {
+    "text": "Only what you write here goes into the CV. Nothing is invented.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldDescription>."
+  },
+  "app.me.cv.cv-writer.phone": {
+    "text": "Phone",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.profile": {
+    "text": "Profile",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.read_the_draft": {
+    "text": "Read the draft",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, STEPS: a \"label\" value."
+  },
+  "app.me.cv.cv-writer.remove": {
+    "text": "Remove",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <Button>."
+  },
+  "app.me.cv.cv-writer.say_it_differently": {
+    "text": "Say it differently",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Button>."
+  },
+  "app.me.cv.cv-writer.say_what_you_have_done_in": {
+    "text": "Say what you have done, in your own words. An AI lays it out as a CV from what you said and nothing else; you change any line before it is kept.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <p>."
+  },
+  "app.me.cv.cv-writer.skills": {
+    "text": "Skills",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.skills_comma_separated": {
+    "text": "Skills, comma separated",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the title of <Alert>."
+  },
+  "app.me.cv.cv-writer.the_kind_of_role_you_want": {
+    "text": "The kind of role you want",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.title": {
+    "text": "Title",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.to": {
+    "text": "To",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.what_you_did_one_line_each": {
+    "text": "What you did, one line each",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.what_you_have_done": {
+    "text": "What you have done",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, STEPS: a \"label\" value."
+  },
+  "app.me.cv.cv-writer.where": {
+    "text": "Where",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, EntryFields: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.where_you_have_worked": {
+    "text": "Where you have worked",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.where_you_live": {
+    "text": "Where you live",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <FieldLabel>."
+  },
+  "app.me.cv.cv-writer.who_you_are_at_work_what": {
+    "text": "Who you are at work, what you care about, what you are good at.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the placeholder of <Textarea>."
+  },
+  "app.me.cv.cv-writer.write_the_draft": {
+    "text": "Write the draft",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Button>."
+  },
+  "app.me.cv.cv-writer.write_your_cv": {
+    "text": "Write your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <h1>."
+  },
+  "app.me.cv.cv-writer.writing_your_cv": {
+    "text": "Writing your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the label of <Stepper>."
+  },
+  "app.me.cv.cv-writer.your_applications_and_cvs": {
+    "text": "Your applications and CVs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: text inside <Link>."
+  },
+  "app.me.cv.cv-writer.your_cv_is_in_your_library": {
+    "text": "Your CV is in your library",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/cv-writer.tsx, CvWriter: the title of <Alert>."
+  },
+  "app.me.cv.page.write_your_cv": {
+    "text": "Write your CV",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/cv/page.tsx: text built in code."
+  },
+  "app.me.page.your_applications": {
+    "text": "Your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/page.tsx: text built in code."
+  },
+  "app.not-found.it_may_have_been_filled_or": {
+    "text": "It may have been filled or taken down.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/not-found.tsx, NotFound: the description of <EmptyState>."
+  },
+  "app.not-found.search_open_jobs": {
+    "text": "Search open jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/not-found.tsx, NotFound: the action of <Link>."
+  },
+  "app.not-found.this_job_is_no_longer_open": {
+    "text": "This job is no longer open",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/not-found.tsx, NotFound: the title of <EmptyState>."
+  },
+  "app.page.by_salary": {
+    "text": "By salary",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <Link>."
+  },
+  "app.page.companies_publish_here_as_they_hire": {
+    "text": "Companies publish here as they hire. Set an alert on a company’s page to hear first.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: the description of <EmptyState>."
+  },
+  "app.page.every_open_job_from_every_company": {
+    "text": "Every open job, from every company here. Search it, or describe the job you want and let the filters follow. No account needed to apply.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <p>."
+  },
+  "app.page.more_jobs": {
+    "text": "More jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <Link>."
+  },
+  "app.page.no_open_jobs_right_now": {
+    "text": "No open jobs right now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: the title of <EmptyState>."
+  },
+  "app.page.open_jobs": {
+    "text": "Open jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: the aria-label of <section>."
+  },
+  "app.page.open_jobs_one": {
+    "text": "{{count}} open job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <h2>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.page.open_jobs_other": {
+    "text": "{{count}} open jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <h2>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.page.part_time": {
+    "text": "Part time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text built in code."
+  },
+  "app.page.popular_searches": {
+    "text": "Popular searches",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: the aria-label of <nav>."
+  },
+  "app.page.the_jobs_did_not_load": {
+    "text": "The jobs did not load",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: the title of <Alert>."
+  },
+  "app.page.work_at_companies_that_hire_on": {
+    "text": "Work at companies that hire on Kithena",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/page.tsx, Home: text inside <h1>."
+  },
+  "app.preview.[company].[token].page.a_preview": {
+    "text": "A preview",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/preview/[company]/[token]/page.tsx, PreviewPage: the title of <Alert>."
+  },
+  "app.preview.[company].[token].page.preview": {
+    "text": "Preview",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/preview/[company]/[token]/page.tsx: text built in code."
+  },
+  "app.preview.[company].[token].page.this_is_how_candidates_will_see": {
+    "text": "This is how candidates will see the ad. It is not published, and this link is the team’s for a day.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/preview/[company]/[token]/page.tsx, PreviewPage: text inside <Alert>."
+  },
+  "app.reference.[company].page.a_reference": {
+    "text": "A reference",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/page.tsx: text built in code."
+  },
+  "app.reference.[company].referee-form.a_reference": {
+    "text": "A reference",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <h1>."
+  },
+  "app.reference.[company].referee-form.how_do_you_know_them": {
+    "text": "How do you know them?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <FieldLabel>."
+  },
+  "app.reference.[company].referee-form.maybe": {
+    "text": "Maybe",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <SegmentedControlItem>."
+  },
+  "app.reference.[company].referee-form.no": {
+    "text": "No",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <SegmentedControlItem>."
+  },
+  "app.reference.[company].referee-form.open_this_page_from_the_link": {
+    "text": "Open this page from the link in the email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: the title of <Alert>."
+  },
+  "app.reference.[company].referee-form.send_reference": {
+    "text": "Send reference",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <Button>."
+  },
+  "app.reference.[company].referee-form.something_to_develop": {
+    "text": "Something to develop",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <FieldLabel>."
+  },
+  "app.reference.[company].referee-form.strengths": {
+    "text": "Strengths",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <FieldLabel>."
+  },
+  "app.reference.[company].referee-form.thank_you": {
+    "text": "Thank you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: the title of <EmptyState>."
+  },
+  "app.reference.[company].referee-form.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: the title of <Alert>."
+  },
+  "app.reference.[company].referee-form.would_you_hire_them_again": {
+    "text": "Would you hire them again?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <FieldLabel>."
+  },
+  "app.reference.[company].referee-form.yes": {
+    "text": "Yes",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <SegmentedControlItem>."
+  },
+  "app.reference.[company].referee-form.you_were_named_as_a_referee": {
+    "text": "You were named as a referee. No account needed.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: text inside <p>."
+  },
+  "app.reference.[company].referee-form.your_answers_are_with_the_hiring": {
+    "text": "Your answers are with the hiring team.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/reference/[company]/referee-form.tsx, RefereeForm: the description of <EmptyState>."
+  },
+  "app.schedule.[company].page.pick_a_time": {
+    "text": "Pick a time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/page.tsx: text built in code."
+  },
+  "app.schedule.[company].pick-time.booked_for": {
+    "text": "Booked for {{format}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <Alert>. Filled in: {{format}}."
+  },
+  "app.schedule.[company].pick-time.change_your_times": {
+    "text": "Change your times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <h1>."
+  },
+  "app.schedule.[company].pick-time.every_time_below_is_free_for": {
+    "text": "Every time below is free for {{replace}}: their working hours, holidays and meetings are already left out.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <p>. Filled in: {{replace}}."
+  },
+  "app.schedule.[company].pick-time.give_new_times_here_and_the": {
+    "text": "Give new times here and the team moves it to one of them; until then, that time stands.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <Alert>."
+  },
+  "app.schedule.[company].pick-time.loading_times": {
+    "text": "Loading times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the label of <Spinner>."
+  },
+  "app.schedule.[company].pick-time.no_times_left": {
+    "text": "No times left",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <EmptyState>."
+  },
+  "app.schedule.[company].pick-time.of_picked": {
+    "text": "{{String}} of {{String2}} picked",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <span>. Filled in: {{String}}, {{String2}}."
+  },
+  "app.schedule.[company].pick-time.open_this_page_from_the_link": {
+    "text": "Open this page from the link in your invitation.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text built in code."
+  },
+  "app.schedule.[company].pick-time.reply_to_the_invitation_and_the": {
+    "text": "Reply to the invitation and the recruiter will find one.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the description of <EmptyState>."
+  },
+  "app.schedule.[company].pick-time.send_my_new_times": {
+    "text": "Send my new times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <Button>."
+  },
+  "app.schedule.[company].pick-time.send_my_times": {
+    "text": "Send my {{String}} times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <Button>. Filled in: {{String}}."
+  },
+  "app.schedule.[company].pick-time.take_off_any_that_no_longer": {
+    "text": "Take off any that no longer work and add others; sending replaces what you gave before.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <Alert>."
+  },
+  "app.schedule.[company].pick-time.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <Alert>."
+  },
+  "app.schedule.[company].pick-time.the_team_could_not_make_your": {
+    "text": "The team could not make your earlier times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <Alert>."
+  },
+  "app.schedule.[company].pick-time.they_will_confirm_one_by_email": {
+    "text": "They will confirm one by email, with the meeting link and what it is about. The email has a link back here if your plans change.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the description of <EmptyState>."
+  },
+  "app.schedule.[company].pick-time.those_are_left_out_now_please": {
+    "text": "Those {{String}} are left out now. Please choose others.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <Alert>. Filled in: {{String}}."
+  },
+  "app.schedule.[company].pick-time.times_that_suit_you": {
+    "text": "Times that suit you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the label of <SlotPicker>."
+  },
+  "app.schedule.[company].pick-time.we_cant_show_times": {
+    "text": "We can’t show times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <Alert>."
+  },
+  "app.schedule.[company].pick-time.when_suits_you": {
+    "text": "When suits you?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: text inside <h1>."
+  },
+  "app.schedule.[company].pick-time.your_new_times_are_with_the": {
+    "text": "Your new times are with the team",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <EmptyState>."
+  },
+  "app.schedule.[company].pick-time.your_times_are_with_the_team": {
+    "text": "Your times are with the team",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <EmptyState>."
+  },
+  "app.schedule.[company].pick-time.your_times_so_far_are_picked": {
+    "text": "Your times so far are picked below",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/schedule/[company]/pick-time.tsx, PickTime: the title of <Alert>."
+  },
+  "app.search.page.acme": {
+    "text": "acme",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the placeholder of <Input>."
+  },
+  "app.search.page.any": {
+    "text": "Any",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.any_time": {
+    "text": "Any time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.apply_filters": {
+    "text": "Apply filters",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <Button>."
+  },
+  "app.search.page.company": {
+    "text": "Company",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <FieldLabel>."
+  },
+  "app.search.page.every_open_job": {
+    "text": "Every open job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the action of <Link>."
+  },
+  "app.search.page.filters": {
+    "text": "Filters",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the aria-label of <form>."
+  },
+  "app.search.page.full_time": {
+    "text": "Full time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.hours": {
+    "text": "Hours",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the label of <Choose>."
+  },
+  "app.search.page.hybrid": {
+    "text": "Hybrid",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, MODES: text built in code."
+  },
+  "app.search.page.jobs": {
+    "text": "{{q}} jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx: a \"title\" value. Filled in: {{q}}."
+  },
+  "app.search.page.jobs_one": {
+    "text": "{{count}} job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <h2>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.search.page.jobs_other": {
+    "text": "{{count}} jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <h2>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.search.page.next_page": {
+    "text": "Next page",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <Link>."
+  },
+  "app.search.page.no_jobs_match": {
+    "text": "No jobs match",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the title of <EmptyState>."
+  },
+  "app.search.page.nothing_matches_exactly": {
+    "text": "Nothing matches “{{q}}” exactly",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the title of <Alert>. Filled in: {{q}}."
+  },
+  "app.search.page.on_site": {
+    "text": "On site",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, MODES: text built in code."
+  },
+  "app.search.page.pages": {
+    "text": "Pages",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the aria-label of <nav>."
+  },
+  "app.search.page.part_time": {
+    "text": "Part time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.posted": {
+    "text": "Posted",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the label of <Choose>."
+  },
+  "app.search.page.previous_page": {
+    "text": "Previous page",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <Link>."
+  },
+  "app.search.page.remote": {
+    "text": "Remote",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, MODES: text built in code."
+  },
+  "app.search.page.results": {
+    "text": "Results",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the aria-label of <section>."
+  },
+  "app.search.page.search_jobs": {
+    "text": "Search jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx: a \"title\" value."
+  },
+  "app.search.page.sort": {
+    "text": "Sort",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the label of <Choose>."
+  },
+  "app.search.page.the_search_did_not_run": {
+    "text": "The search did not run",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the title of <Alert>."
+  },
+  "app.search.page.these_are_the_closest": {
+    "text": "These are the closest to what you asked for: they share the skills or the field, so one may fit better than its title suggests.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <Alert>."
+  },
+  "app.search.page.these_are_the_closest_to_said": {
+    "text": "These are the closest to what you asked for ({{said}}): they share the skills or the field, so one may fit better than its title suggests.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <Alert>. Filled in: {{said}}."
+  },
+  "app.search.page.this_month": {
+    "text": "This month",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.this_week": {
+    "text": "This week",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.today": {
+    "text": "Today",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the options of <Choose>."
+  },
+  "app.search.page.try_fewer_filters_another_word_or": {
+    "text": "Try fewer filters, another word, or describe what you want and let the AI set the filters.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: the description of <EmptyState>."
+  },
+  "app.search.page.understood": {
+    "text": "Understood: {{said}}. The filters are in the address; change any of them.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <p>. Filled in: {{said}}."
+  },
+  "app.search.page.work_mode": {
+    "text": "Work mode",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/search/page.tsx, Results: text inside <legend>."
+  },
+  "app.sign-in.page.one_account_for_every_company_that": {
+    "text": "One account for every company that hires here: your applications in one place, your CV ready, and no code to type each time you apply.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/page.tsx, SignIn: text inside <p>."
+  },
+  "app.sign-in.page.sign_in": {
+    "text": "Sign in",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/page.tsx: text built in code."
+  },
+  "app.sign-in.page.your_account_holds_your_name_your": {
+    "text": "Your account holds your name, your address and the CVs you keep. What a company knows about your application stays with that company.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/page.tsx, SignIn: text inside <p>."
+  },
+  "app.sign-in.sign-in-form.continue_with_google": {
+    "text": "Continue with Google",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <a>."
+  },
+  "app.sign-in.sign-in-form.email": {
+    "text": "Email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <FieldLabel>."
+  },
+  "app.sign-in.sign-in-form.email_me_a_code": {
+    "text": "Email me a code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <Button>."
+  },
+  "app.sign-in.sign-in-form.google_did_not_sign_you_in": {
+    "text": "Google did not sign you in. Try again, or use a code.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text built in code."
+  },
+  "app.sign-in.sign-in-form.if_this_is_your_first_time": {
+    "text": "If this is your first time here",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: the placeholder of <Input>."
+  },
+  "app.sign-in.sign-in-form.name": {
+    "text": "Name",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <FieldLabel>."
+  },
+  "app.sign-in.sign-in-form.or_with_a_code": {
+    "text": "or with a code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <div>."
+  },
+  "app.sign-in.sign-in-form.send_a_new_code": {
+    "text": "Send a new code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <Button>."
+  },
+  "app.sign-in.sign-in-form.sign_in": {
+    "text": "Sign in",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <Button>."
+  },
+  "app.sign-in.sign-in-form.that_code_is_not_right": {
+    "text": "That code is not right.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text built in code."
+  },
+  "app.sign-in.sign-in-form.that_did_not_go_through": {
+    "text": "That did not go through.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text built in code."
+  },
+  "app.sign-in.sign-in-form.the_address_you_apply_with_a": {
+    "text": "The address you apply with. A code goes there.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <FieldDescription>."
+  },
+  "app.sign-in.sign-in-form.the_code": {
+    "text": "The code",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: the label of <PinInput>."
+  },
+  "app.sign-in.sign-in-form.we_sent_a_six_digit_code": {
+    "text": "We sent a six-digit code to {{email}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/sign-in/sign-in-form.tsx, SignInForm: text inside <p>. Filled in: {{email}}."
+  },
+  "app.welcome.page.welcome": {
+    "text": "Welcome",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/page.tsx: text built in code."
+  },
+  "app.welcome.welcome.before_you_start": {
+    "text": "Before you start",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <CardTitle>."
+  },
+  "app.welcome.welcome.chosen_before_you_start": {
+    "text": "Chosen before you start",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the items of <KeyValues>."
+  },
+  "app.welcome.welcome.loading_your_welcome": {
+    "text": "Loading your welcome",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the label of <Spinner>."
+  },
+  "app.welcome.welcome.meets_you": {
+    "text": "Meets you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the items of <KeyValues>."
+  },
+  "app.welcome.welcome.not_reachable_right_now_try_again": {
+    "text": "Not reachable right now. Try again in a moment.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx: a \"message\" value."
+  },
+  "app.welcome.welcome.of_done": {
+    "text": "{{String}} of {{String2}} done",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <p>. Filled in: {{String}}, {{String2}}."
+  },
+  "app.welcome.welcome.on_your_start_date_youll_get": {
+    "text": "On your start date you’ll get your Kithena account and this moves into the app.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <p>."
+  },
+  "app.welcome.welcome.open_this_page_from_the_link": {
+    "text": "Open this page from the link in your welcome email.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text built in code."
+  },
+  "app.welcome.welcome.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx: a \"message\" value."
+  },
+  "app.welcome.welcome.we_cant_show_this_page": {
+    "text": "We can’t show this page",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the title of <Alert>."
+  },
+  "app.welcome.welcome.welcome": {
+    "text": "Welcome, {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <h1>. Filled in: {{name}}."
+  },
+  "app.welcome.welcome.you_start_on": {
+    "text": "You start on {{day}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <p>. Filled in: {{day}}."
+  },
+  "app.welcome.welcome.you_start_on_in": {
+    "text": "You start on {{day}}, in {{location}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <p>. Filled in: {{day}}, {{location}}."
+  },
+  "app.welcome.welcome.your_buddy": {
+    "text": "Your buddy",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the items of <KeyValues>."
+  },
+  "app.welcome.welcome.your_first_week": {
+    "text": "Your first week",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: text inside <CardTitle>."
+  },
+  "app.welcome.welcome.your_manager": {
+    "text": "Your manager",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/welcome/welcome.tsx, Welcome: the items of <KeyValues>."
+  },
+  "components.account-menu.sign_out": {
+    "text": "Sign out",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/account-menu.tsx, AccountMenu: text inside <DropdownMenuItem>."
+  },
+  "components.account-menu.write_a_cv_with_ai": {
+    "text": "Write a CV with AI",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/account-menu.tsx, AccountMenu: text inside <DropdownMenuItem>."
+  },
+  "components.account-menu.your_applications": {
+    "text": "Your applications",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/account-menu.tsx, AccountMenu: text inside <DropdownMenuItem>."
+  },
+  "components.account-menu.your_cvs": {
+    "text": "Your CVs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/account-menu.tsx, AccountMenu: text inside <DropdownMenuItem>."
+  },
+  "components.asks.an_offer_to_read": {
+    "text": "An offer to read",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value."
+  },
+  "components.asks.answered": {
+    "text": "Answered: {{label}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{label}}."
+  },
+  "components.asks.ask_for_a_different_time": {
+    "text": "Ask for a different time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <FieldLabel>."
+  },
+  "components.asks.ask_for_other_times": {
+    "text": "Ask for other times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.ask_to_move_it": {
+    "text": "Ask to move it",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.asks": {
+    "text": "{{name}} asks: {{label}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{name}}, {{label}}."
+  },
+  "components.asks.book_this_time": {
+    "text": "Book this time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.booked": {
+    "text": "Booked: {{label}}, {{whenLong}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{label}}, {{whenLong}}."
+  },
+  "components.asks.booked_2": {
+    "text": "Booked",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeList: the trailing of <Badge>."
+  },
+  "components.asks.booked_the_invitation_is_on_its": {
+    "text": "Booked. The invitation is on its way.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the onClick of <Button>."
+  },
+  "components.asks.choose_a_time_for_your": {
+    "text": "Choose a time for your {{toLowerCase}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{toLowerCase}}."
+  },
+  "components.asks.close": {
+    "text": "Close",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.needs_you": {
+    "text": "Needs you",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeList: the trailing of <Badge>."
+  },
+  "components.asks.none_of_these_work": {
+    "text": "None of these work",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <RadioCard>."
+  },
+  "components.asks.nothing_more_to_do_here": {
+    "text": "Nothing more to do here.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <p>."
+  },
+  "components.asks.say_when_suits_you_and_they": {
+    "text": "Say when suits you and they will offer others.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the description of <RadioCard>."
+  },
+  "components.asks.say_why_in_a_line_and": {
+    "text": "Say why, in a line, and when would suit you. The company hears at once; this time stands until they move it.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <FieldDescription>."
+  },
+  "components.asks.send_my_answer": {
+    "text": "Send my answer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <Button>."
+  },
+  "components.asks.sent_thank_you": {
+    "text": "Sent. Thank you.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the onClick of <Button>."
+  },
+  "components.asks.sent_the_company_will_come_back": {
+    "text": "Sent. The company will come back with new times.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the onClick of <Button>."
+  },
+  "components.asks.sent_they_will_offer_other_times": {
+    "text": "Sent. They will offer other times.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the onClick of <Button>."
+  },
+  "components.asks.the_change_was_handled": {
+    "text": "The {{toLowerCase}} change was handled",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{toLowerCase}}."
+  },
+  "components.asks.times_are_shown_in_your_time": {
+    "text": "Times are shown in your time zone, {{timeZone}}.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <p>. Filled in: {{timeZone}}."
+  },
+  "components.asks.times_offered": {
+    "text": "Times offered",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: the aria-label of <RadioGroup>."
+  },
+  "components.asks.when_would_suit_you": {
+    "text": "When would suit you?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <FieldLabel>."
+  },
+  "components.asks.you_asked_for_other_times": {
+    "text": "You asked {{name}} for other times",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{name}}."
+  },
+  "components.asks.you_asked_to_move_the": {
+    "text": "You asked to move the {{toLowerCase}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{toLowerCase}}."
+  },
+  "components.asks.you_have_asked_for_a_different": {
+    "text": "You have asked for a different time. Until the company moves it, this time stands.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx, NoticeDialog: text inside <p>."
+  },
+  "components.asks.you_offered_times_one": {
+    "text": "You offered {{count}} time for: {{label}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{count}}, {{label}}. Plural: the words for a {{count}} of one."
+  },
+  "components.asks.you_offered_times_other": {
+    "text": "You offered {{count}} times for: {{label}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/asks.tsx: a \"title\" value. Filled in: {{count}}, {{label}}. Plural: the words for any other {{count}}."
+  },
+  "components.job-ad.a_preview_nobody_can_apply_from": {
+    "text": "A preview: nobody can apply from here.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <p>."
+  },
+  "components.job-ad.ad_language": {
+    "text": "Ad language",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.apply_now": {
+    "text": "Apply now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <Button>."
+  },
+  "components.job-ad.at_a_glance": {
+    "text": "At a glance",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: the aria-label of <ul>."
+  },
+  "components.job-ad.contract": {
+    "text": "Contract",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.country": {
+    "text": "Country",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.english": {
+    "text": "English",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, LANGUAGE: a \"en\" value."
+  },
+  "components.job-ad.entry_level": {
+    "text": "Entry level",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, SENIORITY: a \"entry\" value."
+  },
+  "components.job-ad.executive": {
+    "text": "Executive",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, SENIORITY: a \"executive\" value."
+  },
+  "components.job-ad.german": {
+    "text": "German",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, LANGUAGE: a \"de\" value."
+  },
+  "components.job-ad.hindi": {
+    "text": "Hindi",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, LANGUAGE: a \"hi\" value."
+  },
+  "components.job-ad.hours": {
+    "text": "Hours",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.how_we_hire": {
+    "text": "How we hire",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <h2>."
+  },
+  "components.job-ad.hybrid": {
+    "text": "Hybrid",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, MODE: a \"hybrid\" value."
+  },
+  "components.job-ad.lead": {
+    "text": "Lead",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, SENIORITY: a \"lead\" value."
+  },
+  "components.job-ad.level": {
+    "text": "Level",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.location": {
+    "text": "Location",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.mid_level": {
+    "text": "Mid level",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, SENIORITY: a \"mid\" value."
+  },
+  "components.job-ad.no_account_needed_your_cv_fills": {
+    "text": "No account needed. Your CV fills most of the form.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <p>."
+  },
+  "components.job-ad.on_site": {
+    "text": "On site",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, MODE: a \"onsite\" value."
+  },
+  "components.job-ad.open_until": {
+    "text": "Open until",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.pay_not_shown": {
+    "text": "Pay not shown",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <p>."
+  },
+  "components.job-ad.pays": {
+    "text": "Pays",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <span>."
+  },
+  "components.job-ad.posted": {
+    "text": "Posted",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.read_in": {
+    "text": "Read in",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: the aria-label of <nav>."
+  },
+  "components.job-ad.remote": {
+    "text": "Remote",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, MODE: a \"remote\" value."
+  },
+  "components.job-ad.senior": {
+    "text": "Senior",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, SENIORITY: a \"senior\" value."
+  },
+  "components.job-ad.spanish": {
+    "text": "Spanish",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, LANGUAGE: a \"es\" value."
+  },
+  "components.job-ad.team": {
+    "text": "Team",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-ad.this_employer_uses_an_automated_tool": {
+    "text": "This employer uses an automated tool in New York City to help assess applications (NYC Local Law 144). You may ask for an alternative process.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <p>."
+  },
+  "components.job-ad.what_we_offer": {
+    "text": "What we offer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: text inside <h2>."
+  },
+  "components.job-ad.work_mode": {
+    "text": "Work mode",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-ad.tsx, JobAd: a \"label\" value."
+  },
+  "components.job-alert.check_your_inbox": {
+    "text": "Check your inbox",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: the title of <Alert>."
+  },
+  "components.job-alert.daily": {
+    "text": "Daily",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <SegmentedControlItem>."
+  },
+  "components.job-alert.designer": {
+    "text": "designer",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: the placeholder of <Input>."
+  },
+  "components.job-alert.email_me": {
+    "text": "Email me",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <Button>."
+  },
+  "components.job-alert.email_me_new_jobs_at": {
+    "text": "Email me new jobs at {{name}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <CardTitle>. Filled in: {{name}}."
+  },
+  "components.job-alert.how_often": {
+    "text": "How often",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: the aria-label of <SegmentedControl>."
+  },
+  "components.job-alert.jobs_matching_optional": {
+    "text": "Jobs matching (optional)",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <FieldLabel>."
+  },
+  "components.job-alert.that_did_not_go_through": {
+    "text": "That did not go through",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: the title of <Alert>."
+  },
+  "components.job-alert.we_sent_a_link_to_confirm": {
+    "text": "We sent a link to confirm. Nothing is sent until you do.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <Alert>."
+  },
+  "components.job-alert.weekly": {
+    "text": "Weekly",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <SegmentedControlItem>."
+  },
+  "components.job-alert.your_email": {
+    "text": "Your email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-alert.tsx, JobAlert: text inside <FieldLabel>."
+  },
+  "components.job-assistant.ask": {
+    "text": "Ask",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <Button>."
+  },
+  "components.job-assistant.ask_the_recruiter": {
+    "text": "Ask the recruiter",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <Button>."
+  },
+  "components.job-assistant.ask_the_recruiter_instead_they_reply": {
+    "text": "Ask the recruiter instead; they reply by email.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <p>."
+  },
+  "components.job-assistant.is_it_remote_what_are_the": {
+    "text": "Is it remote? What are the steps?",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: the placeholder of <Input>."
+  },
+  "components.job-assistant.questions_about_this_job": {
+    "text": "Questions about this job",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <CardTitle>."
+  },
+  "components.job-assistant.sent_to_the_recruiter": {
+    "text": "Sent to the recruiter",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: the title of <Alert>."
+  },
+  "components.job-assistant.you_are_asking_an_ai_assistant": {
+    "text": "You are asking an AI assistant. It answers from this job ad and the hiring steps only, and it does not assess you.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <CardDescription>."
+  },
+  "components.job-assistant.your_email": {
+    "text": "Your email",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: text inside <FieldLabel>."
+  },
+  "components.job-assistant.your_question": {
+    "text": "Your question",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-assistant.tsx, JobAssistant: the aria-label of <Input>."
+  },
+  "components.job-card.hybrid": {
+    "text": "Hybrid",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-card.tsx, MODE: a \"hybrid\" value."
+  },
+  "components.job-card.on_site": {
+    "text": "On site",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-card.tsx, MODE: a \"onsite\" value."
+  },
+  "components.job-card.remote": {
+    "text": "Remote",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/job-card.tsx, MODE: a \"remote\" value."
+  },
+  "components.search-bar.a_title_a_skill_or_a": {
+    "text": "A title, a skill or a company; a country narrows it. Every filter is in the address.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <p>."
+  },
+  "components.search-bar.an_ai_turns_your_words_into": {
+    "text": "An AI turns your words into filters you can see and change. It never ranks you.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <p>."
+  },
+  "components.search-bar.anywhere": {
+    "text": "Anywhere",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <SelectItem>."
+  },
+  "components.search-bar.country": {
+    "text": "Country",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: the aria-label of <SelectTrigger>."
+  },
+  "components.search-bar.describe_it": {
+    "text": "Describe it",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <SegmentedControlItem>."
+  },
+  "components.search-bar.describe_the_job_you_want": {
+    "text": "Describe the job you want",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: the aria-label of <Input>."
+  },
+  "components.search-bar.find_jobs": {
+    "text": "Find jobs",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <Button>."
+  },
+  "components.search-bar.how_to_search": {
+    "text": "How to search",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: the aria-label of <SegmentedControl>."
+  },
+  "components.search-bar.job_title_skill_or_company": {
+    "text": "Job title, skill or company",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: the aria-label of <Input>."
+  },
+  "components.search-bar.keywords": {
+    "text": "Keywords",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <SegmentedControlItem>."
+  },
+  "components.search-bar.remote_design_jobs_in_spain_paying": {
+    "text": "Remote design jobs in Spain paying over 50k",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: the placeholder of <Input>."
+  },
+  "components.search-bar.search": {
+    "text": "Search",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <Button>."
+  },
+  "components.search-bar.that_one_did_not_turn_into": {
+    "text": "That one did not turn into filters. Try keywords, or say it another way.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/search-bar.tsx, SearchBar: text inside <p>."
+  },
+  "components.sticky-title.apply_now": {
+    "text": "Apply now",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/sticky-title.tsx, StickyTitle: text inside <Link>."
+  },
+  "components.theme-toggle.switch_to_dark": {
+    "text": "Switch to dark",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/theme-toggle.tsx, ThemeToggle: the aria-label of <Button>."
+  },
+  "components.theme-toggle.switch_to_light": {
+    "text": "Switch to light",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. components/theme-toggle.tsx, ThemeToggle: the aria-label of <Button>."
+  },
+  "lib.account.kithena_jobs_is_not_reachable_right": {
+    "text": "Kithena Jobs is not reachable right now.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/account.ts: a \"message\" value."
+  },
+  "lib.account.something_went_wrong": {
+    "text": "Something went wrong",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/account.ts: a \"message\" value."
+  },
+  "lib.api.kithena_jobs_is_not_reachable_right": {
+    "text": "Kithena Jobs is not reachable right now.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/api.ts: a \"message\" value."
+  },
+  "lib.api.something_went_wrong": {
+    "text": "Something went wrong",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/api.ts: a \"message\" value."
+  },
+  "lib.browser-api.kithena_jobs_is_not_reachable_right": {
+    "text": "Kithena Jobs is not reachable right now. Try again in a moment.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/browser-api.ts: a \"message\" value."
+  },
+  "lib.browser-api.that_did_not_go_through_try": {
+    "text": "That did not go through. Try again.",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/browser-api.ts: a \"message\" value."
+  },
+  "lib.format.a_month": {
+    "text": "{{amount}} a month",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code. Filled in: {{amount}}."
+  },
+  "lib.format.an_hour": {
+    "text": "{{amount}} an hour",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code. Filled in: {{amount}}."
+  },
+  "lib.format.days_ago": {
+    "text": "{{days}} d",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code. Filled in: {{days}}."
+  },
+  "lib.format.full_time": {
+    "text": "Full time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code."
+  },
+  "lib.format.hybrid": {
+    "text": "Hybrid",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts, MODE: a \"hybrid\" value."
+  },
+  "lib.format.on_site": {
+    "text": "On site",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts, MODE: a \"onsite\" value."
+  },
+  "lib.format.part_time": {
+    "text": "Part time",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code."
+  },
+  "lib.format.remote": {
+    "text": "Remote",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts, MODE: a \"remote\" value."
+  },
+  "lib.format.remote_in": {
+    "text": "Remote in {{join}}",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code. Filled in: {{join}}."
+  },
+  "lib.format.today": {
+    "text": "Today",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code."
+  },
+  "lib.format.weeks_ago": {
+    "text": "{{weeks}} w",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. lib/format.ts: text built in code. Filled in: {{weeks}}."
+  }
+}
