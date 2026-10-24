@@ -1,10 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 
-import { documents, people, timeOff } from '../people';
-import type { OperationName as DocumentsOperationName } from '../documents-operations';
-import type { OperationName } from '../people-operations';
-import type { OperationName as TimeOffOperationName } from '../timeoff-operations';
+import { documents, onboarding, people, performance, recruiting, timeOff } from '../people';
 import { readPreference, writePreference } from '../preferences';
 import { currentPerson } from '../session';
 import { prune, stateOf, type InboxState } from './model';
@@ -18,12 +15,19 @@ import { readInbox, type Run } from './sources';
  * page ask: the layout's bell, the sidebar and the page itself.
  */
 
-export const webRun: Run = (area, name, variables = {}) =>
-  area === 'people'
-    ? people(name as OperationName, variables)
-    : area === 'documents'
-      ? documents(name as DocumentsOperationName, variables)
-      : timeOff(name as TimeOffOperationName, variables);
+/** Each module's read, by its area: a module missing here never answers the Inbox. */
+const RUNS = {
+  people,
+  timeoff: timeOff,
+  documents,
+  recruiting,
+  onboarding,
+  performance,
+} as unknown as Readonly<
+  Record<Parameters<Run>[0], (name: string, variables: Record<string, unknown>) => ReturnType<Run>>
+>;
+
+export const webRun: Run = (area, name, variables = {}) => RUNS[area](name, variables);
 
 export const inboxState = cache(async (): Promise<InboxState> =>
   stateOf(await readPreference('inbox')),

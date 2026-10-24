@@ -111,8 +111,9 @@ export function PasskeySignIn({ app = null }: { app?: AppSignIn | null }): JSX.E
          * `replace` keeps this page out of history, so Back from the dashboard
          * leaves rather than returning here.
          */
+        const { redirect } = (await finished.json()) as { redirect?: string };
         router.refresh();
-        router.replace('/');
+        router.replace(redirect ?? '/');
       } catch {
         // A cancelled prompt throws, and so does a refusal. They are the same
         // outcome here: nothing happened, try again. A prompt the page started
