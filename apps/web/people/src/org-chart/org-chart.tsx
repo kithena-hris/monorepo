@@ -80,7 +80,7 @@ const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
 
 export function OrgChartScreen({ load, ...props }: OrgChartScreenProps): JSX.Element {
   return (
-    <Loaded load={load} what="the org chart">
+    <Loaded load={load} what={t('org-chart.org-chart.the_org_chart', 'the org chart')}>
       {(state) => <Body state={state} {...props} />}
     </Loaded>
   );

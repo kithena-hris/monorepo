@@ -704,7 +704,7 @@ export function Automation(props: ScreenProps<AutomationData>): JSX.Element {
   const act = useAct(props);
   const [editing, setEditing] = useState(false);
   return (
-    <Loaded load={props.load} what="the automation">
+    <Loaded load={props.load} what={tr('automations.the_automation', 'the automation')}>
       {(data) => {
         const a = data.automation;
         return (

@@ -111,7 +111,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
   const [creating, setCreating] = useState(props.search?.['new'] === '1');
   const [archiving, setArchiving] = useState<TemplatesData['rows'][number] | null>(null);
   return (
-    <Loaded load={props.load} what="form templates">
+    <Loaded load={props.load} what={tr('templates.form_templates', 'form templates')}>
       {(data) => {
         const rows = show === 'scored' ? data.rows.filter((r) => r.hasScore) : data.rows;
         return (
@@ -452,7 +452,7 @@ function NewTemplate({
         setStep(s);
       }}
       finish={create}
-      finishLabel="Open in builder"
+      finishLabel={tr('templates.open_in_builder', 'Open in builder')}
       pending={act.pending}
       canNext={
         name.trim() !== '' &&
@@ -640,7 +640,7 @@ const TYPES = [
 
 export function Builder(props: ScreenProps<BuilderData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the template">
+    <Loaded load={props.load} what={tr('templates.the_template', 'the template')}>
       {(data) => (
         <Building key={`${data.id}-${String(data.current?.version ?? 0)}`} data={data} {...props} />
       )}
@@ -748,11 +748,21 @@ function Building({
     <div className="flex flex-col gap-4">
       <PageHeader
         title={name}
-        description={`${data.published === null ? tr('templates.not_published_yet', 'Not published yet') : tr('templates.v_published', 'v{{published}} published', { published: String(data.published) })}${data.draft === null ? '' : ` · draft v${String(data.draft)}`}${dirty ? ' · unsaved changes' : ''}`}
+        description={[
+          data.published === null
+            ? tr('templates.not_published_yet', 'Not published yet')
+            : tr('templates.v_published', 'v{{published}} published', {
+                published: data.published,
+              }),
+          ...(data.draft === null
+            ? []
+            : [tr('templates.draft_v', 'draft v{{draft}}', { draft: data.draft })]),
+          ...(dirty ? [tr('templates.unsaved_changes', 'unsaved changes')] : []),
+        ].join(' · ')}
         actions={
           data.hr ? (
             <>
-              <Tooltip content="Preview the form">
+              <Tooltip content={tr('templates.preview_the_form', 'Preview the form')}>
                 <Button
                   variant="secondary"
                   aria-label={tr('templates.preview_the_form', 'Preview the form')}
@@ -965,7 +975,7 @@ function Building({
                             onChange={(id, a) => {
                               setAnswers({ ...answers, [id]: a });
                             }}
-                            subject="the subject"
+                            subject={tr('templates.the_subject', 'the subject')}
                           />
                         </div>
                       )
@@ -1098,7 +1108,7 @@ function Building({
                   onChange={(id, a) => {
                     setAnswers({ ...answers, [id]: a });
                   }}
-                  subject="the subject"
+                  subject={tr('templates.the_subject', 'the subject')}
                 />
               )}
             </div>
@@ -1496,7 +1506,7 @@ export interface PreviewData {
 
 export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the preview">
+    <Loaded load={props.load} what={tr('templates.the_preview', 'the preview')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1564,7 +1574,7 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
   const act = useAct(props);
   const id = props.params?.['id'] ?? '';
   return (
-    <Loaded load={props.load} what="the versions">
+    <Loaded load={props.load} what={tr('templates.the_versions', 'the versions')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

@@ -51,7 +51,7 @@ export function Balance({ load }: { readonly load: Loadable<BalanceData> }): JSX
       {load.status === 'error' ? (
         <PageHeader title={t('balance.balance.where_the_days_went', 'Where the days went')} />
       ) : null}
-      <Loaded load={load} what="this balance">
+      <Loaded load={load} what={t('balance.balance.this_balance', 'this balance')}>
         {(data) => <Ready data={data} />}
       </Loaded>
     </div>

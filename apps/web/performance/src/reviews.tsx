@@ -193,7 +193,7 @@ function reviewColumns(
 
 export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="your reviews">
+    <Loaded load={props.load} what={t('reviews.your_reviews', 'your reviews')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -517,7 +517,7 @@ type Saving =
 /** PF10: the form, autosaving, with the detail panel beside it. */
 export function Write(props: ScreenProps<WriteData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the review">
+    <Loaded load={props.load} what={t('reviews.the_review', 'the review')}>
       {(data) => <Writing key={data.review.id} data={data} {...props} />}
     </Loaded>
   );
@@ -942,7 +942,13 @@ function Writing({
             </Button>
           }
         >
-          {`${saving.message} Your last change is kept on this page; load the newer revision and make it again.`}
+          {t(
+            'reviews.saving_conflict_last_change_kept',
+            '{{message}} Your last change is kept on this page; load the newer revision and make it again.',
+            {
+              message: saving.message,
+            },
+          )}
         </Alert>
       ) : null}
       {saving.state === 'failed' ? (
@@ -980,7 +986,17 @@ function Writing({
             ) : undefined
           }
         >
-          {`${subject} reports to ${former.to ?? t('reviews.someone_else', 'someone else')} now, so this review can no longer be submitted; ${former.to ?? t('reviews.their_new_manager', 'their new manager')} writes theirs. It stays here for you to read until you delete it.`}
+          {former.to == null
+            ? t(
+                'reviews.reports_to_someone_else_now',
+                '{{subject}} reports to someone else now, so this review can no longer be submitted; their new manager writes theirs. It stays here for you to read until you delete it.',
+                { subject },
+              )
+            : t(
+                'reviews.reports_to_now',
+                '{{subject}} reports to {{to}} now, so this review can no longer be submitted; {{to}} writes theirs. It stays here for you to read until you delete it.',
+                { subject, to: former.to },
+              )}
         </Alert>
       )}
       {data.review.handover === null ? null : (
@@ -1141,7 +1157,7 @@ function Writing({
                   {summary === null ? (
                     <Asking
                       busy={asking.summary}
-                      what="Reading what others said…"
+                      what={t('reviews.reading_what_others_said', 'Reading what others said…')}
                       error={aiError}
                     />
                   ) : summary.sentences.length === 0 ? (
@@ -1828,7 +1844,11 @@ function SubmitDialog({
             {t('reviews.how_it_will_read_to', 'How it will read to {{subject}}', { subject })}
           </p>
           {check.reading === 'reading' ? (
-            <Asking busy what="Reading your draft…" error={null} />
+            <Asking
+              busy
+              what={t('reviews.reading_your_draft', 'Reading your draft…')}
+              error={null}
+            />
           ) : check.reading === 'failed' ? (
             <span className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
               {t('reviews.it_could_not_be_read_just', 'It could not be read just now.')}
@@ -2109,7 +2129,11 @@ function Detached({
         ) : undefined
       }
     >
-      {`${subject} was removed from the cycle. Nobody else can read your draft; a kept review reattaches if ${subject} is added back.`}
+      {t(
+        'reviews.removed_from_the_cycle_draft_kept',
+        '{{subject}} was removed from the cycle. Nobody else can read your draft; a kept review reattaches if {{subject}} is added back.',
+        { subject },
+      )}
     </Alert>
   );
 }
@@ -2149,7 +2173,7 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
   const act = useAct(props);
   const [comment, setComment] = useState('');
   return (
-    <Loaded load={props.load} what="the review">
+    <Loaded load={props.load} what={t('reviews.the_review', 'the review')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -2161,7 +2185,25 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                     cycle: data.review.cycle,
                   })
             }
-            description={`${data.review.by === null ? t('reviews.names_hidden', 'Names hidden') : t('reviews.from', 'From {{by}}', { by: data.review.by })}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${formatList(data.review.helpedBy ?? [])}`}`}
+            description={[
+              data.review.by === null
+                ? t('reviews.names_hidden', 'Names hidden')
+                : t('reviews.from', 'From {{by}}', { by: data.review.by }),
+              ...(data.review.released === null
+                ? []
+                : [
+                    t('reviews.released_on', 'released {{day}}', {
+                      day: day(data.review.released),
+                    }),
+                  ]),
+              ...((data.review.helpedBy ?? []).length === 0
+                ? []
+                : [
+                    t('reviews.drafted_with_help_from', 'Drafted with help from {{names}}', {
+                      names: formatList(data.review.helpedBy ?? []),
+                    }),
+                  ]),
+            ].join(' · ')}
             actions={
               <Button
                 variant="secondary"
@@ -2184,7 +2226,13 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                 <Card>
                   <CardContent className="flex items-baseline gap-3">
                     <span className="text-3xl font-bold tabular-nums">{data.score.display}</span>
-                    <span className="text-fg-muted">{`${data.score.label}${data.score.final ? '' : ' · before calibration'}`}</span>
+                    <span className="text-fg-muted">
+                      {data.score.final
+                        ? data.score.label
+                        : t('reviews.score_before_calibration', '{{score}} · before calibration', {
+                            score: data.score.label,
+                          })}
+                    </span>
                   </CardContent>
                 </Card>
               )}
@@ -2308,7 +2356,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
   const [ack, setAck] = useState(true);
   const [filed, setFiled] = useState(false);
   return (
-    <Loaded load={props.load} what="the reviews">
+    <Loaded load={props.load} what={t('reviews.the_reviews', 'the reviews')}>
       {(data) => {
         const shown = data.reviews.filter((r) => r.kind === kind);
         const kinds = [...new Set(data.reviews.map((r) => r.kind))];
@@ -2511,7 +2559,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
   const [declining, setDeclining] = useState<string | null>(null);
   const [note, setNote] = useState('');
   return (
-    <Loaded load={props.load} what="unlock requests">
+    <Loaded load={props.load} what={t('reviews.unlock_requests', 'unlock requests')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -2571,7 +2619,10 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                                 onClick={() => {
                                   act.run('DecidePerformanceUnlock', {
                                     id: u.reviewId,
-                                    input: { approve: true, note: 'Unlocked' },
+                                    input: {
+                                      approve: true,
+                                      note: t('reviews.unlocked', 'Unlocked'),
+                                    },
                                   });
                                 }}
                               >
@@ -2677,7 +2728,7 @@ export interface NominateData {
 /** PF9b and PF9c: pick peers (team first, then people they work with, then anyone), or approve them. */
 export function Nominate(props: ScreenProps<NominateData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the nomination">
+    <Loaded load={props.load} what={t('reviews.the_nomination', 'the nomination')}>
       {(data) =>
         data.nomination.state === 'waiting' ? (
           <Approve data={data} {...props} />

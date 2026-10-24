@@ -72,7 +72,10 @@ const when = (iso: string): string =>
 
 export function WebhookLog(props: WebhookLogProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="the delivery log">
+    <Loaded
+      load={props.load}
+      what={t('settings.integrations.webhook-log.the_delivery_log', 'the delivery log')}
+    >
       {(state) => <Log {...props} state={state} />}
     </Loaded>
   );
@@ -101,7 +104,13 @@ function Log({
     <Stack gap={6}>
       <PageHeader
         title={t('settings.integrations.webhook-log.delivery_log', 'Delivery log')}
-        description={`${state.endpoint.url}${state.endpoint.enabled ? '' : ' · turned off'}`}
+        description={
+          state.endpoint.enabled
+            ? state.endpoint.url
+            : t('settings.integrations.webhook-log.url_turned_off', '{{url}} · turned off', {
+                url: state.endpoint.url,
+              })
+        }
         actions={
           onBack === undefined ? undefined : (
             <Button onClick={onBack}>

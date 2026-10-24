@@ -104,7 +104,7 @@ export function PayPeriod(props: PayPeriodProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="the pay period">
+      <Loaded load={load} what={tr('attendance.pay-period.the_pay_period', 'the pay period')}>
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>

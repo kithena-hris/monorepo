@@ -1,4 +1,5 @@
 import type { ChartTone, TimelineEntry, TimelineRow } from '@reach/ui';
+import { t } from './i18n';
 
 /**
  * A cycle's calendar worked out in the browser, so a deadline or a reminder
@@ -135,7 +136,7 @@ export function planRows(
         .filter((r) => r.date !== due)
         .map((r) => ({
           id: `${k}-remind:${r.rule}@${r.date}`,
-          label: 'Reminder',
+          label: t('cycle-plan.reminder', 'Reminder'),
           start: r.date,
           tone,
           tentative: true,

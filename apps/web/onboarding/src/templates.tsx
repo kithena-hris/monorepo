@@ -437,7 +437,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
 /** O7: who holds HR and IT, the holidays plans skip, the company's own country. */
 export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="Onboarding’s settings">
+    <Loaded load={props.load} what={tr('templates.onboardings_settings', 'Onboarding’s settings')}>
       {(data) => <SettingsBody data={data} props={props} />}
     </Loaded>
   );
@@ -596,7 +596,7 @@ function SettingsBody({
 /** O9: counts Onboarding computed. */
 export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="onboarding analytics">
+    <Loaded load={props.load} what={tr('templates.onboarding_analytics', 'onboarding analytics')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader title={tr('templates.onboarding_analytics', 'Onboarding analytics')} />

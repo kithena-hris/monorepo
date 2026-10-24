@@ -129,7 +129,7 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
       {load.status === 'error' ? (
         <PageHeader title={tr('insights.insights.insights', 'Insights')} />
       ) : null}
-      <Loaded load={load} what="the insights">
+      <Loaded load={load} what={tr('insights.insights.the_insights', 'the insights')}>
         {(data) => (
           <>
             <PageHeader

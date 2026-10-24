@@ -735,7 +735,7 @@ function ImportCompletions({
         label={tr('learning.drop_a_csv_file_or_choose', 'Drop a CSV file, or choose one')}
         hint={tr('learning.or_paste_the_rows_below', 'Or paste the rows below.')}
         accept=".csv,text/csv"
-        rejectMessage="Only a CSV file"
+        rejectMessage={tr('learning.only_a_csv_file', 'Only a CSV file')}
         onFiles={(files) => {
           void files[0]?.text().then(setCsv);
         }}
@@ -830,7 +830,7 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
   const act = useAct(props);
   const [answers, setAnswers] = useState<Answers>({});
   return (
-    <Loaded load={props.load} what="the item">
+    <Loaded load={props.load} what={tr('learning.the_item', 'the item')}>
       {({ item, assignment: a, hr }) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1139,7 +1139,7 @@ function DoorQr({ code }: { readonly code: string }): JSX.Element {
 export function Session(props: ScreenProps<SessionData>): JSX.Element {
   const act = useAct(props);
   return (
-    <Loaded load={props.load} what="the session">
+    <Loaded load={props.load} what={tr('learning.the_session', 'the session')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

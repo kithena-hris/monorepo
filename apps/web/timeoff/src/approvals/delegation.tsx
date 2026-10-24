@@ -64,7 +64,10 @@ export interface DelegationProps {
   readonly onRemove?: (approverId: string) => Promise<Outcome>;
 }
 
-const DESCRIPTION = 'Who decides for you while you are away.';
+const DESCRIPTION = t(
+  'approvals.delegation.who_decides_for_you_while_you_are',
+  'Who decides for you while you are away.',
+);
 
 export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Element {
   if (load.status === 'loading') return <DelegationSkeleton />;
@@ -74,7 +77,7 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
         title={t('approvals.delegation.requests', 'Requests')}
         description={DESCRIPTION}
       />
-      <Loaded load={load} what="your delegation">
+      <Loaded load={load} what={t('approvals.delegation.your_delegation', 'your delegation')}>
         {(data) => (
           <Ready
             key={data.delegation?.delegateId ?? 'none'}
@@ -109,7 +112,10 @@ function Ready({
   const [pending, start] = useTransition();
   const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null);
   const delegate = data.candidates.find((c) => c.personId === delegateId);
-  const name = delegate === undefined ? 'your delegate' : firstName(delegate.displayName);
+  const name =
+    delegate === undefined
+      ? t('approvals.delegation.your_delegate', 'your delegate')
+      : firstName(delegate.displayName);
   const rangeWrong =
     (from === null) !== (to === null) || (from !== null && to !== null && to < from);
   const run = (action: () => Promise<Outcome>, done: string): void => {
@@ -242,7 +248,7 @@ function Ready({
                       automatic,
                       salaryRelated,
                     }),
-                  'Saved',
+                  t('approvals.delegation.saved', 'Saved'),
                 );
               }}
             >
@@ -253,7 +259,11 @@ function Ready({
                 variant="ghost"
                 disabled={onRemove === undefined || pending}
                 onClick={() => {
-                  if (onRemove !== undefined) run(() => onRemove(data.approverId), 'Removed');
+                  if (onRemove !== undefined)
+                    run(
+                      () => onRemove(data.approverId),
+                      t('approvals.delegation.removed', 'Removed'),
+                    );
                 }}
               >
                 {t('approvals.delegation.remove_delegate', 'Remove delegate')}

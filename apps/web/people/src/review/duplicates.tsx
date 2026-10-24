@@ -284,7 +284,9 @@ function UndoDialog({
               'review.duplicates.s_record_comes_back_as_it',
               "'s record comes back as it was before the merge",
             )}
-            {merge.account === 'returned' ? ', with its sign-in' : ''}
+            {merge.account === 'returned'
+              ? t('review.duplicates.with_its_sign_in', ', with its sign-in')
+              : ''}
             {t(
               'review.duplicates.both_records_stay_and_the_pair',
               '. Both records stay, and the pair is offered for review again.',
@@ -495,7 +497,11 @@ export function DuplicateDetail({
               value={String(i)}
               disabled={p.refusal !== null}
               description={
-                p.refusal ?? 'Keeps its history; the other record points here afterwards.'
+                p.refusal ??
+                t(
+                  'review.duplicates.keeps_its_history_the_other_record_points',
+                  'Keeps its history; the other record points here afterwards.',
+                )
               }
             >
               {t('review.duplicates.keep_s_record', "Keep {{name}}'s record", { name: p.name })}
@@ -513,7 +519,7 @@ export function DuplicateDetail({
                   <p className="truncate font-bold">{people[i]?.name}</p>
                   <p className="truncate text-sm text-fg-muted">
                     {people[i]?.status}
-                    {survivor === i ? ' · stays' : ''}
+                    {survivor === i ? t('review.duplicates.stays_suffix', ' · stays') : ''}
                   </p>
                 </div>
               </div>

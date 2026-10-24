@@ -445,7 +445,7 @@ function NewGoal({
             ? krs.every((k) => k.title.trim() !== '')
             : true
       }
-      finishLabel="Create goal"
+      finishLabel={t('goals.create_goal', 'Create goal')}
       finish={() => {
         act.run(
           'CreatePerformanceGoal',
@@ -710,7 +710,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
   const act = useAct(props);
   const [checking, setChecking] = useState(false);
   return (
-    <Loaded load={props.load} what="the goal">
+    <Loaded load={props.load} what={t('goals.the_goal', 'the goal')}>
       {(data) => {
         const g = data.goal;
         return (

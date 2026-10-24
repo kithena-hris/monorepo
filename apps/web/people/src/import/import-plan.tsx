@@ -229,11 +229,19 @@ const whoOf = (r: { readonly row: number; readonly name?: string | null }): stri
   r.name ?? t('import.import-plan.row', 'Row {{row}}', { row: String(r.row) });
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
-  { id: 'name', header: 'Name', cell: whoOf },
-  { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
-  { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
-  { id: 'label', header: 'Field', cell: (r) => r.label },
-  { id: 'reason', header: 'Why it’s left empty', cell: (r) => r.reason },
+  { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+  { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
+  {
+    id: 'cell',
+    header: t('import.import-plan.cell', 'Cell'),
+    cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+  },
+  { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+  {
+    id: 'reason',
+    header: t('import.import-plan.why_its_left_empty', 'Why it’s left empty'),
+    cell: (r) => r.reason,
+  },
 ];
 
 /** References left empty for HR, each where it is and why. */
@@ -376,25 +384,33 @@ export function PlanStep({
   const notYet = notYetOf(plan);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
-    { id: 'name', header: 'Name', cell: whoOf },
-    { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+    { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+    { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
-      header: 'Cell',
+      header: t('import.import-plan.cell', 'Cell'),
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
+    {
+      id: 'problem',
+      header: t('import.import-plan.why_its_skipped', 'Why it’s skipped'),
+      cell: (r) => r.problem,
+    },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
-    { id: 'name', header: 'Name', cell: whoOf },
-    { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+    { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+    { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
-      header: 'Cell',
+      header: t('import.import-plan.cell', 'Cell'),
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'label', header: 'Field', cell: (r) => r.label },
-    { id: 'message', header: 'What the checks found', cell: (r) => r.message },
+    { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+    {
+      id: 'message',
+      header: t('import.import-plan.what_the_checks_found', 'What the checks found'),
+      cell: (r) => r.message,
+    },
   ];
 
   return (
@@ -565,7 +581,15 @@ export function columnsLine(c: NonNullable<ImportDoneView['columns']>): string {
   const ids =
     c.kithena === 0
       ? ''
-      : ` · ${t('import.import-plan.count_id_columns', { one: '{{count}} id column', other: '{{count}} id columns' }, { count: c.kithena })}: Kithena creates this`;
+      : ' · ' +
+        t(
+          'import.import-plan.id_columns_kithena_creates',
+          {
+            one: '{{count}} id column: Kithena creates this',
+            other: '{{count}} id columns: Kithena creates this',
+          },
+          { count: c.kithena },
+        );
   return t(
     'import.import-plan.existing_fields_left_out',
     '{{existing}} → existing fields, {{created}}, {{toLocaleString}} left out{{ids}}',

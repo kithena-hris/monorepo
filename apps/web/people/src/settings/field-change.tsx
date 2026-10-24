@@ -625,8 +625,22 @@ function FieldValues({
                       ...inputField(''),
                       label:
                         selected.size === 0
-                          ? `${field.label} for all ${String(view.unfit.length)}`
-                          : `${field.label} for the ${String(selected.size)} selected`,
+                          ? tr(
+                              'settings.field-change.label_for_all',
+                              '{{label}} for all {{count}}',
+                              {
+                                label: field.label,
+                                count: view.unfit.length,
+                              },
+                            )
+                          : tr(
+                              'settings.field-change.label_for_the_selected',
+                              '{{label}} for the {{count}} selected',
+                              {
+                                label: field.label,
+                                count: selected.size,
+                              },
+                            ),
                     }}
                     value={bulkValue}
                     onChange={setBulkValue}

@@ -345,7 +345,13 @@ function Describe({
             const r = await onDescribe(text.trim());
             if (!r.ok) return r;
             if (!r.data.available || r.data.type === null) {
-              return { ok: false, message: 'Kithena could not draft that. Try New document type.' };
+              return {
+                ok: false,
+                message: tr(
+                  'settings.settings.kithena_could_not_draft_that_try_new',
+                  'Kithena could not draft that. Try New document type.',
+                ),
+              };
             }
             onDraft(r.data.type, r.data.question);
             setText('');
@@ -371,6 +377,23 @@ const KINDS: readonly Kind[] = [
   'Permit',
   'Form',
 ];
+
+/** A kind as the reader's language names it; the kind itself stays the stored value. */
+const kindLabel = (kind: Kind): string =>
+  (
+    ({
+      Contract: tr('settings.settings.contract', 'Contract'),
+      Policy: tr('settings.settings.policy', 'Policy'),
+      Payslip: tr('settings.settings.payslip', 'Payslip'),
+      Letter: tr('settings.settings.letter', 'Letter'),
+      ID: tr('settings.settings.id', 'ID'),
+      Medical: tr('settings.settings.medical', 'Medical'),
+      Sheet: tr('settings.settings.sheet', 'Sheet'),
+      Template: tr('settings.settings.template', 'Template'),
+      Permit: tr('settings.settings.permit', 'Permit'),
+      Form: tr('settings.settings.form', 'Form'),
+    }) as Readonly<Record<string, string>>
+  )[kind] ?? kind;
 
 const keyOf = (name: string) =>
   name
@@ -461,7 +484,7 @@ function TypeDialog({
             onChange={(v) => {
               set('kind', v as Kind);
             }}
-            options={KINDS.map((k) => [k, k])}
+            options={KINDS.map((k) => [k, kindLabel(k)])}
           />
           <Choice
             label={tr('settings.settings.filed_to', 'Filed to')}
@@ -533,7 +556,10 @@ function TypeDialog({
               options={[
                 ['none', tr('settings.settings.nobody', 'Nobody')],
                 ['subject', tr('settings.settings.them', 'Them')],
-                ['subject,hr', tr('settings.settings.them_then_hr', 'Them, then HR')],
+                [
+                  tr('settings.settings.subject_hr', 'subject,hr'),
+                  tr('settings.settings.them_then_hr', 'Them, then HR'),
+                ],
                 ['hr', 'HR'],
               ]}
             />
@@ -792,8 +818,20 @@ function AccessForm({
               'Every new document starts Private.',
             )}
           </p>
-          {toggle('askAfterUpload', 'After an upload, ask once whether to share')}
-          {toggle('peopleMayTurnOffQuestion', 'People can turn the question off')}
+          {toggle(
+            'askAfterUpload',
+            tr(
+              'settings.settings.after_an_upload_ask_once_whether_to',
+              'After an upload, ask once whether to share',
+            ),
+          )}
+          {toggle(
+            'peopleMayTurnOffQuestion',
+            tr(
+              'settings.settings.people_can_turn_the_question_off',
+              'People can turn the question off',
+            ),
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -826,7 +864,11 @@ function AccessForm({
               </SelectContent>
             </Select>
           </Field>
-          {toggle('outsideSharing', 'Share outside the company', 'Not available yet')}
+          {toggle(
+            'outsideSharing',
+            tr('settings.settings.share_outside_the_company', 'Share outside the company'),
+            tr('settings.settings.not_available_yet', 'Not available yet'),
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -840,13 +882,27 @@ function AccessForm({
               'HR, the document’s type, or its owner can mark a document Confidential. Only HR lowers what HR or the type set.',
             )}
           </p>
-          {toggle('watermark', 'Watermark with the viewer’s name')}
+          {toggle(
+            'watermark',
+            tr(
+              'settings.settings.watermark_with_the_viewers_name',
+              'Watermark with the viewer’s name',
+            ),
+          )}
           {toggle(
             'blockDownload',
-            'Block download and print',
-            'The person it is about can still download it',
+            tr('settings.settings.block_download_and_print', 'Block download and print'),
+            tr(
+              'settings.settings.the_person_it_is_about_can_still',
+              'The person it is about can still download it',
+            ),
           )}
-          {toggle('blockDownload', 'Log every view', 'Always on', true)}
+          {toggle(
+            'blockDownload',
+            tr('settings.settings.log_every_view', 'Log every view'),
+            tr('settings.settings.always_on', 'Always on'),
+            true,
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -856,7 +912,11 @@ function AccessForm({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {toggle('personalSections', 'Everyone can create them', 'Only they see them')}
+          {toggle(
+            'personalSections',
+            tr('settings.settings.everyone_can_create_them', 'Everyone can create them'),
+            tr('settings.settings.only_they_see_them', 'Only they see them'),
+          )}
         </CardContent>
       </Card>
       {write.error === null ? null : (

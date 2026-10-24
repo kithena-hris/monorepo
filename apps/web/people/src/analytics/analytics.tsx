@@ -263,7 +263,7 @@ export function Analytics({
   onSegmentChange,
 }: AnalyticsProps): JSX.Element {
   return (
-    <Loaded load={load} what="the analytics">
+    <Loaded load={load} what={t('analytics.analytics.the_analytics', 'the analytics')}>
       {(state) => (
         <Workforce
           state={state}
@@ -993,7 +993,11 @@ function PaySections({ pay }: { readonly pay: PayState }): JSX.Element {
       </PageSection>
     );
   }
-  const note = `${when} · quartiles only; groups under ${String(pay.minimum)} people are not shown`;
+  const note = t(
+    'analytics.analytics.quartiles_only_groups_not_shown',
+    '{{when}} · quartiles only; groups under {{minimum}} people are not shown',
+    { when, minimum: pay.minimum },
+  );
   return (
     <>
       {byCurrency(pay.grade).map(([currency, groups]) => {
@@ -1032,8 +1036,8 @@ function PaySections({ pay }: { readonly pay: PayState }): JSX.Element {
                   'Base salary by grade, {{currency}}',
                   { currency },
                 )}
-                valueLabel="Median"
-                spreadLabel="Middle half"
+                valueLabel={t('analytics.analytics.median', 'Median')}
+                spreadLabel={t('analytics.analytics.middle_half', 'Middle half')}
                 data={data}
                 format={format}
               />
@@ -1083,9 +1087,17 @@ function PaySections({ pay }: { readonly pay: PayState }): JSX.Element {
                 )}
                 format={format}
                 series={[
-                  series('75th percentile', 'neutral', (g) => g.p75),
+                  series(
+                    t('analytics.analytics.75th_percentile', '75th percentile'),
+                    'neutral',
+                    (g) => g.p75,
+                  ),
                   series(t('analytics.analytics.median', 'Median'), 'accent', (g) => g.median),
-                  series('25th percentile', 'neutral', (g) => g.p25),
+                  series(
+                    t('analytics.analytics.25th_percentile', '25th percentile'),
+                    'neutral',
+                    (g) => g.p25,
+                  ),
                 ]}
               />
             )}
@@ -1136,8 +1148,8 @@ function PaySections({ pay }: { readonly pay: PayState }): JSX.Element {
                   'Compa-ratio by grade, {{currency}}',
                   { currency },
                 )}
-                valueLabel="Median compa-ratio"
-                spreadLabel="Middle half"
+                valueLabel={t('analytics.analytics.median_compa_ratio', 'Median compa-ratio')}
+                spreadLabel={t('analytics.analytics.middle_half', 'Middle half')}
                 data={data}
                 format={ratio}
               />

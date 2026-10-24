@@ -558,7 +558,9 @@ function DatePicker({
   const me = data.overview?.member?.personId;
   for (const e of data.team?.entries ?? []) {
     if (e.personId === me) continue;
-    const name = data.team?.people.find((p) => p.personId === e.personId)?.displayName ?? 'Someone';
+    const name =
+      data.team?.people.find((p) => p.personId === e.personId)?.displayName ??
+      tr('request.request.someone', 'Someone');
     const tone = chartTone(data.leaveTypes.find((t) => t.key === e.leaveTypeKey)?.colorToken);
     for (let d = e.span.from; d <= e.span.to; d = addDays(d, 1)) {
       (markers[d] ??= []).push({ tone, label: `${name} off` });

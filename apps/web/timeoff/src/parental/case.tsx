@@ -69,7 +69,10 @@ export function ParentalCase({ load, onApprove }: ParentalCaseProps): JSX.Elemen
       {load.status === 'error' ? (
         <PageHeader title={t('parental.case.parental_leave', 'Parental leave')} />
       ) : null}
-      <Loaded load={load} what="this parental leave case">
+      <Loaded
+        load={load}
+        what={t('parental.case.this_parental_leave_case', 'this parental leave case')}
+      >
         {(data) => <Ready data={data} onApprove={onApprove} />}
       </Loaded>
     </div>

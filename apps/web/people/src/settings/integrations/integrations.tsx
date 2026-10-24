@@ -136,7 +136,10 @@ export interface IntegrationsProps {
  */
 export function Integrations(props: IntegrationsProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="the integrations">
+    <Loaded
+      load={props.load}
+      what={t('settings.integrations.integrations.the_integrations', 'the integrations')}
+    >
       {(state) => <Endpoints {...props} state={state} />}
     </Loaded>
   );

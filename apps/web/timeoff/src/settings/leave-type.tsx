@@ -189,7 +189,7 @@ export function LeaveType(props: LeaveTypeProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('settings.leave-type.leave_type', 'Leave type')} />
       ) : null}
-      <Loaded load={load} what="the leave type">
+      <Loaded load={load} what={t('settings.leave-type.the_leave_type', 'the leave type')}>
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>

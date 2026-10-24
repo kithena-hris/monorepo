@@ -121,7 +121,7 @@ export function appliesToParts(
     return [[t('settings.shared.who', 'Who'), t('settings.shared.everyone', 'Everyone')]];
   return predicate.clauses.map((c) => [
     {
-      country: 'Country',
+      country: t('settings.shared.country', 'Country'),
       location: t('settings.shared.location', 'Location'),
       employmentType: t('settings.shared.contract', 'Contract'),
       legalEntity: t('settings.shared.entity', 'Entity'),

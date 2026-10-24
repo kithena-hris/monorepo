@@ -509,7 +509,10 @@ const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {
 
 export function Review({ load, ...props }: ReviewProps): JSX.Element {
   return (
-    <Loaded load={load} what="what waits for a decision">
+    <Loaded
+      load={load}
+      what={t('review.review.what_waits_for_a_decision', 'what waits for a decision')}
+    >
       {(state) => <Queue state={state} {...props} />}
     </Loaded>
   );
@@ -884,7 +887,7 @@ function Queue({
     return (
       <ListDetail
         listWidth="25rem"
-        listLabel="Items"
+        listLabel={t('review.review.items', 'Items')}
         detailLabel={
           current === null
             ? t('review.review.item', 'Item')
@@ -1267,7 +1270,12 @@ function ExportDetail({
           </h2>
           <p className="text-sm text-fg-muted">
             {t('review.review.asked', 'Asked')} {shortDay(share.requestedAt)}
-            {decided ? '' : ` · waits until ${shortDay(share.expiresAt)}`}
+            {decided
+              ? ''
+              : ' · ' +
+                t('review.review.waits_until', 'waits until {{day}}', {
+                  day: shortDay(share.expiresAt),
+                })}
           </p>
         </div>
         {decided ? (
@@ -1418,7 +1426,9 @@ function decisionsOf(state: ReviewState): Decision[] {
           {c.label}: <DisplayValue field={asField(c)} value={c.before} /> →{' '}
           <DisplayValue field={asField(c)} value={c.value} /> {t('review.review.from', '· from')}{' '}
           {shortDay(c.effectiveFrom)}
-          {c.note ? ` · Note: “${c.note}”` : ''}
+          {c.note
+            ? ' · ' + t('review.review.note_quoted', 'Note: “{{note}}”', { note: c.note })
+            : ''}
         </>
       ) : (
         [
@@ -1492,7 +1502,7 @@ function decisionsOf(state: ReviewState): Decision[] {
 const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
   {
     id: 'person',
-    header: 'Person',
+    header: t('review.review.person', 'Person'),
     cell: (d) => (
       <span className="flex min-w-0 items-center gap-2">
         <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
@@ -1500,10 +1510,10 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </span>
     ),
   },
-  { id: 'what', header: 'What', cell: (d) => d.what },
+  { id: 'what', header: t('review.review.what', 'What'), cell: (d) => d.what },
   {
     id: 'outcome',
-    header: 'Outcome',
+    header: t('review.review.outcome', 'Outcome'),
     cardTrailing: true,
     cell: (d) => (
       <Badge size="sm" tone={d.outcome.tone}>
@@ -1511,10 +1521,10 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </Badge>
     ),
   },
-  { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
+  { id: 'by', header: t('review.review.by', 'By'), shortHeader: 'By', cell: (d) => d.by },
   {
     id: 'when',
-    header: 'When',
+    header: t('review.review.when', 'When'),
     cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
   },
 ];
@@ -1699,7 +1709,7 @@ function Finance({
         >
           <ListDetail
             listWidth="25rem"
-            listLabel="Your changes"
+            listLabel={t('review.review.your_changes', 'Your changes')}
             detailLabel={current === null ? t('review.review.change_2', 'Change') : current.summary}
             selected={picked !== null}
             onBack={() => {

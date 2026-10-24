@@ -261,7 +261,10 @@ export function ImportExport({
           'Bring people in from a spreadsheet, or take data out with a recorded reason.',
         )}
       />
-      <Loaded load={load} what="imports and exports">
+      <Loaded
+        load={load}
+        what={t('import.import-export.imports_and_exports', 'imports and exports')}
+      >
         {(state) => (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 @3xl/page:grid-cols-2 touch:grid-cols-2 touch:gap-2.5">
@@ -269,18 +272,21 @@ export function ImportExport({
                 <Action
                   icon={<icons.upload aria-hidden />}
                   title={t('import.import-export.import_people', 'Import people')}
-                  short="Import"
+                  short={t('import.import-export.import', 'Import')}
                   description={t(
                     'import.import-export.create_or_update_people_in_bulk',
                     'Create or update people in bulk. Nothing is written until you accept a dry run.',
                   )}
-                  shortDescription="From a spreadsheet"
+                  shortDescription={t(
+                    'import.import-export.from_a_spreadsheet',
+                    'From a spreadsheet',
+                  )}
                   facts={[
                     t('import.import-export.csv_or_excel', 'CSV or Excel'),
                     t('import.import-export.up_to_50_000_rows', 'Up to 50,000 rows'),
                   ]}
                   href={going === null ? '/people/import' : runHref(going.id)}
-                  start="Start import"
+                  start={t('import.import-export.start_import', 'Start import')}
                   startIcon={<icons.upload aria-hidden />}
                   busy={
                     going === null
@@ -323,18 +329,18 @@ export function ImportExport({
               <Action
                 icon={<icons.download aria-hidden />}
                 title={t('import.import-export.export_people', 'Export people')}
-                short="Export"
+                short={t('import.import-export.export', 'Export')}
                 description={t(
                   'import.import-export.download_people_data_field_permissions_apply',
                   'Download people data. Field permissions apply, and each export records why.',
                 )}
-                shortDescription="With a reason"
+                shortDescription={t('import.import-export.with_a_reason', 'With a reason')}
                 facts={[
                   t('import.import-export.csv_excel_or_pdf', 'CSV, Excel or PDF'),
                   t('import.import-export.as_of_any_date', 'As of any date'),
                 ]}
                 href="/people/export"
-                start="New export"
+                start={t('import.import-export.new_export', 'New export')}
                 startIcon={<icons.add aria-hidden />}
                 shortcut="create"
                 lead={onDescribe === undefined ? null : <DescribeExport onDescribe={onDescribe} />}

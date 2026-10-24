@@ -75,8 +75,10 @@ export interface LeaveTypesProps {
 }
 
 const TITLE = tr('settings.leave-types.leave_types', 'Leave types');
-const DESCRIPTION =
-  'The kinds of time off people can request, and how each one is paid and approved.';
+const DESCRIPTION = tr(
+  'settings.leave-types.the_kinds_of_time_off_people_can',
+  'The kinds of time off people can request, and how each one is paid and approved.',
+);
 
 export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
   const { load, onAdd, onAsk, onNavigate } = props;
@@ -106,7 +108,7 @@ export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
           </>
         }
       />
-      <Loaded load={load} what="the leave types">
+      <Loaded load={load} what={tr('settings.leave-types.the_leave_types', 'the leave types')}>
         {(data) => (
           <>
             <Ready data={data} />
@@ -231,7 +233,9 @@ function terms(t: LeaveTypeRow['definition']): string {
       : tr('settings.leave-types.note_after_days', 'note after {{afterDays}} days', {
           afterDays: String(t.requiresNote.afterDays),
         }),
-    t.visibility === 'off_only' ? 'teammates see “Off”' : null,
+    t.visibility === 'off_only'
+      ? tr('settings.leave-types.teammates_see_off', 'teammates see “Off”')
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');

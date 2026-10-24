@@ -109,7 +109,7 @@ export function Envelopes({
           'Every request you sign or follow.',
         )}
       />
-      <Loaded load={load} what="signature requests">
+      <Loaded load={load} what={tr('envelopes.envelopes.signature_requests', 'signature requests')}>
         {(data) =>
           data.rows.length === 0 ? (
             <EmptyState
@@ -235,7 +235,7 @@ export function SendForSignature(props: SendProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={tr('envelopes.envelopes.send_for_signature', 'Send for signature')} />
       ) : null}
-      <Loaded load={props.load} what="the document">
+      <Loaded load={props.load} what={tr('envelopes.envelopes.the_document', 'the document')}>
         {(data) =>
           data.document === null ? (
             <Alert tone="danger">
@@ -635,7 +635,11 @@ function SendSteps({
                       }),
                       message,
                       dueOn,
-                    }) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
+                    }) ??
+                      Promise.resolve({
+                        ok: false as const,
+                        message: tr('envelopes.envelopes.not_available_here', 'Not available here'),
+                      }));
                     if (!sent.ok) return sent;
                     onNavigate?.(`/documents/envelopes/${sent.id}`);
                     return { ok: true };
@@ -698,7 +702,7 @@ export function Envelope(props: EnvelopeProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={tr('envelopes.envelopes.signature_request', 'Signature request')} />
       ) : null}
-      <Loaded load={props.load} what="the request">
+      <Loaded load={props.load} what={tr('envelopes.envelopes.the_request', 'the request')}>
         {(env) => <EnvelopePage env={env} {...props} />}
       </Loaded>
     </div>
@@ -740,7 +744,11 @@ function EnvelopePage({
         signing.values,
         signing.day,
         signing.traceId,
-      ) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
+      ) ??
+        Promise.resolve({
+          ok: false as const,
+          message: tr('envelopes.envelopes.not_available_here', 'Not available here'),
+        }));
       if (!r.ok) return r;
       setDone(doneMessage(r.completed, r.next ?? []));
       // At once: every box of theirs holds their signature, its print under it.
@@ -1084,7 +1092,9 @@ export function SignPanel({
             <DialogDescription>
               {other === 'ask'
                 ? tr('envelopes.envelopes.the_request_waits_for_you', 'The request waits for you.')
-                : `${env.sender} is told; say why.`}
+                : tr('envelopes.envelopes.sender_is_told_say_why', '{{sender}} is told; say why.', {
+                    sender: env.sender,
+                  })}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

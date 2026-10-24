@@ -144,7 +144,7 @@ export function Library(props: LibraryProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={tr('library.library.documents', 'Documents')} />
       ) : null}
-      <Loaded load={load} what="your documents">
+      <Loaded load={load} what={tr('library.library.your_documents', 'your documents')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>
@@ -1320,7 +1320,10 @@ function NewSection({
             onClick={() => {
               write.run(async () => {
                 const made = await (onCreate?.({ name, kind, documentIds: [] }) ??
-                  Promise.resolve({ ok: false as const, message: 'Not available here' }));
+                  Promise.resolve({
+                    ok: false as const,
+                    message: tr('library.library.not_available_here', 'Not available here'),
+                  }));
                 if (!made.ok) return made;
                 setName('');
                 onOpenChange(false);

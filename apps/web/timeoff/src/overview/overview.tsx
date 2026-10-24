@@ -175,7 +175,7 @@ export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('overview.overview.time_off', 'Time off')} />
       ) : null}
-      <Loaded load={load} what="your time off">
+      <Loaded load={load} what={t('overview.overview.your_time_off', 'your time off')}>
         {(data) => <Ready data={data} onPunch={onPunch} />}
       </Loaded>
     </div>

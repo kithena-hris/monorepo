@@ -576,7 +576,9 @@ export function AttributeInput({
   // owner named, not hidden (§8.3).
   const owner =
     field.keptIn !== undefined
-      ? `Kept in ${field.keptIn}; change it there.`
+      ? t('record.attribute-input.kept_in_change_it_there', 'Kept in {{place}}; change it there.', {
+          place: field.keptIn,
+        })
       : field.readOnly && field.ownedBy !== undefined
         ? t('record.attribute-input.changed_by', 'Changed by {{ownedBy}}.', {
             ownedBy: field.ownedBy,

@@ -231,7 +231,13 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
   const { options } = data;
   if (terms.entityId === null)
     return (
-      <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
+      <Waiting
+        icon={<icons.company aria-hidden />}
+        what={tr(
+          'job-terms.choose_the_employing_entity_first',
+          'Choose the employing entity first.',
+        )}
+      />
     );
   if (options.locations.length === 0)
     return (
@@ -301,7 +307,12 @@ const MODES = [
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   if (terms.locationId === null)
-    return <Waiting icon={<icons.location aria-hidden />} what="Choose the workplace first." />;
+    return (
+      <Waiting
+        icon={<icons.location aria-hidden />}
+        what={tr('job-terms.choose_the_workplace_first', 'Choose the workplace first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -422,7 +433,10 @@ const RELATIONSHIP_NOTE: Readonly<Record<string, string>> = {
     'job-terms.paid_for_the_work_with_core',
     'Paid for the work, with core rights such as holiday pay and the minimum wage.',
   ),
-  contractor: 'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
+  contractor: tr(
+    'job-terms.self_employed_invoicing_for_the_work_no',
+    'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
+  ),
 };
 
 export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
@@ -432,7 +446,10 @@ export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
     return (
       <Waiting
         icon={<icons.location aria-hidden />}
-        what="Choose the workplace and how the work is done first."
+        what={tr(
+          'job-terms.choose_the_workplace_and_how_the_work',
+          'Choose the workplace and how the work is done first.',
+        )}
       />
     );
   return (
@@ -469,7 +486,12 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
   const { options } = data;
   const chosen = options.contractTypes.find((t) => t.key === terms.contractType);
   if (terms.relationship === null)
-    return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the work type first." />;
+    return (
+      <Waiting
+        icon={<icons.agreement aria-hidden />}
+        what={tr('job-terms.choose_the_work_type_first', 'Choose the work type first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -554,7 +576,12 @@ const WEEKS = [
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   if (terms.contractType === null)
-    return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the contract first." />;
+    return (
+      <Waiting
+        icon={<icons.agreement aria-hidden />}
+        what={tr('job-terms.choose_the_contract_first', 'Choose the contract first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -623,7 +650,12 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   const { options } = data;
   if (terms.workDays.length === 0)
-    return <Waiting icon={<icons.calendar aria-hidden />} what="Choose the work days first." />;
+    return (
+      <Waiting
+        icon={<icons.calendar aria-hidden />}
+        what={tr('job-terms.choose_the_work_days_first', 'Choose the work days first.')}
+      />
+    );
   const over =
     options.weeklyMinutes !== null &&
     options.maxWeeklyMinutes !== null &&
@@ -738,7 +770,12 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
   useCommit(commit, persist);
   useAnswered(days !== null);
   if (leave === null)
-    return <Waiting icon={<icons.vacation aria-hidden />} what="Choose the work type first." />;
+    return (
+      <Waiting
+        icon={<icons.vacation aria-hidden />}
+        what={tr('job-terms.choose_the_work_type_first', 'Choose the work type first.')}
+      />
+    );
   const unit =
     leave.unit === 'calendar_days'
       ? tr('job-terms.calendar_days', 'calendar days')
@@ -1018,7 +1055,10 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     return (
       <Waiting
         icon={<icons.location aria-hidden />}
-        what="Choose the employing entity and the workplace first: pay depends on where the work is."
+        what={tr(
+          'job-terms.choose_the_employing_entity_and_the_workplace',
+          'Choose the employing entity and the workplace first: pay depends on where the work is.',
+        )}
       />
     );
   const currency = options.currency;
@@ -1212,7 +1252,13 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
   useCommit(commit, persist);
   if (terms.entityId === null)
     return (
-      <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
+      <Waiting
+        icon={<icons.company aria-hidden />}
+        what={tr(
+          'job-terms.choose_the_employing_entity_first',
+          'Choose the employing entity first.',
+        )}
+      />
     );
   if (options.benefits.length === 0)
     return (

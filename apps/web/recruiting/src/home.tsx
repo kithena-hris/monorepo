@@ -221,7 +221,7 @@ function jobColumns(
 
 export function Home(props: ScreenProps<HomeData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="Recruiting">
+    <Loaded load={props.load} what={tr('home.recruiting', 'Recruiting')}>
       {(data) => {
         const open = data.jobs.filter((j) => j.state === 'open');
         const candidates = data.jobs.reduce((n, j) => n + j.counts.active, 0);

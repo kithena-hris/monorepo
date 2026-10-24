@@ -62,7 +62,7 @@ const why = (code: string): string => WHY[code] ?? code;
 
 export function ReportRuns({ load, onLoadMore }: ReportRunsProps): JSX.Element {
   return (
-    <Loaded load={load} what="the report’s history">
+    <Loaded load={load} what={t('reports.report-runs.the_reports_history', 'the report’s history')}>
       {(state) => <Runs state={state} onLoadMore={onLoadMore} />}
     </Loaded>
   );

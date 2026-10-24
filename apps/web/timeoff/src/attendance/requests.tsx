@@ -83,7 +83,10 @@ export function AttendanceRequests(props: AttendanceRequestsProps): JSX.Element 
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.requests.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="your attendance requests">
+      <Loaded
+        load={load}
+        what={t('attendance.requests.your_attendance_requests', 'your attendance requests')}
+      >
         {(data) => <Ready data={data} onDecide={props.onDecide} />}
       </Loaded>
     </div>

@@ -78,7 +78,10 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="your team right now">
+      <Loaded
+        load={load}
+        what={t('attendance.team-now.your_team_right_now', 'your team right now')}
+      >
         {(data) => <Ready data={data} />}
       </Loaded>
     </div>

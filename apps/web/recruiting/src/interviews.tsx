@@ -65,7 +65,7 @@ const RECOMMENDATIONS: readonly Recommendation[] = ['strong_no', 'no', 'yes', 's
 /** RM1 on the web: what I interview next and the scorecards I owe. */
 export function Interviews(props: ScreenProps<InterviewsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="your interviews">
+    <Loaded load={props.load} what={tr('interviews.your_interviews', 'your interviews')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -413,7 +413,7 @@ function Scale({
 /** R15: what the interviewer opens, and the scorecard they fill as they go. */
 export function Kit(props: ScreenProps<KitData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the interview">
+    <Loaded load={props.load} what={tr('interviews.the_interview', 'the interview')}>
       {(data) => <KitBody data={data} props={props} />}
     </Loaded>
   );
@@ -939,7 +939,7 @@ function WhereFields({
  */
 export function Schedule(props: ScreenProps<ScheduleData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the schedule">
+    <Loaded load={props.load} what={tr('interviews.the_schedule', 'the schedule')}>
       {/* Another interview of the plan starts from its own agenda. */}
       {(data) => <ScheduleBody key={data.planKey ?? ''} data={data} props={props} />}
     </Loaded>
@@ -1480,7 +1480,7 @@ const CELL_TONE = ['danger', 'warning', 'success', 'success'] as const;
 /** R17: scorecards side by side, disagreements flagged, the hiring manager decides. */
 export function Debrief(props: ScreenProps<DebriefData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the debrief">
+    <Loaded load={props.load} what={tr('interviews.the_debrief', 'the debrief')}>
       {(data) => <DebriefBody data={data} props={props} />}
     </Loaded>
   );

@@ -208,7 +208,7 @@ export function RequisitionEditor(props: ScreenProps<readonly Requisition[]>): J
   const id = props.params?.['id'] ?? 'new';
   const act = useAct(props);
   return (
-    <Loaded load={props.load} what="the requisition">
+    <Loaded load={props.load} what={t('requisitions.the_requisition', 'the requisition')}>
       {(all) => (
         <Editor
           initial={all.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
@@ -475,7 +475,7 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
   const act = useAct(props);
   const [comment, setComment] = useState('');
   return (
-    <Loaded load={props.load} what="the approval">
+    <Loaded load={props.load} what={t('requisitions.the_approval', 'the approval')}>
       {(all) => {
         const r = all.find((x) => x.id === id);
         if (r === undefined || r.approval == null) {

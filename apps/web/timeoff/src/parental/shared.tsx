@@ -116,7 +116,7 @@ export function duration(from: string, to: string): string {
   const days = length(from, to);
   if (days % 7 === 0)
     return days === 7
-      ? '1 week'
+      ? t('parental.shared.1_week', '1 week')
       : t('parental.shared.weeks', '{{value}} weeks', { value: String(days / 7) });
   return t(
     'parental.shared.days',
@@ -228,10 +228,16 @@ export function PlanTrack({
       : [];
   const rows: TimelineRow[] = [
     lane('mandatory', LANE.mandatory),
-    lane('flexible', `Flexible, ${weeks(e.flexibleWeeks)}`),
+    lane(
+      'flexible',
+      t('parental.shared.flexible_weeks', 'Flexible, {{weeks}}', { weeks: weeks(e.flexibleWeeks) }),
+    ),
     ...(plan.blocks.some((b) => b.kind === 'vacation') ? [lane('vacation', LANE.vacation)] : []),
     ...(e.companyWeeks > 0 ? [lane('company', LANE.company)] : []),
-    { ...lane('later', 'Kept for later'), items: [...lane('later', '').items, ...kept] },
+    {
+      ...lane('later', t('parental.shared.kept_for_later', 'Kept for later')),
+      items: [...lane('later', '').items, ...kept],
+    },
   ];
   const markers = [
     {

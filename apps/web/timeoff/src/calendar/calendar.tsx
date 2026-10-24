@@ -117,7 +117,7 @@ export function TeamCalendar(props: TeamCalendarProps): JSX.Element {
   return (
     <div className="@container/calendar flex flex-col gap-4">
       <PageHeader title={tr('calendar.calendar.calendar', 'Calendar')} />
-      <Loaded load={load} what="the calendar">
+      <Loaded load={load} what={tr('calendar.calendar.the_calendar', 'the calendar')}>
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>

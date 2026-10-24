@@ -218,7 +218,7 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
   // One element for every stage, so the header and the stepper stay mounted
   // from the upload to the end: only what is under them changes.
   return (
-    <Loaded load={props.load} what="the import">
+    <Loaded load={props.load} what={t('import.import-flow.the_import', 'the import')}>
       {(stage) => <Steps {...props} stage={stage} coarse={coarse} />}
     </Loaded>
   );
@@ -590,7 +590,14 @@ function Steps({
     plan !== null
       ? notYetOf(plan)
       : !busy && refused !== null
-        ? [{ message: 'The plan could not be worked out, so there is nothing to approve yet.' }]
+        ? [
+            {
+              message: t(
+                'import.import-flow.the_plan_could_not_be_worked_out',
+                'The plan could not be worked out, so there is nothing to approve yet.',
+              ),
+            },
+          ]
         : [];
 
   // People's own choice field, still where the file goes: what its list gains.
@@ -602,16 +609,21 @@ function Steps({
         });
 
   const columns: DataColumn<ProposedColumn>[] = [
-    { id: 'header', header: 'In your file', cell: (c) => c.header },
+    {
+      id: 'header',
+      header: t('import.import-flow.in_your_file', 'In your file'),
+      cell: (c) => c.header,
+    },
     {
       id: 'target',
-      header: 'Goes to',
+      header: t('import.import-flow.goes_to', 'Goes to'),
       cell: (c) =>
         // Refused, or an id or employee number: Kithena creates those, so
         // the column is shown and can't be picked.
         c.status === 'refused' || (c.source === 'system' && c.reason !== null) ? (
           <span className="text-sm text-fg-muted">
-            {c.reason ?? 'You may not write this field.'}
+            {c.reason ??
+              t('import.import-flow.you_may_not_write_this_field', 'You may not write this field.')}
           </span>
         ) : (
           <Stack gap={1}>
@@ -639,8 +651,8 @@ function Steps({
               <SelectContent>
                 <SelectItem value={IGNORE}>
                   {c.status === 'ignored' && c.source === null
-                    ? 'A new field, or ignored'
-                    : 'Ignored'}
+                    ? t('import.import-flow.a_new_field_or_ignored', 'A new field, or ignored')
+                    : t('import.import-flow.ignored', 'Ignored')}
                 </SelectItem>
                 {c.key !== null && !labelOf.has(c.key) && c.source === 'system' ? (
                   <SelectItem value={c.key}>{c.key.replaceAll('_', ' ')}</SelectItem>
@@ -648,7 +660,11 @@ function Steps({
                 {stage.fields.map((f) => (
                   <SelectItem key={f.key} value={f.key}>
                     {f.sensitive === true
-                      ? `${f.label} (sensitive: changes wait for approval)`
+                      ? t(
+                          'import.import-flow.label_sensitive',
+                          '{{label}} (sensitive: changes wait for approval)',
+                          { label: f.label },
+                        )
                       : f.label}
                   </SelectItem>
                 ))}
@@ -662,7 +678,11 @@ function Steps({
           </Stack>
         ),
     },
-    { id: 'confidence', header: 'Confidence', cell: confidence },
+    {
+      id: 'confidence',
+      header: t('import.import-flow.confidence', 'Confidence'),
+      cell: confidence,
+    },
   ];
 
   const facts = {

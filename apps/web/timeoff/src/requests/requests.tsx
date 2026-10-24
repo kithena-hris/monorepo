@@ -157,7 +157,7 @@ export function MyRequests(props: RequestsProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
       ) : null}
-      <Loaded load={load} what="your requests">
+      <Loaded load={load} what={t('requests.requests.your_requests', 'your requests')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

@@ -224,7 +224,10 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   return (
     <TooltipProvider>
       <Stack gap={6}>
-        <Loaded load={props.load} what="the scheduled reports">
+        <Loaded
+          load={props.load}
+          what={t('reports.report-schedules.the_scheduled_reports', 'the scheduled reports')}
+        >
           {(state) => <Schedules {...props} state={state} />}
         </Loaded>
       </Stack>

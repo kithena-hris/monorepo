@@ -269,7 +269,7 @@ export type PhotoOutcome =
 export function Profile({ load, searchPeople, onUploadFile, ...props }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
-      <Loaded load={load} what="this profile">
+      <Loaded load={load} what={t('profile.profile.this_profile', 'this profile')}>
         {(state) => (
           <FieldFiles.Provider
             value={{
@@ -1326,7 +1326,11 @@ function DatedChange({
           <DialogBody>
             <Stack gap={4}>
               <AttributeInput
-                field={{ ...field, label: 'New value', readOnly: false }}
+                field={{
+                  ...field,
+                  label: t('profile.profile.new_value', 'New value'),
+                  readOnly: false,
+                }}
                 value={value}
                 onChange={setValue}
               />
@@ -1796,7 +1800,10 @@ function PlacementDialog({
         location={location}
         onEntity={setEntity}
         onLocation={setLocation}
-        locationHint="Their working day follows this location’s time zone."
+        locationHint={t(
+          'profile.profile.their_working_day_follows_this_locations_time',
+          'Their working day follows this location’s time zone.',
+        )}
       />
       <Field>
         <FieldLabel>{t('profile.profile.effective_from', 'Effective from')}</FieldLabel>

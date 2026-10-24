@@ -79,7 +79,10 @@ const onOff = (on: boolean): JSX.Element =>
       {tr('settings.attendance-settings.off', 'Off')}
     </Badge>
   );
-const DESCRIPTION = 'How people clock in, and what counts as a working day.';
+const DESCRIPTION = tr(
+  'settings.attendance-settings.how_people_clock_in_and_what_counts',
+  'How people clock in, and what counts as a working day.',
+);
 const page = '@container/attendance flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/attendance:grid @min-[60rem]/attendance:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/attendance:items-start';
@@ -93,7 +96,10 @@ export function AttendanceSettings({
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
-      <Loaded load={load} what="the attendance rules">
+      <Loaded
+        load={load}
+        what={tr('settings.attendance-settings.the_attendance_rules', 'the attendance rules')}
+      >
         {(data) => <Ready data={data} onSave={onSave} onSaveWeek={onSaveWeek} />}
       </Loaded>
     </div>

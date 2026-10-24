@@ -186,10 +186,10 @@ const CLASSES: readonly Classification[] = [
   'special-category',
 ];
 const CLASS_WORD: Record<Classification, string> = {
-  public: 'Ordinary',
-  internal: 'Ordinary',
-  confidential: 'Confidential',
-  'special-category': 'Special category',
+  public: tr('import.new-fields.ordinary', 'Ordinary'),
+  internal: tr('import.new-fields.ordinary', 'Ordinary'),
+  confidential: tr('import.new-fields.confidential', 'Confidential'),
+  'special-category': tr('import.new-fields.special_category', 'Special category'),
 };
 const SEALABLE = new Set<DataType>([
   'text',
@@ -1164,17 +1164,17 @@ export function ExistingStep({
   const columns: DataColumn<ColumnProposal>[] = [
     {
       id: 'field',
-      header: 'Field',
+      header: tr('import.new-fields.field', 'Field'),
       cell: (p) => <span className="font-semibold">{p.field.label}</span>,
     },
     {
       id: 'have',
-      header: 'Have it',
+      header: tr('import.new-fields.have_it', 'Have it'),
       cell: (p) => `${haveOf(p).toLocaleString(locale())} of ${total.toLocaleString(locale())}`,
     },
     {
       id: 'missing',
-      header: 'Missing',
+      header: tr('import.new-fields.missing', 'Missing'),
       cell: (p) =>
         missingOf(p) === 0 ? (
           <span className="text-fg-subtle">—</span>
@@ -1186,7 +1186,7 @@ export function ExistingStep({
     },
     {
       id: 'plan',
-      header: 'What happens',
+      header: tr('import.new-fields.what_happens', 'What happens'),
       cell: (p) => <span className="font-medium">{planWord(p, missingOf(p))}</span>,
     },
     {

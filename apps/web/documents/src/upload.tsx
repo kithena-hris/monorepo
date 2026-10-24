@@ -131,7 +131,10 @@ export function UploadDialog({
     if (file === null) return;
     write.run(async () => {
       if (onStartUpload === undefined || onUpload === undefined) {
-        return { ok: false, message: 'Uploading is not available here' };
+        return {
+          ok: false,
+          message: tr('upload.uploading_is_not_available_here', 'Uploading is not available here'),
+        };
       }
       const put =
         sent === null ? await putFile(file, onStartUpload) : { ok: true as const, ref: sent };

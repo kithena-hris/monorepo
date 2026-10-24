@@ -125,7 +125,10 @@ export function ParentalPlan(props: ParentalPlanProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('parental.plan.plan_parental_leave', 'Plan parental leave')} />
       ) : null}
-      <Loaded load={load} what="your parental leave plan">
+      <Loaded
+        load={load}
+        what={t('parental.plan.your_parental_leave_plan', 'your parental leave plan')}
+      >
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

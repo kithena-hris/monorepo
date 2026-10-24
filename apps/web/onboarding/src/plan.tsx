@@ -57,7 +57,7 @@ const owner = (role: string) => (role === 'it' ? 'IT' : role === 'hr' ? 'HR' : w
 
 export function Plan(props: ScreenProps<PlanData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the plan">
+    <Loaded load={props.load} what={tr('plan.the_plan', 'the plan')}>
       {(data) => <PlanBody data={data} props={props} />}
     </Loaded>
   );

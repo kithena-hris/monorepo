@@ -195,7 +195,16 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
                     },
                     { count: result.unreachable, people: people(result.unreachable) },
                   ),
-              result.failed === 0 ? null : `${String(result.failed)} could not be sent; try again.`,
+              result.failed === 0
+                ? null
+                : t(
+                    'insights.nudge.could_not_be_sent_try_again',
+                    {
+                      one: '{{count}} could not be sent; try again.',
+                      other: '{{count}} could not be sent; try again.',
+                    },
+                    { count: result.failed },
+                  ),
             ]
               .filter(Boolean)
               .join(' ') ||

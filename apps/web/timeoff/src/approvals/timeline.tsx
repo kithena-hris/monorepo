@@ -72,7 +72,12 @@ export function TeamTimeline({
         allDay: true,
         title: look.name,
         tone: look.tone,
-        ...(waiting ? { tentative: true, detail: 'Waiting for approval' } : {}),
+        ...(waiting
+          ? {
+              tentative: true,
+              detail: t('approvals.timeline.waiting_for_approval', 'Waiting for approval'),
+            }
+          : {}),
       };
     });
   const counted = view.coverage.filter((c) => c.checked && c.date >= from && c.date <= to);

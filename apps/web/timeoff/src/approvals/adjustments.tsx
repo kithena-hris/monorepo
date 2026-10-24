@@ -128,7 +128,10 @@ export function Adjustments(props: AdjustmentsProps): JSX.Element {
           title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
         />
       ) : null}
-      <Loaded load={load} what="balance adjustments">
+      <Loaded
+        load={load}
+        what={tr('approvals.adjustments.balance_adjustments', 'balance adjustments')}
+      >
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>
@@ -203,7 +206,11 @@ function Ready({
         title={tr('approvals.adjustments.balance_adjustments', 'Balance adjustments')}
         description={
           data.hr
-            ? `${String(waiting.length)} waiting for you; HR’s own count at once`
+            ? tr(
+                'approvals.adjustments.waiting_for_you_hr_count',
+                '{{count}} waiting for you; HR’s own count at once',
+                { count: waiting.length },
+              )
             : tr(
                 'approvals.adjustments.days_you_asked_hr_to_add',
                 'Days you asked HR to add or take away',

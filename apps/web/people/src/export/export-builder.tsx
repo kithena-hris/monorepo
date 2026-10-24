@@ -237,7 +237,10 @@ export function ExportBuilder({
           'Describe what you need. Kithena builds the export, and you check it.',
         )}
       />
-      <Loaded load={load} what="the export builder">
+      <Loaded
+        load={load}
+        what={t('export.export-builder.the_export_builder', 'the export builder')}
+      >
         {(state) =>
           state.record !== undefined ? (
             <ExportDone

@@ -89,7 +89,7 @@ export const CONFIDENCE: Readonly<
 export function Home(props: ScreenProps<HomeData>): JSX.Element {
   const act = useAct(props);
   return (
-    <Loaded load={props.load} what="Performance">
+    <Loaded load={props.load} what={tr('home.performance', 'Performance')}>
       {(data) => (
         <div className="flex flex-col gap-5">
           <PageHeader

@@ -71,7 +71,7 @@ export function KioskCode({
       {load.status === 'error' ? (
         <PageHeader title={t('kiosk.code.my_kiosk_code', 'My kiosk code')} />
       ) : null}
-      <Loaded load={load} what="your kiosk code">
+      <Loaded load={load} what={t('kiosk.code.your_kiosk_code', 'your kiosk code')}>
         {(data) => <Ready data={data} onRefresh={onRefresh} onSavePin={onSavePin} now={now} />}
       </Loaded>
     </div>

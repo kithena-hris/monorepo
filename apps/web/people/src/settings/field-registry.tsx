@@ -116,7 +116,10 @@ export interface FieldRegistryProps {
 export function FieldRegistry(props: FieldRegistryProps): JSX.Element {
   return (
     <Stack gap={6}>
-      <Loaded load={props.load} what="the employee fields">
+      <Loaded
+        load={props.load}
+        what={t('settings.field-registry.the_employee_fields', 'the employee fields')}
+      >
         {(draft) => <Registry {...props} draft={draft} />}
       </Loaded>
     </Stack>
@@ -391,7 +394,7 @@ function Registry({
       ) : (
         <Card>
           <ListDetail
-            listLabel="Sections"
+            listLabel={t('settings.field-registry.sections', 'Sections')}
             detailLabel={section.label}
             selected={chosen !== null}
             onBack={() => {
@@ -649,9 +652,9 @@ const COLUMN = {
 } as const;
 
 const PENDING = {
-  added: { tone: 'success', text: '+ Added' },
-  changed: { tone: 'warning', text: '~ Changed' },
-  archived: { tone: 'neutral', text: '− Archived' },
+  added: { tone: 'success', text: t('settings.field-registry.added', '+ Added') },
+  changed: { tone: 'warning', text: t('settings.field-registry.changed', '~ Changed') },
+  archived: { tone: 'neutral', text: t('settings.field-registry.archived', '− Archived') },
 } as const;
 
 type Filter = 'all' | 'required' | 'protected' | 'employee' | 'draft';
@@ -1014,10 +1017,13 @@ function AssistantShare({
   const shared = field.aiEligible === true;
   const never = !shared && field.aiShareable !== true;
   const cell = shared ? (
-    <Cell main="Shared" icon={<icons.assistant aria-hidden />} />
+    <Cell
+      main={t('settings.field-registry.shared', 'Shared')}
+      icon={<icons.assistant aria-hidden />}
+    />
   ) : never ? (
     <Cell
-      main="Never"
+      main={t('settings.field-registry.never', 'Never')}
       sub={
         field.encrypted === true
           ? t('settings.field-registry.encrypted', 'Encrypted')
@@ -1026,7 +1032,10 @@ function AssistantShare({
       icon={<icons.locked aria-hidden />}
     />
   ) : (
-    <Cell main="Not shared" icon={<icons.hidden aria-hidden />} />
+    <Cell
+      main={t('settings.field-registry.not_shared', 'Not shared')}
+      icon={<icons.hidden aria-hidden />}
+    />
   );
   if (onAssistant === undefined) return cell;
   return (

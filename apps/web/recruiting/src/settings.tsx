@@ -835,8 +835,11 @@ const HiringRules: Body = ({ data, props }) => {
               label={tr('settings.approve_jobs_before_they_open', 'Approve jobs before they open')}
               description={
                 g.requisitionsOn
-                  ? 'A job opens once its request is approved.'
-                  : 'Recruiters open jobs directly.'
+                  ? tr(
+                      'settings.a_job_opens_once_its_request_is',
+                      'A job opens once its request is approved.',
+                    )
+                  : tr('settings.recruiters_open_jobs_directly', 'Recruiters open jobs directly.')
               }
               checked={g.requisitionsOn}
               onChange={(on) => {
@@ -973,11 +976,20 @@ const HiringRules: Body = ({ data, props }) => {
             value={g.rejectionReasons.map(words)}
             placeholder={tr('settings.add_a_reason_then_enter', 'Add a reason, then Enter')}
             invalid={checks.invalid('reasons')}
-            hint={checks.error('reasons') ?? 'Press Enter after each one.'}
+            hint={
+              checks.error('reasons') ??
+              tr('settings.press_enter_after_each_one', 'Press Enter after each one.')
+            }
             validate={(text) => {
               const key = reasonKey(text);
-              if (!/^[a-z]/u.test(key)) return 'Start the reason with a letter.';
-              return g.rejectionReasons.includes(key) ? 'That reason is already here.' : null;
+              if (!/^[a-z]/u.test(key))
+                return tr(
+                  'settings.start_the_reason_with_a_letter',
+                  'Start the reason with a letter.',
+                );
+              return g.rejectionReasons.includes(key)
+                ? tr('settings.that_reason_is_already_here', 'That reason is already here.')
+                : null;
             }}
             onChange={(next) => {
               set({ rejectionReasons: next.map(reasonKey).filter((k) => /^[a-z]/u.test(k)) });
@@ -1150,7 +1162,12 @@ const Organisation: Body = ({ data, props }) => {
         <Group title={tr('settings.legal_entities', 'Legal entities')}>
           <Things
             empty={
-              data.entities.length === 0 ? 'Add the company that employs, such as Acme GmbH.' : null
+              data.entities.length === 0
+                ? tr(
+                    'settings.add_the_company_that_employs_such_as',
+                    'Add the company that employs, such as Acme GmbH.',
+                  )
+                : null
             }
             icon={<icons.company aria-hidden />}
           >
@@ -1165,8 +1182,8 @@ const Organisation: Body = ({ data, props }) => {
                 icon={<icons.company aria-hidden />}
                 description={[
                   COUNTRY[e.country] ?? e.country,
-                  `pays in ${e.currency}`,
-                  e.worksCouncil ? 'works council' : null,
+                  tr('settings.pays_in_currency', 'pays in {{currency}}', { currency: e.currency }),
+                  e.worksCouncil ? tr('settings.works_council', 'works council') : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -1181,7 +1198,10 @@ const Organisation: Body = ({ data, props }) => {
                     : () => {
                         removal.ask(
                           e.name,
-                          'Jobs it employs for keep their terms; no new job can choose it.',
+                          tr(
+                            'settings.jobs_it_employs_for_keep_their_terms',
+                            'Jobs it employs for keep their terms; no new job can choose it.',
+                          ),
                           () => {
                             act.run('RemoveEntity', { id: e.id });
                           },
@@ -1200,7 +1220,11 @@ const Organisation: Body = ({ data, props }) => {
         </Group>
         <Group title={tr('settings.locations', 'Locations')}>
           <Things
-            empty={data.locations.length === 0 ? 'Add an office, a site or a city.' : null}
+            empty={
+              data.locations.length === 0
+                ? tr('settings.add_an_office_a_site_or_a', 'Add an office, a site or a city.')
+                : null
+            }
             icon={<icons.location aria-hidden />}
           >
             {data.locations.map((l, i) => (
@@ -1229,7 +1253,10 @@ const Organisation: Body = ({ data, props }) => {
                         () => {
                           removal.ask(
                             l.name,
-                            'Jobs there keep it; no new job can choose it.',
+                            tr(
+                              'settings.jobs_there_keep_it_no_new_job',
+                              'Jobs there keep it; no new job can choose it.',
+                            ),
                             () => {
                               act.run('RemoveLocation', { id: l.id });
                             },
@@ -1249,7 +1276,14 @@ const Organisation: Body = ({ data, props }) => {
         </Group>
         <Group title={tr('settings.departments', 'Departments')}>
           <Things
-            empty={data.orgUnits.length === 0 ? 'Add a department, such as Engineering.' : null}
+            empty={
+              data.orgUnits.length === 0
+                ? tr(
+                    'settings.add_a_department_such_as_engineering',
+                    'Add a department, such as Engineering.',
+                  )
+                : null
+            }
             icon={<icons.organisation aria-hidden />}
           >
             {data.orgUnits.map((u, i) => (
@@ -1264,8 +1298,10 @@ const Organisation: Body = ({ data, props }) => {
                 icon={<icons.organisation aria-hidden />}
                 description={
                   u.parentId === null
-                    ? 'At the top'
-                    : `Under ${data.orgUnits.find((x) => x.id === u.parentId)?.name ?? '—'}`
+                    ? tr('settings.at_the_top', 'At the top')
+                    : tr('settings.under_unit', 'Under {{unit}}', {
+                        unit: data.orgUnits.find((x) => x.id === u.parentId)?.name ?? '—',
+                      })
                 }
                 {...(u.source === 'people' ? { meta: <FromPeople /> } : {})}
                 {...(u.source === 'people'
@@ -1279,7 +1315,10 @@ const Organisation: Body = ({ data, props }) => {
                         () => {
                           removal.ask(
                             u.name,
-                            'Jobs in it keep it; no new job can choose it.',
+                            tr(
+                              'settings.jobs_in_it_keep_it_no_new',
+                              'Jobs in it keep it; no new job can choose it.',
+                            ),
                             () => {
                               act.run('RemoveOrgUnit', { id: u.id });
                             },
@@ -1366,7 +1405,14 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
           )}
         >
           <Things
-            empty={data.pipelines.length === 0 ? 'Add the steps candidates move through.' : null}
+            empty={
+              data.pipelines.length === 0
+                ? tr(
+                    'settings.add_the_steps_candidates_move_through',
+                    'Add the steps candidates move through.',
+                  )
+                : null
+            }
             icon={<icons.hierarchy aria-hidden />}
           >
             {data.pipelines.map((p, i) => (
@@ -1398,7 +1444,10 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
                     : () => {
                         removal.ask(
                           p.name,
-                          'Jobs that use it keep their steps; new jobs can no longer choose it.',
+                          tr(
+                            'settings.jobs_that_use_it_keep_their_steps',
+                            'Jobs that use it keep their steps; new jobs can no longer choose it.',
+                          ),
                           () => {
                             act.run('RemovePipeline', { id: p.id });
                           },
@@ -1445,7 +1494,10 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
           <Things
             empty={
               data.chains.length === 0
-                ? 'No rules yet: new jobs and offers go ahead without an approval.'
+                ? tr(
+                    'settings.no_rules_yet_new_jobs_and_offers',
+                    'No rules yet: new jobs and offers go ahead without an approval.',
+                  )
                 : null
             }
             icon={<icons.approve aria-hidden />}
@@ -1463,14 +1515,17 @@ const PipelinesAndApprovals: Body = ({ data, props }) => {
                   icon={<icons.approve aria-hidden />}
                   description={chainSentence(c, data)}
                   actions={rowActions(
-                    'approval rule',
+                    tr('settings.approval_rule', 'approval rule'),
                     () => {
                       setChain(c);
                     },
                     () => {
                       removal.ask(
                         c.name,
-                        'What it would approve falls to the next chain that fits, or goes through.',
+                        tr(
+                          'settings.what_it_would_approve_falls_to_the',
+                          'What it would approve falls to the next chain that fits, or goes through.',
+                        ),
                         () => {
                           act.run('RemoveChain', { id: c.id });
                         },
@@ -1551,7 +1606,10 @@ const Questionnaires: Body = ({ data, props }) => {
         <Things
           empty={
             data.questionnaires.length === 0
-              ? 'Add the questions you ask every candidate, such as the right to work.'
+              ? tr(
+                  'settings.add_the_questions_you_ask_every_candidate',
+                  'Add the questions you ask every candidate, such as the right to work.',
+                )
               : null
           }
           icon={<icons.document aria-hidden />}
@@ -1588,9 +1646,16 @@ const Questionnaires: Body = ({ data, props }) => {
                   setQuestionnaire(q);
                 },
                 () => {
-                  removal.ask(q.name, 'Jobs that ask it stop asking it.', () => {
-                    act.run('RemoveQuestionnaire', { id: q.id });
-                  });
+                  removal.ask(
+                    q.name,
+                    tr(
+                      'settings.jobs_that_ask_it_stop_asking_it',
+                      'Jobs that ask it stop asking it.',
+                    ),
+                    () => {
+                      act.run('RemoveQuestionnaire', { id: q.id });
+                    },
+                  );
                 },
               )}
             />
@@ -1646,9 +1711,16 @@ const EmailsAndLetters: Body = ({ data, props }) => {
           setTemplate(t);
         },
         () => {
-          removal.ask(t.name, 'What it sent goes back to the built-in words.', () => {
-            act.run('RemoveTemplate', { id: t.id });
-          });
+          removal.ask(
+            t.name,
+            tr(
+              'settings.what_it_sent_goes_back_to_the',
+              'What it sent goes back to the built-in words.',
+            ),
+            () => {
+              act.run('RemoveTemplate', { id: t.id });
+            },
+          );
         },
       )}
     />
@@ -1677,7 +1749,11 @@ const EmailsAndLetters: Body = ({ data, props }) => {
         <Refusal error={act.error} />
         <Group title={tr('settings.emails', 'Emails')}>
           <Things
-            empty={emails.length + builtIn.length === 0 ? 'No email yet.' : null}
+            empty={
+              emails.length + builtIn.length === 0
+                ? tr('settings.no_email_yet', 'No email yet.')
+                : null
+            }
             icon={<icons.email aria-hidden />}
           >
             {emails.map(row)}
@@ -1713,7 +1789,7 @@ const EmailsAndLetters: Body = ({ data, props }) => {
         </Group>
         <Group title={tr('settings.letters', 'Letters')}>
           <Things
-            empty={letters.length === 0 ? 'No letter yet.' : null}
+            empty={letters.length === 0 ? tr('settings.no_letter_yet', 'No letter yet.') : null}
             icon={<icons.document aria-hidden />}
           >
             {letters.map(row)}
@@ -2115,7 +2191,10 @@ const Scorecards: Body = ({ data, props }) => {
           <Things
             empty={
               data.scorecards.length === 0
-                ? 'Add one with the competencies a role is judged on.'
+                ? tr(
+                    'settings.add_one_with_the_competencies_a_role',
+                    'Add one with the competencies a role is judged on.',
+                  )
                 : null
             }
             icon={<icons.review aria-hidden />}
@@ -2131,7 +2210,7 @@ const Scorecards: Body = ({ data, props }) => {
                     setEditing(s);
                   }}
                   icon={<icons.review aria-hidden />}
-                  description={`${String(s.competencies.length)} ${s.competencies.length === 1 ? 'competency' : 'competencies'} · ${asked === 0 ? 'no questions yet' : `${String(asked)} ${asked === 1 ? 'question' : 'questions'}`}`}
+                  description={`${String(s.competencies.length)} ${s.competencies.length === 1 ? 'competency' : 'competencies'} · ${asked === 0 ? tr('settings.no_questions_yet', 'no questions yet') : `${String(asked)} ${asked === 1 ? 'question' : 'questions'}`}`}
                   supporting={s.competencies.map((c) => c.name).join(' · ')}
                   actions={rowActions(
                     'scorecard',
@@ -2141,7 +2220,10 @@ const Scorecards: Body = ({ data, props }) => {
                     () => {
                       removal.ask(
                         s.name,
-                        'Jobs that use it fall back to their own scorecard.',
+                        tr(
+                          'settings.jobs_that_use_it_fall_back_to',
+                          'Jobs that use it fall back to their own scorecard.',
+                        ),
                         () => {
                           act.run('RemoveScorecardTemplate', { id: s.id });
                         },
@@ -2425,7 +2507,14 @@ const PayBands: Body = ({ data, props }) => {
         ) : (
           <Group title={tr('settings.bands', 'Bands')}>
             <Things
-              empty={bands.length === 0 ? 'Add the range for each grade you hire at.' : null}
+              empty={
+                bands.length === 0
+                  ? tr(
+                      'settings.add_the_range_for_each_grade_you',
+                      'Add the range for each grade you hire at.',
+                    )
+                  : null
+              }
               icon={<icons.payment aria-hidden />}
             >
               {bands.map((b, i) => (
@@ -2452,14 +2541,19 @@ const PayBands: Body = ({ data, props }) => {
                     ? { meta: <FromPeople /> }
                     : {
                         actions: rowActions(
-                          'pay band',
+                          tr('settings.pay_band', 'pay band'),
                           () => {
                             setBand(b);
                           },
                           () => {
                             removal.ask(
-                              `pay band ${b.grade}`,
-                              'Offers for this grade are no longer checked against a band.',
+                              tr('settings.pay_band_grade', 'pay band {{grade}}', {
+                                grade: b.grade,
+                              }),
+                              tr(
+                                'settings.offers_for_this_grade_are_no_longer',
+                                'Offers for this grade are no longer checked against a band.',
+                              ),
                               () => {
                                 act.run('RemovePayBand', { id: b.id });
                               },
@@ -2654,7 +2748,10 @@ const Benefits: Body = ({ data, props }) => {
                                   () => {
                                     removal.ask(
                                       nameOf(b),
-                                      'Jobs stop offering it; a standard one can be put back.',
+                                      tr(
+                                        'settings.jobs_stop_offering_it_a_standard_one',
+                                        'Jobs stop offering it; a standard one can be put back.',
+                                      ),
                                       () => {
                                         act.run('RemoveBenefit', { id: b.id });
                                       },
@@ -2765,18 +2862,41 @@ const Ai: Body = ({ data, props }) => {
               'Write and translate job ads',
               'Drafts and translates the description.',
             )}
-            {feature('parser', 'Read CVs', 'Fills the candidate’s profile from their CV.')}
+            {feature(
+              'parser',
+              tr('settings.read_cvs', 'Read CVs'),
+              tr(
+                'settings.fills_the_candidates_profile_from_their_cv',
+                'Fills the candidate’s profile from their CV.',
+              ),
+            )}
             {feature(
               'matrix',
-              'Evidence against the criteria',
-              'Shows how a CV meets each criterion. Never moves a candidate.',
+              tr('settings.evidence_against_the_criteria', 'Evidence against the criteria'),
+              tr(
+                'settings.shows_how_a_cv_meets_each_criterion',
+                'Shows how a CV meets each criterion. Never moves a candidate.',
+              ),
             )}
             {feature(
               'assistant',
-              'Answer candidates and take settings in words',
-              'The job assistant, and settings changed in words.',
+              tr(
+                'settings.answer_candidates_and_take_settings_in_words',
+                'Answer candidates and take settings in words',
+              ),
+              tr(
+                'settings.the_job_assistant_and_settings_changed_in',
+                'The job assistant, and settings changed in words.',
+              ),
             )}
-            {feature('charts', 'Charts on request', 'Draws a hiring chart asked for in words.')}
+            {feature(
+              'charts',
+              tr('settings.charts_on_request', 'Charts on request'),
+              tr(
+                'settings.draws_a_hiring_chart_asked_for_in',
+                'Draws a hiring chart asked for in words.',
+              ),
+            )}
           </List>
         </Group>
         <Group
@@ -2886,38 +3006,95 @@ const Integrations: Body = ({ data }) => {
     readonly (readonly [string, string, 'on' | 'unavailable' | 'port'])[],
   ])[] = [
     [
-      'Job boards',
-      'Where your jobs are posted beyond your careers page.',
+      tr('settings.job_boards', 'Job boards'),
+      tr(
+        'settings.where_your_jobs_are_posted_beyond_your',
+        'Where your jobs are posted beyond your careers page.',
+      ),
       [
-        ['Google for Jobs', 'Structured data on every job page.', 'on'],
-        ['Open XML feed', `jobs.kithena.com/feeds/${data.general.companySlug}.xml`, 'on'],
-        ['Indeed', 'Needs the partner agreement.', 'unavailable'],
-        ['LinkedIn', 'Partner-only; tracked share links meanwhile.', 'unavailable'],
+        [
+          tr('settings.google_for_jobs', 'Google for Jobs'),
+          tr('settings.structured_data_on_every_job_page', 'Structured data on every job page.'),
+          'on',
+        ],
+        [
+          tr('settings.open_xml_feed', 'Open XML feed'),
+          `jobs.kithena.com/feeds/${data.general.companySlug}.xml`,
+          'on',
+        ],
+        [
+          tr('settings.indeed', 'Indeed'),
+          tr('settings.needs_the_partner_agreement', 'Needs the partner agreement.'),
+          'unavailable',
+        ],
+        [
+          'LinkedIn',
+          tr(
+            'settings.partner_only_tracked_share_links_meanwhile',
+            'Partner-only; tracked share links meanwhile.',
+          ),
+          'unavailable',
+        ],
       ],
     ],
     [
-      'Your website',
-      'Your jobs on a site of your own.',
-      [['Embed script', 'A line of code lists your open jobs on any page.', 'on']],
-    ],
-    [
-      'HR system',
-      'For an HR system other than People.',
-      [['Hired webhook and REST', 'Tells it of each hire, with their details.', 'on']],
-    ],
-    [
-      'Checks',
-      'Assessments and background checks, through a provider of yours.',
+      tr('settings.your_website', 'Your website'),
+      tr('settings.your_jobs_on_a_site_of_your', 'Your jobs on a site of your own.'),
       [
-        ['Assessments', 'Ready for a provider; none chosen yet.', 'port'],
-        ['Background checks', 'Ready for a provider; none chosen yet.', 'port'],
+        [
+          tr('settings.embed_script', 'Embed script'),
+          tr(
+            'settings.a_line_of_code_lists_your_open',
+            'A line of code lists your open jobs on any page.',
+          ),
+          'on',
+        ],
+      ],
+    ],
+    [
+      tr('settings.hr_system', 'HR system'),
+      tr('settings.for_an_hr_system_other_than_people', 'For an HR system other than People.'),
+      [
+        [
+          tr('settings.hired_webhook_and_rest', 'Hired webhook and REST'),
+          tr(
+            'settings.tells_it_of_each_hire_with_their',
+            'Tells it of each hire, with their details.',
+          ),
+          'on',
+        ],
+      ],
+    ],
+    [
+      tr('settings.checks', 'Checks'),
+      tr(
+        'settings.assessments_and_background_checks_through_a_provider',
+        'Assessments and background checks, through a provider of yours.',
+      ),
+      [
+        [
+          tr('settings.assessments', 'Assessments'),
+          tr(
+            'settings.ready_for_a_provider_none_chosen_yet',
+            'Ready for a provider; none chosen yet.',
+          ),
+          'port',
+        ],
+        [
+          tr('settings.background_checks', 'Background checks'),
+          tr(
+            'settings.ready_for_a_provider_none_chosen_yet',
+            'Ready for a provider; none chosen yet.',
+          ),
+          'port',
+        ],
       ],
     ],
   ];
   const STATE = {
-    on: ['On', 'success'],
-    unavailable: ['Not available yet', 'neutral'],
-    port: ['Ready to connect', 'info'],
+    on: [tr('settings.on', 'On'), 'success'],
+    unavailable: [tr('settings.not_available_yet', 'Not available yet'), 'neutral'],
+    port: [tr('settings.ready_to_connect', 'Ready to connect'), 'info'],
   } as const;
   return (
     <>
@@ -2972,7 +3149,7 @@ export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
   const key = props.path?.split('/')[3] ?? 'careers';
   const Section = SECTIONS[key];
   return (
-    <Loaded load={props.load} what="Recruiting’s settings">
+    <Loaded load={props.load} what={tr('settings.recruitings_settings', 'Recruiting’s settings')}>
       {(data) =>
         !data.admin ? (
           <Alert tone="warning" title={tr('settings.administrators_only', 'Administrators only')}>

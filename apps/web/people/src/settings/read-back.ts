@@ -80,8 +80,10 @@ const SENSITIVITY: Record<Classification, string> = {
     'settings.read-back.confidential_so_it_is_kept_out',
     'confidential, so it is kept out of logs and AI',
   ),
-  'special-category':
+  'special-category': t(
+    'settings.read-back.special_category_data_so_it_never_reaches',
     'special-category data, so it never reaches AI, events or the standard export',
+  ),
 };
 
 /**
@@ -116,7 +118,14 @@ export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3
         ? t('settings.read-back.nobody_is_ever_asked_for', 'Nobody is ever asked for {{label}}.', {
             label,
           })
-        : `${opening(listed(others))} ${others.length === 1 ? 'fills' : 'fill'} in ${label}; the employee is never asked for it.`
+        : t(
+            'settings.read-back.fill_in_employee_never_asked',
+            {
+              one: '{{who}} fills in {{label}}; the employee is never asked for it.',
+              other: '{{who}} fill in {{label}}; the employee is never asked for it.',
+            },
+            { count: others.length, who: opening(listed(others)), label },
+          )
       : field.ownership.includes('employee')
         ? t(
             'settings.read-back.the_employee_is_asked_for_their',
@@ -173,7 +182,10 @@ export function summaryParts(field: Summarised): { text: string; step: 1 | 2 | 3
           });
   const kind =
     field.classification === null
-      ? 'How sensitive it is is still to be chosen'
+      ? t(
+          'settings.read-back.how_sensitive_it_is_is_still_to',
+          'How sensitive it is is still to be chosen',
+        )
       : opening(SENSITIVITY[field.classification]);
   const extras = [
     field.requiresApproval

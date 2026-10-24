@@ -72,7 +72,7 @@ export function PeopleSettings({ load }: PeopleSettingsProps): JSX.Element {
           'How People works for everybody here. Open a setting to change it.',
         )}
       />
-      <Loaded load={load} what="People settings">
+      <Loaded load={load} what={t('settings.overview.people_settings', 'People settings')}>
         {(data) => <Cards data={data} />}
       </Loaded>
     </Stack>

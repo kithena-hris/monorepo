@@ -449,7 +449,7 @@ function NewCycle({
       steps={STEPS}
       step={0}
       onStep={go}
-      finishLabel="Next"
+      finishLabel={tr('cycles.next', 'Next')}
       finish={() => {
         go(1);
       }}
@@ -627,8 +627,8 @@ const ZONES = [
   'UTC',
 ];
 const REMINDERS = [
-  ['before:7', '7 days before'],
-  ['before:3', '3 days before'],
+  ['before:7', tr('cycles.7_days_before', '7 days before')],
+  ['before:3', tr('cycles.3_days_before', '3 days before')],
   ['on_day', tr('cycles.on_the_day', 'On the day')],
   ['late:2', tr('cycles.every_2_days_when_late', 'Every 2 days when late')],
   ['opens', tr('cycles.when_it_opens', 'When it opens')],
@@ -637,7 +637,7 @@ const REMINDERS = [
 /** PF4: setup in a centred dialog; each step saves as it changes. */
 export function Setup(props: ScreenProps<SetupData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the cycle">
+    <Loaded load={props.load} what={tr('cycles.the_cycle', 'the cycle')}>
       {(data) => <SetupDialog key={data.cycle.id} data={data} {...props} />}
     </Loaded>
   );
@@ -1244,13 +1244,13 @@ function Participants({
     {
       id: 'person',
       width: '20rem',
-      header: 'Person',
+      header: tr('cycles.person', 'Person'),
       cell: (r) => <Person name={r.name} sub={r.title} />,
     },
     {
       id: 'manager',
       width: '14rem',
-      header: 'Manager',
+      header: tr('cycles.manager', 'Manager'),
       cell: (r) =>
         r.manager === null ? (
           <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
@@ -1267,7 +1267,7 @@ function Participants({
     {
       id: 'note',
       width: '12rem',
-      header: 'How',
+      header: tr('cycles.how', 'How'),
       cell: (r) =>
         r.note === null ? (
           <span className="text-sm text-fg-muted">
@@ -1447,7 +1447,16 @@ function Participants({
             { count: p.count },
           )}
         </span>
-        {` · ${String(p.fromFilter)} from the filters, ${String(p.included)} added by name, ${String(p.excluded)} left out`}
+        {' · '}
+        {tr(
+          'cycles.from_filters_added_by_name_left_out',
+          '{{fromFilter}} from the filters, {{included}} added by name, {{excluded}} left out',
+          {
+            fromFilter: p.fromFilter,
+            included: p.included,
+            excluded: p.excluded,
+          },
+        )}
         {q === ''
           ? ''
           : ` · ${tr('cycles.count_matches', { one: '{{count}} match', other: '{{count}} matches' }, { count: p.total ?? p.rows.length })} “${q}”`}
@@ -1955,7 +1964,10 @@ function ReminderOptions({
       </ChipRow>
       <SwitchRow
         label={tr('cycles.inbox', 'Inbox')}
-        info="Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen."
+        info={tr(
+          'cycles.always_on_every_reminder_lands_in_each',
+          'Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen.',
+        )}
         checked
         disabled
       />
@@ -2286,7 +2298,10 @@ function CyclePlan({
       title={tr('cycles.the_cycle_at_a_glance', 'The cycle at a glance')}
       description={
         edit === undefined
-          ? 'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.'
+          ? tr(
+              'cycles.bars_are_when_each_review_is_open',
+              'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.',
+            )
           : edit.mode === 'setup'
             ? tr(
                 'cycles.drag_a_bars_end_or_its',
@@ -2471,7 +2486,10 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
             {blocks === 0 && warns === 0
               ? tr('cycles.every_check_passed', 'Every check passed.')
               : warns === 0
-                ? 'Fix what is marked; nothing else stops it.'
+                ? tr(
+                    'cycles.fix_what_is_marked_nothing_else_stops',
+                    'Fix what is marked; nothing else stops it.',
+                  )
                 : tr(
                     'cycles.to_read_warnings_dont_stop_it',
                     '{{warns}} to read. Warnings don’t stop it.',
@@ -2578,8 +2596,20 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                           {` · ${dueAfter(a.due)}`}
                           {k === 'peer'
                             ? c.peer.all
-                              ? ` · every teammate, up to ${String(c.peer.max)}`
-                              : ` · ${String(c.peer.min)} to ${String(c.peer.max)} peers, nominated by ${PICKER[c.peer.picker] ?? c.peer.picker}`
+                              ? ' · ' +
+                                tr('cycles.every_teammate_up_to', 'every teammate, up to {{max}}', {
+                                  max: c.peer.max,
+                                })
+                              : ' · ' +
+                                tr(
+                                  'cycles.peers_nominated_by',
+                                  '{{min}} to {{max}} peers, nominated by {{picker}}',
+                                  {
+                                    min: c.peer.min,
+                                    max: c.peer.max,
+                                    picker: PICKER[c.peer.picker] ?? c.peer.picker,
+                                  },
+                                )
                             : ''}
                         </span>
                       </>
@@ -2803,7 +2833,10 @@ function CycleSettings({
       <div className="flex flex-wrap items-center gap-3">
         <p className="flex-1 text-sm text-fg-muted">
           {onEdit === undefined
-            ? 'Deadlines move from the plan on the Overview; everything else was fixed at launch.'
+            ? tr(
+                'cycles.deadlines_move_from_the_plan_on_the',
+                'Deadlines move from the plan on the Overview; everything else was fixed at launch.',
+              )
             : tr(
                 'cycles.not_started_yet_so_all_of',
                 'Not started yet, so all of it can still change.',
@@ -3198,15 +3231,25 @@ function PeopleToolbar({
     ...(data.fields === undefined
       ? []
       : filterFields({ fields: data.fields, places: data.places })),
-    { id: 'self', label: 'Self review', operators: IS, options: REVIEW_STATES },
-    { id: 'managerReview', label: 'Manager review', operators: IS, options: REVIEW_STATES },
+    {
+      id: 'self',
+      label: tr('cycles.self_review', 'Self review'),
+      operators: IS,
+      options: REVIEW_STATES,
+    },
+    {
+      id: 'managerReview',
+      label: tr('cycles.manager_review', 'Manager review'),
+      operators: IS,
+      options: REVIEW_STATES,
+    },
     {
       id: 'overdue',
-      label: 'Anything overdue',
+      label: tr('cycles.anything_overdue', 'Anything overdue'),
       operators: [{ id: 'is', label: 'is', value: 'options' }],
       options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' },
+        { value: 'yes', label: tr('cycles.yes', 'Yes') },
+        { value: 'no', label: tr('cycles.no', 'No') },
       ],
     },
   ];
@@ -3433,7 +3476,7 @@ function OverviewTable({
     {
       id: 'person',
       width: '18rem',
-      header: 'Person',
+      header: tr('cycles.person', 'Person'),
       cell: (r) => (
         <span className="flex flex-col">
           <span>
@@ -3453,7 +3496,7 @@ function OverviewTable({
     {
       id: 'manager',
       width: '13rem',
-      header: 'Manager',
+      header: tr('cycles.manager', 'Manager'),
       cell: (r) =>
         r.manager === null ? (
           <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
@@ -3472,23 +3515,37 @@ function OverviewTable({
           {
             id: 'self',
             width: '9rem',
-            header: 'Self',
+            header: tr('cycles.self', 'Self'),
             cell: (r: OverviewRow) => <ReviewBadge state={r.self} />,
           },
         ]
       : []),
     ...(has('peer')
-      ? [{ id: 'peers', width: '10rem', header: 'Peers', cell: (r: OverviewRow) => r.peers }]
+      ? [
+          {
+            id: 'peers',
+            width: '10rem',
+            header: tr('cycles.peers', 'Peers'),
+            cell: (r: OverviewRow) => r.peers,
+          },
+        ]
       : []),
     ...(has('upward')
-      ? [{ id: 'upward', width: '7rem', header: 'Upward', cell: (r: OverviewRow) => r.upward }]
+      ? [
+          {
+            id: 'upward',
+            width: '7rem',
+            header: tr('cycles.upward', 'Upward'),
+            cell: (r: OverviewRow) => r.upward,
+          },
+        ]
       : []),
     ...(has('manager')
       ? [
           {
             id: 'managerReview',
             width: '13rem',
-            header: 'Manager review',
+            header: tr('cycles.manager_review', 'Manager review'),
             cell: (r: OverviewRow) => {
               // A former manager's review is said so: the row's own, or one kept beside it.
               const former = r.formerManagerReviews ?? [];
@@ -3499,7 +3556,11 @@ function OverviewTable({
                 <span className="flex flex-col items-start gap-1">
                   <ReviewBadge state={r.managerReview} />
                   {main === undefined ? null : (
-                    <span className="text-xs text-warning-fg">{`By ${main.name}, their former manager`}</span>
+                    <span className="text-xs text-warning-fg">
+                      {tr('cycles.by_their_former_manager', 'By {{name}}, their former manager', {
+                        name: main.name,
+                      })}
+                    </span>
                   )}
                   {former
                     .filter((f) => !f.main)
@@ -3520,7 +3581,7 @@ function OverviewTable({
     {
       id: 'release',
       width: '9rem',
-      header: 'Release',
+      header: tr('cycles.release', 'Release'),
       cell: (r) => <span className="text-sm text-fg-muted">{r.release}</span>,
     },
     ...(data.hr
@@ -3528,7 +3589,7 @@ function OverviewTable({
           {
             id: 'score',
             width: '6rem',
-            header: 'Score',
+            header: tr('cycles.score', 'Score'),
             numeric: true,
             cell: (r: OverviewRow) => score(r.score),
           },
@@ -3642,7 +3703,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
   const [preset, setPreset] = useState<{ kind: string; due: string } | null>(null);
   const tab = props.search?.['tab'] ?? 'overview';
   return (
-    <Loaded load={props.load} what="the cycle">
+    <Loaded load={props.load} what={tr('cycles.the_cycle', 'the cycle')}>
       {(data) => {
         const c = data.cycle;
         const id = c.id;
@@ -3841,7 +3902,14 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   </span>
                 }
               >
-                {`${c.launch.error ?? tr('cycles.something_stopped_it', 'Something stopped it.')} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.`}
+                {tr(
+                  'cycles.launch_stopped_retrying_continues',
+                  '{{error}} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.',
+                  {
+                    error:
+                      c.launch.error ?? tr('cycles.something_stopped_it', 'Something stopped it.'),
+                  },
+                )}
               </Alert>
             ) : null}
             {c.state === 'launching' ? (
@@ -4258,7 +4326,7 @@ function ExportDialog({
       ]}
       step={step}
       onStep={setStep}
-      finishLabel="Export"
+      finishLabel={tr('cycles.export', 'Export')}
       pending={act.pending}
       finish={() => {
         act.run(

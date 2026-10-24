@@ -104,7 +104,10 @@ export interface IntegrationsProps {
 }
 
 const TITLE = t('settings.integrations.integrations', 'Integrations');
-const DESCRIPTION = 'Where time off and attendance show up outside this module.';
+const DESCRIPTION = t(
+  'settings.integrations.where_time_off_and_attendance_show_up',
+  'Where time off and attendance show up outside this module.',
+);
 const page = '@container/integrations flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/integrations:grid @min-[60rem]/integrations:grid-cols-2 @min-[60rem]/integrations:items-start';
@@ -161,7 +164,7 @@ export function Integrations(props: IntegrationsProps): JSX.Element {
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
-      <Loaded load={load} what="the integrations">
+      <Loaded load={load} what={t('settings.integrations.the_integrations', 'the integrations')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

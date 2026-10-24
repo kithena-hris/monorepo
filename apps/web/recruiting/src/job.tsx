@@ -1,4 +1,19 @@
 import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Chip,
+  ChipRow,
+  cn,
+  Combobox,
+  CopyField,
+  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -6,30 +21,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  Combobox,
-  Alert,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Chip,
-  ChipRow,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CopyField,
-  DatePicker,
   EmptyState,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   IconList,
   IconListItem,
+  icons,
   Input,
-  NumberField,
   KeyValues,
+  NumberField,
   PageHeader,
   RadioCard,
   RadioGroup,
@@ -55,11 +58,9 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  TimePicker,
   Timeline,
   TimelineItem,
-  cn,
-  icons,
+  TimePicker,
 } from '@reach/ui';
 import { use, useRef, useState, type JSX, type ReactNode } from 'react';
 
@@ -104,7 +105,10 @@ const TARGETS: readonly {
   {
     key: 'google_for_jobs',
     label: tr('job.google_for_jobs', 'Google for Jobs'),
-    what: 'Structured data on the job page; Google crawls it',
+    what: tr(
+      'job.structured_data_on_the_job_page_google',
+      'Structured data on the job page; Google crawls it',
+    ),
     available: true,
   },
   {
@@ -128,13 +132,19 @@ const TARGETS: readonly {
   {
     key: 'indeed',
     label: tr('job.indeed', 'Indeed'),
-    what: 'Glassdoor lists jobs from Indeed; needs the careers page first',
+    what: tr(
+      'job.glassdoor_lists_jobs_from_indeed_needs_the',
+      'Glassdoor lists jobs from Indeed; needs the careers page first',
+    ),
     available: false,
   },
   {
     key: 'linkedin',
     label: 'LinkedIn',
-    what: 'Partner-only; use the tracked share link',
+    what: tr(
+      'job.partner_only_use_the_tracked_share_link',
+      'Partner-only; use the tracked share link',
+    ),
     available: false,
   },
 ];
@@ -501,7 +511,9 @@ function CriterionInput({
       }}
     >
       <Input
-        aria-label={must ? tr('job.a_must_have', 'A must-have') : 'A nice-to-have'}
+        aria-label={
+          must ? tr('job.a_must_have', 'A must-have') : tr('job.a_nice_to_have', 'A nice-to-have')
+        }
         placeholder={
           must
             ? tr('job.five_years_building_backend_services', 'Five years building backend services')
@@ -549,7 +561,7 @@ function Criteria({
   useAnswered(rows.some((r) => r.must));
   const column = (must: boolean): JSX.Element => {
     const list = rows.filter((r) => r.must === must);
-    const name = must ? 'Must have' : 'Nice to have';
+    const name = must ? tr('job.must_have', 'Must have') : tr('job.nice_to_have', 'Nice to have');
     return (
       <section aria-label={name} className="flex min-w-0 flex-col gap-3">
         <div className="flex items-center gap-2">
@@ -1984,7 +1996,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const focus = part === undefined && asked !== null && isSetupPart(asked) ? asked : null;
   const edit = (next: string | null) => props.onFilter?.({ edit: next });
   return (
-    <Loaded load={props.load} what="the job">
+    <Loaded load={props.load} what={tr('job.the_job', 'the job')}>
       {(data) => {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
@@ -2001,17 +2013,45 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                 ),
                 period: data.job.salary.period,
               });
-        const mode = `${MODE[data.job.workMode] ?? data.job.workMode}${
-          data.terms.workMode === 'hybrid' && data.terms.hybridDaysOnsite !== null
-            ? `, ${String(data.terms.hybridDaysOnsite)} days on site${
-                data.terms.hybridOnsiteDays === null
-                  ? ', any days'
-                  : data.terms.hybridOnsiteDays.length === 0
-                    ? ''
-                    : ` (${data.terms.hybridOnsiteDays.map((d) => WEEKDAY[d] ?? '').join(', ')})`
-              }`
-            : ''
-        }`;
+        const modeName = MODE[data.job.workMode] ?? data.job.workMode;
+        const onsite = data.terms.hybridDaysOnsite;
+        const mode =
+          data.terms.workMode === 'hybrid' && onsite !== null
+            ? data.terms.hybridOnsiteDays === null
+              ? tr(
+                  'job.mode_days_on_site_any_days',
+                  {
+                    one: '{{mode}}, {{count}} day on site, any days',
+                    other: '{{mode}}, {{count}} days on site, any days',
+                  },
+                  { mode: modeName, count: onsite },
+                )
+              : data.terms.hybridOnsiteDays.length === 0
+                ? tr(
+                    'job.mode_days_on_site',
+                    {
+                      one: '{{mode}}, {{count}} day on site',
+                      other: '{{mode}}, {{count}} days on site',
+                    },
+                    { mode: modeName, count: onsite },
+                  )
+                : tr(
+                    'job.mode_days_on_site_which',
+                    {
+                      one: '{{mode}}, {{count}} day on site ({{days}})',
+                      other: '{{mode}}, {{count}} days on site ({{days}})',
+                    },
+                    {
+                      mode: modeName,
+                      count: onsite,
+                      days: formatList(
+                        data.terms.hybridOnsiteDays.map((d) => WEEKDAY[d] ?? ''),
+                        'unit',
+                        'short',
+                      ),
+                    },
+                  )
+            : modeName;
         const hours =
           data.options.weeklyMinutes === null
             ? words(data.job.outline.hours)

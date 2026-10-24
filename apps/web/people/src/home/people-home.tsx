@@ -588,7 +588,7 @@ function ToDo({
                 { charAt: c.reason.charAt(0).toLowerCase(), slice: c.reason.slice(1) },
               )}
               href={`/people/me?field=${encodeURIComponent(c.key)}`}
-              word="Correct it"
+              word={tr('home.people-home.correct_it', 'Correct it')}
               primary
             />
           ))}
@@ -601,7 +601,7 @@ function ToDo({
               })}
               description={m.section}
               href={`/people/me?field=${encodeURIComponent(m.key)}`}
-              word="Add"
+              word={tr('home.people-home.add', 'Add')}
             />
           ))}
           {changes.map((c) => (
@@ -772,7 +772,11 @@ function ReportingLine({
                 name={m.name}
                 description={
                   m.id === manager?.id
-                    ? `Your manager · ${m.title ?? ''}`.replace(/ · $/, '')
+                    ? m.title == null || m.title === ''
+                      ? tr('home.people-home.your_manager', 'Your manager')
+                      : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
+                          title: m.title,
+                        })
                     : m.title
                 }
                 href={`/people/${m.id}`}
@@ -1421,7 +1425,7 @@ function Setup({
  */
 export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps): JSX.Element {
   return (
-    <Loaded load={load} what="your home">
+    <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
       {(state) => {
         const { me, reportingLine, hr } = state;
         const hrFigures = state.roles.hr ? (hr ?? null) : null;

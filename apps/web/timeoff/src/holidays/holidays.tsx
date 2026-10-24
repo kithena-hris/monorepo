@@ -58,7 +58,7 @@ export function Holidays({ load, onNavigate, onSubscribe }: HolidaysProps): JSX.
       {load.status === 'error' ? (
         <PageHeader title={t('holidays.holidays.holidays', 'Holidays')} />
       ) : null}
-      <Loaded load={load} what="the holidays">
+      <Loaded load={load} what={t('holidays.holidays.the_holidays', 'the holidays')}>
         {(data) => <Ready data={data} onNavigate={onNavigate} onSubscribe={onSubscribe} />}
       </Loaded>
     </div>

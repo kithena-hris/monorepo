@@ -289,7 +289,7 @@ const isState = (data: unknown): data is WhatChangedState =>
 
 export function WhatChanged(props: WhatChangedProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="what changed">
+    <Loaded load={props.load} what={t('analytics.what-changed.what_changed', 'what changed')}>
       {(data) =>
         isState(data) ? (
           <Summary state={data} {...props} />
@@ -797,7 +797,10 @@ function FollowUp({
                     'Answered from this summary’s points only.',
                   )
                 : result.byModel
-                  ? 'Answered by the assistant from these points; every figure is Kithena’s.'
+                  ? t(
+                      'analytics.what-changed.answered_by_the_assistant_from_these_points',
+                      'Answered by the assistant from these points; every figure is Kithena’s.',
+                    )
                   : t(
                       'analytics.what-changed.answered_by_kithenas_own_rules_from',
                       'Answered by Kithena’s own rules from these points.',

@@ -152,7 +152,7 @@ export function Exceptions({ load }: ExceptionsProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.exceptions.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="the exceptions">
+      <Loaded load={load} what={t('attendance.exceptions.the_exceptions', 'the exceptions')}>
         {(data) => <Ready data={data} />}
       </Loaded>
     </div>

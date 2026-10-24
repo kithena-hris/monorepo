@@ -114,7 +114,7 @@ const dayKey = (iso: string, zone: string | undefined): string =>
  */
 export function PersonHistory({ load, ...props }: PersonHistoryProps): JSX.Element {
   return (
-    <Loaded load={load} what="this history">
+    <Loaded load={load} what={t('profile.history.this_history', 'this history')}>
       {(state) => <History state={state} {...props} />}
     </Loaded>
   );

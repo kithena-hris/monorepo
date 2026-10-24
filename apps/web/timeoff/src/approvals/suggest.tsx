@@ -152,7 +152,11 @@ export function SuggestDates({
               />
             </FieldControl>
             <FieldDescription>
-              {`Written by Kithena from your choice; change it as you like. ${who} reads it with the dates.`}
+              {t(
+                'approvals.suggest.written_by_kithena_from_your_choice',
+                'Written by Kithena from your choice; change it as you like. {{who}} reads it with the dates.',
+                { who },
+              )}
             </FieldDescription>
           </Field>
           {message === null && picked?.message?.ai === true ? (

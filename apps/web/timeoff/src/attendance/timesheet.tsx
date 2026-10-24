@@ -141,7 +141,7 @@ export function Timesheet({ load, onCorrect }: TimesheetProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="your timesheet">
+      <Loaded load={load} what={t('attendance.timesheet.your_timesheet', 'your timesheet')}>
         {(data) => <Ready data={data} onCorrect={onCorrect} />}
       </Loaded>
     </div>
@@ -274,7 +274,11 @@ function Ready({
                 )
               }
             >
-              {`Your last punch was at ${clockTime(minuteOfDay(o.lastPunchAt, zone))}. Say when you finished; the record is kept as it was.`}
+              {t(
+                'attendance.timesheet.last_punch_say_when_you_finished',
+                'Your last punch was at {{time}}. Say when you finished; the record is kept as it was.',
+                { time: clockTime(minuteOfDay(o.lastPunchAt, zone)) },
+              )}
             </Alert>
           ))}
           <Days data={data} today={today} onFix={onCorrect === undefined ? undefined : setFixing} />
@@ -617,7 +621,11 @@ function FixClockOut({
             )}
           </DialogTitle>
           <DialogDescription>
-            {`Your last punch was at ${clockTime(after)}. The clock-out you add goes beside the record; nothing is overwritten.`}
+            {t(
+              'attendance.timesheet.last_punch_clock_out_beside',
+              'Your last punch was at {{time}}. The clock-out you add goes beside the record; nothing is overwritten.',
+              { time: clockTime(after) },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">

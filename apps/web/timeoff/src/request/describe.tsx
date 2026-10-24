@@ -211,7 +211,10 @@ function Described({
             'request.describe.describe_the_time_off_you_want',
             'Describe the time off you want',
           )}
-          disclaimer="Nothing is sent until you pick dates and send them."
+          disclaimer={tr(
+            'request.describe.nothing_is_sent_until_you_pick_dates',
+            'Nothing is sent until you pick dates and send them.',
+          )}
           className="px-0 pt-0 pb-0"
         />
         {data.sentence === null ? null : (
@@ -236,10 +239,10 @@ function Described({
               </Button>
             }
           >
-            <Chip field="Type">
+            <Chip field={tr('request.describe.type', 'Type')}>
               {u.leaveTypeName ?? tr('request.describe.time_off', 'Time off')}
             </Chip>
-            <Chip field="Length">
+            <Chip field={tr('request.describe.length', 'Length')}>
               {tr(
                 'request.describe.about',
                 { one: 'About {{count}} day', other: 'About {{count}} days' },
@@ -248,7 +251,7 @@ function Described({
             </Chip>
             {u.month === null ? null : (
               <Chip
-                field="When"
+                field={tr('request.describe.when', 'When')}
                 onRemove={() => {
                   ask({ month: 'none' });
                 }}
@@ -258,7 +261,7 @@ function Described({
             )}
             {u.nextToHoliday ? (
               <Chip
-                field="Prefer"
+                field={tr('request.describe.prefer', 'Prefer')}
                 onRemove={() => {
                   ask({ holiday: '0' });
                 }}
@@ -268,7 +271,7 @@ function Described({
             ) : null}
             {u.avoidShort ? (
               <Chip
-                field="Avoid"
+                field={tr('request.describe.avoid', 'Avoid')}
                 onRemove={() => {
                   ask({ team: '0' });
                 }}

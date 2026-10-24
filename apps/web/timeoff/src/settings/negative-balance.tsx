@@ -65,7 +65,10 @@ export interface NegativeBalanceProps {
 }
 
 const TITLE = t('settings.negative-balance.negative_balance', 'Negative balance');
-const DESCRIPTION = 'What happens when someone books more than they’ve earned.';
+const DESCRIPTION = t(
+  'settings.negative-balance.what_happens_when_someone_books_more_than',
+  'What happens when someone books more than they’ve earned.',
+);
 const page = '@container/negative flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/negative:grid @min-[60rem]/negative:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @min-[60rem]/negative:items-start';
@@ -82,7 +85,13 @@ export function NegativeBalance({ load, onSave }: NegativeBalanceProps): JSX.Ele
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
-      <Loaded load={load} what="the negative balance rules">
+      <Loaded
+        load={load}
+        what={t(
+          'settings.negative-balance.the_negative_balance_rules',
+          'the negative balance rules',
+        )}
+      >
         {(data) => <Ready data={data} onSave={onSave} />}
       </Loaded>
     </div>

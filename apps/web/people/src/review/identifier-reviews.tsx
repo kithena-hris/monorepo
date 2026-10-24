@@ -365,7 +365,10 @@ function Decide({
               </FieldControl>
               <FieldDescription>
                 {accept
-                  ? 'Optional; kept with the decision.'
+                  ? t(
+                      'review.identifier-reviews.optional_kept_with_the_decision',
+                      'Optional; kept with the decision.',
+                    )
                   : t(
                       'review.identifier-reviews.sees_it_on_their_record_so',
                       '{{name}} sees it on their record, so they know what to correct.',

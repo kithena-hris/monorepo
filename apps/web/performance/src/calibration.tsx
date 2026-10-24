@@ -237,7 +237,7 @@ function NewSession({
       onStep={setStep}
       pending={act.pending}
       canNext={cycle !== ''}
-      finishLabel="Open the session"
+      finishLabel={t('calibration.open_the_session', 'Open the session')}
       finish={() => {
         act.run(
           'CreatePerformanceCalibration',
@@ -379,7 +379,7 @@ export function Calibration(props: ScreenProps<CalibrationData>): JSX.Element {
     readonly { personId: string; now: number; reason: string }[] | null
   >(null);
   return (
-    <Loaded load={props.load} what="the session">
+    <Loaded load={props.load} what={t('calibration.the_session', 'the session')}>
       {(data) => {
         const changed = data.rows.filter((r) => r.now !== r.was).length;
         return (

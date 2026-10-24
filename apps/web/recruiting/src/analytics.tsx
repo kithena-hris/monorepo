@@ -190,7 +190,7 @@ function Drawn({
 export function AnalyticsTile(props: ScreenProps<AnalyticsData>): JSX.Element {
   const tile = TILES.find((t) => t.id === props.params?.['id']);
   return (
-    <Loaded load={props.load} what="this chart">
+    <Loaded load={props.load} what={tr('analytics.this_chart', 'this chart')}>
       {(data) => {
         if (tile === undefined)
           return (

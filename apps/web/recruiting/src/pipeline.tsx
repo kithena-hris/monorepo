@@ -268,7 +268,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   const columns = useMemo(() => pipelineColumns(stages, onNavigate), [stages, onNavigate]);
 
   return (
-    <Loaded load={props.load} what="the pipeline">
+    <Loaded load={props.load} what={t('pipeline.the_pipeline', 'the pipeline')}>
       {(data) => {
         const band = props.search?.['band'] ?? '';
         const active = data.cards.filter(

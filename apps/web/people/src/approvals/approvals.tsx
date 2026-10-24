@@ -263,16 +263,43 @@ export function ago(at: string, now: number): string {
     : t('approvals.approvals.days', '{{days}} days', { days: String(days) });
 }
 
-/** How long until it lapses, in days: "2 days left". */
-function daysLeft(expiresAt: string, now: number): string {
-  const days = Math.max(0, Math.ceil((Date.parse(expiresAt) - now) / 86_400_000));
-  return days === 0
-    ? t('approvals.approvals.expires_today', 'Expires today')
-    : t(
-        'approvals.approvals.left',
-        { one: '{{count}} day left', other: '{{count}} days left' },
-        { count: days },
-      );
+
+/** How a request ended, or when it lapses: one whole phrase per outcome. */
+function decidedLine(item: ApprovalItem, now: number): string {
+  const on = item.decidedAt == null ? null : longDate(item.decidedAt.slice(0, 10));
+  const by = item.decidedBy ?? t('approvals.approvals.hr', 'HR');
+  switch (item.state) {
+    case 'pending': {
+      const days = Math.max(0, Math.ceil((Date.parse(item.expiresAt) - now) / 86_400_000));
+      return days === 0
+        ? t('approvals.approvals.expires_today_lower', 'expires today')
+        : t(
+            'approvals.approvals.expires_in_days',
+            { one: 'expires in {{count}} day', other: 'expires in {{count}} days' },
+            { count: days },
+          );
+    }
+    case 'lapsed':
+      return on === null
+        ? t('approvals.approvals.lapsed_nobody_decided', 'lapsed, nobody decided in 7 days')
+        : t(
+            'approvals.approvals.lapsed_on_nobody_decided',
+            'lapsed on {{on}}, nobody decided in 7 days',
+            { on },
+          );
+    case 'withdrawn':
+      return on === null
+        ? t('approvals.approvals.withdrawn', 'withdrawn')
+        : t('approvals.approvals.withdrawn_on', 'withdrawn on {{on}}', { on });
+    case 'approved':
+      return on === null
+        ? t('approvals.approvals.approved_by', 'approved by {{by}}', { by })
+        : t('approvals.approvals.approved_by_on', 'approved by {{by}} on {{on}}', { by, on });
+    default:
+      return on === null
+        ? t('approvals.approvals.rejected_by', 'rejected by {{by}}', { by })
+        : t('approvals.approvals.rejected_by_on', 'rejected by {{by}} on {{on}}', { by, on });
+  }
 }
 
 /** "Nora" from "Nora Becker"; "the requester" when it is not a name. */
@@ -370,20 +397,8 @@ export function ChangeDetail({
               requestedBy: item.requestedBy,
             })}{' '}
             {longDate(item.requestedAt.slice(0, 10))}
-            {decided
-              ? item.state === 'lapsed'
-                ? ` · lapsed${item.decidedAt ? ' ' + t('approvals.approvals.on', 'on {{longDate}}', { longDate: longDate(item.decidedAt.slice(0, 10)) }) : ''}, nobody decided in 7 days`
-                : item.state === 'withdrawn'
-                  ? ` · withdrawn${item.decidedAt ? ' ' + t('approvals.approvals.on', 'on {{longDate}}', { longDate: longDate(item.decidedAt.slice(0, 10)) }) : ''}`
-                  : ` · ${item.state === 'approved' ? 'approved' : 'rejected'} by ${item.decidedBy ?? 'HR'}${
-                      item.decidedAt
-                        ? ' ' +
-                          t('approvals.approvals.on', 'on {{longDate}}', {
-                            longDate: longDate(item.decidedAt.slice(0, 10)),
-                          })
-                        : ''
-                    }`
-              : ` · expires in ${daysLeft(item.expiresAt, now).replace(' left', '').toLowerCase()}`}
+            {' · '}
+            {decidedLine(item, now)}
           </p>
         </div>
         {decided ? null : (
@@ -490,7 +505,10 @@ export function ChangeDetail({
                   'approvals.approvals.required_when_you_approve_something_flagged',
                   'Required when you approve something flagged.',
                 )
-              : 'Optional; kept with the decision.'}
+              : t(
+                  'approvals.approvals.optional_kept_with_the_decision',
+                  'Optional; kept with the decision.',
+                )}
           </FieldDescription>
           <FieldError>
             {t(

@@ -144,7 +144,7 @@ export function BulkEdit({
   const [tab, setTab] = useHeld<BulkTab>(heldTab, onTabChange, 'edit');
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
-      <Loaded load={load} what="the people to edit">
+      <Loaded load={load} what={t('bulk.bulk-edit.the_people_to_edit', 'the people to edit')}>
         {(state) => {
           const { onPreviewHire, onCommitHire, ...edit } = props;
           if (
@@ -248,7 +248,15 @@ async function pages(
         problem:
           rows.length === 0
             ? answer.message
-            : `${answer.message}. Stopped after ${String(rows.length)} of ${String(ids.length)} people; the rest were not done.`,
+            : t(
+                'bulk.bulk-edit.stopped_after_of_people',
+                '{{message}}. Stopped after {{done}} of {{count}} people; the rest were not done.',
+                {
+                  message: answer.message,
+                  done: rows.length,
+                  count: ids.length,
+                },
+              ),
       };
     }
     committed = answer.committed;
@@ -544,7 +552,14 @@ function Editor({
                     )}
                     {count('refused') === 0
                       ? ''
-                      : ` ${String(count('refused'))} refused, as each says below; nothing was written for them.`}
+                      : ' ' +
+                        t(
+                          'bulk.bulk-edit.refused_as_each_says_below',
+                          '{{count}} refused, as each says below; nothing was written for them.',
+                          {
+                            count: count('refused'),
+                          },
+                        )}
                   </Alert>
                 ) : (
                   <Alert
@@ -846,7 +861,14 @@ function Hire({
                     )}
                     {skipped === 0
                       ? ''
-                      : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
+                      : ' ' +
+                        t(
+                          'bulk.bulk-edit.skipped_as_each_says_below',
+                          '{{count}} skipped, as each says below; nothing was done for them.',
+                          {
+                            count: skipped,
+                          },
+                        )}
                   </Alert>
                 ) : null}
                 <Tiles
@@ -979,9 +1001,9 @@ function Results({
     </Badge>
   );
   const columns: DataColumn<BulkRow>[] = [
-    { id: 'person', header: 'Person', cell: (r) => r.name },
-    { id: 'outcome', header: 'Outcome', cell: badge },
-    { id: 'what', header: 'What', cell: what },
+    { id: 'person', header: t('bulk.bulk-edit.person', 'Person'), cell: (r) => r.name },
+    { id: 'outcome', header: t('bulk.bulk-edit.outcome', 'Outcome'), cell: badge },
+    { id: 'what', header: t('bulk.bulk-edit.what', 'What'), cell: what },
     ...(edit === undefined ? [] : [{ id: 'edit', header: editHeader, cell: edit }]),
   ];
   return wide ? (

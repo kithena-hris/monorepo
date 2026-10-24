@@ -499,7 +499,7 @@ function Give({
       step={step}
       onStep={setStep}
       finish={send}
-      finishLabel="Send"
+      finishLabel={tr('feedback.send', 'Send')}
       pending={act.pending}
       canNext={
         step === 0
@@ -632,7 +632,11 @@ function Give({
               hint={
                 showName
                   ? tr('feedback.sees_it_is_from_you', '{{toName}} sees it is from you', { toName })
-                  : `${toName} reads “Someone at the company”; their manager and HR still see your name`
+                  : tr(
+                      'feedback.reads_someone_at_the_company',
+                      '{{toName}} reads “Someone at the company”; their manager and HR still see your name',
+                      { toName },
+                    )
               }
               checked={showName}
               onChange={setShowName}
@@ -641,7 +645,10 @@ function Give({
             <p className="text-sm text-fg-muted">
               {praise || data.settings.names === 'always'
                 ? tr('feedback.your_name_is_shown', 'Your name is shown.')
-                : 'Your name is hidden from the person; their manager and HR see it.'}
+                : tr(
+                    'feedback.your_name_is_hidden_from_the_person',
+                    'Your name is hidden from the person; their manager and HR see it.',
+                  )}
             </p>
           )}
           <RadioGroup
@@ -830,7 +837,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
   const act = useAct(props);
   const [editing, setEditing] = useState<Note | 'new' | null>(null);
   return (
-    <Loaded load={props.load} what="your notes">
+    <Loaded load={props.load} what={tr('feedback.your_notes', 'your notes')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

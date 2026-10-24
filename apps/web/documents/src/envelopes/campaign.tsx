@@ -29,7 +29,7 @@ export function Campaign({ load }: { readonly load: Loadable<CampaignData> }): J
       {load.status === 'error' ? (
         <PageHeader title={t('envelopes.campaign.acknowledgements', 'Acknowledgements')} />
       ) : null}
-      <Loaded load={load} what="the policy">
+      <Loaded load={load} what={t('envelopes.campaign.the_policy', 'the policy')}>
         {(c) => (
           <>
             <PageHeader

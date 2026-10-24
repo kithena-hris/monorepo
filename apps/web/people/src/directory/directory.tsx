@@ -504,8 +504,8 @@ export function summaryOf(state: DirectoryState): string {
 
 /** The operators People honours for each kind of field, in the order offered. */
 const EMPTY: FilterOperator[] = [
-  { id: 'empty', label: 'is empty', value: 'none' },
-  { id: 'not_empty', label: 'is not empty', value: 'none' },
+  { id: 'empty', label: t('directory.directory.is_empty', 'is empty'), value: 'none' },
+  { id: 'not_empty', label: t('directory.directory.is_not_empty', 'is not empty'), value: 'none' },
 ];
 const OPERATORS: Record<string, readonly FilterOperator[]> = {
   text: [
@@ -623,7 +623,7 @@ export function Directory(props: DirectoryProps): JSX.Element {
         }
       />
       {onViewChange === undefined ? null : <ViewSwitch phone view={view} onChange={onViewChange} />}
-      <Loaded load={load} what="the directory">
+      <Loaded load={load} what={t('directory.directory.the_directory', 'the directory')}>
         {(state) => <Body {...props} state={state} />}
       </Loaded>
     </Stack>
