@@ -63,7 +63,7 @@
   "email.interviews.due": "Termini",
   "email.interviews.hello_thank_you_for_your_times": "Hola, {{value}}:\n\nGràcies pels teus horaris. L’equip no pot en cap, així que tria’n d’altres, si us plau. Els de sota no estan disponibles, com tampoc els festius ni les absències de l’equip.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Hola, {{first}}:\n\nGràcies. {{companyName}} té els {{length}} horaris que ens vas donar{{value}} i te’n confirmarà un per correu, amb l’enllaç de la reunió i el tema.\n\nHan canviat els teus plans? Pots canviar els horaris fins aleshores.",
-  "email.interviews.hello_this_interview_is_cancelled": "Hola, {{name}}:\n\nAquesta entrevista s’ha cancel·lat.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Hola, {{name}}:\n\nAquesta entrevista queda cancel·lada.",
   "email.interviews.in_place_of_the_ones_before": ", en lloc dels anteriors",
   "email.interviews.interview": "Entrevista",
   "email.interviews.join_the_meeting": "Unir-se a la reunió",

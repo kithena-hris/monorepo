@@ -62,7 +62,7 @@
   "email.interviews.due": "नियत तिथि",
   "email.interviews.hello_thank_you_for_your_times": "नमस्ते {{value}},\n\nसमय बताने के लिए धन्यवाद। टीम इनमें से किसी भी समय उपलब्ध नहीं है, इसलिए कृपया दूसरे समय चुनें। नीचे दिए गए समय, छुट्टियाँ और टीम की छुट्टियाँ शामिल नहीं हैं।{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "नमस्ते {{first}},\n\nधन्यवाद। {{companyName}} के पास आपके दिए {{length}} समय हैं{{value}}, और वह ईमेल से उनमें से एक पक्का करेगा, मीटिंग लिंक और विषय के साथ।\n\nप्लान बदल गए? तब तक आप अपने समय बदल सकते हैं।",
-  "email.interviews.hello_this_interview_is_cancelled": "नमस्ते {{name}},\n\nयह इंटरव्यू रद्द कर दिया गया है।\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "नमस्ते {{name}},\n\nयह इंटरव्यू रद्द कर दिया गया है।",
   "email.interviews.in_place_of_the_ones_before": ", पहले वालों की जगह",
   "email.interviews.interview": "इंटरव्यू",
   "email.interviews.join_the_meeting": "मीटिंग में शामिल हों",

@@ -24,7 +24,14 @@ import {
   type Ctx,
   mailWords,
 } from './context.js';
-import type { ApplicationRecord, Candidate, MailParts, Message, Template } from './ports.js';
+import type {
+  ApplicationRecord,
+  Candidate,
+  MailAttachment,
+  MailParts,
+  Message,
+  Template,
+} from './ports.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -115,6 +122,7 @@ export async function sendNow(
   subject: string,
   body: string,
   parts: MailParts = {},
+  attachments?: readonly MailAttachment[],
 ): Promise<Message> {
   const message: Message = {
     id: ctx.deps.newId(),
@@ -140,6 +148,7 @@ export async function sendNow(
     dedupeKey: `message:${message.id}`,
     companyName: settings.companyName,
     parts: { themeId: settings.themeId, logoUrl: settings.logoUrl, ...parts },
+    ...(attachments === undefined ? {} : { attachments }),
   });
   return message;
 }

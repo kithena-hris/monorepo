@@ -63,7 +63,7 @@
   "email.interviews.due": "Échéance",
   "email.interviews.hello_thank_you_for_your_times": "Bonjour {{value}},\n\nMerci pour vos créneaux. L’équipe n’est disponible à aucun d’entre eux ; merci d’en choisir d’autres. Ceux ci-dessous sont exclus, tout comme les jours fériés et les absences de l’équipe.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Bonjour {{first}},\n\nMerci. {{companyName}} a bien reçu vos {{length}} créneaux{{value}} et vous confirmera l’un d’eux par e-mail, avec le lien de la réunion et son objet.\n\nVos plans ont changé ? Vous pouvez modifier vos créneaux d’ici là.",
-  "email.interviews.hello_this_interview_is_cancelled": "Bonjour {{name}},\n\nCet entretien est annulé.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Bonjour {{name}},\n\nCet entretien est annulé.",
   "email.interviews.in_place_of_the_ones_before": ", à la place des précédents",
   "email.interviews.interview": "Entretien",
   "email.interviews.join_the_meeting": "Rejoindre la réunion",

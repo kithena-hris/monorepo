@@ -39,7 +39,13 @@ import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
 import { appUrl, inboxTask, tellMembers } from './notify.js';
 import { emailFor, emailValues } from './emails.js';
 import { loadApplication, render, sendNow, type Loaded } from './moves.js';
-import type { InterviewRecord, MailParts, PlannedInterview, WorkingHours } from './ports.js';
+import type {
+  InterviewRecord,
+  MailAttachment,
+  MailParts,
+  PlannedInterview,
+  WorkingHours,
+} from './ports.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -429,19 +435,20 @@ async function inviteTeam(
     title: interview.title,
     name: candidateName,
   });
-  const invitation = onCalendar
-    ? null
-    : ics({
-        uid: `${interview.id}@kithena`,
-        start: interview.startsAt,
-        minutes: interview.minutes,
-        title,
-        description: agenda?.text ?? '',
-        location: where,
-        organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
-        stamp: ctx.at,
-        cancelled,
-      });
+  // Each their own, so their mail client offers it as their invitation.
+  const invitation = (attendee: { email: string; name: string }) =>
+    ics({
+      uid: `${interview.id}@kithena`,
+      start: interview.startsAt,
+      minutes: interview.minutes,
+      title,
+      description: agenda?.text ?? '',
+      location: where,
+      organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
+      stamp: ctx.at,
+      cancelled,
+      attendee,
+    });
   const when = `${new Intl.DateTimeFormat(language, {
     dateStyle: 'full',
     timeStyle: 'short',
@@ -463,7 +470,6 @@ async function inviteTeam(
     `${t('email.interviews.where_2', 'Where')}: ${where ?? t('email.interviews.to_be_confirmed', 'To be confirmed')}`,
     ...(job === null ? [] : [`${t('email.interviews.role', 'Role')}: ${job.title}`]),
     ...(agenda === null ? [] : [`${t('email.interviews.agenda', 'Agenda')}\n${agenda.text}`]),
-    ...(invitation === null ? [] : [invitation]),
   ].join('\n\n');
   const people = [
     ...interview.interviewerIds,
@@ -471,7 +477,8 @@ async function inviteTeam(
   ];
   const sent = new Set<string>();
   for (const id of new Set(people)) {
-    const email = (await ctx.tx.members.get(id as never))?.workEmail;
+    const member = await ctx.tx.members.get(id as never);
+    const email = member?.workEmail;
     if (!email || sent.has(email)) continue;
     sent.add(email);
     ctx.mail.push({
@@ -479,6 +486,10 @@ async function inviteTeam(
       subject,
       text,
       dedupeKey: `interview:${interview.id}:${cancelled ? 'cancelled' : interview.startsAt}:${email}`,
+      // Already on their calendar when Kithena put it there; else the invitation to add.
+      ...(onCalendar
+        ? {}
+        : { attachments: [inviteFile(invitation({ email, name: member.displayName }))] }),
       companyName: settings.companyName,
       parts: {
         themeId: settings.themeId,
@@ -543,7 +554,9 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
     stamp: ctx.at,
     cancelled,
+    attendee: { email: candidate.email, name: candidate.name },
   });
+  const attachments = [inviteFile(invitation)];
   const when = new Intl.DateTimeFormat((await mailWords(ctx)).language, {
     dateStyle: 'full',
     timeStyle: 'short',
@@ -562,9 +575,11 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
       }),
       t(
         'email.interviews.hello_this_interview_is_cancelled',
-        'Hello {{name}},\n\nThis interview is cancelled.\n\n{{invitation}}',
-        { name: candidate.name, invitation },
+        'Hello {{name}},\n\nThis interview is cancelled.',
+        { name: candidate.name },
       ),
+      {},
+      attachments,
     );
     return;
   }
@@ -593,7 +608,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     candidate,
     interview.applicationId,
     render(words.subject, filled),
-    `${render(words.body, filled)}${agenda === null ? '' : `\n\nAgenda\n${agenda.text}`}\n\n${invitation}`,
+    `${render(words.body, filled)}${agenda === null ? '' : `\n\nAgenda\n${agenda.text}`}`,
     {
       heading: t('email.interviews.your_is_booked', 'Your {{title}} is booked', {
         title: interview.title.toLowerCase(),
@@ -629,6 +644,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
           }
         : {}),
     },
+    attachments,
   );
 }
 
@@ -1029,6 +1045,12 @@ export async function offerAvailability(
   );
   return ok(ask);
 }
+
+/** An invitation as the email's attachment: drawn by Gmail and Outlook as one, with Add to calendar. */
+const inviteFile = (text: string): MailAttachment => ({
+  filename: 'invite.ics',
+  base64: Buffer.from(text, 'utf8').toString('base64'),
+});
 
 /** An email's parts for an Inbox task: its button opens that task, on the company's host. */
 async function taskParts(

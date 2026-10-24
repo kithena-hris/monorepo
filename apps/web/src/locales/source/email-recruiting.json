@@ -252,8 +252,8 @@
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{first}}, {{companyName}}, {{length}}, {{value}}."
   },
   "email.interviews.hello_this_interview_is_cancelled": {
-    "text": "Hello {{name}},\n\nThis interview is cancelled.\n\n{{invitation}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{invitation}}."
+    "text": "Hello {{name}},\n\nThis interview is cancelled.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}."
   },
   "email.interviews.in_place_of_the_ones_before": {
     "text": ", in place of the ones before",

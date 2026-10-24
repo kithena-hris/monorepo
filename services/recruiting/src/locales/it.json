@@ -62,7 +62,7 @@
   "email.interviews.due": "Scadenza",
   "email.interviews.hello_thank_you_for_your_times": "Ciao {{value}},\n\ngrazie per i tuoi orari. Il team non è disponibile in nessuno di questi, quindi scegline altri. Quelli qui sotto sono esclusi, così come le festività e le assenze del team.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Ciao {{first}},\n\ngrazie. {{companyName}} ha ricevuto i {{length}} orari che hai indicato{{value}} e te ne confermerà uno via email, con il link della riunione e l’argomento.\n\nHai cambiato programmi? Puoi modificare i tuoi orari fino ad allora.",
-  "email.interviews.hello_this_interview_is_cancelled": "Ciao {{name}},\n\nquesto colloquio è annullato.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Ciao {{name}},\n\nquesto colloquio è annullato.",
   "email.interviews.in_place_of_the_ones_before": ", al posto dei precedenti",
   "email.interviews.interview": "Colloquio",
   "email.interviews.join_the_meeting": "Partecipa alla riunione",

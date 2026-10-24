@@ -14,6 +14,8 @@
   "inbox.inbox.approved_your_time_off": "{{deciderFirst}} ने आपकी छुट्टी मंज़ूर की",
   "inbox.inbox.day_count_one": "{{text}} दिन",
   "inbox.inbox.day_count_other": "{{text}} दिन",
+  "inbox.inbox.days_so_far_one": "अब तक {{count}} दिन",
+  "inbox.inbox.days_so_far_other": "अब तक {{count}} दिन",
   "inbox.inbox.declined": "अस्वीकार",
   "inbox.inbox.declined_by": "{{deciderFirst}} ने अस्वीकार किया",
   "inbox.inbox.declined_your_time_off_on": "{{deciderFirst}} ने {{label}} की आपकी छुट्टी अस्वीकार की",

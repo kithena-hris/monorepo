@@ -126,6 +126,8 @@ export function ics(input: {
   readonly stamp: string;
   readonly cancelled?: boolean;
   readonly sequence?: number;
+  /** Whom it is sent to: named, so a mail client offers it as their invitation (Gmail's card). */
+  readonly attendee?: { readonly email: string; readonly name: string };
 }): string {
   const end = new Date(Date.parse(input.start) + input.minutes * 60_000).toISOString();
   return [
@@ -143,6 +145,11 @@ export function ics(input: {
     `DESCRIPTION:${icsText(input.description)}`,
     ...(input.location === null ? [] : [`LOCATION:${icsText(input.location)}`]),
     `ORGANIZER:mailto:${input.organizerEmail}`,
+    ...(input.attendee === undefined
+      ? []
+      : [
+          `ATTENDEE;CN="${input.attendee.name.replace(/["\r\n]/gu, '')}";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${input.attendee.email}`,
+        ]),
     `STATUS:${input.cancelled === true ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
     'END:VCALENDAR',
