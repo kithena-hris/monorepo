@@ -689,6 +689,8 @@ type Query {
   recruitingNewJob: JSON
   """R19–R22: an offer, its terms, approval and contract"""
   recruitingOffer(offerId: String!): JSON
+  """R19: a new offer filled from the job, and the range its ad gave"""
+  recruitingOfferStart(applicationId: String!): JSON
   """Offers"""
   recruitingOffers: JSON
   """R11: the parsed profile, and whether the candidate confirmed it"""

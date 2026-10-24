@@ -42,6 +42,7 @@ import {
 import {
   candidateAccepts,
   composeOffer,
+  offerStart,
   decidePrehireCondition,
   offerForCandidate,
   sendTheOffer,
@@ -1463,6 +1464,17 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
 
   const offer = await as('ada', async (ctx) => {
     value(await moveApplication(ctx, applied.applicationId, offerStage));
+    // A new offer comes filled from the job: its terms, the law's notice, the middle of the ad's range.
+    const started = value(await offerStart(ctx, applied.applicationId));
+    const ad = (await ctx.tx.jobs.get(jobId))?.salary ?? null;
+    expect(started.advertised).toEqual(ad);
+    expect(started.input.pay.baseMinor).toBe(
+      Math.round(((ad?.minMinor ?? 0) + (ad?.maxMinor ?? 0)) / 2),
+    );
+    expect(started.input.terms).toMatchObject({ workMode: 'onsite', weeklyMinutes: 5 * 7.5 * 60 });
+    expect(typeof started.input.terms.contractType).toBe('string');
+    expect(started.input.terms.noticeEmployer).toBeDefined();
+    expect(started.input.terms.annualPayMinor).toBe(started.input.pay.baseMinor);
     const drafted = value(
       await composeOffer(ctx, applied.applicationId, {
         terms: place.terms,

@@ -72,6 +72,13 @@ export const OPERATIONS = {
   ),
   /** RM1 and the interviews list */
   RecruitingInterviews: query('RecruitingInterviews', 'recruitingInterviews'),
+  /** R19: a new offer, filled from the job */
+  RecruitingOfferStart: query(
+    'RecruitingOfferStart',
+    'recruitingOfferStart',
+    '$applicationId: String!',
+    'applicationId: $applicationId',
+  ),
   /** R15 */
   RecruitingKit: query(
     'RecruitingKit',

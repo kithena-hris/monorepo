@@ -6310,7 +6310,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -17004,7 +17003,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -23317,7 +23321,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -33637,7 +33640,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -39950,7 +39958,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -50270,7 +50277,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -56583,7 +56595,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -66903,7 +66914,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -73216,7 +73232,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -83910,7 +83925,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -90223,7 +90243,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -100917,7 +100936,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -108500,7 +108524,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -117550,7 +117573,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -123863,7 +123891,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -134557,7 +134584,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -140870,7 +140902,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -151190,7 +151221,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -157503,7 +157539,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -168571,7 +168606,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -174884,7 +174924,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -185578,7 +185617,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -191891,7 +191935,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -202959,7 +203002,12 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -210542,7 +210590,6 @@
     "recruiting:offers.start": "e4bb9f1ece9a",
     "recruiting:offers.start_date": "8169693101a4",
     "recruiting:offers.start_from_an_application": "8b4b58087d6b",
-    "recruiting:offers.start_with_the_pay_and_the": "5d839e64d5e8",
     "recruiting:offers.starts_from_the_offers_dates_leave": "f49b71ced1b7",
     "recruiting:offers.state": "a3b50c476732",
     "recruiting:offers.statutory": "bf15569cf497",
@@ -219592,6 +219639,11 @@
     "recruiting:interviews.change_the_link_invitation_again": "edd555e01c93",
     "recruiting:interviews.meeting_link": "78e86f7f1976",
     "recruiting:interviews.no_link_was_made_paste_one": "c12900cf7029",
-    "recruiting:interviews.update_link_and_send": "f617f01ef30c"
+    "recruiting:interviews.update_link_and_send": "f617f01ef30c",
+    "recruiting:offers.base_pay_hourly": "7a7e7c32980d",
+    "recruiting:offers.base_pay_monthly": "309e1793fe5d",
+    "recruiting:offers.filled_from_the_job": "9b16f75b1621",
+    "recruiting:offers.the_job_ad_gave": "82c091e65f44",
+    "recruiting:offers.the_job_ad_gave_no_pay": "af04acf69766"
   }
 }

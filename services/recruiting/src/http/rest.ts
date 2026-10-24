@@ -110,6 +110,7 @@ import {
   candidateAccepts,
   candidateDeclines,
   composeOffer,
+  offerStart,
   contractSent,
   decideOffer,
   decidePrehireCondition,
@@ -546,6 +547,14 @@ export const ROUTES: readonly Route[] = [
     path: `${V1}/offers`,
     summary: 'Offers',
     run: async (ctx) => ok(await offersScreen(ctx)),
+  }),
+  route({
+    name: 'recruitingOfferStart',
+    method: 'GET',
+    path: `${V1}/applications/{applicationId}/offer-start`,
+    summary: 'R19: a new offer filled from the job, and the range its ad gave',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => offerStart(ctx, params.applicationId),
   }),
   route({
     name: 'recruitingOffer',

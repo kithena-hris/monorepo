@@ -165,7 +165,10 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Offers':
       return read('RecruitingOffers');
     case 'Offer':
-      return id === 'new' ? { status: 'none' } : read('RecruitingOffer', { offerId: id });
+      if (id !== 'new') return read('RecruitingOffer', { offerId: id });
+      return s['application'] === undefined
+        ? { status: 'none' }
+        : read('RecruitingOfferStart', { applicationId: s['application'] });
     case 'OfferApproval':
     case 'Contract':
       return read('RecruitingOffer', { offerId: id });

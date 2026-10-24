@@ -1013,3 +1013,49 @@ describe('R4, the setup’s terms ahead of the server', () => {
     });
   });
 });
+
+describe('R19, a new offer', () => {
+  it('comes filled from the job, with the range its ad gave beside the pay', async () => {
+    const start = {
+      input: {
+        terms: { contractType: 'unbefristet', weeklyMinutes: 2400, annualPayMinor: 6_750_000 },
+        pay: {
+          baseMinor: 6_750_000,
+          currency: 'EUR',
+          frequency: 'year' as const,
+          variableTargetMinor: 0,
+          signOnMinor: 0,
+          relocationMinor: 0,
+          equity: null,
+        },
+        benefitIds: [],
+        startDate: '2026-12-01',
+        expiresOn: '2026-11-04',
+        letterTemplateId: null,
+        grade: null,
+        outsideBandReason: null,
+      },
+      advertised: {
+        minMinor: 6_000_000,
+        maxMinor: 7_500_000,
+        currency: 'EUR',
+        period: 'year' as const,
+      },
+      candidate: { name: 'Yuki Sato' },
+      job: { title: 'Senior Backend Engineer (m/w/d)' },
+    };
+    const { container } = render(
+      <screens.Offer
+        load={ready(start) as never}
+        params={{ id: 'new' }}
+        search={{ application: 'a1' }}
+      />,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Offer: Yuki Sato' })).toBeTruthy();
+    expect(screen.getByText(/The job ad gave €60,000 – €75,000/u)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create draft' }).hasAttribute('disabled')).toBe(
+      false,
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+});
