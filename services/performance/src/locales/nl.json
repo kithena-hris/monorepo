@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "Hoi {{name}}, je hebt beoordelingen te schrijven in {{name2}}. Open Kithena om verder te gaan.",
+  "email.cycles.reminder": "Herinnering: {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} vraagt om je feedback",
+  "email.feedback.on": " over {{topic}}",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} wil graag je feedback{{value}}. Antwoord in Kithena, onder Prestaties › Feedback.",
+  "email.launch.due_a_review_in": "Uiterlijk {{due}}: een beoordeling in {{name}}",
+  "email.launch.hi_has_started_your_reviews_are": "Hoi {{name}}, {{name2}} is begonnen. Je beoordelingen staan in Kithena, onder Prestaties › Mijn beoordelingen.",
+  "email.launch.hi_your_review_about_in_is": "Hoi {{name}}, je beoordeling over {{name2}} in {{name3}} moet uiterlijk {{due}} klaar zijn.",
+  "email.launch.overdue_a_review_in": "Te laat: een beoordeling in {{name}}",
+  "email.launch.you_have_reviews_to_write": "Je hebt beoordelingen te schrijven: {{name}}",
+  "email.learning.cancelled": "Geannuleerd",
+  "email.learning.invitation": "Uitnodiging",
+  "email.learning.on_utc_is_cancelled": "{{title}} op {{when}} (UTC) is geannuleerd.",
+  "email.learning.you_are_invited_to_on_utc": "Je bent uitgenodigd voor {{title}} op {{when}} (UTC){{value}}. De uitnodiging zit als bijlage bij voor je agenda.",
+  "email.manager-change.a_cycle": "een cyclus",
+  "email.manager-change.draft_stays": "Je concept blijft in Kithena staan, zodat je het kunt lezen tot je het verwijdert.",
+  "email.manager-change.no_longer_reports_to_you": "Hoi {{name}}, {{who}} rapporteert niet meer aan jou, dus je bent in {{where}} geen leidinggevende beoordelaar meer en hoeft de beoordeling niet in te dienen.",
+  "email.manager-change.reports_to_someone_else_now": "Hoi {{name}}, {{who}} rapporteert nu aan {{to}}, dus je bent in {{where}} geen leidinggevende beoordelaar meer en hoeft de beoordeling niet in te dienen.",
+  "email.manager-change.reports_to_you_now": "Hoi {{name}}, {{who}} rapporteert nu aan jou, dus de leidinggevendebeoordeling in {{where}} schrijf jij. Open Kithena om te beginnen.",
+  "email.manager-change.someone": "Iemand",
+  "email.manager-change.you_no_longer_write": "Je schrijft de leidinggevendebeoordeling van {{who}} niet meer",
+  "email.manager-change.you_write_their_review": "Jij schrijft de leidinggevendebeoordeling van {{who}}",
+  "email.reviews.about": "{{title}} over {{name}}: ‘{{reason}}’",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} vraagt om een beoordeling te ontgrendelen",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "De collega-beoordelaars van {{name}} wachten op je"
+}
