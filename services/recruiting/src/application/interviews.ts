@@ -1167,6 +1167,83 @@ export async function setInterviewState(
   return ok(next);
 }
 
+/**
+ * Every interview that has ended is done: it moves to completed on its own,
+ * so nobody has to press a button for the scorecards to be owed, and each
+ * interviewer is asked for theirs by email, due a day later (PRD §16.5). A
+ * no-show or a cancellation is still the team's to mark, before or after.
+ */
+export async function completeEndedInterviews(ctx: Ctx): Promise<number> {
+  const { t, language } = await mailWords(ctx);
+  const settings = await generalSettings(ctx);
+  const now = Date.parse(ctx.at);
+  const since = new Date(now - 3 * 86_400_000).toISOString() as Instant;
+  let done = 0;
+  for (const interview of await ctx.tx.interviews.startingBetween(since, ctx.at as Instant)) {
+    const ends = Date.parse(interview.startsAt) + interview.minutes * 60_000;
+    if (interview.state !== 'scheduled' || ends > now) continue;
+    const moved = moveInterview(interview, 'completed');
+    if (!moved.ok) continue;
+    await ctx.tx.interviews.save({ ...interview, ...moved.value });
+    await publish(
+      ctx,
+      event(
+        ctx,
+        'recruiting.interview.completed',
+        { type: 'Interview', id: interview.id },
+        {
+          interviewId: interview.id,
+          applicationId: interview.applicationId,
+          interviewerIds: interview.interviewerIds,
+          startsAt: interview.startsAt,
+        },
+      ),
+    );
+    done += 1;
+    const app = await ctx.tx.applications.get(interview.applicationId);
+    const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+    const due = new Intl.DateTimeFormat(language, {
+      dateStyle: 'full',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(ends + 24 * 3_600_000));
+    const page = await teamLink(ctx, `/recruiting/interviews/${interview.id}`);
+    const subject = t('email.interviews.scorecard_due', 'Your scorecard: {{title}} with {{name}}', {
+      title: interview.title,
+      name: candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
+    });
+    for (const id of new Set(interview.interviewerIds)) {
+      const email = (await ctx.tx.members.get(id as never))?.workEmail;
+      if (!email) continue;
+      ctx.mail.push({
+        to: email,
+        subject,
+        text: t(
+          'email.interviews.scorecard_due_body',
+          'The interview is over. Rate each competency and give your recommendation by {{due}} (UTC). You see the others’ scorecards once yours is in.',
+          { due },
+        ),
+        dedupeKey: `scorecard-due:${interview.id}:${email}`,
+        companyName: settings.companyName,
+        parts: {
+          themeId: settings.themeId,
+          logoUrl: settings.logoUrl,
+          heading: subject,
+          ...(page === null
+            ? {}
+            : {
+                action: {
+                  label: t('email.interviews.write_my_scorecard', 'Write my scorecard'),
+                  href: page,
+                },
+              }),
+        },
+      });
+    }
+  }
+  return done;
+}
+
 /* ----------------------------------------------------------- scorecards -- */
 
 export async function competenciesOf(
