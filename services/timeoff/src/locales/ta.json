@@ -14,6 +14,8 @@
   "inbox.inbox.approved_your_time_off": "{{deciderFirst}} உங்கள் விடுப்பை அங்கீகரித்தார்",
   "inbox.inbox.day_count_one": "{{text}} நாள்",
   "inbox.inbox.day_count_other": "{{text}} நாட்கள்",
+  "inbox.inbox.days_so_far_one": "இதுவரை {{count}} நாள்",
+  "inbox.inbox.days_so_far_other": "இதுவரை {{count}} நாட்கள்",
   "inbox.inbox.declined": "மறுக்கப்பட்டது",
   "inbox.inbox.declined_by": "{{deciderFirst}} மறுத்தார்",
   "inbox.inbox.declined_your_time_off_on": "{{deciderFirst}} {{label}} அன்றைய உங்கள் விடுப்பை மறுத்தார்",

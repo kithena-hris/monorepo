@@ -60,7 +60,7 @@
   "email.interviews.due": "Uiterlijk",
   "email.interviews.hello_thank_you_for_your_times": "Hallo {{value}},\n\nBedankt voor je tijden. Het team kan op geen ervan, dus kies alsjeblieft andere. De tijden hieronder vallen af, net als feestdagen en het verlof van het team.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Hallo {{first}},\n\nBedankt. {{companyName}} heeft de {{length}} tijden die je gaf{{value}}, en bevestigt er één per e-mail met de vergaderlink en waar het over gaat.\n\nPlannen veranderd? Tot die tijd kun je je tijden nog wijzigen.",
-  "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\nDit gesprek is geannuleerd.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\nDit gesprek is geannuleerd.",
   "email.interviews.in_place_of_the_ones_before": ", in plaats van de vorige",
   "email.interviews.interview": "Gesprek",
   "email.interviews.join_the_meeting": "Deelnemen aan de vergadering",

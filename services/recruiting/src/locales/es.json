@@ -62,7 +62,7 @@
   "email.interviews.due": "Plazo",
   "email.interviews.hello_thank_you_for_your_times": "Hola, {{value}}:\n\nGracias por tus horarios. El equipo no puede en ninguno, así que elige otros, por favor. Los de abajo no están disponibles, igual que los festivos y las ausencias del equipo.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Hola, {{first}}:\n\nGracias. {{companyName}} tiene los {{length}} horarios que nos diste{{value}} y te confirmará uno por correo, con el enlace de la reunión y el tema.\n\n¿Han cambiado tus planes? Puedes cambiar tus horarios hasta entonces.",
-  "email.interviews.hello_this_interview_is_cancelled": "Hola, {{name}}:\n\nEsta entrevista queda cancelada.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Hola, {{name}}:\n\nEsta entrevista queda cancelada.",
   "email.interviews.in_place_of_the_ones_before": ", en lugar de los anteriores",
   "email.interviews.interview": "Entrevista",
   "email.interviews.join_the_meeting": "Unirse a la reunión",

@@ -63,7 +63,7 @@
   "email.interviews.due": "Termin",
   "email.interviews.hello_thank_you_for_your_times": "Dzień dobry {{value}},\n\ndziękujemy za podane terminy. Zespół nie może w żadnym z nich, więc prosimy o wybranie innych. Poniższe terminy są wykluczone, podobnie jak święta i nieobecności zespołu.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Dzień dobry {{first}},\n\ndziękujemy. {{companyName}} ma {{length}} podanych terminów{{value}} i potwierdzi jeden z nich e-mailem z linkiem do spotkania i tematem.\n\nZmiana planów? Do tego czasu możesz zmienić terminy.",
-  "email.interviews.hello_this_interview_is_cancelled": "Dzień dobry {{name}},\n\nta rozmowa została odwołana.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Dzień dobry, {{name}},\n\nta rozmowa została odwołana.",
   "email.interviews.in_place_of_the_ones_before": ", w miejsce poprzednich",
   "email.interviews.interview": "Rozmowa",
   "email.interviews.join_the_meeting": "Dołącz do spotkania",

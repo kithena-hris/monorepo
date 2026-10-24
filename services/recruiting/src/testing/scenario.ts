@@ -916,6 +916,12 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(bookedFromLink.startsAt).toBe(third.times[1]);
   expect(toYuki()?.text).toContain('Walk us through two projects.');
   expect(toYuki()?.parts?.facts?.map((f) => f.label)).toContain('When');
+  // The invitation is attached for the candidate's calendar, addressed to them, not pasted as text.
+  const invite = toYuki()?.attachments?.find((a) => a.filename === 'invite.ics');
+  expect(Buffer.from(invite?.base64 ?? '', 'base64').toString('utf8')).toContain(
+    'mailto:yuki@example.com',
+  );
+  expect(toYuki()?.text).not.toContain('BEGIN:VCALENDAR');
   expect(await choosing()).toEqual([]);
   // The interview already booked for this step was moved, not doubled.
   expect((await uow.run(tenantId, (tx) => tx.interviews.get(interviewId)))?.state).toBe(

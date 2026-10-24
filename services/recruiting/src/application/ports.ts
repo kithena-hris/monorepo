@@ -996,6 +996,11 @@ export interface MailParts {
   readonly logoUrl?: string | null;
 }
 
+export interface MailAttachment {
+  readonly filename: string;
+  readonly base64: string;
+}
+
 export interface Mailer {
   send(input: {
     readonly tenantId: TenantId;
@@ -1007,6 +1012,8 @@ export interface Mailer {
     /** Who the email is from, as the candidate knows them; messaging's footer and wordmark. */
     readonly companyName?: string;
     readonly parts?: MailParts;
+    /** A calendar invitation (`invite.ics`): Gmail and Outlook draw it as one, with Add to calendar. */
+    readonly attachments?: readonly MailAttachment[];
   }): Promise<void>;
   /**
    * The company's language and Recruiting's words in it: every email is

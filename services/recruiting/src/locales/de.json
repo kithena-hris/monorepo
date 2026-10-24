@@ -61,7 +61,7 @@
   "email.interviews.due": "Fällig",
   "email.interviews.hello_thank_you_for_your_times": "Hallo {{value}},\n\nvielen Dank für Ihre Terminvorschläge. Das Team kann leider keinen davon wahrnehmen, bitte wählen Sie andere. Die folgenden sind ausgenommen, ebenso Feiertage und Abwesenheiten des Teams.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Hallo {{first}},\n\nvielen Dank. {{companyName}} hat Ihre {{length}} Termine{{value}} und bestätigt einen davon per E-Mail, mit dem Meeting-Link und worum es geht.\n\nPläne geändert? Bis dahin können Sie Ihre Termine ändern.",
-  "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\ndieses Interview ist abgesagt.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\ndieses Gespräch ist abgesagt.",
   "email.interviews.in_place_of_the_ones_before": ", anstelle der bisherigen",
   "email.interviews.join_the_meeting": "Am Meeting teilnehmen",
   "email.interviews.length": "Dauer",

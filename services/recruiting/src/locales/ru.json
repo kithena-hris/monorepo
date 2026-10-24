@@ -64,7 +64,7 @@
   "email.interviews.due": "Срок",
   "email.interviews.hello_thank_you_for_your_times": "Здравствуйте, {{value}}!\n\nСпасибо за предложенное время. Команда не может ни в один из вариантов, поэтому, пожалуйста, выберите другие. Варианты ниже исключены, как и праздники и отсутствия команды.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "Здравствуйте, {{first}}!\n\nСпасибо. {{companyName}} получила {{length}} предложенных вариантов{{value}} и подтвердит один из них письмом со ссылкой на встречу и темой.\n\nПланы изменились? До этого момента время можно поменять.",
-  "email.interviews.hello_this_interview_is_cancelled": "Здравствуйте, {{name}}!\n\nЭто собеседование отменено.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Здравствуйте, {{name}}!\n\nЭто собеседование отменено.",
   "email.interviews.in_place_of_the_ones_before": ", вместо прежних",
   "email.interviews.interview": "Собеседование",
   "email.interviews.join_the_meeting": "Присоединиться к встрече",

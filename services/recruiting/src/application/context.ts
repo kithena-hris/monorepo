@@ -11,7 +11,16 @@ import type { CalendarDate, Instant } from '@kithena/contracts';
 
 import type { JobFacts, Viewer } from '../domain/access/access.js';
 import { tellBoards } from './board-dispositions.js';
-import type { Caller, Deps, JobRecord, MailParts, MailWords, Member, Tx } from './ports.js';
+import type {
+  Caller,
+  Deps,
+  JobRecord,
+  MailAttachment,
+  MailParts,
+  MailWords,
+  Member,
+  Tx,
+} from './ports.js';
 
 /**
  * What every use case starts from: who is asking, as the domain's `Viewer`,
@@ -28,6 +37,7 @@ export interface Outgoing {
   readonly dedupeKey: string;
   readonly companyName?: string;
   readonly parts?: MailParts;
+  readonly attachments?: readonly MailAttachment[];
 }
 
 export interface Ctx {
@@ -261,6 +271,7 @@ export async function deliver(
           ? {}
           : { companyName: m.companyName ?? brand.companyName ?? '' }),
         parts: { ...brand.parts, ...m.parts },
+        ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
       });
     } catch {
       // ponytail: a lost notice is retried by nothing; a delivery queue when one is missed.

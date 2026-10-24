@@ -14,6 +14,8 @@
   "inbox.inbox.approved_your_time_off": "{{deciderFirst}} hat Ihren Urlaub genehmigt",
   "inbox.inbox.day_count_one": "{{text}} Tag",
   "inbox.inbox.day_count_other": "{{text}} Tage",
+  "inbox.inbox.days_so_far_one": "bisher {{count}} Tag",
+  "inbox.inbox.days_so_far_other": "bisher {{count}} Tage",
   "inbox.inbox.declined": "Abgelehnt",
   "inbox.inbox.declined_by": "Abgelehnt von {{deciderFirst}}",
   "inbox.inbox.declined_your_time_off_on": "{{deciderFirst}} hat Ihren Urlaub am {{label}} abgelehnt",

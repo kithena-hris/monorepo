@@ -62,7 +62,7 @@
   "email.interviews.due": "கெடு",
   "email.interviews.hello_thank_you_for_your_times": "வணக்கம் {{value}},\n\nநேரங்களுக்கு நன்றி. குழுவால் அவற்றில் எதிலும் முடியாது; தயவுசெய்து வேறு நேரங்களைத் தேர்ந்தெடுக்கவும். கீழே உள்ளவை, விடுமுறைகள் மற்றும் குழுவின் விடுப்புகள் விலக்கப்பட்டுள்ளன.{{value2}}",
   "email.interviews.hello_thank_you_has_the_times": "வணக்கம் {{first}},\n\nநன்றி. நீங்கள் கொடுத்த {{length}} நேரங்கள் {{companyName}} இடம் உள்ளன{{value}}; மீட்டிங் லிங்க் மற்றும் தலைப்புடன் அவற்றில் ஒன்றை ஈமெயிலில் உறுதிப்படுத்துவார்கள்.\n\nதிட்டம் மாறியதா? அதுவரை உங்கள் நேரங்களை மாற்றலாம்.",
-  "email.interviews.hello_this_interview_is_cancelled": "வணக்கம் {{name}},\n\nஇந்த நேர்காணல் ரத்துசெய்யப்பட்டது.\n\n{{invitation}}",
+  "email.interviews.hello_this_interview_is_cancelled": "வணக்கம் {{name}},\n\nஇந்த நேர்காணல் ரத்துசெய்யப்பட்டது.",
   "email.interviews.in_place_of_the_ones_before": ", முந்தையவற்றுக்குப் பதிலாக",
   "email.interviews.interview": "நேர்காணல்",
   "email.interviews.join_the_meeting": "மீட்டிங்கில் சேரவும்",

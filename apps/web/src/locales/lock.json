@@ -9205,7 +9205,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -16996,7 +16996,10 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -26189,7 +26192,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -33622,7 +33625,9 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -42815,7 +42820,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -59443,7 +59448,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -76086,7 +76091,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -83877,7 +83882,10 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -93085,7 +93093,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -100876,7 +100884,10 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -101835,7 +101846,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -117502,7 +117513,9 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -126710,7 +126723,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -134501,7 +134514,10 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -143694,7 +143710,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -151127,7 +151143,9 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -160350,7 +160368,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -168499,7 +168517,11 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_few": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -177707,7 +177729,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -185498,7 +185520,10 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -194721,7 +194746,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -202870,7 +202895,11 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_few": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_many": "82ff59900893",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -203829,7 +203858,7 @@
     "email-recruiting:email.interviews.could_you_give_us_other_times": "e3ab84386fc2",
     "email-recruiting:email.interviews.hello_thank_you_for_your_times": "0abe34d0b29d",
     "email-recruiting:email.interviews.hello_thank_you_has_the_times": "c3413724e5a3",
-    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "b666f945bd91",
+    "email-recruiting:email.interviews.hello_this_interview_is_cancelled": "f4bb4ee6f5d4",
     "email-recruiting:email.interviews.in_place_of_the_ones_before": "0414bedb4235",
     "email-recruiting:email.interviews.interview": "4effe447355c",
     "email-recruiting:email.interviews.join_the_meeting": "31310cd2645b",
@@ -219496,6 +219525,8 @@
     "service-people:inbox.inbox.your_export_is_ready": "45b6629d07cd",
     "service-people:inbox.inbox.your_import_finished_people": "0cbb11d7eea7",
     "service-people:inbox.inbox.your_import_stopped": "5fda7bbe1fc2",
-    "service-people:inbox.inbox.your_team": "245c108762e2"
+    "service-people:inbox.inbox.your_team": "245c108762e2",
+    "email-timeoff:inbox.inbox.days_so_far_one": "c23d128cb8ca",
+    "email-timeoff:inbox.inbox.days_so_far_other": "82ff59900893"
   }
 }
