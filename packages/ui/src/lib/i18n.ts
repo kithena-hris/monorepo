@@ -50,7 +50,7 @@ export function interpolate(text: string, vars?: TranslateVars): string {
     // A number reads in the page's digits: 1,234 · 1.234 · १,२३४. A year is passed as a string.
     return typeof value === 'number'
       ? formatNumber(value, { maximumFractionDigits: 2 })
-      : String(value ?? '');
+      : (value ?? '');
   });
 }
 

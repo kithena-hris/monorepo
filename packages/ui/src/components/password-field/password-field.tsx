@@ -88,7 +88,7 @@ export interface PasswordFieldProps {
 export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
   {
     id: 'length',
-    get label() {
+    get label(): string {
       return t(
         'components.password-field.password-field.at_least_12_characters',
         'At least 12 characters',
@@ -98,7 +98,7 @@ export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
   },
   {
     id: 'case',
-    get label() {
+    get label(): string {
       return t(
         'components.password-field.password-field.upper_and_lower_case',
         'Upper and lower case',
@@ -108,14 +108,14 @@ export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
   },
   {
     id: 'number',
-    get label() {
+    get label(): string {
       return t('components.password-field.password-field.a_number', 'A number');
     },
     test: (value) => /\d/.test(value),
   },
   {
     id: 'symbol',
-    get label() {
+    get label(): string {
       return t('components.password-field.password-field.a_symbol', 'A symbol');
     },
     test: (value) => /[^\w\s]/.test(value),

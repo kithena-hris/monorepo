@@ -151,7 +151,7 @@ export function ScreenFrame({
         tabs.length === 0 ? undefined : (
           <TertiaryNav
             label={
-              section === null || section === undefined
+              section === null
                 ? tr('frame.page_tabs', 'Page tabs')
                 : tr('frame.tabs', '{{value}} tabs', { value: section })
             }

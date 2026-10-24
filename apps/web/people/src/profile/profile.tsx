@@ -1225,7 +1225,7 @@ function FieldRow({
         {gap ? (
           <span className="font-normal text-fg-muted">
             {field.readOnly
-              ? field.ownedBy === null || field.ownedBy === undefined
+              ? field.ownedBy === undefined
                 ? t(
                     'profile.profile.not_provided_yet_hr_fills',
                     'Not provided yet. HR fills this in.',

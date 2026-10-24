@@ -332,112 +332,112 @@ export const commonDialCodes: DialCode[] = [
   {
     country: 'GB',
     code: '+44',
-    get label() {
+    get label(): string {
       return regionName('GB');
     },
   },
   {
     country: 'IE',
     code: '+353',
-    get label() {
+    get label(): string {
       return regionName('IE');
     },
   },
   {
     country: 'DE',
     code: '+49',
-    get label() {
+    get label(): string {
       return regionName('DE');
     },
   },
   {
     country: 'FR',
     code: '+33',
-    get label() {
+    get label(): string {
       return regionName('FR');
     },
   },
   {
     country: 'ES',
     code: '+34',
-    get label() {
+    get label(): string {
       return regionName('ES');
     },
   },
   {
     country: 'NL',
     code: '+31',
-    get label() {
+    get label(): string {
       return regionName('NL');
     },
   },
   {
     country: 'PL',
     code: '+48',
-    get label() {
+    get label(): string {
       return regionName('PL');
     },
   },
   {
     country: 'US',
     code: '+1',
-    get label() {
+    get label(): string {
       return regionName('US');
     },
   },
   {
     country: 'CA',
     code: '+1',
-    get label() {
+    get label(): string {
       return regionName('CA');
     },
   },
   {
     country: 'IN',
     code: '+91',
-    get label() {
+    get label(): string {
       return regionName('IN');
     },
   },
   {
     country: 'AU',
     code: '+61',
-    get label() {
+    get label(): string {
       return regionName('AU');
     },
   },
   {
     country: 'NG',
     code: '+234',
-    get label() {
+    get label(): string {
       return regionName('NG');
     },
   },
   {
     country: 'ZA',
     code: '+27',
-    get label() {
+    get label(): string {
       return regionName('ZA');
     },
   },
   {
     country: 'BR',
     code: '+55',
-    get label() {
+    get label(): string {
       return regionName('BR');
     },
   },
   {
     country: 'JP',
     code: '+81',
-    get label() {
+    get label(): string {
       return regionName('JP');
     },
   },
   {
     country: 'SG',
     code: '+65',
-    get label() {
+    get label(): string {
       return regionName('SG');
     },
   },

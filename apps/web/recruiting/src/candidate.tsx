@@ -295,7 +295,7 @@ function ReadCv({
                     })}
                   </span>
                   <span className="block text-sm text-fg-muted">
-                    {w.to === null || w.to === undefined
+                    {w.to === null
                       ? tr('candidate.from_to_now', '{{value}} – now · “{{passage}}”', {
                           value: w.from.value,
                           passage: w.employer.passage,

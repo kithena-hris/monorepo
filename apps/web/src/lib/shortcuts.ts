@@ -58,10 +58,10 @@ type Words = () => string;
 const go = (id: string, label: Words, letter: string, href: string, icon?: string): Shortcut => ({
   id: `go.${id}`,
   group: 'Navigation',
-  get label() {
+  get label(): string {
     return label();
   },
-  get does() {
+  get does(): string {
     return t('lib.shortcuts.opens_label', 'opens {{label}}', { label: label() });
   },
   keys: ['g', letter],
@@ -72,10 +72,10 @@ const go = (id: string, label: Words, letter: string, href: string, icon?: strin
 const list = (id: string, label: Words, does: Words, keys: readonly string[]): Shortcut => ({
   id: `list.${id}`,
   group: 'Lists',
-  get label() {
+  get label(): string {
     return label();
   },
-  get does() {
+  get does(): string {
     return does();
   },
   keys,
@@ -85,10 +85,10 @@ const list = (id: string, label: Words, does: Words, keys: readonly string[]): S
 const row = (screen: string, id: string, label: Words, does: Words, key: string): Shortcut => ({
   id: `row.${id}`,
   group: 'Actions',
-  get label() {
+  get label(): string {
     return label();
   },
-  get does() {
+  get does(): string {
     return does();
   },
   keys: [key],
@@ -130,10 +130,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'page.search',
     group: 'Navigation',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.search_this_page', 'Search this page');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.searches_the_page', 'searches the page');
     },
     keys: ['/'],
@@ -142,10 +142,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'page.previous',
     group: 'Navigation',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.previous_tab_or_view', 'Previous tab or view');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.moves_to_the_previous_tab', 'moves to the previous tab');
     },
     keys: ['['],
@@ -154,10 +154,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'page.next',
     group: 'Navigation',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.next_tab_or_view', 'Next tab or view');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.moves_to_the_next_tab', 'moves to the next tab');
     },
     keys: [']'],
@@ -167,10 +167,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'page.close',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.close_what_is_open', 'Close what is open');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.closes_what_is_open', 'closes what is open');
     },
     keys: ['escape'],
@@ -221,10 +221,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'list.clear',
     group: 'Lists',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.clear_the_selection_then_leave', 'Clear the selection, then leave');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.clears_the_selection', 'clears the selection');
     },
     keys: ['escape'],
@@ -285,13 +285,13 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'view-as',
     group: 'Actions',
-    get label() {
+    get label(): string {
       return t(
         'lib.shortcuts.view_as_this_person_or_end_viewing',
         'View as this person, or end viewing as them',
       );
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.views_as_them_or_ends_it', 'views as them, or ends it');
     },
     keys: ['v'],
@@ -302,10 +302,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'clock',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.open_or_close_the_clock', 'Open or close the clock');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.opens_the_clock', 'opens the clock');
     },
     keys: ['alt+t'],
@@ -314,13 +314,13 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'create',
     group: 'Create',
-    get label() {
+    get label(): string {
       return t(
         'lib.shortcuts.create_what_this_page_makes_a_person',
         'Create what this page makes: a person, a schedule, an export',
       );
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.creates', 'creates');
     },
     keys: ['c'],
@@ -328,10 +328,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'form.submit',
     group: 'Forms',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.submit_the_form_or_dialog', 'Submit the form or dialog');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.submits_the_form', 'submits the form');
     },
     keys: ['mod+enter'],
@@ -339,10 +339,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'form.cancel',
     group: 'Forms',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.cancel', 'Cancel');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.cancels', 'cancels');
     },
     keys: ['escape'],
@@ -351,10 +351,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'help',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.show_keyboard_shortcuts', 'Show keyboard shortcuts');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.shows_the_keyboard_shortcuts', 'shows the keyboard shortcuts');
     },
     keys: ['?'],
@@ -363,10 +363,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'palette',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.search_and_run_a_command', 'Search and run a command');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.opens_search', 'opens search');
     },
     keys: ['mod+k'],
@@ -375,10 +375,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'sidebar',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.collapse_or_expand_the_sidebar', 'Collapse or expand the sidebar');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.collapses_the_sidebar', 'collapses the sidebar');
     },
     keys: ['mod+\\'],
@@ -387,10 +387,10 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     id: 'assistant',
     group: 'Everywhere',
-    get label() {
+    get label(): string {
       return t('lib.shortcuts.open_the_assistant', 'Open the assistant');
     },
-    get does() {
+    get does(): string {
       return t('lib.shortcuts.opens_the_assistant', 'opens the assistant');
     },
     keys: ['mod+j'],

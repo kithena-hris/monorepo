@@ -98,7 +98,7 @@ describe('plan parental leave', () => {
     ]);
     expect(
       screen.getByText(
-        '8 of your 11 flexible weeks follow the mandatory 6, so you’re home until Tue 11 May 2027.',
+        '8 of your 11 flexible weeks follow the mandatory 6, so you’re home until Tue, 11 May 2027.',
       ),
     ).toBeTruthy();
     expect(
@@ -230,7 +230,7 @@ describe('plan parental leave', () => {
     expect(screen.getByText('Private until you send it')).toBeTruthy();
     expect(screen.getByText('The dates follow the birth')).toBeTruthy();
     expect(screen.getByText('19 weeks + 2 weeks from your company')).toBeTruthy();
-    expect(screen.getByText('Wed 12 May 2027')).toBeTruthy();
+    expect(screen.getByText('Wed, 12 May 2027')).toBeTruthy();
     expect(screen.getByText('HR, Marco Ruiz. Team sees “Parental leave”')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
     fireEvent.click(screen.getByRole('button', { name: 'Send to HR and Marco' }));

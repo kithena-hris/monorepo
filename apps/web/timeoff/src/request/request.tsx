@@ -741,7 +741,7 @@ function Consequences({
               value={note}
               rows={2}
               placeholder={
-                approver === null || approver === undefined
+                approver === null
                   ? tr(
                       'request.request.anything_your_approver_should_know',
                       'Anything your approver should know',

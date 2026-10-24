@@ -560,7 +560,7 @@ export function QuestionBlock({
           ) : null}
           {q.private ? (
             <Badge size="sm" tone="warning">
-              {subject === null || subject === undefined
+              {subject === undefined
                 ? tr(
                     'form-view.private_hidden_from_the_subject',
                     'Private: hidden from the subject',

@@ -92,7 +92,7 @@ export const length = (from: string, to: string): number =>
 /** "14 Jan 2027" */
 export const longDate = (date: string): string =>
   format({ day: 'numeric', month: 'short', year: 'numeric' }).format(asDate(date));
-/** "Thu 14 Jan 2027" */
+/** "Thu, 14 Jan 2027" */
 export const dayDate = (date: string): string =>
   format({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
     asDate(date),

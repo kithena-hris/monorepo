@@ -40,7 +40,7 @@ const words = new Map<Language, Words>(
 const settled = new WeakMap<object, Language>();
 
 function store(): object | undefined {
-  return workUnitAsyncStorage.getStore() as object | undefined;
+  return workUnitAsyncStorage.getStore();
 }
 
 /** The root layout's answer for this request (cookie, account, or US English), kept for its pages. */
@@ -55,7 +55,7 @@ function language(): Language {
   const held = settled.get(s);
   if (held !== undefined) return held;
   const cookies: unknown = Reflect.get(s, 'cookies');
-  const get =
+  const get: unknown =
     cookies !== null && typeof cookies === 'object' ? Reflect.get(cookies, 'get') : undefined;
   if (typeof get !== 'function') return DEFAULT_LANGUAGE;
   const cookie: unknown = (get as (name: string) => { value?: string } | undefined).call(

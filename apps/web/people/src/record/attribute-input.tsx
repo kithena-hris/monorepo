@@ -589,7 +589,7 @@ export function AttributeInput({
   const gap =
     field.missing === true && isMissing(value)
       ? field.readOnly
-        ? field.ownedBy === null || field.ownedBy === undefined
+        ? field.ownedBy === undefined
           ? t('record.attribute-input.hr_fills_this_in', 'HR fills this in.')
           : t('record.attribute-input.fills_this_in', '{{value}} fills this in.', {
               value: field.ownedBy,

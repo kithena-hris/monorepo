@@ -422,7 +422,7 @@ function Todo({
         <Onward
           href={href}
           label={
-            word === null || word === undefined
+            word === null
               ? tr('home.people-home.open_title', 'Open: {{title}}', { title })
               : tr('home.people-home.text_3', '{{value}}: {{title}}', { value: word, title })
           }

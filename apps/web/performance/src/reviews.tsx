@@ -1031,7 +1031,7 @@ function Writing({
             ? t(
                 'reviews.sees_your_answers_with_your_name',
                 '{{subject}} sees your answers with your name, and only once at least {{minimum}} have answered. Their manager and HR see your name.',
-                { subject, minimum: data.review.cycle.minimum ?? 3 },
+                { subject, minimum: data.review.cycle.minimum },
               )
             : t(
                 'reviews.sees_your_answers_without_your_name',

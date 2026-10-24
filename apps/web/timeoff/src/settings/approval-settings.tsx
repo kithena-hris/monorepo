@@ -130,7 +130,7 @@ function ruleTitle(rule: ApprovalRule, names: ReadonlyMap<string, string>): stri
       'Overtime and timesheet changes',
     );
   if (rule.subject === 'plan')
-    return types === null || types === undefined
+    return types === null
       ? tr('settings.approval-settings.parental_leave_plans', 'Parental leave plans')
       : tr('settings.approval-settings.plans', '{{value}} plans', { value: types });
   const what = types ?? tr('settings.approval-settings.any_request', 'Any request');

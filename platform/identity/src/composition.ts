@@ -889,7 +889,11 @@ export async function compose(config: Config): Promise<RequestHandler> {
         sql`SELECT language FROM platform.tenant WHERE id = ${tenantId}::uuid`,
       );
       const row = [...rows][0];
-      return row === undefined ? null : String(row['language'] ?? DEFAULT_LANGUAGE);
+      return row === undefined
+        ? null
+        : typeof row['language'] === 'string'
+          ? row['language']
+          : DEFAULT_LANGUAGE;
     },
   });
 

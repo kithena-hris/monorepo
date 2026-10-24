@@ -133,7 +133,7 @@ export function invitationEmail(t: Words): BuiltIn {
 }
 
 /** Every email Recruiting sends in words a company may change, with Kithena's words for each. */
-export function builtInEmails(t: Words) {
+export function builtInEmails(t: Words): Readonly<Record<BuiltInPurpose, BuiltIn>> {
   return { ...defaultEmails(t), interview_invitation: invitationEmail(t) };
 }
 

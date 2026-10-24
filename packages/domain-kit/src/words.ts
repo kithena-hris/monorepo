@@ -44,7 +44,7 @@ export function fill(text: string, vars: WordVars | undefined, language: string)
           language,
           () => new Intl.NumberFormat(language, { maximumFractionDigits: 2 }),
         ).format(value)
-      : String(value ?? '');
+      : (value ?? '');
   });
 }
 
