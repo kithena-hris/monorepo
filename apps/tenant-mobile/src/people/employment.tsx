@@ -63,27 +63,45 @@ const OFFERED: Record<string, readonly MoveKind[]> = {
 };
 
 export const MOVE_LABEL: Record<MoveKind, string> = {
-  giveNotice: 'Give notice',
-  withdrawNotice: 'Withdraw notice',
-  terminate: 'Terminate',
-  endAccess: 'End access now',
-  startLeave: 'Start leave',
-  endLeave: 'End leave',
-  discard: 'Discard record',
-  rehire: 'Rehire',
-  hire: 'Hire',
+  get giveNotice(): string {
+    return t('people.employment.give_notice', 'Give notice');
+  },
+  get withdrawNotice(): string {
+    return t('people.employment.withdraw_notice', 'Withdraw notice');
+  },
+  get terminate(): string {
+    return t('people.employment.terminate', 'Terminate');
+  },
+  get endAccess(): string {
+    return t('people.employment.end_access_now', 'End access now');
+  },
+  get startLeave(): string {
+    return t('people.employment.start_leave', 'Start leave');
+  },
+  get endLeave(): string {
+    return t('people.employment.end_leave', 'End leave');
+  },
+  get discard(): string {
+    return t('people.employment.discard_record', 'Discard record');
+  },
+  get rehire(): string {
+    return t('people.employment.rehire', 'Rehire');
+  },
+  get hire(): string {
+    return t('people.employment.hire', 'Hire');
+  },
 };
 
 const OPERATION = (): Record<MoveKind, string> => ({
-  giveNotice: t('people.employment.givenotice', 'GiveNotice'),
-  withdrawNotice: t('people.employment.withdrawnotice', 'WithdrawNotice'),
-  terminate: t('people.employment.terminateperson', 'TerminatePerson'),
-  endAccess: t('people.employment.endpersonaccess', 'EndPersonAccess'),
-  startLeave: t('people.employment.startleave', 'StartLeave'),
-  endLeave: t('people.employment.endleave', 'EndLeave'),
-  discard: t('people.employment.discardperson', 'DiscardPerson'),
-  rehire: t('people.employment.rehireperson', 'RehirePerson'),
-  hire: t('people.employment.hireperson', 'HirePerson'),
+  giveNotice: 'GiveNotice',
+  withdrawNotice: 'WithdrawNotice',
+  terminate: 'TerminatePerson',
+  endAccess: 'EndPersonAccess',
+  startLeave: 'StartLeave',
+  endLeave: 'EndLeave',
+  discard: 'DiscardPerson',
+  rehire: 'RehirePerson',
+  hire: 'HirePerson',
 });
 
 export const offeredMoves = (status: string | null): readonly MoveKind[] =>

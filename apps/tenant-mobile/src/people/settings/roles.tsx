@@ -70,7 +70,7 @@ const ROLES = (): readonly {
   },
   {
     role: 'hr',
-    label: 'HR',
+    label: t('people.settings.roles.hr', 'HR'),
     means: t(
       'people.settings.roles.sees_and_corrects_everybodys_record',
       'Sees and corrects everybody’s record.',

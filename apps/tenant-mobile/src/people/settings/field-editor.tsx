@@ -371,7 +371,7 @@ export function FieldEditor({
   const editing = field !== null;
   const builtIn = field !== null && field.origin !== 'tenant';
   const others = registry.fields.filter((f) => f.key !== draft.key);
-  const problems = PARTS.map((_, i) =>
+  const problems = PARTS().map((_, i) =>
     problemsIn(i, draft, (key) => !editing && registry.fields.some((f) => f.key === key), others),
   );
   const set = (patch: Partial<Draft>): void => {
@@ -477,7 +477,7 @@ export function FieldEditor({
     !sealed && (draft.classification === 'public' || draft.classification === 'internal');
   const sharedBefore = field === null ? shareable : field.aiEligible === true;
   const shared = shareable && (sharing ?? sharedBefore);
-  const last = part === PARTS.length - 1;
+  const last = part === PARTS().length - 1;
   const everyone = seenByEveryone(draft.visibility);
 
   const save = (): void => {
@@ -548,9 +548,9 @@ export function FieldEditor({
           <View className="gap-2.5">
             <StepperProgress
               step={part + 1}
-              count={PARTS.length}
+              count={PARTS().length}
               label={tr('people.settings.field-editor.parts_of_the_field', 'Parts of the field')}
-              segments={PARTS.map((label, i) => ({
+              segments={PARTS().map((label, i) => ({
                 label,
                 ...(shown && Object.keys(problems[i] ?? {}).length > 0
                   ? { status: 'failed' as const }
@@ -573,7 +573,7 @@ export function FieldEditor({
                   : {}),
               }))}
             />
-            <Text variant="headline">{PARTS[part]}</Text>
+            <Text variant="headline">{PARTS()[part]}</Text>
           </View>
           <ScrollView style={{ maxHeight: height * 0.55 }} contentContainerClassName="gap-4 pb-2">
             {part === 0 ? (
@@ -1261,7 +1261,7 @@ export function FieldEditor({
               {editing
                 ? tr('people.settings.field-editor.next', 'Next')
                 : tr('people.settings.field-editor.next_2', 'Next: {{value}}', {
-                    value: PARTS[part + 1] ?? '',
+                    value: PARTS()[part + 1] ?? '',
                   })}
             </Button>
           )}

@@ -13,7 +13,6 @@ import {
   type RemoteRoute,
   type SlotName,
 } from './remotes';
-import { serverWords } from './server-words';
 import { timed } from './timing';
 
 /**
@@ -59,7 +58,14 @@ type Nav = RemoteRoute['nav'];
 
 /** Every place of an area's navigation in the reader's language. */
 async function navIn(area: Area, nav: Nav): Promise<Nav> {
-  const t = await serverWords(area.name);
+  // Loaded here, not at the top: the request's words are server-only, and a
+  // test of the manifest has no request; outside one the navigation is English.
+  let t: T;
+  try {
+    t = await (await import('./server-words')).serverWords(area.name);
+  } catch {
+    return nav;
+  }
   const each = (places: Nav['sections']): Place[] => places.map((place) => placeIn(place, t));
   return { sections: each(nav.sections), actions: each(nav.actions), settings: each(nav.settings) };
 }

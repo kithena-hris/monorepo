@@ -158,7 +158,7 @@ export function TimeOffAddLeaveType({
           name: { default: name.trim() },
           category,
           colorToken: sick ? 'chart-3' : 'chart-4',
-          icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+          icon: CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag',
           unit: hours ? 'hour' : 'day',
           tracked,
           paid,
@@ -349,7 +349,7 @@ export function TimeOffAddLeaveType({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map(([v, l]) => (
+                {CATEGORIES().map(([v, l]) => (
                   <SelectItem key={v} value={v}>
                     {l}
                   </SelectItem>
@@ -665,7 +665,7 @@ function Example({
   onFrom: (date: string | null) => void;
 }): React.JSX.Element {
   const unit = hours ? 'hours' : 'days';
-  const icon = CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag';
+  const icon = CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag';
   return (
     <Stack gap={3}>
       <Text variant="title2" accessibilityRole="header">
@@ -1003,7 +1003,7 @@ export function DescribeLeaveTypeDialog({
                     name: { default: name },
                     category,
                     colorToken: category === 'sick_leave' ? 'chart-3' : 'chart-4',
-                    icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+                    icon: CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag',
                     unit: 'day',
                     tracked: read_?.definition != null,
                     paid: unpaid ? 'unpaid' : 'paid',

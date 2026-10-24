@@ -119,35 +119,93 @@ export const DATA_TYPE_LABEL: Readonly<Record<string, string>> = {
   get text(): string {
     return t('people.settings.fields-model.short_text', 'Short text');
   },
-  long_text: 'Long text',
-  number: 'Whole number',
-  decimal: 'Decimal',
-  percentage: 'Percentage',
-  money: 'Money',
-  boolean: 'Yes or no',
-  date: 'Date',
-  datetime: 'Date and time',
-  duration: 'Duration',
-  select: 'One of a list',
-  multi_select: 'Several of a list',
-  tags: 'Tags',
-  email: 'Email address',
-  phone: 'Phone number',
-  url: 'Web address',
-  country: 'Country',
-  currency: 'Currency',
-  language: 'Language',
-  time_zone: 'Time zone',
-  address: 'Postal address',
-  national_id: 'National identifier',
-  bank_account: 'Bank account',
-  person_ref: 'A person',
-  org_unit_ref: 'A team or department',
-  legal_entity_ref: 'A legal entity',
-  location_ref: 'A work location',
-  document_ref: 'A document',
-  image: 'An image',
-  signature: 'A signature',
+  get long_text(): string {
+    return t('people.settings.fields-model.long_text', 'Long text');
+  },
+  get number(): string {
+    return t('people.settings.fields-model.whole_number', 'Whole number');
+  },
+  get decimal(): string {
+    return t('people.settings.fields-model.decimal', 'Decimal');
+  },
+  get percentage(): string {
+    return t('people.settings.fields-model.percentage', 'Percentage');
+  },
+  get money(): string {
+    return t('people.settings.fields-model.money', 'Money');
+  },
+  get boolean(): string {
+    return t('people.settings.fields-model.yes_or_no', 'Yes or no');
+  },
+  get date(): string {
+    return t('people.settings.fields-model.date', 'Date');
+  },
+  get datetime(): string {
+    return t('people.settings.fields-model.date_and_time', 'Date and time');
+  },
+  get duration(): string {
+    return t('people.settings.fields-model.duration', 'Duration');
+  },
+  get select(): string {
+    return t('people.settings.fields-model.one_of_a_list', 'One of a list');
+  },
+  get multi_select(): string {
+    return t('people.settings.fields-model.several_of_a_list', 'Several of a list');
+  },
+  get tags(): string {
+    return t('people.settings.fields-model.tags', 'Tags');
+  },
+  get email(): string {
+    return t('people.settings.fields-model.email_address', 'Email address');
+  },
+  get phone(): string {
+    return t('people.settings.fields-model.phone_number', 'Phone number');
+  },
+  get url(): string {
+    return t('people.settings.fields-model.web_address', 'Web address');
+  },
+  get country(): string {
+    return t('people.settings.fields-model.country', 'Country');
+  },
+  get currency(): string {
+    return t('people.settings.fields-model.currency', 'Currency');
+  },
+  get language(): string {
+    return t('people.settings.fields-model.language', 'Language');
+  },
+  get time_zone(): string {
+    return t('people.settings.fields-model.time_zone', 'Time zone');
+  },
+  get address(): string {
+    return t('people.settings.fields-model.postal_address', 'Postal address');
+  },
+  get national_id(): string {
+    return t('people.settings.fields-model.national_identifier', 'National identifier');
+  },
+  get bank_account(): string {
+    return t('people.settings.fields-model.bank_account', 'Bank account');
+  },
+  get person_ref(): string {
+    return t('people.settings.fields-model.a_person', 'A person');
+  },
+  get org_unit_ref(): string {
+    return t('people.settings.fields-model.a_team_or_department', 'A team or department');
+  },
+  get legal_entity_ref(): string {
+    return t('people.settings.fields-model.a_legal_entity', 'A legal entity');
+  },
+  get location_ref(): string {
+    return t('people.settings.fields-model.a_work_location', 'A work location');
+  },
+  get document_ref(): string {
+    return t('people.settings.fields-model.a_document', 'A document');
+  },
+  get image(): string {
+    return t('people.settings.fields-model.an_image', 'An image');
+  },
+  get signature(): string {
+    return t('people.settings.fields-model.a_signature', 'A signature');
+  },
 };
 
 export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly string[] }[] = [
@@ -262,8 +320,12 @@ export const COLLECT: readonly { value: CollectAt; label: string; description: s
         'Any time, on their profile',
       );
     },
-    description:
-      'Nobody is chased before their first day; if required, missing from their start date.',
+    get description(): string {
+      return t(
+        'people.settings.fields-model.nobody_is_chased_before_their_first',
+        'Nobody is chased before their first day; if required, missing from their start date.',
+      );
+    },
   },
   {
     value: 'hr_only',
@@ -377,12 +439,24 @@ export const REQUIREDNESS: readonly { value: RequirednessMode; label: string }[]
 ];
 
 export const OPERAND_LABEL: Readonly<Record<ListOperand | 'attribute', string>> = {
-  legalEntity: 'Legal entity',
-  country: 'Country',
-  employmentType: 'Employment type',
-  workModel: 'Work model',
-  status: 'Status',
-  attribute: 'Another field',
+  get legalEntity(): string {
+    return t('people.settings.fields-model.legal_entity', 'Legal entity');
+  },
+  get country(): string {
+    return t('people.settings.fields-model.country', 'Country');
+  },
+  get employmentType(): string {
+    return t('people.settings.fields-model.employment_type', 'Employment type');
+  },
+  get workModel(): string {
+    return t('people.settings.fields-model.work_model', 'Work model');
+  },
+  get status(): string {
+    return t('people.settings.fields-model.status', 'Status');
+  },
+  get attribute(): string {
+    return t('people.settings.fields-model.another_field', 'Another field');
+  },
 };
 
 export const STATUS_VALUES: readonly Choice[] = [
@@ -761,7 +835,14 @@ export function draftFrom(section: RegistrySection, field: RegistryField | null)
 }
 
 /** The editor's four parts, each with what stops it being saved. */
-export const PARTS = ['The field', 'Access', 'When it’s asked', 'Sensitivity', 'Review'] as const;
+export const PARTS = () =>
+  [
+    t('people.settings.fields-model.the_field', 'The field'),
+    t('people.settings.fields-model.access', 'Access'),
+    t('people.settings.fields-model.when_its_asked', 'When it’s asked'),
+    t('people.settings.fields-model.sensitivity', 'Sensitivity'),
+    t('people.settings.fields-model.review', 'Review'),
+  ] as const;
 
 export function problemsIn(
   part: number,

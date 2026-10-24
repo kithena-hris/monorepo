@@ -271,12 +271,24 @@ export interface Row {
 }
 
 export const CHIP: Readonly<Record<ReviewKind, string>> = {
-  changes: 'Changes',
-  ids: 'ID checks',
-  duplicates: 'Duplicates',
-  access: 'Full values',
-  exports: 'Exports',
-  missing: 'Missing details',
+  get changes(): string {
+    return t('people.review.model.changes', 'Changes');
+  },
+  get ids(): string {
+    return t('people.review.model.id_checks', 'ID checks');
+  },
+  get duplicates(): string {
+    return t('people.review.model.duplicates', 'Duplicates');
+  },
+  get access(): string {
+    return t('people.review.model.full_values', 'Full values');
+  },
+  get exports(): string {
+    return t('people.review.model.exports', 'Exports');
+  },
+  get missing(): string {
+    return t('people.review.model.missing_details', 'Missing details');
+  },
 };
 
 export const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {

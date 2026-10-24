@@ -104,8 +104,12 @@ import { t } from '../i18n';
 import { dateFormat, locale } from '@reach/ui-native/words';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
-  people: 'People',
-  timeoff: 'Time off',
+  get people(): string {
+    return t('inbox.model.people', 'People');
+  },
+  get timeoff(): string {
+    return t('inbox.model.time_off', 'Time off');
+  },
 };
 export const moduleName = (m: string): string => MODULE_NAMES[m] ?? m;
 
