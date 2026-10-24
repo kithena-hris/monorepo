@@ -9,3 +9,10 @@ import { ENGLISH, type Language } from '../domain/invitation.js';
 export type CompanyLanguage = (tenantId: string) => Promise<Language>;
 
 export const inEnglish: CompanyLanguage = () => Promise.resolve(ENGLISH);
+
+/** The company's name, mark and colour; null when nothing is known. */
+export type CompanyBrand = (tenantId: string) => Promise<{
+  readonly companyName: string;
+  readonly logoUrl: string | null;
+  readonly themeId: string | null;
+} | null>;

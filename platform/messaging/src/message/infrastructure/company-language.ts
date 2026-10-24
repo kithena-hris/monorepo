@@ -50,20 +50,30 @@ export function languageOf(code: string): Language {
 /** A company changes its language rarely; a minute's wait for a new one is fine. */
 const TTL_MS = 60_000;
 
+/** What a company's emails look like: its name, its mark and its colour. */
+export interface Brand {
+  readonly companyName: string;
+  readonly logoUrl: string | null;
+  readonly themeId: string | null;
+}
+
 /**
- * The company's language, as identity keeps it
+ * The company's language, name, mark and colour, as identity keeps them
  * (`/api/internal/tenants/<id>/language`), behind the internal token. US
- * English when identity cannot be asked, rather than no email.
+ * English and no brand when identity cannot be asked, rather than no email.
  */
-export function companyLanguage(config: {
-  readonly baseUrl: string;
-  readonly token: string;
-}): CompanyLanguage {
-  const cache = new Map<string, { readonly code: string; readonly until: number }>();
-  return async (tenantId) => {
+export function companyProfile(config: { readonly baseUrl: string; readonly token: string }): {
+  readonly language: CompanyLanguage;
+  readonly brand: (tenantId: string) => Promise<Brand | null>;
+} {
+  const cache = new Map<
+    string,
+    { readonly code: string; readonly brand: Brand | null; readonly until: number }
+  >();
+  const read = async (tenantId: string) => {
     const now = Date.now();
     const held = cache.get(tenantId);
-    if (held !== undefined && held.until > now) return languageOf(held.code);
+    if (held !== undefined && held.until > now) return held;
     const url = new URL(
       `/api/internal/tenants/${encodeURIComponent(tenantId)}/language`,
       config.baseUrl,
@@ -74,10 +84,38 @@ export function companyLanguage(config: {
     }).catch(() => null);
     const body =
       response?.ok === true
-        ? ((await response.json().catch(() => null)) as { language?: unknown } | null)
+        ? ((await response.json().catch(() => null)) as {
+            language?: unknown;
+            companyName?: unknown;
+            logoUrl?: unknown;
+            themeId?: unknown;
+          } | null)
         : null;
-    const code = typeof body?.language === 'string' ? body.language : 'en-US';
-    if (response?.ok === true) cache.set(tenantId, { code, until: now + TTL_MS });
-    return languageOf(code);
+    const found = {
+      code: typeof body?.language === 'string' ? body.language : 'en-US',
+      brand:
+        typeof body?.companyName === 'string' && body.companyName !== ''
+          ? {
+              companyName: body.companyName,
+              logoUrl: typeof body.logoUrl === 'string' ? body.logoUrl : null,
+              themeId: typeof body.themeId === 'string' ? body.themeId : null,
+            }
+          : null,
+      until: now + TTL_MS,
+    };
+    if (response?.ok === true) cache.set(tenantId, found);
+    return found;
   };
+  return {
+    language: async (tenantId) => languageOf((await read(tenantId)).code),
+    brand: async (tenantId) => (await read(tenantId)).brand,
+  };
+}
+
+/** The company's language alone (`companyProfile`). */
+export function companyLanguage(config: {
+  readonly baseUrl: string;
+  readonly token: string;
+}): CompanyLanguage {
+  return companyProfile(config).language;
 }
