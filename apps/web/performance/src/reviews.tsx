@@ -1626,8 +1626,8 @@ function Context({ data }: { readonly data: WriteData }): JSX.Element {
               <div key={g.id} className="flex flex-col gap-1">
                 <span className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate">{g.title}</span>
-                  <Badge size="sm" tone={CONFIDENCE[g.confidence]?.[1] ?? 'success'}>
-                    {CONFIDENCE[g.confidence]?.[0] ?? t('reviews.on_track', 'On track')}
+                  <Badge size="sm" tone={CONFIDENCE()[g.confidence]?.[1] ?? 'success'}>
+                    {CONFIDENCE()[g.confidence]?.[0] ?? t('reviews.on_track', 'On track')}
                   </Badge>
                 </span>
                 <Progress

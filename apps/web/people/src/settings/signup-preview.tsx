@@ -45,7 +45,9 @@ const asRecord = (f: RegistryField): RecordField => ({
 const NAMES: readonly RecordField[] = [
   {
     key: 'given_name',
-    label: t('settings.signup-preview.legal_first_name', 'Legal first name'),
+    get label(): string {
+      return t('settings.signup-preview.legal_first_name', 'Legal first name');
+    },
     description: null,
     dataType: 'text',
     options: [],
@@ -54,7 +56,9 @@ const NAMES: readonly RecordField[] = [
   },
   {
     key: 'family_name',
-    label: t('settings.signup-preview.legal_family_name', 'Legal family name'),
+    get label(): string {
+      return t('settings.signup-preview.legal_family_name', 'Legal family name');
+    },
     description: null,
     dataType: 'text',
     options: [],
@@ -63,11 +67,15 @@ const NAMES: readonly RecordField[] = [
   },
   {
     key: 'preferred_name',
-    label: t('settings.signup-preview.preferred_name', 'Preferred name'),
-    description: t(
-      'settings.signup-preview.what_colleagues_call_you_if_not_your',
-      'What colleagues call you, if not your first name.',
-    ),
+    get label(): string {
+      return t('settings.signup-preview.preferred_name', 'Preferred name');
+    },
+    get description(): string {
+      return t(
+        'settings.signup-preview.what_colleagues_call_you_if_not_your',
+        'What colleagues call you, if not your first name.',
+      );
+    },
     dataType: 'text',
     options: [],
     required: false,

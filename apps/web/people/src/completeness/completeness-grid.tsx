@@ -969,11 +969,15 @@ function Missing({
 const nameOf = (r: GapRow): string => r.name;
 
 const NOTHING = {
-  title: t('completeness.completeness-grid.nothing_is_missing', 'Nothing is missing'),
-  body: t(
-    'completeness.completeness-grid.every_required_field_has_a_value',
-    'Every required field has a value for everybody it applies to.',
-  ),
+  get title(): string {
+    return t('completeness.completeness-grid.nothing_is_missing', 'Nothing is missing');
+  },
+  get body(): string {
+    return t(
+      'completeness.completeness-grid.every_required_field_has_a_value',
+      'Every required field has a value for everybody it applies to.',
+    );
+  },
 };
 
 /** A phone row's height, for the list to place rows it has not measured yet. */

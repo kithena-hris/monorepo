@@ -68,10 +68,30 @@ const TABS = ['profile', 'process', 'messages'] as const;
 type Tab = (typeof TABS)[number];
 
 const VERDICT: Readonly<Record<string, { label: string; tone: 'success' | 'info' | 'neutral' }>> = {
-  met: { label: tr('candidate.met', 'Met'), tone: 'success' },
-  partly_met: { label: tr('candidate.partly_met', 'Partly met'), tone: 'info' },
-  not_met: { label: tr('candidate.not_met', 'Not met'), tone: 'neutral' },
-  not_evidenced: { label: tr('candidate.not_evidenced', 'Not evidenced'), tone: 'neutral' },
+  met: {
+    get label(): string {
+      return tr('candidate.met', 'Met');
+    },
+    tone: 'success',
+  },
+  partly_met: {
+    get label(): string {
+      return tr('candidate.partly_met', 'Partly met');
+    },
+    tone: 'info',
+  },
+  not_met: {
+    get label(): string {
+      return tr('candidate.not_met', 'Not met');
+    },
+    tone: 'neutral',
+  },
+  not_evidenced: {
+    get label(): string {
+      return tr('candidate.not_evidenced', 'Not evidenced');
+    },
+    tone: 'neutral',
+  },
 };
 
 /**

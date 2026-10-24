@@ -58,10 +58,18 @@ const TONE: Partial<Record<string, 'success' | 'danger' | 'warning' | 'neutral'>
 };
 
 const WORD: Record<string, string> = {
-  delivered: t('settings.integrations.webhook-log.delivered', 'Delivered'),
-  failed: t('settings.integrations.webhook-log.failed', 'Failed'),
-  pending: t('settings.integrations.webhook-log.pending', 'Pending'),
-  skipped: t('settings.integrations.webhook-log.skipped', 'Skipped'),
+  get delivered(): string {
+    return t('settings.integrations.webhook-log.delivered', 'Delivered');
+  },
+  get failed(): string {
+    return t('settings.integrations.webhook-log.failed', 'Failed');
+  },
+  get pending(): string {
+    return t('settings.integrations.webhook-log.pending', 'Pending');
+  },
+  get skipped(): string {
+    return t('settings.integrations.webhook-log.skipped', 'Skipped');
+  },
 };
 
 /** An instant as the log shows it: to the minute, in UTC, the same on every screen. */

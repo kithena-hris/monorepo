@@ -97,11 +97,36 @@ import { t } from '../i18n';
  * the form knows enough for the suggestion to be good.
  */
 const STEPS = [
-  { id: 'editor-field', label: t('settings.field-editor.the_field', 'The field') },
-  { id: 'editor-access', label: t('settings.field-editor.access', 'Access') },
-  { id: 'editor-when', label: t('settings.field-editor.when_its_asked', 'When it’s asked') },
-  { id: 'editor-sensitivity', label: t('settings.field-editor.sensitivity', 'Sensitivity') },
-  { id: 'editor-review', label: t('settings.field-editor.review', 'Review') },
+  {
+    id: 'editor-field',
+    get label(): string {
+      return t('settings.field-editor.the_field', 'The field');
+    },
+  },
+  {
+    id: 'editor-access',
+    get label(): string {
+      return t('settings.field-editor.access', 'Access');
+    },
+  },
+  {
+    id: 'editor-when',
+    get label(): string {
+      return t('settings.field-editor.when_its_asked', 'When it’s asked');
+    },
+  },
+  {
+    id: 'editor-sensitivity',
+    get label(): string {
+      return t('settings.field-editor.sensitivity', 'Sensitivity');
+    },
+  },
+  {
+    id: 'editor-review',
+    get label(): string {
+      return t('settings.field-editor.review', 'Review');
+    },
+  },
 ] as const;
 
 /** The tiles a new field starts with; the rest are a press away. */
@@ -138,8 +163,12 @@ const TEMPLATES: readonly Pick<
   'label' | 'description' | 'dataType' | 'options' | 'ownership' | 'collectAt' | 'visibility'
 >[] = [
   {
-    label: t('settings.field-editor.t_shirt_size', 'T-shirt size'),
-    description: t('settings.field-editor.for_company_clothing', 'For company clothing.'),
+    get label(): string {
+      return t('settings.field-editor.t_shirt_size', 'T-shirt size');
+    },
+    get description(): string {
+      return t('settings.field-editor.for_company_clothing', 'For company clothing.');
+    },
     dataType: 'select',
     options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
     ownership: ['employee', 'hr'],
@@ -147,11 +176,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: t('settings.field-editor.pronouns', 'Pronouns'),
-    description: t(
-      'settings.field-editor.how_they_would_like_to_be_referred',
-      'How they would like to be referred to.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.pronouns', 'Pronouns');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.how_they_would_like_to_be_referred',
+        'How they would like to be referred to.',
+      );
+    },
     dataType: 'text',
     options: [],
     ownership: ['employee'],
@@ -159,11 +192,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'manager', 'hr', 'directory'],
   },
   {
-    label: t('settings.field-editor.emergency_contact_name', 'Emergency contact name'),
-    description: t(
-      'settings.field-editor.who_to_call_if_something_happens_at',
-      'Who to call if something happens at work.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.emergency_contact_name', 'Emergency contact name');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.who_to_call_if_something_happens_at',
+        'Who to call if something happens at work.',
+      );
+    },
     dataType: 'text',
     options: [],
     ownership: ['employee', 'hr'],
@@ -171,11 +208,15 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: t('settings.field-editor.emergency_contact_phone', 'Emergency contact phone'),
-    description: t(
-      'settings.field-editor.their_number_with_the_country_code',
-      'Their number, with the country code.',
-    ),
+    get label(): string {
+      return t('settings.field-editor.emergency_contact_phone', 'Emergency contact phone');
+    },
+    get description(): string {
+      return t(
+        'settings.field-editor.their_number_with_the_country_code',
+        'Their number, with the country code.',
+      );
+    },
     dataType: 'phone',
     options: [],
     ownership: ['employee', 'hr'],

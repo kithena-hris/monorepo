@@ -103,9 +103,24 @@ export interface TopBarClockProps {
 }
 
 const STATE: Record<ClockState, { label: string; tone: 'success' | 'warning' | 'neutral' }> = {
-  in: { label: t('clock.clock.clocked_in', 'Clocked in'), tone: 'success' },
-  on_break: { label: t('clock.clock.on_a_break', 'On a break'), tone: 'warning' },
-  out: { label: t('clock.clock.not_clocked_in', 'Not clocked in'), tone: 'neutral' },
+  in: {
+    get label(): string {
+      return t('clock.clock.clocked_in', 'Clocked in');
+    },
+    tone: 'success',
+  },
+  on_break: {
+    get label(): string {
+      return t('clock.clock.on_a_break', 'On a break');
+    },
+    tone: 'warning',
+  },
+  out: {
+    get label(): string {
+      return t('clock.clock.not_clocked_in', 'Not clocked in');
+    },
+    tone: 'neutral',
+  },
 };
 
 const PUNCH_ICON: Record<PunchKind, { icon: IconName; tone: ChartTone }> = {

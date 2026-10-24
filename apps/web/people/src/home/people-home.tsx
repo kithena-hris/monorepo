@@ -277,11 +277,36 @@ const weekday = (now: string, timeZone: string): string => {
 const STATUS: Readonly<
   Record<string, { label: string; tone: 'success' | 'info' | 'neutral' | 'warning' }>
 > = {
-  active: { label: tr('home.people-home.active', 'Active'), tone: 'success' },
-  pre_hire: { label: tr('home.people-home.starting_soon', 'Starting soon'), tone: 'info' },
-  provisional: { label: tr('home.people-home.not_hired_yet', 'Not hired yet'), tone: 'neutral' },
-  on_leave: { label: tr('home.people-home.on_leave', 'On leave'), tone: 'info' },
-  notice: { label: tr('home.people-home.on_notice', 'On notice'), tone: 'warning' },
+  active: {
+    get label(): string {
+      return tr('home.people-home.active', 'Active');
+    },
+    tone: 'success',
+  },
+  pre_hire: {
+    get label(): string {
+      return tr('home.people-home.starting_soon', 'Starting soon');
+    },
+    tone: 'info',
+  },
+  provisional: {
+    get label(): string {
+      return tr('home.people-home.not_hired_yet', 'Not hired yet');
+    },
+    tone: 'neutral',
+  },
+  on_leave: {
+    get label(): string {
+      return tr('home.people-home.on_leave', 'On leave');
+    },
+    tone: 'info',
+  },
+  notice: {
+    get label(): string {
+      return tr('home.people-home.on_notice', 'On notice');
+    },
+    tone: 'warning',
+  },
 };
 
 /** "Ada" from "Ada Lovelace": what Home calls them. */

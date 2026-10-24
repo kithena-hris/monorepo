@@ -400,21 +400,51 @@ function Checks({ data }: { readonly data: OfferData }): JSX.Element {
 }
 
 const STEP_LABEL: Readonly<Record<string, string>> = {
-  entity: tr('offers.legal_entity', 'Legal entity'),
-  location: tr('offers.work_location', 'Work location'),
-  relationship: tr('offers.relationship', 'Relationship'),
-  contract_type: tr('offers.contract_type', 'Contract type'),
-  fixed_term_reason: tr('offers.fixed_term_reason', 'Fixed-term reason'),
-  duration: tr('offers.duration', 'Duration'),
-  hours: tr('offers.hours', 'Hours'),
-  probation: tr('offers.probation', 'Probation'),
-  notice: tr('offers.notice', 'Notice'),
-  work_mode: tr('offers.work_mode', 'Work mode'),
-  agreement: tr('offers.collective_agreement', 'Collective agreement'),
-  pay: tr('offers.pay', 'Pay'),
-  benefits: tr('offers.benefits', 'Benefits'),
-  clauses: tr('offers.clauses', 'Clauses'),
-  summary: tr('offers.summary', 'Summary'),
+  get entity(): string {
+    return tr('offers.legal_entity', 'Legal entity');
+  },
+  get location(): string {
+    return tr('offers.work_location', 'Work location');
+  },
+  get relationship(): string {
+    return tr('offers.relationship', 'Relationship');
+  },
+  get contract_type(): string {
+    return tr('offers.contract_type', 'Contract type');
+  },
+  get fixed_term_reason(): string {
+    return tr('offers.fixed_term_reason', 'Fixed-term reason');
+  },
+  get duration(): string {
+    return tr('offers.duration', 'Duration');
+  },
+  get hours(): string {
+    return tr('offers.hours', 'Hours');
+  },
+  get probation(): string {
+    return tr('offers.probation', 'Probation');
+  },
+  get notice(): string {
+    return tr('offers.notice', 'Notice');
+  },
+  get work_mode(): string {
+    return tr('offers.work_mode', 'Work mode');
+  },
+  get agreement(): string {
+    return tr('offers.collective_agreement', 'Collective agreement');
+  },
+  get pay(): string {
+    return tr('offers.pay', 'Pay');
+  },
+  get benefits(): string {
+    return tr('offers.benefits', 'Benefits');
+  },
+  get clauses(): string {
+    return tr('offers.clauses', 'Clauses');
+  },
+  get summary(): string {
+    return tr('offers.summary', 'Summary');
+  },
 };
 
 function Length({

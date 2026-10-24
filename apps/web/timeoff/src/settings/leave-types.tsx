@@ -74,11 +74,12 @@ export interface LeaveTypesProps {
   readonly onSaveParentalCompany?: (weeks: ParentalCompany) => Promise<Outcome>;
 }
 
-const TITLE = tr('settings.leave-types.leave_types', 'Leave types');
-const DESCRIPTION = tr(
-  'settings.leave-types.the_kinds_of_time_off_people_can',
-  'The kinds of time off people can request, and how each one is paid and approved.',
-);
+const TITLE = (): string => tr('settings.leave-types.leave_types', 'Leave types');
+const DESCRIPTION = (): string =>
+  tr(
+    'settings.leave-types.the_kinds_of_time_off_people_can',
+    'The kinds of time off people can request, and how each one is paid and approved.',
+  );
 
 export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
   const { load, onAdd, onAsk, onNavigate } = props;
@@ -86,8 +87,8 @@ export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
   return (
     <div className="@container/types flex flex-col gap-6">
       <PageHeader
-        title={TITLE}
-        description={DESCRIPTION}
+        title={TITLE()}
+        description={DESCRIPTION()}
         actions={
           <>
             <Button variant="secondary" startIcon={<icons.assistant aria-hidden />} asChild>
@@ -214,9 +215,15 @@ function CompanyWeeks({
 }
 
 const PAID: Record<LeaveTypeRow['definition']['paid'], string> = {
-  paid: tr('settings.leave-types.paid', 'Paid'),
-  unpaid: tr('settings.leave-types.not_paid', 'Not paid'),
-  statutory: tr('settings.leave-types.paid_by_social_security', 'Paid by Social Security'),
+  get paid(): string {
+    return tr('settings.leave-types.paid', 'Paid');
+  },
+  get unpaid(): string {
+    return tr('settings.leave-types.not_paid', 'Not paid');
+  },
+  get statutory(): string {
+    return tr('settings.leave-types.paid_by_social_security', 'Paid by Social Security');
+  },
 };
 
 /** "Paid · tracked balance · note after 3 days". */
@@ -297,7 +304,7 @@ function Ready({ data }: { readonly data: LeaveTypesData }): JSX.Element {
 export function LeaveTypesSkeleton(): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader title={TITLE()} description={DESCRIPTION()} />
       <div role="status" className="flex flex-col gap-px overflow-hidden rounded-[1.125rem]">
         <span className="sr-only">
           {tr('settings.leave-types.loading_the_leave_types', 'Loading the leave types')}

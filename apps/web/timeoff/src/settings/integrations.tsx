@@ -103,11 +103,12 @@ export interface IntegrationsProps {
   readonly onLeave?: (url: string) => void;
 }
 
-const TITLE = t('settings.integrations.integrations', 'Integrations');
-const DESCRIPTION = t(
-  'settings.integrations.where_time_off_and_attendance_show_up',
-  'Where time off and attendance show up outside this module.',
-);
+const TITLE = (): string => t('settings.integrations.integrations', 'Integrations');
+const DESCRIPTION = (): string =>
+  t(
+    'settings.integrations.where_time_off_and_attendance_show_up',
+    'Where time off and attendance show up outside this module.',
+  );
 const page = '@container/integrations flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/integrations:grid @min-[60rem]/integrations:grid-cols-2 @min-[60rem]/integrations:items-start';
@@ -116,10 +117,18 @@ const icon = (name: IconName): ReactNode => createElement(icons[name], { 'aria-h
 
 /** A vendor's name, on its own row only. */
 const PRODUCT: Record<Provider, string> = {
-  google: t('settings.integrations.google_calendar', 'Google Calendar'),
-  microsoft: t('settings.integrations.microsoft_outlook', 'Microsoft Outlook'),
-  slack: t('settings.integrations.slack', 'Slack'),
-  teams: t('settings.integrations.microsoft_teams', 'Microsoft Teams'),
+  get google(): string {
+    return t('settings.integrations.google_calendar', 'Google Calendar');
+  },
+  get microsoft(): string {
+    return t('settings.integrations.microsoft_outlook', 'Microsoft Outlook');
+  },
+  get slack(): string {
+    return t('settings.integrations.slack', 'Slack');
+  },
+  get teams(): string {
+    return t('settings.integrations.microsoft_teams', 'Microsoft Teams');
+  },
 };
 
 /** A provider named in the address, which anyone can type. */
@@ -130,26 +139,32 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
   payroll: {
     name: 'Payroll',
     icon: 'payroll',
-    does: t(
-      'settings.integrations.overtime_unpaid_leave_negative_balances_and',
-      'Overtime, unpaid leave, negative balances and parental pay changes each month.',
-    ),
+    get does(): string {
+      return t(
+        'settings.integrations.overtime_unpaid_leave_negative_balances_and',
+        'Overtime, unpaid leave, negative balances and parental pay changes each month.',
+      );
+    },
   },
   benefits: {
     name: 'Benefits',
     icon: 'health',
-    does: t(
-      'settings.integrations.adds_dependents_after_a_birth_and',
-      'Adds dependents after a birth and pauses benefits during unpaid leave.',
-    ),
+    get does(): string {
+      return t(
+        'settings.integrations.adds_dependents_after_a_birth_and',
+        'Adds dependents after a birth and pauses benefits during unpaid leave.',
+      );
+    },
   },
   projects: {
     name: 'Projects',
     icon: 'cards',
-    does: t(
-      'settings.integrations.deadlines_and_owners_for_clash_checks',
-      'Deadlines and owners for clash checks and handover suggestions.',
-    ),
+    get does(): string {
+      return t(
+        'settings.integrations.deadlines_and_owners_for_clash_checks',
+        'Deadlines and owners for clash checks and handover suggestions.',
+      );
+    },
   },
 };
 
@@ -163,7 +178,7 @@ export function Integrations(props: IntegrationsProps): JSX.Element {
   if (load.status === 'loading') return <IntegrationsSkeleton />;
   return (
     <div className={page}>
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader title={TITLE()} description={DESCRIPTION()} />
       <Loaded load={load} what={t('settings.integrations.the_integrations', 'the integrations')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
@@ -640,8 +655,8 @@ function Kiosks({
 export function IntegrationsSkeleton(): JSX.Element {
   return (
     <SettingsSkeleton
-      title={TITLE}
-      description={DESCRIPTION}
+      title={TITLE()}
+      description={DESCRIPTION()}
       container="@container/integrations"
       columns={columns}
       main={['h-40', 'h-40', 'h-32']}

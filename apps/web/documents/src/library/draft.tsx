@@ -85,19 +85,21 @@ export interface DraftProps {
     | undefined;
 }
 
-const OPENING = t(
-  'library.draft.what_do_you_need_tell_me',
-  'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.',
-);
+const OPENING = (): string =>
+  t(
+    'library.draft.what_do_you_need_tell_me',
+    'What do you need? Tell me what the document is, whom it is for and who signs it, in which order.',
+  );
 
 /** What HR usually asks for next, offered as a press once there is a draft. */
-const SUGGESTIONS = [
-  t('library.draft.make_it_shorter', 'Make it shorter'),
-  t('library.draft.make_it_warmer', 'Make it warmer'),
-  t('library.draft.add_a_probation_period', 'Add a probation period'),
-  t('library.draft.add_a_confidentiality_clause', 'Add a confidentiality clause'),
-  t('library.draft.use_plainer_words', 'Use plainer words'),
-] as const;
+const SUGGESTIONS = () =>
+  [
+    t('library.draft.make_it_shorter', 'Make it shorter'),
+    t('library.draft.make_it_warmer', 'Make it warmer'),
+    t('library.draft.add_a_probation_period', 'Add a probation period'),
+    t('library.draft.add_a_confidentiality_clause', 'Add a confidentiality clause'),
+    t('library.draft.use_plainer_words', 'Use plainer words'),
+  ] as const;
 
 export function DraftDialog({
   open,
@@ -299,7 +301,7 @@ export function DraftDialog({
                 </List>
               ) : null}
               <ChipRow aria-label={t('library.draft.ask_for_a_change', 'Ask for a change')}>
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS().map((s) => (
                   <Chip
                     key={s}
                     disabled={pending || onDraftDocument === undefined}
@@ -318,7 +320,7 @@ export function DraftDialog({
               label={t('library.draft.conversation_with_kithena', 'Conversation with Kithena')}
               className="max-h-[40vh] flex-1"
             >
-              <ChatMessage author="Kithena">{OPENING}</ChatMessage>
+              <ChatMessage author="Kithena">{OPENING()}</ChatMessage>
               {said.map((m, i) => (
                 <ChatMessage
                   // The conversation only grows; a turn's place is its identity.

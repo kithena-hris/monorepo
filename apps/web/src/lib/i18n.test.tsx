@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { translator } from '@reach/ui';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { I18nProvider } from './i18n';
+import { VERSION } from '../locales';
+import { I18nProvider, switchLanguage } from './i18n';
 
 const t = translator('people');
 
@@ -59,5 +60,24 @@ describe('plural words', () => {
       </I18nProvider>,
     );
     expect(screen.getByText('1 day · 2 days')).toBeTruthy();
+  });
+});
+
+describe('switching language', () => {
+  it('draws every screen again in the new words at once, without a reload', async () => {
+    // The words this browser kept for French: nothing is fetched.
+    localStorage.setItem(
+      `kithena-i18n:${VERSION}:fr:people`,
+      JSON.stringify({ greeting: 'Bonjour {{name}}' }),
+    );
+    const { container } = render(
+      <I18nProvider language="de" messages={{ people: { greeting: 'Hallo {{name}}' } }}>
+        <Words />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toBe('Hallo Ada · Not translated');
+    await act(() => switchLanguage('fr'));
+    expect(container.textContent).toBe('Bonjour Ada · Not translated');
+    expect(document.documentElement.lang).toBe('fr');
   });
 });

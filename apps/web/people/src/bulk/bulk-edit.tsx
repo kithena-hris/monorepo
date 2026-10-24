@@ -222,10 +222,18 @@ const TONE = {
   held: 'warning',
 } as const;
 const WORD = {
-  changed: t('bulk.bulk-edit.changes', 'Changes'),
-  unchanged: t('bulk.bulk-edit.already_set', 'Already set'),
-  refused: t('bulk.bulk-edit.refused', 'Refused'),
-  held: t('bulk.bulk-edit.pending_approval', 'Pending approval'),
+  get changed(): string {
+    return t('bulk.bulk-edit.changes', 'Changes');
+  },
+  get unchanged(): string {
+    return t('bulk.bulk-edit.already_set', 'Already set');
+  },
+  get refused(): string {
+    return t('bulk.bulk-edit.refused', 'Refused');
+  },
+  get held(): string {
+    return t('bulk.bulk-edit.pending_approval', 'Pending approval');
+  },
 } as const;
 
 /**
@@ -936,10 +944,18 @@ const NOWHERE: Placed = { entity: '', location: '' };
 const RECOMPUTE_AFTER_MS = 400;
 
 const HIRE_WORD: Record<BulkRow['outcome'], string> = {
-  changed: t('bulk.bulk-edit.hired_2', 'Hired'),
-  unchanged: t('bulk.bulk-edit.already_set', 'Already set'),
-  refused: t('bulk.bulk-edit.skipped', 'Skipped'),
-  held: t('bulk.bulk-edit.pending_approval', 'Pending approval'),
+  get changed(): string {
+    return t('bulk.bulk-edit.hired_2', 'Hired');
+  },
+  get unchanged(): string {
+    return t('bulk.bulk-edit.already_set', 'Already set');
+  },
+  get refused(): string {
+    return t('bulk.bulk-edit.skipped', 'Skipped');
+  },
+  get held(): string {
+    return t('bulk.bulk-edit.pending_approval', 'Pending approval');
+  },
 };
 
 function Results({

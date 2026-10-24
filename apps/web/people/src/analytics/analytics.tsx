@@ -191,11 +191,28 @@ export interface AnalyticsProps {
 const percent = (n: number): string => `${n.toFixed(1)}%`;
 
 const EXPIRY: Readonly<Record<string, { readonly label: string; readonly tone: ChartTone }>> = {
-  work_permit: { label: t('analytics.analytics.work_permit', 'Work permit'), tone: 'danger' },
-  fixed_term: { label: t('analytics.analytics.contract_ends', 'Contract ends'), tone: 'warning' },
-  probation: { label: t('analytics.analytics.probation_ends', 'Probation ends'), tone: 'info' },
+  work_permit: {
+    get label(): string {
+      return t('analytics.analytics.work_permit', 'Work permit');
+    },
+    tone: 'danger',
+  },
+  fixed_term: {
+    get label(): string {
+      return t('analytics.analytics.contract_ends', 'Contract ends');
+    },
+    tone: 'warning',
+  },
+  probation: {
+    get label(): string {
+      return t('analytics.analytics.probation_ends', 'Probation ends');
+    },
+    tone: 'info',
+  },
   certification: {
-    label: t('analytics.analytics.certification', 'Certification'),
+    get label(): string {
+      return t('analytics.analytics.certification', 'Certification');
+    },
     tone: 'neutral',
   },
 };

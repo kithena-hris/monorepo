@@ -121,12 +121,13 @@ const QUESTION_KINDS: readonly QuestionKind[] = [
   'date',
   'file',
 ];
-const LANGUAGES = [
-  ['en', tr('settings-editors.english', 'English')],
-  ['es', tr('settings-editors.spanish', 'Spanish')],
-  ['de', tr('settings-editors.german', 'German')],
-  ['hi', tr('settings-editors.hindi', 'Hindi')],
-] as const;
+const LANGUAGES = () =>
+  [
+    ['en', tr('settings-editors.english', 'English')],
+    ['es', tr('settings-editors.spanish', 'Spanish')],
+    ['de', tr('settings-editors.german', 'German')],
+    ['hi', tr('settings-editors.hindi', 'Hindi')],
+  ] as const;
 
 /** A name's key: lower case, words joined, starting with a letter. */
 export const keyOf = (name: string): string =>
@@ -1636,10 +1637,12 @@ export function QuestionnaireEditor({
 /** What a template can be for: the composer's moments, and the invitation to choose interview times. */
 export const TEMPLATE_PURPOSES: Readonly<Record<string, string>> = {
   ...PURPOSE_LABEL,
-  interview_invitation: tr(
-    'settings-editors.invitation_to_choose_interview_times',
-    'Invitation to choose interview times',
-  ),
+  get interview_invitation(): string {
+    return tr(
+      'settings-editors.invitation_to_choose_interview_times',
+      'Invitation to choose interview times',
+    );
+  },
 };
 
 export function TemplateEditor({
@@ -1799,7 +1802,7 @@ export function TemplateEditor({
               <SelectValue />
             </SelectTrigger>
           </FieldControl>
-          <Options items={LANGUAGES} />
+          <Options items={LANGUAGES()} />
         </Select>
       </Field>
       {kind === 'email' ? (
@@ -2181,30 +2184,74 @@ export function BenefitEditor({
 
 /** The icons a category may wear, named for what they look like. */
 const ICON_NAMES: Readonly<Record<string, string>> = {
-  health: tr('settings-editors.health', 'Health'),
-  payroll: tr('settings-editors.savings', 'Savings'),
-  break: tr('settings-editors.food', 'Food'),
-  travel: tr('settings-editors.travel', 'Travel'),
-  parental: tr('settings-editors.family', 'Family'),
-  goal: tr('settings-editors.growth', 'Growth'),
-  system: tr('settings-editors.equipment', 'Equipment'),
-  favourite: tr('settings-editors.heart', 'Heart'),
-  location: tr('settings-editors.place', 'Place'),
+  get health(): string {
+    return tr('settings-editors.health', 'Health');
+  },
+  get payroll(): string {
+    return tr('settings-editors.savings', 'Savings');
+  },
+  get break(): string {
+    return tr('settings-editors.food', 'Food');
+  },
+  get travel(): string {
+    return tr('settings-editors.travel', 'Travel');
+  },
+  get parental(): string {
+    return tr('settings-editors.family', 'Family');
+  },
+  get goal(): string {
+    return tr('settings-editors.growth', 'Growth');
+  },
+  get system(): string {
+    return tr('settings-editors.equipment', 'Equipment');
+  },
+  get favourite(): string {
+    return tr('settings-editors.heart', 'Heart');
+  },
+  get location(): string {
+    return tr('settings-editors.place', 'Place');
+  },
   analytics: 'Chart',
-  payment: tr('settings-editors.money', 'Money'),
-  vacation: tr('settings-editors.holiday', 'Holiday'),
-  locked: tr('settings-editors.protection', 'Protection'),
-  transfer: tr('settings-editors.exchange', 'Exchange'),
+  get payment(): string {
+    return tr('settings-editors.money', 'Money');
+  },
+  get vacation(): string {
+    return tr('settings-editors.holiday', 'Holiday');
+  },
+  get locked(): string {
+    return tr('settings-editors.protection', 'Protection');
+  },
+  get transfer(): string {
+    return tr('settings-editors.exchange', 'Exchange');
+  },
   home: 'Home',
-  more: tr('settings-editors.more', 'More'),
-  team: tr('settings-editors.team', 'Team'),
-  company: tr('settings-editors.company', 'Company'),
-  calendar: tr('settings-editors.calendar', 'Calendar'),
-  document: tr('settings-editors.document', 'Document'),
-  starred: tr('settings-editors.star', 'Star'),
-  work: tr('settings-editors.work', 'Work'),
-  meeting: tr('settings-editors.meeting', 'Meeting'),
-  approve: tr('settings-editors.tick', 'Tick'),
+  get more(): string {
+    return tr('settings-editors.more', 'More');
+  },
+  get team(): string {
+    return tr('settings-editors.team', 'Team');
+  },
+  get company(): string {
+    return tr('settings-editors.company', 'Company');
+  },
+  get calendar(): string {
+    return tr('settings-editors.calendar', 'Calendar');
+  },
+  get document(): string {
+    return tr('settings-editors.document', 'Document');
+  },
+  get starred(): string {
+    return tr('settings-editors.star', 'Star');
+  },
+  get work(): string {
+    return tr('settings-editors.work', 'Work');
+  },
+  get meeting(): string {
+    return tr('settings-editors.meeting', 'Meeting');
+  },
+  get approve(): string {
+    return tr('settings-editors.tick', 'Tick');
+  },
 };
 
 /** S6: a benefit category of the company's own: its name and the icon it wears. */

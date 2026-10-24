@@ -172,21 +172,43 @@ export function workedSeconds(
 }
 
 export const WHERE: Record<WorkModel, string> = {
-  office: tr('attendance.time.office', 'Office'),
-  remote: tr('attendance.time.remote', 'Remote'),
-  client: tr('attendance.time.at_a_client', 'At a client'),
+  get office(): string {
+    return tr('attendance.time.office', 'Office');
+  },
+  get remote(): string {
+    return tr('attendance.time.remote', 'Remote');
+  },
+  get client(): string {
+    return tr('attendance.time.at_a_client', 'At a client');
+  },
 };
 
 export const SOURCE: Record<string, string> = {
-  badge: tr('attendance.time.badge_reader', 'Badge reader'),
-  kiosk: tr('attendance.time.kiosk', 'Kiosk'),
-  web: tr('attendance.time.web', 'Web'),
-  mobile: tr('attendance.time.phone', 'Phone'),
+  get badge(): string {
+    return tr('attendance.time.badge_reader', 'Badge reader');
+  },
+  get kiosk(): string {
+    return tr('attendance.time.kiosk', 'Kiosk');
+  },
+  get web(): string {
+    return tr('attendance.time.web', 'Web');
+  },
+  get mobile(): string {
+    return tr('attendance.time.phone', 'Phone');
+  },
 };
 
 export const PUNCHED: Record<PunchKind, string> = {
-  in: tr('attendance.time.clocked_in', 'Clocked in'),
-  out: tr('attendance.time.clocked_out', 'Clocked out'),
-  break_start: tr('attendance.time.started_a_break', 'Started a break'),
-  break_end: tr('attendance.time.back_from_a_break', 'Back from a break'),
+  get in(): string {
+    return tr('attendance.time.clocked_in', 'Clocked in');
+  },
+  get out(): string {
+    return tr('attendance.time.clocked_out', 'Clocked out');
+  },
+  get break_start(): string {
+    return tr('attendance.time.started_a_break', 'Started a break');
+  },
+  get break_end(): string {
+    return tr('attendance.time.back_from_a_break', 'Back from a break');
+  },
 };

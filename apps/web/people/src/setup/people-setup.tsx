@@ -78,10 +78,30 @@ export interface PeopleSetupProps {
 }
 
 const STEPS = [
-  { id: 'entity', label: t('setup.people-setup.legal_entity', 'Legal entity') },
-  { id: 'pack', label: t('setup.people-setup.country_pack', 'Country pack') },
-  { id: 'publish', label: t('setup.people-setup.publish', 'Publish') },
-  { id: 'profile', label: t('setup.people-setup.your_profile', 'Your profile') },
+  {
+    id: 'entity',
+    get label(): string {
+      return t('setup.people-setup.legal_entity', 'Legal entity');
+    },
+  },
+  {
+    id: 'pack',
+    get label(): string {
+      return t('setup.people-setup.country_pack', 'Country pack');
+    },
+  },
+  {
+    id: 'publish',
+    get label(): string {
+      return t('setup.people-setup.publish', 'Publish');
+    },
+  },
+  {
+    id: 'profile',
+    get label(): string {
+      return t('setup.people-setup.your_profile', 'Your profile');
+    },
+  },
 ] as const;
 
 /**

@@ -104,11 +104,15 @@ export interface IdCheckActions {
 const LEVEL = {
   mismatch: {
     tone: 'danger',
-    text: t('review.identifier-reviews.does_not_compute', 'Does not compute'),
+    get text(): string {
+      return t('review.identifier-reviews.does_not_compute', 'Does not compute');
+    },
   },
   attention: {
     tone: 'warning',
-    text: t('review.identifier-reviews.needs_attention', 'Needs attention'),
+    get text(): string {
+      return t('review.identifier-reviews.needs_attention', 'Needs attention');
+    },
   },
 } as const;
 

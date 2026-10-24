@@ -64,10 +64,30 @@ export function PersonFile(props: PersonFileProps): JSX.Element {
 }
 
 const STATE = {
-  have: { label: tr('people.person-file.in_the_file', 'In the file'), tone: 'success' },
-  asked: { label: tr('people.person-file.asked', 'Asked'), tone: 'info' },
-  expired: { label: tr('people.person-file.expired', 'Expired'), tone: 'danger' },
-  missing: { label: tr('people.person-file.missing', 'Missing'), tone: 'warning' },
+  have: {
+    get label(): string {
+      return tr('people.person-file.in_the_file', 'In the file');
+    },
+    tone: 'success',
+  },
+  asked: {
+    get label(): string {
+      return tr('people.person-file.asked', 'Asked');
+    },
+    tone: 'info',
+  },
+  expired: {
+    get label(): string {
+      return tr('people.person-file.expired', 'Expired');
+    },
+    tone: 'danger',
+  },
+  missing: {
+    get label(): string {
+      return tr('people.person-file.missing', 'Missing');
+    },
+    tone: 'warning',
+  },
 } as const;
 
 function Ready({

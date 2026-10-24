@@ -34,7 +34,7 @@ import { t } from '../i18n';
 
 type Category = 'annual_leave' | 'sick_leave' | 'parental_leave' | 'unpaid_leave' | 'other';
 
-const CATEGORIES: readonly (readonly [Category, string, string])[] = [
+const CATEGORIES = (): readonly (readonly [Category, string, string])[] => [
   ['annual_leave', t('settings.add-leave-type.vacation', 'Vacation'), 'sun'],
   ['sick_leave', t('settings.add-leave-type.sick_leave', 'Sick leave'), 'thermometer'],
   ['parental_leave', t('settings.add-leave-type.parental_leave', 'Parental leave'), 'baby'],
@@ -93,7 +93,7 @@ export function AddLeaveType({
       name: { default: name.trim() },
       category,
       colorToken: category === 'sick_leave' ? 'chart-3' : 'chart-4',
-      icon: CATEGORIES.find(([c]) => c === category)?.[2] ?? 'flag',
+      icon: CATEGORIES().find(([c]) => c === category)?.[2] ?? 'flag',
       unit: hours ? 'hour' : 'day',
       tracked,
       paid,
@@ -166,7 +166,7 @@ export function AddLeaveType({
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                {CATEGORIES.map(([value, label]) => (
+                {CATEGORIES().map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>

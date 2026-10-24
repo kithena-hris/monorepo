@@ -177,8 +177,12 @@ function step(
 }
 
 const MODULE: Record<'payroll' | 'benefits', string> = {
-  payroll: t('parental.case.payroll_module', 'Payroll module'),
-  benefits: t('parental.case.benefits_module', 'Benefits module'),
+  get payroll(): string {
+    return t('parental.case.payroll_module', 'Payroll module');
+  },
+  get benefits(): string {
+    return t('parental.case.benefits_module', 'Benefits module');
+  },
 };
 
 function trailing(item: ParentalCaseData['checklist'][number]): ReactNode {

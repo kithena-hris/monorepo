@@ -91,9 +91,24 @@ export interface AdjustmentsProps {
 type Item = AdjustmentsData['items'][number];
 
 const STATUS = {
-  pending: { label: tr('approvals.adjustments.waiting_for_hr', 'Waiting for HR'), tone: 'warning' },
-  approved: { label: tr('approvals.adjustments.counted', 'Counted'), tone: 'success' },
-  declined: { label: tr('approvals.adjustments.declined', 'Declined'), tone: 'neutral' },
+  pending: {
+    get label(): string {
+      return tr('approvals.adjustments.waiting_for_hr', 'Waiting for HR');
+    },
+    tone: 'warning',
+  },
+  approved: {
+    get label(): string {
+      return tr('approvals.adjustments.counted', 'Counted');
+    },
+    tone: 'success',
+  },
+  declined: {
+    get label(): string {
+      return tr('approvals.adjustments.declined', 'Declined');
+    },
+    tone: 'neutral',
+  },
 } as const;
 
 const sized = (unit: 'day' | 'hour', value: string): string => {

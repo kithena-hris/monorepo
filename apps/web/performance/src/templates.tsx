@@ -98,12 +98,13 @@ export interface TemplatesData {
   readonly hr: boolean;
 }
 
-const SHOW = [
-  ['', tr('templates.all', 'All')],
-  ['scored', tr('templates.has_a_performance_score', 'Has a performance score')],
-  ['feedback', tr('templates.usable_for_feedback', 'Usable for feedback')],
-  ['archived', tr('templates.archived', 'Archived')],
-] as const;
+const SHOW = () =>
+  [
+    ['', tr('templates.all', 'All')],
+    ['scored', tr('templates.has_a_performance_score', 'Has a performance score')],
+    ['feedback', tr('templates.usable_for_feedback', 'Usable for feedback')],
+    ['archived', tr('templates.archived', 'Archived')],
+  ] as const;
 
 export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
   const act = useAct(props);
@@ -138,7 +139,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
             <Refusal error={act.error} />
             <div className="flex flex-wrap items-center gap-3">
               <ChipRow aria-label={tr('templates.show', 'Show')}>
-                {SHOW.map(([v, l]) => (
+                {SHOW().map(([v, l]) => (
                   <Chip
                     key={v}
                     selected={show === v}
@@ -631,12 +632,13 @@ const blank = (type: Question['type'], scale: readonly ScaleOption[]): Question 
   return { ...base, type: 'text', guidance: null };
 };
 
-const TYPES = [
-  ['text', tr('templates.text_2', 'Text')],
-  ['scale', tr('templates.scale', 'Scale')],
-  ['binary', tr('templates.yes_or_no', 'Yes or no')],
-  ['choice', tr('templates.choice', 'Choice')],
-] as const;
+const TYPES = () =>
+  [
+    ['text', tr('templates.text_2', 'Text')],
+    ['scale', tr('templates.scale', 'Scale')],
+    ['binary', tr('templates.yes_or_no', 'Yes or no')],
+    ['choice', tr('templates.choice', 'Choice')],
+  ] as const;
 
 export function Builder(props: ScreenProps<BuilderData>): JSX.Element {
   return (
@@ -1256,7 +1258,7 @@ function QuestionEditor({
       <Choose
         label={tr('templates.type', 'Type')}
         value={q.type}
-        options={TYPES}
+        options={TYPES()}
         onChange={(t) => {
           const fresh = blank(t as Question['type'], scale);
           onChange({ ...fresh, ...base });

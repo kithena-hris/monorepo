@@ -82,15 +82,42 @@ export interface FullValuesActions {
 type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 const STATE: Partial<Record<string, { readonly tone: Tone; readonly text: string }>> = {
-  pending: { tone: 'warning', text: t('export.full-values.waiting_for_hr', 'Waiting for HR') },
+  pending: {
+    tone: 'warning',
+    get text(): string {
+      return t('export.full-values.waiting_for_hr', 'Waiting for HR');
+    },
+  },
   approved: {
     tone: 'info',
-    text: t('export.full-values.approved_being_prepared', 'Approved, being prepared'),
+    get text(): string {
+      return t('export.full-values.approved_being_prepared', 'Approved, being prepared');
+    },
   },
-  issued: { tone: 'success', text: t('export.full-values.ready_to_download', 'Ready to download') },
-  downloaded: { tone: 'neutral', text: t('export.full-values.downloaded', 'Downloaded') },
-  rejected: { tone: 'danger', text: t('export.full-values.rejected', 'Rejected') },
-  expired: { tone: 'neutral', text: t('export.full-values.expired', 'Expired') },
+  issued: {
+    tone: 'success',
+    get text(): string {
+      return t('export.full-values.ready_to_download', 'Ready to download');
+    },
+  },
+  downloaded: {
+    tone: 'neutral',
+    get text(): string {
+      return t('export.full-values.downloaded', 'Downloaded');
+    },
+  },
+  rejected: {
+    tone: 'danger',
+    get text(): string {
+      return t('export.full-values.rejected', 'Rejected');
+    },
+  },
+  expired: {
+    tone: 'neutral',
+    get text(): string {
+      return t('export.full-values.expired', 'Expired');
+    },
+  },
 };
 
 /** A request's state in words and tone: "Waiting for HR". */

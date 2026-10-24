@@ -76,9 +76,15 @@ export interface PayPeriodProps {
 }
 
 const PAID_AS: Record<'comp' | 'paid' | 'mixed', string> = {
-  comp: tr('attendance.pay-period.comp_time', 'Comp time'),
-  paid: tr('attendance.pay-period.paid', 'Paid'),
-  mixed: tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time'),
+  get comp(): string {
+    return tr('attendance.pay-period.comp_time', 'Comp time');
+  },
+  get paid(): string {
+    return tr('attendance.pay-period.paid', 'Paid');
+  },
+  get mixed(): string {
+    return tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time');
+  },
 };
 const people = (n: number): string =>
   tr(

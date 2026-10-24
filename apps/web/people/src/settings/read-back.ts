@@ -74,16 +74,24 @@ export interface Summarised {
 const opening = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 const SENSITIVITY: Record<Classification, string> = {
-  public: t('settings.read-back.not_sensitive', 'not sensitive'),
-  internal: t('settings.read-back.not_sensitive', 'not sensitive'),
-  confidential: t(
-    'settings.read-back.confidential_so_it_is_kept_out',
-    'confidential, so it is kept out of logs and AI',
-  ),
-  'special-category': t(
-    'settings.read-back.special_category_data_so_it_never_reaches',
-    'special-category data, so it never reaches AI, events or the standard export',
-  ),
+  get public(): string {
+    return t('settings.read-back.not_sensitive', 'not sensitive');
+  },
+  get internal(): string {
+    return t('settings.read-back.not_sensitive', 'not sensitive');
+  },
+  get confidential(): string {
+    return t(
+      'settings.read-back.confidential_so_it_is_kept_out',
+      'confidential, so it is kept out of logs and AI',
+    );
+  },
+  get 'special-category'(): string {
+    return t(
+      'settings.read-back.special_category_data_so_it_never_reaches',
+      'special-category data, so it never reaches AI, events or the standard export',
+    );
+  },
 };
 
 /**

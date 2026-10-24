@@ -56,7 +56,7 @@ export const Approvals = framed(ApprovalsScreen);
 export const Delegation = framed(DelegationScreen);
 export const Adjustments = framed(AdjustmentsScreen);
 export const TeamCalendar = framed(TeamCalendarScreen);
-export const Attendance = framed(placeholder(t('index.attendance', 'Attendance')));
+export const Attendance = framed(placeholder(() => t('index.attendance', 'Attendance')));
 // TOF-059, TOF-074 to TOF-077: the clock in the shell's top bar (a slot, not a
 // screen: no frame), my timesheet and the team right now.
 export { TopBarClock } from './clock/clock';

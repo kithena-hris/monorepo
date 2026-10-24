@@ -116,8 +116,12 @@ const hoursOf = (minutes: number): string =>
 
 /** Why a point is there in a word: the link that opens its people. */
 const BEHIND: Record<PointKind, string> = {
-  unbooked: tr('insights.insights.who_would_lose_days', 'who would lose days'),
-  no_break: tr('insights.insights.who_has_had_no_break', 'who has had no break'),
+  get unbooked(): string {
+    return tr('insights.insights.who_would_lose_days', 'who would lose days');
+  },
+  get no_break(): string {
+    return tr('insights.insights.who_has_had_no_break', 'who has had no break');
+  },
   missed_clock_outs: '',
   overtime: '',
 };

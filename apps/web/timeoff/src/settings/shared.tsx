@@ -144,26 +144,27 @@ export function ruleFor(rules: readonly ApprovalRule[], key: string): ApprovalRu
   );
 }
 
-export const MONTHS = [
-  t('settings.shared.january', 'January'),
-  t('settings.shared.february', 'February'),
-  t('settings.shared.march', 'March'),
-  t('settings.shared.april', 'April'),
-  t('settings.shared.may', 'May'),
-  t('settings.shared.june', 'June'),
-  t('settings.shared.july', 'July'),
-  t('settings.shared.august', 'August'),
-  t('settings.shared.september', 'September'),
-  t('settings.shared.october', 'October'),
-  t('settings.shared.november', 'November'),
-  t('settings.shared.december', 'December'),
-] as const;
+export const MONTHS = () =>
+  [
+    t('settings.shared.january', 'January'),
+    t('settings.shared.february', 'February'),
+    t('settings.shared.march', 'March'),
+    t('settings.shared.april', 'April'),
+    t('settings.shared.may', 'May'),
+    t('settings.shared.june', 'June'),
+    t('settings.shared.july', 'July'),
+    t('settings.shared.august', 'August'),
+    t('settings.shared.september', 'September'),
+    t('settings.shared.october', 'October'),
+    t('settings.shared.november', 'November'),
+    t('settings.shared.december', 'December'),
+  ] as const;
 
 /** A month and day with no year: "1 January". */
 export const monthDay = (md: { readonly month: number; readonly day: number }): string =>
   t('settings.shared.text', '{{day}} {{value}}', {
     day: String(md.day),
-    value: MONTHS[md.month - 1] ?? '',
+    value: MONTHS()[md.month - 1] ?? '',
   });
 
 const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
@@ -306,7 +307,7 @@ export function MonthDayField({
               </SelectTrigger>
             </FieldControl>
             <SelectContent>
-              {MONTHS.map((name, i) => (
+              {MONTHS().map((name, i) => (
                 <SelectItem key={name} value={String(i + 1)}>
                   {name}
                 </SelectItem>

@@ -56,13 +56,25 @@ export interface Placing {
 }
 
 export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
-  signature: t('envelopes.prepare.signature', 'Signature'),
-  initials: t('envelopes.prepare.initials', 'Initials'),
-  date: t('envelopes.prepare.dated_signature', 'Dated signature'),
+  get signature(): string {
+    return t('envelopes.prepare.signature', 'Signature');
+  },
+  get initials(): string {
+    return t('envelopes.prepare.initials', 'Initials');
+  },
+  get date(): string {
+    return t('envelopes.prepare.dated_signature', 'Dated signature');
+  },
   name: 'Full name',
-  title: t('envelopes.prepare.job_title', 'Job title'),
-  text: t('envelopes.prepare.text', 'Text'),
-  checkbox: t('envelopes.prepare.tick_box', 'Tick box'),
+  get title(): string {
+    return t('envelopes.prepare.job_title', 'Job title');
+  },
+  get text(): string {
+    return t('envelopes.prepare.text', 'Text');
+  },
+  get checkbox(): string {
+    return t('envelopes.prepare.tick_box', 'Tick box');
+  },
 };
 
 /** A new box's size, as a fraction of an A4-shaped page. */

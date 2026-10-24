@@ -130,16 +130,30 @@ export const weeks = (n: number): string =>
 /* -------------------------------------------------------------- words -- */
 
 export const PAYER: Record<string, string> = {
-  social_security: t('parental.shared.social_security', 'Social Security'),
-  employer: t('parental.shared.your_company', 'Your company'),
+  get social_security(): string {
+    return t('parental.shared.social_security', 'Social Security');
+  },
+  get employer(): string {
+    return t('parental.shared.your_company', 'Your company');
+  },
 };
 
 export const LANE: Record<BlockKind, string> = {
-  mandatory: t('parental.shared.mandatory', 'Mandatory'),
-  flexible: t('parental.shared.flexible', 'Flexible'),
-  vacation: t('parental.shared.vacation', 'Vacation'),
-  company: t('parental.shared.company_weeks', 'Company weeks'),
-  later: t('parental.shared.later_weeks', 'Later weeks'),
+  get mandatory(): string {
+    return t('parental.shared.mandatory', 'Mandatory');
+  },
+  get flexible(): string {
+    return t('parental.shared.flexible', 'Flexible');
+  },
+  get vacation(): string {
+    return t('parental.shared.vacation', 'Vacation');
+  },
+  get company(): string {
+    return t('parental.shared.company_weeks', 'Company weeks');
+  },
+  get later(): string {
+    return t('parental.shared.later_weeks', 'Later weeks');
+  },
 };
 
 const TONE: Record<BlockKind, NonNullable<TimelineEntry['tone']>> = {

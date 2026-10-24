@@ -504,18 +504,48 @@ export function summaryOf(state: DirectoryState): string {
 
 /** The operators People honours for each kind of field, in the order offered. */
 const EMPTY: FilterOperator[] = [
-  { id: 'empty', label: t('directory.directory.is_empty', 'is empty'), value: 'none' },
-  { id: 'not_empty', label: t('directory.directory.is_not_empty', 'is not empty'), value: 'none' },
+  {
+    id: 'empty',
+    get label(): string {
+      return t('directory.directory.is_empty', 'is empty');
+    },
+    value: 'none',
+  },
+  {
+    id: 'not_empty',
+    get label(): string {
+      return t('directory.directory.is_not_empty', 'is not empty');
+    },
+    value: 'none',
+  },
 ];
 const OPERATORS: Record<string, readonly FilterOperator[]> = {
   text: [
     { id: 'contains', label: 'contains', value: 'text' },
-    { id: 'is', label: t('directory.directory.is_exactly', 'is exactly'), value: 'text' },
+    {
+      id: 'is',
+      get label(): string {
+        return t('directory.directory.is_exactly', 'is exactly');
+      },
+      value: 'text',
+    },
     ...EMPTY,
   ],
   select: [
-    { id: 'in', label: t('directory.directory.is_any_of', 'is any of'), value: 'options' },
-    { id: 'not_in', label: t('directory.directory.is_none_of', 'is none of'), value: 'options' },
+    {
+      id: 'in',
+      get label(): string {
+        return t('directory.directory.is_any_of', 'is any of');
+      },
+      value: 'options',
+    },
+    {
+      id: 'not_in',
+      get label(): string {
+        return t('directory.directory.is_none_of', 'is none of');
+      },
+      value: 'options',
+    },
     ...EMPTY,
   ],
   status: [
@@ -525,17 +555,43 @@ const OPERATORS: Record<string, readonly FilterOperator[]> = {
   date: [
     {
       id: 'between',
-      label: t('directory.directory.is_between', 'is between'),
+      get label(): string {
+        return t('directory.directory.is_between', 'is between');
+      },
       value: 'date-range',
     },
-    { id: 'before', label: t('directory.directory.is_before', 'is before'), value: 'date' },
-    { id: 'after', label: t('directory.directory.is_after', 'is after'), value: 'date' },
+    {
+      id: 'before',
+      get label(): string {
+        return t('directory.directory.is_before', 'is before');
+      },
+      value: 'date',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('directory.directory.is_after', 'is after');
+      },
+      value: 'date',
+    },
     ...EMPTY,
   ],
   number: [
     { id: 'is', label: 'is', value: 'number' },
-    { id: 'before', label: t('directory.directory.is_less_than', 'is less than'), value: 'number' },
-    { id: 'after', label: t('directory.directory.is_more_than', 'is more than'), value: 'number' },
+    {
+      id: 'before',
+      get label(): string {
+        return t('directory.directory.is_less_than', 'is less than');
+      },
+      value: 'number',
+    },
+    {
+      id: 'after',
+      get label(): string {
+        return t('directory.directory.is_more_than', 'is more than');
+      },
+      value: 'number',
+    },
     ...EMPTY,
   ],
   person: EMPTY,

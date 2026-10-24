@@ -106,11 +106,12 @@ export interface AutomationsData {
 }
 
 const KINDS = ['self', 'manager', 'peer', 'upward', 'goals'] as const;
-const SKIP = [
-  ['on_leave', tr('automations.on_long_leave', 'On long leave')],
-  ['in_review', tr('automations.already_in_a_cycle', 'Already in a cycle')],
-  ['probation', tr('automations.on_probation', 'On probation')],
-] as const;
+const SKIP = () =>
+  [
+    ['on_leave', tr('automations.on_long_leave', 'On long leave')],
+    ['in_review', tr('automations.already_in_a_cycle', 'Already in a cycle')],
+    ['probation', tr('automations.on_probation', 'On probation')],
+  ] as const;
 
 export function Automations(props: ScreenProps<AutomationsData>): JSX.Element {
   const act = useAct(props);
@@ -311,7 +312,12 @@ const sentence = (a: AutomationBody): string => {
           'unit',
         ),
         skip: formatList(
-          a.skip.map((s) => SKIP.find(([v]) => v === s)?.[1].toLowerCase() ?? s),
+          a.skip.map(
+            (s) =>
+              SKIP()
+                .find(([v]) => v === s)?.[1]
+                .toLowerCase() ?? s,
+          ),
           'unit',
         ),
       });
@@ -585,7 +591,7 @@ function AutomationDialog({
               {tr('automations.leave_out_people_who_are', 'Leave out people who are')}
             </FieldLabel>
             <ChipRow aria-label={tr('automations.leave_out', 'Leave out')}>
-              {SKIP.map(([v, l]) => (
+              {SKIP().map(([v, l]) => (
                 <Chip
                   key={v}
                   selected={a.skip.includes(v)}

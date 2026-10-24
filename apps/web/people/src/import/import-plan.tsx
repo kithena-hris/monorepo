@@ -229,17 +229,40 @@ const whoOf = (r: { readonly row: number; readonly name?: string | null }): stri
   r.name ?? t('import.import-plan.row', 'Row {{row}}', { row: String(r.row) });
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
-  { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
-  { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
+  {
+    id: 'name',
+    get header(): string {
+      return t('import.import-plan.name', 'Name');
+    },
+    cell: whoOf,
+  },
+  {
+    id: 'row',
+    get header(): string {
+      return t('import.import-plan.row_2', 'Row');
+    },
+    numeric: true,
+    cell: (r) => r.row,
+  },
   {
     id: 'cell',
-    header: t('import.import-plan.cell', 'Cell'),
+    get header(): string {
+      return t('import.import-plan.cell', 'Cell');
+    },
     cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
   },
-  { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+  {
+    id: 'label',
+    get header(): string {
+      return t('import.import-plan.field', 'Field');
+    },
+    cell: (r) => r.label,
+  },
   {
     id: 'reason',
-    header: t('import.import-plan.why_its_left_empty', 'Why it’s left empty'),
+    get header(): string {
+      return t('import.import-plan.why_its_left_empty', 'Why it’s left empty');
+    },
     cell: (r) => r.reason,
   },
 ];

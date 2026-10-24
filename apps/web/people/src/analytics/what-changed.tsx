@@ -535,12 +535,13 @@ function Summary({
   );
 }
 
-const PERIODS = [
-  ['week', t('analytics.what-changed.this_week', 'This week')],
-  ['month', t('analytics.what-changed.this_month', 'This month')],
-  ['quarter', t('analytics.what-changed.this_quarter', 'This quarter')],
-  ['custom', t('analytics.what-changed.custom', 'Custom')],
-] as const;
+const PERIODS = () =>
+  [
+    ['week', t('analytics.what-changed.this_week', 'This week')],
+    ['month', t('analytics.what-changed.this_month', 'This month')],
+    ['quarter', t('analytics.what-changed.this_quarter', 'This quarter')],
+    ['custom', t('analytics.what-changed.custom', 'Custom')],
+  ] as const;
 
 /** This week, month or quarter, or two dates; and what it is compared with. */
 function PeriodControl({
@@ -572,7 +573,7 @@ function PeriodControl({
             );
           }}
         >
-          {PERIODS.map(([value, label]) => (
+          {PERIODS().map(([value, label]) => (
             <SegmentedControlItem key={value} value={value}>
               {label}
             </SegmentedControlItem>

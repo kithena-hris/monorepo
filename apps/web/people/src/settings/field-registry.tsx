@@ -652,36 +652,64 @@ const COLUMN = {
 } as const;
 
 const PENDING = {
-  added: { tone: 'success', text: t('settings.field-registry.added', '+ Added') },
-  changed: { tone: 'warning', text: t('settings.field-registry.changed', '~ Changed') },
-  archived: { tone: 'neutral', text: t('settings.field-registry.archived', '− Archived') },
+  added: {
+    tone: 'success',
+    get text(): string {
+      return t('settings.field-registry.added', '+ Added');
+    },
+  },
+  changed: {
+    tone: 'warning',
+    get text(): string {
+      return t('settings.field-registry.changed', '~ Changed');
+    },
+  },
+  archived: {
+    tone: 'neutral',
+    get text(): string {
+      return t('settings.field-registry.archived', '− Archived');
+    },
+  },
 } as const;
 
 type Filter = 'all' | 'required' | 'protected' | 'employee' | 'draft';
 
 /** The list's filters: each a question an HR admin asks of it. */
 const FILTERS: Record<Filter, { label: string; keep: (f: RegistryField) => boolean }> = {
-  all: { label: t('settings.field-registry.all_fields', 'All fields'), keep: () => true },
+  all: {
+    get label(): string {
+      return t('settings.field-registry.all_fields', 'All fields');
+    },
+    keep: () => true,
+  },
   required: {
-    label: t('settings.field-registry.required', 'Required'),
+    get label(): string {
+      return t('settings.field-registry.required', 'Required');
+    },
     keep: (f) => f.requiredness !== 'never',
   },
   protected: {
-    label: t(
-      'settings.field-registry.needs_approval_or_confidential',
-      'Needs approval or confidential',
-    ),
+    get label(): string {
+      return t(
+        'settings.field-registry.needs_approval_or_confidential',
+        'Needs approval or confidential',
+      );
+    },
     keep: (f) =>
       f.requiresApproval === true ||
       f.classification === 'confidential' ||
       f.classification === 'special-category',
   },
   employee: {
-    label: t('settings.field-registry.asked_of_employees', 'Asked of employees'),
+    get label(): string {
+      return t('settings.field-registry.asked_of_employees', 'Asked of employees');
+    },
     keep: (f) => f.collectAt !== 'hr_only',
   },
   draft: {
-    label: t('settings.field-registry.not_yet_published', 'Not yet published'),
+    get label(): string {
+      return t('settings.field-registry.not_yet_published', 'Not yet published');
+    },
     keep: (f) => f.pending !== null,
   },
 };
@@ -794,9 +822,13 @@ function typeOf(field: RegistryField): string {
 const SHORT_SCOPE: Record<ViewerScope, string> = {
   self: 'employee',
   manager: 'manager',
-  manager_chain: t('settings.field-registry.line_managers', 'line managers'),
+  get manager_chain(): string {
+    return t('settings.field-registry.line_managers', 'line managers');
+  },
   hr: 'HR',
-  finance: t('settings.field-registry.finance', 'Finance'),
+  get finance(): string {
+    return t('settings.field-registry.finance', 'Finance');
+  },
   admin: 'administrators',
   directory: 'everyone',
 };
@@ -804,9 +836,15 @@ const SHORT_WRITER: Record<WriterRole, string> = {
   employee: 'employee',
   manager: 'manager',
   hr: 'HR',
-  finance: t('settings.field-registry.finance', 'Finance'),
-  system: t('settings.field-registry.a_connected_system', 'a connected system'),
-  external: t('settings.field-registry.an_external_hr_system', 'an external HR system'),
+  get finance(): string {
+    return t('settings.field-registry.finance', 'Finance');
+  },
+  get system(): string {
+    return t('settings.field-registry.a_connected_system', 'a connected system');
+  },
+  get external(): string {
+    return t('settings.field-registry.an_external_hr_system', 'an external HR system');
+  },
 };
 const opening = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -839,7 +877,7 @@ function seenBy(field: RegistryField): { who: string; changes: string; icon: JSX
 }
 
 /** What each label on a field means (F10): a key, one press away. */
-const LEGEND: readonly { readonly badge: JSX.Element; readonly means: string }[] = [
+const LEGEND = (): readonly { readonly badge: JSX.Element; readonly means: string }[] => [
   {
     badge: (
       <Badge tone="sensitive" size="sm">
@@ -923,7 +961,7 @@ function Legend(): JSX.Element {
             {t('settings.field-registry.is_who_can_see_it', 'is who can see it.')}
           </p>
           <dl className="flex flex-col gap-3">
-            {LEGEND.map((l) => (
+            {LEGEND().map((l) => (
               <div key={l.means} className="flex flex-col items-start gap-1.5">
                 <dt>{l.badge}</dt>
                 <dd className="text-sm text-fg-muted">{l.means}</dd>

@@ -117,11 +117,21 @@ type Body = (p: {
 type Act = ReturnType<typeof useAct>;
 
 const COUNTRY: Readonly<Record<string, string>> = {
-  DE: tr('settings.germany', 'Germany'),
-  ES: tr('settings.spain', 'Spain'),
-  GB: tr('settings.united_kingdom', 'United Kingdom'),
-  IN: tr('settings.india', 'India'),
-  US: tr('settings.united_states', 'United States'),
+  get DE(): string {
+    return tr('settings.germany', 'Germany');
+  },
+  get ES(): string {
+    return tr('settings.spain', 'Spain');
+  },
+  get GB(): string {
+    return tr('settings.united_kingdom', 'United Kingdom');
+  },
+  get IN(): string {
+    return tr('settings.india', 'India');
+  },
+  get US(): string {
+    return tr('settings.united_states', 'United States');
+  },
 };
 
 /** A page's title, what it is for, and its one main action. */
@@ -783,17 +793,17 @@ const CareersPage: Body = ({ data, props }) => {
   );
 };
 
-const REVEAL: readonly (readonly [GeneralSettings['revealInternalAt'], string])[] = [
+const REVEAL = (): readonly (readonly [GeneralSettings['revealInternalAt'], string])[] => [
   ['screening', tr('settings.once_they_pass_screening', 'Once they pass screening')],
   ['interview', tr('settings.once_they_reach_interviews', 'Once they reach interviews')],
   ['assessment', tr('settings.once_they_reach_the_assessment', 'Once they reach the assessment')],
   ['offer', tr('settings.only_at_the_offer', 'Only at the offer')],
 ];
 
-const AFTER: readonly (readonly [
+const AFTER = (): readonly (readonly [
   NonNullable<GeneralSettings['referralBonus']>['after'],
   string,
-])[] = [
+])[] => [
   ['probation', tr('settings.after_probation', 'After probation')],
   ['three_months', tr('settings.after_three_months', 'After three months')],
   ['six_months', tr('settings.after_six_months', 'After six months')],
@@ -865,7 +875,7 @@ const HiringRules: Body = ({ data, props }) => {
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                {REVEAL.map(([value, label]) => (
+                {REVEAL().map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -952,7 +962,7 @@ const HiringRules: Body = ({ data, props }) => {
                       </SelectTrigger>
                     </FieldControl>
                     <SelectContent>
-                      {AFTER.map(([value, label]) => (
+                      {AFTER().map(([value, label]) => (
                         <SelectItem key={value} value={value}>
                           {label}
                         </SelectItem>
@@ -2146,20 +2156,25 @@ function ScorecardEditor({
   );
 }
 
-const SCALE = [
+const SCALE = () =>
   [
-    '1',
-    tr('settings.strong_no', 'Strong no'),
-    tr('settings.clear_evidence_against', 'Clear evidence against.'),
-  ],
-  ['2', tr('settings.no', 'No'), tr('settings.more_against_than_for', 'More against than for.')],
-  ['3', tr('settings.yes', 'Yes'), tr('settings.more_for_than_against', 'More for than against.')],
-  [
-    '4',
-    tr('settings.strong_yes', 'Strong yes'),
-    tr('settings.clear_repeated_evidence_for', 'Clear, repeated evidence for.'),
-  ],
-] as const;
+    [
+      '1',
+      tr('settings.strong_no', 'Strong no'),
+      tr('settings.clear_evidence_against', 'Clear evidence against.'),
+    ],
+    ['2', tr('settings.no', 'No'), tr('settings.more_against_than_for', 'More against than for.')],
+    [
+      '3',
+      tr('settings.yes', 'Yes'),
+      tr('settings.more_for_than_against', 'More for than against.'),
+    ],
+    [
+      '4',
+      tr('settings.strong_yes', 'Strong yes'),
+      tr('settings.clear_repeated_evidence_for', 'Clear, repeated evidence for.'),
+    ],
+  ] as const;
 
 const Scorecards: Body = ({ data, props }) => {
   const act = useAct(props);
@@ -2237,7 +2252,7 @@ const Scorecards: Body = ({ data, props }) => {
         </Group>
         <Group title={tr('settings.the_scale', 'The scale')}>
           <List>
-            {SCALE.map(([n, label, line]) => (
+            {SCALE().map(([n, label, line]) => (
               <ListItem
                 key={n}
                 leading={

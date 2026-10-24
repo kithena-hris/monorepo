@@ -108,10 +108,30 @@ export interface ParentalPlanProps {
 }
 
 const STEPS = [
-  { id: 'about', label: t('parental.plan.about_the_baby', 'About the baby') },
-  { id: 'plan', label: t('parental.plan.your_plan', 'Your plan') },
-  { id: 'handover', label: t('parental.plan.handover', 'Handover') },
-  { id: 'send', label: t('parental.plan.send_to_hr', 'Send to HR') },
+  {
+    id: 'about',
+    get label(): string {
+      return t('parental.plan.about_the_baby', 'About the baby');
+    },
+  },
+  {
+    id: 'plan',
+    get label(): string {
+      return t('parental.plan.your_plan', 'Your plan');
+    },
+  },
+  {
+    id: 'handover',
+    get label(): string {
+      return t('parental.plan.handover', 'Handover');
+    },
+  },
+  {
+    id: 'send',
+    get label(): string {
+      return t('parental.plan.send_to_hr', 'Send to HR');
+    },
+  },
 ] as const;
 type Step = (typeof STEPS)[number]['id'];
 
@@ -295,9 +315,24 @@ function Refused({
 /* ------------------------------------------------------------- T8 -- */
 
 const ROLES: readonly { value: ParentRole; label: string }[] = [
-  { value: 'birth_parent', label: t('parental.plan.the_birth_parent', 'The birth parent') },
-  { value: 'other_parent', label: t('parental.plan.the_other_parent', 'The other parent') },
-  { value: 'adopting', label: t('parental.plan.adopting_or_fostering', 'Adopting or fostering') },
+  {
+    value: 'birth_parent',
+    get label(): string {
+      return t('parental.plan.the_birth_parent', 'The birth parent');
+    },
+  },
+  {
+    value: 'other_parent',
+    get label(): string {
+      return t('parental.plan.the_other_parent', 'The other parent');
+    },
+  },
+  {
+    value: 'adopting',
+    get label(): string {
+      return t('parental.plan.adopting_or_fostering', 'Adopting or fostering');
+    },
+  },
 ];
 
 function Choice({

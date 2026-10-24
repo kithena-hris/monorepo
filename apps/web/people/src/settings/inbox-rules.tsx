@@ -39,20 +39,52 @@ export interface InboxRules {
 const REMIND: readonly { readonly value: InboxRules['remind']; readonly label: string }[] = [
   {
     value: 'day_before_then_every_2_days',
-    label: t('settings.inbox-rules.day_before_then_every_2_days', 'Day before, then every 2 days'),
+    get label(): string {
+      return t(
+        'settings.inbox-rules.day_before_then_every_2_days',
+        'Day before, then every 2 days',
+      );
+    },
   },
   {
     value: 'day_before',
-    label: t('settings.inbox-rules.the_day_before_only', 'The day before only'),
+    get label(): string {
+      return t('settings.inbox-rules.the_day_before_only', 'The day before only');
+    },
   },
-  { value: 'off', label: t('settings.inbox-rules.dont_remind', 'Don’t remind') },
+  {
+    value: 'off',
+    get label(): string {
+      return t('settings.inbox-rules.dont_remind', 'Don’t remind');
+    },
+  },
 ];
 
 const OVERDUE = [
-  { value: '3', label: t('settings.inbox-rules.3_days', '3 days') },
-  { value: '7', label: t('settings.inbox-rules.7_days', '7 days') },
-  { value: '14', label: t('settings.inbox-rules.14_days', '14 days') },
-  { value: '0', label: t('settings.inbox-rules.never', 'Never') },
+  {
+    value: '3',
+    get label(): string {
+      return t('settings.inbox-rules.3_days', '3 days');
+    },
+  },
+  {
+    value: '7',
+    get label(): string {
+      return t('settings.inbox-rules.7_days', '7 days');
+    },
+  },
+  {
+    value: '14',
+    get label(): string {
+      return t('settings.inbox-rules.14_days', '14 days');
+    },
+  },
+  {
+    value: '0',
+    get label(): string {
+      return t('settings.inbox-rules.never', 'Never');
+    },
+  },
 ] as const;
 
 export function InboxRulesTab({

@@ -196,9 +196,24 @@ export interface ImportFlowProps {
 }
 
 const STEPS = [
-  { id: 'map', label: t('import.import-flow.upload_and_map', 'Upload and map') },
-  { id: 'decide', label: t('import.import-flow.decide_whats_new', 'Decide what’s new') },
-  { id: 'plan', label: t('import.import-flow.approve_and_run', 'Approve and run') },
+  {
+    id: 'map',
+    get label(): string {
+      return t('import.import-flow.upload_and_map', 'Upload and map');
+    },
+  },
+  {
+    id: 'decide',
+    get label(): string {
+      return t('import.import-flow.decide_whats_new', 'Decide what’s new');
+    },
+  },
+  {
+    id: 'plan',
+    get label(): string {
+      return t('import.import-flow.approve_and_run', 'Approve and run');
+    },
+  },
 ] as const;
 
 const IGNORE = '__ignore';

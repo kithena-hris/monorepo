@@ -52,8 +52,8 @@ import {
 import { searchPeople } from '../app/(app)/people/actions';
 import { saveLanguage } from '../app/(app)/settings/language/actions';
 import { saveShortcuts } from '../app/(app)/settings/shortcuts/actions';
-import { useLanguage } from '../lib/i18n';
-import { LANGUAGES, type Language } from '../lib/languages';
+import { switchLanguage, useLanguage } from '../lib/i18n';
+import { languageCookie, LANGUAGES } from '../lib/languages';
 import { EMPTY_SHELL, type ShellData, type ShellSlot } from '../lib/shell-data';
 import { useInAppLinks, useWarmPages } from '../lib/links';
 import { AREAS as REMOTES, firstUnder, matchPath } from '../lib/remotes';
@@ -1378,23 +1378,29 @@ function ThemeChoice({
  */
 function LanguageChoice(): JSX.Element {
   const language = useLanguage();
-  const [saving, setSaving] = useState<Language | null>(null);
+  const router = useRouter();
   return (
     <>
       <DropdownMenuLabel>{tr('components.app-shell.language', 'Language')}</DropdownMenuLabel>
       <DropdownMenuRadioGroup
-        value={saving ?? language}
+        value={language}
         onValueChange={(next) => {
           const chosen = LANGUAGES.find((l) => l.code === next)?.code;
           if (chosen === undefined || chosen === language) return;
-          setSaving(chosen);
+          // On this device at once: the cookie, then every screen in the new words.
+          document.cookie = languageCookie(chosen);
+          void switchLanguage(chosen).then(() => {
+            // What the server drew follows, without leaving the page.
+            router.refresh();
+          });
           void saveLanguage(chosen).then((result) => {
-            // Viewing as somebody changes nothing of theirs; anything else is kept on this device at least.
-            if (!result.ok && result.message.startsWith('You are viewing')) {
-              setSaving(null);
-              return;
+            // Viewing as somebody changes nothing of theirs: back to the language they had.
+            if (!result.ok && result.code === 'view_only') {
+              document.cookie = languageCookie(language);
+              void switchLanguage(language).then(() => {
+                router.refresh();
+              });
             }
-            window.location.reload();
           });
         }}
       >
@@ -1403,7 +1409,6 @@ function LanguageChoice(): JSX.Element {
             key={l.code}
             value={l.code}
             lang={l.code}
-            disabled={saving !== null}
             onSelect={(event) => {
               event.preventDefault();
             }}

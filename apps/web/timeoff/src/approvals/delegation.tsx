@@ -64,10 +64,11 @@ export interface DelegationProps {
   readonly onRemove?: (approverId: string) => Promise<Outcome>;
 }
 
-const DESCRIPTION = t(
-  'approvals.delegation.who_decides_for_you_while_you_are',
-  'Who decides for you while you are away.',
-);
+const DESCRIPTION = (): string =>
+  t(
+    'approvals.delegation.who_decides_for_you_while_you_are',
+    'Who decides for you while you are away.',
+  );
 
 export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Element {
   if (load.status === 'loading') return <DelegationSkeleton />;
@@ -75,7 +76,7 @@ export function Delegation({ load, onSave, onRemove }: DelegationProps): JSX.Ele
     <div className="@container/delegation flex flex-col gap-6">
       <PageHeader
         title={t('approvals.delegation.requests', 'Requests')}
-        description={DESCRIPTION}
+        description={DESCRIPTION()}
       />
       <Loaded load={load} what={t('approvals.delegation.your_delegation', 'your delegation')}>
         {(data) => (
@@ -322,7 +323,7 @@ export function DelegationSkeleton(): JSX.Element {
     <div className="@container/delegation flex flex-col gap-6">
       <PageHeader
         title={t('approvals.delegation.requests', 'Requests')}
-        description={DESCRIPTION}
+        description={DESCRIPTION()}
       />
       <div role="status" className={body}>
         <span className="sr-only">

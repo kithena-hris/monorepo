@@ -202,14 +202,23 @@ export const ORGANISATION_TABS = [
 export type PhotoAtSignup = 'off' | 'optional' | 'required';
 
 const PHOTO_AT_SIGNUP: readonly { readonly value: PhotoAtSignup; readonly label: string }[] = [
-  { value: 'off', label: tr('settings.organisation.dont_ask', 'Don’t ask') },
+  {
+    value: 'off',
+    get label(): string {
+      return tr('settings.organisation.dont_ask', 'Don’t ask');
+    },
+  },
   {
     value: 'optional',
-    label: tr('settings.organisation.ask_and_let_them_skip_it', 'Ask, and let them skip it'),
+    get label(): string {
+      return tr('settings.organisation.ask_and_let_them_skip_it', 'Ask, and let them skip it');
+    },
   },
   {
     value: 'required',
-    label: tr('settings.organisation.ask_before_anything_else', 'Ask before anything else'),
+    get label(): string {
+      return tr('settings.organisation.ask_before_anything_else', 'Ask before anything else');
+    },
   },
 ];
 
@@ -2107,12 +2116,15 @@ function RemindersAndPrivacy({
 }
 
 const FLOOR_NAMES: Readonly<Record<string, string>> = {
-  'es-labour': tr('settings.organisation.spain_labour_records', 'Spain, labour records'),
-  'de-labour': tr('settings.organisation.germany_labour_records', 'Germany, labour records'),
-  'eu-payroll': tr(
-    'settings.organisation.eu_payroll_and_tax_records',
-    'EU, payroll and tax records',
-  ),
+  get 'es-labour'(): string {
+    return tr('settings.organisation.spain_labour_records', 'Spain, labour records');
+  },
+  get 'de-labour'(): string {
+    return tr('settings.organisation.germany_labour_records', 'Germany, labour records');
+  },
+  get 'eu-payroll'(): string {
+    return tr('settings.organisation.eu_payroll_and_tax_records', 'EU, payroll and tax records');
+  },
 };
 
 /**

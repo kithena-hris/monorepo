@@ -68,21 +68,21 @@ import { t as tr } from '../i18n';
  * followed step by step by its sender.
  */
 
-const STATUS = {
+const STATUS = () => ({
   waiting: [tr('envelopes.envelopes.waiting', 'Waiting'), 'neutral'],
   sent: [tr('envelopes.envelopes.sent', 'Sent'), 'info'],
   opened: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
   verified: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
   signed: [tr('envelopes.envelopes.signed', 'Signed'), 'success'],
   declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
-} as const;
+} as const);
 
-const ENVELOPE = {
+const ENVELOPE = () => ({
   sent: [tr('envelopes.envelopes.waiting_for_a_signature', 'Waiting for a signature'), 'warning'],
   completed: [tr('envelopes.envelopes.signed_and_sealed', 'Signed and sealed'), 'success'],
   declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
   voided: [tr('envelopes.envelopes.cancelled', 'Cancelled'), 'neutral'],
-} as const;
+} as const);
 
 /* ------------------------------------------------------------- K10 list -- */
 
@@ -148,10 +148,10 @@ export function Envelopes({
                         ]),
                   ].join(' · ')}
                   meta={
-                    <Badge tone={r.needsYou ? 'accent' : ENVELOPE[r.status][1]} size="sm" dot>
+                    <Badge tone={r.needsYou ? 'accent' : ENVELOPE()[r.status][1]} size="sm" dot>
                       {r.needsYou
                         ? tr('envelopes.envelopes.your_signature', 'Your signature')
-                        : ENVELOPE[r.status][0]}
+                        : ENVELOPE()[r.status][0]}
                     </Badge>
                   }
                   chevron
@@ -792,8 +792,8 @@ function EnvelopePage({
         }
       />
       <div className="flex flex-wrap gap-2">
-        <Badge tone={ENVELOPE[env.status][1]} size="sm" dot>
-          {ENVELOPE[env.status][0]}
+        <Badge tone={ENVELOPE()[env.status][1]} size="sm" dot>
+          {ENVELOPE()[env.status][0]}
         </Badge>
       </div>
       {env.message === '' ? null : (
@@ -863,8 +863,8 @@ function EnvelopePage({
                       .filter(Boolean)
                       .join(' · ')}
                     meta={
-                      <Badge tone={STATUS[s.status][1]} size="sm" dot>
-                        {STATUS[s.status][0]}
+                      <Badge tone={STATUS()[s.status][1]} size="sm" dot>
+                        {STATUS()[s.status][0]}
                       </Badge>
                     }
                     trailing={

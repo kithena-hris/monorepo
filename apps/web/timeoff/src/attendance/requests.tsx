@@ -69,10 +69,30 @@ const STATUS: Record<
   'waiting' | Outcome3,
   { label: string; tone: 'warning' | 'success' | 'neutral' }
 > = {
-  waiting: { label: t('attendance.requests.waiting', 'Waiting'), tone: 'warning' },
-  comp: { label: t('attendance.requests.comp_time', 'Comp time'), tone: 'success' },
-  paid: { label: t('attendance.requests.paid', 'Paid'), tone: 'success' },
-  declined: { label: t('attendance.requests.declined', 'Declined'), tone: 'neutral' },
+  waiting: {
+    get label(): string {
+      return t('attendance.requests.waiting', 'Waiting');
+    },
+    tone: 'warning',
+  },
+  comp: {
+    get label(): string {
+      return t('attendance.requests.comp_time', 'Comp time');
+    },
+    tone: 'success',
+  },
+  paid: {
+    get label(): string {
+      return t('attendance.requests.paid', 'Paid');
+    },
+    tone: 'success',
+  },
+  declined: {
+    get label(): string {
+      return t('attendance.requests.declined', 'Declined');
+    },
+    tone: 'neutral',
+  },
 };
 
 export function AttendanceRequests(props: AttendanceRequestsProps): JSX.Element {

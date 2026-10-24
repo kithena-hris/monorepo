@@ -132,7 +132,7 @@ function fitToScreen(): void {
   });
 }
 
-const MONTHS = [
+const MONTHS = () => [
   t('envelopes.sign-view.jan', 'Jan'),
   t('envelopes.sign-view.feb', 'Feb'),
   t('envelopes.sign-view.mar', 'Mar'),
@@ -159,7 +159,7 @@ export function traceCaption(traceId: string, at: Date): string {
     '{{getUTCDate}} {{value}} {{getUTCFullYear}}, {{pad}}:{{pad2}} UTC',
     {
       getUTCDate: String(at.getUTCDate()),
-      value: MONTHS.at(at.getUTCMonth()) ?? '',
+      value: MONTHS().at(at.getUTCMonth()) ?? '',
       getUTCFullYear: String(at.getUTCFullYear()),
       pad: pad(at.getUTCHours()),
       pad2: pad(at.getUTCMinutes()),
@@ -284,13 +284,25 @@ export function useSigning(
 
 /** What pressing the focused box does, said on the bar's main button. */
 const ACT: Readonly<Record<FieldKind, string>> = {
-  signature: t('envelopes.sign-view.sign', 'Sign'),
-  initials: t('envelopes.sign-view.initial', 'Initial'),
-  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
+  get signature(): string {
+    return t('envelopes.sign-view.sign', 'Sign');
+  },
+  get initials(): string {
+    return t('envelopes.sign-view.initial', 'Initial');
+  },
+  get date(): string {
+    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+  },
   name: 'Add your name',
-  title: t('envelopes.sign-view.type_it', 'Type it'),
-  text: t('envelopes.sign-view.type_it', 'Type it'),
-  checkbox: t('envelopes.sign-view.tick', 'Tick'),
+  get title(): string {
+    return t('envelopes.sign-view.type_it', 'Type it');
+  },
+  get text(): string {
+    return t('envelopes.sign-view.type_it', 'Type it');
+  },
+  get checkbox(): string {
+    return t('envelopes.sign-view.tick', 'Tick');
+  },
 };
 
 export function DocumentToSign({
@@ -631,12 +643,22 @@ function StepBar({
 }
 
 const HINT: Readonly<Record<FieldKind, string>> = {
-  signature: t('envelopes.sign-view.sign', 'Sign'),
-  initials: t('envelopes.sign-view.initial', 'Initial'),
-  date: t('envelopes.sign-view.sign_and_date', 'Sign and date'),
+  get signature(): string {
+    return t('envelopes.sign-view.sign', 'Sign');
+  },
+  get initials(): string {
+    return t('envelopes.sign-view.initial', 'Initial');
+  },
+  get date(): string {
+    return t('envelopes.sign-view.sign_and_date', 'Sign and date');
+  },
   name: 'Name',
-  title: t('envelopes.sign-view.title', 'Title'),
-  text: t('envelopes.sign-view.text_3', 'Text'),
+  get title(): string {
+    return t('envelopes.sign-view.title', 'Title');
+  },
+  get text(): string {
+    return t('envelopes.sign-view.text_3', 'Text');
+  },
   checkbox: '',
 };
 

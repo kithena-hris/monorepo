@@ -25,7 +25,7 @@ export const Approvals = split(() => import('./approvals/approvals'), 'Approvals
 export const Delegation = split(() => import('./approvals/delegation'), 'Delegation');
 export const Adjustments = split(() => import('./approvals/adjustments'), 'Adjustments');
 export const TeamCalendar = split(() => import('./calendar/calendar'), 'TeamCalendar');
-export const Attendance = framed(placeholder(t('index.browser.attendance', 'Attendance')));
+export const Attendance = framed(placeholder(() => t('index.browser.attendance', 'Attendance')));
 export const Timesheet = split(() => import('./attendance/timesheet'), 'Timesheet');
 export const KioskCode = split(() => import('./kiosk/code'), 'KioskCode');
 export const TeamNow = split(() => import('./attendance/team-now'), 'TeamNow');

@@ -134,38 +134,39 @@ const onlyGerman = (entities: readonly { readonly country: string }[]): boolean 
 const germanJob = (d: JobData): boolean =>
   d.entities.find((e) => e.id === d.terms.entityId)?.country === 'DE';
 
-const SENIORITY = [
+const SENIORITY = () =>
   [
-    'entry',
-    tr('job-wizard.entry', 'Entry'),
-    tr('job-wizard.new_to_the_work', 'New to the work'),
-    <icons.goal key="i" aria-hidden />,
-  ],
-  [
-    'mid',
-    tr('job-wizard.mid', 'Mid'),
-    tr('job-wizard.works_on_their_own', 'Works on their own'),
-    <icons.person key="i" aria-hidden />,
-  ],
-  [
-    'senior',
-    tr('job-wizard.senior', 'Senior'),
-    tr('job-wizard.leads_the_work', 'Leads the work'),
-    <icons.starred key="i" aria-hidden />,
-  ],
-  [
-    'lead',
-    tr('job-wizard.lead', 'Lead'),
-    tr('job-wizard.leads_people_or_a_field', 'Leads people or a field'),
-    <icons.team key="i" aria-hidden />,
-  ],
-  [
-    'executive',
-    tr('job-wizard.executive', 'Executive'),
-    tr('job-wizard.leads_a_function', 'Leads a function'),
-    <icons.organisation key="i" aria-hidden />,
-  ],
-] as const;
+    [
+      'entry',
+      tr('job-wizard.entry', 'Entry'),
+      tr('job-wizard.new_to_the_work', 'New to the work'),
+      <icons.goal key="i" aria-hidden />,
+    ],
+    [
+      'mid',
+      tr('job-wizard.mid', 'Mid'),
+      tr('job-wizard.works_on_their_own', 'Works on their own'),
+      <icons.person key="i" aria-hidden />,
+    ],
+    [
+      'senior',
+      tr('job-wizard.senior', 'Senior'),
+      tr('job-wizard.leads_the_work', 'Leads the work'),
+      <icons.starred key="i" aria-hidden />,
+    ],
+    [
+      'lead',
+      tr('job-wizard.lead', 'Lead'),
+      tr('job-wizard.leads_people_or_a_field', 'Leads people or a field'),
+      <icons.team key="i" aria-hidden />,
+    ],
+    [
+      'executive',
+      tr('job-wizard.executive', 'Executive'),
+      tr('job-wizard.leads_a_function', 'Leads a function'),
+      <icons.organisation key="i" aria-hidden />,
+    ],
+  ] as const;
 
 /** Every detail of the job as it stands, with a change: the details save is whole, never partial. */
 export const detailsOf = (job: JobRecord, change: Partial<JobRecord>): Record<string, unknown> => {
@@ -298,7 +299,7 @@ function RoleStep({ data, props }: TermsProps): JSX.Element {
             );
           }}
         >
-          {SENIORITY.map(([key, label, description, icon]) => (
+          {SENIORITY().map(([key, label, description, icon]) => (
             <RadioCard key={key} value={key} description={description} icon={icon}>
               {label}
             </RadioCard>
@@ -480,18 +481,20 @@ interface Draft {
   readonly html: string;
 }
 
-const LENGTHS = [
-  ['150', tr('job-wizard.short', 'Short')],
-  ['300', tr('job-wizard.medium', 'Medium')],
-  ['500', tr('job-wizard.long', 'Long')],
-] as const;
+const LENGTHS = () =>
+  [
+    ['150', tr('job-wizard.short', 'Short')],
+    ['300', tr('job-wizard.medium', 'Medium')],
+    ['500', tr('job-wizard.long', 'Long')],
+  ] as const;
 
-const TONES = [
-  ['professional', tr('job-wizard.professional', 'Professional')],
-  ['warm', tr('job-wizard.warm', 'Warm')],
-  ['direct', tr('job-wizard.direct', 'Direct')],
-  ['energetic', tr('job-wizard.energetic', 'Energetic')],
-] as const;
+const TONES = () =>
+  [
+    ['professional', tr('job-wizard.professional', 'Professional')],
+    ['warm', tr('job-wizard.warm', 'Warm')],
+    ['direct', tr('job-wizard.direct', 'Direct')],
+    ['energetic', tr('job-wizard.energetic', 'Energetic')],
+  ] as const;
 
 /** Words in a document, for the length a change starts from. */
 const wordsIn = (doc: unknown): number => {
@@ -749,7 +752,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
         <Field>
           <FieldLabel>{tr('job-wizard.length', 'Length')}</FieldLabel>
           <ChipRow aria-label={tr('job-wizard.length', 'Length')}>
-            {LENGTHS.map(([value, label]) => (
+            {LENGTHS().map(([value, label]) => (
               <Chip
                 key={value}
                 selected={words === value}
@@ -765,7 +768,7 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
         <Field>
           <FieldLabel>{tr('job-wizard.tone', 'Tone')}</FieldLabel>
           <ChipRow aria-label={tr('job-wizard.tone', 'Tone')}>
-            {TONES.map(([value, label]) => (
+            {TONES().map(([value, label]) => (
               <Chip
                 key={value}
                 selected={tone === value}
@@ -878,7 +881,9 @@ function NeutralTitle({ data, props }: TermsProps): JSX.Element | null {
 
 const ROLE: Page = {
   key: 'role',
-  title: tr('job-wizard.what_is_the_job', 'What is the job?'),
+  get title(): string {
+    return tr('job-wizard.what_is_the_job', 'What is the job?');
+  },
   hint: () =>
     tr(
       'job-wizard.its_title_as_candidates_will_read',
@@ -887,7 +892,9 @@ const ROLE: Page = {
   blocks: [
     {
       key: 'title',
-      label: tr('job-wizard.title', 'Title'),
+      get label(): string {
+        return tr('job-wizard.title', 'Title');
+      },
       ready: always,
       done: (d) =>
         d.job.title.trim() !== '' && (!onlyGerman(d.entities) || neutralTitle(d.job.title)),
@@ -895,7 +902,9 @@ const ROLE: Page = {
     },
     {
       key: 'level',
-      label: tr('job-wizard.team_and_level', 'Team and level'),
+      get label(): string {
+        return tr('job-wizard.team_and_level', 'Team and level');
+      },
       // Each part of the first page unfolds once the one before it is filled.
       ready: (d) => d.job.title.trim() !== '',
       done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
@@ -903,7 +912,9 @@ const ROLE: Page = {
     },
     {
       key: 'openings',
-      label: tr('job-wizard.openings_and_start', 'Openings and start'),
+      get label(): string {
+        return tr('job-wizard.openings_and_start', 'Openings and start');
+      },
       hint: () =>
         tr(
           'job-wizard.the_start_date_is_a_target_for',
@@ -920,7 +931,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   ROLE,
   {
     key: 'where',
-    title: tr('job-wizard.where_is_the_work', 'Where is the work?'),
+    get title(): string {
+      return tr('job-wizard.where_is_the_work', 'Where is the work?');
+    },
     hint: () =>
       tr(
         'job-wizard.the_employing_entitys_country_sets_the_law',
@@ -929,7 +942,9 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'entity',
-        label: tr('job-wizard.employer', 'Employer'),
+        get label(): string {
+          return tr('job-wizard.employer', 'Employer');
+        },
         ready: always,
         done: (d) => d.terms.entityId !== null && (!germanJob(d) || neutralTitle(d.job.title)),
         render: (p) => (
@@ -941,14 +956,18 @@ export const WIZARD_PAGES: readonly Page[] = [
       },
       {
         key: 'place',
-        label: tr('job-wizard.workplace', 'Workplace'),
+        get label(): string {
+          return tr('job-wizard.workplace', 'Workplace');
+        },
         ready: (d) => d.terms.entityId !== null,
         done: (d) => d.terms.locationId !== null,
         render: (p) => <PlaceChoice {...p} />,
       },
       {
         key: 'mode',
-        label: tr('job-wizard.how_the_work_is_done', 'How the work is done'),
+        get label(): string {
+          return tr('job-wizard.how_the_work_is_done', 'How the work is done');
+        },
         ready: (d) => d.terms.locationId !== null,
         done: (d) =>
           d.terms.workMode !== null &&
@@ -959,7 +978,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'contract',
-    title: tr('job-wizard.what_kind_of_contract', 'What kind of contract?'),
+    get title(): string {
+      return tr('job-wizard.what_kind_of_contract', 'What kind of contract?');
+    },
     hint: (d) =>
       tr(
         'job-wizard.as_the_law_in_sees_it',
@@ -969,14 +990,18 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'worktype',
-        label: tr('job-wizard.kind_of_work', 'Kind of work'),
+        get label(): string {
+          return tr('job-wizard.kind_of_work', 'Kind of work');
+        },
         ready: (d) => d.options.relationships.length > 0,
         done: (d) => d.terms.relationship !== null,
         render: (p) => <WorkTypeChoice {...p} />,
       },
       {
         key: 'contract',
-        label: tr('job-wizard.contract', 'Contract'),
+        get label(): string {
+          return tr('job-wizard.contract', 'Contract');
+        },
         ready: (d) => d.terms.relationship !== null,
         done: (d) =>
           d.terms.contractType !== null &&
@@ -987,7 +1012,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'time',
-    title: tr('job-wizard.when_do_they_work', 'When do they work?'),
+    get title(): string {
+      return tr('job-wizard.when_do_they_work', 'When do they work?');
+    },
     hint: () =>
       tr(
         'job-wizard.the_days_and_the_working_day',
@@ -996,21 +1023,27 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'days',
-        label: tr('job-wizard.work_days', 'Work days'),
+        get label(): string {
+          return tr('job-wizard.work_days', 'Work days');
+        },
         ready: (d) => d.terms.contractType !== null,
         done: (d) => d.terms.workDays.length > 0,
         render: (p) => <DaysChoice {...p} />,
       },
       {
         key: 'hours',
-        label: tr('job-wizard.the_working_day', 'The working day'),
+        get label(): string {
+          return tr('job-wizard.the_working_day', 'The working day');
+        },
         ready: (d) => d.terms.workDays.length > 0,
         done: (d) => d.terms.dayStart !== null && d.terms.dayEnd !== null,
         render: (p) => <HoursChoice {...p} />,
       },
       {
         key: 'leave',
-        label: tr('job-wizard.paid_holiday', 'Paid holiday'),
+        get label(): string {
+          return tr('job-wizard.paid_holiday', 'Paid holiday');
+        },
         ready: (d) => d.options.leave !== null,
         done: (d) => d.terms.vacationDays !== null,
         render: (p) => <LeaveChoice {...p} />,
@@ -1019,7 +1052,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'pay',
-    title: tr('job-wizard.what_does_it_pay_and_offer', 'What does it pay and offer?'),
+    get title(): string {
+      return tr('job-wizard.what_does_it_pay_and_offer', 'What does it pay and offer?');
+    },
     hint: () =>
       tr(
         'job-wizard.the_pay_arrives_filled_in',
@@ -1028,14 +1063,18 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'salary',
-        label: tr('job-wizard.pay', 'Pay'),
+        get label(): string {
+          return tr('job-wizard.pay', 'Pay');
+        },
         ready: (d) => d.terms.locationId !== null,
         done: (d) => d.job.salary !== null,
         render: (p) => <PayChoice {...p} />,
       },
       {
         key: 'benefits',
-        label: tr('job-wizard.benefits', 'Benefits'),
+        get label(): string {
+          return tr('job-wizard.benefits', 'Benefits');
+        },
         ready: (d) => d.terms.entityId !== null,
         done: () => null,
         render: (p) => <BenefitsChoice {...p} />,
@@ -1044,7 +1083,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'hiring',
-    title: tr('job-wizard.who_hires_and_for_what', 'Who hires, and for what?'),
+    get title(): string {
+      return tr('job-wizard.who_hires_and_for_what', 'Who hires, and for what?');
+    },
     hint: () =>
       tr(
         'job-wizard.the_people_who_decide_and_what_a',
@@ -1053,14 +1094,18 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'team',
-        label: tr('job-wizard.hiring_team', 'Hiring team'),
+        get label(): string {
+          return tr('job-wizard.hiring_team', 'Hiring team');
+        },
         ready: always,
         done: (d) => d.team.some((t) => t.role === 'hiring_manager'),
         render: (p, part) => (p.commit === undefined ? null : part('team', p.commit)),
       },
       {
         key: 'criteria',
-        label: tr('job-wizard.what_they_bring', 'What they bring'),
+        get label(): string {
+          return tr('job-wizard.what_they_bring', 'What they bring');
+        },
         ready: always,
         done: (d) => d.criteria.length > 0,
         render: (p, part) => (p.commit === undefined ? null : part('criteria', p.commit)),
@@ -1069,7 +1114,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'process',
-    title: tr('job-wizard.how_do_candidates_move_through', 'How do candidates move through?'),
+    get title(): string {
+      return tr('job-wizard.how_do_candidates_move_through', 'How do candidates move through?');
+    },
     hint: () =>
       tr(
         'job-wizard.choose_the_pipeline_then_give_each_step',
@@ -1078,7 +1125,9 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'interviews',
-        label: tr('job-wizard.pipeline_and_interviews', 'Pipeline and interviews'),
+        get label(): string {
+          return tr('job-wizard.pipeline_and_interviews', 'Pipeline and interviews');
+        },
         ready: always,
         // Every interview step of the pipeline has its interview.
         done: (d) =>
@@ -1091,7 +1140,9 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'description',
-    title: tr('job-wizard.describe_the_role', 'Describe the role'),
+    get title(): string {
+      return tr('job-wizard.describe_the_role', 'Describe the role');
+    },
     hint: () =>
       tr(
         'job-wizard.written_by_ai_from_everything_so_far',
@@ -1100,7 +1151,9 @@ export const WIZARD_PAGES: readonly Page[] = [
     blocks: [
       {
         key: 'ad',
-        label: tr('job-wizard.role_description', 'Role description'),
+        get label(): string {
+          return tr('job-wizard.role_description', 'Role description');
+        },
         ready: always,
         done: (d) => d.ads.length > 0,
         render: (p) => <DescriptionStep {...p} />,
@@ -2042,7 +2095,7 @@ export function NewJobWizard({
                 value={level ?? ''}
                 onValueChange={setLevel}
               >
-                {SENIORITY.map(([key, label, description, icon]) => (
+                {SENIORITY().map(([key, label, description, icon]) => (
                   <RadioCard key={key} value={key} description={description} icon={icon}>
                     {label}
                   </RadioCard>

@@ -169,9 +169,15 @@ const body =
   'flex flex-col gap-5 @min-[56rem]/requests:grid @min-[56rem]/requests:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] @min-[56rem]/requests:items-start';
 
 const EMPTY: Record<Tab, string> = {
-  upcoming: t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.'),
-  past: t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.'),
-  cancelled: t('requests.requests.nothing_cancelled', 'Nothing cancelled.'),
+  get upcoming(): string {
+    return t('requests.requests.nothing_booked_ahead', 'Nothing booked ahead.');
+  },
+  get past(): string {
+    return t('requests.requests.no_time_off_taken_yet_this', 'No time off taken yet this year.');
+  },
+  get cancelled(): string {
+    return t('requests.requests.nothing_cancelled', 'Nothing cancelled.');
+  },
 };
 
 function Ready({ data, ...actions }: { readonly data: RequestsData } & RequestsProps): JSX.Element {
@@ -247,7 +253,9 @@ const iconFor = (r: RequestItem): string | undefined => CATEGORY_ICON[r.category
 /* ------------------------------------------------------------- detail -- */
 
 const ROLE: Record<string, string> = {
-  manager: t('requests.requests.your_manager', 'your manager'),
+  get manager(): string {
+    return t('requests.requests.your_manager', 'your manager');
+  },
   hr: 'HR',
 };
 const role = (r: string | undefined): string =>

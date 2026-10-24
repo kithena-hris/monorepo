@@ -81,11 +81,12 @@ export interface ApprovalSettingsProps {
   ) => Promise<Outcome>;
 }
 
-const TITLE = tr('settings.approval-settings.approvals', 'Approvals');
-const DESCRIPTION = tr(
-  'settings.approval-settings.who_approves_each_kind_of_request_and',
-  'Who approves each kind of request, and when it’s automatic.',
-);
+const TITLE = (): string => tr('settings.approval-settings.approvals', 'Approvals');
+const DESCRIPTION = (): string =>
+  tr(
+    'settings.approval-settings.who_approves_each_kind_of_request_and',
+    'Who approves each kind of request, and when it’s automatic.',
+  );
 const page = '@container/approvals flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/approvals:grid @min-[60rem]/approvals:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/approvals:items-start';
@@ -94,7 +95,7 @@ export function ApprovalSettings({ load, onSave }: ApprovalSettingsProps): JSX.E
   if (load.status === 'loading') return <ApprovalSettingsSkeleton />;
   return (
     <div className={page}>
-      <PageHeader title={TITLE} description={DESCRIPTION} />
+      <PageHeader title={TITLE()} description={DESCRIPTION()} />
       <Loaded
         load={load}
         what={tr('settings.approval-settings.the_approval_rules', 'the approval rules')}
@@ -115,9 +116,15 @@ const chainOf = (approvers: readonly Approver[]): string =>
   Object.entries(CHAINS).find(([, c]) => c.join() === approvers.join())?.[0] ?? 'manager';
 
 const SUBJECT: Record<ApprovalRule['subject'], string> = {
-  request: tr('settings.approval-settings.request', 'Request'),
-  plan: tr('settings.approval-settings.plan', 'Plan'),
-  timesheet: tr('settings.approval-settings.timesheet', 'Timesheet'),
+  get request(): string {
+    return tr('settings.approval-settings.request', 'Request');
+  },
+  get plan(): string {
+    return tr('settings.approval-settings.plan', 'Plan');
+  },
+  get timesheet(): string {
+    return tr('settings.approval-settings.timesheet', 'Timesheet');
+  },
 };
 
 /** What a rule covers, as a phrase: "Any request below zero", "Parental leave plans". */
@@ -623,8 +630,8 @@ function Ready({
 export function ApprovalSettingsSkeleton(): JSX.Element {
   return (
     <SettingsSkeleton
-      title={TITLE}
-      description={DESCRIPTION}
+      title={TITLE()}
+      description={DESCRIPTION()}
       container="@container/approvals"
       columns={columns}
       main={['h-64', 'h-56']}

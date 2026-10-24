@@ -8,8 +8,10 @@ import { t } from './i18n';
  * the body. The header is the real one, so the screen that replaces this
  * moves nothing above its body. TOF-061 onwards replace these one by one.
  */
-export function placeholder(title: string): ComponentType<object> {
+/** `title` is read each time the screen draws, so it is in the page's language. */
+export function placeholder(titleOf: () => string): ComponentType<object> {
   function Placeholder(): JSX.Element {
+    const title = titleOf();
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title={title} />
@@ -17,6 +19,6 @@ export function placeholder(title: string): ComponentType<object> {
       </div>
     );
   }
-  Placeholder.displayName = t('placeholder.placeholder', 'Placeholder({{title}})', { title });
+  Placeholder.displayName = 'Placeholder';
   return Placeholder;
 }

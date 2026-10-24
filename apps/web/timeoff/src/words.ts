@@ -118,14 +118,54 @@ export type StatusTone = 'success' | 'warning' | 'neutral' | 'info' | 'danger';
 
 /** A request's status as a person reads it (PRD §8.1). */
 const STATUS: Record<string, { readonly label: string; readonly tone: StatusTone }> = {
-  pending: { label: t('words.waiting_for_approval', 'Waiting for approval'), tone: 'warning' },
-  approved: { label: t('words.approved', 'Approved'), tone: 'success' },
-  counter_proposed: { label: t('words.new_dates_suggested', 'New dates suggested'), tone: 'info' },
-  change_pending: { label: t('words.change_waiting', 'Change waiting'), tone: 'warning' },
-  taken: { label: t('words.taken', 'Taken'), tone: 'neutral' },
-  declined: { label: t('words.declined', 'Declined'), tone: 'danger' },
-  cancelled: { label: t('words.cancelled', 'Cancelled'), tone: 'neutral' },
-  withdrawn: { label: t('words.withdrawn', 'Withdrawn'), tone: 'neutral' },
+  pending: {
+    get label(): string {
+      return t('words.waiting_for_approval', 'Waiting for approval');
+    },
+    tone: 'warning',
+  },
+  approved: {
+    get label(): string {
+      return t('words.approved', 'Approved');
+    },
+    tone: 'success',
+  },
+  counter_proposed: {
+    get label(): string {
+      return t('words.new_dates_suggested', 'New dates suggested');
+    },
+    tone: 'info',
+  },
+  change_pending: {
+    get label(): string {
+      return t('words.change_waiting', 'Change waiting');
+    },
+    tone: 'warning',
+  },
+  taken: {
+    get label(): string {
+      return t('words.taken', 'Taken');
+    },
+    tone: 'neutral',
+  },
+  declined: {
+    get label(): string {
+      return t('words.declined', 'Declined');
+    },
+    tone: 'danger',
+  },
+  cancelled: {
+    get label(): string {
+      return t('words.cancelled', 'Cancelled');
+    },
+    tone: 'neutral',
+  },
+  withdrawn: {
+    get label(): string {
+      return t('words.withdrawn', 'Withdrawn');
+    },
+    tone: 'neutral',
+  },
 };
 
 export const statusOf = (status: string): { readonly label: string; readonly tone: StatusTone } =>

@@ -539,15 +539,34 @@ const placeName = (key: string): string =>
 
 const STATUS: Record<string, { label: string; tone: 'success' | 'warning' | 'neutral' | 'info' }> =
   {
-    approved: { label: tr('calendar.calendar.approved', 'Approved'), tone: 'success' },
-    taken: { label: tr('calendar.calendar.taken', 'Taken'), tone: 'neutral' },
-    pending: { label: tr('calendar.calendar.waiting', 'Waiting'), tone: 'warning' },
+    approved: {
+      get label(): string {
+        return tr('calendar.calendar.approved', 'Approved');
+      },
+      tone: 'success',
+    },
+    taken: {
+      get label(): string {
+        return tr('calendar.calendar.taken', 'Taken');
+      },
+      tone: 'neutral',
+    },
+    pending: {
+      get label(): string {
+        return tr('calendar.calendar.waiting', 'Waiting');
+      },
+      tone: 'warning',
+    },
     change_pending: {
-      label: tr('calendar.calendar.change_waiting', 'Change waiting'),
+      get label(): string {
+        return tr('calendar.calendar.change_waiting', 'Change waiting');
+      },
       tone: 'warning',
     },
     counter_proposed: {
-      label: tr('calendar.calendar.new_dates_suggested', 'New dates suggested'),
+      get label(): string {
+        return tr('calendar.calendar.new_dates_suggested', 'New dates suggested');
+      },
       tone: 'info',
     },
   };

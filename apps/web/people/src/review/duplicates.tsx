@@ -78,9 +78,15 @@ export const flaggedByOf = (pair: DuplicatePair | undefined): string | null =>
 export type MatchBand = 'strong' | 'likely' | 'possible';
 
 const BAND: Readonly<Record<MatchBand, string>> = {
-  strong: t('review.duplicates.strong', 'Strong'),
-  likely: t('review.duplicates.likely', 'Likely'),
-  possible: t('review.duplicates.possible', 'Possible'),
+  get strong(): string {
+    return t('review.duplicates.strong', 'Strong');
+  },
+  get likely(): string {
+    return t('review.duplicates.likely', 'Likely');
+  },
+  get possible(): string {
+    return t('review.duplicates.possible', 'Possible');
+  },
 };
 
 export interface ComparedPerson {

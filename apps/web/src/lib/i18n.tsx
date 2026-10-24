@@ -10,7 +10,7 @@ import {
   type TranslateVars,
 } from '@reach/ui';
 import { createInstance, type i18n as I18n } from 'i18next';
-import { createContext, use, useEffect, useState, type JSX, type ReactNode } from 'react';
+import { createContext, Fragment, use, useEffect, useState, type JSX, type ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
 
 import { VERSION } from '../locales';
@@ -35,8 +35,10 @@ import { loadMessages } from './messages';
  *
  * In the browser the page has one language, so one instance answers every
  * `t`, the remotes' included: Reach is one copy on the page. Changing the
- * language reloads the page rather than redrawing it, so module-level words a
- * remote worked out once are worked out again.
+ * language swaps that instance for the new language's words, at once, and
+ * redraws the page in them (`switchLanguage`); no word is worked out when a
+ * module loads, so nothing keeps the old one. What the server drew follows a
+ * moment later, when the page refreshes its server half.
  *
  * On the server many people's pages render at once, in their own languages,
  * so a `t` there asks the render it is part of: `use(LanguageContext)`, which
@@ -148,6 +150,41 @@ export async function ensureNamespace(ns: Namespace): Promise<void> {
   }
 }
 
+const changes = new Set<(language: Language) => void>();
+
+/** A namespace's words in a language: this browser's copy, else the chunk. */
+async function wordsOf(language: Language, ns: Namespace): Promise<Record<string, string>> {
+  try {
+    const kept = localStorage.getItem(stored(language, ns));
+    if (kept !== null) return JSON.parse(kept) as Record<string, string>;
+  } catch {
+    // No storage, or a damaged copy: load it.
+  }
+  const words = (await loadMessages(language, [ns]))[ns] ?? {};
+  try {
+    localStorage.setItem(stored(language, ns), JSON.stringify(words));
+  } catch {
+    // Full or blocked: next time it loads again.
+  }
+  return words;
+}
+
+/**
+ * The page in another language, now: every namespace it has loaded, in the
+ * new language, then every screen drawn again in it. Nothing is asked of the
+ * server but the words, and those are usually kept already.
+ */
+export async function switchLanguage(next: Language): Promise<void> {
+  if (page === null || page.language === next) return;
+  const namespaces = Object.keys(page.store.data[page.language] ?? {}) as Namespace[];
+  const loaded = await Promise.all(
+    namespaces.map(async (ns) => [ns, await wordsOf(next, ns)] as const),
+  );
+  page = instanceOf(next, Object.fromEntries(loaded));
+  document.documentElement.lang = next;
+  for (const change of changes) change(next);
+}
+
 /* --------------------------------------------------------------- server -- */
 
 const servers = new Map<Language, I18n>();
@@ -201,19 +238,37 @@ export function I18nProvider({
     setLocale(browserLocale);
     return page;
   });
+  // The language the page is in now: the server's, until somebody switches.
+  const [current, setCurrent] = useState(language);
+  useEffect(() => {
+    const change = (next: Language): void => {
+      setCurrent(next);
+    };
+    changes.add(change);
+    return () => {
+      changes.delete(change);
+    };
+  }, []);
+  // A server half rendered in another language (a refresh after a choice elsewhere) is followed.
+  useEffect(() => {
+    void switchLanguage(language);
+  }, [language]);
   useEffect(() => {
     // The choice, kept where the browser can read it before it asks anybody.
     try {
-      localStorage.setItem(LANGUAGE_KEY, language);
+      localStorage.setItem(LANGUAGE_KEY, current);
     } catch {
       // Blocked: the cookie and the account still have it.
     }
-    if (!document.cookie.includes(`${LANGUAGE_KEY}=${language}`))
-      document.cookie = languageCookie(language);
-  }, [language]);
+    if (!document.cookie.includes(`${LANGUAGE_KEY}=${current}`))
+      document.cookie = languageCookie(current);
+  }, [current]);
   return (
-    <LanguageContext value={language}>
-      <I18nextProvider i18n={i18n}>{children}</I18nextProvider>
+    <LanguageContext value={current}>
+      <I18nextProvider i18n={page ?? i18n}>
+        {/* Keyed on the language: every screen draws again in the new words. */}
+        <Fragment key={current}>{children}</Fragment>
+      </I18nextProvider>
     </LanguageContext>
   );
 }

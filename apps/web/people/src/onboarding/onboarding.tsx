@@ -35,9 +35,24 @@ export interface OnboardingProps {
 }
 
 const ASK = {
-  required: { tone: 'warning', text: t('onboarding.onboarding.required', 'Required') },
-  optional: { tone: 'neutral', text: t('onboarding.onboarding.optional', 'Optional') },
-  voluntary: { tone: 'info', text: t('onboarding.onboarding.voluntary', 'Voluntary') },
+  required: {
+    tone: 'warning',
+    get text(): string {
+      return t('onboarding.onboarding.required', 'Required');
+    },
+  },
+  optional: {
+    tone: 'neutral',
+    get text(): string {
+      return t('onboarding.onboarding.optional', 'Optional');
+    },
+  },
+  voluntary: {
+    tone: 'info',
+    get text(): string {
+      return t('onboarding.onboarding.voluntary', 'Voluntary');
+    },
+  },
 } as const;
 
 /**

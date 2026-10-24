@@ -122,7 +122,9 @@ export const TEMPLATE_URL = '/people/downloads/import-template';
 
 const FORMAT: Readonly<Record<string, string>> = {
   csv: 'CSV',
-  xlsx: t('import.import-export.excel', 'Excel'),
+  get xlsx(): string {
+    return t('import.import-export.excel', 'Excel');
+  },
   pdf: 'PDF',
 };
 
@@ -504,12 +506,16 @@ function Action({
 
 const KIND = {
   import: {
-    label: t('import.import-export.import', 'Import'),
+    get label(): string {
+      return t('import.import-export.import', 'Import');
+    },
     tone: 'info',
     icon: <icons.upload aria-hidden />,
   },
   export: {
-    label: t('import.import-export.export', 'Export'),
+    get label(): string {
+      return t('import.import-export.export', 'Export');
+    },
     tone: 'accent',
     icon: <icons.download aria-hidden />,
   },
