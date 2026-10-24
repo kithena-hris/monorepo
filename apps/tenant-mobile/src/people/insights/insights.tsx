@@ -15,7 +15,6 @@ import {
   Icon,
   List,
   ListItem,
-  numberFormat,
   type RangeBand,
   RangeChart,
   Select,
@@ -32,6 +31,7 @@ import {
   TrendChart,
   WaterfallChart,
 } from '@reach/ui-native';
+import { numberFormat } from '@reach/ui-native/words';
 import { ChartColumn, Clock, Mail } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';

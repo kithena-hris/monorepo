@@ -1,4 +1,5 @@
-import { cn, dateFormat, Money, Text } from '@reach/ui-native';
+import { cn, Money, Text } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 
 import { isEmpty, type RecordField, type Value } from './api';
 import { t } from '../i18n';

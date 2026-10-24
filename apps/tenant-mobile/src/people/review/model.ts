@@ -1,6 +1,6 @@
 import type { Entry, Value } from '../api';
 import { t } from '../../i18n';
-import { dateFormat } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 
 /**
  * Review's shapes and rules, as the web's (`people/src/review/review.tsx`,

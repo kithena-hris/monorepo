@@ -4,7 +4,6 @@ import {
   Badge,
   Button,
   Card,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -24,6 +23,7 @@ import {
   Text,
   useToast,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { Contact, getPermissionsAsync } from 'expo-contacts';
 import { BookUser, FileText, PenLine, Sparkles, X } from 'lucide-react-native';
 import { useEffect, useState } from 'react';

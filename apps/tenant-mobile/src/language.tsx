@@ -4,7 +4,8 @@ import { Check } from 'lucide-react-native';
 import { useSyncExternalStore } from 'react';
 
 import { Page } from './frame';
-import { chooseLanguage, language, onLanguage, t } from './i18n';
+import { language, onLanguage, t } from './i18n';
+import { saveLanguage } from './language-store';
 import type { PeopleScreen } from './people/routes';
 
 /**
@@ -26,7 +27,7 @@ export function LanguageSettings({ navigation }: PeopleScreen<'Language'>): Reac
             selected={l.code === current}
             trailing={l.code === current ? <Icon icon={Check} /> : null}
             onPress={() => {
-              chooseLanguage(l.code);
+              saveLanguage(l.code);
             }}
           >
             {l.name}

@@ -4,7 +4,6 @@ import {
   Chip,
   ChipGroup,
   ChipGroupItem,
-  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -19,6 +18,7 @@ import {
   SearchField,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { Filter, History, Lock } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';

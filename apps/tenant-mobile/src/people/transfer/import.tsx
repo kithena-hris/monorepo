@@ -9,7 +9,6 @@ import {
   KeyValues,
   List,
   ListItem,
-  locale,
   Select,
   SelectContent,
   SelectItem,
@@ -20,6 +19,7 @@ import {
   Switch,
   Text,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { FileSpreadsheet, Sparkles } from 'lucide-react-native';

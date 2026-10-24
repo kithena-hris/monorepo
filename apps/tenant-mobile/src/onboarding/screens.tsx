@@ -7,12 +7,12 @@ import {
   FieldLabel,
   List,
   ListItem,
-  locale,
   SegmentedControl,
   SegmentedControlItem,
   Text,
   Textarea,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import { useState } from 'react';
 import { View } from 'react-native';
 

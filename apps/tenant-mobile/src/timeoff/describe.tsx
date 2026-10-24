@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Chip,
-  dateFormat,
   ListItem,
   SearchField,
   Select,
@@ -16,6 +15,7 @@ import {
   Switch,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { useState } from 'react';
 import { View } from 'react-native';
 

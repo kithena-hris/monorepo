@@ -6,7 +6,6 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
-  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -31,6 +30,7 @@ import {
   Timeline,
   TimelineItem,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { ArrowRight, Bot, Lock } from 'lucide-react-native';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';

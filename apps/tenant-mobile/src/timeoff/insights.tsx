@@ -8,7 +8,6 @@ import {
   ChartCard,
   ChipGroup,
   ChipGroupItem,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -23,6 +22,7 @@ import {
   Switch,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { useState } from 'react';
 import { View } from 'react-native';
 

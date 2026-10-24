@@ -7,8 +7,7 @@ import {
   translator,
   type Plural,
   type TranslateVars,
-} from '@reach/ui-native';
-import * as SecureStore from 'expo-secure-store';
+} from '@reach/ui-native/words';
 
 import { CATALOGUES } from './locales';
 
@@ -18,13 +17,13 @@ import { CATALOGUES } from './locales';
  * (`reach-native`), and both are answered here. A key with no words in the
  * language reads in English, so a screen is never a row of keys.
  *
- * The language is the one chosen on this phone (Me › Account › Language), else
+ * Plain on purpose, so a model or a sentence that says words is tested without
+ * a device; keeping the choice is `language-store.ts`'s. The language is the
+ * one chosen on this phone (the account menu › Language), else
  * the company's (the back office's setting), else US English. Changing it
  * redraws every screen (`useLanguage`).
  */
 export const t = translator('mobile');
-
-const KEY = 'kithena.language';
 
 let current: Language = DEFAULT_LANGUAGE;
 let chosen = false;
@@ -53,9 +52,8 @@ function apply(language: Language): void {
 /** The language screens are in now. */
 export const language = (): Language => current;
 
-/** What was chosen on this phone, put back before anything is drawn. */
-export async function restoreLanguage(): Promise<void> {
-  const saved = await SecureStore.getItemAsync(KEY).catch(() => null);
+/** What the reader chose on this phone (`language-store.ts`), put back before anything is drawn. */
+export function restoreChoice(saved: unknown): void {
   chosen = isLanguage(saved);
   apply(isLanguage(saved) ? saved : DEFAULT_LANGUAGE);
 }
@@ -65,10 +63,9 @@ export function companyLanguage(code: unknown): void {
   if (!chosen && isLanguage(code) && code !== current) apply(code);
 }
 
-/** The reader's own choice, kept on this phone. */
+/** The reader's own choice; `language-store.ts` keeps it on this phone. */
 export function chooseLanguage(next: Language): void {
   chosen = true;
-  void SecureStore.setItemAsync(KEY, next).catch(() => undefined);
   if (next !== current) apply(next);
 }
 

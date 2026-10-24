@@ -1,5 +1,5 @@
 import { ask, useRead, type Answer, type Load, type Signed } from '../people/api';
-import { locale } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 
 /**
  * Recruiting on the phone (REC-145): the web's operations through the

@@ -7,7 +7,6 @@ import {
   Checkbox,
   ChipGroup,
   ChipGroupItem,
-  dateFormat,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -16,7 +15,6 @@ import {
   EmptyState,
   Icon,
   ListItem,
-  locale,
   SearchField,
   SegmentedControl,
   SegmentedControlItem,
@@ -26,6 +24,7 @@ import {
   type TreeViewNode,
   VirtualList,
 } from '@reach/ui-native';
+import { dateFormat, locale } from '@reach/ui-native/words';
 import {
   ChartColumn,
   Copy,

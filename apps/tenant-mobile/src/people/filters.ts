@@ -1,6 +1,6 @@
 import type { FilterField, FilterOperator } from '@reach/ui-native';
 import { t } from '../i18n';
-import { dateFormat } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 
 // display.tsx's, here so this module stays testable without React Native.
 const longDate = (iso: string): string =>

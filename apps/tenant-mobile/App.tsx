@@ -20,7 +20,8 @@ import {
   type Person,
 } from './src/account';
 import { restoreLook } from './src/appearance';
-import { companyLanguage, language, onLanguage, restoreLanguage, t } from './src/i18n';
+import { companyLanguage, language, onLanguage } from './src/i18n';
+import { restoreLanguage } from './src/language-store';
 import { queryClient } from './src/query';
 import { CompanyScreen, SignInScreen, UnreachableScreen } from './src/screens';
 import { SignedIn } from './src/signed-in';

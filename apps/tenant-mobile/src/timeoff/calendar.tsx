@@ -7,7 +7,6 @@ import {
   type CalendarMarker,
   Chip,
   CopyField,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -24,6 +23,7 @@ import {
   TimelineChart,
   type TimelineRow,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Linking, ScrollView, View } from 'react-native';

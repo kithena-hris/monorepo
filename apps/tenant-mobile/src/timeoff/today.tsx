@@ -5,7 +5,6 @@ import {
   Badge,
   Button,
   Card,
-  dateFormat,
   DayTiles,
   Dialog,
   DialogBody,
@@ -26,6 +25,7 @@ import {
   Stat,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import {
   Baby,
   ChartColumn,

@@ -8,7 +8,6 @@ import {
   ChipGroup,
   ChipGroupItem,
   CopyField,
-  dateFormat,
   DatePicker,
   Dialog,
   DialogBody,
@@ -40,6 +39,7 @@ import {
   Textarea,
   TimePicker,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import * as WebBrowser from 'expo-web-browser';
 import {
   CalendarDays,

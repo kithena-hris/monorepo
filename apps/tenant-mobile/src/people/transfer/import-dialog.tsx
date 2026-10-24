@@ -9,11 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
   ListItem,
-  locale,
   Spinner,
   Stat,
   Text,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import * as DocumentPicker from 'expo-document-picker';
 import { FileSpreadsheet } from 'lucide-react-native';
 import { useState } from 'react';

@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   CircularProgress,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -28,6 +27,7 @@ import {
   Text,
   useToast,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import * as WebBrowser from 'expo-web-browser';
 import {
   AtSign,

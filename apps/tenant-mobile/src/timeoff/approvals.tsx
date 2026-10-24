@@ -7,7 +7,6 @@ import {
   Calendar,
   Card,
   Combobox,
-  dateFormat,
   DatePicker,
   type DateRange,
   Dialog,
@@ -33,6 +32,7 @@ import {
   Textarea,
   TimelineChart,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import {
   Check,
   CheckCheck,

@@ -4,7 +4,6 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -20,6 +19,7 @@ import {
   ListItem,
   Text,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowRight,

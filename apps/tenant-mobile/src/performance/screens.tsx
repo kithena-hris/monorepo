@@ -15,7 +15,6 @@ import {
   Input,
   List,
   ListItem,
-  locale,
   NumberField,
   Progress,
   RadioCard,
@@ -27,6 +26,7 @@ import {
   Text,
   Textarea,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Linking, View } from 'react-native';

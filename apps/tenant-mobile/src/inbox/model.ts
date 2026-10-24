@@ -101,7 +101,7 @@ export interface InboxAnswer {
 export { dayIn, dueOf, shortDay } from './time';
 import { dayIn, shortDay } from './time';
 import { t } from '../i18n';
-import { dateFormat, locale } from '@reach/ui-native';
+import { dateFormat, locale } from '@reach/ui-native/words';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
   people: 'People',

@@ -4,7 +4,7 @@
  * same on every screen.
  */
 
-import { dateFormat as readerDate } from '@reach/ui-native';
+import { dateFormat as readerDate } from '@reach/ui-native/words';
 
 import { t } from '../i18n';
 

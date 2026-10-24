@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CircularProgress,
-  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -32,6 +31,7 @@ import {
   Text,
   TimePicker,
 } from '@reach/ui-native';
+import { dateFormat } from '@reach/ui-native/words';
 import { ChevronLeft, ChevronRight, Clock3, History, Sparkles, Timer } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';

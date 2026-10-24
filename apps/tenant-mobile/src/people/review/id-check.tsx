@@ -17,11 +17,11 @@ import {
   FieldLabel,
   Icon,
   Inline,
-  locale,
   Stack,
   Text,
   Textarea,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { useState } from 'react';
 

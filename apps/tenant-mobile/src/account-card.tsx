@@ -9,10 +9,10 @@ import {
   DropdownMenuTrigger,
   List,
   ListItem,
-  locale,
   Stack,
   Text,
 } from '@reach/ui-native';
+import { locale } from '@reach/ui-native/words';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
