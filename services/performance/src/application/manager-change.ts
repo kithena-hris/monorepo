@@ -1,10 +1,12 @@
 import type { CalendarDate } from '@kithena/contracts';
-import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, type Result, wordsIn, type Words } from '@kithena/domain-kit';
 
 import { addDays, type Cycle } from '../domain/cycle.js';
 import { newReview, onManagerChange, reattach } from '../domain/review.js';
-import { audit, hrOnly, names, type Ctx, type Outgoing } from './context.js';
+import { audit, hrOnly, mailWords, names, type Ctx, type Outgoing } from './context.js';
 import type { Member, Tx } from './ports.js';
+
+const ENGLISH = wordsIn('en-US', {});
 
 /**
  * A change of manager and the manager reviews it touches (§8.8).
@@ -126,10 +128,13 @@ export async function toldOf(
   tx: Tx,
   done: ManagerChangeDone,
   input: { readonly personId: string; readonly managerId: string | null; readonly at: string },
+  /** The company's words (`mailWords`); US English when none are given. */
+  t: Words = ENGLISH,
 ): Promise<Outgoing[]> {
   const members = await tx.members.list();
   const byId = new Map(members.map((m) => [m.personId as string, m]));
-  const name = (id: string): string => byId.get(id)?.displayName ?? 'Someone';
+  const name = (id: string): string =>
+    byId.get(id)?.displayName ?? t('email.manager-change.someone', 'Someone');
   const email = (id: string): string | null => byId.get(id)?.workEmail ?? null;
   const cycleName = new Map((await tx.cycles.find()).map((c) => [c.id, c.name] as const));
   const who = name(input.personId);
@@ -138,12 +143,22 @@ export async function toldOf(
   const out: Outgoing[] = [];
   if (input.managerId !== null && done.given.length > 0) {
     const address = email(input.managerId);
-    const where = done.given.map((g) => cycleName.get(g.cycleId) ?? 'a cycle').join(', ');
+    const where = done.given
+      .map((g) => cycleName.get(g.cycleId) ?? t('email.manager-change.a_cycle', 'a cycle'))
+      .join(', ');
     if (address !== null)
       out.push({
         to: address,
-        subject: `You write ${who}’s manager review`,
-        text: `Hi ${name(input.managerId)}, ${who} reports to you now, so their manager review in ${where} is yours to write. Open Kithena to start it.`,
+        subject: t(
+          'email.manager-change.you_write_their_review',
+          'You write {{who}}’s manager review',
+          { who },
+        ),
+        text: t(
+          'email.manager-change.reports_to_you_now',
+          'Hi {{name}}, {{who}} reports to you now, so their manager review in {{where}} is yours to write. Open Kithena to start it.',
+          { name: name(input.managerId), who, where },
+        ),
         dedupeKey: `manager-change:given:${input.personId}:${input.managerId}:${day}`,
       });
   }
@@ -151,12 +166,35 @@ export async function toldOf(
     const address = email(authorId);
     if (address === null || byId.get(authorId)?.status === 'terminated') continue;
     const mine = done.taken.filter((t) => t.authorId === authorId);
-    const where = [...new Set(mine.map((t) => cycleName.get(t.cycleId) ?? 'a cycle'))].join(', ');
-    const draft = mine.some((t) => t.change === 'outdate');
+    const where = [
+      ...new Set(
+        mine.map((m) => cycleName.get(m.cycleId) ?? t('email.manager-change.a_cycle', 'a cycle')),
+      ),
+    ].join(', ');
+    const draft = mine.some((m) => m.change === 'outdate');
+    const vars = { name: name(authorId), who, where, to: to ?? '' };
+    const said =
+      to === null
+        ? t(
+            'email.manager-change.no_longer_reports_to_you',
+            'Hi {{name}}, {{who}} no longer reports to you, so you are no longer a manager reviewer for them in {{where}} and do not have to submit it.',
+            vars,
+          )
+        : t(
+            'email.manager-change.reports_to_someone_else_now',
+            'Hi {{name}}, {{who}} reports to {{to}} now, so you are no longer a manager reviewer for them in {{where}} and do not have to submit it.',
+            vars,
+          );
     out.push({
       to: address,
-      subject: `You no longer write ${who}’s manager review`,
-      text: `Hi ${name(authorId)}, ${who} ${to === null ? 'no longer reports to you' : `reports to ${to} now`}, so you are no longer a manager reviewer for them in ${where} and do not have to submit it.${draft ? ' Your draft stays in Kithena for you to read until you delete it.' : ''}`,
+      subject: t(
+        'email.manager-change.you_no_longer_write',
+        'You no longer write {{who}}’s manager review',
+        { who },
+      ),
+      text: draft
+        ? `${said} ${t('email.manager-change.draft_stays', 'Your draft stays in Kithena for you to read until you delete it.')}`
+        : said,
       dedupeKey: `manager-change:taken:${input.personId}:${authorId}:${day}`,
     });
   }
@@ -256,9 +294,10 @@ async function handOver(
     readonly at: string;
     readonly today: CalendarDate;
   },
+  t: Words = ENGLISH,
 ): Promise<Outgoing[]> {
   const done = await managerChanged(tx, newId, input);
-  return toldOf(tx, done, input);
+  return toldOf(tx, done, input, t);
 }
 
 /**
@@ -290,12 +329,12 @@ export async function chooseManagerHandover(
     if ((member?.managerPersonId ?? null) === input.managerId) {
       // Already Performance's: carried out now.
       ctx.mail.push(
-        ...(await handOver(ctx.tx, ctx.deps.newId, {
-          personId,
-          managerId: input.managerId,
-          at: ctx.at,
-          today: ctx.today,
-        })),
+        ...(await handOver(
+          ctx.tx,
+          ctx.deps.newId,
+          { personId, managerId: input.managerId, at: ctx.at, today: ctx.today },
+          (await mailWords(ctx)).t,
+        )),
       );
       await ctx.tx.settings.set(choiceKey(personId), null);
       now += 1;
@@ -331,6 +370,7 @@ export async function onReportingLineMoved(
     readonly at: string;
     readonly today: CalendarDate;
   },
+  t: Words = ENGLISH,
 ): Promise<Outgoing[]> {
   const raw = await tx.settings.get(choiceKey(input.personId));
   const choice = raw === null || typeof raw !== 'object' ? null : (raw as Choice);
@@ -342,7 +382,7 @@ export async function onReportingLineMoved(
     input.previousManagerId === null ? null : await tx.members.get(input.previousManagerId);
   if (!chosen && !isLeaver(previous)) return [];
   if (chosen) await tx.settings.set(choiceKey(input.personId), null);
-  return handOver(tx, newId, input);
+  return handOver(tx, newId, input, t);
 }
 
 /**
@@ -358,6 +398,7 @@ export async function leaverManagerReviews(
     readonly at: string;
     readonly today: CalendarDate;
   },
+  t: Words = ENGLISH,
 ): Promise<Outgoing[]> {
   const out: Outgoing[] = [];
   for (const subjectId of new Set(
@@ -366,12 +407,12 @@ export async function leaverManagerReviews(
     const managerId = (await tx.members.get(subjectId))?.managerPersonId ?? null;
     if (managerId === null || managerId === input.leaverId) continue;
     out.push(
-      ...(await handOver(tx, newId, {
-        personId: subjectId,
-        managerId,
-        at: input.at,
-        today: input.today,
-      })),
+      ...(await handOver(
+        tx,
+        newId,
+        { personId: subjectId, managerId, at: input.at, today: input.today },
+        t,
+      )),
     );
   }
   return out;

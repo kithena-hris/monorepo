@@ -6,26 +6,14 @@
  * menu writes it in the browser. US English is the default; the words in the
  * code are the English every other language is translated from.
  */
-export const LANGUAGES = [
-  { code: 'en-US', name: 'English (US)' },
-  { code: 'en-GB', name: 'English (UK)' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'fr', name: 'Français' },
-  { code: 'es', name: 'Español' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'ca', name: 'Català' },
-  { code: 'nl', name: 'Nederlands' },
-  { code: 'pt', name: 'Português' },
-  { code: 'pl', name: 'Polski' },
-  { code: 'ru', name: 'Русский' },
-] as const;
+import type { Language } from '@kithena/contracts/language';
 
-export type Language = (typeof LANGUAGES)[number]['code'];
-
-export const DEFAULT_LANGUAGE: Language = 'en-US';
-
-export const isLanguage = (value: unknown): value is Language =>
-  LANGUAGES.some((l) => l.code === value);
+export {
+  DEFAULT_LANGUAGE,
+  isLanguage,
+  LANGUAGES,
+  type Language,
+} from '@kithena/contracts/language';
 
 /**
  * Where the choice is kept besides the person's account: a cookie, so the

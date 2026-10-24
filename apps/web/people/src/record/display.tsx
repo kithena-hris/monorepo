@@ -1,4 +1,4 @@
-import { MaskedValue, Money, Signature } from '@reach/ui';
+import { dateFormat, MaskedValue, Money, Signature } from '@reach/ui';
 import type { JSX } from 'react';
 
 import { FileValue, isFileField } from './files';
@@ -80,7 +80,7 @@ export function DisplayValue({
  */
 export const localTime = (now: string, timeZone: string): string => {
   try {
-    return new Intl.DateTimeFormat('en-GB', { timeStyle: 'short', timeZone }).format(new Date(now));
+    return dateFormat({ timeStyle: 'short', timeZone }).format(new Date(now));
   } catch {
     return '';
   }

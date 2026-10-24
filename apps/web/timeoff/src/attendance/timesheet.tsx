@@ -15,8 +15,10 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   IconList,
   IconListItem,
+  icons,
   KeyValues,
   PageHeader,
   PageSection,
@@ -31,7 +33,6 @@ import {
   TertiaryNav,
   Textarea,
   TimePicker,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -140,7 +141,7 @@ export function Timesheet({ load, onCorrect }: TimesheetProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.timesheet.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="your timesheet">
+      <Loaded load={load} what={t('attendance.timesheet.your_timesheet', 'your timesheet')}>
         {(data) => <Ready data={data} onCorrect={onCorrect} />}
       </Loaded>
     </div>
@@ -273,7 +274,11 @@ function Ready({
                 )
               }
             >
-              {`Your last punch was at ${clockTime(minuteOfDay(o.lastPunchAt, zone))}. Say when you finished; the record is kept as it was.`}
+              {t(
+                'attendance.timesheet.last_punch_say_when_you_finished',
+                'Your last punch was at {{time}}. Say when you finished; the record is kept as it was.',
+                { time: clockTime(minuteOfDay(o.lastPunchAt, zone)) },
+              )}
             </Alert>
           ))}
           <Days data={data} today={today} onFix={onCorrect === undefined ? undefined : setFixing} />
@@ -288,13 +293,18 @@ function Ready({
                 : t('attendance.timesheet.this_month', 'This month')
             }
             value={duration(worked)}
-            description={t('attendance.timesheet.of', 'Of {{planned}}{{value}}', {
-              planned: duration(planned),
-              value:
-                open.length === 0
-                  ? ''
-                  : `, not counting ${open.map((o) => weekdayName(o.date)).join(' and ')}`,
-            })}
+            description={
+              open.length === 0
+                ? t('attendance.timesheet.of', 'Of {{planned}}', { planned: duration(planned) })
+                : t(
+                    'attendance.timesheet.of_not_counting',
+                    'Of {{planned}}, not counting {{days}}',
+                    {
+                      planned: duration(planned),
+                      days: formatList(open.map((o) => weekdayName(o.date))),
+                    },
+                  )
+            }
           />
           <Overtime data={data} today={today} />
           <Kept />
@@ -611,7 +621,11 @@ function FixClockOut({
             )}
           </DialogTitle>
           <DialogDescription>
-            {`Your last punch was at ${clockTime(after)}. The clock-out you add goes beside the record; nothing is overwritten.`}
+            {t(
+              'attendance.timesheet.last_punch_clock_out_beside',
+              'Your last punch was at {{time}}. The clock-out you add goes beside the record; nothing is overwritten.',
+              { time: clockTime(after) },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
@@ -674,10 +688,18 @@ function FixClockOut({
                     'attendance.timesheet.after_your_last_punch_on_the',
                     'After your last punch, on the same day.',
                   )
-                : t('attendance.timesheet.worked_2', '{{worked}} worked{{value}}', {
-                    worked: duration(worked),
-                    value: overtime > 0 ? `, ${duration(overtime)} overtime` : '',
-                  })}
+                : overtime > 0
+                  ? t(
+                      'attendance.timesheet.worked_overtime',
+                      '{{worked}} worked, {{overtime}} overtime',
+                      {
+                        worked: duration(worked),
+                        overtime: duration(overtime),
+                      },
+                    )
+                  : t('attendance.timesheet.worked_2', '{{worked}} worked', {
+                      worked: duration(worked),
+                    })}
             </FieldDescription>
           </Field>
           <Field>

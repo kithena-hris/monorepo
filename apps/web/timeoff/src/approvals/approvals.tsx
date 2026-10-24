@@ -103,7 +103,10 @@ const tabOf = (path: string | undefined): ApprovalsTab =>
       ? 'decided'
       : 'waiting';
 
-const DESCRIPTION = 'Time off waiting for you, coming up and decided.';
+const DESCRIPTION = t(
+  'approvals.approvals.time_off_waiting_for_you_coming_up',
+  'Time off waiting for you, coming up and decided.',
+);
 
 export function Approvals({
   load,
@@ -363,7 +366,7 @@ function Opened({
         selected
         onBack={() => onNavigate?.(WAITING)}
         backLabel={t('approvals.approvals.waiting_for_me', 'Waiting for me')}
-        listLabel="Waiting for you"
+        listLabel={t('approvals.approvals.waiting_for_you', 'Waiting for you')}
         detailLabel={decision?.request.displayName ?? t('approvals.approvals.request', 'Request')}
         listWidth="23.75rem"
         splitFrom="lg"

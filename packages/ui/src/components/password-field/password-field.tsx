@@ -86,17 +86,50 @@ export interface PasswordFieldProps {
 
 /** The default advice. Length first, because length is what actually matters. */
 export const defaultPasswordRequirements: readonly PasswordRequirement[] = [
-  { id: 'length', label: 'At least 12 characters', test: (value) => value.length >= 12 },
+  {
+    id: 'length',
+    get label(): string {
+      return t(
+        'components.password-field.password-field.at_least_12_characters',
+        'At least 12 characters',
+      );
+    },
+    test: (value) => value.length >= 12,
+  },
   {
     id: 'case',
-    label: 'Upper and lower case',
+    get label(): string {
+      return t(
+        'components.password-field.password-field.upper_and_lower_case',
+        'Upper and lower case',
+      );
+    },
     test: (value) => /[a-z]/.test(value) && /[A-Z]/.test(value),
   },
-  { id: 'number', label: 'A number', test: (value) => /\d/.test(value) },
-  { id: 'symbol', label: 'A symbol', test: (value) => /[^\w\s]/.test(value) },
+  {
+    id: 'number',
+    get label(): string {
+      return t('components.password-field.password-field.a_number', 'A number');
+    },
+    test: (value) => /\d/.test(value),
+  },
+  {
+    id: 'symbol',
+    get label(): string {
+      return t('components.password-field.password-field.a_symbol', 'A symbol');
+    },
+    test: (value) => /[^\w\s]/.test(value),
+  },
 ];
 
-const strengthLabel = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'] as const;
+const strengthLabel = (score: number): string =>
+  [
+    t('components.password-field.password-field.very_weak', 'Very weak'),
+    t('components.password-field.password-field.weak', 'Weak'),
+    t('components.password-field.password-field.fair', 'Fair'),
+    t('components.password-field.password-field.strong', 'Strong'),
+    t('components.password-field.password-field.very_strong', 'Very strong'),
+  ][score] ?? '';
 const strengthTone = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-success', 'bg-success'] as const;
 
 /**
@@ -243,7 +276,7 @@ export function PasswordField({
           aria-valuetext={
             value === ''
               ? t('components.password-field.password-field.empty', 'Empty')
-              : strengthLabel[strength]
+              : strengthLabel(strength)
           }
           className="flex items-center gap-2"
         >
@@ -259,7 +292,7 @@ export function PasswordField({
             ))}
           </div>
           <span className="w-20 text-end text-sm font-medium text-fg-muted">
-            {value === '' ? '' : strengthLabel[strength]}
+            {value === '' ? '' : strengthLabel(strength)}
           </span>
         </div>
       ) : null}

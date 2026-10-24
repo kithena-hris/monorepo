@@ -1,7 +1,7 @@
 'use client';
 
 import { RecruitingChooseTimeDetail } from '@kithena/contracts';
-import { Alert, Button, KeyValues, RadioCard, RadioGroup } from '@reach/ui';
+import { Alert, Button, KeyValues, locale, RadioCard, RadioGroup } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
 import { askCandidateForMoreTimes, bookCandidateTime } from '../../app/(app)/inbox/actions';
@@ -17,14 +17,14 @@ import { t as tr } from '../../lib/t';
  */
 
 const DAY = (zone: string) =>
-  new Intl.DateTimeFormat('en-GB', {
+  new Intl.DateTimeFormat(locale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     timeZone: zone,
   });
 const HOUR = (zone: string) =>
-  new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: zone });
+  new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit', timeZone: zone });
 
 function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
   const parsed = RecruitingChooseTimeDetail.safeParse(item.detail);
@@ -113,8 +113,20 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
           disabled={time === ''}
           onClick={() => {
             act.run(() => bookCandidateTime(d.applicationId, d.askId, time), {
-              title: `Booked: ${first}, ${day.format(new Date(time))} at ${hour.format(new Date(time))}`,
-              description: `${first} has the invitation with the meeting link`,
+              title: tr(
+                'components.inbox.detail-recruiting.booked_first_day_at_hour',
+                'Booked: {{first}}, {{day}} at {{hour}}',
+                {
+                  first,
+                  day: day.format(new Date(time)),
+                  hour: hour.format(new Date(time)),
+                },
+              ),
+              description: tr(
+                'components.inbox.detail-recruiting.first_has_the_invitation',
+                '{{first}} has the invitation with the meeting link',
+                { first },
+              ),
               next: true,
             });
           }}
@@ -128,8 +140,15 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
           variant="secondary"
           onClick={() => {
             act.run(() => askCandidateForMoreTimes(d.applicationId, d.askId), {
-              title: `Asked ${first} for more times`,
-              description: 'These are left out of the new link',
+              title: tr(
+                'components.inbox.detail-recruiting.asked_first_for_more_times',
+                'Asked {{first}} for more times',
+                { first },
+              ),
+              description: tr(
+                'components.inbox.detail-recruiting.these_are_left_out_of_the_new',
+                'These are left out of the new link',
+              ),
               next: true,
             });
           }}

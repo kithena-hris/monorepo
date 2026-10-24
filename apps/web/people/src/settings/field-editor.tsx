@@ -138,8 +138,8 @@ const TEMPLATES: readonly Pick<
   'label' | 'description' | 'dataType' | 'options' | 'ownership' | 'collectAt' | 'visibility'
 >[] = [
   {
-    label: 'T-shirt size',
-    description: 'For company clothing.',
+    label: t('settings.field-editor.t_shirt_size', 'T-shirt size'),
+    description: t('settings.field-editor.for_company_clothing', 'For company clothing.'),
     dataType: 'select',
     options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
     ownership: ['employee', 'hr'],
@@ -147,8 +147,11 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: 'Pronouns',
-    description: 'How they would like to be referred to.',
+    label: t('settings.field-editor.pronouns', 'Pronouns'),
+    description: t(
+      'settings.field-editor.how_they_would_like_to_be_referred',
+      'How they would like to be referred to.',
+    ),
     dataType: 'text',
     options: [],
     ownership: ['employee'],
@@ -156,8 +159,11 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'manager', 'hr', 'directory'],
   },
   {
-    label: 'Emergency contact name',
-    description: 'Who to call if something happens at work.',
+    label: t('settings.field-editor.emergency_contact_name', 'Emergency contact name'),
+    description: t(
+      'settings.field-editor.who_to_call_if_something_happens_at',
+      'Who to call if something happens at work.',
+    ),
     dataType: 'text',
     options: [],
     ownership: ['employee', 'hr'],
@@ -165,8 +171,11 @@ const TEMPLATES: readonly Pick<
     visibility: ['self', 'hr'],
   },
   {
-    label: 'Emergency contact phone',
-    description: 'Their number, with the country code.',
+    label: t('settings.field-editor.emergency_contact_phone', 'Emergency contact phone'),
+    description: t(
+      'settings.field-editor.their_number_with_the_country_code',
+      'Their number, with the country code.',
+    ),
     dataType: 'phone',
     options: [],
     ownership: ['employee', 'hr'],
@@ -724,7 +733,7 @@ export function FieldEditor({
           <DialogDescription>
             {section.label}
             {field !== null && field.origin !== 'tenant'
-              ? ' · built in: type and key are fixed'
+              ? t('settings.field-editor.built_in_suffix', ' · built in: type and key are fixed')
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -819,7 +828,7 @@ export function FieldEditor({
                             }}
                           >
                             {template.label}
-                            {taken ? ' (added)' : ''}
+                            {taken ? t('settings.field-editor.added_suffix', ' (added)') : ''}
                           </Button>
                         );
                       })}
@@ -1172,10 +1181,11 @@ export function FieldEditor({
                         meta={
                           draft.visibilityRules.length === 0
                             ? t('settings.field-editor.no_exceptions', 'No exceptions')
-                            : t('settings.field-editor.text', '{{length}} {{value}}', {
-                                length: String(draft.visibilityRules.length),
-                                value: draft.visibilityRules.length === 1 ? 'rule' : 'rules',
-                              })
+                            : t(
+                                'settings.field-editor.text',
+                                { one: '{{count}} rule', other: '{{count}} rules' },
+                                { count: draft.visibilityRules.length },
+                              )
                         }
                       >
                         {t(
@@ -1531,7 +1541,7 @@ function Rules({
         )}
       </p>
       {draft.visibilityRules.map((rule, index) => {
-        const name = `Rule ${String(index + 1)}`;
+        const name = t('settings.field-editor.rule_n', 'Rule {{n}}', { n: index + 1 });
         const change = (changed: VisibilityRule): void => {
           set({
             visibilityRules: draft.visibilityRules.map((r, i) => (i === index ? changed : r)),
@@ -1823,7 +1833,7 @@ function Classify({
               {typeof advice === 'object' &&
               advice.kind === 'suggest' &&
               advice.classification === c
-                ? ' (suggested)'
+                ? t('settings.field-editor.suggested_suffix', ' (suggested)')
                 : ''}
             </RadioCard>
           ))}

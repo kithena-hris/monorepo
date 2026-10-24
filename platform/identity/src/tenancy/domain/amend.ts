@@ -1,5 +1,5 @@
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
-import { PostalAddress, ThemeId, checkAddress } from '@kithena/contracts';
+import { LanguageCode, PostalAddress, ThemeId, checkAddress } from '@kithena/contracts';
 
 import { imageIsOurs, type ImageHostPolicy } from './image-host.js';
 import { DisplayNameMissing, ImageNotOurs, ThemeUnknown } from './provision.js';
@@ -29,6 +29,8 @@ export interface AmendRequest {
   readonly brandingPublic: boolean;
   /** Whether its people may sign in with Google too. Absent keeps what is held. */
   readonly googleSignIn?: boolean;
+  /** The company's language (`LanguageCode`). Absent keeps what is held. */
+  readonly language?: string;
   /**
    * The postal address, when the edit changes it. Absent keeps the one held:
    * a new theme or logo is not refused over an address saved before a rule
@@ -58,6 +60,12 @@ export function checkAmendable(
 
   if (!imageIsOurs(request.logoUrl, images) || !imageIsOurs(request.coverImageUrl, images)) {
     return err(ImageNotOurs);
+  }
+
+  if (request.language !== undefined && !LanguageCode.safeParse(request.language).success) {
+    return err(
+      failure('LANGUAGE_UNKNOWN', 'Kithena does not speak that language yet', ['language']),
+    );
   }
 
   if (request.address === undefined) return ok({ ...request, displayName });

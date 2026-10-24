@@ -160,8 +160,14 @@ export interface CommandProps extends Omit<ComponentPropsWithoutRef<'div'>, 'onS
 
 export function Command({
   items,
-  label = 'Search or run a command',
-  placeholder = 'Search or type a command',
+  label = t(
+    'components.command-palette.command-palette.search_or_run_a_command',
+    'Search or run a command',
+  ),
+  placeholder = t(
+    'components.command-palette.command-palette.search_or_type_a_command',
+    'Search or type a command',
+  ),
   defaultQuery = '',
   onQueryChange,
   filter = true,
@@ -418,10 +424,11 @@ export function Command({
           ? ''
           : query === ''
             ? ''
-            : t('components.command-palette.command-palette.text', '{{length}} {{value}}', {
-                length: String(flat.length),
-                value: flat.length === 1 ? 'result' : 'results',
-              })}
+            : t(
+                'components.command-palette.command-palette.results',
+                { one: '{{count}} result', other: '{{count}} results' },
+                { count: flat.length },
+              )}
       </p>
 
       <div

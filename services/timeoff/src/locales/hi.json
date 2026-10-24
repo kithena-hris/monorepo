@@ -1,0 +1,10 @@
+{
+  "email.nudge.a_few_days_away": "कुछ दिनों की छुट्टी जितनी लगती है, उससे ज़्यादा फ़ायदा देती है।",
+  "email.nudge.bridge": "{{day}} की छुट्टी लेने पर {{holiday}} के साथ आपको 4 दिन की छुट्टी मिलती है।",
+  "email.nudge.days_left_one": "इस साल आपकी {{count}} छुट्टी बाकी है।",
+  "email.nudge.days_left_other": "इस साल आपकी {{count}} छुट्टियाँ बाकी हैं।",
+  "email.nudge.heading": "{{name}}, आपने {{month}} से कोई छुट्टी नहीं ली है",
+  "email.nudge.private": "यह संदेश और कोई नहीं देखता।",
+  "email.nudge.would_be_lost_one": "बुक न करने पर इनमें से {{count}} दिन {{date}} को ख़त्म हो जाएगा।",
+  "email.nudge.would_be_lost_other": "बुक न करने पर इनमें से {{count}} दिन {{date}} को ख़त्म हो जाएँगे।"
+}

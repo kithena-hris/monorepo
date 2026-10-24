@@ -13,6 +13,7 @@ import {
   SYSTEM,
   type Ctx,
   type Outgoing,
+  mailWords,
 } from './context.js';
 import { beginLaunch, liveOf, reviewsFor } from './cycles.js';
 import type { Caller, Deps } from './ports.js';
@@ -146,6 +147,7 @@ export async function runLaunch(deps: Deps, tenantId: TenantId, cycleId: string)
 
 /** The last batch: every review shown at once, the cycle in progress, the writers told. */
 async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
+  const { t } = await mailWords(ctx);
   const reviews = await ctx.tx.reviews.find({ cycleId: c.id });
   for (const r of reviews) if (r.hidden) await ctx.tx.reviews.save({ ...r, hidden: false });
   const live = move(c, 'in_progress');
@@ -167,8 +169,16 @@ async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
     if (email)
       ctx.mail.push({
         to: email,
-        subject: `You have reviews to write: ${c.name}`,
-        text: `Hi ${name(author)}, ${c.name} has started. Your reviews are in Kithena, under Performance › My reviews.`,
+        subject: t(
+          'email.launch.you_have_reviews_to_write',
+          'You have reviews to write: {{name}}',
+          { name: c.name },
+        ),
+        text: t(
+          'email.launch.hi_has_started_your_reviews_are',
+          'Hi {{name}}, {{name2}} has started. Your reviews are in Kithena, under Performance › My reviews.',
+          { name: name(author), name2: c.name },
+        ),
         dedupeKey: `launch:${c.id}:${author}`,
         ...(c.reminders.chat ? {} : { chat: false as const }),
       });
@@ -240,6 +250,7 @@ async function releaseOnDate(ctx: Ctx, c: Cycle): Promise<void> {
 
 /** The day's reminders (§8.4), once a day: before, on and after the deadline, by each cycle's rules. */
 async function dailyReminders(ctx: Ctx): Promise<void> {
+  const { t } = await mailWords(ctx);
   const last = (await ctx.tx.settings.get('reminders')) as { day?: string } | null;
   if (last?.day === ctx.today) return;
   await ctx.tx.settings.set('reminders', { day: ctx.today });
@@ -264,8 +275,19 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
         ctx.mail.push({
           to: email,
           subject:
-            days < 0 ? `Overdue: a review in ${c.name}` : `Due ${r.due}: a review in ${c.name}`,
-          text: `Hi ${name(r.authorId)}, your review about ${name(r.subjectId)} in ${c.name} is due ${r.due}.`,
+            days < 0
+              ? t('email.launch.overdue_a_review_in', 'Overdue: a review in {{name}}', {
+                  name: c.name,
+                })
+              : t('email.launch.due_a_review_in', 'Due {{due}}: a review in {{name}}', {
+                  due: r.due,
+                  name: c.name,
+                }),
+          text: t(
+            'email.launch.hi_your_review_about_in_is',
+            'Hi {{name}}, your review about {{name2}} in {{name3}} is due {{due}}.',
+            { name: name(r.authorId), name2: name(r.subjectId), name3: c.name, due: r.due },
+          ),
           dedupeKey: `reminder:${r.id}:${ctx.today}`,
           ...(rules.chat
             ? rules.email

@@ -51,7 +51,7 @@ export function Board(props: ScreenProps<BoardData>): JSX.Element {
     setNote('');
   };
   return (
-    <Loaded load={props.load} what="the job board">
+    <Loaded load={props.load} what={t('board.the_job_board', 'the job board')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

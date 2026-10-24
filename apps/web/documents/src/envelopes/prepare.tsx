@@ -207,11 +207,11 @@ export function WhereTheySign({
           <CardContent>
             <ChartLegend
               items={signers.map((s, i) => ({
-                label: t('envelopes.prepare.text_2', '{{name}} · {{length}} {{value}}', {
-                  name: s.name,
-                  length: String(fields.filter((f) => f.signer === s.key).length),
-                  value: fields.filter((f) => f.signer === s.key).length === 1 ? 'box' : 'boxes',
-                }),
+                label: t(
+                  'envelopes.prepare.text_2',
+                  { one: '{{name}} · {{count}} box', other: '{{name}} · {{count}} boxes' },
+                  { count: fields.filter((f) => f.signer === s.key).length, name: s.name },
+                ),
                 tone: CHART_TONE[toneOf(i)],
               }))}
             />
@@ -283,10 +283,11 @@ export function WhereTheySign({
             tone="warning"
             title={t('envelopes.prepare.nowhere_to_sign_yet', 'Nowhere to sign yet')}
           >
-            {t('envelopes.prepare.a_signature_box', '{{join}} {{value}} a signature box.', {
-              join: unplaced.map((s) => s.name).join(', '),
-              value: unplaced.length === 1 ? 'needs' : 'need',
-            })}
+            {t(
+              'envelopes.prepare.a_signature_box',
+              { one: '{{join}} needs a signature box.', other: '{{join}} need a signature box.' },
+              { count: unplaced.length, join: unplaced.map((s) => s.name).join(', ') },
+            )}
           </Alert>
         )}
       </div>

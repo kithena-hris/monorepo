@@ -6,25 +6,27 @@ import {
   Card,
   ChipGroup,
   ChipGroupItem,
+  type DataColumn,
+  DataTable,
   EmptyState,
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   KeyValues,
   ListDetail,
   ListItem,
+  locale,
   PageHeader,
   PageSection,
   PINNED_BAR,
+  type RowAction,
   Stack,
-  DataTable,
-  type DataColumn,
   Textarea,
-  VirtualList,
-  icons,
   useCoarsePointer,
   usePages,
-  type RowAction,
+  VirtualList,
   type VirtualListHandle,
   type VirtualRowProps,
 } from '@reach/ui';
@@ -278,13 +280,10 @@ const EMPTY: Readonly<Record<ReviewKind | 'all' | 'mine', { title: string; body:
 
 /** "6 people", "1 person". */
 const peopleCount = (n: number): string =>
-  t('review.review.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? 'person' : 'people',
-  });
+  t('review.review.text', { one: '{{count}} person', other: '{{count}} people' }, { count: n });
 
 const shortDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /* -------------------------------------------------------------- rows -- */
 
@@ -311,9 +310,10 @@ const changeRow = (item: ApprovalItem): Row => ({
   name: item.name,
   avatarUrl: item.avatarUrl ?? null,
   summary: summaryOf(item),
-  by: t('review.review.asked_by', 'Asked by {{value}}', {
-    value: item.requestedBy === 'You' ? 'you' : item.requestedBy,
-  }),
+  by:
+    item.requestedBy === 'You'
+      ? t('review.review.asked_by_you', 'Asked by you')
+      : t('review.review.asked_by', 'Asked by {{value}}', { value: item.requestedBy }),
   at: item.requestedAt,
   flag: isClosed(item) ? null : (item.flagSummary ?? null),
 });
@@ -331,9 +331,9 @@ const idRow = (item: ReviewItem): Row => ({
   by:
     item.enteredBy == null
       ? null
-      : t('review.review.entered_by', 'Entered by {{value}}', {
-          value: item.enteredBy === 'You' ? 'you' : item.enteredBy,
-        }),
+      : item.enteredBy === 'You'
+        ? t('review.review.entered_by_you', 'Entered by you')
+        : t('review.review.entered_by', 'Entered by {{value}}', { value: item.enteredBy }),
   badge: verdictOf(item),
 });
 
@@ -369,7 +369,7 @@ const shareRow = (share: ShareRequest): Row => ({
   avatarUrl: share.requestedBy.avatarUrl ?? null,
   // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
   summary: t('review.review.export_to', 'Export to {{value}} · {{value2}}', {
-    value: share.recipient.name ?? 'a colleague',
+    value: share.recipient.name ?? t('review.review.a_colleague', 'a colleague'),
     value2: share.people == null ? share.reason : peopleCount(share.people),
   }),
   at: share.requestedAt,
@@ -509,7 +509,10 @@ const CHIPS: Readonly<Record<ReviewTab, readonly ReviewKind[]>> = {
 
 export function Review({ load, ...props }: ReviewProps): JSX.Element {
   return (
-    <Loaded load={load} what="what waits for a decision">
+    <Loaded
+      load={load}
+      what={t('review.review.what_waits_for_a_decision', 'what waits for a decision')}
+    >
       {(state) => <Queue state={state} {...props} />}
     </Loaded>
   );
@@ -723,12 +726,12 @@ function Queue({
       >
         <ChipGroupItem value="all">
           {t('review.review.all', 'All')}{' '}
-          <span className="opacity-60 tabular-nums">{total.toLocaleString('en-GB')}</span>
+          <span className="opacity-60 tabular-nums">{total.toLocaleString(locale())}</span>
         </ChipGroupItem>
         {chips.map((k) => (
           <ChipGroupItem key={k} value={k}>
             {CHIP[k]}{' '}
-            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString('en-GB')}</span>
+            <span className="opacity-60 tabular-nums">{countOf(k).toLocaleString(locale())}</span>
           </ChipGroupItem>
         ))}
       </ChipGroup>
@@ -884,7 +887,7 @@ function Queue({
     return (
       <ListDetail
         listWidth="25rem"
-        listLabel="Items"
+        listLabel={t('review.review.items', 'Items')}
         detailLabel={
           current === null
             ? t('review.review.item', 'Item')
@@ -1161,7 +1164,7 @@ function Detail({
       return (
         <Card padded className="flex flex-col items-start gap-3">
           <h2 className="text-md font-bold">
-            {pair?.names.join(' and ') ?? row.name}
+            {pair === undefined ? row.name : formatList(pair.names)}
             <span className="font-normal text-fg-muted">
               {' '}
               {t('review.review.possible_duplicate', '· Possible duplicate')}
@@ -1240,7 +1243,7 @@ function ExportDetail({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const asker = share.requestedBy.name ?? t('review.review.a_colleague', 'A colleague');
+  const asker = share.requestedBy.name ?? t('review.review.a_colleague_2', 'A colleague');
   const them = firstName(share.recipient.name);
   const decided = share.state !== 'pending';
   const decide = (approve: boolean): void => {
@@ -1267,7 +1270,12 @@ function ExportDetail({
           </h2>
           <p className="text-sm text-fg-muted">
             {t('review.review.asked', 'Asked')} {shortDay(share.requestedAt)}
-            {decided ? '' : ` · waits until ${shortDay(share.expiresAt)}`}
+            {decided
+              ? ''
+              : ' · ' +
+                t('review.review.waits_until', 'waits until {{day}}', {
+                  day: shortDay(share.expiresAt),
+                })}
           </p>
         </div>
         {decided ? (
@@ -1290,13 +1298,11 @@ function ExportDetail({
             share.gap.fields.map((f) =>
               t(
                 'review.review.is_outside_what_can_see_for',
-                '{{label}} is outside what {{them}} can see for {{people}} {{value}}',
                 {
-                  label: f.label,
-                  them,
-                  people: String(f.people),
-                  value: f.people === 1 ? 'person' : 'people',
+                  one: '{{label}} is outside what {{them}} can see for {{count}} person',
+                  other: '{{label}} is outside what {{them}} can see for {{count}} people',
                 },
+                { count: f.people, label: f.label, them },
               ),
             ),
           )}
@@ -1420,7 +1426,9 @@ function decisionsOf(state: ReviewState): Decision[] {
           {c.label}: <DisplayValue field={asField(c)} value={c.before} /> →{' '}
           <DisplayValue field={asField(c)} value={c.value} /> {t('review.review.from', '· from')}{' '}
           {shortDay(c.effectiveFrom)}
-          {c.note ? ` · Note: “${c.note}”` : ''}
+          {c.note
+            ? ' · ' + t('review.review.note_quoted', 'Note: “{{note}}”', { note: c.note })
+            : ''}
         </>
       ) : (
         [
@@ -1494,7 +1502,7 @@ function decisionsOf(state: ReviewState): Decision[] {
 const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
   {
     id: 'person',
-    header: 'Person',
+    header: t('review.review.person', 'Person'),
     cell: (d) => (
       <span className="flex min-w-0 items-center gap-2">
         <Avatar size="sm" name={d.name} src={d.avatarUrl ?? undefined} />
@@ -1502,10 +1510,10 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </span>
     ),
   },
-  { id: 'what', header: 'What', cell: (d) => d.what },
+  { id: 'what', header: t('review.review.what', 'What'), cell: (d) => d.what },
   {
     id: 'outcome',
-    header: 'Outcome',
+    header: t('review.review.outcome', 'Outcome'),
     cardTrailing: true,
     cell: (d) => (
       <Badge size="sm" tone={d.outcome.tone}>
@@ -1513,10 +1521,10 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
       </Badge>
     ),
   },
-  { id: 'by', header: 'By', shortHeader: 'By', cell: (d) => d.by },
+  { id: 'by', header: t('review.review.by', 'By'), shortHeader: 'By', cell: (d) => d.by },
   {
     id: 'when',
-    header: 'When',
+    header: t('review.review.when', 'When'),
     cell: (d) => (d.when == null ? '—' : shortDay(d.when)),
   },
 ];
@@ -1701,7 +1709,7 @@ function Finance({
         >
           <ListDetail
             listWidth="25rem"
-            listLabel="Your changes"
+            listLabel={t('review.review.your_changes', 'Your changes')}
             detailLabel={current === null ? t('review.review.change_2', 'Change') : current.summary}
             selected={picked !== null}
             onBack={() => {

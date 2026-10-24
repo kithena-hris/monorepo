@@ -1,4 +1,7 @@
 {
   "app.sign.[token].sign-by-link.it_may_have_been_replaced_by": "It may have been replaced by a newer email, canceled or signed already.",
-  "components.inbox.detail-people.cancelled_this": "{{value}} canceled this{{value2}}"
+  "components.inbox.detail-people.cancelled": "Canceled",
+  "components.inbox.detail-people.cancelled_for_everyone": "Canceled for everyone",
+  "components.inbox.detail-people.cancelled_this": "{{value}} canceled this{{value2}}",
+  "lib.activity.organisation": "Organization"
 }

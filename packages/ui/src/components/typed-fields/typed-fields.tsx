@@ -10,6 +10,7 @@ import { Input, type InputProps } from '../input/input';
 import { Kbd, KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
 import { t } from '../../lib/i18n';
+import { regionName } from '../../lib/intl';
 
 /**
  * The fields whose *behaviour* differs by type, not just their attributes.
@@ -81,7 +82,7 @@ export function SearchField({
   value,
   onValueChange,
   onSearch,
-  label = 'Search',
+  label = t('components.typed-fields.typed-fields.search', 'Search'),
   hideIcon = false,
   variant = 'field',
   loading = false,
@@ -328,22 +329,118 @@ export interface DialCode {
 
 /** A starting set. Pass your own for anything beyond a first release. */
 export const commonDialCodes: DialCode[] = [
-  { country: 'GB', code: '+44', label: 'United Kingdom' },
-  { country: 'IE', code: '+353', label: 'Ireland' },
-  { country: 'DE', code: '+49', label: 'Germany' },
-  { country: 'FR', code: '+33', label: 'France' },
-  { country: 'ES', code: '+34', label: 'Spain' },
-  { country: 'NL', code: '+31', label: 'Netherlands' },
-  { country: 'PL', code: '+48', label: 'Poland' },
-  { country: 'US', code: '+1', label: 'United States' },
-  { country: 'CA', code: '+1', label: 'Canada' },
-  { country: 'IN', code: '+91', label: 'India' },
-  { country: 'AU', code: '+61', label: 'Australia' },
-  { country: 'NG', code: '+234', label: 'Nigeria' },
-  { country: 'ZA', code: '+27', label: 'South Africa' },
-  { country: 'BR', code: '+55', label: 'Brazil' },
-  { country: 'JP', code: '+81', label: 'Japan' },
-  { country: 'SG', code: '+65', label: 'Singapore' },
+  {
+    country: 'GB',
+    code: '+44',
+    get label(): string {
+      return regionName('GB');
+    },
+  },
+  {
+    country: 'IE',
+    code: '+353',
+    get label(): string {
+      return regionName('IE');
+    },
+  },
+  {
+    country: 'DE',
+    code: '+49',
+    get label(): string {
+      return regionName('DE');
+    },
+  },
+  {
+    country: 'FR',
+    code: '+33',
+    get label(): string {
+      return regionName('FR');
+    },
+  },
+  {
+    country: 'ES',
+    code: '+34',
+    get label(): string {
+      return regionName('ES');
+    },
+  },
+  {
+    country: 'NL',
+    code: '+31',
+    get label(): string {
+      return regionName('NL');
+    },
+  },
+  {
+    country: 'PL',
+    code: '+48',
+    get label(): string {
+      return regionName('PL');
+    },
+  },
+  {
+    country: 'US',
+    code: '+1',
+    get label(): string {
+      return regionName('US');
+    },
+  },
+  {
+    country: 'CA',
+    code: '+1',
+    get label(): string {
+      return regionName('CA');
+    },
+  },
+  {
+    country: 'IN',
+    code: '+91',
+    get label(): string {
+      return regionName('IN');
+    },
+  },
+  {
+    country: 'AU',
+    code: '+61',
+    get label(): string {
+      return regionName('AU');
+    },
+  },
+  {
+    country: 'NG',
+    code: '+234',
+    get label(): string {
+      return regionName('NG');
+    },
+  },
+  {
+    country: 'ZA',
+    code: '+27',
+    get label(): string {
+      return regionName('ZA');
+    },
+  },
+  {
+    country: 'BR',
+    code: '+55',
+    get label(): string {
+      return regionName('BR');
+    },
+  },
+  {
+    country: 'JP',
+    code: '+81',
+    get label(): string {
+      return regionName('JP');
+    },
+  },
+  {
+    country: 'SG',
+    code: '+65',
+    get label(): string {
+      return regionName('SG');
+    },
+  },
 ];
 
 export interface PhoneFieldProps extends Omit<
@@ -390,7 +487,7 @@ export function PhoneField({
   defaultDialCode = '+44',
   dialCodes = commonDialCodes,
   size = 'md',
-  label = 'Phone number',
+  label = t('components.typed-fields.typed-fields.phone_number', 'Phone number'),
   className,
   containerClassName,
   ...props

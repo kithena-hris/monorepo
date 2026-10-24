@@ -215,7 +215,7 @@ function taskColumns(
 /** O4: every open task that is mine, across plans, by date. */
 export function Tasks(props: ScreenProps<TasksData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="your onboarding tasks">
+    <Loaded load={props.load} what={t('home.your_onboarding_tasks', 'your onboarding tasks')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

@@ -49,9 +49,9 @@ const REMIND: readonly { readonly value: InboxRules['remind']; readonly label: s
 ];
 
 const OVERDUE = [
-  { value: '3', label: '3 days' },
-  { value: '7', label: '7 days' },
-  { value: '14', label: '14 days' },
+  { value: '3', label: t('settings.inbox-rules.3_days', '3 days') },
+  { value: '7', label: t('settings.inbox-rules.7_days', '7 days') },
+  { value: '14', label: t('settings.inbox-rules.14_days', '14 days') },
   { value: '0', label: t('settings.inbox-rules.never', 'Never') },
 ] as const;
 

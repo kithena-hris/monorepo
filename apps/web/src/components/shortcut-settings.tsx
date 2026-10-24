@@ -20,7 +20,7 @@ import {
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
-import { GROUPS, SHORTCUTS, problemWith, type Shortcut } from '../lib/shortcuts';
+import { GROUPS, SHORTCUTS, groupName, problemWith, type Shortcut } from '../lib/shortcuts';
 import { useApple, useShortcuts } from './shortcuts';
 import { t } from '../lib/t';
 
@@ -136,7 +136,7 @@ export function ShortcutSettings(): JSX.Element {
       {GROUPS.map((group) => (
         <section key={group} aria-labelledby={`shortcuts-${group}`} className="flex flex-col gap-4">
           <h2 id={`shortcuts-${group}`} className="font-display text-lg font-bold text-fg">
-            {group}
+            {groupName(group)}
           </h2>
           <ul className="flex flex-col gap-4">
             {table

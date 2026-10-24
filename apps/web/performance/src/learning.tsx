@@ -47,7 +47,6 @@ import {
   StepDialog,
   To,
   day,
-  plural,
   useAct,
   when,
   type Act,
@@ -195,7 +194,15 @@ function catalogueColumns(
       header: tr('learning.assigned', 'Assigned'),
       numeric: true,
       sortBy: (i) => i.assigned,
-      cell: (i) => <span className="text-sm">{plural(i.assigned, 'person', 'people')}</span>,
+      cell: (i) => (
+        <span className="text-sm">
+          {tr(
+            'learning.count_people',
+            { one: '{{count}} person', other: '{{count}} people' },
+            { count: i.assigned },
+          )}
+        </span>
+      ),
     },
     ...(assign === null
       ? []
@@ -302,10 +309,18 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                           <TableCell className="text-sm">{day(a.due)}</TableCell>
                           <TableCell className="text-sm">
                             {a.state === 'done'
-                              ? tr('learning.completed_2', 'Completed {{completedAt}}{{value}}', {
-                                  completedAt: day(a.completedAt),
-                                  value: a.expires === null ? '' : ` · expires ${day(a.expires)}`,
-                                })
+                              ? a.expires === null
+                                ? tr('learning.completed_2', 'Completed {{completedAt}}', {
+                                    completedAt: day(a.completedAt),
+                                  })
+                                : tr(
+                                    'learning.completed_expires',
+                                    'Completed {{completedAt}} · expires {{expires}}',
+                                    {
+                                      completedAt: day(a.completedAt),
+                                      expires: day(a.expires),
+                                    },
+                                  )
                               : (a.progress ?? '—')}
                           </TableCell>
                           <TableCell>
@@ -353,10 +368,14 @@ export function Learning(props: ScreenProps<LearningData>): JSX.Element {
                         icon={<icons.meeting />}
                         description={tr('learning.text', '{{start}} · {{value}}', {
                           start: when(s.start),
-                          value: s.place ?? s.online ?? 'Online',
+                          value: s.place ?? s.online ?? tr('learning.online', 'Online'),
                         })}
                         meta={tr('learning.going_2', '{{going}} going', {
-                          going: plural(s.going, 'person', 'people'),
+                          going: tr(
+                            'learning.count_people',
+                            { one: '{{count}} person', other: '{{count}} people' },
+                            { count: s.going },
+                          ),
                         })}
                         trailing={
                           data.hr ? (
@@ -442,7 +461,11 @@ function Assign({
       pending={act.pending}
       canNext={step !== 1 || people.length > 0}
       finishLabel={tr('learning.assign_to', 'Assign to {{length}}', {
-        length: plural(people.length, 'person', 'people'),
+        length: tr(
+          'learning.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: people.length },
+        ),
       })}
       finish={() => {
         act.run(
@@ -712,7 +735,7 @@ function ImportCompletions({
         label={tr('learning.drop_a_csv_file_or_choose', 'Drop a CSV file, or choose one')}
         hint={tr('learning.or_paste_the_rows_below', 'Or paste the rows below.')}
         accept=".csv,text/csv"
-        rejectMessage="Only a CSV file"
+        rejectMessage={tr('learning.only_a_csv_file', 'Only a CSV file')}
         onFiles={(files) => {
           void files[0]?.text().then(setCsv);
         }}
@@ -807,16 +830,27 @@ export function Item(props: ScreenProps<ItemData>): JSX.Element {
   const act = useAct(props);
   const [answers, setAnswers] = useState<Answers>({});
   return (
-    <Loaded load={props.load} what="the item">
+    <Loaded load={props.load} what={tr('learning.the_item', 'the item')}>
       {({ item, assignment: a, hr }) => (
         <div className="flex flex-col gap-4">
           <PageHeader
             title={item.title}
-            description={tr('learning.text_2', '{{kindWord}} · {{provider}}{{value}}', {
-              kindWord: kindWord(item.kind),
-              provider: item.provider,
-              value: item.minutes === 0 ? '' : ` · ${String(item.minutes)} min`,
-            })}
+            description={
+              item.minutes === 0
+                ? tr('learning.text_2', '{{kindWord}} · {{provider}}', {
+                    kindWord: kindWord(item.kind),
+                    provider: item.provider,
+                  })
+                : tr(
+                    'learning.kind_provider_minutes',
+                    '{{kindWord}} · {{provider}} · {{minutes}} min',
+                    {
+                      kindWord: kindWord(item.kind),
+                      provider: item.provider,
+                      minutes: item.minutes,
+                    },
+                  )
+            }
             actions={
               item.url === null ? null : (
                 <Button asChild startIcon={<icons.externalLink aria-hidden />}>
@@ -1105,14 +1139,14 @@ function DoorQr({ code }: { readonly code: string }): JSX.Element {
 export function Session(props: ScreenProps<SessionData>): JSX.Element {
   const act = useAct(props);
   return (
-    <Loaded load={props.load} what="the session">
+    <Loaded load={props.load} what={tr('learning.the_session', 'the session')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
             title={data.item.title}
             description={tr('learning.text', '{{start}} · {{value}}', {
               start: when(data.session.start),
-              value: data.session.place ?? data.session.online ?? 'Online',
+              value: data.session.place ?? data.session.online ?? tr('learning.online', 'Online'),
             })}
           />
           <Refusal error={act.error} />
@@ -1171,14 +1205,11 @@ export function Session(props: ScreenProps<SessionData>): JSX.Element {
                           <FieldLabel>
                             {r.attended === null
                               ? tr('learning.no', 'No')
-                              : tr('learning.yes', 'Yes, {{value}}', {
-                                  value:
-                                    r.attended.how === 'qr'
-                                      ? 'by the code'
-                                      : r.attended.how === 'hand'
-                                        ? 'by hand'
-                                        : 'from the meeting',
-                                })}
+                              : r.attended.how === 'qr'
+                                ? tr('learning.yes_by_the_code', 'Yes, by the code')
+                                : r.attended.how === 'hand'
+                                  ? tr('learning.yes_by_hand', 'Yes, by hand')
+                                  : tr('learning.yes_from_the_meeting', 'Yes, from the meeting')}
                           </FieldLabel>
                         </Field>
                       </TableCell>

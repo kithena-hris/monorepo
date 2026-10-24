@@ -1,0 +1,12 @@
+{
+  "email.nudge.a_few_days_away": "Uns pocs dies lliures cunden més del que sembla.",
+  "email.nudge.bridge": "Si agafes el {{day}}, tens 4 dies lliures amb {{holiday}}.",
+  "email.nudge.days_left_many": "Et queden {{count}} dies aquest any.",
+  "email.nudge.days_left_one": "Et queda {{count}} dia aquest any.",
+  "email.nudge.days_left_other": "Et queden {{count}} dies aquest any.",
+  "email.nudge.heading": "{{name}}, no has fet cap dia de festa des de {{month}}",
+  "email.nudge.private": "Ningú més no veu aquest missatge.",
+  "email.nudge.would_be_lost_many": "{{count}} es perdrien el {{date}} si continuen sense reservar.",
+  "email.nudge.would_be_lost_one": "{{count}} es perdria el {{date}} si continua sense reservar.",
+  "email.nudge.would_be_lost_other": "{{count}} es perdrien el {{date}} si continuen sense reservar."
+}

@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * Boxes laid over a page (`PdfPages`' overlay): placed, moved, resized and
@@ -303,7 +304,10 @@ export function PlacementLayer({
             role="button"
             tabIndex={0}
             aria-pressed={chosen}
-            aria-roledescription="placed box"
+            aria-roledescription={t(
+              'components.placement-layer.placement-layer.placed_box',
+              'placed box',
+            )}
             {...common}
             onPointerDown={(event) => {
               begin(event, box, 'move');

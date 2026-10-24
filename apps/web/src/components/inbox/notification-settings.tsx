@@ -45,7 +45,17 @@ import { t as tr } from '../../lib/t';
  * quiet hours, the daily digest's time, and what they muted.
  */
 
-const EMAIL = { now: 'Right away', digest: 'Daily digest', off: 'Off' } as const;
+const EMAIL = {
+  get now() {
+    return tr('components.inbox.notification-settings.right_away', 'Right away');
+  },
+  get digest() {
+    return tr('components.inbox.notification-settings.daily_digest', 'Daily digest');
+  },
+  get off() {
+    return tr('components.inbox.notification-settings.off', 'Off');
+  },
+};
 
 function EmailSelect({
   value,

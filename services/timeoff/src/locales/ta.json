@@ -1,0 +1,10 @@
+{
+  "email.nudge.a_few_days_away": "சில நாள் ஓய்வு தோன்றுவதைவிட அதிகப் பலன் தரும்.",
+  "email.nudge.bridge": "{{day}} விடுப்பு எடுத்தால், {{holiday}} உடன் 4 நாட்கள் விடுமுறை கிடைக்கும்.",
+  "email.nudge.days_left_one": "இந்த ஆண்டு உங்களுக்கு {{count}} நாள் மீதம் உள்ளது.",
+  "email.nudge.days_left_other": "இந்த ஆண்டு உங்களுக்கு {{count}} நாட்கள் மீதம் உள்ளன.",
+  "email.nudge.heading": "{{name}}, {{month}} முதல் நீங்கள் ஒரு நாள்கூட விடுப்பு எடுக்கவில்லை",
+  "email.nudge.private": "இந்தச் செய்தியை வேறு யாரும் பார்ப்பதில்லை.",
+  "email.nudge.would_be_lost_one": "பதிவு செய்யாவிட்டால் அவற்றில் {{count}} நாள் {{date}} அன்று இழக்கப்படும்.",
+  "email.nudge.would_be_lost_other": "பதிவு செய்யாவிட்டால் அவற்றில் {{count}} நாட்கள் {{date}} அன்று இழக்கப்படும்."
+}

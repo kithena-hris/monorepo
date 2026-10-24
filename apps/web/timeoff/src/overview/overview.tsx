@@ -6,18 +6,18 @@ import {
   Button,
   Card,
   Carousel,
+  type IconName,
+  icons,
   List,
   ListItem,
   PageHeader,
   PageSection,
   Progress,
   RangeBar,
+  type RangeBarSegment,
   Skeleton,
   Stat,
-  icons,
   useCoarsePointerAt,
-  type IconName,
-  type RangeBarSegment,
 } from '@reach/ui';
 import {
   createElement,
@@ -175,7 +175,7 @@ export function Overview({ load, onPunch }: OverviewProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('overview.overview.time_off', 'Time off')} />
       ) : null}
-      <Loaded load={load} what="your time off">
+      <Loaded load={load} what={t('overview.overview.your_time_off', 'your time off')}>
         {(data) => <Ready data={data} onPunch={onPunch} />}
       </Loaded>
     </div>
@@ -644,10 +644,11 @@ function ComingUp({
                 className={late}
                 icon={leaveIcon(type?.icon)}
                 iconTone={chartTone(type?.colorToken)}
-                description={t('overview.overview.text', '{{days}} {{value}}', {
-                  days,
-                  value: days === '1' ? 'day' : 'days',
-                })}
+                description={t(
+                  'overview.overview.count_days',
+                  { one: '{{count}} day', other: '{{count}} days' },
+                  { count: Number(days) },
+                )}
                 trailing={
                   <Badge size="sm" tone={status.tone} dot>
                     {status.label}
@@ -839,6 +840,7 @@ function duration(minutes: number): string {
 }
 
 function parts(at: string, zone: string): Record<string, string> {
+  // Numbers to compute with, not words to show: always the same digits and clock.
   return Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: zone,

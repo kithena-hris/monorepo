@@ -2,6 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 const spinner = cva('animate-spin text-current motion-reduce:animate-none', {
   variants: {
@@ -29,7 +30,7 @@ export interface SpinnerProps
 export function Spinner({
   className,
   size,
-  label = 'Loading',
+  label = t('components.spinner.spinner.loading', 'Loading'),
   ...props
 }: SpinnerProps): JSX.Element {
   return (

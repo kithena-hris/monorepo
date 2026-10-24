@@ -31,7 +31,7 @@ import {
   type Review,
 } from '../domain/review.js';
 import { published, type Template } from '../domain/template.js';
-import { audit, event, hrOnly, names, notFound, publish, type Ctx } from './context.js';
+import { audit, event, hrOnly, names, notFound, publish, type Ctx, mailWords } from './context.js';
 import type { LiveChange } from './ports.js';
 import { people, subtitle, team, type Person } from './members.js';
 import { settingsOf } from './settings.js';
@@ -880,6 +880,7 @@ export async function remind(
   id: string,
   personIds: string[],
 ): Promise<Result<{ reminded: number }>> {
+  const { t } = await mailWords(ctx);
   const may = hrOnly(ctx);
   if (!may.ok) return may;
   const c = await ctx.tx.cycles.get(id);
@@ -907,8 +908,12 @@ export async function remind(
     if (email)
       ctx.mail.push({
         to: email,
-        subject: `Reminder: ${c.name}`,
-        text: `Hi ${name(a)}, you have reviews to write in ${c.name}. Open Kithena to continue.`,
+        subject: t('email.cycles.reminder', 'Reminder: {{name}}', { name: c.name }),
+        text: t(
+          'email.cycles.hi_you_have_reviews_to_write',
+          'Hi {{name}}, you have reviews to write in {{name2}}. Open Kithena to continue.',
+          { name: name(a), name2: c.name },
+        ),
         dedupeKey: `remind:${id}:${a}:${ctx.today}`,
         ...(c.reminders.chat ? {} : { chat: false as const }),
       });

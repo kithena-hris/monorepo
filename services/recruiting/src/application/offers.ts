@@ -59,7 +59,7 @@ import {
 import { packFor } from '../domain/terms/packs.js';
 import { validateTerms, type EntityFacts, type Validated } from '../domain/terms/pack.js';
 import type { TermsIssue } from '@kithena/contracts';
-import { asPerson, event, forbidden, notFound, publish, type Ctx } from './context.js';
+import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
@@ -364,7 +364,11 @@ export async function sendTheOffer(ctx: Ctx, offerId: string): Promise<Result<Of
   ctx.mail.push({
     to: loaded.value.candidate.email,
     subject: render(words.subject, values),
-    text: `${render(words.body, values)}\n\nThe offer is open until ${latest(sent.value).expiresOn}.`,
+    text: `${render(words.body, values)}\n\n${(await mailWords(ctx)).t(
+      'email.offer.open_until',
+      'The offer is open until {{date}}.',
+      { date: latest(sent.value).expiresOn },
+    )}`,
     dedupeKey: `offer:${offerId}:${String(latest(sent.value).version)}`,
   });
   return ok(sent.value);

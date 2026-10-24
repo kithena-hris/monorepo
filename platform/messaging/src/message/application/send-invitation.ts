@@ -4,6 +4,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import { toAddress } from '../domain/address.js';
 import { linkIsTrusted, renderInvitation, type MessagePurpose } from '../domain/invitation.js';
 import type { EmailTransport } from './email-transport.js';
+import { inEnglish, type CompanyLanguage } from './company-language.js';
 import type { DeliveryLog } from './delivery-log.js';
 
 /**
@@ -77,6 +78,8 @@ export interface SendInvitationDeps {
    */
   readonly trustedLinkOrigin: string;
   readonly onRefusal?: (reason: SendRefusal, detail: Record<string, string>) => void;
+  /** The company's language, which every email is written in. US English when absent. */
+  readonly language?: CompanyLanguage;
 }
 
 export type SendInvitation = (
@@ -99,15 +102,18 @@ export function sendInvitation(deps: SendInvitationDeps): SendInvitation {
       return refuse('untrusted_link');
     }
 
-    const message = renderInvitation({
-      ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
-      companyName: request.companyName,
-      recipient: recipient.value,
-      enrolUrl: request.enrolUrl,
-      expiresAt: request.expiresAt,
-      logoUrl: request.logoUrl ?? null,
-      themeId: request.themeId ?? null,
-    });
+    const message = renderInvitation(
+      {
+        ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
+        companyName: request.companyName,
+        recipient: recipient.value,
+        enrolUrl: request.enrolUrl,
+        expiresAt: request.expiresAt,
+        logoUrl: request.logoUrl ?? null,
+        themeId: request.themeId ?? null,
+      },
+      await (deps.language ?? inEnglish)(request.tenantId),
+    );
     if (!message.ok) return refuse('unrenderable');
 
     const sent = await deps.transport.send({

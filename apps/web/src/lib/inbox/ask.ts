@@ -1,5 +1,6 @@
 import { dayIn } from './plain';
 import type { Shown } from './model';
+import { t } from '../t';
 
 /**
  * Asking about your Inbox (Z4, M:Z2): what is due this week, what waits on
@@ -25,14 +26,20 @@ export interface InboxReply {
 const DAY_MS = 86_400_000;
 const laneOf = (i: Shown): string =>
   ({ task: 'todo', update: 'updates', request: 'requests', done: 'done' })[i.lane];
-const days = (n: number): string => `${String(n)} day${n === 1 ? '' : 's'}`;
 const first = (name: string | null | undefined): string => (name ?? '').split(' ')[0] ?? '';
 
 function nudgeOf(i: Shown, now: string): { itemId: string; label: string } | null {
   const n = (i.detail as { nudge?: { from?: string; used?: boolean } | null } | null)?.nudge;
   if (n == null || n.used === true || typeof n.from !== 'string' || n.from > now) return null;
-  const holder = i.status?.label.replace(/^With /u, '') ?? 'them';
-  return { itemId: i.id, label: `Nudge ${first(holder) || 'them'}` };
+  const holder = i.status?.label.replace(/^With /u, '') ?? '';
+  const who = first(holder);
+  return {
+    itemId: i.id,
+    label:
+      who === ''
+        ? t('lib.inbox.ask.nudge_them', 'Nudge them')
+        : t('lib.inbox.ask.nudge_name', 'Nudge {{name}}', { name: who }),
+  };
 }
 
 export function answerInbox(
@@ -65,7 +72,10 @@ export function answerInbox(
     const r = named ?? requests[0];
     if (r === undefined) {
       return {
-        text: 'Nothing you asked for is waiting on anybody right now.',
+        text: t(
+          'lib.inbox.ask.nothing_you_asked_for_is_waiting_now',
+          'Nothing you asked for is waiting on anybody right now.',
+        ),
         items: [],
         nudge: null,
       };
@@ -73,26 +83,69 @@ export function answerInbox(
     const waited = Math.max(0, Math.floor((Date.parse(now) - Date.parse(r.at)) / DAY_MS));
     const nudge = nudgeOf(r, now);
     return {
-      text: `${r.title}: ${r.status?.label.toLowerCase() ?? 'waiting'}, sent ${waited === 0 ? 'today' : `${days(waited)} ago`}.${nudge === null ? '' : ' You can nudge them now.'}`,
+      text: `${
+        waited === 0
+          ? t('lib.inbox.ask.status_sent_today', '{{title}}: {{status}}, sent today.', {
+              title: r.title,
+              status: r.status?.label.toLowerCase() ?? t('lib.inbox.ask.waiting', 'waiting'),
+            })
+          : t(
+              'lib.inbox.ask.status_sent_days_ago',
+              {
+                one: '{{title}}: {{status}}, sent {{count}} day ago.',
+                other: '{{title}}: {{status}}, sent {{count}} days ago.',
+              },
+              {
+                title: r.title,
+                status: r.status?.label.toLowerCase() ?? t('lib.inbox.ask.waiting', 'waiting'),
+                count: waited,
+              },
+            )
+      }${nudge === null ? '' : t('lib.inbox.ask.you_can_nudge_them_now', ' You can nudge them now.')}`,
       items: [chip(r, r.status?.label ?? null)],
       nudge,
     };
   }
   if (/\b(waiting|others|requests?|asked)\b/u.test(q)) {
     if (requests.length === 0) {
-      return { text: 'Nothing you asked for is waiting on anybody.', items: [], nudge: null };
+      return {
+        text: t(
+          'lib.inbox.ask.nothing_you_asked_for_is_waiting',
+          'Nothing you asked for is waiting on anybody.',
+        ),
+        items: [],
+        nudge: null,
+      };
     }
     return {
-      text: `${String(requests.length)} of your requests ${requests.length === 1 ? 'is' : 'are'} waiting on somebody.`,
+      text: t(
+        'lib.inbox.ask.requests_waiting_on_somebody',
+        {
+          one: '{{count}} of your requests is waiting on somebody.',
+          other: '{{count}} of your requests are waiting on somebody.',
+        },
+        { count: requests.length },
+      ),
       items: requests.slice(0, 5).map((r) => chip(r, r.status?.label ?? null)),
       nudge: requests.map((r) => nudgeOf(r, now)).find((n) => n !== null) ?? null,
     };
   }
   if (/\b(updates?|news|new|happened)\b/u.test(q)) {
     return unread.length === 0
-      ? { text: 'You have read every update.', items: [], nudge: null }
+      ? {
+          text: t('lib.inbox.ask.you_have_read_every_update', 'You have read every update.'),
+          items: [],
+          nudge: null,
+        }
       : {
-          text: `${String(unread.length)} update${unread.length === 1 ? '' : 's'} you haven’t opened.`,
+          text: t(
+            'lib.inbox.ask.updates_you_havent_opened',
+            {
+              one: '{{count}} update you haven’t opened.',
+              other: '{{count}} updates you haven’t opened.',
+            },
+            { count: unread.length },
+          ),
           items: unread.slice(0, 5).map((u) => chip(u, null)),
           nudge: null,
         };
@@ -102,25 +155,69 @@ export function answerInbox(
     .filter((t) => t.due !== null && inDays(t.due) <= (/\btoday\b/u.test(q) ? 0 : 7))
     .sort((a, b) => ((a.due ?? '') < (b.due ?? '') ? -1 : 1));
   if (tasks.length === 0) {
-    return { text: 'Nothing needs you. New tasks appear in your Inbox.', items: [], nudge: null };
+    return {
+      text: t(
+        'lib.inbox.ask.nothing_needs_you',
+        'Nothing needs you. New tasks appear in your Inbox.',
+      ),
+      items: [],
+      nudge: null,
+    };
   }
   const nearest = soon[0];
-  const hint = (t: Shown): string | null =>
-    t.due === null
+  const hint = (task: Shown): string | null =>
+    task.due === null
       ? null
-      : inDays(t.due) < 0
-        ? 'overdue'
-        : inDays(t.due) === 0
-          ? 'today'
-          : inDays(t.due) === 1
-            ? 'tomorrow'
-            : t.due;
+      : inDays(task.due) < 0
+        ? t('lib.inbox.ask.overdue', 'overdue')
+        : inDays(task.due) === 0
+          ? t('lib.inbox.ask.today', 'today')
+          : inDays(task.due) === 1
+            ? t('lib.inbox.ask.tomorrow', 'tomorrow')
+            : task.due;
+  const askedToday = /\btoday\b/u.test(q);
   return {
     text:
       soon.length === 0
-        ? `${String(tasks.length)} task${tasks.length === 1 ? '' : 's'} to do, none due this week.`
-        : `${String(soon.length)} task${soon.length === 1 ? ' is' : 's are'} due ${/\btoday\b/u.test(q) ? 'today or overdue' : 'this week'}.${nearest === undefined ? '' : ` ${nearest.title} is ${hint(nearest) === 'overdue' ? 'overdue' : `due ${hint(nearest) ?? ''}`}.`}`,
-    items: (soon.length === 0 ? tasks : soon).slice(0, 5).map((t) => chip(t, hint(t))),
+        ? t(
+            'lib.inbox.ask.tasks_to_do_none_due_this_week',
+            {
+              one: '{{count}} task to do, none due this week.',
+              other: '{{count}} tasks to do, none due this week.',
+            },
+            { count: tasks.length },
+          )
+        : `${
+            askedToday
+              ? t(
+                  'lib.inbox.ask.tasks_due_today_or_overdue',
+                  {
+                    one: '{{count}} task is due today or overdue.',
+                    other: '{{count}} tasks are due today or overdue.',
+                  },
+                  { count: soon.length },
+                )
+              : t(
+                  'lib.inbox.ask.tasks_due_this_week',
+                  {
+                    one: '{{count}} task is due this week.',
+                    other: '{{count}} tasks are due this week.',
+                  },
+                  { count: soon.length },
+                )
+          }${
+            nearest === undefined
+              ? ''
+              : nearest.due !== null && inDays(nearest.due) < 0
+                ? t('lib.inbox.ask.title_is_overdue', ' {{title}} is overdue.', {
+                    title: nearest.title,
+                  })
+                : t('lib.inbox.ask.title_is_due', ' {{title}} is due {{when}}.', {
+                    title: nearest.title,
+                    when: hint(nearest) ?? '',
+                  })
+          }`,
+    items: (soon.length === 0 ? tasks : soon).slice(0, 5).map((task) => chip(task, hint(task))),
     nudge: null,
   };
 }

@@ -98,7 +98,7 @@ export function DocumentView(props: DocumentViewProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('document.document.document', 'Document')} />
       ) : null}
-      <Loaded load={load} what="the document">
+      <Loaded load={load} what={t('document.document.the_document', 'the document')}>
         {(data) =>
           data.document === null ? (
             <Closed
@@ -189,7 +189,10 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
   const download = (): void => {
     write.run(async () => {
       const link = await (props.onFileLink?.(row.id, 'download') ??
-        Promise.resolve({ ok: false as const, message: 'Not available here' }));
+        Promise.resolve({
+          ok: false as const,
+          message: t('document.document.not_available_here', 'Not available here'),
+        }));
       if (!link.ok) return link;
       window.location.assign(link.url);
       return { ok: true };
@@ -320,7 +323,10 @@ function Open({ doc, ...props }: { readonly doc: Doc } & DocumentViewProps): JSX
               icon={<icons.sensitive />}
             >
               {doc.may.download
-                ? 'Your name is on every page you view. You can download it; most people cannot.'
+                ? t(
+                    'document.document.your_name_is_on_every_page_you',
+                    'Your name is on every page you view. You can download it; most people cannot.',
+                  )
                 : t(
                     'document.document.your_name_is_on_every_page',
                     'Your name is on every page. It cannot be downloaded or printed, and every open is logged.',
@@ -867,7 +873,10 @@ function NewVersion({
               write.run(
                 async () => {
                   if (onStartUpload === undefined)
-                    return { ok: false, message: 'Not available here' };
+                    return {
+                      ok: false,
+                      message: t('document.document.not_available_here', 'Not available here'),
+                    };
                   const put = await putFile(file, onStartUpload);
                   if (!put.ok) return put;
                   return onAddVersion?.(id, put.ref, note.trim() || null) ?? { ok: true };

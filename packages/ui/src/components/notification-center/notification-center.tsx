@@ -70,7 +70,7 @@ export interface NotificationPanelProps extends Omit<ComponentPropsWithoutRef<'s
 }
 
 export function NotificationPanel({
-  title = 'Notifications',
+  title = t('components.notification-center.notification-center.notifications', 'Notifications'),
   action,
   className,
   children,
@@ -264,7 +264,7 @@ function useCoarseAt(): [ref: RefObject<HTMLElement | null>, coarse: boolean] {
 
 export function NotificationCenter({
   trigger,
-  title = 'Notifications',
+  title = t('components.notification-center.notification-center.notifications', 'Notifications'),
   action,
   children,
   // open, defaultOpen, onOpenChange: the same meaning for either surface.

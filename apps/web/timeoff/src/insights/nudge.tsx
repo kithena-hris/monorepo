@@ -70,7 +70,7 @@ export interface NudgeProps {
 }
 
 const people = (n: number): string =>
-  n === 1 ? '1 person' : t('insights.nudge.people', '{{n}} people', { n: String(n) });
+  t('insights.nudge.people', { one: '{{count}} person', other: '{{count}} people' }, { count: n });
 
 export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Element {
   const [busy, setBusy] = useState(false);
@@ -189,13 +189,22 @@ export function Nudge({ nudge, onAsk, onSend, onClose }: NudgeProps): JSX.Elemen
                 ? null
                 : t(
                     'insights.nudge.no_work_email_time_off_knows',
-                    '{{people}} {{value}} no work email Time Off knows.',
                     {
-                      people: people(result.unreachable),
-                      value: result.unreachable === 1 ? 'has' : 'have',
+                      one: '{{people}} has no work email Time Off knows.',
+                      other: '{{people}} have no work email Time Off knows.',
                     },
+                    { count: result.unreachable, people: people(result.unreachable) },
                   ),
-              result.failed === 0 ? null : `${String(result.failed)} could not be sent; try again.`,
+              result.failed === 0
+                ? null
+                : t(
+                    'insights.nudge.could_not_be_sent_try_again',
+                    {
+                      one: '{{count}} could not be sent; try again.',
+                      other: '{{count}} could not be sent; try again.',
+                    },
+                    { count: result.failed },
+                  ),
             ]
               .filter(Boolean)
               .join(' ') ||

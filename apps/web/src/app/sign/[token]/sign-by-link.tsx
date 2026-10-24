@@ -330,7 +330,13 @@ function SignNow({
                   onClick={() => {
                     act(async () => {
                       const r = await declineLink(token, reason);
-                      if (r.ok) onDone('Declined. The sender is told.');
+                      if (r.ok)
+                        onDone(
+                          t(
+                            'app.sign.[token].sign-by-link.declined_the_sender_is_told',
+                            'Declined. The sender is told.',
+                          ),
+                        );
                       else setProblem(r.message);
                     });
                   }}
@@ -416,7 +422,12 @@ function SignNow({
                   const r = await verifyCode(token, full);
                   if (!r.ok) setProblem(r.message);
                   else if (!r.verified) {
-                    setProblem('That code is not right. Try again.');
+                    setProblem(
+                      t(
+                        'app.sign.[token].sign-by-link.that_code_is_not_right_try_again',
+                        'That code is not right. Try again.',
+                      ),
+                    );
                     setCode('');
                   } else {
                     setVerified(true);

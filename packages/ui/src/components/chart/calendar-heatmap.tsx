@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn';
 import { ChartDataTable, ChartMark, ChartScaleKey, toneMix, type ChartTone } from './chart';
 import { ChartFrame } from './chart-window';
 import { t } from '../../lib/i18n';
+import { dateFormat, locale as pageLocale } from '../../lib/intl';
 
 export interface CalendarDay {
   /** A calendar date, `YYYY-MM-DD`. Not a timestamp: a day has no time zone. */
@@ -37,7 +38,10 @@ export interface CalendarHeatmapProps {
 }
 
 const DAY = 86_400_000;
-const WEEKDAYS = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
+const WEEKDAY = dateFormat({ weekday: 'short', timeZone: 'UTC' });
+/** Every other row named, Monday first: 5 January 1970 was a Monday. */
+const weekdays = (): string[] =>
+  [0, 1, 2, 3, 4, 5, 6].map((d) => (d % 2 === 0 ? WEEKDAY.format(Date.UTC(1970, 0, 5 + d)) : ''));
 
 /** Days since the epoch, in UTC, so no daylight-saving hour can skip a day. */
 function dayNumber(iso: string): number {
@@ -69,7 +73,7 @@ export function CalendarHeatmap({
   max,
   format = (value) => String(value),
   describe,
-  locale = 'en-GB',
+  locale = pageLocale(),
   summary,
   focus,
   className,
@@ -150,7 +154,7 @@ export function CalendarHeatmap({
             </span>
           ))}
 
-          {WEEKDAYS.map((weekday, row) => (
+          {weekdays().map((weekday, row) => (
             <Row key={row} label={weekday}>
               {Array.from({ length: weeks }, (_, week) => {
                 const day = first + week * 7 + row;
@@ -175,7 +179,7 @@ export function CalendarHeatmap({
 
       <ChartScaleKey
         tone={tone}
-        low="Less"
+        low={t('components.chart.calendar-heatmap.less', 'Less')}
         high={t('components.chart.calendar-heatmap.more', 'More · {{format}}+', {
           format: format(ceiling),
         })}
@@ -185,7 +189,7 @@ export function CalendarHeatmap({
         caption={t('components.chart.calendar-heatmap.days_with_any', '{{label}}: days with any', {
           label,
         })}
-        valueLabel="Value"
+        valueLabel={t('components.chart.calendar-heatmap.value', 'Value')}
         data={busy.map(([day, value]) => ({ label: dateName.format(day * DAY), value }))}
         format={format}
       />

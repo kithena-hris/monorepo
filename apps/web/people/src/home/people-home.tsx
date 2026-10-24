@@ -9,19 +9,22 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  type ChartPoint,
   CircularProgress,
+  dateFormat,
+  formatList,
+  type IconName,
+  icons,
   KeyValues,
   List,
   ListItem,
+  locale,
   PageHeader,
   PersonCard,
   Sparkline,
   Stack,
   Stat,
-  type ChartPoint,
   type UploadedImage,
-  icons,
-  type IconName,
 } from '@reach/ui';
 import { useState, type ComponentType, type JSX, type ReactNode } from 'react';
 
@@ -232,26 +235,33 @@ export function tenure(startedOn: string, today: string): string | null {
   if (months === 0) return tr('home.people-home.less_than_a_month', 'less than a month');
   const years = Math.floor(months / 12);
   const rest = months % 12;
-  const plural = (n: number, word: string) =>
-    tr('home.people-home.text', '{{n}} {{word}}{{value}}', {
-      n: String(n),
-      word,
-      value: n === 1 ? '' : 's',
-    });
-  return [years > 0 ? plural(years, 'year') : null, rest > 0 ? plural(rest, 'month') : null]
+  return [
+    years > 0
+      ? tr(
+          'home.people-home.count_years',
+          { one: '{{count}} year', other: '{{count}} years' },
+          { count: years },
+        )
+      : null,
+    rest > 0
+      ? tr(
+          'home.people-home.count_months',
+          { one: '{{count}} month', other: '{{count}} months' },
+          { count: rest },
+        )
+      : null,
+  ]
     .filter((x) => x !== null)
     .join(', ');
 }
 
 const longDate = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(
-    new Date(`${date}T00:00:00Z`),
-  );
+  dateFormat({ dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
 
 /** "Wednesday 3 October": today, where they work. */
 const weekday = (now: string, timeZone: string): string => {
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return dateFormat({
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -280,13 +290,6 @@ const first = (name: string): string => name.split(' ')[0] ?? name;
 /** An item in Review, its chip chosen: where each row of Home's lists goes. */
 const review = (kind: string, item?: string): string =>
   `/people/review/waiting?kind=${kind}${item === undefined ? '' : `&item=${encodeURIComponent(item)}`}`;
-
-const counted = (n: number, one: string, many: string): string =>
-  tr('home.people-home.text_2', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? one : many,
-  });
-
 /* -------------------------------------------------------------- parts -- */
 
 /** A titled card, with a link or a figure beside its title: Home's section. */
@@ -418,10 +421,11 @@ function Todo({
       trailing={
         <Onward
           href={href}
-          label={tr('home.people-home.text_3', '{{value}}: {{title}}', {
-            value: word ?? 'Open',
-            title,
-          })}
+          label={
+            word === null
+              ? tr('home.people-home.open_title', 'Open: {{title}}', { title })
+              : tr('home.people-home.text_3', '{{value}}: {{title}}', { value: word, title })
+          }
           word={word}
           {...(primary === undefined ? {} : { primary })}
         />
@@ -531,12 +535,11 @@ function ToDo({
             showValue={false}
             label={tr(
               'home.people-home.of_required_missing',
-              '{{length}} of {{required}} required {{value}} missing',
               {
-                length: String(state.missing.length),
-                required: String(me.required),
-                value: me.required === 1 ? 'detail' : 'details',
+                one: '{{length}} of {{count}} required detail missing',
+                other: '{{length}} of {{count}} required details missing',
               },
+              { count: me.required, length: String(state.missing.length) },
             )}
             tone={percent >= 100 ? 'success' : 'accent'}
           />
@@ -585,7 +588,7 @@ function ToDo({
                 { charAt: c.reason.charAt(0).toLowerCase(), slice: c.reason.slice(1) },
               )}
               href={`/people/me?field=${encodeURIComponent(c.key)}`}
-              word="Correct it"
+              word={tr('home.people-home.correct_it', 'Correct it')}
               primary
             />
           ))}
@@ -598,7 +601,7 @@ function ToDo({
               })}
               description={m.section}
               href={`/people/me?field=${encodeURIComponent(m.key)}`}
-              word="Add"
+              word={tr('home.people-home.add', 'Add')}
             />
           ))}
           {changes.map((c) => (
@@ -623,7 +626,9 @@ function ToDo({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-sm text-fg-muted">
             {tr('home.people-home.waiting_on', 'Waiting on')}{' '}
-            {[...new Set(theirs.map((m) => m.ownedBy))].join(' and ')}
+            {formatList(
+              [...new Set(theirs.map((m) => m.ownedBy))].filter((o): o is string => o !== null),
+            )}
             {tr('home.people-home.nothing_for_you_to_do_2', ', nothing for you to do:')}
           </span>
           <ul
@@ -767,7 +772,11 @@ function ReportingLine({
                 name={m.name}
                 description={
                   m.id === manager?.id
-                    ? `Your manager · ${m.title ?? ''}`.replace(/ · $/, '')
+                    ? m.title == null || m.title === ''
+                      ? tr('home.people-home.your_manager', 'Your manager')
+                      : tr('home.people-home.your_manager_title', 'Your manager · {{title}}', {
+                          title: m.title,
+                        })
                     : m.title
                 }
                 href={`/people/${m.id}`}
@@ -792,11 +801,14 @@ function ReportingLine({
               ? tr('home.people-home.nobody_else_reports_to', 'Nobody else reports to {{name}}.', {
                   name: manager.name,
                 })
-              : tr('home.people-home.to', '{{peers}} {{value}} to {{first}}.', {
-                  peers: String(line.peers),
-                  value: line.peers === 1 ? 'other reports' : 'others report',
-                  first: first(manager.name),
-                })}
+              : tr(
+                  'home.people-home.to',
+                  {
+                    one: '{{count}} other reports to {{first}}.',
+                    other: '{{count}} others report to {{first}}.',
+                  },
+                  { count: line.peers, first: first(manager.name) },
+                )}
           </p>
         )}
       </Stack>
@@ -894,10 +906,11 @@ export function unusual(approvals: PeopleHomeState['approvals']): string | null 
   const n = approvals?.flagged ?? 0;
   if (n === 0) return null;
   const reason = approvals?.flagReason ?? null;
-  const what = tr('home.people-home.unusual', '{{n}} {{value}} unusual', {
-    n: String(n),
-    value: n === 1 ? 'looks' : 'look',
-  });
+  const what = tr(
+    'home.people-home.unusual',
+    { one: '{{count}} looks unusual', other: '{{count}} look unusual' },
+    { count: n },
+  );
   return reason === null || reason === ''
     ? what
     : tr('home.people-home.text_4', '{{what}}: {{charAt}}{{slice}}', {
@@ -933,7 +946,11 @@ function HrHome({
       <Todo
         key="changes"
         icon={<icons.edit aria-hidden />}
-        title={counted(changes, 'change to approve', 'changes to approve')}
+        title={tr(
+          'home.people-home.count_changes_to_approve',
+          { one: '{{count}} change to approve', other: '{{count}} changes to approve' },
+          { count: changes },
+        )}
         description={[
           unusual(approvals) ??
             (oldest === undefined
@@ -954,7 +971,11 @@ function HrHome({
       <Todo
         key="ids"
         icon={<icons.identifier aria-hidden />}
-        title={counted(hr.identifiers ?? 0, 'identifier to check', 'identifiers to check')}
+        title={tr(
+          'home.people-home.count_identifiers_to_check',
+          { one: '{{count}} identifier to check', other: '{{count}} identifiers to check' },
+          { count: hr.identifiers ?? 0 },
+        )}
         description={[
           'Failed a check, or couldn’t be verified',
           ((by) => (by === null ? null : `entered by ${byWhom(by)}`))(
@@ -973,12 +994,16 @@ function HrHome({
       <Todo
         key="duplicates"
         icon={<icons.merge aria-hidden />}
-        title={counted(hr.duplicates ?? 0, 'possible duplicate', 'possible duplicates')}
+        title={tr(
+          'home.people-home.count_possible_duplicates',
+          { one: '{{count}} possible duplicate', other: '{{count}} possible duplicates' },
+          { count: hr.duplicates ?? 0 },
+        )}
         description={[
           'Same work email, or name and birth date',
           (hr.duplicatesBy ?? []).length === 0
             ? null
-            : `flagged by ${(hr.duplicatesBy ?? []).join(' and ')}`,
+            : `flagged by ${formatList(hr.duplicatesBy ?? [])}`,
         ]
           .filter((x) => x !== null)
           .join(' · ')}
@@ -992,16 +1017,25 @@ function HrHome({
       <Todo
         key="access"
         icon={<icons.sensitive aria-hidden />}
-        title={counted(
-          hr.accessRequests ?? 0,
-          'request for full values',
-          'requests for full values',
+        title={tr(
+          'home.people-home.count_requests_for_full_values',
+          { one: '{{count}} request for full values', other: '{{count}} requests for full values' },
+          { count: hr.accessRequests ?? 0 },
         )}
-        description={tr(
-          'home.people-home.asked_to_see_unmasked_values',
-          '{{value}} asked to see unmasked values',
-          { value: whoOf(hr.accessRequestsBy ?? []) ?? 'Somebody' },
-        )}
+        description={
+          whoOf(hr.accessRequestsBy ?? []) === null
+            ? tr(
+                'home.people-home.somebody_asked_to_see_unmasked',
+                'Somebody asked to see unmasked values',
+              )
+            : tr(
+                'home.people-home.asked_to_see_unmasked_values',
+                '{{value}} asked to see unmasked values',
+                {
+                  value: whoOf(hr.accessRequestsBy ?? []) ?? '',
+                },
+              )
+        }
         href={review('access')}
         word="Decide"
       />,
@@ -1012,7 +1046,14 @@ function HrHome({
       <Todo
         key="fill"
         icon={<icons.missing aria-hidden />}
-        title={counted(team.toFill, 'detail for HR to fill in', 'details for HR to fill in')}
+        title={tr(
+          'home.people-home.count_details_for_hr_to_fill_in',
+          {
+            one: '{{count}} detail for HR to fill in',
+            other: '{{count}} details for HR to fill in',
+          },
+          { count: team.toFill },
+        )}
         description={tr(
           'home.people-home.missing_details_only_hr_keeps',
           'Missing details only HR keeps',
@@ -1031,10 +1072,10 @@ function HrHome({
           'home.people-home.details_of_their_own_to_add',
           '{{counted}} details of their own to add',
           {
-            counted: counted(
-              team.waiting,
-              tr('home.people-home.person_has', 'person has'),
-              tr('home.people-home.people_have', 'people have'),
+            counted: tr(
+              'home.people-home.count_people_have',
+              { one: '{{count}} person has', other: '{{count}} people have' },
+              { count: team.waiting },
             ),
           },
         )}
@@ -1057,7 +1098,7 @@ function HrHome({
           <Figure
             href="/people/insights/headcount"
             label={tr('home.people-home.headcount', 'Headcount')}
-            value={headcount.value.toLocaleString('en-GB')}
+            value={headcount.value.toLocaleString(locale())}
             description={
               headcount.change === null
                 ? 'today'
@@ -1085,7 +1126,7 @@ function HrHome({
             value={hr.complete.percent}
             unit="%"
             description={tr('home.people-home.incomplete', '{{toLocaleString}} incomplete', {
-              toLocaleString: hr.complete.incomplete.toLocaleString('en-GB'),
+              toLocaleString: hr.complete.incomplete.toLocaleString(locale()),
             })}
           />
         )}
@@ -1205,7 +1246,11 @@ function HrHome({
                   {me.missing === null || me.missing === 0
                     ? 'complete'
                     : tr('home.people-home.missing', 'missing {{counted}}', {
-                        counted: counted(me.missing, 'detail', 'details'),
+                        counted: tr(
+                          'home.people-home.count_details',
+                          { one: '{{count}} detail', other: '{{count}} details' },
+                          { count: me.missing },
+                        ),
                       })}
                 </b>
               </p>
@@ -1380,7 +1425,7 @@ function Setup({
  */
 export function PeopleHome({ load, onPhoto, onSetupFile, toDo }: PeopleHomeProps): JSX.Element {
   return (
-    <Loaded load={load} what="your home">
+    <Loaded load={load} what={tr('home.people-home.your_home', 'your home')}>
       {(state) => {
         const { me, reportingLine, hr } = state;
         const hrFigures = state.roles.hr ? (hr ?? null) : null;

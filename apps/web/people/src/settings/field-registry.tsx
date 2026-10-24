@@ -116,7 +116,10 @@ export interface FieldRegistryProps {
 export function FieldRegistry(props: FieldRegistryProps): JSX.Element {
   return (
     <Stack gap={6}>
-      <Loaded load={props.load} what="the employee fields">
+      <Loaded
+        load={props.load}
+        what={t('settings.field-registry.the_employee_fields', 'the employee fields')}
+      >
         {(draft) => <Registry {...props} draft={draft} />}
       </Loaded>
     </Stack>
@@ -206,10 +209,11 @@ function Registry({
   const pending =
     draft.unpublishedChanges === 0
       ? t('settings.field-registry.nothing_to_publish', 'nothing to publish')
-      : t('settings.field-registry.unpublished', '{{unpublishedChanges}} unpublished {{value}}', {
-          unpublishedChanges: String(draft.unpublishedChanges),
-          value: draft.unpublishedChanges === 1 ? 'change' : 'changes',
-        });
+      : t(
+          'settings.field-registry.unpublished',
+          { one: '{{count}} unpublished change', other: '{{count}} unpublished changes' },
+          { count: draft.unpublishedChanges },
+        );
   const clear = (): void => {
     setQuery('');
     setOnly('all');
@@ -257,11 +261,11 @@ function Registry({
           className="hidden touch:flex"
           title={t(
             'settings.field-registry.waiting_to_be_published',
-            '{{unpublishedChanges}} {{value}} waiting to be published',
             {
-              unpublishedChanges: String(draft.unpublishedChanges),
-              value: draft.unpublishedChanges === 1 ? 'change is' : 'changes are',
+              one: '{{count}} change is waiting to be published',
+              other: '{{count}} changes are waiting to be published',
             },
+            { count: draft.unpublishedChanges },
           )}
         />
       )}
@@ -390,7 +394,7 @@ function Registry({
       ) : (
         <Card>
           <ListDetail
-            listLabel="Sections"
+            listLabel={t('settings.field-registry.sections', 'Sections')}
             detailLabel={section.label}
             selected={chosen !== null}
             onBack={() => {
@@ -528,10 +532,11 @@ function SectionFields({
   readonly onAdd: () => void;
   readonly onReorder: (order: readonly string[]) => void;
 }): JSX.Element {
-  const count = t('settings.field-registry.text_2', '{{length}} {{value}}', {
-    length: String(fields.length),
-    value: fields.length === 1 ? 'field' : 'fields',
-  });
+  const count = t(
+    'settings.field-registry.text_2',
+    { one: '{{count}} field', other: '{{count}} fields' },
+    { count: fields.length },
+  );
   return (
     <Stack gap={0}>
       <div className="flex items-center gap-3 p-4">
@@ -647,9 +652,9 @@ const COLUMN = {
 } as const;
 
 const PENDING = {
-  added: { tone: 'success', text: '+ Added' },
-  changed: { tone: 'warning', text: '~ Changed' },
-  archived: { tone: 'neutral', text: '− Archived' },
+  added: { tone: 'success', text: t('settings.field-registry.added', '+ Added') },
+  changed: { tone: 'warning', text: t('settings.field-registry.changed', '~ Changed') },
+  archived: { tone: 'neutral', text: t('settings.field-registry.archived', '− Archived') },
 } as const;
 
 type Filter = 'all' | 'required' | 'protected' | 'employee' | 'draft';
@@ -734,12 +739,18 @@ function Found({
     <Card>
       <div className="flex items-center gap-3 px-4 py-3.5">
         <p className="flex-1 text-base font-semibold" aria-live="polite">
-          {t('settings.field-registry.in', '{{total}} {{value}}, in {{length}} {{value2}}', {
-            total: String(total),
-            value: total === 1 ? 'field matches' : 'fields match',
-            length: String(groups.length),
-            value2: groups.length === 1 ? 'section' : 'sections',
-          })}
+          {[
+            t(
+              'settings.field-registry.count_fields_match',
+              { one: '{{count}} field matches', other: '{{count}} fields match' },
+              { count: total },
+            ),
+            t(
+              'settings.field-registry.in_count_sections',
+              { one: 'in {{count}} section', other: 'in {{count}} sections' },
+              { count: groups.length },
+            ),
+          ].join(', ')}
         </p>
         <Button variant="ghost" size="sm" onClick={onClear}>
           {t('settings.field-registry.clear_search', 'Clear search')}
@@ -1006,10 +1017,13 @@ function AssistantShare({
   const shared = field.aiEligible === true;
   const never = !shared && field.aiShareable !== true;
   const cell = shared ? (
-    <Cell main="Shared" icon={<icons.assistant aria-hidden />} />
+    <Cell
+      main={t('settings.field-registry.shared', 'Shared')}
+      icon={<icons.assistant aria-hidden />}
+    />
   ) : never ? (
     <Cell
-      main="Never"
+      main={t('settings.field-registry.never', 'Never')}
       sub={
         field.encrypted === true
           ? t('settings.field-registry.encrypted', 'Encrypted')
@@ -1018,7 +1032,10 @@ function AssistantShare({
       icon={<icons.locked aria-hidden />}
     />
   ) : (
-    <Cell main="Not shared" icon={<icons.hidden aria-hidden />} />
+    <Cell
+      main={t('settings.field-registry.not_shared', 'Not shared')}
+      icon={<icons.hidden aria-hidden />}
+    />
   );
   if (onAssistant === undefined) return cell;
   return (
@@ -1031,11 +1048,25 @@ function AssistantShare({
           className="justify-start"
           loading={busy}
           loadingLabel={t('settings.field-registry.saving', 'Saving')}
-          aria-label={t(
-            'settings.field-registry.assistant_change_whether_the_assistant_may',
-            '{{label}}: assistant {{value}}. Change whether the assistant may use it',
-            { label: field.label, value: shared ? 'shared' : never ? 'never' : 'not shared' },
-          )}
+          aria-label={
+            shared
+              ? t(
+                  'settings.field-registry.assistant_shared',
+                  '{{label}}: shared with the assistant. Change whether the assistant may use it',
+                  { label: field.label },
+                )
+              : never
+                ? t(
+                    'settings.field-registry.assistant_never',
+                    '{{label}}: never shared with the assistant. Change whether the assistant may use it',
+                    { label: field.label },
+                  )
+                : t(
+                    'settings.field-registry.assistant_not_shared',
+                    '{{label}}: not shared with the assistant. Change whether the assistant may use it',
+                    { label: field.label },
+                  )
+          }
         >
           {cell}
         </Button>
@@ -1128,21 +1159,26 @@ function Asked({
           loading={busy}
           loadingLabel={t('settings.field-registry.saving', 'Saving')}
           endIcon={<icons.expand aria-hidden />}
-          aria-label={t(
-            'settings.field-registry.asked_change_whether_sign_up_asks',
-            '{{label}}: asked {{value}}. Change whether sign-up asks for it',
-            {
-              label: field.label,
-              value: atSignup ? 'at sign-up' : COLLECT_LABEL[field.collectAt].short.toLowerCase(),
-            },
-          )}
+          aria-label={
+            atSignup
+              ? t(
+                  'settings.field-registry.asked_at_sign_up',
+                  '{{label}}: asked at sign-up. Change whether sign-up asks for it',
+                  { label: field.label },
+                )
+              : t(
+                  'settings.field-registry.asked_change_whether_sign_up_asks',
+                  '{{label}}: asked {{value}}. Change whether sign-up asks for it',
+                  { label: field.label, value: COLLECT_LABEL[field.collectAt].short.toLowerCase() },
+                )
+          }
         >
           {cell}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>
-          {t('settings.field-registry.asked_at_sign_up', 'Asked at sign-up')}
+          {t('settings.field-registry.asked_at_sign_up_2', 'Asked at sign-up')}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={now}

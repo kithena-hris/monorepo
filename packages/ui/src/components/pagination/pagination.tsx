@@ -86,7 +86,7 @@ export function Pagination({
   totalItems,
   pageSize,
   className,
-  label = 'Pagination',
+  label = t('components.pagination.pagination.pagination', 'Pagination'),
 }: PaginationProps): JSX.Element {
   const items = paginationRange(page, pageCount, siblings);
   const first = totalItems && pageSize ? (page - 1) * pageSize + 1 : null;

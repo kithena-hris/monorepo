@@ -108,7 +108,10 @@ export function Dropzone({
   hint,
   children,
   variant = 'panel',
-  rejectMessage = 'That file type is not accepted here',
+  rejectMessage = t(
+    'components.dropzone.dropzone.that_file_type_is_not_accepted_here',
+    'That file type is not accepted here',
+  ),
   className,
 }: DropzoneProps): JSX.Element {
   const input = useRef<HTMLInputElement | null>(null);

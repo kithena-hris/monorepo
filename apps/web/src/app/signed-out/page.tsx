@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 
 import { currentTenant } from '../../lib/branding';
 import { currentPerson } from '../../lib/session';
+import { serverWords } from '../../lib/server-words';
 
 /**
  * The landing place for a sign-in that did not complete.
@@ -14,6 +15,7 @@ import { currentPerson } from '../../lib/session';
  * true thing and puts the button that fixes it in the middle.
  */
 export default async function SignedOut(): Promise<JSX.Element> {
+  const t = await serverWords();
   // Somebody who is signed in has no reason to be told they are not.
   if ((await currentPerson()) !== null) redirect('/');
 
@@ -29,19 +31,29 @@ export default async function SignedOut(): Promise<JSX.Element> {
       <Card variant="outlined" padded>
         <Stack gap={4}>
           <PageHeader
-            title="You are not signed in"
-            description="That sign-in did not finish. Links expire after a minute, so this usually just means the tab was left open."
+            title={t('app.signed-out.page.you_are_not_signed_in', 'You are not signed in')}
+            description={t(
+              'app.signed-out.page.that_sign_in_did_not_finish_links',
+              'That sign-in did not finish. Links expire after a minute, so this usually just means the tab was left open.',
+            )}
           />
 
           {signInUrl === null ? (
             // Configuration, not a user error, and named plainly — whoever
             // reads this needs the variable, not an apology.
-            <Alert tone="warning" title="Nowhere to send you">
-              <code>AUTH_ORIGIN</code> is not set on this deployment.
+            <Alert
+              tone="warning"
+              title={t('app.signed-out.page.nowhere_to_send_you', 'Nowhere to send you')}
+            >
+              <code>AUTH_ORIGIN</code>{' '}
+              {t(
+                'app.signed-out.page.is_not_set_on_this_deployment',
+                'is not set on this deployment.',
+              )}
             </Alert>
           ) : (
             <Button asChild variant="primary">
-              <a href={signInUrl}>Sign in</a>
+              <a href={signInUrl}>{t('app.signed-out.page.sign_in', 'Sign in')}</a>
             </Button>
           )}
         </Stack>

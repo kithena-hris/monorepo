@@ -39,7 +39,6 @@ import {
   SwitchRow,
   To,
   day,
-  plural,
   useAct,
   when,
   type Act,
@@ -202,11 +201,13 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
               rows={data.received.map((f) => ({
                 id: f.id,
                 who: f.from ?? tr('feedback.someone_at_the_company', 'Someone at the company'),
-                sub: tr('feedback.text', '{{value}}{{value2}} · {{at}}', {
-                  value: f.kind === 'praise' ? 'Praise' : (f.template ?? 'Feedback'),
-                  value2: f.value === null ? '' : ` · ${f.value}`,
-                  at: day(f.at),
-                }),
+                sub: [
+                  f.kind === 'praise'
+                    ? tr('feedback.praise', 'Praise')
+                    : (f.template ?? tr('feedback.feedback', 'Feedback')),
+                  ...(f.value === null ? [] : [f.value]),
+                  day(f.at),
+                ].join(' · '),
                 body: f.body,
               }))}
             />
@@ -230,7 +231,10 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                         <Person
                           name={f.to}
                           sub={tr('feedback.text_2', '{{value}} · {{audienceWords}} · {{at}}', {
-                            value: f.kind === 'praise' ? 'Praise' : 'Feedback',
+                            value:
+                              f.kind === 'praise'
+                                ? tr('feedback.praise', 'Praise')
+                                : tr('feedback.feedback', 'Feedback'),
                             audienceWords: audienceWords(f.audience, f.to),
                             at: day(f.at),
                           })}
@@ -276,10 +280,14 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                       <div key={r.id} className="flex flex-col gap-2 py-3">
                         <Person
                           name={r.from}
-                          sub={tr('feedback.about', 'About {{about}}{{value}}', {
-                            about: r.about,
-                            value: r.due === null ? '' : ` · by ${day(r.due)}`,
-                          })}
+                          sub={
+                            r.due === null
+                              ? tr('feedback.about', 'About {{about}}', { about: r.about })
+                              : tr('feedback.about_by', 'About {{about}} · by {{due}}', {
+                                  about: r.about,
+                                  due: day(r.due),
+                                })
+                          }
                         />
                         {r.question === null ? null : <p className="text-sm">{r.question}</p>}
                         <span className="flex gap-2">
@@ -357,7 +365,7 @@ export function Feedback(props: ScreenProps<FeedbackData>): JSX.Element {
                 id: p.id,
                 who: tr('feedback.text_3', '{{from}} → {{to}}', { from: p.from, to: p.to }),
                 sub: tr('feedback.text_4', '{{value}} · {{at}}', {
-                  value: p.value ?? 'Praise',
+                  value: p.value ?? tr('feedback.praise', 'Praise'),
                   at: day(p.at),
                 }),
                 body: p.body,
@@ -491,7 +499,7 @@ function Give({
       step={step}
       onStep={setStep}
       finish={send}
-      finishLabel="Send"
+      finishLabel={tr('feedback.send', 'Send')}
       pending={act.pending}
       canNext={
         step === 0
@@ -624,7 +632,11 @@ function Give({
               hint={
                 showName
                   ? tr('feedback.sees_it_is_from_you', '{{toName}} sees it is from you', { toName })
-                  : `${toName} reads “Someone at the company”; their manager and HR still see your name`
+                  : tr(
+                      'feedback.reads_someone_at_the_company',
+                      '{{toName}} reads “Someone at the company”; their manager and HR still see your name',
+                      { toName },
+                    )
               }
               checked={showName}
               onChange={setShowName}
@@ -633,7 +645,10 @@ function Give({
             <p className="text-sm text-fg-muted">
               {praise || data.settings.names === 'always'
                 ? tr('feedback.your_name_is_shown', 'Your name is shown.')
-                : 'Your name is hidden from the person; their manager and HR see it.'}
+                : tr(
+                    'feedback.your_name_is_hidden_from_the_person',
+                    'Your name is hidden from the person; their manager and HR see it.',
+                  )}
             </p>
           )}
           <RadioGroup
@@ -822,7 +837,7 @@ export function Notes(props: ScreenProps<NotesData>): JSX.Element {
   const act = useAct(props);
   const [editing, setEditing] = useState<Note | 'new' | null>(null);
   return (
-    <Loaded load={props.load} what="your notes">
+    <Loaded load={props.load} what={tr('feedback.your_notes', 'your notes')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1053,7 +1068,11 @@ function NoteDialog({
         onChange={setShared}
       />
       <p className="text-xs text-fg-muted">
-        {plural(plain(body).split(' ').filter(Boolean).length, 'word')}
+        {tr(
+          'feedback.count_words',
+          { one: '{{count}} word', other: '{{count}} words' },
+          { count: plain(body).split(' ').filter(Boolean).length },
+        )}
       </p>
     </Modal>
   );

@@ -144,7 +144,7 @@ export const EACH_SEES_THEIR_OWN = t(
   'Each recipient sees only the people and columns they have access to.',
 );
 
-const WEEKDAYS = [
+const WEEKDAYS = (): readonly string[] => [
   t('reports.report-schedules.monday', 'Monday'),
   t('reports.report-schedules.tuesday', 'Tuesday'),
   t('reports.report-schedules.wednesday', 'Wednesday'),
@@ -170,7 +170,7 @@ export function recipientsText(row: Pick<ScheduleRow, 'recipients'>): string {
 export function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
   if (r.every === 'week')
     return t('reports.report-schedules.weekly_on_at', 'Weekly on {{value}} at {{hh}}', {
-      value: WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday',
+      value: WEEKDAYS()[(r.weekday ?? 1) - 1] ?? '',
       hh: hh(r.hour),
     });
   if (r.every === 'month')
@@ -224,7 +224,10 @@ export function ReportSchedules(props: ReportSchedulesProps): JSX.Element {
   return (
     <TooltipProvider>
       <Stack gap={6}>
-        <Loaded load={props.load} what="the scheduled reports">
+        <Loaded
+          load={props.load}
+          what={t('reports.report-schedules.the_scheduled_reports', 'the scheduled reports')}
+        >
           {(state) => <Schedules {...props} state={state} />}
         </Loaded>
       </Stack>
@@ -780,7 +783,7 @@ export function ScheduleForm({
                         </SelectTrigger>
                       </FieldControl>
                       <SelectContent>
-                        {WEEKDAYS.map((name, i) => (
+                        {WEEKDAYS().map((name, i) => (
                           <SelectItem key={name} value={String(i + 1)}>
                             {name}
                           </SelectItem>

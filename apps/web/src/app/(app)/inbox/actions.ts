@@ -6,6 +6,8 @@ import { documents, people, recruiting, timeOff } from '../../../lib/people';
 import { changed, type InboxState, type Mute } from '../../../lib/inbox/model';
 import { changeState, inboxNow } from '../../../lib/inbox/server';
 import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
+import { serverWords } from '../../../lib/server-words';
+import { type T } from '@reach/ui';
 
 /**
  * What the Inbox's buttons do (INB-004). Two kinds of thing:
@@ -25,10 +27,16 @@ import { answerInbox, type InboxReply } from '../../../lib/inbox/ask';
 export type Outcome =
   { readonly ok: true; readonly data?: unknown } | { readonly ok: false; readonly message: string };
 
-const done = (a: { ok: boolean; message?: string; data?: unknown }): Outcome =>
-  a.ok ? { ok: true, data: a.data } : { ok: false, message: a.message ?? 'That did not work' };
+const done = (a: { ok: boolean; message?: string; data?: unknown }, t: T): Outcome =>
+  a.ok
+    ? { ok: true, data: a.data }
+    : {
+        ok: false,
+        message: a.message ?? t('app.app.inbox.actions.that_did_not_work', 'That did not work'),
+      };
 
 async function state(change: (s: InboxState) => InboxState, redraw = true): Promise<Outcome> {
+  const t = await serverWords();
   const saved = await changeState(change);
   if (saved === 'saved') {
     // Reading is drawn by the page already (it marks what it opened); the
@@ -39,7 +47,12 @@ async function state(change: (s: InboxState) => InboxState, redraw = true): Prom
   return {
     ok: false,
     message:
-      saved === 'view_only' ? 'Viewing as somebody is read-only' : 'That did not save; try again',
+      saved === 'view_only'
+        ? t(
+            'app.app.inbox.actions.viewing_as_somebody_is_read_only',
+            'Viewing as somebody is read-only',
+          )
+        : t('app.app.inbox.actions.that_did_not_save_try_again', 'That did not save; try again'),
   };
 }
 
@@ -57,9 +70,11 @@ export async function markAllRead(): Promise<Outcome> {
 
 /** Remind me later (C6): never past the due date; null wakes it now. */
 export async function snooze(id: string, until: string | null): Promise<Outcome> {
+  const t = await serverWords();
   const read = await inboxNow();
   const item = read.items.find((i) => i.id === id);
-  if (item === undefined || item.lane !== 'task') return { ok: false, message: 'No such task' };
+  if (item === undefined || item.lane !== 'task')
+    return { ok: false, message: t('app.app.inbox.actions.no_such_task', 'No such task') };
   return state((s) => changed(s, { kind: 'snooze', id, until, due: item.due }));
 }
 
@@ -89,18 +104,21 @@ export async function completeAsk(
   askId: string,
   values: Record<string, unknown>,
 ): Promise<Outcome> {
+  const t = await serverWords();
   const a = await people<string>('CompleteAsk', { id: askId, values: JSON.stringify(values) });
-  return a.ok ? { ok: true, data: JSON.parse(a.data) as unknown } : done(a);
+  return a.ok ? { ok: true, data: JSON.parse(a.data) as unknown } : done(a, t);
 }
 
 /** C5: Undo, within a minute: what was there goes back and the task opens again. */
 export async function undoAsk(askId: string, previous: Record<string, unknown>): Promise<Outcome> {
-  return done(await people('UndoAsk', { id: askId, values: JSON.stringify(previous) }));
+  const t = await serverWords();
+  return done(await people('UndoAsk', { id: askId, values: JSON.stringify(previous) }), t);
 }
 
 /** C7: a question or an answer on the task. */
 export async function replyToAsk(askId: string, body: string): Promise<Outcome> {
-  return done(await people('ReplyToAsk', { id: askId, body }));
+  const t = await serverWords();
+  return done(await people('ReplyToAsk', { id: askId, body }), t);
 }
 
 /** C8: I can't do this, always with a reason. */
@@ -109,12 +127,14 @@ export async function sendBackAsk(
   reason: 'no_information' | 'not_applicable' | 'other',
   note: string | null,
 ): Promise<Outcome> {
-  return done(await people('SendBackAsk', { id: askId, reason, note }));
+  const t = await serverWords();
+  return done(await people('SendBackAsk', { id: askId, reason, note }), t);
 }
 
 /** Z2: whoever asked cancels it. */
 export async function cancelAsk(askId: string, note: string | null): Promise<Outcome> {
-  return done(await people('CancelAsk', { id: askId, note }));
+  const t = await serverWords();
+  return done(await people('CancelAsk', { id: askId, note }), t);
 }
 
 /** H2: ask one person or many for details, as one task each. */
@@ -124,8 +144,9 @@ export async function askForDetails(input: {
   readonly message: string | null;
   readonly dueOn: string | null;
 }): Promise<Outcome> {
+  const t = await serverWords();
   const a = await people<string>('AskForDetails', { ...input });
-  return a.ok ? { ok: true, data: JSON.parse(a.data) as unknown } : done(a);
+  return a.ok ? { ok: true, data: JSON.parse(a.data) as unknown } : done(a, t);
 }
 
 /** H4: for what you asked of many: remind those left, change the due date, cancel for everyone. */
@@ -134,6 +155,7 @@ export async function changeAskBatch(
   action: 'remind' | 'due' | 'cancel',
   options: { readonly dueOn?: string | null; readonly personIds?: readonly string[] | null } = {},
 ): Promise<Outcome> {
+  const t = await serverWords();
   return done(
     await people('ChangeAskBatch', {
       batchId,
@@ -141,22 +163,26 @@ export async function changeAskBatch(
       dueOn: options.dueOn ?? null,
       personIds: options.personIds ?? null,
     }),
+    t,
   );
 }
 
 /** E2: withdraw a change you asked for. */
 export async function withdrawChange(changeId: string): Promise<Outcome> {
-  return done(await people('WithdrawPendingChange', { id: changeId }));
+  const t = await serverWords();
+  return done(await people('WithdrawPendingChange', { id: changeId }), t);
 }
 
 /** E1: nudge HR about it, once, after 48 hours. */
 export async function nudgeChange(changeId: string): Promise<Outcome> {
-  return done(await people('NudgePendingChange', { id: changeId }));
+  const t = await serverWords();
+  return done(await people('NudgePendingChange', { id: changeId }), t);
 }
 
 /** H1, Z3: take a team task, or take it over with a note. */
 export async function takeTask(itemId: string, note: string | null): Promise<Outcome> {
-  return done(await people('TakeInboxTask', { itemId, note }));
+  const t = await serverWords();
+  return done(await people('TakeInboxTask', { itemId, note }), t);
 }
 
 /** C3, C4: acknowledge, sign, countersign, send back or cancel a document. */
@@ -170,6 +196,7 @@ export async function actOnDocument(
     readonly note?: string;
   } = {},
 ): Promise<Outcome> {
+  const t = await serverWords();
   return done(
     await people('ActOnDocument', {
       id: documentId,
@@ -179,6 +206,7 @@ export async function actOnDocument(
       mark: input.mark ?? null,
       note: input.note ?? null,
     }),
+    t,
   );
 }
 
@@ -224,7 +252,8 @@ export async function sendDocument(input: {
   readonly dueOn: string | null;
   readonly countersign: boolean;
 }): Promise<Outcome> {
-  return done(await people('SendDocument', { ...input }));
+  const t = await serverWords();
+  return done(await people('SendDocument', { ...input }), t);
 }
 
 /**
@@ -285,7 +314,8 @@ export async function bookCandidateTime(
   askId: string,
   startsAt: string,
 ): Promise<Outcome> {
-  return done(await recruiting('BookFromAsk', { applicationId, askId, input: { startsAt } }));
+  const t = await serverWords();
+  return done(await recruiting('BookFromAsk', { applicationId, askId, input: { startsAt } }), t);
 }
 
 /** R16 from the Inbox: none of the candidate's times works; they are asked for others. */
@@ -293,8 +323,10 @@ export async function askCandidateForMoreTimes(
   applicationId: string,
   askId: string,
 ): Promise<Outcome> {
+  const t = await serverWords();
   return done(
     await recruiting('RequestMoreTimes', { applicationId, askId, input: { note: null } }),
+    t,
   );
 }
 
@@ -303,8 +335,10 @@ export async function decideTimeOff(
   decision: 'approve' | 'decline',
   note: string | null,
 ): Promise<Outcome> {
+  const t = await serverWords();
   return done(
     await timeOff('DecideTimeOffRequest', { requestId, input: { decision, reason: note } }),
+    t,
   );
 }
 
@@ -330,12 +364,14 @@ export async function decideTimeOffMany(
 
 /** E3: nudge the approver once, after 48 hours. */
 export async function nudgeTimeOff(requestId: string): Promise<Outcome> {
-  return done(await timeOff('NudgeTimeOffRequest', { requestId }));
+  const t = await serverWords();
+  return done(await timeOff('NudgeTimeOffRequest', { requestId }), t);
 }
 
 /** E2 for time off: withdraw the request while it waits. */
 export async function withdrawTimeOff(requestId: string): Promise<Outcome> {
-  return done(await timeOff('CancelTimeOffRequest', { requestId }));
+  const t = await serverWords();
+  return done(await timeOff('CancelTimeOffRequest', { requestId }), t);
 }
 
 /** G4: whom the caller may hand their approvals to, and to whom they are handed now. */
@@ -366,6 +402,7 @@ export async function handOver(
   approverId: string,
   input: { readonly delegateId: string; readonly from: string; readonly to: string } | null,
 ): Promise<Outcome> {
+  const t = await serverWords();
   return done(
     input === null
       ? await timeOff('RemoveTimeOffDelegation', { approverId })
@@ -373,6 +410,7 @@ export async function handOver(
           approverId,
           input: { delegateId: input.delegateId, range: { from: input.from, to: input.to } },
         }),
+    t,
   );
 }
 
@@ -386,9 +424,17 @@ export async function askInbox(question: string): Promise<InboxReply> {
 
 /** The nudge an answer offers: the module's own, for the item it names. */
 export async function nudgeItem(itemId: string): Promise<Outcome> {
+  const t = await serverWords();
   const [module, kind, id] = itemId.split(':');
-  if (id === undefined) return { ok: false, message: 'No such request' };
+  if (id === undefined)
+    return { ok: false, message: t('app.app.inbox.actions.no_such_request', 'No such request') };
   if (module === 'people' && kind === 'change') return nudgeChange(id);
   if (module === 'timeoff' && kind === 'request') return nudgeTimeOff(id);
-  return { ok: false, message: 'That request cannot be nudged' };
+  return {
+    ok: false,
+    message: t(
+      'app.app.inbox.actions.that_request_cannot_be_nudged',
+      'That request cannot be nudged',
+    ),
+  };
 }

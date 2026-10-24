@@ -41,7 +41,7 @@ export function SignaturePad({
   value,
   onValueChange,
   label,
-  clearLabel = 'Clear',
+  clearLabel = t('components.signature-pad.signature-pad.clear', 'Clear'),
   disabled = false,
   className,
 }: SignaturePadProps): JSX.Element {

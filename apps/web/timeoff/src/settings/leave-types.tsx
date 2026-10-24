@@ -75,8 +75,10 @@ export interface LeaveTypesProps {
 }
 
 const TITLE = tr('settings.leave-types.leave_types', 'Leave types');
-const DESCRIPTION =
-  'The kinds of time off people can request, and how each one is paid and approved.';
+const DESCRIPTION = tr(
+  'settings.leave-types.the_kinds_of_time_off_people_can',
+  'The kinds of time off people can request, and how each one is paid and approved.',
+);
 
 export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
   const { load, onAdd, onAsk, onNavigate } = props;
@@ -106,7 +108,7 @@ export function LeaveTypes(props: LeaveTypesProps): JSX.Element {
           </>
         }
       />
-      <Loaded load={load} what="the leave types">
+      <Loaded load={load} what={tr('settings.leave-types.the_leave_types', 'the leave types')}>
         {(data) => (
           <>
             <Ready data={data} />
@@ -222,16 +224,18 @@ function terms(t: LeaveTypeRow['definition']): string {
   return [
     PAID[t.paid],
     t.tracked
-      ? tr('settings.leave-types.tracked_in', 'tracked in {{value}}', {
-          value: t.unit === 'hour' ? 'hours' : 'days',
-        })
+      ? t.unit === 'hour'
+        ? tr('settings.leave-types.tracked_in_hours', 'tracked in hours')
+        : tr('settings.leave-types.tracked_in_days', 'tracked in days')
       : tr('settings.leave-types.no_balance', 'no balance'),
     t.requiresNote === null
       ? null
       : tr('settings.leave-types.note_after_days', 'note after {{afterDays}} days', {
           afterDays: String(t.requiresNote.afterDays),
         }),
-    t.visibility === 'off_only' ? 'teammates see “Off”' : null,
+    t.visibility === 'off_only'
+      ? tr('settings.leave-types.teammates_see_off', 'teammates see “Off”')
+      : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -251,13 +255,24 @@ function Ready({ data }: { readonly data: LeaveTypesData }): JSX.Element {
               icon={leaveIcon(t.icon)}
               iconTone={chartTone(t.colorToken)}
               description={terms(t)}
-              supporting={tr('settings.leave-types.text', '{{appliesToLabel}} · {{value}}', {
-                appliesToLabel: appliesToLabel(t.appliesTo),
-                value:
-                  rule === undefined
-                    ? 'No approval rule'
-                    : `${approversLabel(rule.approvers)} approves`,
-              })}
+              supporting={
+                rule === undefined
+                  ? tr(
+                      'settings.leave-types.no_approval_rule',
+                      '{{appliesToLabel}} · No approval rule',
+                      {
+                        appliesToLabel: appliesToLabel(t.appliesTo),
+                      },
+                    )
+                  : tr(
+                      'settings.leave-types.approver_approves',
+                      '{{appliesToLabel}} · {{approvers}} approves',
+                      {
+                        appliesToLabel: appliesToLabel(t.appliesTo),
+                        approvers: approversLabel(rule.approvers),
+                      },
+                    )
+              }
               trailing={
                 hidden ? (
                   <Badge size="sm" variant="outline">

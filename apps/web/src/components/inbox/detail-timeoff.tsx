@@ -2,19 +2,21 @@
 
 import {
   Alert,
-  AvatarGroup,
   Avatar,
+  AvatarGroup,
   Button,
   Field,
   FieldControl,
   FieldLabel,
+  formatNumber,
+  icons,
   Input,
   KeyValues,
   List,
   ListItem,
+  locale,
   Stat,
   Stepper,
-  icons,
 } from '@reach/ui';
 import {
   TimeOffApprovalDetail,
@@ -73,8 +75,23 @@ function Approval({ item, act }: BodyProps): JSX.Element {
   const who = firstName(d.personName);
   const decide = (decision: 'approve' | 'decline'): void => {
     act.run(() => decideTimeOff(d.requestId, decision, note.trim() === '' ? null : note.trim()), {
-      title: decision === 'approve' ? `Approved ${who}’s time off` : `Declined ${who}’s time off`,
-      description: `${who} gets an update`,
+      title:
+        decision === 'approve'
+          ? t(
+              'components.inbox.detail-timeoff.approved_their_time_off',
+              'Approved {{who}}’s time off',
+              { who },
+            )
+          : t(
+              'components.inbox.detail-timeoff.declined_their_time_off',
+              'Declined {{who}}’s time off',
+              { who },
+            ),
+      description: t(
+        'components.inbox.detail-people.sender_gets_an_update',
+        '{{sender}} gets an update',
+        { sender: who },
+      ),
       next: true,
     });
   };
@@ -94,13 +111,22 @@ function Approval({ item, act }: BodyProps): JSX.Element {
           className="flex flex-col gap-2"
         >
           <h3 className="text-sm font-semibold text-fg-muted">
-            {t('components.inbox.detail-timeoff.that_week', '{{value}} that week{{value2}}', {
-              value: d.teamName ?? 'The team',
-              value2:
-                d.alreadyOut === null
-                  ? ''
-                  : ` · ${String(d.alreadyOut.out)} of ${String(d.alreadyOut.of)} already out`,
-            })}
+            {d.alreadyOut === null
+              ? t('components.inbox.detail-timeoff.team_that_week', '{{team}} that week', {
+                  team: d.teamName ?? t('components.inbox.detail-timeoff.the_team', 'The team'),
+                })
+              : t(
+                  'components.inbox.detail-timeoff.team_that_week_already_out',
+                  {
+                    one: '{{team}} that week · {{count}} of {{of}} already out',
+                    other: '{{team}} that week · {{count}} of {{of}} already out',
+                  },
+                  {
+                    team: d.teamName ?? t('components.inbox.detail-timeoff.the_team', 'The team'),
+                    count: d.alreadyOut.out,
+                    of: formatNumber(d.alreadyOut.of),
+                  },
+                )}
           </h3>
           <List aria-label={t('components.inbox.detail-timeoff.each_day', 'Each day')}>
             {d.week.map((day) => (
@@ -121,7 +147,7 @@ function Approval({ item, act }: BodyProps): JSX.Element {
                   )
                 }
               >
-                {new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-GB', {
+                {new Date(`${day.date}T12:00:00Z`).toLocaleDateString(locale(), {
                   weekday: 'short',
                   day: 'numeric',
                   month: 'short',
@@ -296,7 +322,13 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
             disabled={!canNudge}
             loading={act.pending}
             onClick={() => {
-              act.run(() => nudgeTimeOff(d.requestId), { title: `${holder} was nudged` });
+              act.run(() => nudgeTimeOff(d.requestId), {
+                title: t(
+                  'components.inbox.detail-timeoff.holder_was_nudged',
+                  '{{holder}} was nudged',
+                  { holder },
+                ),
+              });
             }}
           >
             {t('components.inbox.detail-timeoff.nudge', 'Nudge {{holder}}', { holder })}
@@ -322,16 +354,19 @@ function Request({ item, now, zone, act }: BodyProps): JSX.Element {
             '{{holder}} stops seeing it. You can ask again any time.',
             { holder },
           )}
-          confirm="Withdraw"
-          cancel="Keep it"
+          confirm={t('components.inbox.detail-timeoff.withdraw', 'Withdraw')}
+          cancel={t('components.inbox.detail-timeoff.keep_it', 'Keep it')}
           onClose={() => {
             setWithdrawing(false);
           }}
           onConfirm={() => {
             setWithdrawing(false);
             act.run(() => withdrawTimeOff(d.requestId), {
-              title: 'Withdrawn',
-              description: 'It moves to Done',
+              title: t('components.inbox.detail-timeoff.withdrawn', 'Withdrawn'),
+              description: t(
+                'components.inbox.detail-timeoff.it_moves_to_done',
+                'It moves to Done',
+              ),
             });
           }}
         />

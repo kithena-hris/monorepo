@@ -3,6 +3,9 @@ import {
   Avatar,
   Badge,
   Button,
+  Checkbox,
+  cn,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -14,23 +17,21 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
-  SearchField,
-  Checkbox,
+  icons,
   RadioCard,
   RadioGroup,
+  SearchField,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  springEasing,
+  springs,
+  springSettleTime,
   Stepper,
   Switch,
   Tooltip,
-  cn,
-  icons,
-  springEasing,
-  springSettleTime,
-  springs,
 } from '@reach/ui';
 import { durations, easings } from '@reach/ui/motion';
 import {
@@ -134,20 +135,20 @@ export function Refusal({ error }: { readonly error: string | null }): JSX.Eleme
   );
 }
 
-const DAY = new Intl.DateTimeFormat('en-GB', {
+const DAY = dateFormat({
   weekday: 'short',
   day: 'numeric',
   month: 'short',
   timeZone: 'UTC',
 });
-const DAY_YEAR = new Intl.DateTimeFormat('en-GB', {
+const DAY_YEAR = dateFormat({
   day: 'numeric',
   month: 'short',
   year: 'numeric',
   timeZone: 'UTC',
 });
-const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
-const WHEN = new Intl.DateTimeFormat('en-GB', {
+const TIME = dateFormat({ hour: '2-digit', minute: '2-digit' });
+const WHEN = dateFormat({
   day: 'numeric',
   month: 'short',
   hour: '2-digit',
@@ -646,11 +647,6 @@ export const newId = (): string => crypto.randomUUID();
 /** A score in hundredths as the scale reads it: 380 → "3.8". */
 export const score = (h: number | null | undefined): string =>
   h === null || h === undefined ? '—' : (h / 100).toFixed(1);
-
-/** "1 review", "3 reviews". */
-export const plural = (n: number, one: string, many = t('shared.s', '{{one}}s', { one })): string =>
-  t('shared.text', '{{n}} {{value}}', { n: String(n), value: n === 1 ? one : many });
-
 export interface Found {
   readonly personId: string;
   readonly name: string;

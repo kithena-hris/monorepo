@@ -1,0 +1,10 @@
+{
+  "email.nudge.a_few_days_away": "Een paar dagen vrij doen meer dan je denkt.",
+  "email.nudge.bridge": "Als je {{day}} vrij neemt, heb je 4 dagen vrij met {{holiday}}.",
+  "email.nudge.days_left_one": "Je hebt dit jaar nog {{count}} dag over.",
+  "email.nudge.days_left_other": "Je hebt dit jaar nog {{count}} dagen over.",
+  "email.nudge.heading": "{{name}}, je hebt sinds {{month}} geen dag vrij gehad",
+  "email.nudge.private": "Niemand anders ziet dit bericht.",
+  "email.nudge.would_be_lost_one": "{{count}} ervan vervalt op {{date}} als die niet wordt ingepland.",
+  "email.nudge.would_be_lost_other": "{{count}} ervan vervallen op {{date}} als ze niet worden ingepland."
+}

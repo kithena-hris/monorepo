@@ -56,7 +56,7 @@ export function PersonFile(props: PersonFileProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={tr('people.person-file.a_persons_file', 'A person’s file')} />
       ) : null}
-      <Loaded load={props.load} what="the file">
+      <Loaded load={props.load} what={tr('people.person-file.the_file', 'the file')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

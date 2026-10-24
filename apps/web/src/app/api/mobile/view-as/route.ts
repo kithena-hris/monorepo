@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { peopleFor } from '../../../../lib/people';
 import { personFor, revokeSession } from '../../../../lib/session';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * Viewing the app as somebody, from the phone (`lib/view-as.ts` is the web's).
@@ -30,17 +31,30 @@ async function tenantOf(): Promise<string | null> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const t = await serverWords();
   const tenantId = await tenantOf();
   const sessionId = bearerOf(request);
   if (tenantId === null || sessionId === null) {
-    return NextResponse.json({ ok: false, message: 'Sign in again' }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, message: t('app.api.mobile.view-as.route.sign_in_again', 'Sign in again') },
+      { status: 401 },
+    );
   }
   const me = await personFor(sessionId, tenantId);
   if (me === null)
-    return NextResponse.json({ ok: false, message: 'Sign in again' }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, message: t('app.api.mobile.view-as.route.sign_in_again', 'Sign in again') },
+      { status: 401 },
+    );
   // People refuses it too; this only saves the round trip.
   if (me.viewing !== null) {
-    return NextResponse.json({ ok: false, message: 'End this view first' }, { status: 409 });
+    return NextResponse.json(
+      {
+        ok: false,
+        message: t('app.api.mobile.view-as.route.end_this_view_first', 'End this view first'),
+      },
+      { status: 409 },
+    );
   }
 
   const body: unknown = await request.json().catch(() => null);
@@ -51,7 +65,10 @@ export async function POST(request: Request): Promise<Response> {
   const personId = read('personId');
   const reason = read('reason').trim();
   if (!UUID.test(personId) || reason === '') {
-    return NextResponse.json({ ok: false, message: 'Say why.' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, message: t('app.api.mobile.view-as.route.say_why', 'Say why.') },
+      { status: 400 },
+    );
   }
 
   const started = await peopleFor(sessionId, tenantId, 'people', 'StartViewingAs', {
@@ -81,7 +98,13 @@ export async function POST(request: Request): Promise<Response> {
   } | null;
   if (redeemed?.ok !== true || typeof view?.sessionId !== 'string') {
     return NextResponse.json(
-      { ok: false, message: 'Viewing as them could not be started. Try again.' },
+      {
+        ok: false,
+        message: t(
+          'app.api.mobile.view-as.route.viewing_as_them_could_not_be_started',
+          'Viewing as them could not be started. Try again.',
+        ),
+      },
       { headers: NO_STORE },
     );
   }

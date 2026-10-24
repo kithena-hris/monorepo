@@ -181,8 +181,10 @@ function Keeps({
 }
 
 const TITLE = t('settings.holiday-settings.holidays', 'Holidays');
-const DESCRIPTION =
-  'Each person gets the holidays for the place they work. A holiday on a weekend follows the regional rules.';
+const DESCRIPTION = t(
+  'settings.holiday-settings.each_person_gets_the_holidays_for_the',
+  'Each person gets the holidays for the place they work. A holiday on a weekend follows the regional rules.',
+);
 const page = '@container/holidays flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[48rem]/holidays:grid @min-[48rem]/holidays:grid-cols-[17rem_minmax(0,1fr)] @min-[48rem]/holidays:items-start';
@@ -193,7 +195,10 @@ export function HolidaySettings(props: HolidaySettingsProps): JSX.Element {
   return (
     <div className={page}>
       {load.status === 'error' ? <PageHeader title={TITLE} description={DESCRIPTION} /> : null}
-      <Loaded load={load} what="the holiday calendars">
+      <Loaded
+        load={load}
+        what={t('settings.holiday-settings.the_holiday_calendars', 'the holiday calendars')}
+      >
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>
@@ -594,10 +599,11 @@ function DraftCard({
           loading={pending}
           onClick={save}
         >
-          {t('settings.holiday-settings.save_confirmed', 'Save {{length}} confirmed {{value}}', {
-            length: String(confirmed.length),
-            value: confirmed.length === 1 ? 'day' : 'days',
-          })}
+          {t(
+            'settings.holiday-settings.save_confirmed',
+            { one: 'Save {{count}} confirmed day', other: 'Save {{count}} confirmed days' },
+            { count: confirmed.length },
+          )}
         </Button>
         <Button
           onClick={() => {
@@ -611,8 +617,11 @@ function DraftCard({
         <p className="text-sm text-fg-muted">
           {t(
             'settings.holiday-settings.left_for_you_to_confirm_and',
-            '{{toConfirm}} {{value}} left for you to confirm and add.',
-            { toConfirm: String(toConfirm), value: toConfirm === 1 ? 'day is' : 'days are' },
+            {
+              one: '{{count}} day is left for you to confirm and add.',
+              other: '{{count}} days are left for you to confirm and add.',
+            },
+            { count: toConfirm },
           )}
         </p>
       )}

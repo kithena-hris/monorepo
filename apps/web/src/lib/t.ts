@@ -1,4 +1,4 @@
-import { translator } from '@reach/ui';
+import { translator } from '@reach/ui/i18n';
 
 /** The shell's words, in the reader's language (`lib/i18n.tsx`). */
 export const t = translator('shell');

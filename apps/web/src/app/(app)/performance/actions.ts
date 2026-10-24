@@ -3,6 +3,7 @@
 import { documents, performance } from '../../../lib/people';
 import { OPERATIONS, type OperationName } from '../../../lib/performance-operations';
 import type { Done } from '../recruiting/actions';
+import { serverWords } from '../../../lib/server-words';
 
 /**
  * What the Performance screens' buttons do (PRF-070): Onboarding's one server
@@ -18,10 +19,12 @@ import type { Done } from '../recruiting/actions';
  * development" as they may file. Neither module knows the other.
  */
 async function fileToDocuments(variables: Readonly<Record<string, unknown>>): Promise<Done> {
+  const t = await serverWords();
   const reviewId = typeof variables['id'] === 'string' ? variables['id'] : '';
   const subjectPersonId =
     typeof variables['subjectPersonId'] === 'string' ? variables['subjectPersonId'] : null;
-  if (reviewId === '' || subjectPersonId === null) return { ok: false, message: 'Which review?' };
+  if (reviewId === '' || subjectPersonId === null)
+    return { ok: false, message: t('app.app.performance.actions.which_review', 'Which review?') };
   const pdf = await performance<{ filename: string; base64: string }>('PerformanceReviewPdf', {
     id: reviewId,
   });
@@ -38,7 +41,14 @@ async function fileToDocuments(variables: Readonly<Record<string, unknown>>): Pr
     headers: put.data.headers,
     body: bytes,
   }).catch(() => null);
-  if (sent?.ok !== true) return { ok: false, message: 'Documents did not take the file' };
+  if (sent?.ok !== true)
+    return {
+      ok: false,
+      message: t(
+        'app.app.performance.actions.documents_did_not_take_the_file',
+        'Documents did not take the file',
+      ),
+    };
   const filed = await documents<{ id: string }>('UploadDocument', {
     input: {
       title: pdf.data.filename.replace(/\.pdf$/u, ''),
@@ -57,9 +67,16 @@ export async function performanceAct(
   name: string,
   variables: Readonly<Record<string, unknown>>,
 ): Promise<Done> {
+  const t = await serverWords();
   if (name === 'FilePerformanceReviewToDocuments') return fileToDocuments(variables);
   if (!Object.hasOwn(OPERATIONS, name) || name === 'PerformanceLive')
-    return { ok: false, message: 'Not something this page can do' };
+    return {
+      ok: false,
+      message: t(
+        'app.app.performance.actions.not_something_this_page_can_do',
+        'Not something this page can do',
+      ),
+    };
   const answer = await performance<unknown>(name as OperationName, { ...variables });
   return answer.ok
     ? { ok: true, data: answer.data }

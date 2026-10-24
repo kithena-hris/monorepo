@@ -1,0 +1,14 @@
+{
+  "email.nudge.a_few_days_away": "Несколько выходных дают больше, чем кажется.",
+  "email.nudge.bridge": "Если взять выходной {{day}}, вместе с {{holiday}} получится 4 дня отдыха.",
+  "email.nudge.days_left_few": "В этом году у Вас осталось {{count}} дня.",
+  "email.nudge.days_left_many": "В этом году у Вас осталось {{count}} дней.",
+  "email.nudge.days_left_one": "В этом году у Вас остался {{count}} день.",
+  "email.nudge.days_left_other": "В этом году у Вас осталось {{count}} дня.",
+  "email.nudge.heading": "{{name}}, Вы не отдыхали с {{month}}",
+  "email.nudge.private": "Это сообщение больше никто не видит.",
+  "email.nudge.would_be_lost_few": "{{count}} из них сгорят {{date}}, если их не запланировать.",
+  "email.nudge.would_be_lost_many": "{{count}} из них сгорят {{date}}, если их не запланировать.",
+  "email.nudge.would_be_lost_one": "{{count}} из них сгорит {{date}}, если его не запланировать.",
+  "email.nudge.would_be_lost_other": "{{count}} из них сгорят {{date}}, если их не запланировать."
+}

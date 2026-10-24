@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
+import { serverWords } from '../../../lib/server-words';
 
 /**
  * An outside signer's page (Documents K4–K6, X7): Documents' public routes,
@@ -29,18 +30,37 @@ async function here(token: string): Promise<{ origin: string; companyName: strin
 }
 
 export async function call<T>(token: string, path: string, body?: unknown): Promise<Answer<T>> {
+  const t = await serverWords();
   const at = await here(token);
-  if (at === null) return { ok: false, message: 'This link is for another company.' };
+  if (at === null)
+    return {
+      ok: false,
+      message: t(
+        'app.sign.token.actions.this_link_is_for_another_company',
+        'This link is for another company.',
+      ),
+    };
   const response = await fetch(`${base()}/v1/documents/sign/${encodeURIComponent(token)}${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: { 'content-type': 'application/json' },
     ...(body === undefined ? {} : { body: JSON.stringify({ ...(body as object), ...at }) }),
     cache: 'no-store',
   }).catch(() => null);
-  if (response === null) return { ok: false, message: 'Kithena could not be reached. Try again.' };
+  if (response === null)
+    return {
+      ok: false,
+      message: t(
+        'app.sign.token.actions.kithena_could_not_be_reached_try_again',
+        'Kithena could not be reached. Try again.',
+      ),
+    };
   const json = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
   if (!response.ok || json === null)
-    return { ok: false, message: json?.error?.message ?? 'That did not work.' };
+    return {
+      ok: false,
+      message:
+        json?.error?.message ?? t('app.sign.token.actions.that_did_not_work', 'That did not work.'),
+    };
   return { ok: true, data: json as T };
 }
 
@@ -52,8 +72,16 @@ export async function verifyCode(
   token: string,
   code: string,
 ): Promise<{ ok: true; verified: boolean } | { ok: false; message: string }> {
+  const t = await serverWords();
   const at = await here(token);
-  if (at === null) return { ok: false as const, message: 'This link is for another company.' };
+  if (at === null)
+    return {
+      ok: false as const,
+      message: t(
+        'app.sign.token.actions.this_link_is_for_another_company',
+        'This link is for another company.',
+      ),
+    };
   const response = await fetch(`${base()}/v1/documents/sign/${encodeURIComponent(token)}/verify`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -65,7 +93,11 @@ export async function verifyCode(
     error?: { message?: string };
   } | null;
   if (response?.ok !== true || json === null)
-    return { ok: false as const, message: json?.error?.message ?? 'That did not work.' };
+    return {
+      ok: false as const,
+      message:
+        json?.error?.message ?? t('app.sign.token.actions.that_did_not_work', 'That did not work.'),
+    };
   return { ok: true as const, verified: json.verified === true };
 }
 
@@ -92,8 +124,16 @@ export async function declineLink(
   token: string,
   reason: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  const t = await serverWords();
   const at = await here(token);
-  if (at === null) return { ok: false as const, message: 'This link is for another company.' };
+  if (at === null)
+    return {
+      ok: false as const,
+      message: t(
+        'app.sign.token.actions.this_link_is_for_another_company',
+        'This link is for another company.',
+      ),
+    };
   const response = await fetch(`${base()}/v1/documents/sign/${encodeURIComponent(token)}/decline`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -102,5 +142,8 @@ export async function declineLink(
   }).catch(() => null);
   return response?.ok === true
     ? { ok: true as const }
-    : { ok: false as const, message: 'That did not work.' };
+    : {
+        ok: false as const,
+        message: t('app.sign.token.actions.that_did_not_work', 'That did not work.'),
+      };
 }

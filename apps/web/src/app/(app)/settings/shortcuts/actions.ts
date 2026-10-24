@@ -3,6 +3,7 @@
 import { writePreference } from '../../../../lib/preferences';
 import { ShortcutPrefsSchema } from '../../../../lib/shortcut-prefs';
 import { problemIn } from '../../../../lib/shortcuts';
+import { serverWords } from '../../../../lib/server-words';
 
 /**
  * Saves the signed-in person's keyboard shortcuts.
@@ -17,8 +18,16 @@ export async function saveShortcuts(
   input: unknown,
   apple: unknown,
 ): Promise<{ readonly ok: true } | { readonly ok: false; readonly message: string }> {
+  const t = await serverWords();
   const parsed = ShortcutPrefsSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: 'Those keys could not be read. Try again.' };
+  if (!parsed.success)
+    return {
+      ok: false,
+      message: t(
+        'app.app.settings.shortcuts.actions.those_keys_could_not_be_read_try',
+        'Those keys could not be read. Try again.',
+      ),
+    };
   const problem = problemIn(parsed.data.bindings, apple === true);
   if (problem !== null) return { ok: false, message: problem };
   const saved = await writePreference('shortcuts', parsed.data);
@@ -27,7 +36,13 @@ export async function saveShortcuts(
     ok: false,
     message:
       saved === 'view_only'
-        ? 'You are viewing as somebody else, so nothing can be changed.'
-        : 'Your shortcuts could not be saved just now. Try again.',
+        ? t(
+            'app.app.settings.shortcuts.actions.you_are_viewing_as_somebody_else_so',
+            'You are viewing as somebody else, so nothing can be changed.',
+          )
+        : t(
+            'app.app.settings.shortcuts.actions.your_shortcuts_could_not_be_saved_just',
+            'Your shortcuts could not be saved just now. Try again.',
+          ),
   };
 }

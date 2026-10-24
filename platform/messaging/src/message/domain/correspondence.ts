@@ -2,7 +2,7 @@ import { accentHex } from '@kithena/contracts';
 import { err, ok, type Result } from '@kithena/domain-kit';
 
 import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
-import { Unrenderable, type RenderedMessage } from './invitation.js';
+import { ENGLISH, Unrenderable, type Language, type RenderedMessage } from './invitation.js';
 import { dark, light, scale } from './palette.js';
 
 /**
@@ -54,6 +54,8 @@ export function renderCorrespondence(
   text: string,
   companyName: string,
   parts: CorrespondenceParts = {},
+  /** The company's language, for the frame around the module's own words. */
+  words: Language = ENGLISH,
 ): Result<RenderedMessage> {
   const heading = subject.trim();
   const body = text.trim();
@@ -80,6 +82,14 @@ export function renderCorrespondence(
     parts.secondary == null ? null : link(parts.secondary.label, safeHref(parts.secondary.href));
   const title = (parts.heading ?? '').trim() === '' ? heading : (parts.heading ?? '').trim();
   const view: View = {
+    language: escapeHtml(words.language),
+    footer: escapeHtml(
+      words.t(
+        'correspondence.footer',
+        'Sent by {{company}} about your application. Reply to this email to answer them.',
+        { company: companyName },
+      ),
+    ),
     company: escapeHtml(companyName),
     title: escapeHtml(title.slice(0, 200)),
     paragraphs: body.split(/\n{2,}/u).map((p) => escapeHtml(p).replace(/\n/gu, '<br />')),
@@ -106,7 +116,7 @@ export function renderCorrespondence(
       parts: { days, facts },
       action: parts.action,
       secondary: parts.secondary,
-      timesTitle: parts.times?.title ?? null,
+      timesTitle: parts.times?.title ?? words.t('correspondence.times', 'Times'),
     }),
   });
 }
@@ -117,6 +127,9 @@ const link = (label: string, href: string | null): { label: string; href: string
     : { label: escapeHtml(label.trim().slice(0, 60)), href };
 
 interface View {
+  /** Escaped, as every value in the view is. */
+  readonly language: string;
+  readonly footer: string;
   readonly company: string;
   readonly title: string;
   readonly paragraphs: readonly string[];
@@ -141,7 +154,7 @@ function html(view: View): string {
   const pad = scale.cardPadding;
   const preheader = view.paragraphs[0]?.replaceAll('<br />', ' ').slice(0, 140) ?? '';
   return `<!doctype html>
-<html lang="en" style="margin:0;padding:0;">
+<html lang="${view.language}" style="margin:0;padding:0;">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -210,7 +223,7 @@ ${times(view, pad)}${facts(view, pad)}${actions(view, pad)}                  <tr
             </tr>
             <tr>
               <td class="k-muted" style="padding:18px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
-                Sent by ${view.company} about your application. Reply to this email to answer them.
+                ${view.footer}
               </td>
             </tr>
           </table>
@@ -319,7 +332,7 @@ function plain(v: {
     days: readonly { day: string; times: readonly string[] }[];
     facts: readonly { label: string; value: string }[];
   };
-  timesTitle: string | null;
+  timesTitle: string;
   action: CorrespondenceParts['action'];
   secondary: CorrespondenceParts['secondary'];
 }): string {
@@ -327,11 +340,7 @@ function plain(v: {
     v.body,
     ...(v.parts.days.length === 0
       ? []
-      : [
-          '',
-          v.timesTitle ?? 'Times',
-          ...v.parts.days.map((d) => `  ${d.day}: ${d.times.join(', ')}`),
-        ]),
+      : ['', v.timesTitle, ...v.parts.days.map((d) => `  ${d.day}: ${d.times.join(', ')}`)]),
     ...(v.parts.facts.length === 0
       ? []
       : ['', ...v.parts.facts.map((f) => `${f.label}: ${f.value}`)]),

@@ -1,10 +1,11 @@
 import {
   AssistantCard,
   Avatar,
-  BarChart,
   Badge,
+  BarChart,
   Button,
   ChartCard,
+  dateFormat,
   List,
   ListItem,
   PageHeader,
@@ -100,18 +101,16 @@ const body =
   'flex flex-col gap-6 @min-[60rem]/insights:grid @min-[60rem]/insights:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] @min-[60rem]/insights:items-start';
 
 const monthShort = (month: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(
-    new Date(`${month}-01T00:00:00Z`),
-  );
+  dateFormat({ month: 'short', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`));
 const monthLong = (month: string): string =>
-  new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(
-    new Date(`${month}-01T00:00:00Z`),
-  );
+  dateFormat({ month: 'long', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`));
 const n = (s: string): number => Number(s);
 const people = (count: number): string =>
-  count === 1
-    ? '1 person'
-    : tr('insights.insights.people', '{{count}} people', { count: String(count) });
+  tr(
+    'insights.insights.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: count },
+  );
 const hoursOf = (minutes: number): string =>
   tr('insights.insights.h', '{{round}}h', { round: String(Math.round(minutes / 60)) });
 
@@ -130,37 +129,45 @@ export function Insights({ load, onAsk, onSendNudges }: InsightsProps): JSX.Elem
       {load.status === 'error' ? (
         <PageHeader title={tr('insights.insights.insights', 'Insights')} />
       ) : null}
-      <Loaded load={load} what="the insights">
+      <Loaded load={load} what={tr('insights.insights.the_insights', 'the insights')}>
         {(data) => (
           <>
             <PageHeader
               title={tr('insights.insights.insights', 'Insights')}
-              description={tr(
-                'insights.insights.time_off_and_attendance_as_of',
-                'Time off and attendance {{value}} · {{people}} · as of {{longDate}}',
-                {
-                  value: data.scope === 'company' ? 'across the company' : 'for your team',
-                  people: people(data.people.length),
-                  longDate: longDate(data.asOf),
-                },
-              )}
+              description={
+                data.scope === 'company'
+                  ? tr(
+                      'insights.insights.across_the_company_as_of',
+                      'Time off and attendance across the company · {{people}} · as of {{longDate}}',
+                      { people: people(data.people.length), longDate: longDate(data.asOf) },
+                    )
+                  : tr(
+                      'insights.insights.for_your_team_as_of',
+                      'Time off and attendance for your team · {{people}} · as of {{longDate}}',
+                      { people: people(data.people.length), longDate: longDate(data.asOf) },
+                    )
+              }
             />
             {data.tab === 'what-changed' ? <WhatChanged data={data} /> : null}
             {data.tab === 'time-off' ? <TimeOffTab data={data} /> : null}
             {data.tab === 'attendance' ? <AttendanceTab data={data} /> : null}
             {data.tab === 'balances' ? <BalancesTab data={data} /> : null}
             <p className="text-xs text-fg-muted">
-              {tr(
-                'insights.insights.groups_under_people_are_never_described',
-                'Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger.{{value}}',
-                {
-                  cohortMinimum: String(data.cohortMinimum),
-                  value:
-                    data.hiddenTeams === 0
-                      ? ''
-                      : ` ${String(data.hiddenTeams)} smaller ${data.hiddenTeams === 1 ? 'team is' : 'teams are'} left out of the per-team figures.`,
-                },
-              )}
+              {data.hiddenTeams === 0
+                ? tr(
+                    'insights.insights.groups_under_people_are_never_described',
+                    'Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger.',
+                    { cohortMinimum: data.cohortMinimum },
+                  )
+                : tr(
+                    'insights.insights.groups_never_described_teams_left_out',
+                    {
+                      one: 'Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger. {{count}} smaller team is left out of the per-team figures.',
+                      other:
+                        'Groups under {{cohortMinimum}} people are never described, and sick leave is only ever a total for a group that size or larger. {{count}} smaller teams are left out of the per-team figures.',
+                    },
+                    { cohortMinimum: data.cohortMinimum, count: data.hiddenTeams },
+                  )}
             </p>
             {data.nudge === null || data.nudge === undefined ? null : (
               <Nudge
@@ -186,11 +193,11 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
     <div className={body}>
       <AssistantCard
         level={2}
-        title={tr('insights.insights.in', '{{monthLong}} in {{length}} {{value}}', {
-          monthLong: monthLong(month),
-          length: String(data.points.length),
-          value: data.points.length === 1 ? 'point' : 'points',
-        })}
+        title={tr(
+          'insights.insights.in',
+          { one: '{{monthLong}} in {{count}} point', other: '{{monthLong}} in {{count}} points' },
+          { count: data.points.length, monthLong: monthLong(month) },
+        )}
         action={
           <Badge tone="assistant" size="sm">
             {data.points.some((p) => p.ai === true)

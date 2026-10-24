@@ -91,7 +91,11 @@ export interface ProvisioningProps {
 
 /** A path as a person reads it: the extension's name dropped. */
 const pathLabel = (path: string, extension: string) =>
-  path.startsWith(`${extension}:`) ? `People: ${path.slice(extension.length + 1)}` : path;
+  path.startsWith(`${extension}:`)
+    ? t('settings.integrations.provisioning.people_path', 'People: {{path}}', {
+        path: path.slice(extension.length + 1),
+      })
+    : path;
 
 /**
  * Provisioning from an upstream system over SCIM (PRD §13.5, §13.6).

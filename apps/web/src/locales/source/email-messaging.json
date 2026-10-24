@@ -1,0 +1,662 @@
+{
+  "invitation.button_not_working": {
+    "text": "Button not working? Paste this into your browser:",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"buttonNotWorking\" value."
+  },
+  "invitation.invitation.action": {
+    "text": "Set up your account",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"invitation\" value."
+  },
+  "invitation.invitation.caution": {
+    "text": "If you were not expecting this, or you do not recognise {{company}}, do not use the link — tell your HR team instead.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"caution\" value. Filled in: {{company}}."
+  },
+  "invitation.invitation.expired": {
+    "text": "If it has expired, ask your HR team for another.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"invitation\" value."
+  },
+  "invitation.invitation.expiry": {
+    "text": "This link works once and expires {{deadline}}. If it has expired, ask your HR team for another.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"expiry\" value. Filled in: {{deadline}}."
+  },
+  "invitation.invitation.footer": {
+    "text": "Sent by Kithena because {{company}} added you to their team.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "invitation.invitation.heading": {
+    "text": "You’re invited to join {{company}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"heading\" value. Filled in: {{company}}."
+  },
+  "invitation.invitation.lede": {
+    "text": "An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"lede\" value."
+  },
+  "invitation.invitation.preheader": {
+    "text": "Set up your account at {{company}}. The link works once, until {{deadline}}.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"preheader\" value. Filled in: {{company}}, {{deadline}}."
+  },
+  "invitation.invitation.step_1": {
+    "text": "Your device asks for your fingerprint, face or PIN.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value."
+  },
+  "invitation.invitation.step_2": {
+    "text": "That becomes your passkey. Nothing leaves your device.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value."
+  },
+  "invitation.invitation.step_3": {
+    "text": "You sign in to {{company}} the same way from then on.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value. Filled in: {{company}}."
+  },
+  "invitation.invitation.subject": {
+    "text": "You’re invited to join {{company}} on Kithena",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "invitation.one_off": {
+    "text": "This is a one-off message about your account, not a subscription.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"oneOff\" value."
+  },
+  "invitation.recovery.action": {
+    "text": "Set up a new passkey",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"action\" value."
+  },
+  "invitation.recovery.caution": {
+    "text": "If you did not ask for this, you can ignore it — the link does nothing until somebody uses it, and nobody can use it without this mailbox.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"caution\" value."
+  },
+  "invitation.recovery.expired": {
+    "text": "If it has expired, ask for another from your sign-in page.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"expired\" value."
+  },
+  "invitation.recovery.expiry": {
+    "text": "This link works once and expires {{deadline}}. If it has expired, ask for another from your sign-in page.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"expiry\" value. Filled in: {{deadline}}."
+  },
+  "invitation.recovery.footer": {
+    "text": "Sent by Kithena because somebody asked for a new setup link for this address.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"footer\" value."
+  },
+  "invitation.recovery.heading": {
+    "text": "Set up a new passkey",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"heading\" value."
+  },
+  "invitation.recovery.lede": {
+    "text": "You asked for a new way to sign in. The passkey you had stays where it is — this one is for the device you are on now.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"lede\" value."
+  },
+  "invitation.recovery.preheader": {
+    "text": "Set up a new passkey at {{company}}. The link works once, until {{deadline}}.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"preheader\" value. Filled in: {{company}}, {{deadline}}."
+  },
+  "invitation.recovery.step_1": {
+    "text": "Your device asks for your fingerprint, face or PIN.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value."
+  },
+  "invitation.recovery.step_2": {
+    "text": "That becomes your new passkey. Nothing leaves your device.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value."
+  },
+  "invitation.recovery.step_3": {
+    "text": "You sign in to {{company}} with it from then on.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"steps\" value. Filled in: {{company}}."
+  },
+  "invitation.recovery.subject": {
+    "text": "Set up a new passkey for {{company}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "invitation.what_happens_next": {
+    "text": "What happens next",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"next\" value."
+  },
+  "invitation.works_once_expires": {
+    "text": "Works once · expires {{deadline}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"chip\" value. Filled in: {{deadline}}."
+  },
+  "invitation.your_sign_in_address": {
+    "text": "Your sign-in address",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/invitation.ts: a \"address\" value."
+  },
+  "notice.approval_decided.action": {
+    "text": "Open People",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"approval_decided\" value."
+  },
+  "notice.approval_decided.approved.heading": {
+    "text": "Your change was approved",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.approval_decided.approved.lede": {
+    "text": "A change you made in {{company}}’s People was approved, and takes effect from the date you gave.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.approval_decided.approved.subject": {
+    "text": "{{company}}: your change was approved",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.approval_decided.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because you made a change that needed approval.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"approval_decided\" value. Filled in: {{company}}."
+  },
+  "notice.approval_decided.rejected.heading": {
+    "text": "Your change was not approved",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.approval_decided.rejected.lede": {
+    "text": "A change you made in {{company}}’s People was not approved, so it was not applied. Open People to see what is recorded and, if it is still needed, make it again.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.approval_decided.rejected.subject": {
+    "text": "{{company}}: your change was not approved",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.approval_expired.action": {
+    "text": "Open People",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.approval_expired.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because you made a change that needed approval.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.approval_expired.heading": {
+    "text": "Your change expired",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.approval_expired.lede": {
+    "text": "Nobody decided a change you made in {{company}}’s People within seven days, so it was not applied. If it is still needed, make it again.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.approval_expired.subject": {
+    "text": "{{company}}: your change expired without a decision",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.approval_requested.action": {
+    "text": "Review changes",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.approval_requested.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because you approve changes in People.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.approval_requested.heading": {
+    "text": "A change needs your approval",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.approval_requested.lede": {
+    "text": "Somebody changed a detail in {{company}}’s People that needs a second person to approve it before it takes effect. It waits for up to seven days; after that it lapses and is not applied.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.approval_requested.subject": {
+    "text": "{{company}}: a change is waiting for your approval",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.correction_requested.action": {
+    "text": "Open your profile",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.correction_requested.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because a detail in your People profile needs your correction.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.correction_requested.heading": {
+    "text": "A detail needs correcting",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.correction_requested.lede": {
+    "text": "HR at {{company}} checked a detail you gave in People and could not accept it as it is, so it was not saved. Open your profile to see what they found and correct it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.correction_requested.subject": {
+    "text": "{{company}}: HR asked you to correct a detail",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.document_completed.action": {
+    "text": "Open the document",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.document_completed.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, because you signed this document.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.document_completed.heading": {
+    "text": "Signed by everyone",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.document_completed.lede": {
+    "text": "Every signature is in. The signed document is attached, with a certificate of completion as its last page saying who signed, how and when.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value."
+  },
+  "notice.document_completed.subject": {
+    "text": "{{company}}: everyone has signed",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.document_signed.action": {
+    "text": "Open the document",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.document_signed.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, because you signed a document.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.document_signed.heading": {
+    "text": "Your signature is in",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.document_signed.lede": {
+    "text": "Thank you for signing with {{company}}. A copy as signed so far is attached. Anyone still to sign is asked in turn, and you get the finished copy once everyone has signed.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.document_signed.subject": {
+    "text": "{{company}}: you signed a document",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.export_share_requested.action": {
+    "text": "Review the export",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.export_share_requested.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because you are a People administrator.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.export_share_requested.heading": {
+    "text": "An export needs your approval",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.export_share_requested.lede": {
+    "text": "Somebody at {{company}} wants to send an export from People to a colleague who could not see all of it themselves. Nothing is sent unless a People administrator approves it within seven days.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.export_share_requested.subject": {
+    "text": "{{company}}: an export is waiting for your approval",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.export_shared.action": {
+    "text": "Open the export",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.export_shared.footer": {
+    "text": "Sent by Kithena on behalf of {{company}} because an export was sent to you. Forwarding this email gives nobody else the file.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.export_shared.heading": {
+    "text": "A People export was sent to you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.export_shared.lede": {
+    "text": "Somebody at {{company}} sent you an export from People. It opens only for you, once you are signed in, and only for seven days; after that it is deleted.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.export_shared.subject": {
+    "text": "{{company}}: a People export was sent to you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.inbox_digest.action": {
+    "text": "Open your Inbox",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.inbox_digest.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, once a day. Change when, or turn it off, in Settings, Notifications.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.inbox_digest.heading_one": {
+    "text": "One update since yesterday",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "notice.inbox_digest.heading_other": {
+    "text": "{{count}} updates since yesterday",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "notice.inbox_digest.lede_one": {
+    "text": "Your daily digest: one update you have not opened yet, in your Inbox at {{company}}. Nothing in an update is owed.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "notice.inbox_digest.lede_other": {
+    "text": "Your daily digest: {{count}} updates you have not opened yet, in your Inbox at {{company}}. Nothing in an update is owed.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "notice.inbox_digest.subject_one": {
+    "text": "{{company}}: one update in your Inbox",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "notice.inbox_digest.subject_other": {
+    "text": "{{company}}: {{count}} updates in your Inbox",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "notice.inbox_task.action": {
+    "text": "Open your Inbox",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.inbox_task.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}. Choose which tasks reach you by email in Settings, Notifications.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.inbox_task.heading": {
+    "text": "Something needs you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.inbox_task.lede": {
+    "text": "{{opening}} It is in your Inbox at {{company}}, with everything you need to do it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{opening}}, {{company}}."
+  },
+  "notice.inbox_update.action": {
+    "text": "Open your Inbox",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.inbox_update.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}. Updates can come in a daily digest instead, in Settings, Notifications.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.inbox_update.heading": {
+    "text": "An update for you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.inbox_update.lede": {
+    "text": "{{opening}} Nothing is owed; it is in your Inbox at {{company}}.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{opening}}, {{company}}."
+  },
+  "notice.profile_reminder.action": {
+    "text": "Open your profile",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.profile_reminder.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}. You will get at most one of these a week, and none once your profile is complete.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.profile_reminder.heading": {
+    "text": "Your profile needs a few details",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.profile_reminder.lede_one": {
+    "text": "{{company}} has asked everyone to fill in one detail that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "notice.profile_reminder.lede_other": {
+    "text": "{{company}} has asked everyone to fill in {{count}} details that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "notice.profile_reminder.subject": {
+    "text": "{{company}}: a few details are missing from your profile",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.rest_nudge.action": {
+    "text": "Open Time Off",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.rest_nudge.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, because HR suggested you take a break. Only you see these numbers.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.rest_nudge.subject": {
+    "text": "{{company}}: {{heading}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}, {{heading}}."
+  },
+  "notice.scheduled_report.daily.file.lede": {
+    "text": "The daily {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"daily\" value. Filled in: {{company}}, {{file}}."
+  },
+  "notice.scheduled_report.daily.file.subject": {
+    "text": "{{company}}: your daily People report is ready",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"daily\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.daily.summary.heading": {
+    "text": "Your daily People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"daily\" value."
+  },
+  "notice.scheduled_report.daily.summary.subject": {
+    "text": "{{company}}: your daily People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"daily\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.file.action": {
+    "text": "Download the report",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.scheduled_report.file.heading": {
+    "text": "Your People report is ready",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.scheduled_report.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, because you are a recipient of a scheduled People report. Whoever manages People at {{company}} can stop it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"scheduled_report\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.monthly.file.lede": {
+    "text": "The monthly {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"monthly\" value. Filled in: {{company}}, {{file}}."
+  },
+  "notice.scheduled_report.monthly.file.subject": {
+    "text": "{{company}}: your monthly People report is ready",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"monthly\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.monthly.summary.heading": {
+    "text": "Your monthly People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"monthly\" value."
+  },
+  "notice.scheduled_report.monthly.summary.subject": {
+    "text": "{{company}}: your monthly People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"monthly\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.summary.action": {
+    "text": "Open the summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.scheduled_report.summary.lede": {
+    "text": "The numbers {{company}} scheduled for you are up to date: headcount, movement and how complete the records are. They are shown only once you are signed in, and only what you are allowed to see.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.weekly.file.lede": {
+    "text": "The weekly {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"weekly\" value. Filled in: {{company}}, {{file}}."
+  },
+  "notice.scheduled_report.weekly.file.subject": {
+    "text": "{{company}}: your weekly People report is ready",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"weekly\" value. Filled in: {{company}}."
+  },
+  "notice.scheduled_report.weekly.summary.heading": {
+    "text": "Your weekly People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"weekly\" value."
+  },
+  "notice.scheduled_report.weekly.summary.subject": {
+    "text": "{{company}}: your weekly People summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, REPORT_WORDS: a \"weekly\" value. Filled in: {{company}}."
+  },
+  "notice.signature_reminder.action": {
+    "text": "Review and sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.signature_reminder.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}. If you were not expecting this, you can ignore it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.signature_reminder.heading": {
+    "text": "Your signature is next",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.signature_reminder.lede": {
+    "text": "A document from {{company}} is waiting for you to sign. Any signatures before yours are already on it. This link replaces any earlier one we sent you.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.signature_reminder.subject": {
+    "text": "Reminder: {{company}} is waiting for your signature",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.signature_requested.action": {
+    "text": "Review and sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.signature_requested.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}. If you were not expecting this, you can ignore it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.signature_requested.heading": {
+    "text": "A document to sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.signature_requested.lede": {
+    "text": "{{company}} asked you to sign a document with Kithena. It opens ready to sign: press Start, sign where it asks, and Finish. We email you a code at Finish to confirm it is you.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.signature_requested.subject": {
+    "text": "{{company}} sent you a document to sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.signing_code.action": {
+    "text": "Back to the document",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.signing_code.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.signing_code.heading": {
+    "text": "Your code is {{code}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value. Filled in: {{code}}."
+  },
+  "notice.signing_code.lede": {
+    "text": "Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value."
+  },
+  "notice.signing_code.subject": {
+    "text": "Your code to sign for {{company}}: {{code}}",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}, {{code}}."
+  },
+  "notice.summary_shared.action": {
+    "text": "Open the summary",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.summary_shared.footer": {
+    "text": "Sent by Kithena on behalf of {{company}}, because somebody in HR shared a People summary with you.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.summary_shared.heading": {
+    "text": "A People summary for you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.summary_shared.lede": {
+    "text": "Somebody at {{company}} sent you a summary of what changed in People, written for what you are allowed to see. It is shown only once you are signed in, and it opens for seven days.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{company}}."
+  },
+  "notice.summary_shared.subject": {
+    "text": "{{company}}: a People summary was shared with you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  },
+  "notice.task.correction.lede": {
+    "text": "A detail you gave needs correcting before it can be accepted.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"correction\" value."
+  },
+  "notice.task.correction.subject": {
+    "text": "{{company}}: a detail needs correcting",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"correction\" value. Filled in: {{company}}."
+  },
+  "notice.task.details.lede": {
+    "text": "Somebody asked you to add a few details to your record.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"details\" value."
+  },
+  "notice.task.details.subject": {
+    "text": "{{company}}: you were asked for some details",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"details\" value. Filled in: {{company}}."
+  },
+  "notice.task.document_acknowledge.lede": {
+    "text": "A document is waiting for you to read and acknowledge it.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_acknowledge\" value."
+  },
+  "notice.task.document_acknowledge.subject": {
+    "text": "{{company}}: a document to read",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_acknowledge\" value. Filled in: {{company}}."
+  },
+  "notice.task.document_countersign.lede": {
+    "text": "A document you sent was signed and waits for your countersignature.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_countersign\" value."
+  },
+  "notice.task.document_countersign.subject": {
+    "text": "{{company}}: a document to countersign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_countersign\" value. Filled in: {{company}}."
+  },
+  "notice.task.document_sign.lede": {
+    "text": "A document is waiting for your signature.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_sign\" value."
+  },
+  "notice.task.document_sign.subject": {
+    "text": "{{company}}: a document to sign",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"document_sign\" value. Filled in: {{company}}."
+  },
+  "notice.task.team_task.lede": {
+    "text": "Something needs one of you; whoever takes it tells the others.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"team_task\" value."
+  },
+  "notice.task.team_task.subject": {
+    "text": "{{company}}: a task for your team",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"team_task\" value. Filled in: {{company}}."
+  },
+  "notice.task.time_off_approval.lede": {
+    "text": "Somebody asked for time off, and it waits for your decision.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"time_off_approval\" value."
+  },
+  "notice.task.time_off_approval.subject": {
+    "text": "{{company}}: a time-off request to decide",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, TASK_WORDS: a \"time_off_approval\" value. Filled in: {{company}}."
+  },
+  "notice.update.answered.lede": {
+    "text": "Somebody you asked has answered.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"answered\" value."
+  },
+  "notice.update.answered.subject": {
+    "text": "{{company}}: somebody answered your request",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"answered\" value. Filled in: {{company}}."
+  },
+  "notice.update.calendar.lede": {
+    "text": "A calendar or a balance of yours changed.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"calendar\" value."
+  },
+  "notice.update.calendar.subject": {
+    "text": "{{company}}: a calendar was updated",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"calendar\" value. Filled in: {{company}}."
+  },
+  "notice.update.decided.lede": {
+    "text": "A request of yours was decided.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"decided\" value."
+  },
+  "notice.update.decided.subject": {
+    "text": "{{company}}: something you asked for was decided",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"decided\" value. Filled in: {{company}}."
+  },
+  "notice.update.document_returned.lede": {
+    "text": "A document you sent was signed, acknowledged or sent back.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"document_returned\" value."
+  },
+  "notice.update.document_returned.subject": {
+    "text": "{{company}}: a document you sent came back",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"document_returned\" value. Filled in: {{company}}."
+  },
+  "notice.update.document_shared.lede": {
+    "text": "A document was shared with you, and kept with your record.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"document_shared\" value."
+  },
+  "notice.update.document_shared.subject": {
+    "text": "{{company}}: a document was shared with you",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"document_shared\" value. Filled in: {{company}}."
+  },
+  "notice.update.team_news.lede": {
+    "text": "Somebody joins or leaves your team.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"team_news\" value."
+  },
+  "notice.update.team_news.subject": {
+    "text": "{{company}}: news about your team",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, UPDATE_WORDS: a \"team_news\" value. Filled in: {{company}}."
+  },
+  "notice.webhook_disabled.action": {
+    "text": "Open People",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"action\" value."
+  },
+  "notice.webhook_disabled.footer": {
+    "text": "Sent by Kithena because this address is the alert contact for a webhook endpoint in {{company}}’s People.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"footer\" value. Filled in: {{company}}."
+  },
+  "notice.webhook_disabled.heading": {
+    "text": "We stopped sending to one of your webhooks",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"heading\" value."
+  },
+  "notice.webhook_disabled.lede": {
+    "text": "Nothing sent to {{host}} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"lede\" value. Filled in: {{host}}."
+  },
+  "notice.webhook_disabled.subject": {
+    "text": "{{company}}: a People webhook was turned off",
+    "context": "An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from. message/domain/notice.ts, COPY: a \"subject\" value. Filled in: {{company}}."
+  }
+}

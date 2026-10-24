@@ -61,6 +61,8 @@ export interface Tenant {
   readonly location: TenantLocation | null;
   /** Whether its sign-in page offers Google beside the passkey. */
   readonly googleSignIn: boolean;
+  /** What its emails are written in, and its screens until a person chooses. */
+  readonly language: string;
 }
 
 /**

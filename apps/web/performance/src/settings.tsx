@@ -45,17 +45,7 @@ import {
 import { useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import {
-  Choose,
-  Modal,
-  PersonPicker,
-  Refusal,
-  day,
-  download,
-  plural,
-  useAct,
-  when,
-} from './shared';
+import { Choose, Modal, PersonPicker, Refusal, day, download, useAct, when } from './shared';
 import type { ScaleOption, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
@@ -146,8 +136,10 @@ const PAGES: Readonly<
   },
   ai: {
     title: 'AI',
-    description:
+    description: tr(
+      'settings.each_ai_feature_on_or_off_every',
       'Each AI feature, on or off. Every output is logged; a person confirms every number.',
+    ),
     section: 'ai',
   },
   connections: {
@@ -205,7 +197,7 @@ const isList = (v: Json): v is readonly Json[] => Array.isArray(v);
 
 export function Settings(props: ScreenProps<SettingsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="Performance’s settings">
+    <Loaded load={props.load} what={tr('settings.performances_settings', 'Performance’s settings')}>
       {(data) => (
         <SettingsPage
           key={data.page ?? 'general'}
@@ -572,12 +564,18 @@ const CONNECTIONS = [
   [
     'google',
     tr('settings.google_workspace', 'Google Workspace'),
-    'Calendar invitations for sessions and 1:1s.',
+    tr(
+      'settings.calendar_invitations_for_sessions_and_1_1s',
+      'Calendar invitations for sessions and 1:1s.',
+    ),
   ],
   [
     'microsoft',
     tr('settings.microsoft_365', 'Microsoft 365'),
-    'Calendar invitations for sessions and 1:1s.',
+    tr(
+      'settings.calendar_invitations_for_sessions_and_1_1s',
+      'Calendar invitations for sessions and 1:1s.',
+    ),
   ],
   [
     'slack',
@@ -774,7 +772,10 @@ function Body({
                 [
                   'nobody',
                   tr('settings.nobody', 'Nobody'),
-                  'Feedback is off; praise and reviews are not.',
+                  tr(
+                    'settings.feedback_is_off_praise_and_reviews_are',
+                    'Feedback is off; praise and reviews are not.',
+                  ),
                 ],
               ]}
             />
@@ -871,7 +872,10 @@ function Body({
                     'settings.check_the_tone_before_sending',
                     'Check the tone before sending',
                   ),
-                  hint: 'The writer decides; nothing is changed for them.',
+                  hint: tr(
+                    'settings.the_writer_decides_nothing_is_changed_for',
+                    'The writer decides; nothing is changed for them.',
+                  ),
                 },
                 {
                   path: ['templates'],
@@ -906,7 +910,11 @@ function Body({
                   key={p.name}
                   description={
                     p.connected
-                      ? plural(p.items, 'course')
+                      ? tr(
+                          'settings.count_courses',
+                          { one: '{{count}} course', other: '{{count}} courses' },
+                          { count: p.items },
+                        )
                       : tr('settings.not_connected_yet', 'Not connected yet')
                   }
                   trailing={
@@ -1183,7 +1191,10 @@ function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
             {
               path: ['parts', 'goals'],
               label: tr('settings.goals', 'Goals'),
-              hint: 'Goals, key results and check-ins.',
+              hint: tr(
+                'settings.goals_key_results_and_check_ins',
+                'Goals, key results and check-ins.',
+              ),
             },
             {
               path: ['parts', 'learning'],
@@ -1196,7 +1207,10 @@ function GeneralSettings({ ui }: { readonly ui: Ui }): JSX.Element {
             {
               path: ['parts', 'calibration'],
               label: tr('settings.calibration', 'Calibration'),
-              hint: 'Sessions over a cycle’s scores, and the nine-box.',
+              hint: tr(
+                'settings.sessions_over_a_cycles_scores_and_the',
+                'Sessions over a cycle’s scores, and the nine-box.',
+              ),
             },
             {
               path: ['parts', 'automations'],
@@ -1442,9 +1456,11 @@ function AccessSettings({
                   <Button
                     size="sm"
                     variant="ghost"
-                    aria-label={tr('settings.remove_2', 'Remove {{value}}', {
-                      value: named[id] ?? 'this person',
-                    })}
+                    aria-label={
+                      named[id] === undefined
+                        ? tr('settings.remove_this_person', 'Remove this person')
+                        : tr('settings.remove_2', 'Remove {{value}}', { value: named[id] })
+                    }
                     startIcon={<icons.delete aria-hidden />}
                     onClick={() => {
                       ui.set(
@@ -1530,9 +1546,11 @@ function Scale({
           </Field>
           <Button
             variant="ghost"
-            aria-label={tr('settings.remove_2', 'Remove {{value}}', {
-              value: o.label || 'this level',
-            })}
+            aria-label={
+              o.label === ''
+                ? tr('settings.remove_this_level', 'Remove this level')
+                : tr('settings.remove_2', 'Remove {{value}}', { value: o.label })
+            }
             startIcon={<icons.delete aria-hidden />}
             disabled={disabled || value.length <= 2}
             onClick={() => {
@@ -1575,7 +1593,7 @@ export interface AiLogData {
 /** S7b: every AI output, for whom, on what and with which prompt version. */
 export function AiLog(props: ScreenProps<AiLogData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the AI log">
+    <Loaded load={props.load} what={tr('settings.the_ai_log', 'the AI log')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1690,7 +1708,7 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
       });
   };
   return (
-    <Loaded load={props.load} what="your connected tools">
+    <Loaded load={props.load} what={tr('settings.your_connected_tools', 'your connected tools')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1745,10 +1763,11 @@ export function ConnectedTools(props: ScreenProps<ConnectedToolsData>): JSX.Elem
                                   }),
                               s.at === null
                                 ? null
-                                : tr('settings.since', '{{value}} since {{at}}', {
-                                    value: s.on ? 'On' : 'Off',
-                                    at: when(s.at),
-                                  }),
+                                : s.on
+                                  ? tr('settings.on_since', 'On since {{at}}', { at: when(s.at) })
+                                  : tr('settings.off_since', 'Off since {{at}}', {
+                                      at: when(s.at),
+                                    }),
                             ]
                               .filter((x) => x !== null)
                               .join(' · ')
@@ -2012,7 +2031,11 @@ function RetentionPage({
                 {chosen.length === 0
                   ? tr('settings.delete', 'Delete')
                   : tr('settings.delete_records', 'Delete {{length}} records', {
-                      length: plural(chosen.length, 'person’s', 'people’s'),
+                      length: tr(
+                        'settings.count_peoples',
+                        { one: '{{count}} person’s', other: '{{count}} people’s' },
+                        { count: chosen.length },
+                      ),
                     })}
               </Button>
             </>
@@ -2370,7 +2393,10 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                             ? tr('settings.none_yet', 'None yet')
                             : tr('settings.text_2', '{{at}} · {{value}}', {
                                 at: when(r.last.at),
-                                value: r.last.status === 0 ? 'no answer' : String(r.last.status),
+                                value:
+                                  r.last.status === 0
+                                    ? tr('settings.no_answer', 'no answer')
+                                    : String(r.last.status),
                               })}
                         </TableCell>
                         <TableCell>
@@ -2395,8 +2421,22 @@ export function Webhooks(props: ScreenProps<WebhooksData>): JSX.Element {
                                       const status = (d as { status: number }).status;
                                       setTested(
                                         status >= 200 && status < 300
-                                          ? `The test reached ${r.url} (${String(status)}).`
-                                          : `The test did not reach ${r.url}: ${status === 0 ? 'no answer' : `it answered ${String(status)}`}.`,
+                                          ? tr(
+                                              'settings.the_test_reached',
+                                              'The test reached {{url}} ({{status}}).',
+                                              { url: r.url, status: String(status) },
+                                            )
+                                          : status === 0
+                                            ? tr(
+                                                'settings.the_test_did_not_reach_no_answer',
+                                                'The test did not reach {{url}}: no answer.',
+                                                { url: r.url },
+                                              )
+                                            : tr(
+                                                'settings.the_test_did_not_reach_answered',
+                                                'The test did not reach {{url}}: it answered {{status}}.',
+                                                { url: r.url, status: String(status) },
+                                              ),
                                       );
                                     },
                                   );

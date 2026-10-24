@@ -97,6 +97,7 @@ export default async function EditCompany({
           coverImageUrl: text('coverImageUrl'),
           brandingPublic: text('brandingPublic') !== '',
           googleSignIn: text('googleSignIn') !== '',
+          ...(text('language') === '' ? {} : { language: text('language') }),
           ...(addressChanged ? { address } : {}),
         },
       },
@@ -164,6 +165,7 @@ export default async function EditCompany({
           coverImageUrl: company.coverImageUrl,
           brandingPublic: company.brandingPublic,
           googleSignIn: company.googleSignIn,
+          language: company.language,
           address: company.address,
         }}
       />

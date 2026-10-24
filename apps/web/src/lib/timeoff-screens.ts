@@ -5,6 +5,7 @@ import type { ScreenLoad, ScreenQuery } from './people-screens';
 import { aroundRequest, calendarWindow, clashOf } from './timeoff-calendar-views';
 import type { OperationName } from './timeoff-operations';
 import { upcomingHolidays, type Holiday } from './timeoff-views';
+import { t } from './t';
 
 /**
  * The data each Time Off screen is drawn from, fetched on the server before
@@ -290,7 +291,15 @@ async function timesheet(search: Readonly<Record<string, string>>): Promise<Scre
       fix: fix !== undefined && DATE.test(fix) ? fix : null,
       now: now.toISOString(),
     },
-    ...(refused ? { notice: `“${month ?? week ?? ''}” is not a week or a month` } : {}),
+    ...(refused
+      ? {
+          notice: t(
+            'lib.timeoff-screens.not_a_week_or_a_month',
+            '“{{asked}}” is not a week or a month',
+            { asked: month ?? week ?? '' },
+          ),
+        }
+      : {}),
   };
 }
 
@@ -347,7 +356,13 @@ async function exceptions(search: Readonly<Record<string, string>>): Promise<Scr
   return {
     status: 'ready',
     data: { ...(answer.data as object), month, kind: search['kind'] ?? null },
-    ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
+    ...(refused
+      ? {
+          notice: t('lib.timeoff-screens.not_a_month', '“{{asked}}” is not a month', {
+            asked: search['month'] ?? '',
+          }),
+        }
+      : {}),
   };
 }
 
@@ -364,7 +379,13 @@ async function payPeriod(search: Readonly<Record<string, string>>): Promise<Scre
   return {
     status: 'ready',
     data: { ...(answer.data as object), month, today },
-    ...(refused ? { notice: `“${search['month'] ?? ''}” is not a month` } : {}),
+    ...(refused
+      ? {
+          notice: t('lib.timeoff-screens.not_a_month', '“{{asked}}” is not a month', {
+            asked: search['month'] ?? '',
+          }),
+        }
+      : {}),
   };
 }
 

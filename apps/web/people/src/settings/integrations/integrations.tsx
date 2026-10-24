@@ -9,6 +9,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  Combobox,
+  type ComboboxOption,
   CopyField,
   Dialog,
   DialogBody,
@@ -23,14 +25,13 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   PageHeader,
   PageSection,
   Stack,
   Switch,
-  Combobox,
-  type ComboboxOption,
-  icons,
   Tabs,
   TabsContent,
   TabsList,
@@ -135,7 +136,10 @@ export interface IntegrationsProps {
  */
 export function Integrations(props: IntegrationsProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="the integrations">
+    <Loaded
+      load={props.load}
+      what={t('settings.integrations.integrations.the_integrations', 'the integrations')}
+    >
       {(state) => <Endpoints {...props} state={state} />}
     </Loaded>
   );
@@ -313,10 +317,13 @@ function Endpoints({
             title={t('settings.integrations.integrations.webhooks', 'Webhooks')}
             description={t(
               'settings.integrations.integrations.send_people_events_to_other_tools',
-              'Send People events to other tools, with only the fields you allow. {{length}} {{value}} · {{toLocaleString}} deliveries in the last 24 hours.',
               {
-                length: String(state.endpoints.length),
-                value: state.endpoints.length === 1 ? 'endpoint' : 'endpoints',
+                one: 'Send People events to other tools, with only the fields you allow. {{count}} endpoint · {{toLocaleString}} deliveries in the last 24 hours.',
+                other:
+                  'Send People events to other tools, with only the fields you allow. {{count}} endpoints · {{toLocaleString}} deliveries in the last 24 hours.',
+              },
+              {
+                count: state.endpoints.length,
                 toLocaleString: state.deliveries24h.toLocaleString(),
               },
             )}
@@ -758,7 +765,7 @@ function EndpointCard({
               : t(
                   'settings.integrations.integrations.can_never_be_sent_to_an',
                   '{{join}} can never be sent to an endpoint.',
-                  { join: refusedKeys.join(' and ') },
+                  { join: formatList(refusedKeys) },
                 )
           }
           onChange={setAllowlist}

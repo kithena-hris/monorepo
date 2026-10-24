@@ -31,6 +31,13 @@ describe('checkAmendable', () => {
     expect(checkAmendable(request(), IMAGES).ok).toBe(true);
   });
 
+  it('keeps a language Kithena speaks and refuses one it does not', () => {
+    expect(checkAmendable(request({ language: 'hi' }), IMAGES).ok).toBe(true);
+    const refused = checkAmendable(request({ language: 'xx' }), IMAGES);
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error.code).toBe('LANGUAGE_UNKNOWN');
+  });
+
   it('trims the display name rather than storing the spaces', () => {
     const result = checkAmendable(request({ displayName: '  Acme Corp  ' }), IMAGES);
     expect(result.ok).toBe(true);

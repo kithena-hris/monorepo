@@ -15,6 +15,7 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   PageSection,
   Stack,
   Switch,
@@ -340,15 +341,14 @@ function Notices({
       )}
       description={
         connected.length === 0
-          ? 'Choose what goes to chat. Nothing is sent until a chat app is connected; email carries on as it does now.'
+          ? t(
+              'settings.integrations.chat-apps.choose_what_goes_to_chat_nothing_is',
+              'Choose what goes to chat. Nothing is sent until a chat app is connected; email carries on as it does now.',
+            )
           : t(
               'settings.integrations.chat-apps.of_on_sent_to_as_a',
               '{{count}} of {{length}} on, sent to {{join}} as a direct message to the person it is for, as well as by email.',
-              {
-                count: String(count),
-                length: String(notices.length),
-                join: connected.join(' and '),
-              },
+              { count, length: notices.length, join: formatList(connected) },
             )
       }
     >

@@ -1,3 +1,5 @@
+import { formatNumber, locale } from '@reach/ui';
+
 import { t } from '../lib/t';
 /**
  * How long ago, the way a list of things waiting says it: "12m", "3h",
@@ -10,11 +12,16 @@ export function since(at: string, now: string): string {
   if (!Number.isFinite(ms)) return '';
   const minutes = Math.max(0, Math.floor(ms / 60_000));
   if (minutes < 60)
-    return t('components.since.m', '{{max}}m', { max: String(Math.max(1, minutes)) });
+    return formatNumber(Math.max(1, minutes), {
+      style: 'unit',
+      unit: 'minute',
+      unitDisplay: 'narrow',
+    });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('components.since.h', '{{hours}}h', { hours: String(hours) });
+  if (hours < 24)
+    return formatNumber(hours, { style: 'unit', unit: 'hour', unitDisplay: 'narrow' });
   const days = Math.floor(hours / 24);
   if (days === 1) return t('components.since.yesterday', 'Yesterday');
-  if (days < 7) return then.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' });
-  return then.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  if (days < 7) return then.toLocaleDateString(locale(), { weekday: 'short', timeZone: 'UTC' });
+  return then.toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }

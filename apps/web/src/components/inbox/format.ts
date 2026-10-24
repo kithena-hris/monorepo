@@ -1,4 +1,4 @@
-import { icons, type IconName } from '@reach/ui';
+import { dateFormat, formatNumber, icons, type IconName } from '@reach/ui';
 import type { ComponentType } from 'react';
 
 import type { Shown } from '../../lib/inbox/model';
@@ -14,28 +14,25 @@ import { t } from '../../lib/t';
  */
 
 const DAY_MS = 86_400_000;
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const noon = (day: string): number => Date.parse(`${day}T12:00:00Z`);
+const SHORT_DAY = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' });
+const LONG_DAY = dateFormat({ day: 'numeric', month: 'long', timeZone: 'UTC' });
+const WEEKDAY = dateFormat({ weekday: 'long', timeZone: 'UTC' });
 
-/** "3 Oct". */
+/** "3 Oct", "Oct 3", "3. Okt.": a calendar day, as the reader's language writes it. */
 export function shortDay(day: string): string {
-  return t('components.inbox.format.text', '{{slice}} {{value}}', {
-    slice: String(Number(day.slice(8, 10))),
-    value: MONTHS[Number(day.slice(5, 7)) - 1] ?? '',
-  });
+  return SHORT_DAY.format(noon(day));
 }
 
-/** "3 Oct, 09:40", in the person's zone. */
+/** "3 Oct, 09:40", in the person's zone and language. */
 export function when(instant: string, zone: string): string {
-  const day = dayIn(instant, zone);
-  const time = new Intl.DateTimeFormat('en-GB', {
+  return dateFormat({
     timeZone: zone,
+    day: 'numeric',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(instant));
-  return t('components.inbox.format.text_2', '{{shortDay}}, {{time}}', {
-    shortDay: shortDay(day),
-    time,
-  });
 }
 
 const daysBetween = (from: string, to: string): number =>
@@ -49,16 +46,13 @@ export function dueOf(
   zone: string,
 ): { readonly label: string; readonly tone: 'danger' | 'warning' | 'neutral' } {
   const days = daysBetween(dayIn(now, zone), due);
-  const word =
-    verb === 'decide'
-      ? t('components.inbox.format.decide_by', 'Decide by')
-      : t('components.inbox.format.due', 'Due');
   if (days < 0) {
     return {
-      label: t('components.inbox.format.overdue_day', 'Overdue {{value}} day{{value2}}', {
-        value: String(-days),
-        value2: days === -1 ? '' : 's',
-      }),
+      label: t(
+        'components.inbox.format.overdue_days',
+        { one: 'Overdue {{count}} day', other: 'Overdue {{count}} days' },
+        { count: -days },
+      ),
       tone: 'danger',
     };
   }
@@ -80,10 +74,10 @@ export function dueOf(
     };
   }
   return {
-    label: t('components.inbox.format.text_3', '{{word}} {{shortDay}}', {
-      word,
-      shortDay: shortDay(due),
-    }),
+    label:
+      verb === 'decide'
+        ? t('components.inbox.format.decide_by_day', 'Decide by {{day}}', { day: shortDay(due) })
+        : t('components.inbox.format.due_day', 'Due {{day}}', { day: shortDay(due) }),
     tone: 'neutral',
   };
 }
@@ -102,40 +96,26 @@ export const firstName = (name: string | null | undefined): string =>
 /** "1 day", "3 days". */
 export const days = (n: string | number): string => {
   const v = Number(n);
-  const shown = Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/u, '');
-  return t('components.inbox.format.day', '{{shown}} day{{value}}', {
-    shown,
-    value: v === 1 ? '' : 's',
-  });
+  return t(
+    'components.inbox.format.days',
+    { one: '{{shown}} day', other: '{{shown}} days' },
+    { count: v, shown: formatNumber(v, { maximumFractionDigits: 1 }) },
+  );
 };
 
 /** "28–30 December", "30 December – 2 January", "24 December". */
 export function spanLong(from: string, to: string): string {
-  const long = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'long',
-      timeZone: 'UTC',
-    });
-  if (from === to) return long(from);
-  if (from.slice(0, 7) === to.slice(0, 7)) {
-    return `${String(Number(from.slice(8, 10)))}–${long(to)}`;
-  }
-  return t('components.inbox.format.text_4', '{{long}} – {{long2}}', {
-    long: long(from),
-    long2: long(to),
-  });
+  return from === to ? LONG_DAY.format(noon(from)) : LONG_DAY.formatRange(noon(from), noon(to));
 }
 
 /** "Monday to Wednesday", "Thursday". */
 export function weekdays(from: string, to: string): string {
-  const name = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'UTC' });
+  const name = (d: string) => WEEKDAY.format(noon(d));
   return from === to
     ? name(from)
-    : t('components.inbox.format.to', '{{name}} to {{name2}}', {
-        name: name(from),
-        name2: name(to),
+    : t('components.inbox.format.weekday_to_weekday', '{{from}} to {{to}}', {
+        from: name(from),
+        to: name(to),
       });
 }
 

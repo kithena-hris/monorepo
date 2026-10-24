@@ -1,9 +1,9 @@
 import {
-  Chip,
-  ChipRow,
   Alert,
   Badge,
   Button,
+  Chip,
+  ChipRow,
   Combobox,
   CurrencyField,
   Dialog,
@@ -18,8 +18,12 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  formatList,
+  icons,
   Input,
   NumberField,
+  RadioCard,
+  RadioGroup,
   Select,
   SelectContent,
   SelectItem,
@@ -28,10 +32,7 @@ import {
   SortableList,
   Switch,
   TagsInput,
-  RadioCard,
-  RadioGroup,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX, type ReactNode } from 'react';
 
@@ -391,7 +392,13 @@ export function EntityEditor({
       </Field>
       <NumberField
         label={tr('settings-editors.full_time_week', 'Full-time week')}
-        hint={checks.error('hours') ?? 'Hours; what a full FTE works here.'}
+        hint={
+          checks.error('hours') ??
+          tr(
+            'settings-editors.hours_what_a_full_fte_works_here',
+            'Hours; what a full FTE works here.',
+          )
+        }
         invalid={checks.invalid('hours')}
         value={hours}
         min={10}
@@ -717,7 +724,11 @@ export function PipelineEditor({
       : tr('settings-editors.one_step_is_of_the_type', 'One step is of the type Offer.'),
     backwards === undefined
       ? null
-      : `“${backwards.name}” comes after a later type of step; move it up or change its type.`,
+      : tr(
+          'settings-editors.comes_after_a_later_type_of_step',
+          '“{{name}}” comes after a later type of step; move it up or change its type.',
+          { name: backwards.name },
+        ),
   ];
   const checks = useChecks({
     name: name.trim() === '' ? 'Name the pipeline, as recruiters will pick it.' : null,
@@ -932,9 +943,10 @@ export const chainSentence = (
     c.when.legalEntityIds === undefined || c.when.legalEntityIds.length === 0
       ? null
       : tr('settings-editors.at', 'at {{join}}', {
-          join: c.when.legalEntityIds
-            .map((id) => data.entities.find((e) => e.id === id)?.name ?? '—')
-            .join(' or '),
+          join: formatList(
+            c.when.legalEntityIds.map((id) => data.entities.find((e) => e.id === id)?.name ?? '—'),
+            'or',
+          ),
         }),
   ].filter(Boolean);
   const what =
@@ -1463,7 +1475,11 @@ export function QuestionnaireEditor({
               'settings-editors.asked_on_the_apply_form_or',
               'Asked on the apply form, or sent at a stage. Changing it later makes a new version.',
             )
-          : `Version ${String(held.version)}; saving makes version ${String(held.version + 1)}.`
+          : tr(
+              'settings-editors.version_saving_makes_version',
+              'Version {{version}}; saving makes version {{next}}.',
+              { version: held.version, next: held.version + 1 },
+            )
       }
       checks={checks}
       problems={[
@@ -2165,30 +2181,30 @@ export function BenefitEditor({
 
 /** The icons a category may wear, named for what they look like. */
 const ICON_NAMES: Readonly<Record<string, string>> = {
-  health: 'Health',
-  payroll: 'Savings',
-  break: 'Food',
-  travel: 'Travel',
-  parental: 'Family',
-  goal: 'Growth',
-  system: 'Equipment',
-  favourite: 'Heart',
-  location: 'Place',
+  health: tr('settings-editors.health', 'Health'),
+  payroll: tr('settings-editors.savings', 'Savings'),
+  break: tr('settings-editors.food', 'Food'),
+  travel: tr('settings-editors.travel', 'Travel'),
+  parental: tr('settings-editors.family', 'Family'),
+  goal: tr('settings-editors.growth', 'Growth'),
+  system: tr('settings-editors.equipment', 'Equipment'),
+  favourite: tr('settings-editors.heart', 'Heart'),
+  location: tr('settings-editors.place', 'Place'),
   analytics: 'Chart',
-  payment: 'Money',
-  vacation: 'Holiday',
-  locked: 'Protection',
-  transfer: 'Exchange',
+  payment: tr('settings-editors.money', 'Money'),
+  vacation: tr('settings-editors.holiday', 'Holiday'),
+  locked: tr('settings-editors.protection', 'Protection'),
+  transfer: tr('settings-editors.exchange', 'Exchange'),
   home: 'Home',
-  more: 'More',
-  team: 'Team',
-  company: 'Company',
-  calendar: 'Calendar',
-  document: 'Document',
-  starred: 'Star',
-  work: 'Work',
-  meeting: 'Meeting',
-  approve: 'Tick',
+  more: tr('settings-editors.more', 'More'),
+  team: tr('settings-editors.team', 'Team'),
+  company: tr('settings-editors.company', 'Company'),
+  calendar: tr('settings-editors.calendar', 'Calendar'),
+  document: tr('settings-editors.document', 'Document'),
+  starred: tr('settings-editors.star', 'Star'),
+  work: tr('settings-editors.work', 'Work'),
+  meeting: tr('settings-editors.meeting', 'Meeting'),
+  approve: tr('settings-editors.tick', 'Tick'),
 };
 
 /** S6: a benefit category of the company's own: its name and the icon it wears. */
@@ -2366,10 +2382,11 @@ export function InWords({
                     void apply();
                   }}
                 >
-                  {tr('settings-editors.apply_change', 'Apply {{length}} change{{value}}', {
-                    length: String(plan.changes.length),
-                    value: plan.changes.length === 1 ? '' : 's',
-                  })}
+                  {tr(
+                    'settings-editors.apply_change',
+                    { one: 'Apply {{count}} change', other: 'Apply {{count}} changes' },
+                    { count: plan.changes.length },
+                  )}
                 </Button>
                 <Button
                   size="sm"

@@ -271,9 +271,9 @@ export interface ChatComposerProps extends Omit<
 export function ChatComposer({
   className,
   onSend,
-  label = 'Message',
-  placeholder = 'Write a message…',
-  sendLabel = 'Send',
+  label = t('components.chat.chat.message', 'Message'),
+  placeholder = t('components.chat.chat.write_a_message', 'Write a message…'),
+  sendLabel = t('components.chat.chat.send', 'Send'),
   busy = false,
   disabled = false,
   tools,

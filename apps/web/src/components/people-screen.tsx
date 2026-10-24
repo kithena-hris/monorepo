@@ -193,11 +193,23 @@ async function uploadPhoto(
 ): Promise<{ ok: true; avatarUrl: string | null } | { ok: false; message: string }> {
   const small = await shrink(file);
   if (small === null)
-    return { ok: false, message: 'That image could not be read; try a PNG or a JPEG.' };
+    return {
+      ok: false,
+      message: t(
+        'components.people-screen.that_image_could_not_be_read_try',
+        'That image could not be read; try a PNG or a JPEG.',
+      ),
+    };
   const target = await actions.startPhotoUpload(personId, small.size);
   if (!target.ok) return target;
   if (!(await putFile(target, small, () => undefined))) {
-    return { ok: false, message: 'The upload did not go through; try again.' };
+    return {
+      ok: false,
+      message: t(
+        'components.people-screen.the_upload_did_not_go_through_try',
+        'The upload did not go through; try again.',
+      ),
+    };
   }
   return actions.completePhotoUpload(personId, target.uploadId);
 }
@@ -246,7 +258,13 @@ async function uploadFile(
   const target = await actions.startFileUpload(personId, key, name, body.size);
   if (!target.ok) return target;
   if (!(await putFile(target, body, () => undefined))) {
-    return { ok: false, message: 'The upload did not go through; try again.' };
+    return {
+      ok: false,
+      message: t(
+        'components.people-screen.the_upload_did_not_go_through_try',
+        'The upload did not go through; try again.',
+      ),
+    };
   }
   return actions.completeFileUpload(personId, key, target.uploadId);
 }
@@ -350,7 +368,14 @@ async function sendDocumentFile(
   if (!target.ok) return target;
   const { 'content-length': _length, ...headers } = target.headers;
   const put = await fetch(target.url, { method: 'PUT', headers, body: file }).catch(() => null);
-  if (put?.ok !== true) return { ok: false, message: 'The upload did not finish; try again' };
+  if (put?.ok !== true)
+    return {
+      ok: false,
+      message: t(
+        'components.people-screen.the_upload_did_not_finish_try_again',
+        'The upload did not finish; try again',
+      ),
+    };
   const sent = await inbox.sendDocument({ personId, uploadId: target.uploadId, ...input });
   return sent.ok ? { ok: true } : sent;
 }
@@ -1485,7 +1510,13 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
             const target = await actions.startImportUpload({ name: file.name, size: file.size });
             if (!target.ok) return target;
             if (!(await putFile(target, file, progress))) {
-              return { ok: false, message: 'The upload did not go through; try again' };
+              return {
+                ok: false,
+                message: t(
+                  'components.people-screen.the_upload_did_not_go_through_try_the_upload_did_not_go_through',
+                  'The upload did not go through; try again',
+                ),
+              };
             }
             const completed = await actions.completeImportUpload(target.uploadId);
             if (!completed.ok) return completed;
@@ -1706,7 +1737,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
   return (
     <RemoteScreen
       name="people"
-      area="People"
+      area={t('components.people-screen.people', 'People')}
       route={route}
       props={frame === undefined ? props : { ...props, frame }}
       // Served whole by the server and hydrated over: nothing stands in for it.

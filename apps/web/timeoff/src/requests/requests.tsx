@@ -4,6 +4,7 @@ import {
   Button,
   Calendar,
   Card,
+  type DateRange,
   Dialog,
   DialogBody,
   DialogContent,
@@ -12,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   Dropzone,
+  formatList,
+  icons,
   List,
   ListItem,
   PageHeader,
@@ -22,8 +25,6 @@ import {
   Stat,
   Timeline,
   TimelineItem,
-  icons,
-  type DateRange,
   type TimelineItemProps,
 } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
@@ -156,7 +157,7 @@ export function MyRequests(props: RequestsProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('requests.requests.my_requests', 'My requests')} />
       ) : null}
-      <Loaded load={load} what="your requests">
+      <Loaded load={load} what={t('requests.requests.your_requests', 'your requests')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>
@@ -496,7 +497,7 @@ function Suggestions({
       )}
       <div className="flex flex-wrap gap-2 touch:flex-col">
         {detail.proposals.map((p) => {
-          const label = p.spans.map((r) => spanLabel(r.from, r.to)).join(' and ');
+          const label = formatList(p.spans.map((r) => spanLabel(r.from, r.to)));
           return (
             <Button
               key={p.index}
@@ -659,8 +660,11 @@ function ChangeDialog({
                 value="cancel"
                 description={t(
                   'requests.requests.all_back_to_your_balance_straight',
-                  'All {{n}} {{value}} back to your balance straight away.',
-                  { n, value: n === '1' ? 'day goes' : 'days go' },
+                  {
+                    one: 'All {{count}} day goes back to your balance straight away.',
+                    other: 'All {{count}} days go back to your balance straight away.',
+                  },
+                  { count: Number(n) },
                 )}
               >
                 {approved

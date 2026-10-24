@@ -1,4 +1,4 @@
-import { icons, type IconName } from '@reach/ui';
+import { dateFormat as intlDate, icons, type IconName } from '@reach/ui';
 import { createElement, type ReactNode } from 'react';
 import { t } from './i18n';
 
@@ -42,14 +42,18 @@ export const signed = (value: string): string =>
 /** "1 day", "5 days", "0.5 days". */
 export const days = (value: string): string => {
   const n = amount(value);
-  return t('words.text', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
+  return t(
+    'words.count_days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    { count: Number(n) },
+  );
 };
 
 export const pad = (n: number): string => String(n).padStart(2, '0');
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
 const dateFormat = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+  intlDate({ ...options, timeZone: 'UTC' });
 export const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 export const longDate = (date: string): string =>
   dateFormat({ weekday: 'long', day: 'numeric', month: 'long' }).format(asDate(date));

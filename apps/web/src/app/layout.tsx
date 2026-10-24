@@ -9,22 +9,28 @@ import { SpeedInsights } from '../components/speed-insights';
 import { currentTenant } from '../lib/branding';
 import { EARLY_PRESSES_SCRIPT } from '../lib/early-presses';
 import { I18nProvider } from '../lib/i18n';
-import { DEFAULT_LANGUAGE, isLanguage, LANGUAGE_KEY, type Language } from '../lib/languages';
 import { loadMessages } from '../lib/messages';
-import { readPreference } from '../lib/preferences';
+import { settle } from '../lib/rsc-words';
+import { requestLanguage, serverWords } from '../lib/server-words';
 import { THEME_KEY } from '../lib/theme';
 
 import './globals.css';
 import { MF_IMPORT_MAP } from '../lib/mf-runtime';
 
-export const metadata: Metadata = {
-  title: 'Kithena',
-  description: 'Reference client. The API is the product.',
-  // The mark as a data URI rather than a file in `public/`: it is generated
-  // from the same constant the drift test guards, so the tab icon cannot fall
-  // out of step with the logo the app renders.
-  icons: { icon: kithenaMarkDataUri },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await serverWords();
+  return {
+    title: 'Kithena',
+    description: t(
+      'app.layout.reference_client_the_api_is_the',
+      'Reference client. The API is the product.',
+    ),
+    // The mark as a data URI rather than a file in `public/`: it is generated
+    // from the same constant the drift test guards, so the tab icon cannot fall
+    // out of step with the logo the app renders.
+    icons: { icon: kithenaMarkDataUri },
+  };
+}
 
 /**
  * Light or dark, decided before the first paint.
@@ -45,19 +51,6 @@ export const metadata: Metadata = {
  */
 const themeScript = `try{var m=document.cookie.match(/(?:^|; )${THEME_KEY}=(dark|light)/);var d=m?m[1]==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}`;
 
-/**
- * The person's language: the cookie this device keeps, else the one their
- * account keeps (identity's `language` preference, read once, until the
- * browser writes the cookie), else US English.
- */
-async function languageOf(cookie: string | undefined): Promise<Language> {
-  if (isLanguage(cookie)) return cookie;
-  const kept = await readPreference('language').catch(() => null);
-  const code: unknown =
-    kept !== null && typeof kept === 'object' ? Reflect.get(kept, 'code') : null;
-  return isLanguage(code) ? code : DEFAULT_LANGUAGE;
-}
-
 export default async function RootLayout({
   children,
 }: {
@@ -77,7 +70,9 @@ export default async function RootLayout({
    */
   const [tenant, jar] = await Promise.all([currentTenant(), cookies()]);
   const theme = jar.get(THEME_KEY)?.value;
-  const language = await languageOf(jar.get(LANGUAGE_KEY)?.value);
+  const language = await requestLanguage();
+  // The language every server component in this request renders in (`lib/rsc-words.ts`).
+  settle(language);
   // The words every page shows; a remote's arrive with it (`components/remote-screen.tsx`).
   const messages = await loadMessages(language, ['shell', 'reach']);
   const preset =

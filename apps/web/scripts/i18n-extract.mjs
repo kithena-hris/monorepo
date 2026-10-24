@@ -46,6 +46,34 @@ export const SOURCES = {
     dir: 'apps/web/performance/src',
     area: 'Performance: reviews, goals, feedback, learning',
   },
+  // Emails, always in the company's language whatever the reader chose for
+  // screens: each service keeps its own words beside its code, so a module's
+  // emails never live outside the module (`<dir>/locales/<language>.json`).
+  'email-messaging': {
+    dir: 'platform/messaging/src',
+    area: 'An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from',
+    email: true,
+  },
+  'email-recruiting': {
+    dir: 'services/recruiting/src',
+    area: 'An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet',
+    email: true,
+  },
+  'email-onboarding': {
+    dir: 'services/onboarding/src',
+    area: 'An email welcoming a new hire before their first day',
+    email: true,
+  },
+  'email-performance': {
+    dir: 'services/performance/src',
+    area: 'An email to an employee about performance reviews, feedback or learning sessions',
+    email: true,
+  },
+  'email-timeoff': {
+    dir: 'services/timeoff/src',
+    area: 'A personal email from HR encouraging one employee to take a break, with their own numbers',
+    email: true,
+  },
 };
 
 const SKIP = /\.(test|stories)\.tsx?$|\.d\.ts$|\/(test|testing|locales)\//u;
@@ -92,6 +120,22 @@ function placeOf(call, sf) {
   return { what, fn };
 }
 
+/**
+ * A message with forms, `{ one: '…', other: '…' }` (`@reach/ui` `Plural`):
+ * written to the catalogue as `key_one` and `key_other`, and each language
+ * translated into the forms its grammar has.
+ */
+function formsOf(node, sf) {
+  if (!ts.isObjectLiteralExpression(node)) return null;
+  const forms = {};
+  for (const p of node.properties) {
+    if (!ts.isPropertyAssignment(p) || !ts.isStringLiteralLike(p.initializer)) return null;
+    forms[p.name.getText(sf).replaceAll(/['"]/gu, '')] = p.initializer.text;
+  }
+  const names = Object.keys(forms).sort().join(',');
+  return names === 'one,other' ? forms : null;
+}
+
 function extract(ns) {
   const { dir, area } = SOURCES[ns];
   const out = {};
@@ -113,24 +157,32 @@ function extract(ns) {
         (n.expression.text === 't' || n.expression.text === 'tr') &&
         n.arguments.length >= 2 &&
         ts.isStringLiteralLike(n.arguments[0]) &&
-        ts.isStringLiteralLike(n.arguments[1])
+        (ts.isStringLiteralLike(n.arguments[1]) || formsOf(n.arguments[1], sf) !== null)
       ) {
         const key = n.arguments[0].text;
-        const text = n.arguments[1].text;
+        const forms = formsOf(n.arguments[1], sf);
         const vars =
           n.arguments[2] !== undefined && ts.isObjectLiteralExpression(n.arguments[2])
             ? n.arguments[2].properties.map((p) => p.name?.getText(sf)).filter(Boolean)
             : [];
         const { what, fn } = placeOf(n, sf);
         const where = `${relative(dir, file)}${fn === null ? '' : `, ${fn}`}`;
-        const held = out[key];
-        if (held !== undefined && held.text !== text)
-          problems.push(`${ns}:${key} is "${held.text}" and "${text}" (${where})`);
-        else if (held === undefined)
-          out[key] = {
-            text,
-            context: `${area}. ${where}: ${what}.${vars.length === 0 ? '' : ` Filled in: ${vars.map((v) => `{{${v}}}`).join(', ')}.`}`,
-          };
+        const filledIn =
+          vars.length === 0 ? '' : ` Filled in: ${vars.map((v) => `{{${v}}}`).join(', ')}.`;
+        const entries =
+          forms === null
+            ? [[key, n.arguments[1].text, '']]
+            : [
+                [`${key}_one`, forms.one, ' Plural: the words for a {{count}} of one.'],
+                [`${key}_other`, forms.other, ' Plural: the words for any other {{count}}.'],
+              ];
+        for (const [k, text, plural] of entries) {
+          const held = out[k];
+          if (held !== undefined && held.text !== text)
+            problems.push(`${ns}:${k} is "${held.text}" and "${text}" (${where})`);
+          else if (held === undefined)
+            out[k] = { text, context: `${area}. ${where}: ${what}.${filledIn}${plural}` };
+        }
       }
       ts.forEachChild(n, visit);
     };

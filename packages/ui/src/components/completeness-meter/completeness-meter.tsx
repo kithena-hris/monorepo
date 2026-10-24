@@ -42,11 +42,12 @@ const segmentTone: Record<CompletenessSegment, string> = {
   skipped: 'bg-surface-active',
 };
 
-const segmentWord: Record<CompletenessSegment, string> = {
-  done: 'complete',
-  todo: 'missing details',
-  skipped: 'not needed',
-};
+const segmentWord = (segment: CompletenessSegment): string =>
+  segment === 'done'
+    ? t('components.completeness-meter.completeness-meter.complete_word', 'complete')
+    : segment === 'todo'
+      ? t('components.completeness-meter.completeness-meter.missing_details', 'missing details')
+      : t('components.completeness-meter.completeness-meter.not_needed', 'not needed');
 
 export function CompletenessMeter({
   value,
@@ -55,7 +56,7 @@ export function CompletenessMeter({
   segments,
   action,
   size = 64,
-  label = 'Complete',
+  label = t('components.completeness-meter.completeness-meter.complete', 'Complete'),
   className,
   ...props
 }: CompletenessMeterProps): JSX.Element {
@@ -82,7 +83,7 @@ export function CompletenessMeter({
                 className={cn('h-[5px] flex-1 rounded-full', segmentTone[segment.state])}
               >
                 <span className="sr-only">
-                  {segment.label}, {segmentWord[segment.state]}
+                  {segment.label}, {segmentWord(segment.state)}
                 </span>
               </li>
             ))}

@@ -11,6 +11,7 @@ import { settingsModules } from '../../../lib/settings-modules';
 import { prefsFrom } from '../../../lib/shortcut-prefs';
 import { shellData } from '../../../lib/shell';
 import { currentPerson } from '../../../lib/session';
+import { serverWords, type ServerT } from '../../../lib/server-words';
 import { isWaking } from '../../../lib/waking';
 
 /**
@@ -26,24 +27,29 @@ import { isWaking } from '../../../lib/waking';
 
 type Json = Record<string, unknown>;
 const list = (v: unknown): Json[] => (Array.isArray(v) ? (v as Json[]) : []);
-const plural = (n: number, one: string, many = `${one}s`): string =>
-  `${String(n)} ${n === 1 ? one : many}`;
-
 /** What is set now, in one line, for each of People's settings; null where it could not be read. */
-function peopleNow(data: {
-  fields: Json | null;
-  organisation: Json | null;
-  roles: Json | null;
-  integrations: Json | null;
-}): Record<string, string | null> {
+function peopleNow(
+  data: {
+    fields: Json | null;
+    organisation: Json | null;
+    roles: Json | null;
+    integrations: Json | null;
+  },
+  t: ServerT,
+): Record<string, string | null> {
   const { fields, organisation, roles, integrations } = data;
   const published = fields?.['published'] as { version: number } | null | undefined;
   const unpublished = Number(fields?.['unpublishedChanges'] ?? 0);
   const live = (xs: unknown) => list(xs).filter((x) => x['archived'] !== true).length;
   const holding = (role: string) =>
     list(roles?.['people']).filter((p) => list(p['roles']).includes(role as never)).length;
-  const settings = (organisation?.['settings'] ?? {}) as Json;
+  const sent = new Set(
+    list(integrations?.['endpoints'])
+      .filter((e) => e['enabled'] !== false)
+      .flatMap((e) => list(e['allowlist'])),
+  ).size;
   const endpoints = list(integrations?.['endpoints']);
+  const settings = (organisation?.['settings'] ?? {}) as Json;
   const scim = list((integrations?.['scim'] as Json | null | undefined)?.['connections']).filter(
     (c) => c['revokedAt'] === null,
   );
@@ -52,9 +58,25 @@ function peopleNow(data: {
       fields === null
         ? null
         : [
-            plural(list(fields['fields']).length, 'field'),
-            published == null ? 'not published yet' : `version ${String(published.version)}`,
-            unpublished > 0 ? plural(unpublished, 'unpublished change') : null,
+            t(
+              'app.app.settings.page.fields',
+              { one: '{{count}} field', other: '{{count}} fields' },
+              {
+                count: list(fields['fields']).length,
+              },
+            ),
+            published == null
+              ? t('app.app.settings.page.not_published_yet', 'not published yet')
+              : t('app.app.settings.page.version', 'version {{version}}', {
+                  version: String(published.version),
+                }),
+            unpublished > 0
+              ? t(
+                  'app.app.settings.page.unpublished_changes',
+                  { one: '{{count}} unpublished change', other: '{{count}} unpublished changes' },
+                  { count: unpublished },
+                )
+              : null,
           ]
             .filter((x) => x !== null)
             .join(' · '),
@@ -62,60 +84,112 @@ function peopleNow(data: {
       organisation === null
         ? null
         : [
-            plural(live(organisation['legalEntities']), 'legal entity', 'legal entities'),
-            plural(live(organisation['locations']), 'location'),
-            plural(live(organisation['orgUnits']), 'org unit'),
+            t(
+              'app.app.settings.page.legal_entities',
+              { one: '{{count}} legal entity', other: '{{count}} legal entities' },
+              {
+                count: live(organisation['legalEntities']),
+              },
+            ),
+            t(
+              'app.app.settings.page.locations',
+              { one: '{{count}} location', other: '{{count}} locations' },
+              {
+                count: live(organisation['locations']),
+              },
+            ),
+            t(
+              'app.app.settings.page.org_units',
+              { one: '{{count}} org unit', other: '{{count}} org units' },
+              {
+                count: live(organisation['orgUnits']),
+              },
+            ),
             typeof settings['defaultTimeZone'] === 'string' ? settings['defaultTimeZone'] : '',
           ].join(' · '),
     '/settings/people/roles':
       roles === null
         ? null
         : [
-            plural(holding('people_admin'), 'administrator'),
-            `${String(holding('hr'))} in HR`,
-            `${String(holding('finance'))} in finance`,
+            t(
+              'app.app.settings.page.administrators',
+              { one: '{{count}} administrator', other: '{{count}} administrators' },
+              {
+                count: holding('people_admin'),
+              },
+            ),
+            t('app.app.settings.page.in_hr', '{{count}} in HR', { count: holding('hr') }),
+            t('app.app.settings.page.in_finance', '{{count}} in finance', {
+              count: holding('finance'),
+            }),
           ].join(' · '),
     '/settings/people/integrations':
       integrations === null
         ? null
         : [
-            endpoints.length === 0 ? 'No webhooks' : plural(endpoints.length, 'webhook'),
+            endpoints.length === 0
+              ? t('app.app.settings.page.no_webhooks', 'No webhooks')
+              : t(
+                  'app.app.settings.page.webhooks',
+                  { one: '{{count}} webhook', other: '{{count}} webhooks' },
+                  {
+                    count: endpoints.length,
+                  },
+                ),
             // What leaves: every field some enabled endpoint receives.
-            `${plural(
-              new Set(
-                endpoints
-                  .filter((e) => e['enabled'] !== false)
-                  .flatMap((e) => list(e['allowlist'])),
-              ).size,
-              'field',
-            )} sent out`,
+            t(
+              'app.app.settings.page.fields_sent_out',
+              { one: '{{count}} field sent out', other: '{{count}} fields sent out' },
+              {
+                count: sent,
+              },
+            ),
             scim.length === 0
-              ? 'no provisioning'
-              : `provisioning from ${String(scim[0]?.['system'])}`,
+              ? t('app.app.settings.page.no_provisioning', 'no provisioning')
+              : t('app.app.settings.page.provisioning_from', 'provisioning from {{system}}', {
+                  system: String(scim[0]?.['system']),
+                }),
           ].join(' · '),
     // The company's log, opened on People's settings.
-    '/settings/activity?area=fields,organisation,roles,integrations': 'Filtered to People settings',
+    '/settings/activity?area=fields,organisation,roles,integrations': t(
+      'app.app.settings.page.filtered_to_people_settings',
+      'Filtered to People settings',
+    ),
   };
 }
 
 /** What wants attention in People's settings: a draft to publish, a role nobody holds. */
-function peopleAttention(data: {
-  fields: Json | null;
-  roles: Json | null;
-}): Record<string, { badge: string; chip: string }> {
+function peopleAttention(
+  data: {
+    fields: Json | null;
+    roles: Json | null;
+  },
+  t: ServerT,
+): Record<string, { badge: string; chip: string }> {
   const out: Record<string, { badge: string; chip: string }> = {};
   const drafts = Number(data.fields?.['unpublishedChanges'] ?? 0);
   if (drafts > 0) {
     out['/settings/people/fields'] = {
-      badge: plural(drafts, 'draft'),
-      chip: `${plural(drafts, 'draft')} to publish`,
+      badge: t(
+        'app.app.settings.page.drafts',
+        { one: '{{count}} draft', other: '{{count}} drafts' },
+        { count: drafts },
+      ),
+      chip: t(
+        'app.app.settings.page.drafts_to_publish',
+        { one: '{{count}} draft to publish', other: '{{count}} drafts to publish' },
+        { count: drafts },
+      ),
     };
   }
   const finance = list(data.roles?.['people']).filter((p) =>
     list(p['roles']).includes('finance' as never),
   ).length;
   if (data.roles !== null && finance === 0) {
-    out['/settings/people/roles'] = { badge: 'Needs attention', chip: 'Nobody in finance' };
+    out['/settings/people/roles'] = {
+      badge: t('app.app.settings.page.needs_attention', 'Needs attention'),
+      chip: t('app.app.settings.page.nobody_in_finance', 'Nobody in finance'),
+    };
   }
   return out;
 }
@@ -132,6 +206,7 @@ async function peopleSettings(): Promise<ScreenLoad | null> {
 
 export default async function Settings(): Promise<JSX.Element> {
   // The session, the token and this person's shortcuts at once: none waits on another.
+  const t = await serverWords();
   const shortcutsSaved = readPreference('shortcuts');
   const [person] = await Promise.all([currentPerson(), accessToken()]);
   if (person === null) redirect('/login');
@@ -149,10 +224,18 @@ export default async function Settings(): Promise<JSX.Element> {
   const changed = Object.keys(shortcuts.bindings).length;
   const modules = settingsModules(
     shell,
-    { now: peopleNow(data), attention: peopleAttention(data) },
+    { now: peopleNow(data, t), attention: peopleAttention(data, t) },
     [
-      changed === 0 ? 'The defaults' : plural(changed, 'changed shortcut'),
-      shortcuts.characterKeys ? null : 'single keys off',
+      changed === 0
+        ? t('app.app.settings.page.the_defaults', 'The defaults')
+        : t(
+            'app.app.settings.page.changed_shortcuts',
+            { one: '{{count}} changed shortcut', other: '{{count}} changed shortcuts' },
+            { count: changed },
+          ),
+      shortcuts.characterKeys
+        ? null
+        : t('app.app.settings.page.single_keys_off', 'single keys off'),
     ]
       .filter((x) => x !== null)
       .join(' · '),

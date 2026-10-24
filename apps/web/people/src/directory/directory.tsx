@@ -8,7 +8,11 @@ import {
   ChipGroupItem,
   ChipRow,
   ColumnChooser,
+  type ColumnChooserValue,
+  type DataColumn,
   DataTable,
+  type DataTableHandle,
+  type DataTableSort,
   Dialog,
   DialogBody,
   DialogContent,
@@ -18,16 +22,26 @@ import {
   DialogTitle,
   EmptyState,
   FilterBuilder,
+  type FilterField,
+  type FilterGroup,
+  type FilterOperator,
+  formatList,
+  icons,
+  isConditionComplete,
   Kbd,
   KbdShortcut,
+  keysOf,
   KeyValues,
   ListItem,
+  locale,
   PageHeader,
   PersonCard,
   Popover,
   PopoverContent,
   PopoverTrigger,
+  pressed,
   QuickLook,
+  type RowAction,
   ScrollPosition,
   SearchField,
   SegmentedControl,
@@ -39,22 +53,10 @@ import {
   SelectValue,
   Stack,
   Toolbar,
-  icons,
-  isConditionComplete,
-  keysOf,
-  pressed,
   useCoarsePointer,
   useShortcutKeys,
-  type ColumnChooserValue,
-  type DataColumn,
-  type DataTableHandle,
-  type DataTableSort,
-  type FilterField,
-  type FilterGroup,
-  type FilterOperator,
   VirtualList,
   type VirtualListProps,
-  type RowAction,
 } from '@reach/ui';
 import {
   memo,
@@ -477,10 +479,11 @@ function useRows(
 export function summaryOf(state: DirectoryState): string {
   const { total, notStarted, incomplete } = state;
   return [
-    t('directory.directory.text', '{{total}} {{value}}', {
-      total: String(total),
-      value: total === 1 ? 'person' : 'people',
-    }),
+    t(
+      'directory.directory.text',
+      { one: '{{count}} person', other: '{{count}} people' },
+      { count: total },
+    ),
     notStarted === null
       ? null
       : t('directory.directory.active', '{{active}} active', { active: String(state.active) }),
@@ -501,8 +504,8 @@ export function summaryOf(state: DirectoryState): string {
 
 /** The operators People honours for each kind of field, in the order offered. */
 const EMPTY: FilterOperator[] = [
-  { id: 'empty', label: 'is empty', value: 'none' },
-  { id: 'not_empty', label: 'is not empty', value: 'none' },
+  { id: 'empty', label: t('directory.directory.is_empty', 'is empty'), value: 'none' },
+  { id: 'not_empty', label: t('directory.directory.is_not_empty', 'is not empty'), value: 'none' },
 ];
 const OPERATORS: Record<string, readonly FilterOperator[]> = {
   text: [
@@ -620,7 +623,7 @@ export function Directory(props: DirectoryProps): JSX.Element {
         }
       />
       {onViewChange === undefined ? null : <ViewSwitch phone view={view} onChange={onViewChange} />}
-      <Loaded load={load} what="the directory">
+      <Loaded load={load} what={t('directory.directory.the_directory', 'the directory')}>
         {(state) => <Body {...props} state={state} />}
       </Loaded>
     </Stack>
@@ -789,7 +792,7 @@ function Views({
             {'saved' in v ? <icons.starred aria-hidden /> : null}
             {v.label}
             {v.count === null ? null : (
-              <span className="font-medium tabular-nums">{v.count.toLocaleString('en-GB')}</span>
+              <span className="font-medium tabular-nums">{v.count.toLocaleString(locale())}</span>
             )}
           </ChipGroupItem>
         ))}
@@ -804,10 +807,11 @@ const DIRECTORY_PAGE = 100;
 type Answered = Extract<DirectoryAsked, { ok: true }>;
 
 const peopleCount = (n: number): string =>
-  t('directory.directory.text_4', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? 'person' : 'people',
-  });
+  t(
+    'directory.directory.text_4',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 
 /** "ordered by start date, latest first", "sorted by most missing details": an order in words. */
 function orderWords(
@@ -816,9 +820,9 @@ function orderWords(
   metrics: readonly DirectoryMetric[] = [],
 ): string {
   if (sort.key === 'name')
-    return t('directory.directory.sorted_by_name', 'sorted by name{{value}}', {
-      value: sort.direction === 'desc' ? ', Z to A' : '',
-    });
+    return sort.direction === 'desc'
+      ? t('directory.directory.sorted_by_name_z_to_a', 'sorted by name, Z to A')
+      : t('directory.directory.sorted_by_name', 'sorted by name');
   const metric = metrics.find((m) => m.key === sort.key);
   if (metric !== undefined) {
     return t('directory.directory.sorted_by', 'sorted by {{value}}', {
@@ -851,7 +855,7 @@ function spanWords(from: string, to: string): string {
   const [y = '', m = ''] = from.split('-');
   const last = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
   if (from.endsWith('-01') && to === `${y}-${m}-${String(last)}`) {
-    return new Date(`${from}T00:00:00Z`).toLocaleDateString('en-GB', {
+    return new Date(`${from}T00:00:00Z`).toLocaleDateString(locale(), {
       month: 'long',
       year: 'numeric',
       timeZone: 'UTC',
@@ -913,16 +917,16 @@ export function chipOf(
       return {
         field: label,
         text: t('directory.directory.not', 'not {{join}}', {
-          join: condition.values.map(shown).join(' or '),
+          join: formatList(condition.values.map(shown), 'or'),
         }),
       };
     // Everybody below a manager, however deep: "Marco's team".
     case 'under':
-      return { field: 'Team of', text: condition.values.map(shown).join(' or ') };
+      return { field: 'Team of', text: formatList(condition.values.map(shown), 'or') };
     case 'contains':
       return { field: label, text: `mentions “${first}”` };
     default:
-      return { field: label, text: condition.values.map(shown).join(' or ') };
+      return { field: label, text: formatList(condition.values.map(shown), 'or') };
   }
 }
 
@@ -1101,8 +1105,8 @@ function PlacePill({
   return (
     <ScrollPosition onBackToTop={place.toTop} className={className}>
       {t('directory.directory.of', '{{toLocaleString}} of {{toLocaleString2}}', {
-        toLocaleString: (at.last + 1).toLocaleString('en-GB'),
-        toLocaleString2: total.toLocaleString('en-GB'),
+        toLocaleString: (at.last + 1).toLocaleString(locale()),
+        toLocaleString2: total.toLocaleString(locale()),
       })}
     </ScrollPosition>
   );
@@ -1912,20 +1916,29 @@ function Body({
     setReminded(null);
     void onRemind(conditions, match).then((done) => {
       setReminding(false);
-      const what = remindKeys
-        .map((k) => (fields.find((f) => f.key === k)?.label ?? k).toLowerCase())
-        .join(' and ');
+      const what = formatList(
+        remindKeys.map((k) => (fields.find((f) => f.key === k)?.label ?? k).toLowerCase()),
+      );
       setReminded(
         done.ok
-          ? t(
-              'directory.directory.asked_for_their',
-              'Asked {{peopleCount}} for their {{what}}.{{value}}',
-              {
-                peopleCount: peopleCount(done.asked),
-                what,
-                value: done.more ? ' That is the first 500; remind again for the rest.' : '',
-              },
-            )
+          ? done.more
+            ? t(
+                'directory.directory.asked_for_their_first_500',
+                {
+                  one: 'Asked {{count}} person for their {{what}}. That is the first 500; remind again for the rest.',
+                  other:
+                    'Asked {{count}} people for their {{what}}. That is the first 500; remind again for the rest.',
+                },
+                { count: done.asked, what },
+              )
+            : t(
+                'directory.directory.asked_for_their',
+                {
+                  one: 'Asked {{count}} person for their {{what}}.',
+                  other: 'Asked {{count}} people for their {{what}}.',
+                },
+                { count: done.asked, what },
+              )
           : done.message,
       );
     });
@@ -1941,7 +1954,7 @@ function Body({
       {coarse
         ? t('directory.directory.remind_all', 'Remind all')
         : t('directory.directory.remind_all_2', 'Remind all {{toLocaleString}}', {
-            toLocaleString: state.total.toLocaleString('en-GB'),
+            toLocaleString: state.total.toLocaleString(locale()),
           })}
     </Button>
   ) : null;
@@ -2624,10 +2637,11 @@ function Filters({
           >
             {complete.length === 0
               ? t('directory.directory.show_everybody', 'Show everybody')
-              : t('directory.directory.apply', 'Apply {{length}} {{value}}', {
-                  length: String(complete.length),
-                  value: complete.length === 1 ? 'condition' : 'conditions',
-                })}
+              : t(
+                  'directory.directory.apply',
+                  { one: 'Apply {{count}} condition', other: 'Apply {{count}} conditions' },
+                  { count: complete.length },
+                )}
           </Button>
         </DialogFooter>
       </DialogContent>

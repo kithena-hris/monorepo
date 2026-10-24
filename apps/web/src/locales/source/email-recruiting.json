@@ -1,0 +1,474 @@
+{
+  "email.agency_code.subject": {
+    "text": "{{code}} is your code for {{company}}’s agency portal",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/agency-portal.ts: a \"subject\" value. Filled in: {{code}}, {{company}}."
+  },
+  "email.agency_code.text": {
+    "text": "Hello {{name}},\n\nYour code is {{code}}. It works for {{minutes}} minutes.\n\nIf you did not ask for it, ignore this email.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/agency-portal.ts: a \"text\" value. Filled in: {{name}}, {{code}}, {{minutes}}."
+  },
+  "email.alert_confirm.daily_matching": {
+    "text": "Hello,\n\nSomeone asked for daily emails about jobs matching “{{query}}” at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"text\" value. Filled in: {{company}}, {{link}}, {{query}}."
+  },
+  "email.alert_confirm.daily_new_jobs": {
+    "text": "Hello,\n\nSomeone asked for daily emails about new jobs at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"text\" value. Filled in: {{company}}, {{link}}."
+  },
+  "email.alert_confirm.subject": {
+    "text": "Confirm your job alert for {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"subject\" value. Filled in: {{company}}."
+  },
+  "email.alert_confirm.weekly_matching": {
+    "text": "Hello,\n\nSomeone asked for weekly emails about jobs matching “{{query}}” at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"text\" value. Filled in: {{company}}, {{link}}, {{query}}."
+  },
+  "email.alert_confirm.weekly_new_jobs": {
+    "text": "Hello,\n\nSomeone asked for weekly emails about new jobs at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"text\" value. Filled in: {{company}}, {{link}}."
+  },
+  "email.alert.stop": {
+    "text": "You get this because you asked for it. To stop, one click:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"text\" value. Filled in: {{link}}."
+  },
+  "email.alert.subject_one": {
+    "text": "{{count}} new job at {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"subject\" value. Filled in: {{count}}, {{company}}. Plural: the words for a {{count}} of one."
+  },
+  "email.alert.subject_other": {
+    "text": "{{count}} new jobs at {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/alerts.ts: a \"subject\" value. Filled in: {{count}}, {{company}}. Plural: the words for any other {{count}}."
+  },
+  "email.applied.subject": {
+    "text": "Your application to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"subject\" value. Filled in: {{company}}."
+  },
+  "email.applied.text": {
+    "text": "Hello {{name}},\n\nThank you for applying for {{job}}. You can follow your application, and withdraw it, here:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{job}}, {{link}}."
+  },
+  "email.apply_code.subject": {
+    "text": "{{code}} is your code to apply to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"subject\" value. Filled in: {{code}}, {{company}}."
+  },
+  "email.apply_code.text": {
+    "text": "Hello {{name}},\n\nYour code to send your application for {{job}} is {{code}}. It works for {{minutes}} minutes.\n\nIf you did not ask for it, ignore this email.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{job}}, {{code}}, {{minutes}}."
+  },
+  "email.assessment.subject": {
+    "text": "Your assessment",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/providers.ts: a \"subject\" value."
+  },
+  "email.assessment.text": {
+    "text": "Hello {{name}},\n\nThe next step is an assessment. Start it here:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/providers.ts: a \"text\" value. Filled in: {{name}}, {{link}}."
+  },
+  "email.builtin.interview_confirmation.body": {
+    "text": "Hello {{first_name}},\n\nYour {{interview}} for {{job}} is confirmed.\nWhere: {{where}}\n\nIf that time no longer works, ask for a change from your page:\n{{link}}\n\nWe look forward to meeting you.\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.interview_confirmation.name": {
+    "text": "Interview confirmed",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.interview_confirmation.subject": {
+    "text": "Appointment scheduled: {{interview}} with {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.builtin.interview_invitation.body": {
+    "text": "Hello {{first_name}},\n\n{{company}} would like to meet you for a {{interview}} about {{job}}. Pick ten times that suit you; every one already fits the team’s calendars. We will confirm one of them by email.\n\nThe link works for fourteen days.\n\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.interview_invitation.name": {
+    "text": "Choose your interview times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.interview_invitation.subject": {
+    "text": "Appointment requested: choose times for your {{interview}} with {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.builtin.offer.body": {
+    "text": "Hello {{first_name}},\n\nWe are delighted to offer you the role of {{job}}. Read the offer, and accept or decline it, on your page:\n{{link}}\n\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.offer.name": {
+    "text": "Your offer",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.offer.subject": {
+    "text": "Your offer from {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.builtin.rejection.body": {
+    "text": "Hello {{first_name}},\n\nThank you for applying for {{job}} and for the time you gave us. We will not be taking your application further this time.\n\nWe would be glad to hear from you again for a role that fits, and we wish you well in your search.\n\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.rejection.name": {
+    "text": "Application not taken forward",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.rejection.subject": {
+    "text": "Your application to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.builtin.selection.body": {
+    "text": "Hello {{first_name}},\n\nThank you for your application for {{job}}. We would like to take it to the next step: {{stage}}.\n\nWe will be in touch shortly with what happens next. Everything about your application is on your page:\n{{link}}\n\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.selection.name": {
+    "text": "Moving to the next step",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.selection.subject": {
+    "text": "Good news about your application to {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.builtin.stage_expectations.body": {
+    "text": "Hello {{first_name}},\n\nYour application for {{job}} is now at {{stage}}. Here is what to expect:\n\n{{expectations}}\n\nIf anything is unclear, reply to this email and we will help.\n\n{{sender}}\n{{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"body\" value."
+  },
+  "email.builtin.stage_expectations.name": {
+    "text": "What to expect at this stage",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"name\" value."
+  },
+  "email.builtin.stage_expectations.subject": {
+    "text": "What to expect next: {{stage}} with {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
+  },
+  "email.emails.see_your_application": {
+    "text": "See your application",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"label\" value."
+  },
+  "email.emails.what_to_expect": {
+    "text": "What to expect: {{value}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"heading\" value. Filled in: {{value}}."
+  },
+  "email.emails.your_next_step": {
+    "text": "your next step",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"value\" value."
+  },
+  "email.interview_reminder.place": {
+    "text": "Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC, at {{place}}.\n\nTo reschedule, use your page:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"text\" value. Filled in: {{place}}."
+  },
+  "email.interview_reminder.plain": {
+    "text": "Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC.\n\nTo reschedule, use your page:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"text\" value."
+  },
+  "email.interview_reminder.subject": {
+    "text": "Tomorrow: {{interview}} with {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"subject\" value."
+  },
+  "email.interview_reminder.video": {
+    "text": "Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC: {{video}}.\n\nTo reschedule, use your page:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"text\" value. Filled in: {{video}}."
+  },
+  "email.interviews.a_candidate": {
+    "text": "a candidate",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
+  },
+  "email.interviews.ask_for_a_different_time": {
+    "text": "Ask for a different time",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.at": {
+    "text": "{{title}}: {{value}} at {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{title}}, {{value}}, {{companyName}}."
+  },
+  "email.interviews.can_do_utc_choose_one_in": {
+    "text": "{{name}} ({{value}}) can do:\n{{map}}\n(UTC)\n\nChoose one in your Inbox, or ask for more times; the invitation goes out with the meeting link and the agenda.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{value}}, {{map}}."
+  },
+  "email.interviews.cancelled_with": {
+    "text": "Cancelled: {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.interviews.change_my_times": {
+    "text": "Change my times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.choose_my_times": {
+    "text": "Choose my times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.choose_other_times": {
+    "text": "Choose other times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.choose_times_for_your": {
+    "text": "Choose times for your {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value. Filled in: {{title}}."
+  },
+  "email.interviews.could_you_give_us_other_times": {
+    "text": "Could you give us other times?",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value."
+  },
+  "email.interviews.hello_thank_you_for_your_times": {
+    "text": "Hello {{value}},\n\nThank you for your times. The team cannot make any of them, so please choose others. The ones below are left out, as are holidays and the team's time off.{{value2}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{value}}, {{value2}}."
+  },
+  "email.interviews.hello_thank_you_has_the_times": {
+    "text": "Hello {{first}},\n\nThank you. {{companyName}} has the {{length}} times you gave{{value}}, and will confirm one of them by email with the meeting link and what it is about.\n\nPlans changed? Change your times until then.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{first}}, {{companyName}}, {{length}}, {{value}}."
+  },
+  "email.interviews.hello_this_interview_is_cancelled": {
+    "text": "Hello {{name}},\n\nThis interview is cancelled.\n\n{{invitation}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{invitation}}."
+  },
+  "email.interviews.in_place_of_the_ones_before": {
+    "text": ", in place of the ones before",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value."
+  },
+  "email.interviews.interview": {
+    "text": "Interview",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.join_the_meeting": {
+    "text": "Join the meeting",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.length": {
+    "text": "Length",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.length_2": {
+    "text": "Length",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.minutes": {
+    "text": "{{minutes}} minutes",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value. Filled in: {{minutes}}."
+  },
+  "email.interviews.minutes_2": {
+    "text": "{{minutes}} minutes",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value. Filled in: {{minutes}}."
+  },
+  "email.interviews.more_times_please_your_with": {
+    "text": "More times, please: your {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.interviews.received_your_times_for_the_with": {
+    "text": "Received: your times for the {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.interviews.role": {
+    "text": "Role",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.these_did_not_work": {
+    "text": "These did not work",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value."
+  },
+  "email.interviews.times_for_the": {
+    "text": "{{name}} {{value}} {{length}} times for the {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{value}}, {{length}}, {{title}}."
+  },
+  "email.interviews.times_in": {
+    "text": "Times in {{zone}}.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"note\" value. Filled in: {{zone}}."
+  },
+  "email.interviews.to_be_confirmed": {
+    "text": "To be confirmed",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value."
+  },
+  "email.interviews.updated_your_new_times_for_the": {
+    "text": "Updated: your new times for the {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.interviews.video_call_the_link_comes_with": {
+    "text": "Video call; the link comes with the invitation",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value."
+  },
+  "email.interviews.we_have_your_new_times": {
+    "text": "We have your new times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value."
+  },
+  "email.interviews.we_have_your_times": {
+    "text": "We have your times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value."
+  },
+  "email.interviews.when": {
+    "text": "When",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.where": {
+    "text": "Where: {{where}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"description\" value. Filled in: {{where}}."
+  },
+  "email.interviews.where_2": {
+    "text": "Where",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.where_3": {
+    "text": "Where",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.where_4": {
+    "text": "Where",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
+  "email.interviews.your_is_booked": {
+    "text": "Your {{title}} is booked",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value. Filled in: {{title}}."
+  },
+  "email.interviews.your_times": {
+    "text": "Your {{length}} times · {{zone}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{length}}, {{zone}}."
+  },
+  "email.pool_ask.subject": {
+    "text": "May {{company}} keep your details for future roles?",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/moves.ts: a \"subject\" value. Filled in: {{company}}."
+  },
+  "email.pool_ask.text": {
+    "text": "Hello {{name}},\n\n{{company}} would like to keep your application on file and contact you about future roles. You can agree, or say no, on your page:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/moves.ts: a \"text\" value. Filled in: {{name}}, {{company}}, {{link}}."
+  },
+  "email.pool_renew.subject": {
+    "text": "Stay in {{company}}’s talent pool?",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"subject\" value. Filled in: {{company}}."
+  },
+  "email.pool_renew.text": {
+    "text": "Hello {{name}},\n\nYou agreed that {{company}} may keep your details for future roles until {{until}}. To stay, renew on your page; otherwise we remove you then:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/background.ts: a \"text\" value. Filled in: {{name}}, {{company}}, {{until}}, {{link}}."
+  },
+  "email.put_forward.subject": {
+    "text": "{{company}} would like to consider you for {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"subject\" value. Filled in: {{company}}, {{job}}."
+  },
+  "email.put_forward.text": {
+    "text": "Hello {{name}},\n\n{{company}} has put your application forward for a new opening, {{job}}. The ad is here:\n{{ad}}\n\nYou can follow it, or withdraw, here:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{company}}, {{job}}, {{ad}}, {{link}}."
+  },
+  "email.question.subject": {
+    "text": "A question about {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/job-assistant.ts: a \"subject\" value. Filled in: {{job}}."
+  },
+  "email.question.text": {
+    "text": "Someone asked on Kithena Jobs:\n\n{{question}}\n\nReply to them at {{email}}.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/job-assistant.ts: a \"text\" value. Filled in: {{question}}, {{email}}."
+  },
+  "email.reference.subject": {
+    "text": "A reference for {{candidate}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"subject\" value. Filled in: {{candidate}}."
+  },
+  "email.reference.text": {
+    "text": "Hello {{name}},\n\n{{candidate}} named you as a referee for a role at {{company}}. It takes a few minutes and needs no account:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"text\" value. Filled in: {{name}}, {{candidate}}, {{company}}, {{link}}."
+  },
+  "email.referral.someone": {
+    "text": "Someone at the company",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: text built in code."
+  },
+  "email.referral.subject": {
+    "text": "{{referrer}} thinks you’d be great for {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"subject\" value. Filled in: {{referrer}}, {{job}}."
+  },
+  "email.referral.text": {
+    "text": "Hello {{name}},\n\n{{referrer}} referred you for {{job}} at {{company}}. If you would like to apply, start here:\n{{link}}\n\nNothing about you is kept unless you apply.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{referrer}}, {{job}}, {{company}}, {{link}}."
+  },
+  "email.requests.a_question_about_your_application": {
+    "text": "A question about your application",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"heading\" value."
+  },
+  "email.requests.answer": {
+    "text": "Answer",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"label\" value."
+  },
+  "email.requests.answered": {
+    "text": "{{name}} answered: {{label}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{label}}."
+  },
+  "email.requests.appointment_requested_with": {
+    "text": "Appointment requested: {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.requests.asks_for_a_different_time_for": {
+    "text": "{{name}} ({{value}}) asks for a different time for the {{title}} on {{fmt}} (UTC):\n\n{{why}}\n\nPropose new times or cancel it in Recruiting:\n{{value2}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{value}}, {{title}}, {{fmt}}, {{why}}, {{value2}}."
+  },
+  "email.requests.asks_to_move_the": {
+    "text": "{{name}} asks to move the {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{title}}."
+  },
+  "email.requests.booked_utc": {
+    "text": "{{name}} booked: {{label}}, {{fmt}} UTC",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{label}}, {{fmt}}."
+  },
+  "email.requests.choose_a_time": {
+    "text": "Choose a time",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"label\" value."
+  },
+  "email.requests.choose_a_time_for_your": {
+    "text": "Choose a time for your {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"heading\" value. Filled in: {{title}}."
+  },
+  "email.requests.chose_utc_for_the_for_the": {
+    "text": "{{name}} chose {{fmt}} (UTC) for the {{label}} for {{value}}.{{value2}}\n\nThe invitations are out. See it in Recruiting:\n{{value3}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{fmt}}, {{label}}, {{value}}, {{value2}}, {{value3}}."
+  },
+  "email.requests.could_not_make_any_of_the": {
+    "text": " could not make any of the times offered.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"value2\" value."
+  },
+  "email.requests.hello_for_your_application_to_asks": {
+    "text": "Hello {{value}},\n\nFor your application to {{value2}}, {{companyName}} asks:\n\n{{label}}{{value3}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{value}}, {{value2}}, {{companyName}}, {{label}}, {{value3}}."
+  },
+  "email.requests.hello_thank_you_has_your_your": {
+    "text": "Hello {{name}},\n\nThank you. {{companyName}} has your {{value}}.\n\nYour page:\n{{value2}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{companyName}}, {{value}}, {{value2}}."
+  },
+  "email.requests.hello_we_have_asked_to_move": {
+    "text": "Hello {{name}},\n\nWe have asked {{companyName}} to move your {{title}} from {{fmt}} ({{zone}}). Until they do, that time stands. You will hear from them with new times.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{companyName}}, {{title}}, {{fmt}}, {{zone}}."
+  },
+  "email.requests.hello_would_like_to_meet_you": {
+    "text": "Hello {{value}},\n\n{{companyName}} would like to meet you for a {{title}} ({{minutes}} minutes){{value2}}\n\nPick the time that suits you, or ask for others if none does.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{value}}, {{companyName}}, {{title}}, {{minutes}}, {{value2}}."
+  },
+  "email.requests.in_recruiting": {
+    "text": "{{name}} ({{value}}){{value2}}{{value3}}\n\nIn Recruiting:\n{{value4}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{value}}, {{value2}}, {{value3}}, {{value4}}."
+  },
+  "email.requests.needs_other_times_for": {
+    "text": "{{name}} needs other times for {{label}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{label}}."
+  },
+  "email.requests.needs_something_from_you": {
+    "text": "{{companyName}} needs something from you: {{label}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{companyName}}, {{label}}."
+  },
+  "email.requests.received": {
+    "text": "Received: {{label}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{label}}."
+  },
+  "email.requests.received_a_new_time_for_your": {
+    "text": "Received: a new time for your {{title}} with {{companyName}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{title}}, {{companyName}}."
+  },
+  "email.requests.received_we_will_offer_other_times": {
+    "text": "Received: we will offer other times for your {{label}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{label}}."
+  },
+  "email.requests.reply_and_will_come_back_with": {
+    "text": "reply and will come back with other times",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"value\" value."
+  },
+  "email.requests.they_added": {
+    "text": "\n\nThey added: {{text}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"value2\" value. Filled in: {{text}}."
+  },
+  "email.requests.times_offered": {
+    "text": "Times offered · {{zone}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"title\" value. Filled in: {{zone}}."
+  },
+  "email.sourced.subject": {
+    "text": "{{company}} added you as a possible candidate",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"subject\" value. Filled in: {{company}}."
+  },
+  "email.sourced.text": {
+    "text": "Hello {{name}},\n\n{{company}} found your public profile and is considering you for {{job}}. We hold your name, contact details and the profile we found, to contact you about this role. You can see what we hold, or ask us to delete it, here:\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/intake.ts: a \"text\" value. Filled in: {{name}}, {{company}}, {{job}}, {{link}}."
+  }
+}

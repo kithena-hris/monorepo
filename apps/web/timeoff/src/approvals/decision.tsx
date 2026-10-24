@@ -195,10 +195,14 @@ export function Decision({
             types={types}
             from={range.desk.from}
             to={range.desk.to}
-            label={t('approvals.decision.around', '{{value}} around {{span}}', {
-              value: member.teamName ?? 'The team',
-              span,
-            })}
+            label={
+              member.teamName === null
+                ? t('approvals.decision.the_team_around', 'The team around {{span}}', { span })
+                : t('approvals.decision.around', '{{value}} around {{span}}', {
+                    value: member.teamName,
+                    span,
+                  })
+            }
             highlight={member.personId}
           />
           <TeamTimeline
@@ -207,10 +211,16 @@ export function Decision({
             types={types}
             from={range.phone.from}
             to={range.phone.to}
-            label={t('approvals.decision.the_week_of', '{{value}}, the week of {{from}}', {
-              value: member.teamName ?? 'The team',
-              from: shortDate(range.phone.from),
-            })}
+            label={
+              member.teamName === null
+                ? t('approvals.decision.the_team_the_week_of', 'The team, the week of {{from}}', {
+                    from: shortDate(range.phone.from),
+                  })
+                : t('approvals.decision.the_week_of', '{{value}}, the week of {{from}}', {
+                    value: member.teamName,
+                    from: shortDate(range.phone.from),
+                  })
+            }
             highlight={member.personId}
           />
         </>
@@ -338,17 +348,24 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
               key={day.date}
               icon={<icons.people />}
               tone="warning"
-              description={t(
-                'approvals.decision.off_the_team_asks_for',
-                '{{value}} off. The team asks for {{required}}.',
-                {
-                  value:
-                    names.length === 0
-                      ? 'Others are'
-                      : `${listOf(names)} ${names.length === 1 ? 'is' : 'are'}`,
-                  required: String(day.required),
-                },
-              )}
+              description={
+                names.length === 0
+                  ? t(
+                      'approvals.decision.others_are_off',
+                      'Others are off. The team asks for {{required}}.',
+                      {
+                        required: day.required,
+                      },
+                    )
+                  : t(
+                      'approvals.decision.names_off_the_team_asks_for',
+                      {
+                        one: '{{names}} is off. The team asks for {{required}}.',
+                        other: '{{names}} are off. The team asks for {{required}}.',
+                      },
+                      { count: names.length, names: listOf(names), required: day.required },
+                    )
+              }
             >
               {t('approvals.decision.of_in', '{{dayName}}: {{in}} of {{of}} in', {
                 dayName: dayName(day.date),
@@ -376,17 +393,30 @@ function WhatToKnow({ data }: { readonly data: DecisionData }): JSX.Element {
           <IconListItem
             icon={<icons.success />}
             tone="success"
-            description={t(
-              'approvals.decision.days_left_after_this',
-              '{{after}} days left after this.{{value}}',
-              {
-                after: amount(data.balance.after),
-                value:
-                  data.lastTaken === null
-                    ? ''
-                    : ` Last time off ${spanLabel(data.lastTaken.from, data.lastTaken.to)}.`,
-              },
-            )}
+            description={
+              data.lastTaken === null
+                ? t(
+                    'approvals.decision.days_left_after_this',
+                    {
+                      one: '{{count}} day left after this.',
+                      other: '{{count}} days left after this.',
+                    },
+                    {
+                      count: Number(amount(data.balance.after)),
+                    },
+                  )
+                : t(
+                    'approvals.decision.days_left_after_this_last_time',
+                    {
+                      one: '{{count}} day left after this. Last time off {{span}}.',
+                      other: '{{count}} days left after this. Last time off {{span}}.',
+                    },
+                    {
+                      count: Number(amount(data.balance.after)),
+                      span: spanLabel(data.lastTaken.from, data.lastTaken.to),
+                    },
+                  )
+            }
           >
             {t('approvals.decision.enough_balance', 'Enough balance')}
           </IconListItem>

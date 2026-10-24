@@ -50,7 +50,7 @@ const ASK = {
  */
 export function Onboarding({ load, onSave, onCheck, onUploadFile }: OnboardingProps): JSX.Element {
   return (
-    <Loaded load={load} what="your onboarding">
+    <Loaded load={load} what={t('onboarding.onboarding.your_onboarding', 'your onboarding')}>
       {(state) => (
         <FieldFiles.Provider value={{ upload: onUploadFile ?? null, known: new Map() }}>
           <Sections state={state} onSave={onSave} onCheck={onCheck} />
@@ -117,7 +117,15 @@ function Sections({
                 'onboarding.onboarding.all_done_you_can_change_any',
                 'All done. You can change any of this later from your profile.',
               )
-            : `${String(done)} of ${String(total)} sections done. You can stop any time; nothing you have saved is lost.`
+            : t(
+                'onboarding.onboarding.sections_done_stop_any_time',
+                {
+                  one: '{{done}} of {{count}} section done. You can stop any time; nothing you have saved is lost.',
+                  other:
+                    '{{done}} of {{count}} sections done. You can stop any time; nothing you have saved is lost.',
+                },
+                { done, count: total },
+              )
         }
       />
       <Progress

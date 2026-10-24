@@ -125,7 +125,7 @@ interface Pending {
 
 export function RoleSettings(props: RoleSettingsProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="the roles">
+    <Loaded load={props.load} what={t('settings.roles.the_roles', 'the roles')}>
       {(state) => <Roles {...props} state={state} />}
     </Loaded>
   );

@@ -53,7 +53,6 @@ import {
   To,
   day,
   kindLabel,
-  plural,
   useAct,
   when,
   type Act,
@@ -112,13 +111,13 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
   const [creating, setCreating] = useState(props.search?.['new'] === '1');
   const [archiving, setArchiving] = useState<TemplatesData['rows'][number] | null>(null);
   return (
-    <Loaded load={props.load} what="form templates">
+    <Loaded load={props.load} what={tr('templates.form_templates', 'form templates')}>
       {(data) => {
         const rows = show === 'scored' ? data.rows.filter((r) => r.hasScore) : data.rows;
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={tr('templates.form_templates', 'Form templates')}
+              title={tr('templates.form_templates_2', 'Form templates')}
               description={tr(
                 'templates.the_forms_every_review_and_feedback',
                 'The forms every review and feedback request is written on. A published version never changes.',
@@ -231,13 +230,21 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                           <TableCell className="text-sm">
                             {tr('templates.text', '{{version}} · {{questions}}', {
                               version: r.version,
-                              questions: plural(r.questions, 'question'),
+                              questions: tr(
+                                'templates.count_questions',
+                                { one: '{{count}} question', other: '{{count}} questions' },
+                                { count: r.questions },
+                              ),
                             })}
                           </TableCell>
                           <TableCell className="text-sm text-fg-muted">
                             {r.inCycles === 0
                               ? tr('templates.none', 'None')
-                              : plural(r.inCycles, 'cycle')}
+                              : tr(
+                                  'templates.count_cycles',
+                                  { one: '{{count}} cycle', other: '{{count}} cycles' },
+                                  { count: r.inCycles },
+                                )}
                           </TableCell>
                           <TableCell className="text-sm text-fg-muted">
                             {day(r.updatedAt)}
@@ -377,7 +384,11 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
                   <Alert
                     tone="warning"
                     title={tr('templates.used_by', 'Used by {{inCycles}}', {
-                      inCycles: plural(archiving.inCycles, 'cycle'),
+                      inCycles: tr(
+                        'templates.count_cycles',
+                        { one: '{{count}} cycle', other: '{{count}} cycles' },
+                        { count: archiving.inCycles },
+                      ),
                     })}
                   >
                     {tr(
@@ -441,7 +452,7 @@ function NewTemplate({
         setStep(s);
       }}
       finish={create}
-      finishLabel="Open in builder"
+      finishLabel={tr('templates.open_in_builder', 'Open in builder')}
       pending={act.pending}
       canNext={
         name.trim() !== '' &&
@@ -535,7 +546,7 @@ function NewTemplate({
             {draft.sections.map((s) => (
               <p key={s.id} className="text-sm">
                 <span className="font-semibold">{s.title}</span>
-                {` · ${plural(s.questions.length, 'question')}`}
+                {` · ${tr('templates.count_questions', { one: '{{count}} question', other: '{{count}} questions' }, { count: s.questions.length })}`}
               </p>
             ))}
           </div>
@@ -629,7 +640,7 @@ const TYPES = [
 
 export function Builder(props: ScreenProps<BuilderData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the template">
+    <Loaded load={props.load} what={tr('templates.the_template', 'the template')}>
       {(data) => (
         <Building key={`${data.id}-${String(data.current?.version ?? 0)}`} data={data} {...props} />
       )}
@@ -737,11 +748,21 @@ function Building({
     <div className="flex flex-col gap-4">
       <PageHeader
         title={name}
-        description={`${data.published === null ? tr('templates.not_published_yet', 'Not published yet') : tr('templates.v_published', 'v{{published}} published', { published: String(data.published) })}${data.draft === null ? '' : ` · draft v${String(data.draft)}`}${dirty ? ' · unsaved changes' : ''}`}
+        description={[
+          data.published === null
+            ? tr('templates.not_published_yet', 'Not published yet')
+            : tr('templates.v_published', 'v{{published}} published', {
+                published: data.published,
+              }),
+          ...(data.draft === null
+            ? []
+            : [tr('templates.draft_v', 'draft v{{draft}}', { draft: data.draft })]),
+          ...(dirty ? [tr('templates.unsaved_changes', 'unsaved changes')] : []),
+        ].join(' · ')}
         actions={
           data.hr ? (
             <>
-              <Tooltip content="Preview the form">
+              <Tooltip content={tr('templates.preview_the_form', 'Preview the form')}>
                 <Button
                   variant="secondary"
                   aria-label={tr('templates.preview_the_form', 'Preview the form')}
@@ -826,7 +847,11 @@ function Building({
             issues.length === 0
               ? tr('templates.nothing_to_change', 'Nothing to change')
               : tr('templates.from_the_check', '{{length}} from the check', {
-                  length: plural(issues.length, 'suggestion'),
+                  length: tr(
+                    'templates.count_suggestions',
+                    { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                    { count: issues.length },
+                  ),
                 })
           }
         >
@@ -877,9 +902,11 @@ function Building({
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                   <SortableList
-                    label={tr('templates.questions_in', 'Questions in {{value}}', {
-                      value: s.title || 'this section',
-                    })}
+                    label={
+                      s.title === ''
+                        ? tr('templates.questions_in_this_section', 'Questions in this section')
+                        : tr('templates.questions_in', 'Questions in {{value}}', { value: s.title })
+                    }
                     items={s.questions.map((q) => ({
                       id: q.id,
                       locked: q.type === 'performance_score',
@@ -948,7 +975,7 @@ function Building({
                             onChange={(id, a) => {
                               setAnswers({ ...answers, [id]: a });
                             }}
-                            subject="the subject"
+                            subject={tr('templates.the_subject', 'the subject')}
                           />
                         </div>
                       )
@@ -1081,7 +1108,7 @@ function Building({
                   onChange={(id, a) => {
                     setAnswers({ ...answers, [id]: a });
                   }}
-                  subject="the subject"
+                  subject={tr('templates.the_subject', 'the subject')}
                 />
               )}
             </div>
@@ -1479,7 +1506,7 @@ export interface PreviewData {
 
 export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the preview">
+    <Loaded load={props.load} what={tr('templates.the_preview', 'the preview')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -1510,9 +1537,10 @@ export function Preview(props: ScreenProps<PreviewData>): JSX.Element {
             <Alert
               tone="info"
               title={tr('templates.hidden_from_the_subject', '{{length}} hidden from the subject', {
-                length: plural(
-                  data.removed.length,
-                  tr('templates.private_question', 'private question'),
+                length: tr(
+                  'templates.count_private_questions',
+                  { one: '{{count}} private question', other: '{{count}} private questions' },
+                  { count: data.removed.length },
                 ),
               })}
             >
@@ -1546,7 +1574,7 @@ export function History(props: ScreenProps<HistoryData>): JSX.Element {
   const act = useAct(props);
   const id = props.params?.['id'] ?? '';
   return (
-    <Loaded load={props.load} what="the versions">
+    <Loaded load={props.load} what={tr('templates.the_versions', 'the versions')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader

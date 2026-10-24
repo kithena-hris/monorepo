@@ -6,6 +6,8 @@ import { VIEWS } from '../../../lib/people-views';
 import { loadScreen } from '../../../lib/people-screens';
 import { startViewing } from '../../../lib/view-as';
 import { isWaking } from '../../../lib/waking';
+import { serverWords } from '../../../lib/server-words';
+import { type T } from '@reach/ui';
 
 /**
  * What the People screens' buttons do: server actions, each one operation
@@ -155,6 +157,7 @@ export async function applyManagerChange(
   managerId: string | null,
   answers: Readonly<Record<string, string>>,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  const t = await serverWords();
   const choice = answers['performance.manager-reviews'];
   if (choice === undefined) return { ok: true };
   const done = await performance('ChoosePerformanceManagerHandover', {
@@ -162,7 +165,14 @@ export async function applyManagerChange(
   });
   return done.ok
     ? { ok: true }
-    : { ok: false, message: `Their manager reviews were not handed over: ${done.message}` };
+    : {
+        ok: false,
+        message: t(
+          'app.app.people.actions.their_manager_reviews_were_not_handed_over',
+          'Their manager reviews were not handed over: {{reason}}',
+          { reason: done.message },
+        ),
+      };
 }
 
 /**
@@ -343,7 +353,9 @@ export async function commitBulkHire(hires: BulkHirePage): Promise<BulkEdited> {
  * person signed in may read them (PEO-122). The picker's first page: typing
  * more narrows it.
  */
-export async function searchPeople(text: string): Promise<
+export async function searchPeople(
+  text: string,
+): Promise<
   readonly { readonly value: string; readonly label: string; readonly description?: string }[]
 > {
   const answer = await people<{
@@ -471,12 +483,19 @@ type Parsed =
 
 /** An answer that crosses as JSON text (docs/ai-settings.md), read back into its object. */
 async function parsed(answer: Promise<PeopleAnswer<string>>): Promise<Parsed> {
+  const t = await serverWords();
   const a = await answer;
   if (!a.ok) return { ok: false, message: a.message };
   try {
     return { ok: true, data: JSON.parse(a.data) as unknown };
   } catch {
-    return { ok: false, message: 'People answered in a way this page cannot read' };
+    return {
+      ok: false,
+      message: t(
+        'app.app.people.actions.people_answered_in_a_way_this_page',
+        'People answered in a way this page cannot read',
+      ),
+    };
   }
 }
 
@@ -528,6 +547,7 @@ export async function runImport(
   | { readonly ok: true; readonly runId: string }
   | { readonly ok: false; readonly message: string; readonly link?: string }
 > {
+  const t = await serverWords();
   const answer = await people<string>('RunImport', {
     input: JSON.stringify({
       ...stepOf(uploadId, mapping),
@@ -548,7 +568,13 @@ export async function runImport(
   const runId = read.ok ? (read.data as { runId?: unknown } | null)?.runId : undefined;
   return typeof runId === 'string'
     ? { ok: true, runId }
-    : { ok: false, message: 'People answered in a way this page cannot read' };
+    : {
+        ok: false,
+        message: t(
+          'app.app.people.actions.people_answered_in_a_way_this_page',
+          'People answered in a way this page cannot read',
+        ),
+      };
 }
 
 /**
@@ -572,12 +598,18 @@ export async function importRun(
 export type WithSecret =
   { readonly ok: true; readonly secret: string } | { readonly ok: false; readonly message: string };
 
-const withSecret = (answer: PeopleAnswer<{ secret: string | null }>): WithSecret =>
+const withSecret = (answer: PeopleAnswer<{ secret: string | null }>, t: T): WithSecret =>
   !answer.ok
     ? { ok: false, message: answer.message }
     : answer.data.secret === null
       ? // A retry of a request that already went through: the secret was shown once.
-        { ok: false, message: 'Done, but the secret was not shown. Rotate it to see a new one.' }
+        {
+          ok: false,
+          message: t(
+            'app.app.people.actions.done_but_the_secret_was_not_shown',
+            'Done, but the secret was not shown. Rotate it to see a new one.',
+          ),
+        }
       : { ok: true, secret: answer.data.secret };
 
 export async function createEndpoint(input: {
@@ -586,6 +618,7 @@ export async function createEndpoint(input: {
   allowlist: readonly string[];
   alertEmail: string;
 }): Promise<WithSecret> {
+  const t = await serverWords();
   return withSecret(
     await people('CreateWebhookEndpoint', {
       url: input.url,
@@ -593,6 +626,7 @@ export async function createEndpoint(input: {
       allowlist: [...input.allowlist],
       alertEmail: input.alertEmail,
     }),
+    t,
   );
 }
 
@@ -607,7 +641,8 @@ export async function updateEndpoint(id: string, patch: Values): Promise<Outcome
 }
 
 export async function rotateEndpoint(id: string): Promise<WithSecret> {
-  return withSecret(await people('RotateWebhookSecret', { id }));
+  const t = await serverWords();
+  return withSecret(await people('RotateWebhookSecret', { id }), t);
 }
 
 export async function replayDelivery(deliveryId: string): Promise<Outcome> {
@@ -619,19 +654,27 @@ export async function replayDelivery(deliveryId: string): Promise<Outcome> {
 export type WithToken =
   { readonly ok: true; readonly token: string } | { readonly ok: false; readonly message: string };
 
-const withToken = (answer: PeopleAnswer<{ token: string | null }>): WithToken =>
+const withToken = (answer: PeopleAnswer<{ token: string | null }>, t: T): WithToken =>
   !answer.ok
     ? { ok: false, message: answer.message }
     : answer.data.token === null
-      ? { ok: false, message: 'Done, but the token was not shown. Rotate it to see a new one.' }
+      ? {
+          ok: false,
+          message: t(
+            'app.app.people.actions.done_but_the_token_was_not_shown',
+            'Done, but the token was not shown. Rotate it to see a new one.',
+          ),
+        }
       : { ok: true, token: answer.data.token };
 
 export async function createScimConnection(system: string): Promise<WithToken> {
-  return withToken(await people('CreateScimConnection', { system }));
+  const t = await serverWords();
+  return withToken(await people('CreateScimConnection', { system }), t);
 }
 
 export async function rotateScimToken(id: string): Promise<WithToken> {
-  return withToken(await people('RotateScimToken', { id }));
+  const t = await serverWords();
+  return withToken(await people('RotateScimToken', { id }), t);
 }
 
 export async function revokeScimConnection(id: string): Promise<Outcome> {

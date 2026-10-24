@@ -1,4 +1,4 @@
-import { ok, type Result } from '@kithena/domain-kit';
+import { ok, wordsIn, type Result, type Words } from '@kithena/domain-kit';
 import type { CalendarDate, DayAmount, PersonId, TenantId } from '@kithena/contracts';
 
 import { resolveHolidays } from '../../domain/calendar/holiday-calendar.js';
@@ -7,7 +7,7 @@ import { whatChanged } from '../../domain/insights/insights.js';
 import { nextBridge } from '../../domain/insights/nudge.js';
 import type { Writer } from '../assist/ports.js';
 import { written } from '../assist/written.js';
-import type { Caller, Deps, Member, Tx } from '../ports.js';
+import type { Caller, Deps, MailWords, Member, Tx } from '../ports.js';
 import { forbidden, refuse, transact } from '../shared.js';
 import { annualFactsOf, DEFAULT_COHORT_MINIMUM, scopeOf } from './insights.js';
 
@@ -59,39 +59,77 @@ export type NudgeWriter = (
   tenantId: TenantId,
   facts: NudgeFacts,
   include: NudgeInclude,
+  /** The company's language: a nudge is an email, and goes in the company's language. */
+  words?: MailWords,
 ) => Promise<NudgeWords>;
 
-const dateFormat = (options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+export const ENGLISH: MailWords = { language: 'en-US', t: wordsIn('en-US', {}) };
+
+const dateFormat = (language: string, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat(language, { ...options, timeZone: 'UTC' });
 const at = (date: CalendarDate): Date => new Date(`${date}T00:00:00Z`);
-const say = (n: DayAmount): string => days(n).toString();
+const amount = (n: DayAmount): number => Number(days(n).toString());
 
 /** Always the message's last words, whoever wrote the rest: the promise is the code's. */
-const PRIVATE = 'Nobody else sees this message.';
-const short = dateFormat({ weekday: 'short', day: 'numeric', month: 'short' });
-const long = dateFormat({ day: 'numeric', month: 'long' });
-const month = dateFormat({ month: 'long' });
+const privately = (t: Words): string => t('email.nudge.private', 'Nobody else sees this message.');
 
-/** The template: the recipient's own numbers in plain sentences. */
+/** The dates a nudge names, in its language. */
+function formats(language: string) {
+  return {
+    short: dateFormat(language, { weekday: 'short', day: 'numeric', month: 'short' }),
+    long: dateFormat(language, { day: 'numeric', month: 'long' }),
+    month: dateFormat(language, { month: 'long' }),
+  };
+}
+
+/** The template: the recipient's own numbers in plain sentences, in the company's language. */
 export const templatedNudge = (
   facts: NudgeFacts,
   include: NudgeInclude,
+  words: MailWords = ENGLISH,
 ): { heading: string; lede: string } => {
+  const { t, language } = words;
+  const { short, long, month } = formats(language);
   const lines: string[] = [];
-  if (include.balance) lines.push(`You have ${say(facts.left)} days left this year.`);
+  if (include.balance)
+    lines.push(
+      t(
+        'email.nudge.days_left',
+        {
+          one: 'You have {{count}} day left this year.',
+          other: 'You have {{count}} days left this year.',
+        },
+        { count: amount(facts.left) },
+      ),
+    );
   if (include.bridge && facts.bridge !== null) {
     lines.push(
-      `Taking ${short.format(at(facts.bridge.take))} gives you 4 days off with ${facts.bridge.holiday}.`,
+      t('email.nudge.bridge', 'Taking {{day}} gives you 4 days off with {{holiday}}.', {
+        day: short.format(at(facts.bridge.take)),
+        holiday: facts.bridge.holiday,
+      }),
     );
   }
   if (include.losing && days(facts.losesAtYearEnd).gt(0)) {
     lines.push(
-      `${say(facts.losesAtYearEnd)} of them would be lost on ${long.format(at(facts.yearEnd))} if they stay unbooked.`,
+      t(
+        'email.nudge.would_be_lost',
+        {
+          one: '{{count}} of them would be lost on {{date}} if it stays unbooked.',
+          other: '{{count}} of them would be lost on {{date}} if they stay unbooked.',
+        },
+        { count: amount(facts.losesAtYearEnd), date: long.format(at(facts.yearEnd)) },
+      ),
     );
   }
-  lines.push(`A few days away do more than they look. ${PRIVATE}`);
+  lines.push(
+    `${t('email.nudge.a_few_days_away', 'A few days away do more than they look.')} ${privately(t)}`,
+  );
   return {
-    heading: `${facts.firstName}, you haven’t had a day off since ${month.format(at(facts.since))}`,
+    heading: t('email.nudge.heading', '{{name}}, you haven’t had a day off since {{month}}', {
+      name: facts.firstName,
+      month: month.format(at(facts.since)),
+    }),
     lede: lines.join(' '),
   };
 };
@@ -105,9 +143,11 @@ export const templatedNudge = (
  */
 export const writeNudge =
   (writer: Writer | undefined): NudgeWriter =>
-  async (tenantId, facts, include) => {
-    const plain = templatedNudge(facts, include);
+  async (tenantId, facts, include, words = ENGLISH) => {
+    const plain = templatedNudge(facts, include, words);
     if (writer === undefined) return { ...plain, ai: false };
+    const { short, long, month } = formats(words.language);
+    const PRIVATE = privately(words.t);
     const bridge = include.bridge ? facts.bridge : null;
     const losing = include.losing && days(facts.losesAtYearEnd).gt(0);
     const out = await written(
@@ -116,11 +156,12 @@ export const writeNudge =
       {
         instruction:
           'Write a short, kind note to one person who has not taken a day off in a while, ' +
-          'encouraging them to rest. It is theirs alone; say only what the facts give.',
+          'encouraging them to rest. It is theirs alone; say only what the facts give. ' +
+          `Write it in the language whose code is ${words.language}, as the templates are.`,
         facts: {
           who: '{who}',
           noDayOffSince: month.format(at(facts.since)),
-          ...(include.balance ? { daysLeftThisYear: say(facts.left) } : {}),
+          ...(include.balance ? { daysLeftThisYear: String(amount(facts.left)) } : {}),
           ...(bridge === null
             ? {}
             : {
@@ -130,7 +171,7 @@ export const writeNudge =
               }),
           ...(losing
             ? {
-                daysLostIfUnbooked: say(facts.losesAtYearEnd),
+                daysLostIfUnbooked: String(amount(facts.losesAtYearEnd)),
                 lostOn: long.format(at(facts.yearEnd)),
               }
             : {}),
@@ -236,7 +277,7 @@ export interface NudgeView {
 /** T28's dialog: who would be nudged, and one of their messages exactly as it would go. */
 export const nudgePreview =
   (
-    deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer'>,
+    deps: Pick<Deps, 'uow' | 'authz' | 'clock' | 'writer' | 'mailer'>,
     writer: NudgeWriter = writeNudge(deps.writer),
   ) =>
   async (caller: Caller, include: NudgeInclude): Promise<Result<NudgeView>> => {
@@ -260,7 +301,12 @@ export const nudgePreview =
           : {
               personId: first.member.personId,
               displayName: first.member.displayName,
-              ...(await writer(caller.tenantId, first.facts, include)),
+              ...(await writer(
+                caller.tenantId,
+                first.facts,
+                include,
+                (await deps.mailer?.words?.(caller.tenantId).catch(() => null)) ?? ENGLISH,
+              )),
             },
     });
   };
@@ -309,6 +355,7 @@ export const sendNudges =
     });
     if (!found.ok) return found;
     const today = deps.clock.date('UTC');
+    const words = (await mailer.words?.(caller.tenantId).catch(() => null)) ?? ENGLISH;
     let sent = 0;
     let unreachable = 0;
     let failed = 0;
@@ -317,7 +364,7 @@ export const sendNudges =
         unreachable++;
         continue;
       }
-      const { heading, lede } = await writer(caller.tenantId, facts, input.include);
+      const { heading, lede } = await writer(caller.tenantId, facts, input.include, words);
       const url =
         input.include.bridge && facts.bridge !== null
           ? `${origin}/time-off/request?from=${facts.bridge.take}&to=${facts.bridge.take}`

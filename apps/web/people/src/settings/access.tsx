@@ -2,6 +2,7 @@ import { icons, type AccessAudience, type AccessValue } from '@reach/ui';
 import type { JSX } from 'react';
 
 import type { DataType, ViewerScope, WriterRole } from './model';
+import { t } from '../i18n';
 
 /**
  * Who may see and change a field, as Reach's access matrix draws it: one row
@@ -12,20 +13,38 @@ import type { DataType, ViewerScope, WriterRole } from './model';
 export const AUDIENCES: readonly AccessAudience[] = [
   {
     id: 'self',
-    label: 'The employee',
-    description: 'The person the record is about',
+    label: t('settings.access.the_employee', 'The employee'),
+    description: t(
+      'settings.access.the_person_the_record_is_about',
+      'The person the record is about',
+    ),
     icon: <icons.person />,
   },
-  { id: 'manager', label: 'Manager', description: 'Their direct manager', icon: <icons.team /> },
+  {
+    id: 'manager',
+    label: t('settings.access.manager', 'Manager'),
+    description: t('settings.access.their_direct_manager', 'Their direct manager'),
+    icon: <icons.team />,
+  },
   {
     id: 'manager_chain',
-    label: 'Line managers',
-    description: 'Managers above their manager',
+    label: t('settings.access.line_managers', 'Line managers'),
+    description: t('settings.access.managers_above_their_manager', 'Managers above their manager'),
     icon: <icons.organisation />,
     canChange: false,
   },
-  { id: 'hr', label: 'HR', description: 'Your HR team', icon: <icons.people /> },
-  { id: 'finance', label: 'Finance', description: 'For payroll', icon: <icons.payroll /> },
+  {
+    id: 'hr',
+    label: 'HR',
+    description: t('settings.access.your_hr_team', 'Your HR team'),
+    icon: <icons.people />,
+  },
+  {
+    id: 'finance',
+    label: t('settings.access.finance', 'Finance'),
+    description: t('settings.access.for_payroll', 'For payroll'),
+    icon: <icons.payroll />,
+  },
 ];
 
 /** Everyone at the company can see it: it shows in the directory. */

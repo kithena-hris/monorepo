@@ -36,11 +36,17 @@ export interface Turn {
 }
 
 /** Ask about your people: the two questions a chip offers above the box, every time. */
-const SUGGESTIONS: readonly string[] = ['Who reports to me?', 'What’s waiting for me?'];
+const suggestions = (): readonly string[] => [
+  tr('components.assistant-panel.who_reports_to_me', 'Who reports to me?'),
+  tr('components.assistant-panel.whats_waiting_for_me', 'What’s waiting for me?'),
+];
 /** On the Inbox, the questions about it (Z4). */
-const INBOX_SUGGESTIONS: readonly string[] = [
-  'What do I need to do this week?',
-  'What’s waiting on others?',
+const inboxSuggestions = (): readonly string[] => [
+  tr(
+    'components.assistant-panel.what_do_i_need_to_do_this_week',
+    'What do I need to do this week?',
+  ),
+  tr('components.assistant-panel.whats_waiting_on_others', 'What’s waiting on others?'),
 ];
 
 export interface AssistantWindowProps {
@@ -100,7 +106,7 @@ export default function AssistantWindow({
               aria-label={tr('components.assistant-panel.try_asking', 'Try asking')}
               className="px-4 pt-2"
             >
-              {(onInbox ? INBOX_SUGGESTIONS : SUGGESTIONS).map((text) => (
+              {(onInbox ? inboxSuggestions() : suggestions()).map((text) => (
                 <Chip
                   key={text}
                   disabled={busy}
@@ -127,7 +133,10 @@ export default function AssistantWindow({
                 <span className="inline-flex items-center gap-1.5 [&_svg]:size-3">
                   <icons.assistant aria-hidden />
                   {onInbox
-                    ? 'Opens tasks for you; never finishes one on its own.'
+                    ? tr(
+                        'components.assistant-panel.opens_tasks_for_you_never_finishes_one',
+                        'Opens tasks for you; never finishes one on its own.',
+                      )
                     : tr(
                         'components.assistant-panel.read_only_sees_your_question_and',
                         'Read-only. Sees your question and field names, never values.',

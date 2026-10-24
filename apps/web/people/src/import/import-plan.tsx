@@ -4,16 +4,18 @@ import {
   Badge,
   Button,
   Card,
+  type DataColumn,
   DataTable,
+  dateFormat,
   IconList,
   IconListItem,
-  Stat,
+  icons,
   KeyValues,
   List,
   ListItem,
+  locale,
   PageSection,
-  icons,
-  type DataColumn,
+  Stat,
 } from '@reach/ui';
 import { useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -163,13 +165,6 @@ export interface ImportDoneView {
     readonly leftOut: number;
   };
 }
-
-const plural = (n: number, one: string, many: string): string =>
-  t('import.import-plan.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
-    value: n === 1 ? one : many,
-  });
-
 const STEP_LOOK: Record<
   PlanStepKind,
   { readonly icon: ReactNode; readonly tone: 'accent' | 'success' | 'info' | 'warning' | 'neutral' }
@@ -234,11 +229,19 @@ const whoOf = (r: { readonly row: number; readonly name?: string | null }): stri
   r.name ?? t('import.import-plan.row', 'Row {{row}}', { row: String(r.row) });
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
-  { id: 'name', header: 'Name', cell: whoOf },
-  { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
-  { id: 'cell', header: 'Cell', cell: (r) => <span className="font-mono text-xs">{r.cell}</span> },
-  { id: 'label', header: 'Field', cell: (r) => r.label },
-  { id: 'reason', header: 'Why it’s left empty', cell: (r) => r.reason },
+  { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+  { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
+  {
+    id: 'cell',
+    header: t('import.import-plan.cell', 'Cell'),
+    cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
+  },
+  { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+  {
+    id: 'reason',
+    header: t('import.import-plan.why_its_left_empty', 'Why it’s left empty'),
+    cell: (r) => r.reason,
+  },
 ];
 
 /** References left empty for HR, each where it is and why. */
@@ -381,25 +384,33 @@ export function PlanStep({
   const notYet = notYetOf(plan);
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
-    { id: 'name', header: 'Name', cell: whoOf },
-    { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+    { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+    { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
-      header: 'Cell',
+      header: t('import.import-plan.cell', 'Cell'),
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'problem', header: 'Why it’s skipped', cell: (r) => r.problem },
+    {
+      id: 'problem',
+      header: t('import.import-plan.why_its_skipped', 'Why it’s skipped'),
+      cell: (r) => r.problem,
+    },
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
-    { id: 'name', header: 'Name', cell: whoOf },
-    { id: 'row', header: 'Row', numeric: true, cell: (r) => r.row },
+    { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
+    { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
-      header: 'Cell',
+      header: t('import.import-plan.cell', 'Cell'),
       cell: (r) => <span className="font-mono text-xs">{r.cell}</span>,
     },
-    { id: 'label', header: 'Field', cell: (r) => r.label },
-    { id: 'message', header: 'What the checks found', cell: (r) => r.message },
+    { id: 'label', header: t('import.import-plan.field', 'Field'), cell: (r) => r.label },
+    {
+      id: 'message',
+      header: t('import.import-plan.what_the_checks_found', 'What the checks found'),
+      cell: (r) => r.message,
+    },
   ];
 
   return (
@@ -470,7 +481,13 @@ export function PlanStep({
               title={t(
                 'import.import-plan.our_checks_suggest_may_be_wrong',
                 'Our checks suggest {{length}} may be wrong',
-                { length: plural(findings.length, 'identifier', 'identifiers') },
+                {
+                  length: t(
+                    'import.import-plan.count_identifiers',
+                    { one: '{{count}} identifier', other: '{{count}} identifiers' },
+                    { count: findings.length },
+                  ),
+                },
               )}
             >
               {t(
@@ -495,7 +512,7 @@ export function PlanStep({
                 { label: t('import.import-plan.file', 'File'), value: plan.review.file.name },
                 {
                   label: t('import.import-plan.rows', 'Rows'),
-                  value: plan.review.file.rows.toLocaleString('en-GB'),
+                  value: plan.review.file.rows.toLocaleString(locale()),
                 },
                 {
                   label: t('import.import-plan.new_fields', 'New fields'),
@@ -503,7 +520,7 @@ export function PlanStep({
                 },
                 {
                   label: t('import.import-plan.people_asked', 'People asked'),
-                  value: plan.asked.toLocaleString('en-GB'),
+                  value: plan.asked.toLocaleString(locale()),
                 },
               ]}
             />
@@ -557,25 +574,37 @@ export function PlanStep({
 /* ----------------------------------------------------------- AI12 -- */
 
 const clockOf = (iso: string): string =>
-  new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  dateFormat({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
 /** "12 columns → existing fields, 90 new fields, 0 left out": every column accounted for. */
 export function columnsLine(c: NonNullable<ImportDoneView['columns']>): string {
   const ids =
     c.kithena === 0
       ? ''
-      : ` · ${plural(c.kithena, t('import.import-plan.id_column', 'id column'), t('import.import-plan.id_columns', 'id columns'))}: Kithena creates this`;
+      : ' · ' +
+        t(
+          'import.import-plan.id_columns_kithena_creates',
+          {
+            one: '{{count}} id column: Kithena creates this',
+            other: '{{count}} id columns: Kithena creates this',
+          },
+          { count: c.kithena },
+        );
   return t(
     'import.import-plan.existing_fields_left_out',
     '{{existing}} → existing fields, {{created}}, {{toLocaleString}} left out{{ids}}',
     {
-      existing: plural(c.existing, 'column', 'columns'),
-      created: plural(
-        c.created,
-        t('import.import-plan.new_field', 'new field'),
-        t('import.import-plan.new_fields_lower', 'new fields'),
+      existing: t(
+        'import.import-plan.count_columns',
+        { one: '{{count}} column', other: '{{count}} columns' },
+        { count: c.existing },
       ),
-      toLocaleString: c.leftOut.toLocaleString('en-GB'),
+      created: t(
+        'import.import-plan.count_new_fields',
+        { one: '{{count}} new field', other: '{{count}} new fields' },
+        { count: c.created },
+      ),
+      toLocaleString: c.leftOut.toLocaleString(locale()),
       ids,
     },
   );
@@ -603,11 +632,20 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
           </span>
           <div className="flex min-w-0 flex-col gap-1">
             <h2 className="font-display text-xl font-bold">
-              {t('import.import-plan.imported', 'Imported')} {plural(imported, 'person', 'people')}
+              {t('import.import-plan.imported', 'Imported')}{' '}
+              {t(
+                'import.import-plan.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: imported },
+              )}
               {fields.length > 0
                 ? ' ' +
                   t('import.import-plan.and_created', 'and created {{length}}', {
-                    length: plural(fields.length, 'field', 'fields'),
+                    length: t(
+                      'import.import-plan.count_fields',
+                      { one: '{{count}} field', other: '{{count}} fields' },
+                      { count: fields.length },
+                    ),
                   })
                 : ''}
             </h2>
@@ -635,17 +673,17 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
               [t('import.import-plan.for_hr', 'For HR'), done.forHr ?? 0],
             ] as const
           ).map(([label, n]) => (
-            <Stat key={label} inset label={label} value={n.toLocaleString('en-GB')} />
+            <Stat key={label} inset label={label} value={n.toLocaleString(locale())} />
           ))}
         </div>
         {done.blocked > 0 ? (
           <Alert
             tone="info"
             title={t('import.import-plan.skipped', '{{blocked}} skipped', {
-              blocked: plural(
-                done.blocked,
-                t('import.import-plan.row_was', 'row was'),
-                t('import.import-plan.rows_were', 'rows were'),
+              blocked: t(
+                'import.import-plan.count_rows_were',
+                { one: '{{count}} row was', other: '{{count}} rows were' },
+                { count: done.blocked },
               ),
             })}
             action={
@@ -666,16 +704,13 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         {(done.forReview ?? 0) > 0 ? (
           <Alert tone="info">
-            {plural(
-              done.forReview ?? 0,
-              t(
-                'import.import-plan.national_identifier_our_checks_doubt_went',
-                'national identifier our checks doubt went',
-              ),
-              t(
-                'import.import-plan.national_identifiers_our_checks_doubt_went',
-                'national identifiers our checks doubt went',
-              ),
+            {t(
+              'import.import-plan.count_national_identifiers_our_checks_doubt_went',
+              {
+                one: '{{count}} national identifier our checks doubt went',
+                other: '{{count}} national identifiers our checks doubt went',
+              },
+              { count: done.forReview ?? 0 },
             )}{' '}
             {t('import.import-plan.to_hrs_review', 'to HR’s review.')}
           </Alert>
@@ -685,10 +720,10 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         ) : null}
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">
-            {plural(
-              done.held ?? 0,
-              t('import.import-plan.sensitive_value_waits', 'sensitive value waits'),
-              t('import.import-plan.sensitive_values_wait', 'sensitive values wait'),
+            {t(
+              'import.import-plan.count_sensitive_values_wait',
+              { one: '{{count}} sensitive value waits', other: '{{count}} sensitive values wait' },
+              { count: done.held ?? 0 },
             )}{' '}
             {t('import.import-plan.for_hrs_approval_and', 'for HR’s approval and')}{' '}
             {done.held === 1 ? 'is' : 'are'}{' '}
@@ -717,7 +752,7 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
                   ? t(
                       'import.import-plan.open_the_in_directory',
                       'Open the {{toLocaleString}} in Directory',
-                      { toLocaleString: done.created.toLocaleString('en-GB') },
+                      { toLocaleString: done.created.toLocaleString(locale()) },
                     )
                   : t('import.import-plan.open_the_directory', 'Open the Directory')}
               </a>

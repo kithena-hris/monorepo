@@ -4,6 +4,8 @@ import { headers } from 'next/headers';
 
 import { currentTenant } from '../../../lib/branding';
 import { timeOff } from '../../../lib/people';
+import { serverWords } from '../../../lib/server-words';
+import { type T } from '@reach/ui';
 
 /**
  * What the Time Off screens' buttons do: server actions, each one operation
@@ -260,12 +262,20 @@ export async function approveRequests(requestIds: readonly string[]): Promise<Ou
     input: { requestIds },
   });
   if (!a.ok) return outcome(a);
+  const t = await serverWords();
   const refused = a.data.refused.length;
   return refused === 0
     ? { ok: true }
     : {
         ok: false,
-        message: `${String(refused)} ${refused === 1 ? 'needs' : 'need'} a closer look and ${refused === 1 ? 'was' : 'were'} not approved.`,
+        message: t(
+          'app.app.time-off.actions.need_a_closer_look',
+          {
+            one: '{{count}} needs a closer look and was not approved.',
+            other: '{{count}} need a closer look and were not approved.',
+          },
+          { count: refused },
+        ),
       };
 }
 
@@ -333,8 +343,15 @@ interface Span {
   readonly endsHalfDay: boolean;
 }
 
-const done = (a: { readonly ok: boolean; readonly message?: string }): Outcome =>
-  a.ok ? { ok: true } : { ok: false, message: a.message ?? 'Time Off did not answer' };
+const done = (a: { readonly ok: boolean; readonly message?: string }, t: T): Outcome =>
+  a.ok
+    ? { ok: true }
+    : {
+        ok: false,
+        message:
+          a.message ??
+          t('app.app.time-off.actions.time_off_did_not_answer', 'Time Off did not answer'),
+      };
 
 /**
  * T3, T5: send a request. Within a negative balance's limit sending is
@@ -355,22 +372,26 @@ export async function sendRequest(input: {
 
 /** T7: move approved dates; the old ones stay booked until the new ones are approved. */
 export async function changeRequest(requestId: string, span: Span): Promise<Outcome> {
-  return done(await timeOff('ChangeTimeOffRequest', { requestId, input: { span } }));
+  const t = await serverWords();
+  return done(await timeOff('ChangeTimeOffRequest', { requestId, input: { span } }), t);
 }
 
 /** T7: give the tail back from a new last day; approved at once. */
 export async function shortenRequest(requestId: string, to: string): Promise<Outcome> {
-  return done(await timeOff('ShortenTimeOffRequest', { requestId, input: { to } }));
+  const t = await serverWords();
+  return done(await timeOff('ShortenTimeOffRequest', { requestId, input: { to } }), t);
 }
 
 /** T7: cancel an approved request, or withdraw one nobody has decided. */
 export async function cancelRequest(requestId: string): Promise<Outcome> {
-  return done(await timeOff('CancelTimeOffRequest', { requestId }));
+  const t = await serverWords();
+  return done(await timeOff('CancelTimeOffRequest', { requestId }), t);
 }
 
 /** T6: take suggestion `accept` (approved at once), or keep your own dates with null. */
 export async function answerSuggestion(requestId: string, accept: number | null): Promise<Outcome> {
-  return done(await timeOff('AnswerSuggestedTimeOffDates', { requestId, input: { accept } }));
+  const t = await serverWords();
+  return done(await timeOff('AnswerSuggestedTimeOffDates', { requestId, input: { accept } }), t);
 }
 
 /**

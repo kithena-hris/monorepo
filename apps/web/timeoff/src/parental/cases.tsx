@@ -35,7 +35,7 @@ export function ParentalCases({ load }: ParentalCasesProps): JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       {load.status === 'error' ? <PageHeader title={TITLE} /> : null}
-      <Loaded load={load} what="the parental cases">
+      <Loaded load={load} what={t('parental.cases.the_parental_cases', 'the parental cases')}>
         {(data) => <Ready data={data} />}
       </Loaded>
     </div>

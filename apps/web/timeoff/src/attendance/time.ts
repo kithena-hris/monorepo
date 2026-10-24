@@ -1,3 +1,4 @@
+import { dateFormat as intlDate } from '@reach/ui';
 import { t as tr } from '../i18n';
 /**
  * The clock's words and arithmetic, shared by the top bar's clock, the
@@ -62,6 +63,7 @@ export function stopwatch(seconds: number): string {
 }
 
 function parts(at: string | number, zone: string): Record<string, string> {
+  // Numbers to compute with, not words to show: always the same digits and clock.
   return Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: zone,
@@ -106,8 +108,8 @@ export function instantAt(date: string, time: string, zone: string): string {
 }
 
 /** Calendar dates are dates: read and written in UTC, so no zone moves them a day. */
-const dateFormat = (options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat =>
-  new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' });
+const dateFormat = (options: Intl.DateTimeFormatOptions) =>
+  intlDate({ ...options, timeZone: 'UTC' });
 const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 
 /** "Wed 30 Sep". */

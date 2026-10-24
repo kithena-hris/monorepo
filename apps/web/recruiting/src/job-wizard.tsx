@@ -692,10 +692,11 @@ function DescriptionStep({ data, props, commit }: TermsProps): JSX.Element {
               <icons.loading aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin" />
             )}
             <span>
-              {tr('job-wizard.text_2', '{{value}}: “{{text}}”', {
-                value: asked.done ? 'Done' : 'Working on it',
-                text: asked.text,
-              })}
+              {asked.done
+                ? tr('job-wizard.done_text', 'Done: “{{text}}”', { text: asked.text })
+                : tr('job-wizard.working_on_it_text', 'Working on it: “{{text}}”', {
+                    text: asked.text,
+                  })}
             </span>
           </p>
         )}
@@ -877,13 +878,16 @@ function NeutralTitle({ data, props }: TermsProps): JSX.Element | null {
 
 const ROLE: Page = {
   key: 'role',
-  title: 'What is the job?',
+  title: tr('job-wizard.what_is_the_job', 'What is the job?'),
   hint: () =>
-    'Its title as candidates will read it, the team it sits in and how senior it is. The level shapes the description and the pay estimate.',
+    tr(
+      'job-wizard.its_title_as_candidates_will_read',
+      'Its title as candidates will read it, the team it sits in and how senior it is. The level shapes the description and the pay estimate.',
+    ),
   blocks: [
     {
       key: 'title',
-      label: 'Title',
+      label: tr('job-wizard.title', 'Title'),
       ready: always,
       done: (d) =>
         d.job.title.trim() !== '' && (!onlyGerman(d.entities) || neutralTitle(d.job.title)),
@@ -891,7 +895,7 @@ const ROLE: Page = {
     },
     {
       key: 'level',
-      label: 'Team and level',
+      label: tr('job-wizard.team_and_level', 'Team and level'),
       // Each part of the first page unfolds once the one before it is filled.
       ready: (d) => d.job.title.trim() !== '',
       done: (d) => d.job.department !== null && d.job.outline.seniority !== null,
@@ -899,8 +903,12 @@ const ROLE: Page = {
     },
     {
       key: 'openings',
-      label: 'Openings and start',
-      hint: () => 'The start date is a target for the team, not a promise in the ad.',
+      label: tr('job-wizard.openings_and_start', 'Openings and start'),
+      hint: () =>
+        tr(
+          'job-wizard.the_start_date_is_a_target_for',
+          'The start date is a target for the team, not a promise in the ad.',
+        ),
       ready: (d) => d.job.department !== null && d.job.outline.seniority !== null,
       done: (d) => d.job.openings >= 1 && d.job.targetHireDate !== null,
       render: (p) => <OpeningsStep {...p} />,
@@ -912,13 +920,16 @@ export const WIZARD_PAGES: readonly Page[] = [
   ROLE,
   {
     key: 'where',
-    title: 'Where is the work?',
+    title: tr('job-wizard.where_is_the_work', 'Where is the work?'),
     hint: () =>
-      'The employing entity’s country sets the law for everything after this: the contracts on offer, the hours, the leave and the pay floor.',
+      tr(
+        'job-wizard.the_employing_entitys_country_sets_the_law',
+        'The employing entity’s country sets the law for everything after this: the contracts on offer, the hours, the leave and the pay floor.',
+      ),
     blocks: [
       {
         key: 'entity',
-        label: 'Employer',
+        label: tr('job-wizard.employer', 'Employer'),
         ready: always,
         done: (d) => d.terms.entityId !== null && (!germanJob(d) || neutralTitle(d.job.title)),
         render: (p) => (
@@ -930,14 +941,14 @@ export const WIZARD_PAGES: readonly Page[] = [
       },
       {
         key: 'place',
-        label: 'Workplace',
+        label: tr('job-wizard.workplace', 'Workplace'),
         ready: (d) => d.terms.entityId !== null,
         done: (d) => d.terms.locationId !== null,
         render: (p) => <PlaceChoice {...p} />,
       },
       {
         key: 'mode',
-        label: 'How the work is done',
+        label: tr('job-wizard.how_the_work_is_done', 'How the work is done'),
         ready: (d) => d.terms.locationId !== null,
         done: (d) =>
           d.terms.workMode !== null &&
@@ -948,20 +959,24 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'contract',
-    title: 'What kind of contract?',
+    title: tr('job-wizard.what_kind_of_contract', 'What kind of contract?'),
     hint: (d) =>
-      `As the law in ${countryName(d.options.country)} sees it: first the kind of work, then only the contracts allowed for it. One that does not fit says why.`,
+      tr(
+        'job-wizard.as_the_law_in_sees_it',
+        'As the law in {{country}} sees it: first the kind of work, then only the contracts allowed for it. One that does not fit says why.',
+        { country: countryName(d.options.country) },
+      ),
     blocks: [
       {
         key: 'worktype',
-        label: 'Kind of work',
+        label: tr('job-wizard.kind_of_work', 'Kind of work'),
         ready: (d) => d.options.relationships.length > 0,
         done: (d) => d.terms.relationship !== null,
         render: (p) => <WorkTypeChoice {...p} />,
       },
       {
         key: 'contract',
-        label: 'Contract',
+        label: tr('job-wizard.contract', 'Contract'),
         ready: (d) => d.terms.relationship !== null,
         done: (d) =>
           d.terms.contractType !== null &&
@@ -972,27 +987,30 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'time',
-    title: 'When do they work?',
+    title: tr('job-wizard.when_do_they_work', 'When do they work?'),
     hint: () =>
-      'The days and the working day, in the workplace’s own time, then the paid holiday. The week is checked against the legal limit, and the leave never falls below the minimum.',
+      tr(
+        'job-wizard.the_days_and_the_working_day',
+        'The days and the working day, in the workplace’s own time, then the paid holiday. The week is checked against the legal limit, and the leave never falls below the minimum.',
+      ),
     blocks: [
       {
         key: 'days',
-        label: 'Work days',
+        label: tr('job-wizard.work_days', 'Work days'),
         ready: (d) => d.terms.contractType !== null,
         done: (d) => d.terms.workDays.length > 0,
         render: (p) => <DaysChoice {...p} />,
       },
       {
         key: 'hours',
-        label: 'The working day',
+        label: tr('job-wizard.the_working_day', 'The working day'),
         ready: (d) => d.terms.workDays.length > 0,
         done: (d) => d.terms.dayStart !== null && d.terms.dayEnd !== null,
         render: (p) => <HoursChoice {...p} />,
       },
       {
         key: 'leave',
-        label: 'Paid holiday',
+        label: tr('job-wizard.paid_holiday', 'Paid holiday'),
         ready: (d) => d.options.leave !== null,
         done: (d) => d.terms.vacationDays !== null,
         render: (p) => <LeaveChoice {...p} />,
@@ -1001,20 +1019,23 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'pay',
-    title: 'What does it pay and offer?',
+    title: tr('job-wizard.what_does_it_pay_and_offer', 'What does it pay and offer?'),
     hint: () =>
-      'The pay arrives filled in with what the market pays for this role there, as AI estimates it. Then choose the benefits, as many as suit.',
+      tr(
+        'job-wizard.the_pay_arrives_filled_in',
+        'The pay arrives filled in with what the market pays for this role there, as AI estimates it. Then choose the benefits, as many as suit.',
+      ),
     blocks: [
       {
         key: 'salary',
-        label: 'Pay',
+        label: tr('job-wizard.pay', 'Pay'),
         ready: (d) => d.terms.locationId !== null,
         done: (d) => d.job.salary !== null,
         render: (p) => <PayChoice {...p} />,
       },
       {
         key: 'benefits',
-        label: 'Benefits',
+        label: tr('job-wizard.benefits', 'Benefits'),
         ready: (d) => d.terms.entityId !== null,
         done: () => null,
         render: (p) => <BenefitsChoice {...p} />,
@@ -1023,20 +1044,23 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'hiring',
-    title: 'Who hires, and for what?',
+    title: tr('job-wizard.who_hires_and_for_what', 'Who hires, and for what?'),
     hint: () =>
-      'The people who decide, and what a candidate must bring. The match on each candidate is read against these criteria.',
+      tr(
+        'job-wizard.the_people_who_decide_and_what_a',
+        'The people who decide, and what a candidate must bring. The match on each candidate is read against these criteria.',
+      ),
     blocks: [
       {
         key: 'team',
-        label: 'Hiring team',
+        label: tr('job-wizard.hiring_team', 'Hiring team'),
         ready: always,
         done: (d) => d.team.some((t) => t.role === 'hiring_manager'),
         render: (p, part) => (p.commit === undefined ? null : part('team', p.commit)),
       },
       {
         key: 'criteria',
-        label: 'What they bring',
+        label: tr('job-wizard.what_they_bring', 'What they bring'),
         ready: always,
         done: (d) => d.criteria.length > 0,
         render: (p, part) => (p.commit === undefined ? null : part('criteria', p.commit)),
@@ -1045,13 +1069,16 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'process',
-    title: 'How do candidates move through?',
+    title: tr('job-wizard.how_do_candidates_move_through', 'How do candidates move through?'),
     hint: () =>
-      'Choose the pipeline, then give each step that meets the candidate its interview: who runs it, how long, where, and how the time is set. A candidate reaching that step is asked for it at once.',
+      tr(
+        'job-wizard.choose_the_pipeline_then_give_each_step',
+        'Choose the pipeline, then give each step that meets the candidate its interview: who runs it, how long, where, and how the time is set. A candidate reaching that step is asked for it at once.',
+      ),
     blocks: [
       {
         key: 'interviews',
-        label: 'Pipeline and interviews',
+        label: tr('job-wizard.pipeline_and_interviews', 'Pipeline and interviews'),
         ready: always,
         // Every interview step of the pipeline has its interview.
         done: (d) =>
@@ -1064,13 +1091,16 @@ export const WIZARD_PAGES: readonly Page[] = [
   },
   {
     key: 'description',
-    title: 'Describe the role',
+    title: tr('job-wizard.describe_the_role', 'Describe the role'),
     hint: () =>
-      'Written by AI from everything so far. Edit anything; pay, contract and benefits show beside it from the job.',
+      tr(
+        'job-wizard.written_by_ai_from_everything_so_far',
+        'Written by AI from everything so far. Edit anything; pay, contract and benefits show beside it from the job.',
+      ),
     blocks: [
       {
         key: 'ad',
-        label: 'Role description',
+        label: tr('job-wizard.role_description', 'Role description'),
         ready: always,
         done: (d) => d.ads.length > 0,
         render: (p) => <DescriptionStep {...p} />,
@@ -1214,7 +1244,10 @@ function WizardFrame({
         <ModalPageHeader
           align="center"
           label={label}
-          dismissLabel="Close. Everything so far is kept."
+          dismissLabel={tr(
+            'job-wizard.close_everything_so_far_is_kept',
+            'Close. Everything so far is kept.',
+          )}
           title={title}
           meta={
             <div className="flex w-36 items-center gap-2 max-sm:hidden">
@@ -1650,9 +1683,11 @@ export function JobWizard({
     <JobDraftContext value={jobDraft}>
       <WizardFrame
         open={open}
-        label={tr('job-wizard.set_up_2', 'Set up {{value}}', {
-          value: title.value.trim() === '' ? 'a job' : title.value,
-        })}
+        label={
+          title.value.trim() === ''
+            ? tr('job-wizard.set_up_a_job', 'Set up a job')
+            : tr('job-wizard.set_up_2', 'Set up {{value}}', { value: title.value })
+        }
         title={
           // On the page that asks for the title the bar shows it as it is typed: one place to type it.
           page.key === ROLE.key ? (

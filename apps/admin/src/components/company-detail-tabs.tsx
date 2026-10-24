@@ -1,5 +1,6 @@
 'use client';
 
+import { LANGUAGES } from '@kithena/contracts/language';
 import {
   Alert,
   Badge,
@@ -53,6 +54,8 @@ export interface CompanyDetailTabsProps {
   readonly people: readonly DetailPerson[];
   readonly brandingPublic: boolean;
   readonly googleSignIn: boolean;
+  /** The company’s language code. */
+  readonly language: string;
   readonly hasLogo: boolean;
   readonly hasCover: boolean;
   readonly theme: DetailTheme | null;
@@ -87,6 +90,7 @@ export function CompanyDetailTabs({
   people,
   brandingPublic,
   googleSignIn,
+  language,
   hasLogo,
   hasCover,
   theme,
@@ -258,6 +262,12 @@ export function CompanyDetailTabs({
                     <Badge tone={brandingPublic ? 'success' : 'neutral'} dot>
                       {brandingPublic ? 'Yes' : 'Hidden'}
                     </Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-fg-muted text-xs">Language</dt>
+                  <dd className="mt-1">
+                    {LANGUAGES.find((l) => l.code === language)?.name ?? language}
                   </dd>
                 </div>
                 <div>

@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Progress, icons } from '@reach/ui';
+import { Alert, Button, Card, dateFormat, icons, locale, Progress } from '@reach/ui';
 import { useEffect, useState, type JSX } from 'react';
 
 import type { ImportDoneView } from './import-plan';
@@ -41,17 +41,18 @@ export const runHref = (id: string): string => `/people/import?run=${encodeURICo
 
 /** "312 of 1,000 people"; before the file is read, how many so far. */
 export function peopleLine(people: ImportRunStatus['people']): string {
-  const done = people.done.toLocaleString('en-GB');
+  const done = people.done.toLocaleString(locale());
   if (people.total === null)
-    return t('import.import-run.so_far', '{{done}} {{value}} so far', {
-      done,
-      value: people.done === 1 ? 'person' : 'people',
-    });
-  return t('import.import-run.of', '{{done}} of {{toLocaleString}} {{value}}', {
-    done,
-    toLocaleString: people.total.toLocaleString('en-GB'),
-    value: people.total === 1 ? 'person' : 'people',
-  });
+    return t(
+      'import.import-run.so_far',
+      { one: '{{done}} person so far', other: '{{done}} people so far' },
+      { count: people.done, done },
+    );
+  return t(
+    'import.import-run.of',
+    { one: '{{done}} of {{count}} person', other: '{{done}} of {{count}} people' },
+    { count: people.total, done },
+  );
 }
 
 /** The reader's zone once in their browser; UTC for the server's render and the first. */
@@ -65,15 +66,17 @@ export function useZone(): string | undefined {
 
 /** "Started by you at 14:02", in the reader's own time. */
 export function startedLine(run: ImportRunStatus, zone: string | undefined): string {
-  const at = new Intl.DateTimeFormat('en-GB', {
+  const at = dateFormat({
     timeZone: zone,
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(run.startedAt ?? run.approvedAt));
-  return t('import.import-run.started_by_at', 'Started by {{value}} at {{at}}', {
-    value: run.startedBy.you ? 'you' : run.startedBy.name,
-    at,
-  });
+  return run.startedBy.you
+    ? t('import.import-run.started_by_you_at', 'Started by you at {{at}}', { at })
+    : t('import.import-run.started_by_at', 'Started by {{value}} at {{at}}', {
+        value: run.startedBy.name,
+        at,
+      });
 }
 
 /**

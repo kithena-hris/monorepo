@@ -283,7 +283,10 @@ export const numberOf = (prefix: string, digits: number, value: number): string 
 
 export function Organisation(props: OrganisationProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="the organisation settings">
+    <Loaded
+      load={props.load}
+      what={tr('settings.organisation.the_organisation_settings', 'the organisation settings')}
+    >
       {(state) => <Settings {...props} state={state} />}
     </Loaded>
   );
@@ -829,7 +832,8 @@ function OrgUnits({
     onOpenChange(null);
   };
   const parentPath = (u: OrgUnitRow): string =>
-    units.find((p) => p.id === u.parentId)?.path ?? 'Top level';
+    units.find((p) => p.id === u.parentId)?.path ??
+    tr('settings.organisation.top_level', 'Top level');
   let dialog: ReactNode = null;
   if (state.canManage && kind === 'unit' && (id === 'new' || unit !== undefined)) {
     dialog = (
@@ -2166,16 +2170,28 @@ function RetentionFloors({ floors }: { readonly floors: readonly RetentionFloor[
                 <TableCell>
                   {f.status === 'reviewed' ? (
                     <Badge tone="success">
-                      {tr('settings.organisation.reviewed_by', 'Reviewed by {{value}}{{value2}}', {
-                        value: f.reviewedBy ?? 'counsel',
-                        value2:
-                          f.reviewedOn === null
-                            ? ''
-                            : ' ' +
-                              tr('settings.organisation.on', 'on {{reviewedOn}}', {
+                      {f.reviewedBy === null
+                        ? f.reviewedOn === null
+                          ? tr('settings.organisation.reviewed_by_counsel', 'Reviewed by counsel')
+                          : tr(
+                              'settings.organisation.reviewed_by_counsel_on',
+                              'Reviewed by counsel on {{reviewedOn}}',
+                              {
                                 reviewedOn: f.reviewedOn,
-                              }),
-                      })}
+                              },
+                            )
+                        : f.reviewedOn === null
+                          ? tr('settings.organisation.reviewed_by', 'Reviewed by {{value}}', {
+                              value: f.reviewedBy,
+                            })
+                          : tr(
+                              'settings.organisation.reviewed_by_on',
+                              'Reviewed by {{value}} on {{reviewedOn}}',
+                              {
+                                value: f.reviewedBy,
+                                reviewedOn: f.reviewedOn,
+                              },
+                            )}
                     </Badge>
                   ) : (
                     <Badge tone="warning">

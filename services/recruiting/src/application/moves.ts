@@ -22,6 +22,7 @@ import {
   publish,
   recruiterOnly,
   type Ctx,
+  mailWords,
 } from './context.js';
 import type { ApplicationRecord, Candidate, MailParts, Message, Template } from './ports.js';
 import { generalSettings } from './setup.js';
@@ -454,10 +455,21 @@ export async function addToPool(
   await ctx.tx.settings.set(`pool_ask:${candidateId}:${poolId}`, { reason, askedAt: ctx.at });
   const settings = await generalSettings(ctx);
   const { portalLink } = await import('./intake.js');
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: candidate.email,
-    subject: `May ${settings.companyName} keep your details for future roles?`,
-    text: `Hello ${candidate.name},\n\n${settings.companyName} would like to keep your application on file and contact you about future roles. You can agree, or say no, on your page:\n${await portalLink(ctx, candidateId)}`,
+    subject: t('email.pool_ask.subject', 'May {{company}} keep your details for future roles?', {
+      company: settings.companyName,
+    }),
+    text: t(
+      'email.pool_ask.text',
+      'Hello {{name}},\n\n{{company}} would like to keep your application on file and contact you about future roles. You can agree, or say no, on your page:\n{{link}}',
+      {
+        name: candidate.name,
+        company: settings.companyName,
+        link: await portalLink(ctx, candidateId),
+      },
+    ),
     dedupeKey: `pool-ask:${candidateId}:${poolId}`,
   });
   return ok('asked');

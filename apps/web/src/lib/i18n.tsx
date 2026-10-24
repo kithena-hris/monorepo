@@ -1,6 +1,14 @@
 'use client';
 
-import { interpolate, setTranslate, type Translate, type TranslateVars } from '@reach/ui';
+import {
+  englishOf,
+  interpolate,
+  setLocale,
+  setTranslate,
+  type Plural,
+  type Translate,
+  type TranslateVars,
+} from '@reach/ui';
 import { createInstance, type i18n as I18n } from 'i18next';
 import { createContext, use, useEffect, useState, type JSX, type ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -60,7 +68,35 @@ function instanceOf(language: Language, messages: Messages): I18n {
 const filled = (vars: TranslateVars | undefined): Record<string, string | number> =>
   Object.fromEntries(Object.entries(vars ?? {}).map(([k, v]) => [k, v ?? '']));
 
-function lookup(i18n: I18n, ns: string, key: string, fallback: string, vars?: TranslateVars) {
+const rules = new Map<string, Intl.PluralRules>();
+
+/** Which of the language's forms a count takes: `one`, `few`, `many`, `other`. */
+function formOf(language: string, count: number): Intl.LDMLPluralRule {
+  let r = rules.get(language);
+  if (r === undefined) {
+    r = new Intl.PluralRules(language);
+    rules.set(language, r);
+  }
+  return r.select(count);
+}
+
+function lookup(
+  i18n: I18n,
+  ns: string,
+  key: string,
+  fallback: string | Plural,
+  vars?: TranslateVars,
+) {
+  if (typeof fallback !== 'string') {
+    // `key_few` in Polish, `key_one` in German: the form the number takes here,
+    // then the language's general one, then the English.
+    const form = formOf(i18n.language, Number(vars?.['count'] ?? 0));
+    for (const k of [`${key}_${form}`, `${key}_other`]) {
+      const text: unknown = i18n.getResource(i18n.language, ns, k);
+      if (typeof text === 'string' && text !== '') return interpolate(text, filled(vars));
+    }
+    return englishOf(fallback, vars);
+  }
   const text: unknown = i18n.getResource(i18n.language, ns, key);
   if (typeof text !== 'string' || text === '') return interpolate(fallback, vars);
   return i18n.t(key, { ns, defaultValue: fallback, replace: filled(vars) });
@@ -71,7 +107,9 @@ function lookup(i18n: I18n, ns: string, key: string, fallback: string, vars?: Tr
 let page: I18n | null = null;
 
 const browserSource: Translate = (ns, key, fallback, vars) =>
-  page === null ? interpolate(fallback, vars) : lookup(page, ns, key, fallback, vars);
+  page === null ? englishOf(fallback, vars) : lookup(page, ns, key, fallback, vars);
+
+const browserLocale = (): string => page?.language ?? DEFAULT_LANGUAGE;
 
 const stored = (language: Language, ns: string): string =>
   `kithena-i18n:${VERSION}:${language}:${ns}`;
@@ -122,7 +160,15 @@ const serverSource: Translate = (ns, key, fallback, vars) => {
     // Not inside a render: nobody's language to answer in.
   }
   const i18n = language === null ? undefined : servers.get(language);
-  return i18n === undefined ? interpolate(fallback, vars) : lookup(i18n, ns, key, fallback, vars);
+  return i18n === undefined ? englishOf(fallback, vars) : lookup(i18n, ns, key, fallback, vars);
+};
+
+const serverLocale = (): string => {
+  try {
+    return use(LanguageContext);
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
 };
 
 /* ------------------------------------------------------------- provider -- */
@@ -147,10 +193,12 @@ export function I18nProvider({
         for (const [ns, words] of Object.entries(messages))
           held.addResourceBundle(language, ns, words, true, true);
       setTranslate(serverSource);
+      setLocale(serverLocale);
       return held;
     }
     page = instanceOf(language, messages);
     setTranslate(browserSource);
+    setLocale(browserLocale);
     return page;
   });
   useEffect(() => {

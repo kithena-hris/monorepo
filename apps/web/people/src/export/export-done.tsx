@@ -2,14 +2,15 @@ import {
   Alert,
   Button,
   Card,
+  dateFormat,
   Field,
   FieldControl,
   FieldLabel,
+  icons,
   KeyValues,
   PageSection,
   Stack,
   Textarea,
-  icons,
 } from '@reach/ui';
 import { useEffect, useState, type JSX, type ReactNode } from 'react';
 
@@ -93,13 +94,13 @@ function useZone(): string | undefined {
 function at(iso: string, now: string, zone: string | undefined): string {
   const day = (i: string) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: zone, dateStyle: 'short' }).format(new Date(i));
-  const time = new Intl.DateTimeFormat('en-GB', {
+  const time = dateFormat({
     timeZone: zone,
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso));
   if (day(iso) === day(now)) return t('export.export-done.at', 'at {{time}}', { time });
-  const date = new Intl.DateTimeFormat('en-GB', {
+  const date = dateFormat({
     timeZone: zone,
     day: 'numeric',
     month: 'short',
@@ -177,10 +178,18 @@ export function ExportDone({
   const lines = [
     record.approvedBy === null || record.approvedBy.at === null
       ? null
-      : t('export.export-done.approved', '{{value}} approved {{at}}', {
-          value: record.approvedBy.name ?? 'A People administrator',
-          at: at(record.approvedBy.at, record.now, zone),
-        }),
+      : record.approvedBy.name === null
+        ? t(
+            'export.export-done.an_administrator_approved',
+            'A People administrator approved {{at}}',
+            {
+              at: at(record.approvedBy.at, record.now, zone),
+            },
+          )
+        : t('export.export-done.approved', '{{value}} approved {{at}}', {
+            value: record.approvedBy.name,
+            at: at(record.approvedBy.at, record.now, zone),
+          }),
     sentTo === null
       ? null
       : record.openedAt === null
@@ -190,12 +199,14 @@ export function ExportDone({
           }),
   ].filter((l): l is string => l !== null);
   const title = !record.mine
-    ? t('export.export-done.from', 'From {{value}}', {
-        value: record.requestedBy.name ?? 'a colleague',
-      })
+    ? record.requestedBy.name === null
+      ? t('export.export-done.from_a_colleague', 'From a colleague')
+      : t('export.export-done.from', 'From {{value}}', { value: record.requestedBy.name })
     : sentTo === null
       ? t('export.export-done.your_export_is_ready', 'Your export is ready')
-      : t('export.export-done.sent_to', 'Sent to {{value}}', { value: sentTo.name ?? 'them' });
+      : sentTo.name === null
+        ? t('export.export-done.sent_to_them', 'Sent to them')
+        : t('export.export-done.sent_to', 'Sent to {{value}}', { value: sentTo.name });
   const expired = record.status === 'expired';
 
   return (
@@ -382,14 +393,19 @@ export function ShareWaiting({
   const heading =
     share.state === 'pending'
       ? share.canDecide
-        ? t(
-            'export.export-done.wants_to_send_an_export_to',
-            '{{value}} wants to send an export to {{value2}}',
-            {
-              value: share.requestedBy.name ?? 'A colleague',
-              value2: share.recipient.name ?? them,
-            },
-          )
+        ? share.requestedBy.name === null
+          ? t(
+              'export.export-done.a_colleague_wants_to_send',
+              'A colleague wants to send an export to {{value2}}',
+              {
+                value2: share.recipient.name ?? them,
+              },
+            )
+          : t(
+              'export.export-done.wants_to_send_an_export_to',
+              '{{value}} wants to send an export to {{value2}}',
+              { value: share.requestedBy.name, value2: share.recipient.name ?? them },
+            )
         : share.approvers.length === 0
           ? t(
               'export.export-done.waiting_for_approval_to_send_it',
@@ -458,11 +474,14 @@ export function ShareWaiting({
             >
               {listed(
                 share.gap.fields.map((f) =>
-                  t('export.export-done.for', '{{label}} for {{people}} {{value}}', {
-                    label: f.label,
-                    people: String(f.people),
-                    value: f.people === 1 ? 'person' : 'people',
-                  }),
+                  t(
+                    'export.export-done.for',
+                    {
+                      one: '{{label}} for {{count}} person',
+                      other: '{{label}} for {{count}} people',
+                    },
+                    { count: f.people, label: f.label },
+                  ),
                 ),
               )}
               {share.gap.unlisted > 0

@@ -289,7 +289,7 @@ const isState = (data: unknown): data is WhatChangedState =>
 
 export function WhatChanged(props: WhatChangedProps): JSX.Element {
   return (
-    <Loaded load={props.load} what="what changed">
+    <Loaded load={props.load} what={t('analytics.what-changed.what_changed', 'what changed')}>
       {(data) =>
         isState(data) ? (
           <Summary state={data} {...props} />
@@ -396,17 +396,19 @@ function Summary({
               {t('analytics.what-changed.written', 'Written')} {state.writtenAt}
             </Badge>
           }
-          note={t(
-            'analytics.what-changed.every_number_links_to_the_records',
-            'Every number links to the records behind it. Groups under {{minimum}} people are never described. {{value}}',
-            {
-              minimum: String(state.minimum),
-              value:
-                shown === null
-                  ? 'Worded by Kithena’s own rules from the figures.'
-                  : 'Worded by the assistant; every figure is Kithena’s.',
-            },
-          )}
+          note={
+            shown === null
+              ? t(
+                  'analytics.what-changed.groups_never_described_rules',
+                  'Every number links to the records behind it. Groups under {{minimum}} people are never described. Worded by Kithena’s own rules from the figures.',
+                  { minimum: state.minimum },
+                )
+              : t(
+                  'analytics.what-changed.groups_never_described_assistant',
+                  'Every number links to the records behind it. Groups under {{minimum}} people are never described. Worded by the assistant; every figure is Kithena’s.',
+                  { minimum: state.minimum },
+                )
+          }
         >
           <PeriodControl state={state} onPeriodChange={onPeriodChange} />
           {points.length === 0 ? (
@@ -795,7 +797,10 @@ function FollowUp({
                     'Answered from this summary’s points only.',
                   )
                 : result.byModel
-                  ? 'Answered by the assistant from these points; every figure is Kithena’s.'
+                  ? t(
+                      'analytics.what-changed.answered_by_the_assistant_from_these_points',
+                      'Answered by the assistant from these points; every figure is Kithena’s.',
+                    )
                   : t(
                       'analytics.what-changed.answered_by_kithenas_own_rules_from',
                       'Answered by Kithena’s own rules from these points.',

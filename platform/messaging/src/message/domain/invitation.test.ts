@@ -87,7 +87,7 @@ describe('formatDeadline', () => {
 
 describe('renderInvitation', () => {
   it('names the company in the subject', () => {
-    expect(rendered().subject).toBe("You're invited to join Acme Corp on Kithena");
+    expect(rendered().subject).toBe('You’re invited to join Acme Corp on Kithena');
   });
 
   it('always produces a plain-text alternative', () => {

@@ -1,0 +1,4 @@
+{
+  "email.interviews.cancelled_with": "Canceled: {{title}} with {{companyName}}",
+  "email.interviews.hello_this_interview_is_cancelled": "Hello {{name}},\n\nThis interview is canceled.\n\n{{invitation}}"
+}

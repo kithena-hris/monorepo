@@ -16,6 +16,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  locale,
   MaskedValue,
   PINNED_BAR,
   Stack,
@@ -125,7 +126,7 @@ export function verdictOf(item: ReviewItem): {
 }
 
 const day = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', {
+  new Date(iso).toLocaleDateString(locale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -364,7 +365,10 @@ function Decide({
               </FieldControl>
               <FieldDescription>
                 {accept
-                  ? 'Optional; kept with the decision.'
+                  ? t(
+                      'review.identifier-reviews.optional_kept_with_the_decision',
+                      'Optional; kept with the decision.',
+                    )
                   : t(
                       'review.identifier-reviews.sees_it_on_their_record_so',
                       '{{name}} sees it on their record, so they know what to correct.',

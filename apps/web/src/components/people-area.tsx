@@ -22,6 +22,7 @@ import { remoteNav, remoteRoute } from '../lib/remote-manifest';
 import { shellData, warmShell } from '../lib/shell';
 import { currentPerson } from '../lib/session';
 import { withQuery } from '../lib/url-state';
+import { serverWords } from '../lib/server-words';
 
 /**
  * A People screen inside the shell: under `/people`, or among People's
@@ -48,6 +49,7 @@ export async function PeopleArea({
   readonly search: Readonly<Record<string, string>>;
   readonly area: 'people' | 'settings';
 }): Promise<JSX.Element> {
+  const t = await serverWords();
   // All at once: which screen the path is does not depend on who asks, the
   // token is minted (or found) while identity checks the session, and the
   // reads the page is drawn from go with that check rather than after it —
@@ -126,17 +128,27 @@ export async function PeopleArea({
           {
             ...header,
             trail: [
-              { href: '/people', label: 'People' },
+              { href: '/people', label: t('components.people-area.people', 'People') },
               { href: '/people/import-export', label: header.section },
             ],
-            section: 'Import',
+            section: t('components.people-area.import', 'Import'),
             // As drawn (imH), the last crumb switches between Import & export's two ways.
             siblings: [
               {
                 label: header.section,
                 items: [
-                  { href: '/people/import', label: 'Import', current: true, icon: 'upload' },
-                  { href: '/people/export', label: 'Export', current: false, icon: 'download' },
+                  {
+                    href: '/people/import',
+                    label: t('components.people-area.import', 'Import'),
+                    current: true,
+                    icon: 'upload',
+                  },
+                  {
+                    href: '/people/export',
+                    label: t('components.people-area.export', 'Export'),
+                    current: false,
+                    icon: 'download',
+                  },
                 ],
               },
             ],
@@ -160,14 +172,14 @@ export async function PeopleArea({
           // from a settings page.
           section:
             here === '/settings/people'
-              ? 'People'
+              ? t('components.people-area.people', 'People')
               : (currentPlace(places.settings, here)?.label ?? null),
           trail:
             here === '/settings/people'
-              ? [{ href: '/settings', label: 'Settings' }]
+              ? [{ href: '/settings', label: t('components.people-area.settings', 'Settings') }]
               : [
-                  { href: '/settings', label: 'Settings' },
-                  { href: '/settings', label: 'People' },
+                  { href: '/settings', label: t('components.people-area.settings', 'Settings') },
+                  { href: '/settings', label: t('components.people-area.people', 'People') },
                 ],
           actions: [],
           // The breadcrumb's last crumb lists the other settings.
@@ -175,10 +187,13 @@ export async function PeopleArea({
             here === '/settings/people'
               ? []
               : siblingsOf(
-                  places.settings.map((p) => ({ ...p, group: 'People settings' })),
+                  places.settings.map((p) => ({
+                    ...p,
+                    group: t('components.people-area.people_settings', 'People settings'),
+                  })),
                   currentPlace(places.settings, here),
                 ),
-          siblingsLabel: 'People settings',
+          siblingsLabel: t('components.people-area.people_settings', 'People settings'),
         };
 
   // People is asleep or still waking: the page's header, and in place of its
@@ -186,9 +201,18 @@ export async function PeopleArea({
   const waking = load.status === 'error' && load.unreachable === true;
   return (
     <Waking
-      area="People"
+      area={t('components.people-area.people', 'People')}
       waking={waking}
-      header={<WakingHeader frame={frame} title={area === 'people' ? 'People' : 'Settings'} />}
+      header={
+        <WakingHeader
+          frame={frame}
+          title={
+            area === 'people'
+              ? t('components.people-area.people', 'People')
+              : t('components.people-area.settings', 'Settings')
+          }
+        />
+      }
     >
       {waking ? null : (
         // The screen, whose own header carries the breadcrumb (on a phone, the
@@ -231,6 +255,7 @@ export async function PeopleArea({
  * People offers no Home or cannot say which: the shell's own Home stands.
  */
 export async function PeopleHome(inbox?: Promise<InboxPeek>): Promise<JSX.Element | null> {
+  const t = await serverWords();
   const area = AREAS.people;
   const nav = await remoteNav(area);
   const component = nav?.slots.home;
@@ -245,7 +270,7 @@ export async function PeopleHome(inbox?: Promise<InboxPeek>): Promise<JSX.Elemen
   // People is asleep or still waking: Home asks again by itself.
   const waking = load.status === 'error' && load.unreachable === true;
   return (
-    <Waking area="People" waking={waking}>
+    <Waking area={t('components.people-area.people', 'People')} waking={waking}>
       {waking ? null : (
         <PeopleScreen
           route={{

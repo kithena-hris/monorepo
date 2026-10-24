@@ -78,7 +78,10 @@ export function TeamNow({ load }: TeamNowProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('attendance.team-now.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="your team right now">
+      <Loaded
+        load={load}
+        what={t('attendance.team-now.your_team_right_now', 'your team right now')}
+      >
         {(data) => <Ready data={data} />}
       </Loaded>
     </div>
@@ -155,10 +158,11 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
     <>
       <PageHeader
         title={t('attendance.team-now.attendance', 'Attendance')}
-        description={t('attendance.team-now.to_you', '{{length}} {{value}} to you', {
-          length: String(data.people.length),
-          value: data.people.length === 1 ? 'person reports' : 'people report',
-        })}
+        description={t(
+          'attendance.team-now.to_you',
+          { one: '{{count}} person reports to you', other: '{{count}} people report to you' },
+          { count: data.people.length },
+        )}
       />
       <div className={body}>
         <div className="flex min-w-0 flex-col gap-5">
@@ -269,14 +273,23 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                               ? '/time-off/attendance/requests'
                               : `/time-off/attendance/timesheets?person=${n.personId}&week=${n.date}`
                           }
-                          aria-label={t(
-                            'attendance.team-now.review_s',
-                            'Review {{displayName}}’s {{value}}',
-                            {
-                              displayName: n.displayName,
-                              value: n.kind === 'correction' ? 'correction' : 'overtime',
-                            },
-                          )}
+                          aria-label={
+                            n.kind === 'correction'
+                              ? t(
+                                  'attendance.team-now.review_correction',
+                                  'Review {{displayName}}’s correction',
+                                  {
+                                    displayName: n.displayName,
+                                  },
+                                )
+                              : t(
+                                  'attendance.team-now.review_overtime',
+                                  'Review {{displayName}}’s overtime',
+                                  {
+                                    displayName: n.displayName,
+                                  },
+                                )
+                          }
                         >
                           {t('attendance.team-now.review', 'Review')}
                         </a>
@@ -284,15 +297,23 @@ function Ready({ data }: { readonly data: TeamNowData }): JSX.Element {
                     }
                   >
                     {n.kind === 'correction'
-                      ? t(
-                          'attendance.team-now.text',
-                          '{{displayName}} · {{weekdayName}} {{value}}',
-                          {
-                            displayName: n.displayName,
-                            weekdayName: weekdayName(n.date),
-                            value: n.punch?.kind === 'in' ? 'clock-in' : 'clock-out',
-                          },
-                        )
+                      ? n.punch?.kind === 'in'
+                        ? t(
+                            'attendance.requests.name_weekday_clock_in',
+                            '{{displayName}} · {{weekdayName}} clock-in',
+                            {
+                              displayName: n.displayName,
+                              weekdayName: weekdayName(n.date),
+                            },
+                          )
+                        : t(
+                            'attendance.requests.name_weekday_clock_out',
+                            '{{displayName}} · {{weekdayName}} clock-out',
+                            {
+                              displayName: n.displayName,
+                              weekdayName: weekdayName(n.date),
+                            },
+                          )
                       : t(
                           'attendance.team-now.overtime',
                           '{{displayName}} · {{duration}} overtime',

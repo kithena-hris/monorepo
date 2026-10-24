@@ -581,11 +581,19 @@ function Composer({
         <CardHeader>
           <CardTitle level={2}>{STEP_LABEL[step] ?? words(step)}</CardTitle>
           <CardDescription>
-            {tr('offers.pack', '{{country}} pack {{version}}{{value}}', {
-              country: c.country,
-              version: c.version,
-              value: c.reviewed ? '' : ' · awaiting a country reviewer',
-            })}
+            {c.reviewed
+              ? tr('offers.pack', '{{country}} pack {{version}}', {
+                  country: c.country,
+                  version: c.version,
+                })
+              : tr(
+                  'offers.pack_awaiting_reviewer',
+                  '{{country}} pack {{version}} · awaiting a country reviewer',
+                  {
+                    country: c.country,
+                    version: c.version,
+                  },
+                )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -1278,7 +1286,7 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
   if (props.params?.['id'] === 'new') return <NewOffer {...props} />;
   const tab: Tab = TABS.find((t) => t === props.search?.['tab']) ?? 'terms';
   return (
-    <Loaded load={props.load} what="the offer">
+    <Loaded load={props.load} what={tr('offers.the_offer', 'the offer')}>
       {(data) => {
         const v = data.offer.versions.at(-1);
         const s = data.offer.state;
@@ -1295,7 +1303,21 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                   })}
                 />
               }
-              description={`${data.job.title}${data.offer.versions.length > 1 ? ` · ${String(data.offer.versions.length - 1)} earlier version${data.offer.versions.length > 2 ? 's' : ''} kept` : ''}`}
+              description={
+                data.offer.versions.length > 1
+                  ? tr(
+                      'offers.title_earlier_versions_kept',
+                      {
+                        one: '{{title}} · {{count}} earlier version kept',
+                        other: '{{title}} · {{count}} earlier versions kept',
+                      },
+                      {
+                        title: data.job.title,
+                        count: data.offer.versions.length - 1,
+                      },
+                    )
+                  : data.job.title
+              }
               actions={
                 <>
                   {s === 'draft' ? (
@@ -1390,7 +1412,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
   const act = useAct(props);
   const [comment, setComment] = useState('');
   return (
-    <Loaded load={props.load} what="the offer">
+    <Loaded load={props.load} what={tr('offers.the_offer', 'the offer')}>
       {(data) => {
         const v = data.offer.versions.at(-1);
         const t = data.checked?.terms;
@@ -1505,7 +1527,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
   const [fileId, setFileId] = useState('');
   const [signedOn, setSignedOn] = useState('');
   return (
-    <Loaded load={props.load} what="the contract">
+    <Loaded load={props.load} what={tr('offers.the_contract', 'the contract')}>
       {(data) => {
         const k = data.contract;
         const p = data.prehire;

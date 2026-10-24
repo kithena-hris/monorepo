@@ -13,12 +13,14 @@ import {
   formatIsoDate,
   parseIsoDate,
   parseTypedDate,
+  typedDateExample,
   type CalendarProps,
   type DateRange,
   type IsoDate,
 } from '../calendar/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../popover/popover';
 import { t } from '../../lib/i18n';
+import { locale as pageLocale } from '../../lib/intl';
 
 /**
  * A calendar behind a trigger, for a form field.
@@ -137,7 +139,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     size = 'md',
     className,
     defaultOpen = false,
-    locale = 'en-GB',
+    locale = pageLocale(),
     id,
     'aria-describedby': describedBy,
     'aria-invalid': invalid,
@@ -176,7 +178,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
     if (iso === null) {
       setProblem(
         t('components.date-picker.date-picker.type_a_date_like', 'Type a date like {{value}}', {
-          value: locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996',
+          value: typedDateExample(locale),
         }),
       );
       return;
@@ -290,7 +292,7 @@ export function DatePicker(props: DatePickerProps): JSX.Element {
                   : t(
                       'components.date-picker.date-picker.type_a_date_like_2',
                       'Type a date, like {{value}}',
-                      { value: locale.toLowerCase() === 'en-us' ? '03/14/1996' : '14/03/1996' },
+                      { value: typedDateExample(locale) },
                     )
               }
               inputMode="text"

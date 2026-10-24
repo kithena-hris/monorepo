@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   CopyField,
+  dateFormat,
   Dialog,
   DialogBody,
   DialogContent,
@@ -14,6 +15,8 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  type IconName,
+  icons,
   Input,
   List,
   ListItem,
@@ -25,8 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
-  icons,
-  type IconName,
 } from '@reach/ui';
 import { createElement, useState, type JSX, type ReactNode } from 'react';
 
@@ -103,7 +104,10 @@ export interface IntegrationsProps {
 }
 
 const TITLE = t('settings.integrations.integrations', 'Integrations');
-const DESCRIPTION = 'Where time off and attendance show up outside this module.';
+const DESCRIPTION = t(
+  'settings.integrations.where_time_off_and_attendance_show_up',
+  'Where time off and attendance show up outside this module.',
+);
 const page = '@container/integrations flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/integrations:grid @min-[60rem]/integrations:grid-cols-2 @min-[60rem]/integrations:items-start';
@@ -152,9 +156,7 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
 const region = new Intl.DisplayNames(['en'], { type: 'region' });
 
 const shortDay = (iso: string): string =>
-  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
-    new Date(iso),
-  );
+  dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso));
 
 export function Integrations(props: IntegrationsProps): JSX.Element {
   const { load } = props;
@@ -162,7 +164,7 @@ export function Integrations(props: IntegrationsProps): JSX.Element {
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
-      <Loaded load={load} what="the integrations">
+      <Loaded load={load} what={t('settings.integrations.the_integrations', 'the integrations')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

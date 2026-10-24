@@ -1,6 +1,6 @@
 'use client';
 
-import { countryRules, COUNTRIES } from '@kithena/contracts';
+import { countryRules, COUNTRIES, LANGUAGES } from '@kithena/contracts';
 import {
   Alert,
   AvatarUploader,
@@ -36,6 +36,8 @@ export interface CompanyDraft {
   readonly coverImageUrl: string | null;
   readonly brandingPublic: boolean;
   readonly googleSignIn: boolean;
+  /** What every email from the company is written in, and its people’s screens until they choose. */
+  readonly language: string;
   readonly address: {
     readonly country: string;
     readonly line1: string;
@@ -119,6 +121,7 @@ export function EditCompanyForm({
         read('coverImageUrl') !== (company.coverImageUrl ?? '') ||
         (read('brandingPublic') !== '') !== company.brandingPublic ||
         (read('googleSignIn') !== '') !== company.googleSignIn ||
+        read('language') !== company.language ||
         read('country') !== stored.country ||
         read('line1') !== stored.line1 ||
         read('line2') !== (stored.line2 ?? '') ||
@@ -133,6 +136,7 @@ export function EditCompanyForm({
   const [coverImageUrl, setCoverImageUrl] = useState(company.coverImageUrl);
   const [brandingPublic, setBrandingPublic] = useState(company.brandingPublic);
   const [googleSignIn, setGoogleSignIn] = useState(company.googleSignIn);
+  const [language, setLanguage] = useState(company.language);
   const [country, setCountry] = useState(stored.country);
   const [subdivision, setSubdivision] = useState(stored.subdivision ?? '');
 
@@ -151,6 +155,7 @@ export function EditCompanyForm({
     coverImageUrl,
     brandingPublic,
     googleSignIn,
+    language,
     country,
     subdivision,
   ]);
@@ -201,6 +206,7 @@ export function EditCompanyForm({
       <input type="hidden" name="coverImageUrl" value={coverImageUrl ?? ''} />
       <input type="hidden" name="brandingPublic" value={brandingPublic ? 'on' : ''} />
       <input type="hidden" name="googleSignIn" value={googleSignIn ? 'on' : ''} />
+      <input type="hidden" name="language" value={language} />
       {/* `Combobox` is a listbox, not an `<input>`, so it submits nothing of its
           own. These carry its value into the action. */}
       <input type="hidden" name="country" value={country} />
@@ -281,6 +287,27 @@ export function EditCompanyForm({
               not set up a passkey is enrolled by their first Google sign-in.
             </FieldDescription>
           </div>
+        </Field>
+      </Card>
+
+      <Card variant="outlined" padded className="flex flex-col gap-5">
+        <h2 className="text-sm font-medium">Language</h2>
+        <Field invalid={failed('language') !== undefined}>
+          <Combobox
+            label="Company language"
+            options={LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
+            value={language}
+            searchPlaceholder="Search languages"
+            onChange={(value) => {
+              if (typeof value === 'string' && value !== '') setLanguage(value);
+            }}
+          />
+          <FieldDescription>
+            Every email the company sends is written in this language, whatever language each person
+            chose for their own screens. It is also the language Kithena opens in for someone who
+            has not chosen one.
+          </FieldDescription>
+          <FieldError>{failed('language')}</FieldError>
         </Field>
       </Card>
 

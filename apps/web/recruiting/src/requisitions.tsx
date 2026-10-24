@@ -208,7 +208,7 @@ export function RequisitionEditor(props: ScreenProps<readonly Requisition[]>): J
   const id = props.params?.['id'] ?? 'new';
   const act = useAct(props);
   return (
-    <Loaded load={props.load} what="the requisition">
+    <Loaded load={props.load} what={t('requisitions.the_requisition', 'the requisition')}>
       {(all) => (
         <Editor
           initial={all.find((r) => r.id === id) ?? blank(id === 'new' ? newId() : id)}
@@ -475,7 +475,7 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
   const act = useAct(props);
   const [comment, setComment] = useState('');
   return (
-    <Loaded load={props.load} what="the approval">
+    <Loaded load={props.load} what={t('requisitions.the_approval', 'the approval')}>
       {(all) => {
         const r = all.find((x) => x.id === id);
         if (r === undefined || r.approval == null) {
@@ -496,15 +496,23 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
               title={t('requisitions.approve_requisition', 'Approve requisition: {{title}}', {
                 title: r.title,
               })}
-              description={t(
-                'requisitions.asked_by_step_of',
-                'Asked by {{value}} · step {{step}} of {{steps}}',
-                {
-                  value: r.hiringManager ?? 'the hiring manager',
-                  step: String(r.approval.step),
-                  steps: String(r.approval.steps),
-                },
-              )}
+              description={
+                r.hiringManager === null || r.hiringManager === undefined
+                  ? t(
+                      'requisitions.asked_by_hiring_manager_step_of',
+                      'Asked by the hiring manager · step {{step}} of {{steps}}',
+                      { step: r.approval.step, steps: r.approval.steps },
+                    )
+                  : t(
+                      'requisitions.asked_by_step_of',
+                      'Asked by {{value}} · step {{step}} of {{steps}}',
+                      {
+                        value: r.hiringManager,
+                        step: r.approval.step,
+                        steps: r.approval.steps,
+                      },
+                    )
+              }
               meta={<Badge tone="warning">{t('requisitions.waiting', 'Waiting')}</Badge>}
             />
             <Refusal error={act.error} />

@@ -3,15 +3,18 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AppBarBack,
   Alert,
+  AppBarBack,
   AssistantCard,
   Badge,
   Button,
+  type DataColumn,
   DataTable,
   FileUploader,
+  icons,
   List,
   ListItem,
+  locale,
   PageHeader,
   PageSection,
   PINNED_BAR,
@@ -23,10 +26,8 @@ import {
   Spinner,
   Stack,
   Stepper,
-  icons,
-  useCoarsePointer,
-  type DataColumn,
   type UploadItem,
+  useCoarsePointer,
 } from '@reach/ui';
 import { useEffect, useId, useState, type JSX, type ReactNode } from 'react';
 
@@ -217,7 +218,7 @@ export function ImportFlow(props: ImportFlowProps): JSX.Element {
   // One element for every stage, so the header and the stepper stay mounted
   // from the upload to the end: only what is under them changes.
   return (
-    <Loaded load={props.load} what="the import">
+    <Loaded load={props.load} what={t('import.import-flow.the_import', 'the import')}>
       {(stage) => <Steps {...props} stage={stage} coarse={coarse} />}
     </Loaded>
   );
@@ -589,7 +590,14 @@ function Steps({
     plan !== null
       ? notYetOf(plan)
       : !busy && refused !== null
-        ? [{ message: 'The plan could not be worked out, so there is nothing to approve yet.' }]
+        ? [
+            {
+              message: t(
+                'import.import-flow.the_plan_could_not_be_worked_out',
+                'The plan could not be worked out, so there is nothing to approve yet.',
+              ),
+            },
+          ]
         : [];
 
   // People's own choice field, still where the file goes: what its list gains.
@@ -601,16 +609,21 @@ function Steps({
         });
 
   const columns: DataColumn<ProposedColumn>[] = [
-    { id: 'header', header: 'In your file', cell: (c) => c.header },
+    {
+      id: 'header',
+      header: t('import.import-flow.in_your_file', 'In your file'),
+      cell: (c) => c.header,
+    },
     {
       id: 'target',
-      header: 'Goes to',
+      header: t('import.import-flow.goes_to', 'Goes to'),
       cell: (c) =>
         // Refused, or an id or employee number: Kithena creates those, so
         // the column is shown and can't be picked.
         c.status === 'refused' || (c.source === 'system' && c.reason !== null) ? (
           <span className="text-sm text-fg-muted">
-            {c.reason ?? 'You may not write this field.'}
+            {c.reason ??
+              t('import.import-flow.you_may_not_write_this_field', 'You may not write this field.')}
           </span>
         ) : (
           <Stack gap={1}>
@@ -625,7 +638,7 @@ function Steps({
               }}
             >
               <SelectTrigger
-                aria-label={t('import.import-flow.goes_to', '{{header}} goes to', {
+                aria-label={t('import.import-flow.goes_to_2', '{{header}} goes to', {
                   header: c.header,
                 })}
                 aria-describedby={
@@ -638,8 +651,8 @@ function Steps({
               <SelectContent>
                 <SelectItem value={IGNORE}>
                   {c.status === 'ignored' && c.source === null
-                    ? 'A new field, or ignored'
-                    : 'Ignored'}
+                    ? t('import.import-flow.a_new_field_or_ignored', 'A new field, or ignored')
+                    : t('import.import-flow.ignored', 'Ignored')}
                 </SelectItem>
                 {c.key !== null && !labelOf.has(c.key) && c.source === 'system' ? (
                   <SelectItem value={c.key}>{c.key.replaceAll('_', ' ')}</SelectItem>
@@ -647,7 +660,11 @@ function Steps({
                 {stage.fields.map((f) => (
                   <SelectItem key={f.key} value={f.key}>
                     {f.sensitive === true
-                      ? `${f.label} (sensitive: changes wait for approval)`
+                      ? t(
+                          'import.import-flow.label_sensitive',
+                          '{{label}} (sensitive: changes wait for approval)',
+                          { label: f.label },
+                        )
                       : f.label}
                   </SelectItem>
                 ))}
@@ -661,7 +678,11 @@ function Steps({
           </Stack>
         ),
     },
-    { id: 'confidence', header: 'Confidence', cell: confidence },
+    {
+      id: 'confidence',
+      header: t('import.import-flow.confidence', 'Confidence'),
+      cell: confidence,
+    },
   ];
 
   const facts = {
@@ -867,7 +888,7 @@ function Steps({
             }
           >
             {t('import.import-flow.imported', 'Imported')}{' '}
-            {(run?.people.done ?? 0).toLocaleString('en-GB')}{' '}
+            {(run?.people.done ?? 0).toLocaleString(locale())}{' '}
             {run?.people.done === 1 ? 'person' : 'people'}
             {t(
               'import.import-flow.its_full_report_is_kept_for',
@@ -940,7 +961,7 @@ function Steps({
             const mappingBody = (
               <Stack gap={3}>
                 <p className="text-sm text-fg-muted">
-                  {stage.file.name} · {stage.file.rows.toLocaleString('en-GB')}{' '}
+                  {stage.file.name} · {stage.file.rows.toLocaleString(locale())}{' '}
                   {t('import.import-flow.rows', 'rows')}
                   {stage.file.sheet === null ? '' : ` · sheet “${stage.file.sheet}”`} · {mapped}{' '}
                   {t('import.import-flow.of_columns_mapped', 'of {{length}} columns mapped', {
@@ -973,10 +994,14 @@ function Steps({
               <Alert
                 id={`${whyId}-map`}
                 tone="warning"
-                title={t('import.import-flow.a_decision', '{{length}} {{value}} a decision', {
-                  length: String(undecided.length),
-                  value: undecided.length === 1 ? 'column needs' : 'columns need',
-                })}
+                title={t(
+                  'import.import-flow.a_decision',
+                  {
+                    one: '{{count}} column needs a decision',
+                    other: '{{count}} columns need a decision',
+                  },
+                  { count: undecided.length },
+                )}
               >
                 {undecided.map((c) => c.header).join(', ')}
                 {t(
@@ -1062,15 +1087,14 @@ function Steps({
                 <AccordionItem value="fields">
                   <AccordionTrigger
                     level={2}
-                    description={
-                      proposals.length === 1
-                        ? '1 column isn’t a field yet. Here’s what I’d create.'
-                        : t(
-                            'import.import-flow.columns_arent_fields_yet_heres_what',
-                            '{{length}} columns aren’t fields yet. Here’s what I’d create.',
-                            { length: String(proposals.length) },
-                          )
-                    }
+                    description={t(
+                      'import.import-flow.columns_arent_fields_yet_heres_what',
+                      {
+                        one: '{{count}} column isn’t a field yet. Here’s what I’d create.',
+                        other: '{{count}} columns aren’t fields yet. Here’s what I’d create.',
+                      },
+                      { count: proposals.length },
+                    )}
                     meta={
                       <Badge size="sm">
                         {kept.length}{' '}
@@ -1328,7 +1352,7 @@ function PhonePlan({
           className="flex flex-col gap-3"
         >
           <h2 id={`without-${p.key}`} className="font-display text-xl font-bold">
-            {missingOf(p).toLocaleString('en-GB')}{' '}
+            {missingOf(p).toLocaleString(locale())}{' '}
             {missingOf(p) === 1
               ? t('import.import-flow.person_has', 'person has')
               : t('import.import-flow.people_have', 'people have')}{' '}

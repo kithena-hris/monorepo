@@ -6,6 +6,7 @@ import { Combobox } from '../combobox/combobox';
 import { Progress } from '../progress/progress';
 import { cn } from '../../lib/cn';
 import { t } from '../../lib/i18n';
+import { locale as pageLocale } from '../../lib/intl';
 
 /**
  * Times picked from a calendar: a day at a time, the day's free times in a
@@ -60,7 +61,7 @@ export function SlotPicker({
   booked = [],
   today,
   timeZone,
-  locale = 'en-GB',
+  locale = pageLocale(),
   label,
   minutes,
   unavailable = {},

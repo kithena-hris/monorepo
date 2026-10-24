@@ -160,9 +160,12 @@ export function GroupedNav({
   collapsible = false,
   defaultCollapsed = [],
   searchable = false,
-  searchPlaceholder = 'Search',
+  searchPlaceholder = t('components.nav.grouped-nav.search', 'Search'),
   defaultQuery = '',
-  noResults = 'Try a shorter or different word.',
+  noResults = t(
+    'components.nav.grouped-nav.try_a_shorter_or_different_word',
+    'Try a shorter or different word.',
+  ),
   className,
   ...props
 }: GroupedNavProps): JSX.Element {
@@ -400,7 +403,7 @@ export function GroupedNav({
         <div className="mb-1.5 touch:mb-0">
           <SearchField
             size="sm"
-            label={t('components.nav.grouped-nav.search', 'Search {{label}}', { label })}
+            label={t('components.nav.grouped-nav.search_2', 'Search {{label}}', { label })}
             placeholder={searchPlaceholder}
             value={query}
             onValueChange={setQuery}
@@ -508,10 +511,11 @@ export function GroupedNav({
         // its message is, to most screen readers, not live yet.
         <p aria-live="polite" className="sr-only">
           {searching
-            ? t('components.nav.grouped-nav.text', '{{results}} {{value}}', {
-                results: String(results),
-                value: results === 1 ? 'result' : 'results',
-              })
+            ? t(
+                'components.nav.grouped-nav.results',
+                { one: '{{count}} result', other: '{{count}} results' },
+                { count: results },
+              )
             : ''}
         </p>
       ) : null}

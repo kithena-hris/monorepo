@@ -14,7 +14,13 @@ import {
 import { Link } from '../lib/link';
 import { createContext, use, useSyncExternalStore, type JSX, type ReactNode } from 'react';
 
-import { GROUPS, isCharacterKey, type Shortcut, type ShortcutPrefs } from '../lib/shortcuts';
+import {
+  GROUPS,
+  groupName,
+  isCharacterKey,
+  type Shortcut,
+  type ShortcutPrefs,
+} from '../lib/shortcuts';
 import { t } from '../lib/t';
 
 /**
@@ -221,10 +227,10 @@ export function ShortcutsHelp({
   readonly onOpenChange: (open: boolean) => void;
 }): JSX.Element {
   const { prefs, table, destinations, save } = useShortcuts();
-  const groups = GROUPS.map((label) => ({
-    label,
+  const groups = GROUPS.map((group) => ({
+    label: groupName(group),
     shortcuts: table.filter(
-      (s) => s.group === label && (s.href === undefined || destinations.has(s.id)),
+      (s) => s.group === group && (s.href === undefined || destinations.has(s.id)),
     ),
   }));
   return (

@@ -61,9 +61,11 @@ export function RowBadges({
         <Badge size="sm" tone="info" dot>
           {item.team.mine
             ? t('components.inbox.rows.you_are_on_it', 'You are on it')
-            : t('components.inbox.rows.is_on_it', '{{value}} is on it', {
-                value: item.team.takenBy.name ?? 'Somebody',
-              })}
+            : item.team.takenBy.name == null
+              ? t('components.inbox.rows.somebody_is_on_it', 'Somebody is on it')
+              : t('components.inbox.rows.is_on_it', '{{value}} is on it', {
+                  value: item.team.takenBy.name,
+                })}
         </Badge>
       )}
       {item.outcome === null ? null : (
@@ -73,10 +75,13 @@ export function RowBadges({
       )}
       {item.replies > 0 ? (
         <Badge size="sm" tone="accent">
-          {t('components.inbox.rows.repl', '{{replies}} repl{{value}}', {
-            replies: String(item.replies),
-            value: item.replies === 1 ? 'y' : 'ies',
-          })}
+          {t(
+            'components.inbox.rows.replies',
+            { one: '{{count}} reply', other: '{{count}} replies' },
+            {
+              count: item.replies,
+            },
+          )}
         </Badge>
       ) : null}
       {item.snoozedUntil === null ? null : (

@@ -100,9 +100,9 @@ export function FormSaveBar({
   onSave,
   onDiscard,
   saving = false,
-  message = 'Unsaved changes',
-  saveLabel = 'Save',
-  discardLabel = 'Discard',
+  message = t('components.form-sections.form-sections.unsaved_changes', 'Unsaved changes'),
+  saveLabel = t('components.form-sections.form-sections.save', 'Save'),
+  discardLabel = t('components.form-sections.form-sections.discard', 'Discard'),
   className,
 }: FormSaveBarProps): JSX.Element | null {
   if (!open) return null;

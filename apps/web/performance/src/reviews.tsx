@@ -7,17 +7,24 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  type DataColumn,
+  DataTable,
   EmptyState,
-  List,
-  ListItem,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   HorizontalBarChart,
+  icons,
   Input,
   KeyValues,
+  List,
+  ListItem,
   PageHeader,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Progress,
   SearchField,
   Sheet,
@@ -25,13 +32,8 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
   Slider,
   Spinner,
-  DataTable,
-  type DataColumn,
   Table,
   TableBody,
   TableCell,
@@ -41,7 +43,6 @@ import {
   TertiaryNav,
   Textarea,
   Tooltip,
-  icons,
 } from '@reach/ui';
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 
@@ -59,7 +60,6 @@ import {
   day,
   download,
   kindLabel,
-  plural,
   score,
   time,
   useAct,
@@ -193,7 +193,7 @@ function reviewColumns(
 
 export function MyReviews(props: ScreenProps<MyReviewsData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="your reviews">
+    <Loaded load={props.load} what={t('reviews.your_reviews', 'your reviews')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -399,7 +399,7 @@ function AboutMe({
                               href={`/performance/released/${c.peers.ids[0] ?? ''}`}
                               onNavigate={onNavigate}
                             >
-                              {`${plural(c.peers.count, 'review')}, names hidden`}
+                              {`${t('reviews.count_reviews', { one: '{{count}} review', other: '{{count}} reviews' }, { count: c.peers.count })}, names hidden`}
                             </To>
                           ),
                       },
@@ -517,7 +517,7 @@ type Saving =
 /** PF10: the form, autosaving, with the detail panel beside it. */
 export function Write(props: ScreenProps<WriteData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the review">
+    <Loaded load={props.load} what={t('reviews.the_review', 'the review')}>
       {(data) => <Writing key={data.review.id} data={data} {...props} />}
     </Loaded>
   );
@@ -644,11 +644,18 @@ function Writing({
   const writing = data.may.write;
   // No longer the subject's manager (§8.8): kept to read or delete, never submitted.
   const former = data.review.formerManager ?? null;
-  const noLongerTheirs = t(
-    'reviews.you_are_no_longer_s_manager',
-    'You are no longer {{name}}’s manager, so this review cannot be submitted. {{value}} writes theirs.',
-    { name: data.review.subject.name, value: former?.to ?? 'Their new manager' },
-  );
+  const noLongerTheirs =
+    former?.to == null
+      ? t(
+          'reviews.no_longer_manager_new_manager_writes',
+          'You are no longer {{name}}’s manager, so this review cannot be submitted. Their new manager writes theirs.',
+          { name: data.review.subject.name },
+        )
+      : t(
+          'reviews.you_are_no_longer_s_manager',
+          'You are no longer {{name}}’s manager, so this review cannot be submitted. {{value}} writes theirs.',
+          { name: data.review.subject.name, value: former.to },
+        );
   // The panel's summary fills itself once it is on screen, never on a button.
   const asked = useRef({ summary: false });
   const savedRevision = saving.state === 'saved' ? saving.revision : null;
@@ -772,10 +779,16 @@ function Writing({
     <div className="flex flex-col gap-4">
       <PageHeader
         title={`${data.review.title}${data.review.kind === 'self' ? '' : `: ${data.review.subject.name}`}`}
-        description={t('reviews.due_2', '{{value}} · due {{due}}', {
-          value: data.review.cycle?.name ?? 'Detached review',
-          due: day(data.review.due),
-        })}
+        description={
+          data.review.cycle?.name == null
+            ? t('reviews.detached_review_due', 'Detached review · due {{due}}', {
+                due: day(data.review.due),
+              })
+            : t('reviews.due_2', '{{value}} · due {{due}}', {
+                value: data.review.cycle.name,
+                due: day(data.review.due),
+              })
+        }
         actions={
           <>
             {data.may.decline ? (
@@ -849,7 +862,11 @@ function Writing({
               {unconfirmed.length > 0 ? (
                 <Badge tone="accent">
                   {t('reviews.to_confirm', '{{length}} to confirm', {
-                    length: plural(unconfirmed.length, 'suggestion'),
+                    length: t(
+                      'reviews.count_suggestions',
+                      { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                      { count: unconfirmed.length },
+                    ),
                   })}
                 </Badge>
               ) : null}
@@ -925,7 +942,13 @@ function Writing({
             </Button>
           }
         >
-          {`${saving.message} Your last change is kept on this page; load the newer revision and make it again.`}
+          {t(
+            'reviews.saving_conflict_last_change_kept',
+            '{{message}} Your last change is kept on this page; load the newer revision and make it again.',
+            {
+              message: saving.message,
+            },
+          )}
         </Alert>
       ) : null}
       {saving.state === 'failed' ? (
@@ -963,7 +986,17 @@ function Writing({
             ) : undefined
           }
         >
-          {`${subject} reports to ${former.to ?? t('reviews.someone_else', 'someone else')} now, so this review can no longer be submitted; ${former.to ?? t('reviews.their_new_manager', 'their new manager')} writes theirs. It stays here for you to read until you delete it.`}
+          {former.to == null
+            ? t(
+                'reviews.reports_to_someone_else_now',
+                '{{subject}} reports to someone else now, so this review can no longer be submitted; their new manager writes theirs. It stays here for you to read until you delete it.',
+                { subject },
+              )
+            : t(
+                'reviews.reports_to_now',
+                '{{subject}} reports to {{to}} now, so this review can no longer be submitted; {{to}} writes theirs. It stays here for you to read until you delete it.',
+                { subject, to: former.to },
+              )}
         </Alert>
       )}
       {data.review.handover === null ? null : (
@@ -994,15 +1027,17 @@ function Writing({
           tone="info"
           title={t('reviews.confidential_to', 'Confidential to {{subject}}', { subject })}
         >
-          {t(
-            'reviews.sees_your_answers_your_name_and',
-            '{{subject}} sees your answers {{value}} your name, and only once at least {{value2}} have answered. Their manager and HR see your name.',
-            {
-              subject,
-              value: data.review.cycle?.names === 'shown' ? 'with' : 'without',
-              value2: String(data.review.cycle?.minimum ?? 3),
-            },
-          )}
+          {data.review.cycle?.names === 'shown'
+            ? t(
+                'reviews.sees_your_answers_with_your_name',
+                '{{subject}} sees your answers with your name, and only once at least {{minimum}} have answered. Their manager and HR see your name.',
+                { subject, minimum: data.review.cycle.minimum },
+              )
+            : t(
+                'reviews.sees_your_answers_without_your_name',
+                '{{subject}} sees your answers without your name, and only once at least {{minimum}} have answered. Their manager and HR see your name.',
+                { subject, minimum: data.review.cycle?.minimum ?? 3 },
+              )}
         </Alert>
       ) : null}
       {/* Wide enough for a five-point scale's labels on one row (four, then one, at 3xl). */}
@@ -1122,7 +1157,7 @@ function Writing({
                   {summary === null ? (
                     <Asking
                       busy={asking.summary}
-                      what="Reading what others said…"
+                      what={t('reviews.reading_what_others_said', 'Reading what others said…')}
                       error={aiError}
                     />
                   ) : summary.sentences.length === 0 ? (
@@ -1151,7 +1186,13 @@ function Writing({
                           {t(
                             'reviews.without_a_source_left_out',
                             '{{dropped}} without a source left out.',
-                            { dropped: plural(summary.dropped, 'sentence') },
+                            {
+                              dropped: t(
+                                'reviews.count_sentences',
+                                { one: '{{count}} sentence', other: '{{count}} sentences' },
+                                { count: summary.dropped },
+                              ),
+                            },
                           )}
                         </p>
                       ) : null}
@@ -1431,7 +1472,11 @@ function ReadsChip({
         {flags === 0 ? null : (
           <p className="text-sm text-fg-muted">
             {t('reviews.under_your_answers', '{{flags}} under your answers.', {
-              flags: plural(flags, 'suggestion'),
+              flags: t(
+                'reviews.count_suggestions',
+                { one: '{{count}} suggestion', other: '{{count}} suggestions' },
+                { count: flags },
+              ),
             })}
           </p>
         )}
@@ -1723,12 +1768,14 @@ function SubmitDialog({
     <Modal
       open
       onClose={onClose}
-      title={t('reviews.submit_2', 'Submit {{value}}?', {
-        value:
-          data.review.kind === 'self'
-            ? 'your self review'
-            : `${subject}’s ${kindLabel(data.review.kind).toLowerCase()}`,
-      })}
+      title={
+        data.review.kind === 'self'
+          ? t('reviews.submit_your_self_review', 'Submit your self review?')
+          : t('reviews.submit_their_review', 'Submit {{subject}}’s {{kind}}?', {
+              subject,
+              kind: kindLabel(data.review.kind).toLowerCase(),
+            })
+      }
       description={t(
         'reviews.after_submitting_you_cant_edit_hr',
         'After submitting you can’t edit. HR can unlock it if you ask.',
@@ -1771,7 +1818,11 @@ function SubmitDialog({
         <Alert
           tone="warning"
           title={t('reviews.without_an_answer', '{{length}} without an answer', {
-            length: plural(missing.length, t('reviews.required_question', 'required question')),
+            length: t(
+              'reviews.count_required_questions',
+              { one: '{{count}} required question', other: '{{count}} required questions' },
+              { count: missing.length },
+            ),
           })}
         >
           {missing.map((q) => prompts.get(q) ?? q).join(' · ')}
@@ -1793,7 +1844,11 @@ function SubmitDialog({
             {t('reviews.how_it_will_read_to', 'How it will read to {{subject}}', { subject })}
           </p>
           {check.reading === 'reading' ? (
-            <Asking busy what="Reading your draft…" error={null} />
+            <Asking
+              busy
+              what={t('reviews.reading_your_draft_2', 'Reading your draft…')}
+              error={null}
+            />
           ) : check.reading === 'failed' ? (
             <span className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
               {t('reviews.it_could_not_be_read_just', 'It could not be read just now.')}
@@ -1822,7 +1877,13 @@ function SubmitDialog({
                     {t(
                       'reviews.worth_making_before_you_submit',
                       '{{length}} worth making before you submit:',
-                      { length: plural(check.flags.length, 'change') },
+                      {
+                        length: t(
+                          'reviews.count_changes',
+                          { one: '{{count}} change', other: '{{count}} changes' },
+                          { count: check.flags.length },
+                        ),
+                      },
                     )}
                   </p>
                   {check.list(check.flags)}
@@ -2068,7 +2129,11 @@ function Detached({
         ) : undefined
       }
     >
-      {`${subject} was removed from the cycle. Nobody else can read your draft; a kept review reattaches if ${subject} is added back.`}
+      {t(
+        'reviews.removed_from_the_cycle_draft_kept',
+        '{{subject}} was removed from the cycle. Nobody else can read your draft; a kept review reattaches if {{subject}} is added back.',
+        { subject },
+      )}
     </Alert>
   );
 }
@@ -2108,7 +2173,7 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
   const act = useAct(props);
   const [comment, setComment] = useState('');
   return (
-    <Loaded load={props.load} what="the review">
+    <Loaded load={props.load} what={t('reviews.the_review', 'the review')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
@@ -2120,7 +2185,25 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                     cycle: data.review.cycle,
                   })
             }
-            description={`${data.review.by === null ? t('reviews.names_hidden', 'Names hidden') : t('reviews.from', 'From {{by}}', { by: data.review.by })}${data.review.released === null ? '' : ` · released ${day(data.review.released)}`}${(data.review.helpedBy ?? []).length === 0 ? '' : ` · Drafted with help from ${(data.review.helpedBy ?? []).join(' and ')}`}`}
+            description={[
+              data.review.by === null
+                ? t('reviews.names_hidden', 'Names hidden')
+                : t('reviews.from', 'From {{by}}', { by: data.review.by }),
+              ...(data.review.released === null
+                ? []
+                : [
+                    t('reviews.released_on', 'released {{day}}', {
+                      day: day(data.review.released),
+                    }),
+                  ]),
+              ...((data.review.helpedBy ?? []).length === 0
+                ? []
+                : [
+                    t('reviews.drafted_with_help_from', 'Drafted with help from {{names}}', {
+                      names: formatList(data.review.helpedBy ?? []),
+                    }),
+                  ]),
+            ].join(' · ')}
             actions={
               <Button
                 variant="secondary"
@@ -2143,7 +2226,13 @@ export function Released(props: ScreenProps<ReleasedData>): JSX.Element {
                 <Card>
                   <CardContent className="flex items-baseline gap-3">
                     <span className="text-3xl font-bold tabular-nums">{data.score.display}</span>
-                    <span className="text-fg-muted">{`${data.score.label}${data.score.final ? '' : ' · before calibration'}`}</span>
+                    <span className="text-fg-muted">
+                      {data.score.final
+                        ? data.score.label
+                        : t('reviews.score_before_calibration', '{{score}} · before calibration', {
+                            score: data.score.label,
+                          })}
+                    </span>
                   </CardContent>
                 </Card>
               )}
@@ -2267,7 +2356,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
   const [ack, setAck] = useState(true);
   const [filed, setFiled] = useState(false);
   return (
-    <Loaded load={props.load} what="the reviews">
+    <Loaded load={props.load} what={t('reviews.the_reviews', 'the reviews')}>
       {(data) => {
         const shown = data.reviews.filter((r) => r.kind === kind);
         const kinds = [...new Set(data.reviews.map((r) => r.kind))];
@@ -2372,7 +2461,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                         {
                           label: t('reviews.peer_summary', 'Peer summary'),
                           value: data.release.peerSummary
-                            ? `${plural(data.peers, 'answer')}, no names`
+                            ? `${t('reviews.count_answers', { one: '{{count}} answer', other: '{{count}} answers' }, { count: data.peers })}, no names`
                             : `Held back: under ${String(data.cycle.minimum)}`,
                         },
                       ]}
@@ -2470,11 +2559,11 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
   const [declining, setDeclining] = useState<string | null>(null);
   const [note, setNote] = useState('');
   return (
-    <Loaded load={props.load} what="unlock requests">
+    <Loaded load={props.load} what={t('reviews.unlock_requests', 'unlock requests')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={t('reviews.unlock_requests', 'Unlock requests')}
+            title={t('reviews.unlock_requests_2', 'Unlock requests')}
             description={t(
               'reviews.only_hr_decides_an_unlocked_review',
               'Only HR decides. An unlocked review keeps its submitted revision until it’s submitted again.',
@@ -2530,7 +2619,10 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
                                 onClick={() => {
                                   act.run('DecidePerformanceUnlock', {
                                     id: u.reviewId,
-                                    input: { approve: true, note: 'Unlocked' },
+                                    input: {
+                                      approve: true,
+                                      note: t('reviews.unlocked', 'Unlocked'),
+                                    },
                                   });
                                 }}
                               >
@@ -2636,7 +2728,7 @@ export interface NominateData {
 /** PF9b and PF9c: pick peers (team first, then people they work with, then anyone), or approve them. */
 export function Nominate(props: ScreenProps<NominateData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the nomination">
+    <Loaded load={props.load} what={t('reviews.the_nomination', 'the nomination')}>
       {(data) =>
         data.nomination.state === 'waiting' ? (
           <Approve data={data} {...props} />
@@ -2756,7 +2848,11 @@ function Picker({
               'reviews.picked_you_cant_pick_each_reviewer',
               '{{length}} picked. You can’t pick {{subject}}. Each reviewer writes at most {{perReviewer}} peer reviews in a cycle.',
               {
-                length: plural(picked.length, 'person', 'people'),
+                length: t(
+                  'reviews.count_people',
+                  { one: '{{count}} person', other: '{{count}} people' },
+                  { count: picked.length },
+                ),
                 subject: data.nomination.subject,
                 perReviewer: String(data.bounds.perReviewer),
               },
@@ -2780,7 +2876,11 @@ function Picker({
               }}
             >
               {t('reviews.send', 'Send {{length}}', {
-                length: plural(picked.length, 'nomination'),
+                length: t(
+                  'reviews.count_nominations',
+                  { one: '{{count}} nomination', other: '{{count}} nominations' },
+                  { count: picked.length },
+                ),
               })}
             </Button>
           </div>

@@ -25,6 +25,7 @@ import { Badge } from '../badge/badge';
 import { RailContext, useRailCollapsed } from '../page-layout/page-layout';
 import { Popover, PopoverAnchor, PopoverContent } from '../popover/popover';
 import { Tooltip } from '../tooltip/tooltip';
+import { t } from '../../lib/i18n';
 
 /**
  * Navigation, at three levels.
@@ -865,10 +866,18 @@ const statusDot: Record<TertiaryNavStatus, string> = {
 };
 
 const statusWord: Record<TertiaryNavStatus, string> = {
-  success: 'complete',
-  warning: 'needs attention',
-  danger: 'blocked',
-  info: 'information',
+  get success() {
+    return t('components.nav.nav.status_complete', 'complete');
+  },
+  get warning() {
+    return t('components.nav.nav.status_needs_attention', 'needs attention');
+  },
+  get danger() {
+    return t('components.nav.nav.status_blocked', 'blocked');
+  },
+  get info() {
+    return t('components.nav.nav.status_information', 'information');
+  },
 };
 
 /**

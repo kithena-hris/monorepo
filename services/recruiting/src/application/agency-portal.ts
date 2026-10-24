@@ -3,7 +3,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { normalEmail } from '../domain/candidate/duplicates.js';
 import { currentStage } from '../domain/pipeline/application.js';
-import { notFound, type Ctx } from './context.js';
+import { notFound, type Ctx, mailWords } from './context.js';
 import { CODE_MINUTES, MAX_ATTEMPTS, sha256, submitByAgency, type IncomingFile } from './intake.js';
 import type { Agency, ApplicationRecord } from './ports.js';
 import { generalSettings } from './setup.js';
@@ -38,10 +38,22 @@ export async function requestAgencyCode(
   const expires = new Date(Date.parse(ctx.at) + CODE_MINUTES * 60_000).toISOString();
   await ctx.tx.codes.put(normalEmail(email), agency.id, sha256(code), expires as never);
   const company = (await generalSettings(ctx)).companyName;
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: agency.contactEmail,
-    subject: `${code} is your code for ${company}’s agency portal`,
-    text: `Hello ${agency.name},\n\nYour code is ${code}. It works for ${String(CODE_MINUTES)} minutes.\n\nIf you did not ask for it, ignore this email.`,
+    subject: t(
+      'email.agency_code.subject',
+      '{{code}} is your code for {{company}}’s agency portal',
+      {
+        code,
+        company,
+      },
+    ),
+    text: t(
+      'email.agency_code.text',
+      'Hello {{name}},\n\nYour code is {{code}}. It works for {{minutes}} minutes.\n\nIf you did not ask for it, ignore this email.',
+      { name: agency.name, code, minutes: CODE_MINUTES },
+    ),
     dedupeKey: `agency-code:${agency.id}:${ctx.at}`,
   });
   return ok(ctx.deps.mailer === undefined ? { sent: true, code } : { sent: true });

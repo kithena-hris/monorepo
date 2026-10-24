@@ -21,7 +21,7 @@ import {
   type PlanTask,
 } from '../domain/plan.js';
 import { decideProbation } from '../domain/probation.js';
-import { event, forbidden, hrOnly, notFound, publish, type Ctx } from './context.js';
+import { event, forbidden, hrOnly, notFound, publish, type Ctx, mailWords } from './context.js';
 import type { PlanRecord } from './ports.js';
 
 /**
@@ -42,6 +42,7 @@ async function holidaysOf(ctx: Ctx, country: string): Promise<ReadonlySet<string
 
 /** A hire from any source: one plan per hire, the same source id twice changes nothing but a moved start. */
 export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRecord>> {
+  const { t } = await mailWords(ctx);
   const known =
     (await ctx.tx.hires.bySource(hire.source, hire.externalId)) ??
     // People's event for somebody Recruiting already handed over: the same person.
@@ -110,8 +111,20 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
   );
   ctx.mail.push({
     to: hire.email,
-    subject: 'Welcome: what happens before your first day',
-    text: `Hello ${hire.givenName},\n\nWe’re glad you’re joining us on ${plan.startDate}. Your first days, who meets you and what to do beforehand are here:\n${ctx.deps.jobsOrigin}/welcome#${token}\n\nThe link is yours alone; please don’t share it.`,
+    subject: t(
+      'email.plans.welcome_what_happens_before_your_first',
+      'Welcome: what happens before your first day',
+    ),
+    text: t(
+      'email.plans.hello_were_glad_youre_joining_us',
+      'Hello {{givenName}},\n\nWe’re glad you’re joining us on {{startDate}}. Your first days, who meets you and what to do beforehand are here:\n{{jobsOrigin}}/welcome#{{token}}\n\nThe link is yours alone; please don’t share it.',
+      {
+        givenName: hire.givenName,
+        startDate: plan.startDate,
+        jobsOrigin: ctx.deps.jobsOrigin,
+        token,
+      },
+    ),
     dedupeKey: `onboarding:welcome:${plan.id}`,
   });
   return ok(plan);

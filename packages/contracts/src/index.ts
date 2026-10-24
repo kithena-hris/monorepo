@@ -5,6 +5,8 @@ export * from './module.js';
 export * from './entitlements.js';
 export * from './primitives.js';
 export * from './tenant.js';
+export * from './language.js';
+export * from './language-code.js';
 export * from './events/identity.js';
 export * from './events/people.js';
 export * from './events/timeoff.js';

@@ -606,19 +606,17 @@ function MoveDialog({
               { name, longDate: longDate(day) },
             )
         : kind === 'giveNotice' || kind === 'terminate'
-          ? t(
-              'profile.employment.keeps_access_until_the_end_of_2',
-              '{{first}} keeps access until the end of {{longDate}} on their own calendar ({{city}}), not at midnight UTC.{{value}}',
-              {
-                first,
-                longDate: longDate(day),
-                city,
-                value:
-                  kind === 'terminate' && endNow
-                    ? ' Their access ends now instead.'
-                    : ' You can withdraw this before then.',
-              },
-            )
+          ? kind === 'terminate' && endNow
+            ? t(
+                'profile.employment.keeps_access_until_ends_now',
+                '{{first}} keeps access until the end of {{longDate}} on their own calendar ({{city}}), not at midnight UTC. Their access ends now instead.',
+                { first, longDate: longDate(day), city },
+              )
+            : t(
+                'profile.employment.keeps_access_until_the_end_of_2',
+                '{{first}} keeps access until the end of {{longDate}} on their own calendar ({{city}}), not at midnight UTC. You can withdraw this before then.',
+                { first, longDate: longDate(day), city },
+              )
           : kind === 'rehire'
             ? t(
                 'profile.employment.a_new_employment_period_starts_on',

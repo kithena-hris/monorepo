@@ -1,6 +1,9 @@
+import { translator } from '@reach/ui';
 import { describe, expect, it } from 'vitest';
 
 import { contractText, contractTitle } from './contract-text';
+
+const t = translator('shell');
 
 const offer = {
   offer: {
@@ -45,8 +48,8 @@ const offer = {
 
 describe('the contract from an accepted offer', () => {
   it('names the parties, the role and every term the offer carries', () => {
-    const text = contractText(offer, 'Acme SL');
-    expect(contractTitle(offer)).toBe('Employment contract – Yuki Tanaka');
+    const text = contractText(offer, 'Acme SL', t);
+    expect(contractTitle(offer, t)).toBe('Employment contract – Yuki Tanaka');
     expect(text).toContain('between Acme SL (the employer) and Yuki Tanaka (the employee)');
     expect(text).toContain('Role: Account manager.');
     expect(text).toContain('Contract: indefinido, permanent.');
@@ -57,7 +60,7 @@ describe('the contract from an accepted offer', () => {
       'Working time: 40 hours a week (1.0000 FTE), hybrid with 3 days on site.',
     );
     expect(text).toContain('Probation: 6 months.');
-    expect(text).toContain('Notice: 1 months by the employee, 2 months by the employer.');
+    expect(text).toContain('Notice: 1 month by the employee, 2 months by the employer.');
     expect(text).toContain('Benefits: Seguro médico, social security.');
     expect(text).toContain('Signed with this contract: remote work agreement.');
     expect(text).toContain('offer version 2 (abcdef012345)');
@@ -68,6 +71,7 @@ describe('the contract from an accepted offer', () => {
     const text = contractText(
       { ...offer, checked: null, offer: { versions: [], acceptance: null } },
       'Acme',
+      t,
     );
     expect(text).toBe('Acme engages Yuki Tanaka as Account manager.');
   });

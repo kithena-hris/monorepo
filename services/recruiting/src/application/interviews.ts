@@ -26,6 +26,7 @@ import {
   notFound,
   publish,
   type Ctx,
+  mailWords,
 } from './context.js';
 import { sha256, portalLink } from './intake.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
@@ -309,6 +310,7 @@ export async function bookInterview(
   booking: Booking,
   by: 'team' | 'candidate',
 ): Promise<Result<InterviewRecord>> {
+  const { t } = await mailWords(ctx);
   const app = await ctx.tx.applications.get(applicationId);
   if (app === null) return err(notFound('application'));
   const plan = await planned(ctx, app.jobId, booking.planKey);
@@ -373,11 +375,16 @@ export async function bookInterview(
   );
   await invite(ctx, booked, false);
   const candidate = await ctx.tx.candidates.get(app.candidateId);
-  await tellInterviewers(ctx, booked, candidate?.name ?? 'a candidate');
+  await tellInterviewers(
+    ctx,
+    booked,
+    candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
+  );
   return ok(booked);
 }
 
 async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean): Promise<void> {
+  const { t } = await mailWords(ctx);
   const app = await ctx.tx.applications.get(interview.applicationId);
   const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
   const settings = await generalSettings(ctx);
@@ -388,14 +395,18 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     uid: `${interview.id}@kithena`,
     start: interview.startsAt,
     minutes: interview.minutes,
-    title: `${interview.title}: ${job?.title ?? ''} at ${settings.companyName}`,
-    description: where === null ? '' : `Where: ${where}`,
+    title: t('email.interviews.at', '{{title}}: {{value}} at {{companyName}}', {
+      title: interview.title,
+      value: job?.title ?? '',
+      companyName: settings.companyName,
+    }),
+    description: where === null ? '' : t('email.interviews.where', 'Where: {{where}}', { where }),
     location: where,
     organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
     stamp: ctx.at,
     cancelled,
   });
-  const when = new Intl.DateTimeFormat('en-GB', {
+  const when = new Intl.DateTimeFormat((await mailWords(ctx)).language, {
     dateStyle: 'full',
     timeStyle: 'short',
     timeZone: candidate.timeZone ?? 'UTC',
@@ -407,8 +418,15 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
       ctx,
       candidate,
       interview.applicationId,
-      `Cancelled: ${interview.title} with ${settings.companyName}`,
-      `Hello ${candidate.name},\n\nThis interview is cancelled.\n\n${invitation}`,
+      t('email.interviews.cancelled_with', 'Cancelled: {{title}} with {{companyName}}', {
+        title: interview.title,
+        companyName: settings.companyName,
+      }),
+      t(
+        'email.interviews.hello_this_interview_is_cancelled',
+        'Hello {{name}},\n\nThis interview is cancelled.\n\n{{invitation}}',
+        { name: candidate.name, invitation },
+      ),
     );
     return;
   }
@@ -439,16 +457,38 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     render(words.subject, filled),
     `${render(words.body, filled)}${agenda === null ? '' : `\n\nAgenda\n${agenda.text}`}\n\n${invitation}`,
     {
-      heading: `Your ${interview.title.toLowerCase()} is booked`,
+      heading: t('email.interviews.your_is_booked', 'Your {{title}} is booked', {
+        title: interview.title.toLowerCase(),
+      }),
       facts: [
-        { label: 'When', value: `${when} (${zone})` },
-        { label: 'Length', value: `${String(interview.minutes)} minutes` },
-        { label: 'Where', value: where ?? 'To be confirmed' },
-        ...(job === null ? [] : [{ label: 'Role', value: job.title }]),
+        { label: t('email.interviews.when', 'When'), value: `${when} (${zone})` },
+        {
+          label: t('email.interviews.length', 'Length'),
+          value: t('email.interviews.minutes', '{{minutes}} minutes', {
+            minutes: interview.minutes,
+          }),
+        },
+        {
+          label: t('email.interviews.where_2', 'Where'),
+          value: where ?? t('email.interviews.to_be_confirmed', 'To be confirmed'),
+        },
+        ...(job === null ? [] : [{ label: t('email.interviews.role', 'Role'), value: job.title }]),
       ],
-      ...(video === null ? {} : { action: { label: 'Join the meeting', href: video } }),
+      ...(video === null
+        ? {}
+        : {
+            action: {
+              label: t('email.interviews.join_the_meeting', 'Join the meeting'),
+              href: video,
+            },
+          }),
       ...(page.startsWith('https://')
-        ? { secondary: { label: 'Ask for a different time', href: page } }
+        ? {
+            secondary: {
+              label: t('email.interviews.ask_for_a_different_time', 'Ask for a different time'),
+              href: page,
+            },
+          }
         : {}),
     },
   );
@@ -470,14 +510,15 @@ export function byDay(
   times: readonly string[],
   timeZone: string,
   minutes: number,
+  language = 'en-GB',
 ): { day: string; times: string[] }[] {
-  const day = new Intl.DateTimeFormat('en-GB', {
+  const day = new Intl.DateTimeFormat(language, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     timeZone,
   });
-  const hour = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone });
+  const hour = new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', timeZone });
   const out: { day: string; times: string[] }[] = [];
   for (const t of [...times].toSorted()) {
     const d = day.format(new Date(t));
@@ -545,6 +586,7 @@ export async function selfScheduleLink(
   weeks: Weeks = {},
   setting: Setting = { place: null, videoUrl: null, agenda: null },
 ): Promise<Result<string>> {
+  const { t } = await mailWords(ctx);
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
@@ -576,20 +618,30 @@ export async function selfScheduleLink(
     render(words.subject, filled),
     render(words.body, filled),
     {
-      heading: `Choose times for your ${plan.title.toLowerCase()}`,
+      heading: t('email.interviews.choose_times_for_your', 'Choose times for your {{title}}', {
+        title: plan.title.toLowerCase(),
+      }),
       facts: [
-        { label: 'Interview', value: plan.title },
-        { label: 'Length', value: `${String(plan.minutes)} minutes` },
+        { label: t('email.interviews.interview', 'Interview'), value: plan.title },
+        {
+          label: t('email.interviews.length_2', 'Length'),
+          value: t('email.interviews.minutes_2', '{{minutes}} minutes', { minutes: plan.minutes }),
+        },
         ...(setting.videoUrl !== null || setting.place === null
           ? [
               {
-                label: 'Where',
-                value: setting.place ?? 'Video call; the link comes with the invitation',
+                label: t('email.interviews.where_3', 'Where'),
+                value:
+                  setting.place ??
+                  t(
+                    'email.interviews.video_call_the_link_comes_with',
+                    'Video call; the link comes with the invitation',
+                  ),
               },
             ]
-          : [{ label: 'Where', value: setting.place }]),
+          : [{ label: t('email.interviews.where_4', 'Where'), value: setting.place }]),
       ],
-      action: { label: 'Choose my times', href: link },
+      action: { label: t('email.interviews.choose_my_times', 'Choose my times'), href: link },
     },
   );
   return ok(link);
@@ -716,6 +768,7 @@ export async function offerAvailability(
   times: readonly Instant[],
   timeZone: string | null = null,
 ): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
   const link = await linkOf(ctx, token);
   if (link === null) return err(notFound('link'));
   const offered = await linkSlots(ctx, token);
@@ -765,17 +818,43 @@ export async function offerAvailability(
     candidate,
     app.id,
     before === null
-      ? `Received: your times for the ${offered.value.title.toLowerCase()} with ${settings.companyName}`
-      : `Updated: your new times for the ${offered.value.title.toLowerCase()} with ${settings.companyName}`,
-    `Hello ${first},\n\nThank you. ${settings.companyName} has the ${String(chosen.length)} times you gave${before === null ? '' : ', in place of the ones before'}, and will confirm one of them by email with the meeting link and what it is about.\n\nPlans changed? Change your times until then.`,
+      ? t(
+          'email.interviews.received_your_times_for_the_with',
+          'Received: your times for the {{title}} with {{companyName}}',
+          { title: offered.value.title.toLowerCase(), companyName: settings.companyName },
+        )
+      : t(
+          'email.interviews.updated_your_new_times_for_the',
+          'Updated: your new times for the {{title}} with {{companyName}}',
+          { title: offered.value.title.toLowerCase(), companyName: settings.companyName },
+        ),
+    t(
+      'email.interviews.hello_thank_you_has_the_times',
+      'Hello {{first}},\n\nThank you. {{companyName}} has the {{length}} times you gave{{value}}, and will confirm one of them by email with the meeting link and what it is about.\n\nPlans changed? Change your times until then.',
+      {
+        first,
+        companyName: settings.companyName,
+        length: chosen.length,
+        value:
+          before === null
+            ? ''
+            : t('email.interviews.in_place_of_the_ones_before', ', in place of the ones before'),
+      },
+    ),
     {
-      heading: before === null ? 'We have your times' : 'We have your new times',
+      heading:
+        before === null
+          ? t('email.interviews.we_have_your_times', 'We have your times')
+          : t('email.interviews.we_have_your_new_times', 'We have your new times'),
       times: {
-        title: `Your ${String(chosen.length)} times · ${zone}`,
-        days: byDay(chosen, zone, offered.value.minutes),
+        title: t('email.interviews.your_times', 'Your {{length}} times · {{zone}}', {
+          length: chosen.length,
+          zone,
+        }),
+        days: byDay(chosen, zone, offered.value.minutes, (await mailWords(ctx)).language),
       },
       action: {
-        label: 'Change my times',
+        label: t('email.interviews.change_my_times', 'Change my times'),
         href: `${ctx.deps.jobsOrigin}/schedule/${company}#${token}`,
       },
     },
@@ -784,12 +863,23 @@ export async function offerAvailability(
   await tellMembers(
     ctx,
     ask.owners ?? [],
-    `${candidate.name} ${before === null ? 'gave' : 'changed'} ${String(chosen.length)} times for the ${offered.value.title}`,
-    `${candidate.name} (${job?.title ?? ''}) can do:\n${byDay(chosen, 'UTC', offered.value.minutes)
-      .map((d) => `- ${d.day}: ${d.times.join(', ')}`)
-      .join(
-        '\n',
-      )}\n(UTC)\n\nChoose one in your Inbox, or ask for more times; the invitation goes out with the meeting link and the agenda.`,
+    t('email.interviews.times_for_the', '{{name}} {{value}} {{length}} times for the {{title}}', {
+      name: candidate.name,
+      value: before === null ? 'gave' : 'changed',
+      length: chosen.length,
+      title: offered.value.title,
+    }),
+    t(
+      'email.interviews.can_do_utc_choose_one_in',
+      '{{name}} ({{value}}) can do:\n{{map}}\n(UTC)\n\nChoose one in your Inbox, or ask for more times; the invitation goes out with the meeting link and the agenda.',
+      {
+        name: candidate.name,
+        value: job?.title ?? '',
+        map: byDay(chosen, 'UTC', offered.value.minutes)
+          .map((d) => `- ${d.day}: ${d.times.join(', ')}`)
+          .join('\n'),
+      },
+    ),
     `availability:${ask.id}`,
   );
   return ok(ask);
@@ -862,6 +952,7 @@ export async function requestMoreTimes(
   askId: string,
   note: string | null,
 ): Promise<Result<string>> {
+  const { t } = await mailWords(ctx);
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
@@ -886,16 +977,30 @@ export async function requestMoreTimes(
     ctx,
     candidate,
     applicationId,
-    `More times, please: your ${plan.title.toLowerCase()} with ${settings.companyName}`,
-    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\nThank you for your times. The team cannot make any of them, so please choose others. The ones below are left out, as are holidays and the team's time off.${note === null || note.trim() === '' ? '' : `\n\n${note.trim()}`}`,
-    {
-      heading: 'Could you give us other times?',
-      times: {
-        title: 'These did not work',
-        days: byDay(ask.times, zone, plan.minutes),
-        note: `Times in ${zone}.`,
+    t(
+      'email.interviews.more_times_please_your_with',
+      'More times, please: your {{title}} with {{companyName}}',
+      { title: plan.title.toLowerCase(), companyName: settings.companyName },
+    ),
+    t(
+      'email.interviews.hello_thank_you_for_your_times',
+      "Hello {{value}},\n\nThank you for your times. The team cannot make any of them, so please choose others. The ones below are left out, as are holidays and the team's time off.{{value2}}",
+      {
+        value: candidate.name.split(' ')[0] ?? candidate.name,
+        value2: note === null || note.trim() === '' ? '' : `\n\n${note.trim()}`,
       },
-      action: { label: 'Choose other times', href: link },
+    ),
+    {
+      heading: t(
+        'email.interviews.could_you_give_us_other_times',
+        'Could you give us other times?',
+      ),
+      times: {
+        title: t('email.interviews.these_did_not_work', 'These did not work'),
+        days: byDay(ask.times, zone, plan.minutes, (await mailWords(ctx)).language),
+        note: t('email.interviews.times_in', 'Times in {{zone}}.', { zone }),
+      },
+      action: { label: t('email.interviews.choose_other_times', 'Choose other times'), href: link },
     },
   );
   return ok(link);
@@ -1184,10 +1289,22 @@ export async function requestReference(
   const token = (await ctx.tx.settings.get(`reference_token:${ref.id}`)) as string | null;
   if (token === null) return err(notFound('reference'));
   const settings = await generalSettings(ctx);
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: ref.refereeEmail,
-    subject: `A reference for ${loaded.value.candidate.name}`,
-    text: `Hello ${ref.refereeName},\n\n${loaded.value.candidate.name} named you as a referee for a role at ${settings.companyName}. It takes a few minutes and needs no account:\n${ctx.deps.jobsOrigin}/reference/${settings.companySlug}#${token}`,
+    subject: t('email.reference.subject', 'A reference for {{candidate}}', {
+      candidate: loaded.value.candidate.name,
+    }),
+    text: t(
+      'email.reference.text',
+      'Hello {{name}},\n\n{{candidate}} named you as a referee for a role at {{company}}. It takes a few minutes and needs no account:\n{{link}}',
+      {
+        name: ref.refereeName,
+        candidate: loaded.value.candidate.name,
+        company: settings.companyName,
+        link: `${ctx.deps.jobsOrigin}/reference/${settings.companySlug}#${token}`,
+      },
+    ),
     dedupeKey: `reference:${ref.id}`,
   });
   await ctx.tx.references.save({ ...ref, state: 'requested', requestedAt: ctx.at });

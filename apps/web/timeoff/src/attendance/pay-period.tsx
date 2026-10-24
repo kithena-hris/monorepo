@@ -2,6 +2,8 @@ import {
   Alert,
   Badge,
   Button,
+  formatList,
+  icons,
   KeyValues,
   PageHeader,
   PageSection,
@@ -12,7 +14,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -80,12 +81,17 @@ const PAID_AS: Record<'comp' | 'paid' | 'mixed', string> = {
   mixed: tr('attendance.pay-period.paid_and_comp_time', 'Paid and comp time'),
 };
 const people = (n: number): string =>
-  n === 1 ? '1 person' : tr('attendance.pay-period.people', '{{n}} people', { n: String(n) });
+  tr(
+    'attendance.pay-period.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 const daysOf = (d: string): string =>
-  tr('attendance.pay-period.text', '{{d}} {{value}}', {
-    d: amount(d),
-    value: amount(d) === '1' ? 'day' : 'days',
-  });
+  tr(
+    'attendance.pay-period.count_days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    { count: Number(amount(d)) },
+  );
 const hoursOf = (minutes: number): string => (minutes === 0 ? '0h' : duration(minutes));
 const teamOf = (name: string | null): string =>
   name ?? tr('attendance.pay-period.no_team', 'No team');
@@ -98,7 +104,7 @@ export function PayPeriod(props: PayPeriodProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={tr('attendance.pay-period.attendance', 'Attendance')} />
       ) : null}
-      <Loaded load={load} what="the pay period">
+      <Loaded load={load} what={tr('attendance.pay-period.the_pay_period', 'the pay period')}>
         {(data) => <Ready {...props} data={data} />}
       </Loaded>
     </div>
@@ -136,15 +142,33 @@ function Ready({
     <>
       <PageHeader
         title={tr('attendance.pay-period.attendance', 'Attendance')}
-        description={tr('attendance.pay-period.text_2', '{{monthName}} · {{value}}', {
-          monthName: monthName(data.from),
-          value:
-            data.closedAt === null
-              ? over
-                ? 'ready to send to Payroll'
-                : `closes for Payroll after ${shortDate(data.to)}`
-              : `sent to Payroll on ${shortDate(data.closedAt.slice(0, 10))}`,
-        })}
+        description={
+          data.closedAt === null
+            ? over
+              ? tr(
+                  'attendance.pay-period.ready_to_send_to_payroll',
+                  '{{monthName}} · ready to send to Payroll',
+                  {
+                    monthName: monthName(data.from),
+                  },
+                )
+              : tr(
+                  'attendance.pay-period.closes_for_payroll_after',
+                  '{{monthName}} · closes for Payroll after {{date}}',
+                  {
+                    monthName: monthName(data.from),
+                    date: shortDate(data.to),
+                  },
+                )
+            : tr(
+                'attendance.pay-period.sent_to_payroll_on',
+                '{{monthName}} · sent to Payroll on {{date}}',
+                {
+                  monthName: monthName(data.from),
+                  date: shortDate(data.closedAt.slice(0, 10)),
+                },
+              )
+        }
       />
       <MonthNav month={data.month} path="/time-off/attendance/pay-period" />
       {refused === null ? null : (
@@ -240,10 +264,13 @@ function Ready({
                 tone="warning"
                 title={tr(
                   'attendance.pay-period.waiting_2',
-                  '{{join}} {{value}} {{people}} waiting',
                   {
+                    one: '{{join}} has {{people}} waiting',
+                    other: '{{join}} have {{people}} waiting',
+                  },
+                  {
+                    count: lateTeams.length,
                     join: lateTeams.map((team) => teamOf(team.teamName)).join(', '),
-                    value: lateTeams.length === 1 ? 'has' : 'have',
                     people: people(data.late.length),
                   },
                 )}
@@ -275,16 +302,30 @@ function Ready({
                       .map((l) =>
                         tr('attendance.pay-period.text_named', '{{displayName}}: {{join}}', {
                           displayName: l.displayName,
-                          join: [
-                            l.openDays === 0
-                              ? null
-                              : `${String(l.openDays)} missing ${l.openDays === 1 ? 'clock-out' : 'clock-outs'}`,
-                            l.overtimeWaitingMinutes === 0
-                              ? null
-                              : `${duration(l.overtimeWaitingMinutes)} overtime to decide`,
-                          ]
-                            .filter(Boolean)
-                            .join(', '),
+                          join: formatList(
+                            [
+                              l.openDays === 0
+                                ? null
+                                : tr(
+                                    'attendance.pay-period.missing_clock_outs',
+                                    {
+                                      one: '{{count}} missing clock-out',
+                                      other: '{{count}} missing clock-outs',
+                                    },
+                                    { count: l.openDays },
+                                  ),
+                              l.overtimeWaitingMinutes === 0
+                                ? null
+                                : tr(
+                                    'attendance.pay-period.overtime_to_decide',
+                                    '{{duration}} overtime to decide',
+                                    {
+                                      duration: duration(l.overtimeWaitingMinutes),
+                                    },
+                                  ),
+                            ].filter((x): x is string => x !== null),
+                            'unit',
+                          ),
                         }),
                       )
                       .join('. '),
@@ -324,14 +365,16 @@ function Ready({
             )}
             <p className="flex gap-2 text-xs text-fg-muted [&_svg]:size-3.5 [&_svg]:shrink-0">
               <icons.hidden aria-hidden />
-              {tr(
-                'attendance.pay-period.payroll_gets_hours_and_amounts_once',
-                'Payroll gets hours, and amounts once pay rates are known, never punch times or locations.{{value}}',
-                {
-                  value:
-                    over || data.closedAt !== null ? '' : ` It can be sent once ${name} is over.`,
-                },
-              )}
+              {over || data.closedAt !== null
+                ? tr(
+                    'attendance.pay-period.payroll_gets_hours_and_amounts_once',
+                    'Payroll gets hours, and amounts once pay rates are known, never punch times or locations.',
+                  )
+                : tr(
+                    'attendance.pay-period.payroll_gets_hours_sent_once_over',
+                    'Payroll gets hours, and amounts once pay rates are known, never punch times or locations. It can be sent once {{name}} is over.',
+                    { name },
+                  )}
             </p>
           </div>
         </PageSection>

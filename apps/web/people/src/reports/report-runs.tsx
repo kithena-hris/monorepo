@@ -62,7 +62,7 @@ const why = (code: string): string => WHY[code] ?? code;
 
 export function ReportRuns({ load, onLoadMore }: ReportRunsProps): JSX.Element {
   return (
-    <Loaded load={load} what="the report’s history">
+    <Loaded load={load} what={t('reports.report-runs.the_reports_history', 'the report’s history')}>
       {(state) => <Runs state={state} onLoadMore={onLoadMore} />}
     </Loaded>
   );
@@ -159,10 +159,18 @@ function Runs({
                       <li key={r.accountId ?? i}>
                         {r.accountId === null
                           ? why(r.outcome)
-                          : t('reports.report-runs.text', '{{value}}: {{why}}', {
-                              value: r.name ?? 'Somebody who has left',
-                              why: why(r.outcome),
-                            })}
+                          : r.name === null
+                            ? t(
+                                'reports.report-runs.somebody_who_has_left',
+                                'Somebody who has left: {{why}}',
+                                {
+                                  why: why(r.outcome),
+                                },
+                              )
+                            : t('reports.report-runs.text', '{{value}}: {{why}}', {
+                                value: r.name,
+                                why: why(r.outcome),
+                              })}
                       </li>
                     ))}
                   </ul>

@@ -125,7 +125,10 @@ export function ParentalPlan(props: ParentalPlanProps): JSX.Element {
       {load.status === 'error' ? (
         <PageHeader title={t('parental.plan.plan_parental_leave', 'Plan parental leave')} />
       ) : null}
-      <Loaded load={load} what="your parental leave plan">
+      <Loaded
+        load={load}
+        what={t('parental.plan.your_parental_leave_plan', 'your parental leave plan')}
+      >
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>
@@ -528,11 +531,17 @@ function EntitlementCard({
               label={t('parental.plan.mandatory', 'Mandatory')}
               value={String(e.mandatoryWeeks)}
               unit="weeks"
-              description={t(
-                'parental.plan.straight_after_the_full_time',
-                'Straight after the {{value}}, full time',
-                { value: role === 'adopting' ? 'decision' : 'birth' },
-              )}
+              description={
+                role === 'adopting'
+                  ? t(
+                      'parental.plan.straight_after_the_decision',
+                      'Straight after the decision, full time',
+                    )
+                  : t(
+                      'parental.plan.straight_after_the_birth',
+                      'Straight after the birth, full time',
+                    )
+              }
             />
             <Stat
               label={t('parental.plan.flexible', 'Flexible')}
@@ -574,11 +583,11 @@ function EntitlementCard({
                 iconTone="chart-2"
                 description={t(
                   'parental.plan.company_policy_for_parents_with_of',
-                  'Company policy for parents with {{value}} {{value2}} of service.',
                   {
-                    value: String(e.companyAfterYears ?? 0),
-                    value2: e.companyAfterYears === 1 ? 'year' : 'years',
+                    one: 'Company policy for parents with {{value}} year of service.',
+                    other: 'Company policy for parents with {{value}} years of service.',
                   },
+                  { count: e.companyAfterYears, value: String(e.companyAfterYears ?? 0) },
                 )}
               >
                 {t('parental.plan.your_company_adds_paid', 'Your company adds {{weeks}}, paid', {
@@ -797,12 +806,14 @@ const VERTICAL: Record<
   (b: Block, plan: Plan) => { lead: string; title: string; detail: string }
 > = {
   mandatory: (b, plan) => ({
-    lead: t('parental.plan.from_the_birth', 'From the birth · {{value}}', {
-      value:
-        plan.birth === null
-          ? `due ${shortDate(plan.childDate)}`
-          : `born ${shortDate(plan.childDate)}`,
-    }),
+    lead:
+      plan.birth === null
+        ? t('parental.plan.from_the_birth_due', 'From the birth · due {{date}}', {
+            date: shortDate(plan.childDate),
+          })
+        : t('parental.plan.from_the_birth_born', 'From the birth · born {{date}}', {
+            date: shortDate(plan.childDate),
+          }),
     title: t('parental.plan.mandatory_2', '{{from}}, mandatory', { from: duration(b.from, b.to) }),
     detail: t('parental.plan.full_time', '{{spanLabel}} · full time', {
       spanLabel: spanLabel(b.from, b.to),
@@ -1013,10 +1024,16 @@ function Handover({
                 icon={<icons.email aria-hidden />}
                 label={t('parental.plan.out_of_office_reply', 'Out-of-office reply')}
                 needs="calendar"
-                detail={t('parental.plan.from', 'From {{childDate}}{{value}}', {
-                  childDate: shortDate(plan.childDate),
-                  value: away === null ? '' : `, until ${shortDate(away)}`,
-                })}
+                detail={
+                  away === null
+                    ? t('parental.plan.from', 'From {{childDate}}', {
+                        childDate: shortDate(plan.childDate),
+                      })
+                    : t('parental.plan.from_until', 'From {{childDate}}, until {{until}}', {
+                        childDate: shortDate(plan.childDate),
+                        until: shortDate(away),
+                      })
+                }
               />
               <Integration
                 icon={<icons.message aria-hidden />}

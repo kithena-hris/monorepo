@@ -1,5 +1,6 @@
 import { Card, CardContent, EmptyState, PageHeader, icons } from '@reach/ui';
 import type { JSX, ReactNode } from 'react';
+import { t } from '../lib/t';
 
 /**
  * Home for a company without People, or with a People that offers no Home
@@ -27,8 +28,11 @@ export function HomeDashboard({ greeting, account, toDo }: HomeDashboardProps): 
           <CardContent className="pt-5">
             <EmptyState
               icon={<icons.inbox />}
-              title="Nothing needs you yet"
-              description="Requests, documents and approvals appear here as each module is switched on."
+              title={t('components.home-dashboard.nothing_needs_you_yet', 'Nothing needs you yet')}
+              description={t(
+                'components.home-dashboard.requests_documents_and_approvals_appear_here_as',
+                'Requests, documents and approvals appear here as each module is switched on.',
+              )}
             />
           </CardContent>
         </Card>

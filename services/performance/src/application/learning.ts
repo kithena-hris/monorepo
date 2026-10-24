@@ -25,6 +25,7 @@ import {
   notFound,
   publish,
   type Ctx,
+  mailWords,
 } from './context.js';
 import { filterable } from './cycles.js';
 import { people } from './members.js';
@@ -55,10 +56,11 @@ async function invite(
   method: 'REQUEST' | 'CANCEL',
 ): Promise<void> {
   if (session.start <= ctx.at || personIds.length === 0) return;
+  const { t, language } = await mailWords(ctx);
   const name = await names(ctx);
   // Rises with every change, so a calendar keeps the newest copy.
   const sequence = Math.floor(Date.parse(ctx.at) / 1000);
-  const when = new Intl.DateTimeFormat('en-GB', {
+  const when = new Intl.DateTimeFormat(language, {
     dateStyle: 'full',
     timeStyle: 'short',
     timeZone: 'UTC',
@@ -86,11 +88,25 @@ async function invite(
     });
     ctx.mail.push({
       to: email,
-      subject: `${method === 'CANCEL' ? 'Cancelled' : 'Invitation'}: ${item.title}, ${when} UTC`,
+      subject: t('email.learning.utc', '{{value}}: {{title}}, {{when}} UTC', {
+        value:
+          method === 'CANCEL'
+            ? t('email.learning.cancelled', 'Cancelled')
+            : t('email.learning.invitation', 'Invitation'),
+        title: item.title,
+        when,
+      }),
       text:
         method === 'CANCEL'
-          ? `${item.title} on ${when} (UTC) is cancelled.`
-          : `You are invited to ${item.title} on ${when} (UTC)${where === null ? '' : `, ${where}`}. The invitation is attached for your calendar.`,
+          ? t('email.learning.on_utc_is_cancelled', '{{title}} on {{when}} (UTC) is cancelled.', {
+              title: item.title,
+              when,
+            })
+          : t(
+              'email.learning.you_are_invited_to_on_utc',
+              'You are invited to {{title}} on {{when}} (UTC){{value}}. The invitation is attached for your calendar.',
+              { title: item.title, when, value: where === null ? '' : `, ${where}` },
+            ),
       dedupeKey: `performance-invite:${session.id}:${personId}:${String(sequence)}:${method}`,
       attachments: [
         { filename: 'invite.ics', base64: Buffer.from(ics, 'utf8').toString('base64') },

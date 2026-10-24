@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef, JSX, ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
 import { Button } from '../button/button';
+import { t } from '../../lib/i18n';
 
 /* -------------------------------------------------------------------------- */
 /* Alert                                                                       */
@@ -113,7 +114,7 @@ export function Alert({
   action,
   actions,
   onDismiss,
-  dismissLabel = 'Dismiss',
+  dismissLabel = t('components.feedback.feedback.dismiss', 'Dismiss'),
   children,
   ...props
 }: AlertProps): JSX.Element {
@@ -216,7 +217,7 @@ export function Skeleton({
   shape = 'block',
   breadcrumb = false,
   tabs = 0,
-  label = 'Loading',
+  label = t('components.feedback.feedback.loading', 'Loading'),
   ...props
 }: SkeletonProps): JSX.Element {
   if (shape === 'block') {

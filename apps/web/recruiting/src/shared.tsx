@@ -1,4 +1,4 @@
-import { Alert, Badge, SearchField } from '@reach/ui';
+import { Alert, Badge, dateFormat, numberFormat, SearchField } from '@reach/ui';
 import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
 
 import type { Category, Done, ScreenProps } from './types';
@@ -90,21 +90,14 @@ export function Refusal({ error }: { readonly error: string | null }): JSX.Eleme
   );
 }
 
-const MONEY = new Map<string, Intl.NumberFormat>();
 /** Minor units in the currency's own form: 7,200,000 EUR is "€72,000". */
 export function money(minor: number, currency: string, compact = false): string {
-  const key = `${currency}|${String(compact)}`;
-  let f = MONEY.get(key);
-  if (f === undefined) {
-    f = new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-      ...(compact ? { notation: 'compact' } : {}),
-    });
-    MONEY.set(key, f);
-  }
-  return f.format(minor / 100);
+  return numberFormat({
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+    ...(compact ? { notation: 'compact' } : {}),
+  }).format(minor / 100);
 }
 
 /** A range, or one figure when it is fixed. */
@@ -116,14 +109,14 @@ export const range = (min: number, max: number, currency: string): string =>
         max: money(max, currency),
       });
 
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-const DAY_YEAR = new Intl.DateTimeFormat('en-GB', {
+const DAY = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' });
+const DAY_YEAR = dateFormat({
   day: 'numeric',
   month: 'short',
   year: 'numeric',
   timeZone: 'UTC',
 });
-const WHEN = new Intl.DateTimeFormat('en-GB', {
+const WHEN = dateFormat({
   weekday: 'short',
   day: 'numeric',
   month: 'short',

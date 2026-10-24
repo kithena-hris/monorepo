@@ -22,6 +22,8 @@ export const tenant = platform.table('tenant', {
   accentColor: text('accent_color'),
   brandingPublic: boolean('branding_public').notNull(),
   googleSignIn: boolean('google_sign_in').notNull(),
+  /** Every email's language, and a screen's until its reader chooses (`language.ts` in contracts). */
+  language: text('language').notNull(),
   // The registered address. Only the two parts a screen says out loud are
   // declared here: a person reads "London, United Kingdom", never a street.
   addressCity: text('address_city'),

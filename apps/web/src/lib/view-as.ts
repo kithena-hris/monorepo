@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { people } from './people';
 import { currentPerson } from './session';
 import { RETURN_COOKIE, SESSION_COOKIE } from './session-cookie';
+import { t } from './t';
 
 /**
  * Viewing as an employee, in this app: a People administrator swaps their own
@@ -82,10 +83,11 @@ export async function startViewing(
   const own = jar.get(SESSION_COOKIE)?.value;
   const tenantId = (await headers()).get('x-tenant-id');
   if (me === null || own === undefined || tenantId === null || !UUID.test(personId)) {
-    return { ok: false, message: 'Sign in again' };
+    return { ok: false, message: t('lib.people.sign_in_again', 'Sign in again') };
   }
   // People refuses it too; this only saves the round trip.
-  if (me.viewing !== null) return { ok: false, message: 'End this view first' };
+  if (me.viewing !== null)
+    return { ok: false, message: t('lib.view-as.end_this_view_first', 'End this view first') };
 
   const started = await people<{ code: string }>('StartViewingAs', { personId, reason });
   if (!started.ok) return { ok: false, message: started.message };
@@ -99,7 +101,13 @@ export async function startViewing(
     expiresAt?: unknown;
   } | null;
   if (!redeemed?.ok || typeof body?.sessionId !== 'string' || typeof body.expiresAt !== 'string') {
-    return { ok: false, message: 'Viewing as them could not be started. Try again.' };
+    return {
+      ok: false,
+      message: t(
+        'lib.view-as.viewing_as_them_could_not_be_started',
+        'Viewing as them could not be started. Try again.',
+      ),
+    };
   }
   const ownEnd = me.expiresAt === null ? Date.now() + 86_400_000 : Date.parse(me.expiresAt);
   jar.set(

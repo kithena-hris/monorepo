@@ -1,4 +1,4 @@
-import type { Clock, PendingEvent, Result } from '@kithena/domain-kit';
+import type { Clock, PendingEvent, Result, Words } from '@kithena/domain-kit';
 import type {
   CalendarDate,
   Instant,
@@ -1002,6 +1002,17 @@ export interface Mailer {
     readonly companyName?: string;
     readonly parts?: MailParts;
   }): Promise<void>;
+  /**
+   * The company's language and Recruiting's words in it: every email is
+   * written in the company's language, whatever the candidate reads screens in.
+   */
+  words?(tenantId: TenantId): Promise<MailWords>;
+}
+
+/** A language and Recruiting's words for its emails in it. */
+export interface MailWords {
+  readonly language: string;
+  readonly t: Words;
 }
 
 /**

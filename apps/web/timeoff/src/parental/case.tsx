@@ -69,7 +69,10 @@ export function ParentalCase({ load, onApprove }: ParentalCaseProps): JSX.Elemen
       {load.status === 'error' ? (
         <PageHeader title={t('parental.case.parental_leave', 'Parental leave')} />
       ) : null}
-      <Loaded load={load} what="this parental leave case">
+      <Loaded
+        load={load}
+        what={t('parental.case.this_parental_leave_case', 'this parental leave case')}
+      >
         {(data) => <Ready data={data} onApprove={onApprove} />}
       </Loaded>
     </div>
@@ -102,9 +105,12 @@ function step(
       };
     case 'manager_told':
       return {
-        title: t('parental.case.told', '{{value}} told', {
-          value: managerName?.split(' ')[0] ?? 'The manager',
-        }),
+        title:
+          managerName == null
+            ? t('parental.case.the_manager_told', 'The manager told')
+            : t('parental.case.told', '{{value}} told', {
+                value: managerName.split(' ')[0] ?? managerName,
+              }),
         detail:
           plan.sentAt === null
             ? t('parental.case.when_the_plan_is_sent', 'When the plan is sent.')

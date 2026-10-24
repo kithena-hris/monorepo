@@ -115,9 +115,9 @@ export function Combobox({
   onChange,
   multiple = false,
   chips = false,
-  placeholder = 'Select…',
-  searchPlaceholder = 'Search…',
-  emptyMessage = 'No matches.',
+  placeholder = t('components.combobox.combobox.select', 'Select…'),
+  searchPlaceholder = t('components.combobox.combobox.search', 'Search…'),
+  emptyMessage = t('components.combobox.combobox.no_matches', 'No matches.'),
   label,
   disabled = false,
   clearable = false,
@@ -413,7 +413,7 @@ export function Combobox({
             aria-expanded
             aria-controls={listId}
             aria-autocomplete="list"
-            aria-label={t('components.combobox.combobox.search', '{{label}} search', { label })}
+            aria-label={t('components.combobox.combobox.search_2', '{{label}} search', { label })}
             aria-activedescendant={
               flat[activeIndex] ? `${optionIdPrefix}-${String(activeIndex)}` : undefined
             }

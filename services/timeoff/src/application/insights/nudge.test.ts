@@ -37,7 +37,7 @@ describe('nudges (TOF-098)', () => {
       personId: people.adam,
       displayName: 'Adam Novak',
       heading: 'Adam, you haven’t had a day off since June',
-      lede: 'You have 25 days left this year. 20 of them would be lost on 31 December if they stay unbooked. A few days away do more than they look. Nobody else sees this message.',
+      lede: 'You have 25 days left this year. 20 of them would be lost on December 31 if they stay unbooked. A few days away do more than they look. Nobody else sees this message.',
       ai: false,
     });
     const plain = await nudgePreview(app.deps)(hr, {
@@ -71,7 +71,9 @@ describe('nudges (TOF-098)', () => {
       appOrigin: 'https://acme.app.kithena.com/time-off/insights/what-changed',
     });
     expect(sent).toEqual({ ok: true, value: { sent: 6, unreachable: 1, failed: 0 } });
-    expect(mailer.sent[0]?.lede).toContain('Taking Fri 27 Nov gives you 4 days off with Acme Day.');
+    expect(mailer.sent[0]?.lede).toContain(
+      'Taking Fri, Nov 27 gives you 4 days off with Acme Day.',
+    );
     const adam = mailer.sent.find((m) => m.email === 'adam@acme.example');
     expect(adam).toMatchObject({
       companyName: 'Acme Corp',
@@ -116,7 +118,7 @@ describe('nudges (TOF-098)', () => {
       noDayOffSince: 'June',
       daysLeftThisYear: '25',
       daysLostIfUnbooked: '20',
-      lostOn: '31 December',
+      lostOn: 'December 31',
     });
 
     // A line with a figure the facts do not hold is the template; the preview says which.

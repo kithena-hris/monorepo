@@ -140,13 +140,39 @@ export function countsOf(items: readonly Shown[]): Counts {
 }
 
 import { dayIn, moduleName } from './plain';
+import { dateFormat } from '@reach/ui/intl';
+import { t } from '../t';
 
 export { dayIn, moduleName };
 
 const addDays = (day: string, n: number): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' });
+const MONTH = dateFormat({ month: 'long', timeZone: 'UTC' });
+
+/** A group's heading, in the reader's language; the English is the key it is grouped by. */
+const heading = (label: string): string => {
+  switch (label) {
+    case 'Queues':
+      return t('lib.inbox.model.queues', 'Queues');
+    case 'No due date':
+      return t('lib.inbox.model.no_due_date', 'No due date');
+    case 'Overdue':
+      return t('lib.inbox.model.overdue', 'Overdue');
+    case 'Due this week':
+      return t('lib.inbox.model.due_this_week', 'Due this week');
+    case 'Later':
+      return t('lib.inbox.model.later', 'Later');
+    case 'Today':
+      return t('lib.inbox.model.today', 'Today');
+    case 'Yesterday':
+      return t('lib.inbox.model.yesterday', 'Yesterday');
+    case 'Earlier':
+      return t('lib.inbox.model.earlier', 'Earlier');
+    default:
+      return label;
+  }
+};
 
 export interface Group {
   /** Null for a lane drawn as one list (My requests). */
@@ -199,7 +225,7 @@ export function groupsOf(
     const order = ['Overdue', 'Due this week', 'Later', 'No due date', 'Queues'];
     return order.flatMap((label) => {
       const g = groups.get(label);
-      return g === undefined ? [] : [{ label, items: g }];
+      return g === undefined ? [] : [{ label: heading(label), items: g }];
     });
   }
   if (lane === 'updates') {
@@ -210,7 +236,7 @@ export function groupsOf(
     }
     return ['Today', 'Yesterday', 'Earlier'].flatMap((label) => {
       const g = groups.get(label);
-      return g === undefined ? [] : [{ label, items: g }];
+      return g === undefined ? [] : [{ label: heading(label), items: g }];
     });
   }
   const year = today.slice(0, 4);

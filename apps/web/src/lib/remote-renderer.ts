@@ -28,6 +28,8 @@ import * as React from 'react';
 import { renderToString } from 'react-dom/server';
 import * as jsxRuntime from 'react/jsx-runtime';
 
+import { wordsIn } from './words';
+
 const SHARED: Readonly<Record<string, unknown>> = {
   react: React,
   'react/jsx-runtime': jsxRuntime,
@@ -84,10 +86,19 @@ let source: string | undefined;
 
 function speak(language: string): void {
   const words = catalogues.get(language);
+  const lookup = new Map<string, ReturnType<typeof wordsIn>>();
+  Reach.setLocale(() => language);
   Reach.setTranslate(
     words === undefined
       ? null
-      : (ns, key, fallback, vars) => Reach.interpolate(words[ns]?.[key] ?? fallback, vars),
+      : (ns, key, fallback, vars) => {
+          let t = lookup.get(ns);
+          if (t === undefined) {
+            t = wordsIn(language, words[ns] ?? {});
+            lookup.set(ns, t);
+          }
+          return t(key, fallback, vars);
+        },
   );
 }
 

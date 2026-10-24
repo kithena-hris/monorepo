@@ -138,7 +138,11 @@ function ManagerChangeConfirm({
                   'record.manager-change.they_report_to_the_person_you',
                   'They report to the person you chose from now on, and who may see their record follows.',
                 )
-              : `They report to the person you chose from ${when}; whatever you choose here happens then.`}
+              : t(
+                  'record.manager-change.they_report_to_the_person_from',
+                  'They report to the person you chose from {{when}}; whatever you choose here happens then.',
+                  { when },
+                )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-5">

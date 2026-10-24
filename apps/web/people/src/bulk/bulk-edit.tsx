@@ -144,7 +144,7 @@ export function BulkEdit({
   const [tab, setTab] = useHeld<BulkTab>(heldTab, onTabChange, 'edit');
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
-      <Loaded load={load} what="the people to edit">
+      <Loaded load={load} what={t('bulk.bulk-edit.the_people_to_edit', 'the people to edit')}>
         {(state) => {
           const { onPreviewHire, onCommitHire, ...edit } = props;
           if (
@@ -248,7 +248,15 @@ async function pages(
         problem:
           rows.length === 0
             ? answer.message
-            : `${answer.message}. Stopped after ${String(rows.length)} of ${String(ids.length)} people; the rest were not done.`,
+            : t(
+                'bulk.bulk-edit.stopped_after_of_people',
+                '{{message}}. Stopped after {{done}} of {{count}} people; the rest were not done.',
+                {
+                  message: answer.message,
+                  done: rows.length,
+                  count: ids.length,
+                },
+              ),
       };
     }
     committed = answer.committed;
@@ -307,10 +315,14 @@ function Editor({
   // A new manager for them all: asked once, before anything is applied.
   const managerConfirm = useManagerConfirm(
     managerChange,
-    t('bulk.bulk-edit.change_the_manager_of', 'Change the manager of {{length}} {{value}}?', {
-      length: String(state.people.length),
-      value: state.people.length === 1 ? 'person' : 'people',
-    }),
+    t(
+      'bulk.bulk-edit.change_the_manager_of',
+      {
+        one: 'Change the manager of {{count}} person?',
+        other: 'Change the manager of {{count}} people?',
+      },
+      { count: state.people.length },
+    ),
   );
   const commit = async (): Promise<void> => {
     const moving = managerChange !== undefined && chosen.includes(MANAGER_KEY);
@@ -363,10 +375,11 @@ function Editor({
     <Stack gap={5}>
       {managerConfirm.dialog}
       <PageHeader
-        title={t('bulk.bulk-edit.edit', 'Edit {{length}} {{value}}', {
-          length: String(state.people.length),
-          value: state.people.length === 1 ? 'person' : 'people',
-        })}
+        title={t(
+          'bulk.bulk-edit.edit',
+          { one: 'Edit {{count}} person', other: 'Edit {{count}} people' },
+          { count: state.people.length },
+        )}
         description={state.people.map((p) => p.name).join(', ')}
         actions={<BackToDirectory onBack={onBack} />}
       />
@@ -532,13 +545,21 @@ function Editor({
               <>
                 {shown.committed ? (
                   <Alert tone={count('refused') === 0 ? 'success' : 'warning'}>
-                    {t('bulk.bulk-edit.saved_for', 'Saved for {{count}} {{value}}.', {
-                      count: String(count('changed')),
-                      value: count('changed') === 1 ? 'person' : 'people',
-                    })}
+                    {t(
+                      'bulk.bulk-edit.saved_for',
+                      { one: 'Saved for {{count}} person.', other: 'Saved for {{count}} people.' },
+                      { count: count('changed') },
+                    )}
                     {count('refused') === 0
                       ? ''
-                      : ` ${String(count('refused'))} refused, as each says below; nothing was written for them.`}
+                      : ' ' +
+                        t(
+                          'bulk.bulk-edit.refused_as_each_says_below',
+                          '{{count}} refused, as each says below; nothing was written for them.',
+                          {
+                            count: count('refused'),
+                          },
+                        )}
                   </Alert>
                 ) : (
                   <Alert
@@ -577,10 +598,11 @@ function Editor({
                         void commit();
                       }}
                     >
-                      {t('bulk.bulk-edit.apply_to', 'Apply to {{value}} {{value2}}', {
-                        value: String(count('changed') + count('held')),
-                        value2: count('changed') + count('held') === 1 ? 'person' : 'people',
-                      })}
+                      {t(
+                        'bulk.bulk-edit.apply_to',
+                        { one: 'Apply to {{count}} person', other: 'Apply to {{count}} people' },
+                        { count: count('changed') + count('held') },
+                      )}
                     </Button>
                   </div>
                 )}
@@ -739,10 +761,14 @@ function Hire({
   return (
     <Stack gap={5}>
       <PageHeader
-        title={t('bulk.bulk-edit.hire_2', 'Hire {{value}} {{value2}}', {
-          value: String(shown === null ? state.people.length : hired),
-          value2: (shown === null ? state.people.length : hired) === 1 ? 'person' : 'people',
-        })}
+        title={t(
+          'bulk.bulk-edit.hire_2',
+          { one: 'Hire {{value}} person', other: 'Hire {{value}} people' },
+          {
+            count: shown === null ? state.people.length : hired,
+            value: String(shown === null ? state.people.length : hired),
+          },
+        )}
         description={t(
           'bulk.bulk-edit.people_without_a_start_date_become',
           'People without a start date become employees on the date you choose.',
@@ -774,10 +800,11 @@ function Hire({
             {nowhere.length === 0 ? null : (
               <Alert
                 tone="neutral"
-                title={t('bulk.bulk-edit.placed_nowhere', '{{join}} {{value}} placed nowhere', {
-                  join: nowhere.join(', '),
-                  value: nowhere.length === 1 ? 'is' : 'are',
-                })}
+                title={t(
+                  'bulk.bulk-edit.placed_nowhere',
+                  { one: '{{join}} is placed nowhere', other: '{{join}} are placed nowhere' },
+                  { count: nowhere.length, join: nowhere.join(', ') },
+                )}
               >
                 {t(
                   'bulk.bulk-edit.choose_where_they_work_anyone_already',
@@ -827,13 +854,21 @@ function Hire({
               <>
                 {shown.committed ? (
                   <Alert tone={skipped === 0 ? 'success' : 'warning'}>
-                    {t('bulk.bulk-edit.hired', 'Hired {{hired}} {{value}}.', {
-                      hired: String(hired),
-                      value: hired === 1 ? 'person' : 'people',
-                    })}
+                    {t(
+                      'bulk.bulk-edit.hired',
+                      { one: 'Hired {{count}} person.', other: 'Hired {{count}} people.' },
+                      { count: hired },
+                    )}
                     {skipped === 0
                       ? ''
-                      : ` ${String(skipped)} skipped, as each says below; nothing was done for them.`}
+                      : ' ' +
+                        t(
+                          'bulk.bulk-edit.skipped_as_each_says_below',
+                          '{{count}} skipped, as each says below; nothing was done for them.',
+                          {
+                            count: skipped,
+                          },
+                        )}
                   </Alert>
                 ) : null}
                 <Tiles
@@ -873,10 +908,11 @@ function Hire({
                         void run('commit', shown.sent);
                       }}
                     >
-                      {t('bulk.bulk-edit.hire_3', 'Hire {{hired}} {{value}}', {
-                        hired: String(hired),
-                        value: hired === 1 ? 'person' : 'people',
-                      })}
+                      {t(
+                        'bulk.bulk-edit.hire_3',
+                        { one: 'Hire {{count}} person', other: 'Hire {{count}} people' },
+                        { count: hired },
+                      )}
                     </Button>
                   </div>
                 )}
@@ -965,9 +1001,9 @@ function Results({
     </Badge>
   );
   const columns: DataColumn<BulkRow>[] = [
-    { id: 'person', header: 'Person', cell: (r) => r.name },
-    { id: 'outcome', header: 'Outcome', cell: badge },
-    { id: 'what', header: 'What', cell: what },
+    { id: 'person', header: t('bulk.bulk-edit.person', 'Person'), cell: (r) => r.name },
+    { id: 'outcome', header: t('bulk.bulk-edit.outcome', 'Outcome'), cell: badge },
+    { id: 'what', header: t('bulk.bulk-edit.what', 'What'), cell: what },
     ...(edit === undefined ? [] : [{ id: 'edit', header: editHeader, cell: edit }]),
   ];
   return wide ? (

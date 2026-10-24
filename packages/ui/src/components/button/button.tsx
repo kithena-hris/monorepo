@@ -10,6 +10,7 @@ import { keysOf, useShortcutKeys } from '../../lib/shortcut-keys';
 import { KbdShortcut } from '../kbd/kbd';
 import { Spinner } from '../spinner/spinner';
 import { Tooltip, TooltipProvider } from '../tooltip/tooltip';
+import { t } from '../../lib/i18n';
 
 const button = cva(
   [
@@ -147,7 +148,7 @@ export function Button({
   fullWidth,
   asChild = false,
   loading = false,
-  loadingLabel = 'Loading',
+  loadingLabel = t('components.button.button.loading', 'Loading'),
   startIcon,
   endIcon,
   disabled,

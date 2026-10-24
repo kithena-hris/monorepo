@@ -24,6 +24,9 @@ import { sendCorrespondence } from './message/application/send-correspondence.js
 import { digestRoutes } from './message/http/digest-routes.js';
 import { deliverInbox, flushDigests } from './message/application/inbox-delivery.js';
 import { drizzleDigestStore } from './message/infrastructure/drizzle-digest-store.js';
+import { companyLanguage } from './message/infrastructure/company-language.js';
+import { inEnglish } from './message/application/company-language.js';
+import { languageRoutes } from './message/http/language-routes.js';
 import { identityChoices } from './message/infrastructure/identity-choices.js';
 
 /**
@@ -313,9 +316,17 @@ export function compose(config: Config): RequestHandler {
   const database = selectDatabase(config);
   const deliveries = selectDeliveryLog(config, database);
 
+  // The company's language, which every email is written in, where identity
+  // can be asked; US English otherwise.
+  const language =
+    config.identityUrl !== undefined && config.identityUrl !== '' && config.identityToken
+      ? companyLanguage({ baseUrl: config.identityUrl, token: config.identityToken })
+      : undefined;
+
   const send = sendInvitation({
     transport,
     deliveries,
+    ...(language === undefined ? {} : { language }),
     trustedLinkOrigin: config.authOrigin,
     onRefusal: (reason, detail) => {
       // Named fields, never the request. The request holds the enrolment link,
@@ -375,6 +386,7 @@ export function compose(config: Config): RequestHandler {
     deliveries,
     // '' matches no link at all, so every notice is refused as untrusted.
     tenantAppBase: base ?? '',
+    ...(language === undefined ? {} : { language }),
     onRefusal: (reason, detail) => {
       logger.info({ reason, transport: transport.name, ...detail }, 'notice refused');
     },
@@ -420,6 +432,7 @@ export function compose(config: Config): RequestHandler {
     send: sendCorrespondence({
       transport,
       deliveries,
+      ...(language === undefined ? {} : { language }),
       onRefusal: (reason, detail) => {
         logger.info({ reason, transport: transport.name, ...detail }, 'correspondence refused');
       },
@@ -431,7 +444,20 @@ export function compose(config: Config): RequestHandler {
     ],
   });
 
+  const languages = languageRoutes({
+    language: language ?? inEnglish,
+    internalTokens: [
+      config.noticeToken ?? '',
+      config.timeOffNoticeToken ?? '',
+      config.documentsNoticeToken ?? '',
+      config.recruitingToken ?? '',
+      config.onboardingToken ?? '',
+      config.performanceToken ?? '',
+    ],
+  });
+
   return async (request, response) =>
+    (await languages(request, response)) ||
     (await invitations(request, response)) ||
     (await notices(request, response)) ||
     (await correspondence(request, response)) ||

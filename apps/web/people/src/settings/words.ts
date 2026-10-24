@@ -9,6 +9,7 @@ import type {
   WriterRole,
 } from './model';
 import { t } from '../i18n';
+import { formatList } from '@reach/ui';
 
 /** How each term reads to an HR administrator, not to the schema. */
 
@@ -28,10 +29,10 @@ export const DATA_TYPE_LABEL: Record<DataType, string> = {
   tags: t('settings.words.tags', 'Tags'),
   email: t('settings.words.email_address', 'Email address'),
   phone: t('settings.words.phone_number', 'Phone number'),
-  url: 'Web address',
-  country: 'Country',
+  url: t('settings.words.web_address', 'Web address'),
+  country: t('settings.words.country', 'Country'),
   currency: 'Currency',
-  language: 'Language',
+  language: t('settings.words.language', 'Language'),
   time_zone: t('settings.words.time_zone', 'Time zone'),
   address: t('settings.words.postal_address', 'Postal address'),
   national_id: t('settings.words.national_identifier', 'National identifier'),
@@ -107,10 +108,19 @@ export const DATA_TYPE_HINT: Record<DataType, string> = {
     'settings.words.a_phone_number_with_its_country',
     'A phone number with its country code. An emergency contact’s phone.',
   ),
-  url: 'A web link. A portfolio or LinkedIn page.',
-  country: 'A country from the standard list. Nationality.',
+  url: t(
+    'settings.words.a_web_link_a_portfolio_or_linkedin',
+    'A web link. A portfolio or LinkedIn page.',
+  ),
+  country: t(
+    'settings.words.a_country_from_the_standard_list_nationality',
+    'A country from the standard list. Nationality.',
+  ),
   currency: 'A currency from the standard list. Currency they are paid in.',
-  language: 'A language from the standard list. Preferred language.',
+  language: t(
+    'settings.words.a_language_from_the_standard_list_preferred',
+    'A language from the standard list. Preferred language.',
+  ),
   time_zone: t(
     'settings.words.a_time_zone_from_the_standard',
     'A time zone from the standard list. Where they usually work from.',
@@ -119,9 +129,14 @@ export const DATA_TYPE_HINT: Record<DataType, string> = {
     'settings.words.a_postal_address_over_several_lines',
     'A postal address over several lines. A home address.',
   ),
-  national_id: 'An identity number. Stored encrypted; screens show only its last characters.',
-  bank_account:
+  national_id: t(
+    'settings.words.an_identity_number_stored_encrypted_screens_show',
+    'An identity number. Stored encrypted; screens show only its last characters.',
+  ),
+  bank_account: t(
+    'settings.words.an_iban_or_account_number_stored_encrypted',
     'An IBAN or account number. Stored encrypted; screens show only its last characters.',
+  ),
   person_ref: t(
     'settings.words.somebody_else_in_kithena_a_buddy',
     'Somebody else in Kithena. A buddy or a mentor.',
@@ -258,8 +273,10 @@ export const COLLECT_LABEL: Record<
       'settings.words.on_their_profile_whenever_it_changes',
       'on their profile, whenever it changes',
     ),
-    description:
+    description: t(
+      'settings.words.nobody_is_chased_before_first_day',
       'Nobody is chased for it before their first day. It sits on their profile to fill in or update whenever it changes; if required, it counts as missing from their start date.',
+    ),
     example: t(
       'settings.words.suits_a_home_address_after_a',
       'Suits: a home address after a move, a second phone number.',
@@ -283,21 +300,44 @@ export const COLLECT_LABEL: Record<
 export const CLASSIFICATION_LABEL: Record<Classification, { label: string; description: string }> =
   {
     public: {
-      label: 'Fine for everyone at the company',
-      description: 'Could appear in the directory. A job title, a work phone.',
+      label: t(
+        'settings.words.fine_for_everyone_at_the_company',
+        'Fine for everyone at the company',
+      ),
+      description: t(
+        'settings.words.could_appear_in_the_directory_a_job',
+        'Could appear in the directory. A job title, a work phone.',
+      ),
     },
     internal: {
-      label: 'Ordinary information about the job',
-      description: 'Business data nobody would mind HR and managers seeing.',
+      label: t(
+        'settings.words.ordinary_information_about_the_job',
+        'Ordinary information about the job',
+      ),
+      description: t(
+        'settings.words.business_data_nobody_would_mind_hr_and',
+        'Business data nobody would mind HR and managers seeing.',
+      ),
     },
     confidential: {
-      label: 'Would harm or embarrass someone if it leaked',
-      description: 'Pay, home address, performance. Kept out of logs and AI.',
+      label: t(
+        'settings.words.would_harm_or_embarrass_someone_if_it',
+        'Would harm or embarrass someone if it leaked',
+      ),
+      description: t(
+        'settings.words.pay_home_address_performance_kept_out_of',
+        'Pay, home address, performance. Kept out of logs and AI.',
+      ),
     },
     'special-category': {
-      label: 'Health, beliefs, ethnicity or similar',
-      description:
+      label: t(
+        'settings.words.health_beliefs_ethnicity_or_similar',
+        'Health, beliefs, ethnicity or similar',
+      ),
+      description: t(
+        'settings.words.protected_by_law_gdpr_article_9_never',
         'Protected by law (GDPR Article 9). Never sent to AI, never carried on an event, never exported without a reason.',
+      ),
     },
   };
 
@@ -310,7 +350,7 @@ export const REQUIREDNESS_LABEL: Record<RequirednessMode, string> = {
 /** A predicate's facts, as a condition reads them (PEO-065). */
 export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
   legalEntity: t('settings.words.legal_entity', 'Legal entity'),
-  country: 'Country',
+  country: t('settings.words.country', 'Country'),
   employmentType: t('settings.words.employment_type', 'Employment type'),
   workModel: t('settings.words.work_model', 'Work model'),
   status: 'Status',
@@ -352,8 +392,5 @@ export function inSentence(name: string): string {
 /** "HR, the employee and their manager": a list the way a sentence says it. */
 export function listed(items: readonly string[]): string {
   if (items.length <= 1) return items[0] ?? '';
-  return t('settings.words.and', '{{join}} and {{value}}', {
-    join: items.slice(0, -1).join(', '),
-    value: items.at(-1) ?? '',
-  });
+  return formatList(items);
 }

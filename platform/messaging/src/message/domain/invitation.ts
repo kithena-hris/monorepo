@@ -1,5 +1,5 @@
 import { accentHex } from '@kithena/contracts';
-import { err, failure, ok, type Result } from '@kithena/domain-kit';
+import { err, failure, ok, wordsIn, type Result, type Words } from '@kithena/domain-kit';
 
 import type { EmailAddress } from './address.js';
 import { escapeHtml, safeHref, safeImageSrc } from './markup.js';
@@ -127,7 +127,7 @@ const MONTHS = [
  * Naming the zone also removes the ICU dependency from the output, which keeps
  * this assertable in a test that will still pass on a different Node build.
  */
-export function formatDeadline(iso: string): string | null {
+export function formatDeadline(iso: string, words: Language = ENGLISH): string | null {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return null;
 
@@ -136,8 +136,30 @@ export function formatDeadline(iso: string): string | null {
 
   const hours = String(at.getUTCHours()).padStart(2, '0');
   const minutes = String(at.getUTCMinutes()).padStart(2, '0');
-  return `${String(at.getUTCDate())} ${month} ${String(at.getUTCFullYear())} at ${hours}:${minutes} UTC`;
+  // English keeps its own day-month-year, which reads the same on either side
+  // of the Atlantic; every other language writes the date as it does, in UTC.
+  const date = words.language.startsWith('en')
+    ? `${String(at.getUTCDate())} ${month} ${String(at.getUTCFullYear())}`
+    : new Intl.DateTimeFormat(words.language, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(at);
+  return words.t('invitation.deadline', '{{date}} at {{time}} UTC', {
+    date,
+    time: `${hours}:${minutes}`,
+  });
 }
+
+/** A language and its words: what a message is written in. */
+export interface Language {
+  readonly language: string;
+  readonly t: Words;
+}
+
+/** US English, the words in the code: what a message says when no language is given. */
+export const ENGLISH: Language = { language: 'en-US', t: wordsIn('en-US', {}) };
 
 /**
  * The message, rendered.
@@ -150,7 +172,11 @@ export function formatDeadline(iso: string): string | null {
  * The two are kept in step by being generated from the same values in the same
  * function, which is the only arrangement that survives a copy change.
  */
-export function renderInvitation(message: InvitationMessage): Result<RenderedMessage> {
+export function renderInvitation(
+  message: InvitationMessage,
+  /** The company's language: every email is in the company's language. */
+  words: Language = ENGLISH,
+): Result<RenderedMessage> {
   const companyName = message.companyName.trim();
   if (companyName.length === 0 || companyName.length > MAX_COMPANY_NAME) {
     return err(Unrenderable);
@@ -159,15 +185,16 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
   const href = safeHref(message.enrolUrl);
   if (href === null) return err(Unrenderable);
 
-  const deadline = formatDeadline(message.expiresAt);
+  const deadline = formatDeadline(message.expiresAt, words);
   if (deadline === null) return err(Unrenderable);
 
-  const copy = COPY[message.purpose ?? 'invitation'];
+  const copy = COPY[message.purpose ?? 'invitation'](words.t, companyName, deadline);
 
   return ok({
-    subject: copy.subject(companyName),
+    subject: copy.subject,
     html: html({
-      copy,
+      copy: escaped(copy),
+      language: escapeHtml(words.language),
       company: escapeHtml(companyName),
       recipient: escapeHtml(message.recipient),
       href,
@@ -184,10 +211,8 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
     }),
     text: text({
       copy,
-      companyName,
       recipient: message.recipient,
       url: message.enrolUrl,
-      deadline,
     }),
   });
 }
@@ -200,63 +225,160 @@ export function renderInvitation(message: InvitationMessage): Result<RenderedMes
  * through it as inline ternaries is how one of the eight gets missed.
  */
 interface Copy {
-  readonly subject: (company: string) => string;
-  readonly heading: (company: string) => string;
+  readonly subject: string;
+  readonly heading: string;
   readonly lede: string;
   readonly action: string;
-  readonly steps: (company: string) => readonly string[];
-  readonly expiry: readonly string[];
-  readonly caution: (company: string) => readonly string[];
-  readonly footer: (company: string) => string;
+  readonly preheader: string;
+  readonly address: string;
+  readonly next: string;
+  readonly steps: readonly string[];
+  readonly chip: string;
+  /** The deadline and what to do once it has passed, as the plain text says it. */
+  readonly expiry: string;
+  /** What to do once it has passed, beside the chip that says when. */
+  readonly expired: string;
+  readonly caution: string;
+  readonly buttonNotWorking: string;
+  readonly footer: string;
+  readonly oneOff: string;
 }
 
-const COPY: Record<MessagePurpose, Copy> = {
-  invitation: {
-    subject: (company) => `You're invited to join ${company} on Kithena`,
-    heading: (company) => `You're invited to join ${company}`,
-    lede: 'An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.',
-    action: 'Set up your account',
-    steps: (company) => [
-      'Your device asks for your fingerprint, face or PIN.',
-      'That becomes your passkey. Nothing leaves your device.',
-      `You sign in to ${company} the same way from then on.`,
-    ],
-    expiry: [
-      'This link works once and expires',
+/** Each field escaped once, for the HTML. */
+function escaped(copy: Copy): Copy {
+  return {
+    subject: escapeHtml(copy.subject),
+    heading: escapeHtml(copy.heading),
+    lede: escapeHtml(copy.lede),
+    action: escapeHtml(copy.action),
+    preheader: escapeHtml(copy.preheader),
+    address: escapeHtml(copy.address),
+    next: escapeHtml(copy.next),
+    steps: copy.steps.map(escapeHtml),
+    chip: escapeHtml(copy.chip),
+    expiry: escapeHtml(copy.expiry),
+    expired: escapeHtml(copy.expired),
+    caution: escapeHtml(copy.caution),
+    buttonNotWorking: escapeHtml(copy.buttonNotWorking),
+    footer: escapeHtml(copy.footer),
+    oneOff: escapeHtml(copy.oneOff),
+  };
+}
+
+/** What both kinds of message share: the labels around their own words. */
+function common(t: Words, deadline: string) {
+  return {
+    address: t('invitation.your_sign_in_address', 'Your sign-in address'),
+    next: t('invitation.what_happens_next', 'What happens next'),
+    chip: t('invitation.works_once_expires', 'Works once · expires {{deadline}}', { deadline }),
+    buttonNotWorking: t(
+      'invitation.button_not_working',
+      'Button not working? Paste this into your browser:',
+    ),
+    oneOff: t(
+      'invitation.one_off',
+      'This is a one-off message about your account, not a subscription.',
+    ),
+  };
+}
+
+const COPY: Record<MessagePurpose, (t: Words, company: string, deadline: string) => Copy> = {
+  invitation: (t, company, deadline) => {
+    const action = t('invitation.invitation.action', 'Set up your account');
+    const expired = t(
+      'invitation.invitation.expired',
       'If it has expired, ask your HR team for another.',
-    ],
-    caution: (company) => [
-      `If you were not expecting this, or you do not recognise ${company}, do not use the link —`,
-      'tell your HR team instead.',
-    ],
-    footer: (company) => `Sent by Kithena because ${company} added you to their team.`,
+    );
+    return {
+      ...common(t, deadline),
+      subject: t('invitation.invitation.subject', 'You’re invited to join {{company}} on Kithena', {
+        company,
+      }),
+      heading: t('invitation.invitation.heading', 'You’re invited to join {{company}}', {
+        company,
+      }),
+      lede: t(
+        'invitation.invitation.lede',
+        'An account is waiting for you. Setting it up takes about a minute, and there is no password to choose.',
+      ),
+      action,
+      preheader: t(
+        'invitation.invitation.preheader',
+        'Set up your account at {{company}}. The link works once, until {{deadline}}.',
+        { company, deadline },
+      ),
+      steps: [
+        t('invitation.invitation.step_1', 'Your device asks for your fingerprint, face or PIN.'),
+        t('invitation.invitation.step_2', 'That becomes your passkey. Nothing leaves your device.'),
+        t('invitation.invitation.step_3', 'You sign in to {{company}} the same way from then on.', {
+          company,
+        }),
+      ],
+      expiry: t(
+        'invitation.invitation.expiry',
+        'This link works once and expires {{deadline}}. If it has expired, ask your HR team for another.',
+        { deadline },
+      ),
+      expired,
+      caution: t(
+        'invitation.invitation.caution',
+        'If you were not expecting this, or you do not recognise {{company}}, do not use the link — tell your HR team instead.',
+        { company },
+      ),
+      footer: t(
+        'invitation.invitation.footer',
+        'Sent by Kithena because {{company}} added you to their team.',
+        { company },
+      ),
+    };
   },
-  recovery: {
-    subject: (company) => `Set up a new passkey for ${company}`,
-    heading: () => 'Set up a new passkey',
-    lede: 'You asked for a new way to sign in. The passkey you had stays where it is — this one is for the device you are on now.',
-    action: 'Set up a new passkey',
-    steps: (company) => [
-      'Your device asks for your fingerprint, face or PIN.',
-      'That becomes your new passkey. Nothing leaves your device.',
-      `You sign in to ${company} with it from then on.`,
+  recovery: (t, company, deadline) => ({
+    ...common(t, deadline),
+    subject: t('invitation.recovery.subject', 'Set up a new passkey for {{company}}', { company }),
+    heading: t('invitation.recovery.heading', 'Set up a new passkey'),
+    lede: t(
+      'invitation.recovery.lede',
+      'You asked for a new way to sign in. The passkey you had stays where it is — this one is for the device you are on now.',
+    ),
+    action: t('invitation.recovery.action', 'Set up a new passkey'),
+    preheader: t(
+      'invitation.recovery.preheader',
+      'Set up a new passkey at {{company}}. The link works once, until {{deadline}}.',
+      { company, deadline },
+    ),
+    steps: [
+      t('invitation.recovery.step_1', 'Your device asks for your fingerprint, face or PIN.'),
+      t('invitation.recovery.step_2', 'That becomes your new passkey. Nothing leaves your device.'),
+      t('invitation.recovery.step_3', 'You sign in to {{company}} with it from then on.', {
+        company,
+      }),
     ],
-    expiry: [
-      'This link works once and expires',
+    expiry: t(
+      'invitation.recovery.expiry',
+      'This link works once and expires {{deadline}}. If it has expired, ask for another from your sign-in page.',
+      { deadline },
+    ),
+    expired: t(
+      'invitation.recovery.expired',
       'If it has expired, ask for another from your sign-in page.',
-    ],
-    caution: () => [
-      'If you did not ask for this, you can ignore it — the link does nothing until somebody',
-      'uses it, and nobody can use it without this mailbox.',
-    ],
-    footer: () => 'Sent by Kithena because somebody asked for a new setup link for this address.',
-  },
+    ),
+    caution: t(
+      'invitation.recovery.caution',
+      'If you did not ask for this, you can ignore it — the link does nothing until somebody uses it, and nobody can use it without this mailbox.',
+    ),
+    footer: t(
+      'invitation.recovery.footer',
+      'Sent by Kithena because somebody asked for a new setup link for this address.',
+    ),
+  }),
 };
 
 /* -------------------------------------------------------------- rendering -- */
 
 interface View {
   readonly copy: Copy;
+  /** Escaped, as every value in the view is. */
+  readonly language: string;
   readonly company: string;
   readonly recipient: string;
   readonly href: string;
@@ -304,18 +426,18 @@ interface View {
  * `#f9fafb` is a usable dark, an inverted `#ffffff` is not.
  */
 function html(view: View): string {
-  const preheader = `${view.copy.action} at ${view.company}. The link works once, until ${view.deadline}.`;
+  const preheader = view.copy.preheader;
   const pad = scale.cardPadding;
 
   return `<!doctype html>
-<html lang="en" style="margin:0;padding:0;">
+<html lang="${view.language}" style="margin:0;padding:0;">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="x-apple-disable-message-reformatting" />
     <meta name="color-scheme" content="light dark" />
     <meta name="supported-color-schemes" content="light dark" />
-    <title>${view.copy.heading(view.company)}</title>
+    <title>${view.copy.heading}</title>
     <!--[if mso]>
       <style>
         /* Word substitutes Times New Roman for any family it cannot resolve,
@@ -384,7 +506,7 @@ function html(view: View): string {
 ${logoRow(view, pad)}
                   <tr>
                     <td class="k-pad" style="padding:${view.logo === null ? '28px' : '4px'} ${pad} 0 ${pad};">
-                      <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">${view.copy.heading(view.company)}</h1>
+                      <h1 class="k-fg" style="margin:0;font-size:${scale.heading.size};line-height:${scale.heading.lineHeight};letter-spacing:${scale.heading.tracking};font-weight:600;color:${light.fg};">${view.copy.heading}</h1>
                     </td>
                   </tr>
 
@@ -404,7 +526,7 @@ ${logoRow(view, pad)}
                       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="k-inset" style="background:${light['surface-sunken']};border:1px solid ${light.border};border-radius:${scale.radiusInset};">
                         <tr>
                           <td style="padding:13px 15px;">
-                            <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};">Your sign-in address</div>
+                            <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};">${view.copy.address}</div>
                             <div class="k-fg" style="padding-top:3px;font-size:${scale.body.size};line-height:${scale.body.lineHeight};font-weight:500;color:${light.fg};word-break:break-all;">${view.recipient}</div>
                           </td>
                         </tr>
@@ -424,7 +546,7 @@ ${button(view)}
                        raises more questions than it answers on its own. -->
                   <tr>
                     <td class="k-pad" style="padding:26px ${pad} 0 ${pad};">
-                      <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};padding-bottom:10px;">What happens next</div>
+                      <div class="k-muted" style="font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};letter-spacing:0.07em;text-transform:uppercase;color:${light['fg-muted']};padding-bottom:10px;">${view.copy.next}</div>
 ${steps(view)}
                     </td>
                   </tr>
@@ -439,14 +561,14 @@ ${steps(view)}
                     <td class="k-pad" style="padding:16px ${pad} 0 ${pad};">
                       <!-- Badge tone="accent" size="sm": rounded-full, subtle
                            wash, medium weight. -->
-                      <span class="k-chip" style="display:inline-block;padding:3px 10px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};line-height:16px;font-weight:500;">Works once &middot; expires ${view.deadline}</span>
+                      <span class="k-chip" style="display:inline-block;padding:3px 10px;border-radius:999px;background:${light['accent-subtle']};color:${light['accent-fg']};font-size:${scale.tiny.size};line-height:16px;font-weight:500;">${view.copy.chip}</span>
                     </td>
                   </tr>
 
                   <tr>
                     <td class="k-pad k-muted" style="padding:12px ${pad} ${pad} ${pad};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0 0 10px 0;">${view.copy.expiry[1] ?? ''} ${view.copy.caution(view.company).join(' ')}</p>
-                      <p style="margin:0;">Button not working? Paste this into your browser:<br /><a href="${view.href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a></p>
+                      <p style="margin:0 0 10px 0;">${view.copy.expired} ${view.copy.caution}</p>
+                      <p style="margin:0;">${view.copy.buttonNotWorking}<br /><a href="${view.href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${view.plainUrl}</a></p>
                     </td>
                   </tr>
                 </table>
@@ -455,7 +577,7 @@ ${steps(view)}
 
             <tr>
               <td class="k-muted" style="padding:18px 4px 0 4px;font-size:${scale.tiny.size};line-height:${scale.tiny.lineHeight};color:${light['fg-muted']};">
-                ${view.copy.footer(view.company)} This is a one-off message about your account, not a subscription.
+                ${view.copy.footer} ${view.copy.oneOff}
               </td>
             </tr>
           </table>
@@ -479,8 +601,7 @@ ${steps(view)}
  * bit low", which `tokens.css` warns about by name.
  */
 function steps(view: View): string {
-  const rows = view.copy
-    .steps(view.company)
+  const rows = view.copy.steps
     .map(
       (item, index) => `                        <tr>
                           <td width="30" valign="top" style="padding:0 10px 10px 0;">
@@ -538,31 +659,25 @@ function button(view: View): string {
                       <!--<![endif]-->`;
 }
 
-function text(v: {
-  copy: Copy;
-  companyName: string;
-  recipient: string;
-  url: string;
-  deadline: string;
-}): string {
+function text(v: { copy: Copy; recipient: string; url: string }): string {
   return [
-    v.copy.heading(v.companyName),
+    v.copy.heading,
     '',
     v.copy.lede,
     '',
-    `Your sign-in address: ${v.recipient}`,
+    `${v.copy.address}: ${v.recipient}`,
     '',
     `${v.copy.action}:`,
     v.url,
     '',
-    'What happens next',
-    ...v.copy.steps(v.companyName).map((step, index) => `  ${String(index + 1)}. ${step}`),
+    v.copy.next,
+    ...v.copy.steps.map((step, index) => `  ${String(index + 1)}. ${step}`),
     '',
-    `${v.copy.expiry[0] ?? ''} ${v.deadline}. ${v.copy.expiry[1] ?? ''}`,
+    v.copy.expiry,
     '',
-    ...v.copy.caution(v.companyName),
+    v.copy.caution,
     '',
-    v.copy.footer(v.companyName),
+    v.copy.footer,
     '',
   ].join('\n');
 }

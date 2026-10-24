@@ -2,6 +2,7 @@ import {
   err,
   failure,
   ok,
+  wordsIn,
   type DomainFailure,
   type PendingEvent,
   type Result,
@@ -10,7 +11,7 @@ import type { CalendarDate, Instant } from '@kithena/contracts';
 
 import type { JobFacts, Viewer } from '../domain/access/access.js';
 import { tellBoards } from './board-dispositions.js';
-import type { Caller, Deps, JobRecord, MailParts, Member, Tx } from './ports.js';
+import type { Caller, Deps, JobRecord, MailParts, MailWords, Member, Tx } from './ports.js';
 
 /**
  * What every use case starts from: who is asking, as the domain's `Viewer`,
@@ -39,6 +40,16 @@ export interface Ctx {
   readonly at: Instant;
   /** Emails to send once the transaction commits (`deliver`), never inside it. */
   readonly mail: Outgoing[];
+}
+
+const ENGLISH: MailWords = { language: 'en-US', t: wordsIn('en-US', {}) };
+
+/**
+ * The words an email is written in: the company's language, as messaging
+ * answers it. US English with no mailer, or when it cannot be asked.
+ */
+export async function mailWords(ctx: Pick<Ctx, 'deps' | 'caller'>): Promise<MailWords> {
+  return (await ctx.deps.mailer?.words?.(ctx.caller.tenantId).catch(() => null)) ?? ENGLISH;
 }
 
 /** The caller behind the public API: a candidate, with no account in this tenant. */

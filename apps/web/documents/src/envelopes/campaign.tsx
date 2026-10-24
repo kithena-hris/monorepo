@@ -29,20 +29,27 @@ export function Campaign({ load }: { readonly load: Loadable<CampaignData> }): J
       {load.status === 'error' ? (
         <PageHeader title={t('envelopes.campaign.acknowledgements', 'Acknowledgements')} />
       ) : null}
-      <Loaded load={load} what="the policy">
+      <Loaded load={load} what={t('envelopes.campaign.the_policy', 'the policy')}>
         {(c) => (
           <>
             <PageHeader
               title={c.title}
-              description={t(
-                'envelopes.campaign.version_sent',
-                'Version {{version}} · sent {{sentAt}}{{value}}',
-                {
-                  version: String(c.version),
-                  sentAt: shortDate(c.sentAt),
-                  value: c.dueOn === null ? '' : ` · due ${shortDate(c.dueOn)}`,
-                },
-              )}
+              description={
+                c.dueOn === null
+                  ? t('envelopes.campaign.version_sent', 'Version {{version}} · sent {{sentAt}}', {
+                      version: c.version,
+                      sentAt: shortDate(c.sentAt),
+                    })
+                  : t(
+                      'envelopes.campaign.version_sent_due',
+                      'Version {{version}} · sent {{sentAt}} · due {{dueOn}}',
+                      {
+                        version: c.version,
+                        sentAt: shortDate(c.sentAt),
+                        dueOn: shortDate(c.dueOn),
+                      },
+                    )
+              }
             />
             <Card padded className="max-w-2xl">
               <CardContent className="flex flex-col gap-3 p-0 first:pt-0 touch:first:pt-0">

@@ -96,7 +96,10 @@ export function SignatureSettings({ mine }: { readonly mine: MySignature | null 
                     'components.signature-settings.typed_in_a_handwriting_style_or',
                     'Typed in a handwriting style, or drawn. Every box you sign takes it.',
                   )
-                : 'HR keeps this one; ask them to change it.'}
+                : t(
+                    'components.signature-settings.hr_keeps_this_one_ask_them_to',
+                    'HR keeps this one; ask them to change it.',
+                  )}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">

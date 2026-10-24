@@ -748,8 +748,12 @@ function RailToggle({
 }): JSX.Element {
   const name =
     side === 'start'
-      ? `${collapsed ? 'Expand' : 'Collapse'} ${label}`
-      : `${collapsed ? 'Show' : 'Hide'} ${label}`;
+      ? collapsed
+        ? t('components.page-layout.page-layout.expand_label', 'Expand {{label}}', { label })
+        : t('components.page-layout.page-layout.collapse_label', 'Collapse {{label}}', { label })
+      : collapsed
+        ? t('components.page-layout.page-layout.show_label', 'Show {{label}}', { label })
+        : t('components.page-layout.page-layout.hide_label', 'Hide {{label}}', { label });
   const Icon =
     side === 'start'
       ? collapsed

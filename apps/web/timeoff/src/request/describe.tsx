@@ -211,7 +211,10 @@ function Described({
             'request.describe.describe_the_time_off_you_want',
             'Describe the time off you want',
           )}
-          disclaimer="Nothing is sent until you pick dates and send them."
+          disclaimer={tr(
+            'request.describe.nothing_is_sent_until_you_pick_dates',
+            'Nothing is sent until you pick dates and send them.',
+          )}
           className="px-0 pt-0 pb-0"
         />
         {data.sentence === null ? null : (
@@ -236,18 +239,19 @@ function Described({
               </Button>
             }
           >
-            <Chip field="Type">
+            <Chip field={tr('request.describe.type', 'Type')}>
               {u.leaveTypeName ?? tr('request.describe.time_off', 'Time off')}
             </Chip>
-            <Chip field="Length">
-              {tr('request.describe.about', 'About {{days}} {{value}}', {
-                days: String(u.days),
-                value: u.days === 1 ? 'day' : 'days',
-              })}
+            <Chip field={tr('request.describe.length', 'Length')}>
+              {tr(
+                'request.describe.about',
+                { one: 'About {{count}} day', other: 'About {{count}} days' },
+                { count: u.days },
+              )}
             </Chip>
             {u.month === null ? null : (
               <Chip
-                field="When"
+                field={tr('request.describe.when', 'When')}
                 onRemove={() => {
                   ask({ month: 'none' });
                 }}
@@ -257,7 +261,7 @@ function Described({
             )}
             {u.nextToHoliday ? (
               <Chip
-                field="Prefer"
+                field={tr('request.describe.prefer', 'Prefer')}
                 onRemove={() => {
                   ask({ holiday: '0' });
                 }}
@@ -267,7 +271,7 @@ function Described({
             ) : null}
             {u.avoidShort ? (
               <Chip
-                field="Avoid"
+                field={tr('request.describe.avoid', 'Avoid')}
                 onRemove={() => {
                   ask({ team: '0' });
                 }}
@@ -324,10 +328,11 @@ function Described({
                     .toSorted((a, b) => a - b)
                     .map((n) => (
                       <SelectItem key={n} value={String(n)}>
-                        {tr('request.describe.about_2', 'About {{n}} {{value}}', {
-                          n: String(n),
-                          value: n === 1 ? 'day' : 'days',
-                        })}
+                        {tr(
+                          'request.describe.about_2',
+                          { one: 'About {{count}} day', other: 'About {{count}} days' },
+                          { count: n },
+                        )}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -431,16 +436,31 @@ function Described({
         )}
         {picked?.leftAfter == null ? null : (
           <p className="text-sm text-fg-muted">
-            {tr(
-              'request.describe.after_days',
-              '{{value}} after {{spanLabel}}: {{leftAfter}} days{{value2}}',
-              {
-                value: u.leaveTypeName ?? 'Balance',
-                spanLabel: spanLabel(picked.from, picked.to),
-                leftAfter: amount(picked.leftAfter),
-                value2: picked.fits ? '' : tr('request.describe.below_zero', ', below zero'),
-              },
-            )}
+            {picked.fits
+              ? tr(
+                  'request.describe.after_days',
+                  {
+                    one: '{{value}} after {{spanLabel}}: {{count}} day',
+                    other: '{{value}} after {{spanLabel}}: {{count}} days',
+                  },
+                  {
+                    value: u.leaveTypeName ?? tr('request.describe.balance', 'Balance'),
+                    spanLabel: spanLabel(picked.from, picked.to),
+                    count: Number(amount(picked.leftAfter)),
+                  },
+                )
+              : tr(
+                  'request.describe.after_days_below_zero',
+                  {
+                    one: '{{value}} after {{spanLabel}}: {{count}} day, below zero',
+                    other: '{{value}} after {{spanLabel}}: {{count}} days, below zero',
+                  },
+                  {
+                    value: u.leaveTypeName ?? tr('request.describe.balance', 'Balance'),
+                    spanLabel: spanLabel(picked.from, picked.to),
+                    count: Number(amount(picked.leftAfter)),
+                  },
+                )}
           </p>
         )}
       </DialogBody>

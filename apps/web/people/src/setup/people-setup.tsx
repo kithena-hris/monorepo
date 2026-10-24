@@ -103,7 +103,7 @@ export function PeopleSetup(props: PeopleSetupProps): JSX.Element {
           'What your company keeps about each person. You can change all of it later.',
         )}
       />
-      <Loaded load={props.load} what="the setup">
+      <Loaded load={props.load} what={t('setup.people-setup.the_setup', 'the setup')}>
         {(state) => <Wizard {...props} state={state} />}
       </Loaded>
     </Stack>

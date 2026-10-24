@@ -1,4 +1,4 @@
-import type { Clock, PendingEvent, Result } from '@kithena/domain-kit';
+import type { Clock, PendingEvent, Result, Words } from '@kithena/domain-kit';
 import type { CalendarDate, PersonId, TenantId } from '@kithena/contracts';
 
 import type { Automation } from '../domain/automation.js';
@@ -203,6 +203,17 @@ export interface Mailer {
     /** A session's `.ics` invitation, at most. */
     readonly attachments?: readonly { readonly filename: string; readonly base64: string }[];
   }): Promise<void>;
+  /**
+   * The company's language and this module's words in it: every email is
+   * written in the company's language, whatever its reader chose for screens.
+   */
+  words?(tenantId: string): Promise<MailWords>;
+}
+
+/** A language and this module's words for its emails in it. */
+export interface MailWords {
+  readonly language: string;
+  readonly t: Words;
 }
 
 /** Any OpenAI-compatible chat model, behind the AI gateway (`infrastructure/model.ts`). */

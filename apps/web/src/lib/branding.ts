@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { cache } from 'react';
 
 import { timed } from './timing';
+import { isLanguage, type Language } from './languages';
 
 /**
  * What this company may be shown as, on its own origin.
@@ -38,6 +39,8 @@ export interface TenantContext {
   readonly location: { city: string; country: string } | null;
   /** Whether the sign-in page offers Google beside the passkey. */
   readonly googleSignIn: boolean;
+  /** The company's language: its emails', and a screen's until its reader chooses. Null when unknown. */
+  readonly language: Language | null;
 }
 
 const NOTHING: Branding = {
@@ -75,7 +78,8 @@ export const currentTenant = cache(async (): Promise<TenantContext | null> => {
         },
       ),
     );
-    if (!response.ok) return { id, slug, branding: NOTHING, location: null, googleSignIn: false };
+    if (!response.ok)
+      return { id, slug, branding: NOTHING, location: null, googleSignIn: false, language: null };
 
     const body: unknown = await response.json();
     const branding =
@@ -114,8 +118,13 @@ export const currentTenant = cache(async (): Promise<TenantContext | null> => {
           : null,
       googleSignIn:
         body !== null && typeof body === 'object' && Reflect.get(body, 'googleSignIn') === true,
+      language: (() => {
+        const code: unknown =
+          body !== null && typeof body === 'object' ? Reflect.get(body, 'language') : null;
+        return isLanguage(code) ? code : null;
+      })(),
     };
   } catch {
-    return { id, slug, branding: NOTHING, location: null, googleSignIn: false };
+    return { id, slug, branding: NOTHING, location: null, googleSignIn: false, language: null };
   }
 });

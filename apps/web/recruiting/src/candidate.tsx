@@ -295,11 +295,16 @@ function ReadCv({
                     })}
                   </span>
                   <span className="block text-sm text-fg-muted">
-                    {tr('candidate.text_2', '{{value}} – {{value2}} · “{{passage}}”', {
-                      value: w.from.value,
-                      value2: w.to?.value ?? 'now',
-                      passage: w.employer.passage,
-                    })}
+                    {w.to === null
+                      ? tr('candidate.from_to_now', '{{value}} – now · “{{passage}}”', {
+                          value: w.from.value,
+                          passage: w.employer.passage,
+                        })
+                      : tr('candidate.text_2', '{{value}} – {{value2}} · “{{passage}}”', {
+                          value: w.from.value,
+                          value2: w.to.value,
+                          passage: w.employer.passage,
+                        })}
                   </span>
                 </li>
               ))}
@@ -615,7 +620,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
   const [askLabel, setAskLabel] = useState('');
   const [askDetail, setAskDetail] = useState('');
   return (
-    <Loaded load={props.load} what="the candidate">
+    <Loaded load={props.load} what={tr('candidate.the_candidate', 'the candidate')}>
       {(data) => {
         const chosen =
           data.applications.find((a) => a.applicationId === props.search?.['application']) ??
@@ -1190,7 +1195,11 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                     )}
                   </DialogTitle>
                   <DialogDescription>
-                    {`It lands on ${data.candidate.name}’s page and in their inbox the moment you send it; the answer comes back here.`}
+                    {tr(
+                      'candidate.it_lands_on_their_page',
+                      'It lands on {{name}}’s page and in their inbox the moment you send it; the answer comes back here.',
+                      { name: data.candidate.name },
+                    )}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogBody className="flex flex-col gap-3">
@@ -1524,11 +1533,11 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
   const [forward, setForward] = useState<{ candidateId: string; name: string } | null>(null);
   const [jobId, setJobId] = useState('');
   return (
-    <Loaded load={props.load} what="talent pools">
+    <Loaded load={props.load} what={tr('candidate.talent_pools', 'talent pools')}>
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={tr('candidate.talent_pools', 'Talent pools')}
+            title={tr('candidate.talent_pools_2', 'Talent pools')}
             description={tr(
               'candidate.nobody_stays_without_a_lawful_basis',
               'Nobody stays without a lawful basis: consent asked by email, renewed thirty days before it ends.',

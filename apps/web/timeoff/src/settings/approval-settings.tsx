@@ -82,7 +82,10 @@ export interface ApprovalSettingsProps {
 }
 
 const TITLE = tr('settings.approval-settings.approvals', 'Approvals');
-const DESCRIPTION = 'Who approves each kind of request, and when it’s automatic.';
+const DESCRIPTION = tr(
+  'settings.approval-settings.who_approves_each_kind_of_request_and',
+  'Who approves each kind of request, and when it’s automatic.',
+);
 const page = '@container/approvals flex flex-col gap-6';
 const columns =
   'flex flex-col gap-6 @min-[60rem]/approvals:grid @min-[60rem]/approvals:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] @min-[60rem]/approvals:items-start';
@@ -92,7 +95,10 @@ export function ApprovalSettings({ load, onSave }: ApprovalSettingsProps): JSX.E
   return (
     <div className={page}>
       <PageHeader title={TITLE} description={DESCRIPTION} />
-      <Loaded load={load} what="the approval rules">
+      <Loaded
+        load={load}
+        what={tr('settings.approval-settings.the_approval_rules', 'the approval rules')}
+      >
         {(data) => <Ready data={data} onSave={onSave} />}
       </Loaded>
     </div>
@@ -124,9 +130,9 @@ function ruleTitle(rule: ApprovalRule, names: ReadonlyMap<string, string>): stri
       'Overtime and timesheet changes',
     );
   if (rule.subject === 'plan')
-    return tr('settings.approval-settings.plans', '{{value}} plans', {
-      value: types ?? 'Parental leave',
-    });
+    return types === null
+      ? tr('settings.approval-settings.parental_leave_plans', 'Parental leave plans')
+      : tr('settings.approval-settings.plans', '{{value}} plans', { value: types });
   const what = types ?? tr('settings.approval-settings.any_request', 'Any request');
   return {
     always: what,
@@ -368,7 +374,14 @@ function Ready({
                       'settings.approval-settings.off_every_sick_day_goes_to',
                       'Off: every sick day goes to the manager',
                     )
-                  : `Under ${String(auto.sickUnderDays)} days; the manager is told`
+                  : tr(
+                      'settings.approval-settings.under_days_manager_told',
+                      {
+                        one: 'Under {{count}} day; the manager is told',
+                        other: 'Under {{count}} days; the manager is told',
+                      },
+                      { count: auto.sickUnderDays },
+                    )
               }
               checked={auto.sickUnderDays !== null}
               onChange={(on) => {

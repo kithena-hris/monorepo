@@ -9,11 +9,13 @@ import {
   FieldControl,
   FieldDescription,
   FieldLabel,
+  icons,
   KeyValues,
   NumberField,
+  numberFormat,
   RadioCard,
-  RangeBar,
   RadioGroup,
+  RangeBar,
   Reveal,
   SegmentedControl,
   SegmentedControlItem,
@@ -23,10 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
   Slider,
+  staggerStyle,
   Switch,
   TimePicker,
-  icons,
-  staggerStyle,
 } from '@reach/ui';
 import {
   createContext,
@@ -230,7 +231,13 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
   const { options } = data;
   if (terms.entityId === null)
     return (
-      <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
+      <Waiting
+        icon={<icons.company aria-hidden />}
+        what={tr(
+          'job-terms.choose_the_employing_entity_first',
+          'Choose the employing entity first.',
+        )}
+      />
     );
   if (options.locations.length === 0)
     return (
@@ -300,7 +307,12 @@ const MODES = [
 export function ModeChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   if (terms.locationId === null)
-    return <Waiting icon={<icons.location aria-hidden />} what="Choose the workplace first." />;
+    return (
+      <Waiting
+        icon={<icons.location aria-hidden />}
+        what={tr('job-terms.choose_the_workplace_first', 'Choose the workplace first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -331,10 +343,11 @@ export function ModeChoice({ data, props }: TermsProps): JSX.Element {
             >
               {[1, 2, 3, 4].map((n) => (
                 <SegmentedControlItem key={n} value={String(n)}>
-                  {tr('job-terms.day', '{{n}} day{{value}}', {
-                    n: String(n),
-                    value: n === 1 ? '' : 's',
-                  })}
+                  {tr(
+                    'job-terms.day',
+                    { one: '{{count}} day', other: '{{count}} days' },
+                    { count: n },
+                  )}
                 </SegmentedControlItem>
               ))}
             </SegmentedControl>
@@ -420,7 +433,10 @@ const RELATIONSHIP_NOTE: Readonly<Record<string, string>> = {
     'job-terms.paid_for_the_work_with_core',
     'Paid for the work, with core rights such as holiday pay and the minimum wage.',
   ),
-  contractor: 'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
+  contractor: tr(
+    'job-terms.self_employed_invoicing_for_the_work_no',
+    'Self-employed, invoicing for the work. No leave or payroll; misuse is a legal risk.',
+  ),
 };
 
 export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
@@ -430,7 +446,10 @@ export function WorkTypeChoice({ data, props }: TermsProps): JSX.Element {
     return (
       <Waiting
         icon={<icons.location aria-hidden />}
-        what="Choose the workplace and how the work is done first."
+        what={tr(
+          'job-terms.choose_the_workplace_and_how_the_work',
+          'Choose the workplace and how the work is done first.',
+        )}
       />
     );
   return (
@@ -467,7 +486,12 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
   const { options } = data;
   const chosen = options.contractTypes.find((t) => t.key === terms.contractType);
   if (terms.relationship === null)
-    return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the work type first." />;
+    return (
+      <Waiting
+        icon={<icons.agreement aria-hidden />}
+        what={tr('job-terms.choose_the_work_type_first', 'Choose the work type first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -552,7 +576,12 @@ const WEEKS = [
 export function DaysChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   if (terms.contractType === null)
-    return <Waiting icon={<icons.agreement aria-hidden />} what="Choose the contract first." />;
+    return (
+      <Waiting
+        icon={<icons.agreement aria-hidden />}
+        what={tr('job-terms.choose_the_contract_first', 'Choose the contract first.')}
+      />
+    );
   return (
     <>
       <Refusal error={error} />
@@ -621,7 +650,12 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   const { options } = data;
   if (terms.workDays.length === 0)
-    return <Waiting icon={<icons.calendar aria-hidden />} what="Choose the work days first." />;
+    return (
+      <Waiting
+        icon={<icons.calendar aria-hidden />}
+        what={tr('job-terms.choose_the_work_days_first', 'Choose the work days first.')}
+      />
+    );
   const over =
     options.weeklyMinutes !== null &&
     options.maxWeeklyMinutes !== null &&
@@ -736,7 +770,12 @@ export function LeaveChoice({ data, props, commit }: TermsProps): JSX.Element {
   useCommit(commit, persist);
   useAnswered(days !== null);
   if (leave === null)
-    return <Waiting icon={<icons.vacation aria-hidden />} what="Choose the work type first." />;
+    return (
+      <Waiting
+        icon={<icons.vacation aria-hidden />}
+        what={tr('job-terms.choose_the_work_type_first', 'Choose the work type first.')}
+      />
+    );
   const unit =
     leave.unit === 'calendar_days'
       ? tr('job-terms.calendar_days', 'calendar days')
@@ -805,7 +844,7 @@ const major = (minor: number): number => Math.round(minor / 100);
 
 /** "€62k": the band's axis, where the full figure would crowd. */
 const short = (value: number, currency: string): string =>
-  new Intl.NumberFormat('en-GB', {
+  numberFormat({
     style: 'currency',
     currency,
     notation: 'compact',
@@ -848,16 +887,25 @@ function PayBand({
         domain={[from, to]}
         now={median}
         format={(v) => short(v, estimate.currency)}
-        summary={tr(
-          'job-terms.the_market_pays_to_in_the',
-          'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{value}}.',
-          {
-            low: money(low),
-            high: money(high),
-            median: money(median),
-            value: kind === 'fixed' ? money(min) : `${money(min)} to ${money(max)}`,
-          },
-        )}
+        summary={
+          kind === 'fixed'
+            ? tr(
+                'job-terms.the_market_pays_this_job_pays',
+                'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{value}}.',
+                { low: money(low), high: money(high), median: money(median), value: money(min) },
+              )
+            : tr(
+                'job-terms.the_market_pays_this_job_pays_range',
+                'The market pays {{low}} to {{high}}, {{median}} in the middle. This job pays {{min}} to {{max}}.',
+                {
+                  low: money(low),
+                  high: money(high),
+                  median: money(median),
+                  min: money(min),
+                  max: money(max),
+                },
+              )
+        }
         segments={[
           {
             start: low,
@@ -924,9 +972,7 @@ function PayBand({
 }
 
 const amount = (value: number, currency: string): string =>
-  new Intl.NumberFormat('en-GB', { style: 'currency', currency, maximumFractionDigits: 0 }).format(
-    value,
-  );
+  numberFormat({ style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
 
 /**
  * Pay: one figure, or a range from and to, yearly, in the entity's currency.
@@ -1009,7 +1055,10 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
     return (
       <Waiting
         icon={<icons.location aria-hidden />}
-        what="Choose the employing entity and the workplace first: pay depends on where the work is."
+        what={tr(
+          'job-terms.choose_the_employing_entity_and_the_workplace',
+          'Choose the employing entity and the workplace first: pay depends on where the work is.',
+        )}
       />
     );
   const currency = options.currency;
@@ -1093,17 +1142,24 @@ export function PayChoice({ data, props, commit }: TermsProps): JSX.Element {
                 )
               : estimate === null || suggested === null
                 ? tr('job-terms.no_estimate_yet', 'No estimate yet.')
-                : tr(
-                    'job-terms.ai_estimate_a_year_confidence',
-                    'AI estimate: {{value}} a year · {{confidence}} confidence',
-                    {
-                      value:
-                        kind === 'fixed'
-                          ? amount(suggested[0], estimate.currency)
-                          : `${amount(suggested[0], estimate.currency)} to ${amount(suggested[1], estimate.currency)}`,
-                      confidence: estimate.confidence,
-                    },
-                  )}
+                : kind === 'fixed'
+                  ? tr(
+                      'job-terms.ai_estimate_a_year_confidence',
+                      'AI estimate: {{value}} a year · {{confidence}} confidence',
+                      {
+                        value: amount(suggested[0], estimate.currency),
+                        confidence: estimate.confidence,
+                      },
+                    )
+                  : tr(
+                      'job-terms.ai_estimate_range_a_year_confidence',
+                      'AI estimate: {{min}} to {{max}} a year · {{confidence}} confidence',
+                      {
+                        min: amount(suggested[0], estimate.currency),
+                        max: amount(suggested[1], estimate.currency),
+                        confidence: estimate.confidence,
+                      },
+                    )}
           </span>
           <span className="flex gap-1">
             {changed && estimate !== null ? (
@@ -1196,7 +1252,13 @@ export function BenefitsChoice({ data, props, commit }: TermsProps): JSX.Element
   useCommit(commit, persist);
   if (terms.entityId === null)
     return (
-      <Waiting icon={<icons.company aria-hidden />} what="Choose the employing entity first." />
+      <Waiting
+        icon={<icons.company aria-hidden />}
+        what={tr(
+          'job-terms.choose_the_employing_entity_first',
+          'Choose the employing entity first.',
+        )}
+      />
     );
   if (options.benefits.length === 0)
     return (

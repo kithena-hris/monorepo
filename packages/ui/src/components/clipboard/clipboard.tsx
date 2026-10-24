@@ -14,6 +14,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Button, type ButtonProps } from '../button/button';
 import { Tooltip } from '../tooltip/tooltip';
+import { t } from '../../lib/i18n';
 
 /**
  * Copy to clipboard.
@@ -147,9 +148,9 @@ export interface CopyButtonProps extends Omit<ButtonProps, 'onCopy' | 'children'
 export function CopyButton({
   value,
   children,
-  label = 'Copy',
-  copiedLabel = 'Copied',
-  errorLabel = 'Press ⌘C to copy',
+  label = t('components.clipboard.clipboard.copy', 'Copy'),
+  copiedLabel = t('components.clipboard.clipboard.copied', 'Copied'),
+  errorLabel = t('components.clipboard.clipboard.press_c_to_copy', 'Press ⌘C to copy'),
   resetAfter = 2000,
   onCopy,
   tooltip = true,
@@ -263,7 +264,7 @@ export function CopyField({
   className,
   value,
   display,
-  label = 'Copy value',
+  label = t('components.clipboard.clipboard.copy_value', 'Copy value'),
   mono = true,
   size = 'md',
   ...props

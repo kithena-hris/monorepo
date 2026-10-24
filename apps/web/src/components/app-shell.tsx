@@ -174,33 +174,71 @@ const AREAS: readonly {
   /** The entitlement that must be held for the area to show; none for home. */
   readonly module?: string;
 }[] = [
-  { label: 'Home', icon: <Home />, href: '/', built: true },
-  { label: 'Inbox', icon: <icons.inbox />, href: '/inbox', built: true },
-  { label: 'Time off', icon: <Leave />, href: '/time-off', built: true, module: 'module.timeoff' },
-  { label: 'People', icon: <People />, href: '/people', built: true, module: 'module.people' },
   {
-    label: 'Documents',
+    get label() {
+      return tr('components.app-shell.home', 'Home');
+    },
+    icon: <Home />,
+    href: '/',
+    built: true,
+  },
+  {
+    get label() {
+      return tr('components.app-shell.inbox', 'Inbox');
+    },
+    icon: <icons.inbox />,
+    href: '/inbox',
+    built: true,
+  },
+  {
+    get label() {
+      return tr('components.app-shell.time_off', 'Time off');
+    },
+    icon: <Leave />,
+    href: '/time-off',
+    built: true,
+    module: 'module.timeoff',
+  },
+  {
+    get label() {
+      return tr('components.app-shell.people', 'People');
+    },
+    icon: <People />,
+    href: '/people',
+    built: true,
+    module: 'module.people',
+  },
+  {
+    get label() {
+      return tr('components.app-shell.documents', 'Documents');
+    },
     icon: <Document />,
     href: '/documents',
     built: true,
     module: 'module.documents',
   },
   {
-    label: 'Recruiting',
+    get label() {
+      return tr('components.app-shell.recruiting', 'Recruiting');
+    },
     icon: <icons.work />,
     href: '/recruiting',
     built: true,
     module: 'module.recruiting',
   },
   {
-    label: 'Onboarding',
+    get label() {
+      return tr('components.app-shell.onboarding', 'Onboarding');
+    },
     icon: <icons.hire />,
     href: '/onboarding',
     built: true,
     module: 'module.onboarding',
   },
   {
-    label: 'Performance',
+    get label() {
+      return tr('components.app-shell.performance', 'Performance');
+    },
     icon: <icons.goal />,
     href: '/performance',
     built: true,
@@ -634,7 +672,7 @@ export function AppShell({
             sidebarHeader={
               <Link
                 href="/"
-                aria-label={tr('components.app-shell.home', '{{companyName}}, home', {
+                aria-label={tr('components.app-shell.home_2', '{{companyName}}, home', {
                   companyName,
                 })}
                 className="flex min-w-0 flex-1 items-center gap-2.5"
@@ -983,7 +1021,10 @@ function SearchPalette({
               }),
               group: 'Actions',
               icon: iconOf('add'),
-              keywords: ['new', 'add'],
+              keywords: [
+                tr('components.app-shell.keyword_new', 'new'),
+                tr('components.app-shell.keyword_add', 'add'),
+              ],
               ...keysOfId('create'),
               onSelect: create.run,
             },
@@ -1005,7 +1046,10 @@ function SearchPalette({
               label: tr('components.app-shell.export_people', 'Export people'),
               group: 'Actions',
               icon: iconOf('export'),
-              keywords: ['download', 'csv'],
+              keywords: [
+                tr('components.app-shell.keyword_download', 'download'),
+                tr('components.app-shell.keyword_csv', 'csv'),
+              ],
               onSelect: () => {
                 router.push('/people/export');
               },
@@ -1019,7 +1063,11 @@ function SearchPalette({
           : tr('components.app-shell.switch_to_dark_mode', 'Switch to dark mode'),
         group: 'Actions',
         icon: iconOf('themeDark'),
-        keywords: ['theme', 'dark', 'light'],
+        keywords: [
+          tr('components.app-shell.keyword_theme', 'theme'),
+          tr('components.app-shell.keyword_dark', 'dark'),
+          tr('components.app-shell.keyword_light', 'light'),
+        ],
         onSelect: () => {
           onTheme(!dark);
         },
@@ -1044,7 +1092,10 @@ function SearchPalette({
         label: tr('components.app-shell.show_keyboard_shortcuts', 'Show keyboard shortcuts'),
         group: 'Actions',
         icon: iconOf('shortcuts'),
-        keywords: ['keys', 'hotkeys'],
+        keywords: [
+          tr('components.app-shell.keyword_keys', 'keys'),
+          tr('components.app-shell.keyword_hotkeys', 'hotkeys'),
+        ],
         ...keysOfId('help'),
         onSelect: openHelp,
       },
@@ -1079,10 +1130,16 @@ function SearchPalette({
       : [
           {
             id: 'view-as.end',
-            label: `End viewing as ${viewing}`,
-            group: `Viewing as ${viewing}`,
+            label: tr('components.app-shell.end_viewing_as', 'End viewing as {{name}}', {
+              name: viewing,
+            }),
+            group: tr('components.app-shell.viewing_as', 'Viewing as {{name}}', { name: viewing }),
             icon: iconOf('close'),
-            keywords: ['view as', 'stop', 'exit'],
+            keywords: [
+              tr('components.app-shell.keyword_view_as', 'view as'),
+              tr('components.app-shell.keyword_stop', 'stop'),
+              tr('components.app-shell.keyword_exit', 'exit'),
+            ],
             ...(viewKeys.length === 0 ? {} : { shortcut: viewKeys }),
             onSelect: endViewing,
           },
@@ -1196,7 +1253,7 @@ function PersonMenu({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
+              {tr('components.app-shell.end_viewing_as_2', 'End viewing as')} {person.name}
               {viewKeys.length === 0 ? null : (
                 <DropdownMenuShortcut className="flex">
                   <KbdShortcut keys={viewKeys} />
@@ -1399,7 +1456,7 @@ export function AccountSheet({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
+              {tr('components.app-shell.end_viewing_as_2', 'End viewing as')} {person.name}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -1533,7 +1590,7 @@ function MobileTabs({
   }[] = [
     {
       href: '/',
-      label: tr('components.app-shell.home_2', 'Home'),
+      label: tr('components.app-shell.home_tab', 'Home'),
       icon: <Home />,
       current: pathname === '/',
     },

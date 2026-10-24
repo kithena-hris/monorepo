@@ -12,6 +12,9 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
+  locale,
   PageHeader,
   Select,
   SelectContent,
@@ -20,7 +23,6 @@ import {
   SelectValue,
   Spinner,
   Stack,
-  icons,
 } from '@reach/ui';
 import { useState, type JSX } from 'react';
 
@@ -142,7 +144,7 @@ const ORDER_WORDS = {
 
 const plural = (n: number, one: string, many: string) =>
   tr('settings.field-change.text', '{{toLocaleString}} {{value}}', {
-    toLocaleString: n.toLocaleString('en-GB'),
+    toLocaleString: n.toLocaleString(locale()),
     value: n === 1 ? one : many,
   });
 
@@ -271,10 +273,11 @@ function Review({
       {view.others.length === 0 ? null : (
         <Alert
           tone="info"
-          title={tr('settings.field-change.type_too', '{{listed}} {{value}} type too', {
-            listed: listed(view.others.map((o) => o.field.label)),
-            value: view.others.length === 1 ? 'changes' : 'change',
-          })}
+          title={tr(
+            'settings.field-change.type_too',
+            { one: '{{listed}} changes type too', other: '{{listed}} change type too' },
+            { count: view.others.length, listed: listed(view.others.map((o) => o.field.label)) },
+          )}
         >
           {tr(
             'settings.field-change.each_is_reviewed_below_and_published',
@@ -320,11 +323,19 @@ function Review({
               'Publishing writes the new version and, together,',
             )}{' '}
             {[
-              plural(conversions, 'conversion', 'conversions'),
+              tr(
+                'settings.field-change.count_conversions',
+                { one: '{{count}} conversion', other: '{{count}} conversions' },
+                { count: conversions },
+              ),
               ...(Object.entries(counts) as [ReviewAction, number][]).map(([a, n]) =>
                 tr('settings.field-change.for', '{{label}} for {{n}}', {
                   label: ACTION[a].label.toLowerCase(),
-                  n: plural(n, 'value', 'values'),
+                  n: tr(
+                    'settings.field-change.count_values',
+                    { one: '{{count}} value', other: '{{count}} values' },
+                    { count: n },
+                  ),
                 }),
               ),
             ].join(', ')}
@@ -334,14 +345,17 @@ function Review({
               : ' ' +
                 tr(
                   'settings.field-change.in_the_draft_published_with_it',
-                  '{{alsoPublished}} in the draft {{value}} published with it.',
                   {
+                    one: '{{alsoPublished}} in the draft is published with it.',
+                    other: '{{alsoPublished}} in the draft are published with it.',
+                  },
+                  {
+                    count: view.alsoPublished,
                     alsoPublished: plural(
                       view.alsoPublished,
                       tr('settings.field-change.other_change', 'other change'),
                       tr('settings.field-change.other_changes', 'other changes'),
                     ),
-                    value: view.alsoPublished === 1 ? 'is' : 'are',
                   },
                 )}
           </p>
@@ -355,10 +369,10 @@ function Review({
           )}
           {shown && missing.length > 0 ? (
             <Alert tone="danger">
-              {plural(
-                missing.length,
-                tr('settings.field-change.value_still_needs', 'value still needs'),
-                tr('settings.field-change.values_still_need', 'values still need'),
+              {tr(
+                'settings.field-change.count_values_still_need',
+                { one: '{{count}} value still needs', other: '{{count}} values still need' },
+                { count: missing.length },
               )}{' '}
               {tr('settings.field-change.typing_in', 'typing in.')}
             </Alert>
@@ -389,12 +403,7 @@ function Review({
 
 /** "Department and Job Family", "A, B and C". */
 const listed = (names: readonly string[]): string =>
-  names.length <= 1
-    ? (names[0] ?? '')
-    : tr('settings.field-change.and', '{{join}} and {{value}}', {
-        join: names.slice(0, -1).join(', '),
-        value: names.at(-1) ?? '',
-      });
+  names.length <= 1 ? (names[0] ?? '') : formatList(names);
 
 /**
  * One field's values: what converts, and each value that doesn't fit with
@@ -483,10 +492,10 @@ function FieldValues({
             {view.withValue === 0
               ? tr('settings.field-change.nobody_has_a_value_yet', 'Nobody has a value yet')
               : tr('settings.field-change.a_value', '{{withValue}} a value', {
-                  withValue: plural(
-                    view.withValue,
-                    tr('settings.field-change.person_has', 'person has'),
-                    tr('settings.field-change.people_have', 'people have'),
+                  withValue: tr(
+                    'settings.field-change.count_people_have',
+                    { one: '{{count}} person has', other: '{{count}} people have' },
+                    { count: view.withValue },
                   ),
                 })}
           </CardTitle>
@@ -494,19 +503,25 @@ function FieldValues({
         <CardContent>
           <Stack gap={4}>
             <div className="flex flex-wrap gap-2">
-              <Badge tone="success">{plural(view.converted.count, 'converts', 'convert')}</Badge>
+              <Badge tone="success">
+                {tr(
+                  'settings.field-change.count_convert',
+                  { one: '{{count}} converts', other: '{{count}} convert' },
+                  { count: view.converted.count },
+                )}
+              </Badge>
               <Badge>
-                {plural(
-                  view.unchanged,
-                  tr('settings.field-change.already_fits', 'already fits'),
-                  tr('settings.field-change.already_fit', 'already fit'),
+                {tr(
+                  'settings.field-change.count_already_fit',
+                  { one: '{{count}} already fits', other: '{{count}} already fit' },
+                  { count: view.unchanged },
                 )}
               </Badge>
               <Badge tone={view.unfit.length === 0 ? 'neutral' : 'warning'}>
-                {plural(
-                  view.unfit.length,
-                  tr('settings.field-change.needs_you', 'needs you'),
-                  tr('settings.field-change.need_you', 'need you'),
+                {tr(
+                  'settings.field-change.count_need_you',
+                  { one: '{{count}} needs you', other: '{{count}} need you' },
+                  { count: view.unfit.length },
                 )}
               </Badge>
             </div>
@@ -610,8 +625,22 @@ function FieldValues({
                       ...inputField(''),
                       label:
                         selected.size === 0
-                          ? `${field.label} for all ${String(view.unfit.length)}`
-                          : `${field.label} for the ${String(selected.size)} selected`,
+                          ? tr(
+                              'settings.field-change.label_for_all',
+                              '{{label}} for all {{count}}',
+                              {
+                                label: field.label,
+                                count: view.unfit.length,
+                              },
+                            )
+                          : tr(
+                              'settings.field-change.label_for_the_selected',
+                              '{{label}} for the {{count}} selected',
+                              {
+                                label: field.label,
+                                count: selected.size,
+                              },
+                            ),
                     }}
                     value={bulkValue}
                     onChange={setBulkValue}

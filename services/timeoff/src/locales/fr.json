@@ -1,0 +1,12 @@
+{
+  "email.nudge.a_few_days_away": "Quelques jours de repos font plus de bien qu’il n’y paraît.",
+  "email.nudge.bridge": "En prenant le {{day}}, vous avez 4 jours de repos avec {{holiday}}.",
+  "email.nudge.days_left_many": "Il vous reste {{count}} jours cette année.",
+  "email.nudge.days_left_one": "Il vous reste {{count}} jour cette année.",
+  "email.nudge.days_left_other": "Il vous reste {{count}} jours cette année.",
+  "email.nudge.heading": "{{name}}, vous n’avez pas pris de jour de repos depuis {{month}}",
+  "email.nudge.private": "Personne d’autre ne voit ce message.",
+  "email.nudge.would_be_lost_many": "{{count}} d’entre eux seraient perdus le {{date}} s’ils ne sont pas posés.",
+  "email.nudge.would_be_lost_one": "{{count}} d’entre eux serait perdu le {{date}} s’il n’est pas posé.",
+  "email.nudge.would_be_lost_other": "{{count}} d’entre eux seraient perdus le {{date}} s’ils ne sont pas posés."
+}

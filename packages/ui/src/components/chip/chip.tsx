@@ -163,7 +163,9 @@ export function Chip({
   if (onRemove) {
     const name =
       removeLabel ??
-      `Remove ${[field, children].filter((part) => typeof part === 'string').join(' ')}`.trim();
+      t('components.chip.chip.remove', 'Remove {{name}}', {
+        name: [field, children].filter((part) => typeof part === 'string').join(' '),
+      }).trim();
     return (
       <span
         data-selected={selected || undefined}

@@ -1,10 +1,12 @@
 import {
   Alert,
   Checkbox,
+  dateFormat,
   Field,
   FieldControl,
   FieldDescription,
   FieldLabel,
+  formatList,
   FormSaveBar,
   NumberField,
   PageHeader,
@@ -102,10 +104,11 @@ export function appliesToLabel(predicate: Predicate | null): string {
     if (c.operand === 'location') return c.in.map(placeName).join(', ');
     if (c.operand === 'employmentType')
       return c.in.map((e) => EMPLOYMENT[e] ?? e.replaceAll('_', ' ')).join(', ');
-    return t('settings.shared.legal', '{{length}} legal {{value}}', {
-      length: String(c.in.length),
-      value: c.in.length === 1 ? 'entity' : 'entities',
-    });
+    return t(
+      'settings.shared.legal',
+      { one: '{{count}} legal entity', other: '{{count}} legal entities' },
+      { count: c.in.length },
+    );
   });
   return parts.join(predicate.combine === 'all' ? ' and ' : ' or ');
 }
@@ -118,7 +121,7 @@ export function appliesToParts(
     return [[t('settings.shared.who', 'Who'), t('settings.shared.everyone', 'Everyone')]];
   return predicate.clauses.map((c) => [
     {
-      country: 'Country',
+      country: t('settings.shared.country', 'Country'),
       location: t('settings.shared.location', 'Location'),
       employmentType: t('settings.shared.contract', 'Contract'),
       legalEntity: t('settings.shared.entity', 'Entity'),
@@ -166,7 +169,7 @@ export const monthDay = (md: { readonly month: number; readonly day: number }): 
 const asDate = (date: string): Date => new Date(`${date}T00:00:00Z`);
 /** A calendar date as people read it: "Thu 1 Jan". Dates are dates: UTC, so no zone moves them. */
 export const shortDate = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', {
+  dateFormat({
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -174,7 +177,7 @@ export const shortDate = (date: string): string =>
   }).format(asDate(date));
 /** "1 January 2026". */
 export const longDate = (date: string): string =>
-  new Intl.DateTimeFormat('en-GB', {
+  dateFormat({
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -183,7 +186,11 @@ export const longDate = (date: string): string =>
 
 /** "1 day", "2.5 days". */
 export const daysLabel = (n: string): string =>
-  t('settings.shared.text_2', '{{n}} {{value}}', { n, value: n === '1' ? 'day' : 'days' });
+  t(
+    'settings.shared.count_days',
+    { one: '{{count}} day', other: '{{count}} days' },
+    { count: Number(n) },
+  );
 
 /* ----------------------------------------------------------- the pack -- */
 
@@ -194,7 +201,7 @@ export const daysLabel = (n: string): string =>
 export function PackNotice({ packs }: { readonly packs: readonly Pack[] }): JSX.Element | null {
   const unreviewed = packs.filter((p) => !p.reviewed);
   if (unreviewed.length === 0) return null;
-  const names = unreviewed.map((p) => country(p.country)).join(' and ');
+  const names = formatList(unreviewed.map((p) => country(p.country)));
   return (
     <Alert
       tone="warning"

@@ -1,4 +1,4 @@
-import { Avatar, Badge, icons } from '@reach/ui';
+import { Avatar, Badge, dateFormat, icons } from '@reach/ui';
 import { useState, useTransition, type JSX, type ReactNode } from 'react';
 
 import type { FileRef, Kind, Outcome, Row, StartUpload, Tone } from './types';
@@ -88,8 +88,8 @@ export function StatusBadge({
   );
 }
 
-const DAY = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-const YEAR = new Intl.DateTimeFormat('en-GB', {
+const DAY = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' });
+const YEAR = dateFormat({
   day: 'numeric',
   month: 'short',
   year: 'numeric',
@@ -106,7 +106,7 @@ export function shortDate(iso: string, today?: string): string {
 export const pages = (n: number | null): string | null =>
   n === null
     ? null
-    : t('shared.page', '{{n}} page{{value}}', { n: String(n), value: n === 1 ? '' : 's' });
+    : t('shared.page', { one: '{{count}} page', other: '{{count}} pages' }, { count: n });
 
 /** "Contract · 6 pages", what a row says under its name. */
 export const meta = (row: Pick<Row, 'typeName' | 'pages' | 'subject'>): string =>

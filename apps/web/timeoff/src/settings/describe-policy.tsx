@@ -87,8 +87,10 @@ const CONTAINER = '@container/policy';
 const COLUMNS =
   'flex flex-col gap-5 @min-[56rem]/policy:grid @min-[56rem]/policy:grid-cols-2 @min-[56rem]/policy:items-start';
 const TITLE = tr('settings.describe-policy.new_policy', 'New policy');
-const DESCRIPTION =
-  'Write the policy the way it is in the handbook. Time Off turns it into rules you can check.';
+const DESCRIPTION = tr(
+  'settings.describe-policy.write_the_policy_the_way_it_is',
+  'Write the policy the way it is in the handbook. Time Off turns it into rules you can check.',
+);
 
 /** The address's name for each rule HR can change. */
 const PARAM: Record<RuleKey, 'allowance' | 'probation' | 'carry' | 'negative'> = {
@@ -122,7 +124,7 @@ export function DescribePolicy(props: DescribePolicyProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={TITLE} description={DESCRIPTION} />
       ) : null}
-      <Loaded load={props.load} what="the policy">
+      <Loaded load={props.load} what={tr('settings.describe-policy.the_policy', 'the policy')}>
         {(data) => <Ready data={data} {...props} />}
       </Loaded>
     </div>

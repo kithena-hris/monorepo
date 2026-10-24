@@ -10,6 +10,8 @@
     ".": "./src/index.ts",
     "./styles.css": "./src/styles/index.css",
     "./tokens": "./src/tokens/index.ts",
+    "./i18n": "./src/lib/i18n.ts",
+    "./intl": "./src/lib/intl.ts",
     "./motion": "./src/lib/motion.ts",
     "./filter-model": "./src/components/filter-builder/filter-model.ts",
     "./placement": "./src/lib/placement.ts",

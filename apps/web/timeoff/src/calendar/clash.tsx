@@ -48,11 +48,15 @@ export function ClashCard({
   };
   const suggest = (option: Alternative): void => {
     if (onSuggest !== undefined) {
-      run(() => onSuggest(id, [{ spans: option.spans }]), `Sent to ${who}`);
+      run(
+        () => onSuggest(id, [{ spans: option.spans }]),
+        t('calendar.clash.sent_to', 'Sent to {{who}}', { who }),
+      );
     }
   };
   const approve = (): void => {
-    if (onDecide !== undefined) run(() => onDecide(id, 'approve'), 'Approved');
+    if (onDecide !== undefined)
+      run(() => onDecide(id, 'approve'), t('calendar.clash.approved', 'Approved'));
   };
   return (
     <AssistantCard
@@ -160,15 +164,22 @@ function titleOf(option: Alternative, who: string): string {
     case 'approve_as_asked':
       return t('calendar.clash.approve_as_asked', 'Approve as asked');
     case 'ask_teammate':
-      return t('calendar.clash.ask_to_move', 'Ask {{firstName}} to move {{value}}', {
-        firstName: firstName(
-          option.teammate?.displayName ?? t('calendar.clash.a_teammate', 'a teammate'),
-        ),
-        value:
-          option.absence === null
-            ? 'their time off'
-            : spanLabel(option.absence.from, option.absence.to),
-      });
+      return option.absence === null
+        ? t(
+            'calendar.clash.ask_to_move_their_time_off',
+            'Ask {{firstName}} to move their time off',
+            {
+              firstName: firstName(
+                option.teammate?.displayName ?? t('calendar.clash.a_teammate', 'a teammate'),
+              ),
+            },
+          )
+        : t('calendar.clash.ask_to_move', 'Ask {{firstName}} to move {{value}}', {
+            firstName: firstName(
+              option.teammate?.displayName ?? t('calendar.clash.a_teammate', 'a teammate'),
+            ),
+            value: spanLabel(option.absence.from, option.absence.to),
+          });
   }
 }
 

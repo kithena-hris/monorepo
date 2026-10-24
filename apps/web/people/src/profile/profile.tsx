@@ -26,7 +26,12 @@ import {
   Field,
   FieldControl,
   FieldLabel,
+  formatList,
+  icons,
   Input,
+  type IsoDate,
+  KbdShortcut,
+  keysOf,
   PageHeader,
   PageSection,
   RadioCard,
@@ -35,14 +40,10 @@ import {
   Stack,
   TertiaryNav,
   Tooltip,
-  icons,
+  type UploadedImage,
+  usePageHeaderFrame,
   useScreenCommand,
   useShortcutKeys,
-  keysOf,
-  KbdShortcut,
-  usePageHeaderFrame,
-  type IsoDate,
-  type UploadedImage,
 } from '@reach/ui';
 import { useEffect, useRef, useState, type JSX, type ReactNode } from 'react';
 
@@ -268,7 +269,7 @@ export type PhotoOutcome =
 export function Profile({ load, searchPeople, onUploadFile, ...props }: ProfileProps): JSX.Element {
   return (
     <PeopleSearch.Provider value={searchPeople ?? null}>
-      <Loaded load={load} what="this profile">
+      <Loaded load={load} what={t('profile.profile.this_profile', 'this profile')}>
         {(state) => (
           <FieldFiles.Provider
             value={{
@@ -440,10 +441,12 @@ function Record({
         : {
             label:
               askable.length === 1
-                ? t('profile.profile.ask_for', 'Ask {{firstName}} for {{value}}', {
-                    firstName,
-                    value: askable[0]?.label ?? 'this',
-                  })
+                ? askable[0] === undefined
+                  ? t('profile.profile.ask_for_this', 'Ask {{firstName}} for this', { firstName })
+                  : t('profile.profile.ask_for', 'Ask {{firstName}} for {{value}}', {
+                      firstName,
+                      value: askable[0].label,
+                    })
                 : t(
                     'profile.profile.ask_for_empty_details',
                     'Ask {{firstName}} for {{length}} empty details',
@@ -788,24 +791,31 @@ function Record({
                           : own
                             ? t(
                                 'profile.profile.complete_left',
-                                '{{percent}}% complete · {{length}} {{value}} left',
                                 {
-                                  percent: String(percent),
-                                  length: String(gaps.length),
-                                  value: gaps.length === 1 ? 'detail' : 'details',
+                                  one: '{{percent}}% complete · {{count}} detail left',
+                                  other: '{{percent}}% complete · {{count}} details left',
                                 },
+                                { count: gaps.length, percent: String(percent) },
                               )
-                            : t('profile.profile.left', '{{length}} {{value}} left{{value2}}', {
-                                length: String(gaps.length),
-                                value: gaps.length === 1 ? 'detail' : 'details',
-                                value2:
-                                  forOthers === 0
-                                    ? ''
-                                    : t('profile.profile.for', ', {{forOthers}} for {{value}}', {
-                                        forOthers: String(forOthers),
-                                        value: gaps.find((g) => g.readOnly)?.ownedBy ?? 'HR',
-                                      }),
-                              })}
+                            : t(
+                                'profile.profile.left',
+                                {
+                                  one: '{{count}} detail left{{value2}}',
+                                  other: '{{count}} details left{{value2}}',
+                                },
+                                {
+                                  count: gaps.length,
+                                  value2:
+                                    forOthers === 0
+                                      ? ''
+                                      : t('profile.profile.for', ', {{forOthers}} for {{value}}', {
+                                          forOthers: forOthers,
+                                          value:
+                                            gaps.find((g) => g.readOnly)?.ownedBy ??
+                                            t('profile.profile.hr', 'HR'),
+                                        }),
+                                },
+                              )}
                       </p>
                     </div>
                   </div>
@@ -873,11 +883,11 @@ function Record({
                 tone="warning"
                 title={t(
                   'profile.profile.for_your_approval',
-                  '{{decidable}} {{value}} for your approval',
                   {
-                    decidable: String(decidable),
-                    value: decidable === 1 ? 'change waits' : 'changes wait',
+                    one: '{{count}} change waits for your approval',
+                    other: '{{count}} changes wait for your approval',
                   },
+                  { count: decidable },
                 )}
                 action={
                   onApprovals === undefined ? undefined : (
@@ -899,17 +909,15 @@ function Record({
                 tone="info"
                 icon={<icons.send aria-hidden />}
                 title={t(
-                  'profile.profile.asked_you_to_add',
-                  '{{value}} asked you to add {{value2}}: {{join}}.',
+                  'profile.profile.asked_you_to_add_details',
                   {
-                    value: [...requests.values()][0]?.by ?? 'HR',
-                    value2:
-                      requests.size === 1
-                        ? t('profile.profile.a_detail', 'a detail')
-                        : t('profile.profile.details', '{{size}} details', {
-                            size: String(requests.size),
-                          }),
-                    join: [...requests.values()].map((r) => r.label).join(' and '),
+                    one: '{{value}} asked you to add a detail: {{join}}.',
+                    other: '{{value}} asked you to add {{count}} details: {{join}}.',
+                  },
+                  {
+                    count: requests.size,
+                    value: [...requests.values()][0]?.by ?? t('profile.profile.hr', 'HR'),
+                    join: formatList([...requests.values()].map((r) => r.label)),
                   },
                 )}
                 action={
@@ -992,7 +1000,7 @@ function Record({
                           'Sent to HR for approval',
                         )}
                       >
-                        {(held[section.key] ?? []).join(' and ')}{' '}
+                        {formatList(held[section.key] ?? [])}{' '}
                         {(held[section.key] ?? []).length === 1 ? 'is' : 'are'}{' '}
                         {t(
                           'profile.profile.not_changed_until_hr_approves_the',
@@ -1217,11 +1225,16 @@ function FieldRow({
         {gap ? (
           <span className="font-normal text-fg-muted">
             {field.readOnly
-              ? t(
-                  'profile.profile.not_provided_yet_fills_this_in',
-                  'Not provided yet. {{value}} fills this in.',
-                  { value: field.ownedBy ?? 'HR' },
-                )
+              ? field.ownedBy === undefined
+                ? t(
+                    'profile.profile.not_provided_yet_hr_fills',
+                    'Not provided yet. HR fills this in.',
+                  )
+                : t(
+                    'profile.profile.not_provided_yet_fills_this_in',
+                    'Not provided yet. {{value}} fills this in.',
+                    { value: field.ownedBy },
+                  )
               : t('profile.profile.not_provided_yet', 'Not provided yet.')}
           </span>
         ) : (
@@ -1313,7 +1326,11 @@ function DatedChange({
           <DialogBody>
             <Stack gap={4}>
               <AttributeInput
-                field={{ ...field, label: 'New value', readOnly: false }}
+                field={{
+                  ...field,
+                  label: t('profile.profile.new_value', 'New value'),
+                  readOnly: false,
+                }}
                 value={value}
                 onChange={setValue}
               />
@@ -1783,7 +1800,10 @@ function PlacementDialog({
         location={location}
         onEntity={setEntity}
         onLocation={setLocation}
-        locationHint="Their working day follows this location’s time zone."
+        locationHint={t(
+          'profile.profile.their_working_day_follows_this_locations_time',
+          'Their working day follows this location’s time zone.',
+        )}
       />
       <Field>
         <FieldLabel>{t('profile.profile.effective_from', 'Effective from')}</FieldLabel>

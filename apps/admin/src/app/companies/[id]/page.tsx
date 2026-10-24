@@ -56,6 +56,7 @@ interface Detail {
   coverImageUrl: string | null;
   brandingPublic: boolean;
   googleSignIn: boolean;
+  language?: string;
   address: {
     country: string;
     line1: string;
@@ -588,6 +589,7 @@ export default async function Company({
           people={company.people}
           brandingPublic={company.brandingPublic}
           googleSignIn={company.googleSignIn}
+          language={company.language ?? 'en-US'}
           hasLogo={company.logoUrl !== null}
           hasCover={company.coverImageUrl !== null}
           theme={

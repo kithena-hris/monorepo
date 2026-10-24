@@ -136,7 +136,12 @@ export function TreemapChart({
         })}
       </div>
 
-      <ChartDataTable caption={label} data={data} format={format} valueLabel="Value" />
+      <ChartDataTable
+        caption={label}
+        data={data}
+        format={format}
+        valueLabel={t('components.chart.treemap-chart.value', 'Value')}
+      />
     </ChartFrame>
   );
 }

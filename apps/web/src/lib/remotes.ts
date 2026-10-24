@@ -4,6 +4,7 @@
  * alone, in `remote-manifest.ts`, against the schema in `manifest-schema.ts`.
  */
 import type { Place } from './manifest-schema';
+import { t } from './t';
 
 export type { Place } from './manifest-schema';
 
@@ -124,7 +125,7 @@ export function headerFrame(
   _home: string,
   counts: PlaceCounts = {},
   /** The area's name, for what a screen reader calls the sections: "Time off sections". */
-  area = 'People',
+  area = t('lib.remotes.people', 'People'),
 ): HeaderFrame {
   const section = currentPlace(places.sections, route);
   const here = section ?? currentPlace(places.actions, route);
@@ -184,7 +185,7 @@ export function siblingsOf(
 ): Siblings[] {
   const groups = new Map<string, Siblings['items'][number][]>();
   for (const p of places) {
-    const group = p.group ?? 'People';
+    const group = p.group ?? t('lib.remotes.people', 'People');
     const n = counts[p.path];
     groups.set(group, [
       ...(groups.get(group) ?? []),
@@ -278,7 +279,9 @@ export function matchPath(
 export const AREAS = {
   people: {
     name: 'people',
-    label: 'People',
+    get label() {
+      return t('lib.remotes.people', 'People');
+    },
     home: '/people',
     settings: '/settings/people',
     entitlement: 'module.people',
@@ -287,7 +290,9 @@ export const AREAS = {
   },
   timeoff: {
     name: 'timeoff',
-    label: 'Time off',
+    get label() {
+      return t('lib.remotes.time_off', 'Time off');
+    },
     home: '/time-off',
     settings: '/settings/time-off',
     entitlement: 'module.timeoff',
@@ -296,7 +301,9 @@ export const AREAS = {
   },
   documents: {
     name: 'documents',
-    label: 'Documents',
+    get label() {
+      return t('lib.remotes.documents', 'Documents');
+    },
     home: '/documents',
     settings: '/settings/documents',
     entitlement: 'module.documents',
@@ -305,7 +312,9 @@ export const AREAS = {
   },
   recruiting: {
     name: 'recruiting',
-    label: 'Recruiting',
+    get label() {
+      return t('lib.remotes.recruiting', 'Recruiting');
+    },
     home: '/recruiting',
     settings: '/settings/recruiting',
     entitlement: 'module.recruiting',
@@ -314,7 +323,9 @@ export const AREAS = {
   },
   onboarding: {
     name: 'onboarding',
-    label: 'Onboarding',
+    get label() {
+      return t('lib.remotes.onboarding', 'Onboarding');
+    },
     home: '/onboarding',
     settings: '/settings/onboarding',
     entitlement: 'module.onboarding',
@@ -323,7 +334,9 @@ export const AREAS = {
   },
   performance: {
     name: 'performance',
-    label: 'Performance',
+    get label() {
+      return t('lib.remotes.performance', 'Performance');
+    },
     home: '/performance',
     settings: '/settings/performance',
     entitlement: 'module.performance',

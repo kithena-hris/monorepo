@@ -1,0 +1,34 @@
+{
+  "email.nudge.a_few_days_away": {
+    "text": "A few days away do more than they look.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code."
+  },
+  "email.nudge.bridge": {
+    "text": "Taking {{day}} gives you 4 days off with {{holiday}}.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{day}}, {{holiday}}."
+  },
+  "email.nudge.days_left_one": {
+    "text": "You have {{count}} day left this year.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "email.nudge.days_left_other": {
+    "text": "You have {{count}} days left this year.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "email.nudge.heading": {
+    "text": "{{name}}, you haven’t had a day off since {{month}}",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: a \"heading\" value. Filled in: {{name}}, {{month}}."
+  },
+  "email.nudge.private": {
+    "text": "Nobody else sees this message.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code."
+  },
+  "email.nudge.would_be_lost_one": {
+    "text": "{{count}} of them would be lost on {{date}} if it stays unbooked.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for a {{count}} of one."
+  },
+  "email.nudge.would_be_lost_other": {
+    "text": "{{count}} of them would be lost on {{date}} if they stay unbooked.",
+    "context": "A personal email from HR encouraging one employee to take a break, with their own numbers. application/insights/nudge.ts: text built in code. Filled in: {{count}}, {{date}}. Plural: the words for any other {{count}}."
+  }
+}

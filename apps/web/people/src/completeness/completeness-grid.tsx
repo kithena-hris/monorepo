@@ -4,7 +4,10 @@ import {
   Badge,
   Button,
   Card,
+  type ChartPoint,
+  type DataColumn,
   DataTable,
+  type DataTableHandle,
   Dialog,
   DialogBody,
   DialogClose,
@@ -13,21 +16,19 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
+  icons,
   InlineCell,
   ListItem,
-  VirtualList,
+  locale,
   PageSection,
   Progress,
+  type RowAction,
   Sparkline,
   Stack,
   Stat,
-  icons,
   useScreenCommand,
-  type ChartPoint,
-  type DataColumn,
-  type DataTableHandle,
+  VirtualList,
   type VirtualRowProps,
-  type RowAction,
 } from '@reach/ui';
 import {
   memo,
@@ -470,25 +471,21 @@ function Missing({
         held > 0
           ? t(
               'completeness.completeness-grid.for_hrs_approval_and_not_applied',
-              '{{held}} {{value}} for HR’s approval and {{value2}} not applied until then.',
               {
-                held: String(held),
-                value: held === 1 ? 'value waits' : 'values wait',
-                value2: held === 1 ? 'is' : 'are',
+                one: '{{count}} value waits for HR’s approval and is not applied until then.',
+                other: '{{count}} values wait for HR’s approval and are not applied until then.',
               },
+              { count: held },
             )
           : '',
         reviewed > 0
           ? t(
               'completeness.completeness-grid.to_hrs_review',
-              '{{reviewed}} {{value}} to HR’s review.',
               {
-                reviewed: String(reviewed),
-                value:
-                  reviewed === 1
-                    ? 'value our checks doubted went'
-                    : 'values our checks doubted went',
+                one: '{{count}} value our checks doubted went to HR’s review.',
+                other: '{{count}} values our checks doubted went to HR’s review.',
               },
+              { count: reviewed },
             )
           : '',
       ]
@@ -786,7 +783,7 @@ function Missing({
                   description: t(
                     'completeness.completeness-grid.records_incomplete',
                     '{{toLocaleString}} records incomplete',
-                    { toLocaleString: state.complete.incomplete.toLocaleString('en-GB') },
+                    { toLocaleString: state.complete.incomplete.toLocaleString(locale()) },
                   ),
                 }
               : {
@@ -863,11 +860,11 @@ function Missing({
           />
         )}
         <p className="text-sm text-fg-muted">
-          {state.waiting.people.toLocaleString('en-GB')}{' '}
+          {state.waiting.people.toLocaleString(locale())}{' '}
           {t(
             'completeness.completeness-grid.waiting_on_employees_for_hr',
             'waiting on employees · {{toLocaleString}} for HR',
-            { toLocaleString: toFill.toLocaleString('en-GB') },
+            { toLocaleString: toFill.toLocaleString(locale()) },
           )}
         </p>
       </Card>
@@ -1037,10 +1034,11 @@ function PersonFill({
     const f = fields.get(key);
     return f === undefined ? [] : [recordFieldOf(f)];
   });
-  const details = t('completeness.completeness-grid.text', '{{length}} {{value}}', {
-    length: String(shown.length),
-    value: shown.length === 1 ? 'detail' : 'details',
-  });
+  const details = t(
+    'completeness.completeness-grid.text',
+    { one: '{{count}} detail', other: '{{count}} details' },
+    { count: shown.length },
+  );
   return (
     <Dialog
       open
@@ -1293,10 +1291,13 @@ function FillGrid({
           <p className="text-sm text-fg-muted">
             {t(
               'completeness.completeness-grid.tab_moves_across_moves_down_nothing',
-              '{{toLocaleString}} {{value}}{{value2}}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.',
               {
-                toLocaleString: toFill.toLocaleString('en-GB'),
-                value: toFill === 1 ? 'detail' : 'details',
+                one: '{{count}} detail{{value2}}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.',
+                other:
+                  '{{count}} details{{value2}}. Tab moves across, ↵ moves down. Nothing is saved until you press Save.',
+              },
+              {
+                count: toFill,
                 value2: everybody
                   ? ' ' +
                     t('completeness.completeness-grid.across', 'across {{peopleCount}}', {
@@ -1325,10 +1326,11 @@ function FillGrid({
               ? t('completeness.completeness-grid.save_anyway', 'Save anyway')
               : pending === 0
                 ? t('completeness.completeness-grid.save', 'Save')
-                : t('completeness.completeness-grid.save_2', 'Save {{pending}} {{value}}', {
-                    pending: String(pending),
-                    value: pending === 1 ? 'change' : 'changes',
-                  })}
+                : t(
+                    'completeness.completeness-grid.save_2',
+                    { one: 'Save {{count}} change', other: 'Save {{count}} changes' },
+                    { count: pending },
+                  )}
           </Button>
         </div>
       </div>
@@ -1509,17 +1511,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** "21 Sep": when, to the day. */
 const shortDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
-
-/** "1 reminder", "40 reminders". */
-const n = (count: number, one: string, many: string): string =>
-  t('completeness.completeness-grid.text_2', '{{toLocaleString}} {{value}}', {
-    toLocaleString: count.toLocaleString('en-GB'),
-    value: count === 1 ? one : many,
-  });
-
+  new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC' });
 /** "12 people", "1 person". */
-const peopleCount = (count: number): string => n(count, 'person', 'people');
+const peopleCount = (count: number): string =>
+  t(
+    'completeness.completeness-grid.count_people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: count },
+  );
 
 /** What "Remind N people" did, in words: who was sent one, and who was not and why. */
 function remindedText(r: Extract<RemindOutcome, { ok: true }>): string {
@@ -1527,12 +1526,20 @@ function remindedText(r: Extract<RemindOutcome, { ok: true }>): string {
     r.sent === 0
       ? t('completeness.completeness-grid.nobody_was_due_a_reminder', 'Nobody was due a reminder.')
       : t('completeness.completeness-grid.sent', 'Sent {{n}}.', {
-          n: n(r.sent, 'reminder', 'reminders'),
+          n: t(
+            'completeness.completeness-grid.count_reminders',
+            { one: '{{count}} reminder', other: '{{count}} reminders' },
+            { count: r.sent },
+          ),
         }),
     r.failed === 0
       ? ''
       : t('completeness.completeness-grid.could_not_be_sent', '{{n}} could not be sent.', {
-          n: n(r.failed, 'email', 'emails'),
+          n: t(
+            'completeness.completeness-grid.count_emails',
+            { one: '{{count}} email', other: '{{count}} emails' },
+            { count: r.failed },
+          ),
         }),
     r.skipped === 0
       ? ''
@@ -1540,10 +1547,10 @@ function remindedText(r: Extract<RemindOutcome, { ok: true }>): string {
           'completeness.completeness-grid.not_due_reminded_in_the_last',
           '{{n}} not due: reminded in the last week, outside their working hours, or with no work email.',
           {
-            n: n(
-              r.skipped,
-              t('completeness.completeness-grid.person_was', 'person was'),
-              t('completeness.completeness-grid.people_were', 'people were'),
+            n: t(
+              'completeness.completeness-grid.count_people_were',
+              { one: '{{count}} person was', other: '{{count}} people were' },
+              { count: r.skipped },
             ),
           },
         ),

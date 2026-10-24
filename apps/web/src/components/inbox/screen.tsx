@@ -3,6 +3,8 @@
 import {
   Button,
   EmptyState,
+  formatList,
+  icons,
   List,
   ListDetail,
   PageHeader,
@@ -14,7 +16,6 @@ import {
   SelectValue,
   TertiaryNav,
   ToastProvider,
-  icons,
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
 import { useRouter } from 'next/navigation';
@@ -82,10 +83,18 @@ export interface InboxScreenProps {
 }
 
 const LABEL: Readonly<Record<LaneName, string>> = {
-  todo: 'To do',
-  updates: 'Updates',
-  requests: 'My requests',
-  done: 'Done',
+  get todo() {
+    return t('components.inbox.screen.lane_todo', 'To do');
+  },
+  get updates() {
+    return t('components.inbox.screen.lane_updates', 'Updates');
+  },
+  get requests() {
+    return t('components.inbox.screen.lane_requests', 'My requests');
+  },
+  get done() {
+    return t('components.inbox.screen.lane_done', 'Done');
+  },
 };
 
 const query = (params: Record<string, string | null>): string => {
@@ -397,8 +406,12 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           counts.updates > 0
             ? t(
                 'components.inbox.screen.new_tasks_appear_here_and_on',
-                'New tasks appear here and on the red number. You have {{updates}} unread update{{value}}.',
-                { updates: String(counts.updates), value: counts.updates === 1 ? '' : 's' },
+                {
+                  one: 'New tasks appear here and on the red number. You have {{count}} unread update.',
+                  other:
+                    'New tasks appear here and on the red number. You have {{count}} unread updates.',
+                },
+                { count: counts.updates },
               )
             : t(
                 'components.inbox.screen.new_tasks_appear_here_and_on_2',
@@ -507,7 +520,14 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
       {bulkBar}
       {read.unanswered.length === 0 ? null : (
         <p className="border-b border-border px-4 py-2 text-sm text-fg-muted">
-          {`${read.unanswered.map(moduleName).join(' and ')} did not answer just now; its items will be back.`}
+          {t(
+            'components.inbox.screen.modules_did_not_answer',
+            {
+              one: '{{modules}} did not answer just now; its items will be back.',
+              other: '{{modules}} did not answer just now; their items will be back.',
+            },
+            { count: read.unanswered.length, modules: formatList(read.unanswered.map(moduleName)) },
+          )}
         </p>
       )}
       <div
@@ -556,13 +576,17 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 setShowSnoozed((s) => !s);
               }}
             >
-              {t('components.inbox.screen.snoozed', '{{length}} snoozed{{value}}', {
-                length: String(snoozed.length),
-                value:
-                  snoozed.length === 1 && snoozed[0]?.snoozedUntil != null
-                    ? ` until ${shortDay(snoozed[0].snoozedUntil.slice(0, 10))}`
-                    : '',
-              })}
+              {snoozed.length === 1 && snoozed[0]?.snoozedUntil != null
+                ? t('components.inbox.screen.one_snoozed_until', '1 snoozed until {{day}}', {
+                    day: shortDay(snoozed[0].snoozedUntil.slice(0, 10)),
+                  })
+                : t(
+                    'components.inbox.screen.snoozed_count',
+                    { one: '{{count}} snoozed', other: '{{count}} snoozed' },
+                    {
+                      count: snoozed.length,
+                    },
+                  )}
             </Button>
             {showSnoozed ? <List navigable>{snoozed.map(row)}</List> : null}
           </div>
@@ -601,7 +625,9 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         }
       />
       <Waking
-        area={read.unanswered.join(' and ') || 'Inbox'}
+        area={
+          formatList(read.unanswered.map(moduleName)) || t('components.inbox.screen.inbox', 'Inbox')
+        }
         waking={read.waking && read.items.length === 0}
       >
         <ListDetail
@@ -609,7 +635,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           listWidth="26rem"
           splitFrom="lg"
           listLabel={LABEL[lane]}
-          detailLabel="Item"
+          detailLabel={t('components.inbox.screen.item', 'Item')}
           selected={selected !== null}
           onBack={() => {
             setSelectedId(null);

@@ -3,7 +3,7 @@
 type Loader = () => Promise<{ readonly default: Readonly<Record<string, string>> }>;
 
 /** Changes whenever a translation does, so a browser's stored copy is never stale. */
-export const VERSION = 'd0f3c6cfd44c';
+export const VERSION = 'f935f16ca8f8';
 
 /** Each language's words, by namespace, loaded only when a page needs them. */
 export const CATALOGUE: Readonly<Record<string, Readonly<Record<string, Loader>>>> = {
@@ -105,5 +105,25 @@ export const CATALOGUE: Readonly<Record<string, Readonly<Record<string, Loader>>
     recruiting: () => import('./ru/recruiting.json'),
     shell: () => import('./ru/shell.json'),
     timeoff: () => import('./ru/timeoff.json'),
+  },
+  hi: {
+    documents: () => import('./hi/documents.json'),
+    onboarding: () => import('./hi/onboarding.json'),
+    people: () => import('./hi/people.json'),
+    performance: () => import('./hi/performance.json'),
+    reach: () => import('./hi/reach.json'),
+    recruiting: () => import('./hi/recruiting.json'),
+    shell: () => import('./hi/shell.json'),
+    timeoff: () => import('./hi/timeoff.json'),
+  },
+  ta: {
+    documents: () => import('./ta/documents.json'),
+    onboarding: () => import('./ta/onboarding.json'),
+    people: () => import('./ta/people.json'),
+    performance: () => import('./ta/performance.json'),
+    reach: () => import('./ta/reach.json'),
+    recruiting: () => import('./ta/recruiting.json'),
+    shell: () => import('./ta/shell.json'),
+    timeoff: () => import('./ta/timeoff.json'),
   },
 };

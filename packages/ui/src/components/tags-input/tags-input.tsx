@@ -89,7 +89,7 @@ export function TagsInput({
   label,
   hideLabel = false,
   hint,
-  placeholder = 'Type and press Enter',
+  placeholder = t('components.tags-input.tags-input.type_and_press_enter', 'Type and press Enter'),
   max,
   validate,
   transform = (input) => input.trim(),

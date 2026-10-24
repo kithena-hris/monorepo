@@ -80,7 +80,7 @@ export function QuickLook({
   onNext,
   onOpen,
   hideHints = false,
-  label = 'Quick look',
+  label = t('components.quick-look.quick-look.quick_look', 'Quick look'),
   className,
   onKeyDown,
   ...props

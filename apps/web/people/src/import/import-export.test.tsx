@@ -124,7 +124,7 @@ describe('the wording of an entry', () => {
   it('says when as the design does: today, a weekday this week, a date before', () => {
     expect(whenOf('2026-09-29T14:02:00.000Z', NOW, 'UTC')).toBe('Today 14:02');
     expect(whenOf('2026-09-28T09:02:00.000Z', NOW, 'UTC')).toBe('Mon 09:02');
-    expect(whenOf('2026-09-15T09:02:00.000Z', NOW, 'UTC')).toBe('15 Sep');
+    expect(whenOf('2026-09-15T09:02:00.000Z', NOW, 'UTC')).toBe('15 Sept');
   });
 });
 

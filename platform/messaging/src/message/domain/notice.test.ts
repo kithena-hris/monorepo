@@ -1,3 +1,4 @@
+import { wordsIn } from '@kithena/domain-kit';
 import { describe, expect, it } from 'vitest';
 
 import { light } from './palette.js';
@@ -188,7 +189,7 @@ describe('renderNotice: rest_nudge (Time Off, T28)', () => {
     if (!result.ok) throw new Error('expected a message');
     expect(result.value.subject).toBe('Acme Corp: Omar, you haven’t had a day off since June');
     expect(result.value.text).toContain('Taking Mon 7 Dec gives you 4 days off');
-    expect(result.value.text).toContain('Open Time off');
+    expect(result.value.text).toContain('Open Time Off');
     expect(result.value.html).toContain(`href="${OVERVIEW}"`);
   });
 
@@ -255,5 +256,31 @@ describe('linkIsOnTenantApp', () => {
     expect(linkIsOnTenantApp('https://app.kithena.com/people', 'https://app.kithena.com')).toBe(
       false,
     );
+  });
+});
+
+describe('renderNotice in the company’s language', () => {
+  it('says the notice in that language, with its plural form, and marks the page with it', () => {
+    const words = {
+      language: 'pl',
+      t: wordsIn('pl', {
+        'notice.inbox_digest.heading_few': '{{count}} aktualizacje od wczoraj',
+        'notice.button_not_working': 'Przycisk nie działa? Wklej to w przeglądarce:',
+      }),
+    };
+    const result = renderNotice(
+      { kind: 'inbox_digest', count: 3 },
+      'https://acme.app.kithena.com/inbox',
+      'Acme & Co',
+      words,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.text).toContain('3 aktualizacje od wczoraj');
+    expect(result.value.html).toContain('<html lang="pl"');
+    expect(result.value.html).toContain('Przycisk nie działa?');
+    // What has no Polish yet reads in English, and the company's name is escaped once.
+    expect(result.value.html).toContain('Acme &amp; Co');
+    expect(result.value.html).not.toContain('&amp;amp;');
   });
 });

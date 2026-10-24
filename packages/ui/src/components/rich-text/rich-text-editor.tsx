@@ -72,14 +72,18 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   history: [
     {
       id: 'undo',
-      label: 'Undo',
+      get label() {
+        return t('components.rich-text.rich-text-editor.undo', 'Undo');
+      },
       icon: <Undo2 />,
       run: (editor) => editor.chain().focus().undo().run(),
       enabled: (editor) => editor.can().undo(),
     },
     {
       id: 'redo',
-      label: 'Redo',
+      get label() {
+        return t('components.rich-text.rich-text-editor.redo', 'Redo');
+      },
       icon: <Redo2 />,
       run: (editor) => editor.chain().focus().redo().run(),
       enabled: (editor) => editor.can().redo(),
@@ -88,35 +92,45 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   inline: [
     {
       id: 'bold',
-      label: 'Bold',
+      get label() {
+        return t('components.rich-text.rich-text-editor.bold', 'Bold');
+      },
       icon: <Bold />,
       run: (editor) => editor.chain().focus().toggleBold().run(),
       active: (editor) => editor.isActive('bold'),
     },
     {
       id: 'italic',
-      label: 'Italic',
+      get label() {
+        return t('components.rich-text.rich-text-editor.italic', 'Italic');
+      },
       icon: <Italic />,
       run: (editor) => editor.chain().focus().toggleItalic().run(),
       active: (editor) => editor.isActive('italic'),
     },
     {
       id: 'underline',
-      label: 'Underline',
+      get label() {
+        return t('components.rich-text.rich-text-editor.underline', 'Underline');
+      },
       icon: <UnderlineIcon />,
       run: (editor) => editor.chain().focus().toggleUnderline().run(),
       active: (editor) => editor.isActive('underline'),
     },
     {
       id: 'strike',
-      label: 'Strikethrough',
+      get label() {
+        return t('components.rich-text.rich-text-editor.strikethrough', 'Strikethrough');
+      },
       icon: <Strikethrough />,
       run: (editor) => editor.chain().focus().toggleStrike().run(),
       active: (editor) => editor.isActive('strike'),
     },
     {
       id: 'code',
-      label: 'Inline code',
+      get label() {
+        return t('components.rich-text.rich-text-editor.inline_code', 'Inline code');
+      },
       icon: <Code />,
       run: (editor) => editor.chain().focus().toggleCode().run(),
       active: (editor) => editor.isActive('code'),
@@ -125,14 +139,18 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   headings: [
     {
       id: 'h2',
-      label: 'Heading 2',
+      get label() {
+        return t('components.rich-text.rich-text-editor.heading_2', 'Heading 2');
+      },
       icon: <Heading2 />,
       run: (editor) => editor.chain().focus().toggleHeading({ level: 2 }).run(),
       active: (editor) => editor.isActive('heading', { level: 2 }),
     },
     {
       id: 'h3',
-      label: 'Heading 3',
+      get label() {
+        return t('components.rich-text.rich-text-editor.heading_3', 'Heading 3');
+      },
       icon: <Heading3 />,
       run: (editor) => editor.chain().focus().toggleHeading({ level: 3 }).run(),
       active: (editor) => editor.isActive('heading', { level: 3 }),
@@ -141,14 +159,18 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   lists: [
     {
       id: 'bullet',
-      label: 'Bulleted list',
+      get label() {
+        return t('components.rich-text.rich-text-editor.bulleted_list', 'Bulleted list');
+      },
       icon: <List />,
       run: (editor) => editor.chain().focus().toggleBulletList().run(),
       active: (editor) => editor.isActive('bulletList'),
     },
     {
       id: 'ordered',
-      label: 'Numbered list',
+      get label() {
+        return t('components.rich-text.rich-text-editor.numbered_list', 'Numbered list');
+      },
       icon: <ListOrdered />,
       run: (editor) => editor.chain().focus().toggleOrderedList().run(),
       active: (editor) => editor.isActive('orderedList'),
@@ -157,14 +179,18 @@ const groups: Record<RichTextGroup, ToolbarButton[]> = {
   blocks: [
     {
       id: 'quote',
-      label: 'Quote',
+      get label() {
+        return t('components.rich-text.rich-text-editor.quote', 'Quote');
+      },
       icon: <Quote />,
       run: (editor) => editor.chain().focus().toggleBlockquote().run(),
       active: (editor) => editor.isActive('blockquote'),
     },
     {
       id: 'rule',
-      label: 'Horizontal rule',
+      get label() {
+        return t('components.rich-text.rich-text-editor.horizontal_rule', 'Horizontal rule');
+      },
       icon: <Minus />,
       run: (editor) => editor.chain().focus().setHorizontalRule().run(),
     },

@@ -67,6 +67,7 @@ import {
 import { Reveal, staggerStyle } from '../reveal/reveal';
 import { ToggleGroup, ToggleGroupItem } from '../toggle/toggle';
 import { t } from '../../lib/i18n';
+import { formatNumber } from '../../lib/intl';
 
 /**
  * A board of columns you can drag cards between.
@@ -435,10 +436,12 @@ function moveWithin<T extends { id: string }>(
   return { ...board, [from]: source, [to]: target };
 }
 
-const instructions: ScreenReaderInstructions = {
-  draggable:
+const instructions = (): ScreenReaderInstructions => ({
+  draggable: t(
+    'components.kanban.kanban.to_pick_up_a_card',
     'To pick up a card, press Space or Enter on its drag handle. Use the arrow keys to move it between positions and columns. Press Space or Enter again to drop it, or Escape to cancel. Every card also has a "Move to" menu, which does the same thing without dragging.',
-};
+  ),
+});
 
 export function Kanban<T extends { id: string }>({
   columns,
@@ -625,8 +628,18 @@ export function Kanban<T extends { id: string }>({
     onDragStart: ({ active }) => {
       const entry = index.get(String(active.id));
       return entry
-        ? `Picked up ${describe(active.id)} from ${columnTitle(entry.columnId)}, position ${String(entry.position + 1)}.`
-        : `Picked up ${describe(active.id)}.`;
+        ? t(
+            'components.kanban.kanban.picked_up_from_position',
+            'Picked up {{card}} from {{column}}, position {{position}}.',
+            {
+              card: describe(active.id),
+              column: columnTitle(entry.columnId),
+              position: formatNumber(entry.position + 1),
+            },
+          )
+        : t('components.kanban.kanban.picked_up', 'Picked up {{card}}.', {
+            card: describe(active.id),
+          });
     },
     onDragOver: ({ active, over }) => {
       if (!over) return undefined;
@@ -634,18 +647,47 @@ export function Kanban<T extends { id: string }>({
       if (!entry) return undefined;
       const target = resolveTarget(over.id, entry.columnId);
       if (!target) return undefined;
-      return `${describe(active.id)} is over ${columnTitle(target.to)}, position ${String(target.toIndex + 1)}.`;
+      return t(
+        'components.kanban.kanban.is_over_position',
+        '{{card}} is over {{column}}, position {{position}}.',
+        {
+          card: describe(active.id),
+          column: columnTitle(target.to),
+          position: formatNumber(target.toIndex + 1),
+        },
+      );
     },
     onDragEnd: ({ active, over }) => {
-      if (!over) return `${describe(active.id)} was dropped where it started.`;
+      if (!over)
+        return t(
+          'components.kanban.kanban.was_dropped_where_it_started',
+          '{{card}} was dropped where it started.',
+          {
+            card: describe(active.id),
+          },
+        );
       const entry = index.get(String(active.id));
       if (!entry) return undefined;
       const target = resolveTarget(over.id, entry.columnId);
       if (!target) return undefined;
-      return `${describe(active.id)} was moved to ${columnTitle(target.to)}, position ${String(target.toIndex + 1)}.`;
+      return t(
+        'components.kanban.kanban.was_moved_to_position',
+        '{{card}} was moved to {{column}}, position {{position}}.',
+        {
+          card: describe(active.id),
+          column: columnTitle(target.to),
+          position: formatNumber(target.toIndex + 1),
+        },
+      );
     },
     onDragCancel: ({ active }) =>
-      `Moving ${describe(active.id)} was cancelled. It is back where it started.`,
+      t(
+        'components.kanban.kanban.moving_was_cancelled',
+        'Moving {{card}} was cancelled. It is back where it started.',
+        {
+          card: describe(active.id),
+        },
+      ),
   };
 
   const onDragStart = ({ active }: DragStartEvent): void => {
@@ -703,7 +745,7 @@ export function Kanban<T extends { id: string }>({
       id={dndId}
       sensors={sensors}
       collisionDetection={closestCorners}
-      accessibility={{ announcements, screenReaderInstructions: instructions }}
+      accessibility={{ announcements, screenReaderInstructions: instructions() }}
       // Droppables are re-measured continuously. Without this a column that
       // grew or shrank because of the preview keeps its stale rectangle, and
       // the card drops into the slot the column occupied a moment ago.
@@ -1229,11 +1271,11 @@ function KanbanColumn<T extends { id: string }>({
 
   return (
     <section
-      aria-label={t('components.kanban.kanban.text', '{{title}}, {{length}} {{value}}', {
-        title: column.title,
-        length: String(items.length),
-        value: items.length === 1 ? 'card' : 'cards',
-      })}
+      aria-label={t(
+        'components.kanban.kanban.column_cards',
+        { one: '{{title}}, {{count}} card', other: '{{title}}, {{count}} cards' },
+        { title: column.title, count: items.length },
+      )}
       className={cn(
         'flex min-h-0 shrink-0 snap-start flex-col rounded-lg bg-surface-sunken p-2.5',
         width === undefined && 'w-65 touch:w-75',

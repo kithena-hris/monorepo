@@ -99,7 +99,6 @@ import {
   day,
   download,
   kindLabel,
-  plural,
   score,
   useAct,
   words,
@@ -343,9 +342,9 @@ export function Cycles(props: ScreenProps<CyclesData>): JSX.Element {
                   onClick={() => {
                     const source = data.rows.find((c) => c.id === from);
                     create(
-                      tr('cycles.copy_of', 'Copy of {{value}}', {
-                        value: source?.name ?? 'a cycle',
-                      }),
+                      source?.name == null
+                        ? tr('cycles.copy_of_a_cycle', 'Copy of a cycle')
+                        : tr('cycles.copy_of', 'Copy of {{value}}', { value: source.name }),
                       from,
                     );
                   }}
@@ -450,7 +449,7 @@ function NewCycle({
       steps={STEPS}
       step={0}
       onStep={go}
-      finishLabel="Next"
+      finishLabel={tr('cycles.next', 'Next')}
       finish={() => {
         go(1);
       }}
@@ -628,8 +627,8 @@ const ZONES = [
   'UTC',
 ];
 const REMINDERS = [
-  ['before:7', '7 days before'],
-  ['before:3', '3 days before'],
+  ['before:7', tr('cycles.7_days_before', '7 days before')],
+  ['before:3', tr('cycles.3_days_before', '3 days before')],
   ['on_day', tr('cycles.on_the_day', 'On the day')],
   ['late:2', tr('cycles.every_2_days_when_late', 'Every 2 days when late')],
   ['opens', tr('cycles.when_it_opens', 'When it opens')],
@@ -638,7 +637,7 @@ const REMINDERS = [
 /** PF4: setup in a centred dialog; each step saves as it changes. */
 export function Setup(props: ScreenProps<SetupData>): JSX.Element {
   return (
-    <Loaded load={props.load} what="the cycle">
+    <Loaded load={props.load} what={tr('cycles.the_cycle', 'the cycle')}>
       {(data) => <SetupDialog key={data.cycle.id} data={data} {...props} />}
     </Loaded>
   );
@@ -1245,13 +1244,13 @@ function Participants({
     {
       id: 'person',
       width: '20rem',
-      header: 'Person',
+      header: tr('cycles.person', 'Person'),
       cell: (r) => <Person name={r.name} sub={r.title} />,
     },
     {
       id: 'manager',
       width: '14rem',
-      header: 'Manager',
+      header: tr('cycles.manager', 'Manager'),
       cell: (r) =>
         r.manager === null ? (
           <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
@@ -1268,7 +1267,7 @@ function Participants({
     {
       id: 'note',
       width: '12rem',
-      header: 'How',
+      header: tr('cycles.how', 'How'),
       cell: (r) =>
         r.note === null ? (
           <span className="text-sm text-fg-muted">
@@ -1382,7 +1381,11 @@ function Participants({
           <Search
             label={tr('cycles.search_who_is_in', 'Search who is in')}
             placeholder={tr('cycles.search', 'Search {{count}}', {
-              count: plural(p.count, 'person', 'people'),
+              count: tr(
+                'cycles.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: p.count },
+              ),
             })}
             initial={q}
             onSearch={(next) => {
@@ -1437,9 +1440,26 @@ function Participants({
         }
       />
       <p className="text-sm text-fg-muted" aria-live="polite">
-        <span className="font-semibold text-fg">{plural(p.count, 'person', 'people')}</span>
-        {` · ${String(p.fromFilter)} from the filters, ${String(p.included)} added by name, ${String(p.excluded)} left out`}
-        {q === '' ? '' : ` · ${plural(p.total ?? p.rows.length, 'match', 'matches')} “${q}”`}
+        <span className="font-semibold text-fg">
+          {tr(
+            'cycles.count_people',
+            { one: '{{count}} person', other: '{{count}} people' },
+            { count: p.count },
+          )}
+        </span>
+        {' · '}
+        {tr(
+          'cycles.from_filters_added_by_name_left_out',
+          '{{fromFilter}} from the filters, {{included}} added by name, {{excluded}} left out',
+          {
+            fromFilter: p.fromFilter,
+            included: p.included,
+            excluded: p.excluded,
+          },
+        )}
+        {q === ''
+          ? ''
+          : ` · ${tr('cycles.count_matches', { one: '{{count}} match', other: '{{count}} matches' }, { count: p.total ?? p.rows.length })} “${q}”`}
       </p>
       {/* A page at a time, only the rows in view drawn; the next page comes at 70%. */}
       <DataTable
@@ -1457,7 +1477,11 @@ function Participants({
         {...(pages.items.length > 0 && pages.loadMore === undefined
           ? {
               endLabel: tr('cycles.thats_everyone', 'That’s everyone · {{plural}}', {
-                plural: plural(p.total ?? p.rows.length, 'person', 'people'),
+                plural: tr(
+                  'cycles.count_people',
+                  { one: '{{count}} person', other: '{{count}} people' },
+                  { count: p.total ?? p.rows.length },
+                ),
               }),
             }
           : {})}
@@ -1642,7 +1666,11 @@ function Reviews({
                             {tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
                               name: t.name,
                               value: String(t.published ?? 1),
-                              questions: plural(t.questions, 'question'),
+                              questions: tr(
+                                'cycles.count_questions',
+                                { one: '{{count}} question', other: '{{count}} questions' },
+                                { count: t.questions },
+                              ),
                             })}
                           </SelectItem>
                         ))}
@@ -1650,9 +1678,11 @@ function Reviews({
                     </Select>
                   </Field>
                   <NumberField
-                    label={tr('cycles.due_after', 'Due after {{value}}', {
-                      value: d.from === 'nominations' ? 'nominations close' : 'the start',
-                    })}
+                    label={
+                      d.from === 'nominations'
+                        ? tr('cycles.due_after_nominations_close', 'Due after nominations close')
+                        : tr('cycles.due_after_the_start', 'Due after the start')
+                    }
                     hint={tr('cycles.works_out_to', 'Works out to {{resolveDue}}', {
                       resolveDue: day(resolveDue(c, d)),
                     })}
@@ -1934,7 +1964,10 @@ function ReminderOptions({
       </ChipRow>
       <SwitchRow
         label={tr('cycles.inbox', 'Inbox')}
-        info="Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen."
+        info={tr(
+          'cycles.always_on_every_reminder_lands_in_each',
+          'Always on: every reminder lands in each person’s Inbox in Kithena, whatever else is chosen.',
+        )}
         checked
         disabled
       />
@@ -2022,16 +2055,13 @@ function CyclePlan({
     if (setup === null) return;
     open({
       title: tr('cycles.when_are_due', 'When are {{name}} due?', { name: name(k).toLowerCase() }),
-      description: tr(
-        'cycles.counted_from_so_it_moves_with',
-        'Counted from {{value}}, so it moves with it.',
-        {
-          value:
-            setup.c.activities[k as Kind].due.from === 'nominations'
-              ? 'when nominations close'
-              : 'the start',
-        },
-      ),
+      description:
+        setup.c.activities[k as Kind].due.from === 'nominations'
+          ? tr(
+              'cycles.counted_from_nominations_close',
+              'Counted from when nominations close, so it moves with it.',
+            )
+          : tr('cycles.counted_from_the_start', 'Counted from the start, so it moves with it.'),
       confirm: tr('cycles.change_the_due_date', 'Change the due date'),
       date: to,
       run: (d) => {
@@ -2268,7 +2298,10 @@ function CyclePlan({
       title={tr('cycles.the_cycle_at_a_glance', 'The cycle at a glance')}
       description={
         edit === undefined
-          ? 'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.'
+          ? tr(
+              'cycles.bars_are_when_each_review_is_open',
+              'Bars are when each review is open; pins in its colour are its due date and, outlined, its reminders. Drag across the dates to zoom.',
+            )
           : edit.mode === 'setup'
             ? tr(
                 'cycles.drag_a_bars_end_or_its',
@@ -2375,10 +2408,20 @@ const kindTone = (kind: string): (typeof TONES)[number] =>
 const dueAfter = (d: Deadline): string =>
   d.kind === 'exact'
     ? tr('cycles.on_a_set_date', 'on a set date')
-    : tr('cycles.after', '{{plural}} after {{value}}', {
-        plural: plural(d.days ?? 0, 'day'),
-        value: d.from === 'nominations' ? 'nominations close' : 'the start',
-      });
+    : d.from === 'nominations'
+      ? tr(
+          'cycles.days_after_nominations_close',
+          {
+            one: '{{count}} day after nominations close',
+            other: '{{count}} days after nominations close',
+          },
+          { count: d.days ?? 0 },
+        )
+      : tr(
+          'cycles.days_after_the_start',
+          { one: '{{count}} day after the start', other: '{{count}} days after the start' },
+          { count: d.days ?? 0 },
+        );
 
 const PICKER: Readonly<Record<string, string>> = {
   subject: tr('cycles.the_person_2', 'the person'),
@@ -2405,7 +2448,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
       : tr('cycles.v', '{{name}} · v{{value}} · {{questions}}', {
           name: t.name,
           value: String(t.published ?? 1),
-          questions: plural(t.questions, 'question'),
+          questions: tr(
+            'cycles.count_questions',
+            { one: '{{count}} question', other: '{{count}} questions' },
+            { count: t.questions },
+          ),
         });
   };
   return (
@@ -2417,20 +2464,42 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               ? data.action === 'schedule'
                 ? tr('cycles.ready_to_schedule', 'Ready to schedule')
                 : tr('cycles.ready_to_launch', 'Ready to launch')
-              : tr('cycles.to_fix_before_it_can', '{{blocks}} to fix before it can {{value}}', {
-                  blocks: plural(blocks, 'thing'),
-                  value: data.action === 'schedule' ? 'be scheduled' : 'launch',
-                })}
+              : data.action === 'schedule'
+                ? tr(
+                    'cycles.things_to_fix_before_scheduled',
+                    {
+                      one: '{{count}} thing to fix before it can be scheduled',
+                      other: '{{count}} things to fix before it can be scheduled',
+                    },
+                    { count: blocks },
+                  )
+                : tr(
+                    'cycles.things_to_fix_before_launch',
+                    {
+                      one: '{{count}} thing to fix before it can launch',
+                      other: '{{count}} things to fix before it can launch',
+                    },
+                    { count: blocks },
+                  )}
           </CardTitle>
           <p className="text-sm text-fg-muted">
             {blocks === 0 && warns === 0
               ? tr('cycles.every_check_passed', 'Every check passed.')
               : warns === 0
-                ? 'Fix what is marked; nothing else stops it.'
+                ? tr(
+                    'cycles.fix_what_is_marked_nothing_else_stops',
+                    'Fix what is marked; nothing else stops it.',
+                  )
                 : tr(
                     'cycles.to_read_warnings_dont_stop_it',
                     '{{warns}} to read. Warnings don’t stop it.',
-                    { warns: plural(warns, 'warning') },
+                    {
+                      warns: tr(
+                        'cycles.count_warnings',
+                        { one: '{{count}} warning', other: '{{count}} warnings' },
+                        { count: warns },
+                      ),
+                    },
                   )}
           </p>
         </CardHeader>
@@ -2494,7 +2563,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               icon={<icons.flagged aria-hidden />}
               iconPosition="start"
               value={last === undefined ? '—' : day(last)}
-              description={plural(on.length, 'review')}
+              description={tr(
+                'cycles.count_reviews',
+                { one: '{{count}} review', other: '{{count}} reviews' },
+                { count: on.length },
+              )}
             />
           </div>
           {on.length === 0 ? (
@@ -2523,8 +2596,20 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                           {` · ${dueAfter(a.due)}`}
                           {k === 'peer'
                             ? c.peer.all
-                              ? ` · every teammate, up to ${String(c.peer.max)}`
-                              : ` · ${String(c.peer.min)} to ${String(c.peer.max)} peers, nominated by ${PICKER[c.peer.picker] ?? c.peer.picker}`
+                              ? ' · ' +
+                                tr('cycles.every_teammate_up_to', 'every teammate, up to {{max}}', {
+                                  max: c.peer.max,
+                                })
+                              : ' · ' +
+                                tr(
+                                  'cycles.peers_nominated_by',
+                                  '{{min}} to {{max}} peers, nominated by {{picker}}',
+                                  {
+                                    min: c.peer.min,
+                                    max: c.peer.max,
+                                    picker: PICKER[c.peer.picker] ?? c.peer.picker,
+                                  },
+                                )
                             : ''}
                         </span>
                       </>
@@ -2599,7 +2684,11 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
               },
               {
                 label: tr('cycles.response_minimum', 'Response minimum'),
-                value: plural(v.minimum, 'answer'),
+                value: tr(
+                  'cycles.count_answers',
+                  { one: '{{count}} answer', other: '{{count}} answers' },
+                  { count: v.minimum },
+                ),
               },
             ]}
           />
@@ -2744,7 +2833,10 @@ function CycleSettings({
       <div className="flex flex-wrap items-center gap-3">
         <p className="flex-1 text-sm text-fg-muted">
           {onEdit === undefined
-            ? 'Deadlines move from the plan on the Overview; everything else was fixed at launch.'
+            ? tr(
+                'cycles.deadlines_move_from_the_plan_on_the',
+                'Deadlines move from the plan on the Overview; everything else was fixed at launch.',
+              )
             : tr(
                 'cycles.not_started_yet_so_all_of',
                 'Not started yet, so all of it can still change.',
@@ -2892,7 +2984,11 @@ function CycleSettings({
                 )}
               >
                 {tr('cycles.at_least_2', 'At least {{minimum}}', {
-                  minimum: plural(st.visibility.minimum, 'answer'),
+                  minimum: tr(
+                    'cycles.count_answers',
+                    { one: '{{count}} answer', other: '{{count}} answers' },
+                    { count: st.visibility.minimum },
+                  ),
                 })}
               </IconListItem>
               {c.kinds.includes('peer') ? (
@@ -2900,7 +2996,7 @@ function CycleSettings({
                   icon={<icons.people />}
                   description={
                     st.peer.all
-                      ? tr('cycles.every_teammate_up_to', 'Every teammate, up to {{max}}', {
+                      ? tr('cycles.every_teammate_up_to_2', 'Every teammate, up to {{max}}', {
                           max: String(st.peer.max),
                         })
                       : tr('cycles.nominated_to_each', 'Nominated, {{min}} to {{max}} each', {
@@ -2996,18 +3092,30 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
         description={[
           tr('cycles.of_in', '{{submitted}} of {{total}} in', {
             submitted: String(got.status.submitted),
-            total: plural(total, 'review'),
+            total: tr(
+              'cycles.count_reviews',
+              { one: '{{count}} review', other: '{{count}} reviews' },
+              { count: total },
+            ),
           }),
           got.status.overdue > 0
             ? tr('cycles.overdue_2', '{{overdue}} overdue', { overdue: String(got.status.overdue) })
             : tr('cycles.none_overdue', 'none overdue'),
           next === undefined || left === null
             ? null
-            : tr('cycles.s_due', '{{kindLabel}}s due {{due}}{{value}}', {
-                kindLabel: kindLabel(next.kind),
-                due: day(next.due),
-                value: left === 0 ? ', today' : `, in ${plural(left, 'day')}`,
-              }),
+            : left === 0
+              ? tr('cycles.kind_due_today', '{{kindLabel}} due {{due}}, today', {
+                  kindLabel: kindLabel(next.kind),
+                  due: day(next.due),
+                })
+              : tr(
+                  'cycles.kind_due_in_days',
+                  {
+                    one: '{{kindLabel}} due {{due}}, in {{count}} day',
+                    other: '{{kindLabel}} due {{due}}, in {{count}} days',
+                  },
+                  { kindLabel: kindLabel(next.kind), due: day(next.due), count: left },
+                ),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
@@ -3060,7 +3168,13 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
             tone: x.tone,
             values: got.byDepartment.map((d) => d[x.key]),
           }))}
-          format={(v) => plural(Math.round(v), 'review')}
+          format={(v) =>
+            tr(
+              'cycles.count_reviews',
+              { one: '{{count}} review', other: '{{count}} reviews' },
+              { count: Math.round(v) },
+            )
+          }
         />
       </ChartCard>
     </div>
@@ -3117,15 +3231,25 @@ function PeopleToolbar({
     ...(data.fields === undefined
       ? []
       : filterFields({ fields: data.fields, places: data.places })),
-    { id: 'self', label: 'Self review', operators: IS, options: REVIEW_STATES },
-    { id: 'managerReview', label: 'Manager review', operators: IS, options: REVIEW_STATES },
+    {
+      id: 'self',
+      label: tr('cycles.self_review', 'Self review'),
+      operators: IS,
+      options: REVIEW_STATES,
+    },
+    {
+      id: 'managerReview',
+      label: tr('cycles.manager_review', 'Manager review'),
+      operators: IS,
+      options: REVIEW_STATES,
+    },
     {
       id: 'overdue',
-      label: 'Anything overdue',
+      label: tr('cycles.anything_overdue', 'Anything overdue'),
       operators: [{ id: 'is', label: 'is', value: 'options' }],
       options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' },
+        { value: 'yes', label: tr('cycles.yes', 'Yes') },
+        { value: 'no', label: tr('cycles.no', 'No') },
       ],
     },
   ];
@@ -3240,7 +3364,13 @@ function PeopleToolbar({
         }
         actions={
           <span className="flex items-center gap-2">
-            <span className="text-sm text-fg-muted">{plural(data.total, 'person', 'people')}</span>
+            <span className="text-sm text-fg-muted">
+              {tr(
+                'cycles.count_people',
+                { one: '{{count}} person', other: '{{count}} people' },
+                { count: data.total },
+              )}
+            </span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" variant="ghost" startIcon={<icons.adjust aria-hidden />}>
@@ -3346,7 +3476,7 @@ function OverviewTable({
     {
       id: 'person',
       width: '18rem',
-      header: 'Person',
+      header: tr('cycles.person', 'Person'),
       cell: (r) => (
         <span className="flex flex-col">
           <span>
@@ -3366,7 +3496,7 @@ function OverviewTable({
     {
       id: 'manager',
       width: '13rem',
-      header: 'Manager',
+      header: tr('cycles.manager', 'Manager'),
       cell: (r) =>
         r.manager === null ? (
           <span className="text-sm text-fg-muted">{tr('cycles.no_manager', 'No manager')}</span>
@@ -3385,23 +3515,37 @@ function OverviewTable({
           {
             id: 'self',
             width: '9rem',
-            header: 'Self',
+            header: tr('cycles.self', 'Self'),
             cell: (r: OverviewRow) => <ReviewBadge state={r.self} />,
           },
         ]
       : []),
     ...(has('peer')
-      ? [{ id: 'peers', width: '10rem', header: 'Peers', cell: (r: OverviewRow) => r.peers }]
+      ? [
+          {
+            id: 'peers',
+            width: '10rem',
+            header: tr('cycles.peers', 'Peers'),
+            cell: (r: OverviewRow) => r.peers,
+          },
+        ]
       : []),
     ...(has('upward')
-      ? [{ id: 'upward', width: '7rem', header: 'Upward', cell: (r: OverviewRow) => r.upward }]
+      ? [
+          {
+            id: 'upward',
+            width: '7rem',
+            header: tr('cycles.upward', 'Upward'),
+            cell: (r: OverviewRow) => r.upward,
+          },
+        ]
       : []),
     ...(has('manager')
       ? [
           {
             id: 'managerReview',
             width: '13rem',
-            header: 'Manager review',
+            header: tr('cycles.manager_review', 'Manager review'),
             cell: (r: OverviewRow) => {
               // A former manager's review is said so: the row's own, or one kept beside it.
               const former = r.formerManagerReviews ?? [];
@@ -3412,7 +3556,11 @@ function OverviewTable({
                 <span className="flex flex-col items-start gap-1">
                   <ReviewBadge state={r.managerReview} />
                   {main === undefined ? null : (
-                    <span className="text-xs text-warning-fg">{`By ${main.name}, their former manager`}</span>
+                    <span className="text-xs text-warning-fg">
+                      {tr('cycles.by_their_former_manager', 'By {{name}}, their former manager', {
+                        name: main.name,
+                      })}
+                    </span>
                   )}
                   {former
                     .filter((f) => !f.main)
@@ -3433,7 +3581,7 @@ function OverviewTable({
     {
       id: 'release',
       width: '9rem',
-      header: 'Release',
+      header: tr('cycles.release', 'Release'),
       cell: (r) => <span className="text-sm text-fg-muted">{r.release}</span>,
     },
     ...(data.hr
@@ -3441,7 +3589,7 @@ function OverviewTable({
           {
             id: 'score',
             width: '6rem',
-            header: 'Score',
+            header: tr('cycles.score', 'Score'),
             numeric: true,
             cell: (r: OverviewRow) => score(r.score),
           },
@@ -3468,7 +3616,11 @@ function OverviewTable({
       {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
       loadingMore={pages.loading}
       endLabel={tr('cycles.thats_everyone_2', 'That’s everyone · {{total}}', {
-        total: plural(data.total, 'person', 'people'),
+        total: tr(
+          'cycles.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: data.total },
+        ),
       })}
       {...(data.hr
         ? {
@@ -3551,7 +3703,7 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
   const [preset, setPreset] = useState<{ kind: string; due: string } | null>(null);
   const tab = props.search?.['tab'] ?? 'overview';
   return (
-    <Loaded load={props.load} what="the cycle">
+    <Loaded load={props.load} what={tr('cycles.the_cycle', 'the cycle')}>
       {(data) => {
         const c = data.cycle;
         const id = c.id;
@@ -3750,7 +3902,14 @@ export function Overview(props: ScreenProps<OverviewData>): JSX.Element {
                   </span>
                 }
               >
-                {`${c.launch.error ?? tr('cycles.something_stopped_it', 'Something stopped it.')} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.`}
+                {tr(
+                  'cycles.launch_stopped_retrying_continues',
+                  '{{error}} Retrying continues where it stopped; nothing is created or sent twice. No participant has been told yet.',
+                  {
+                    error:
+                      c.launch.error ?? tr('cycles.something_stopped_it', 'Something stopped it.'),
+                  },
+                )}
               </Alert>
             ) : null}
             {c.state === 'launching' ? (
@@ -3959,7 +4118,14 @@ function ExtendDialog({
 }): JSX.Element {
   const [kind, setKind] = useState(preset?.kind ?? kinds.find((k) => k !== 'goals') ?? 'self');
   const [due, setDue] = useState(preset?.due ?? '');
-  const who = people.length === 0 ? 'everyone' : plural(people.length, 'person', 'people');
+  const who =
+    people.length === 0
+      ? 'everyone'
+      : tr(
+          'cycles.count_people',
+          { one: '{{count}} person', other: '{{count}} people' },
+          { count: people.length },
+        );
   const [reason, setReason] = useState('');
   return (
     <Modal
@@ -3982,9 +4148,15 @@ function ExtendDialog({
               );
             }}
           >
-            {tr('cycles.extend_for', 'Extend for {{value}}', {
-              value: people.length === 0 ? 'everyone' : String(people.length),
-            })}
+            {people.length === 0
+              ? tr('cycles.extend_for_everyone', 'Extend for everyone')
+              : tr(
+                  'cycles.extend_for',
+                  { one: 'Extend for {{count}} person', other: 'Extend for {{count}} people' },
+                  {
+                    count: people.length,
+                  },
+                )}
           </Button>
         </>
       }
@@ -4154,7 +4326,7 @@ function ExportDialog({
       ]}
       step={step}
       onStep={setStep}
-      finishLabel="Export"
+      finishLabel={tr('cycles.export', 'Export')}
       pending={act.pending}
       finish={() => {
         act.run(
@@ -4326,9 +4498,13 @@ function RemoveDialog({
     <Modal
       open
       onClose={onDone}
-      title={tr('cycles.remove_from_the_cycle_2', 'Remove {{value}} from the cycle?', {
-        value: person?.name ?? 'them',
-      })}
+      title={
+        person?.name == null
+          ? tr('cycles.remove_them_from_the_cycle', 'Remove them from the cycle?')
+          : tr('cycles.remove_from_the_cycle_2', 'Remove {{value}} from the cycle?', {
+              value: person.name,
+            })
+      }
       description={tr(
         'cycles.started_reviews_about_them_become_detached',
         'Started reviews about them become detached: kept for their authors, out of the cycle. Unstarted ones are cancelled.',

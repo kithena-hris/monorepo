@@ -3,7 +3,7 @@ import type { Instant } from '@kithena/contracts';
 
 import { may } from '../domain/access/access.js';
 import { asksOf, newAsk, saveAsk, type Agenda, type Ask } from './asks.js';
-import { forbidden, jobFacts, notFound, type Ctx } from './context.js';
+import { forbidden, jobFacts, notFound, type Ctx, mailWords } from './context.js';
 import { portalLink } from './intake.js';
 import { bookInterview, byDay, keepAgenda } from './interviews.js';
 import { loadApplication, sendNow, type Loaded } from './moves.js';
@@ -18,8 +18,8 @@ import { generalSettings } from './setup.js';
  * at once and lands on the candidate's page.
  */
 
-const fmt = (iso: string, timeZone: string): string =>
-  new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone }).format(
+const fmt = (iso: string, timeZone: string, language = 'en-GB'): string =>
+  new Intl.DateTimeFormat(language, { dateStyle: 'full', timeStyle: 'short', timeZone }).format(
     new Date(iso),
   );
 
@@ -68,6 +68,7 @@ export async function proposeSlots(
     readonly interviewerIds?: readonly string[] | undefined;
   },
 ): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
@@ -99,12 +100,34 @@ export async function proposeSlots(
     ctx,
     candidate,
     applicationId,
-    `Appointment requested: ${plan.title} with ${settings.companyName}`,
-    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\n${settings.companyName} would like to meet you for a ${plan.title.toLowerCase()} (${String(plan.minutes)} minutes)${input.note === null ? '.' : `: ${input.note}`}\n\nPick the time that suits you, or ask for others if none does.`,
+    t(
+      'email.requests.appointment_requested_with',
+      'Appointment requested: {{title}} with {{companyName}}',
+      { title: plan.title, companyName: settings.companyName },
+    ),
+    t(
+      'email.requests.hello_would_like_to_meet_you',
+      'Hello {{value}},\n\n{{companyName}} would like to meet you for a {{title}} ({{minutes}} minutes){{value2}}\n\nPick the time that suits you, or ask for others if none does.',
+      {
+        value: candidate.name.split(' ')[0] ?? candidate.name,
+        companyName: settings.companyName,
+        title: plan.title.toLowerCase(),
+        minutes: plan.minutes,
+        value2: input.note === null ? '.' : `: ${input.note}`,
+      },
+    ),
     {
-      heading: `Choose a time for your ${plan.title.toLowerCase()}`,
-      times: { title: `Times offered · ${zone}`, days: byDay(times, zone, plan.minutes) },
-      action: { label: 'Choose a time', href: await portalLink(ctx, candidate.id) },
+      heading: t('email.requests.choose_a_time_for_your', 'Choose a time for your {{title}}', {
+        title: plan.title.toLowerCase(),
+      }),
+      times: {
+        title: t('email.requests.times_offered', 'Times offered · {{zone}}', { zone }),
+        days: byDay(times, zone, plan.minutes, (await mailWords(ctx)).language),
+      },
+      action: {
+        label: t('email.requests.choose_a_time', 'Choose a time'),
+        href: await portalLink(ctx, candidate.id),
+      },
     },
   );
   return ok(ask);
@@ -116,6 +139,7 @@ export async function requestInformation(
   applicationId: string,
   input: { readonly label: string; readonly detail: string | null },
 ): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'candidate.message')) return err(forbidden());
@@ -131,11 +155,31 @@ export async function requestInformation(
     ctx,
     candidate,
     applicationId,
-    `${settings.companyName} needs something from you: ${label}`,
-    `Hello ${candidate.name.split(' ')[0] ?? candidate.name},\n\nFor your application to ${await jobTitle(ctx, loaded.value)}, ${settings.companyName} asks:\n\n${label}${input.detail === null ? '' : `\n${input.detail}`}`,
+    t(
+      'email.requests.needs_something_from_you',
+      '{{companyName}} needs something from you: {{label}}',
+      { companyName: settings.companyName, label },
+    ),
+    t(
+      'email.requests.hello_for_your_application_to_asks',
+      'Hello {{value}},\n\nFor your application to {{value2}}, {{companyName}} asks:\n\n{{label}}{{value3}}',
+      {
+        value: candidate.name.split(' ')[0] ?? candidate.name,
+        value2: await jobTitle(ctx, loaded.value),
+        companyName: settings.companyName,
+        label,
+        value3: input.detail === null ? '' : `\n${input.detail}`,
+      },
+    ),
     {
-      heading: 'A question about your application',
-      action: { label: 'Answer', href: await portalLink(ctx, candidate.id) },
+      heading: t(
+        'email.requests.a_question_about_your_application',
+        'A question about your application',
+      ),
+      action: {
+        label: t('email.requests.answer', 'Answer'),
+        href: await portalLink(ctx, candidate.id),
+      },
     },
   );
   return ok(ask);
@@ -179,6 +223,7 @@ export async function answerAsk(
   askId: string,
   input: { readonly time: Instant | null; readonly text: string | null },
 ): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
   const found = await askOfCandidate(ctx, candidateId, askId);
   if (found === null || found.ask.state !== 'open') return err(notFound('request'));
   const { ask, loaded } = found;
@@ -212,8 +257,26 @@ export async function answerAsk(
       ctx,
       loaded,
       ask.by,
-      `${loaded.candidate.name} booked: ${ask.label}, ${fmt(input.time, 'UTC')} UTC`,
-      `${loaded.candidate.name} chose ${fmt(input.time, 'UTC')} (UTC) for the ${ask.label.toLowerCase()} for ${await jobTitle(ctx, loaded)}.${text === null ? '' : `\n\nThey added: ${text}`}\n\nThe invitations are out. See it in Recruiting:\n${await candidateLink(ctx, loaded)}`,
+      t('email.requests.booked_utc', '{{name}} booked: {{label}}, {{fmt}} UTC', {
+        name: loaded.candidate.name,
+        label: ask.label,
+        fmt: fmt(input.time, 'UTC', (await mailWords(ctx)).language),
+      }),
+      t(
+        'email.requests.chose_utc_for_the_for_the',
+        '{{name}} chose {{fmt}} (UTC) for the {{label}} for {{value}}.{{value2}}\n\nThe invitations are out. See it in Recruiting:\n{{value3}}',
+        {
+          name: loaded.candidate.name,
+          fmt: fmt(input.time, 'UTC', (await mailWords(ctx)).language),
+          label: ask.label.toLowerCase(),
+          value: await jobTitle(ctx, loaded),
+          value2:
+            text === null
+              ? ''
+              : t('email.requests.they_added', '\n\nThey added: {{text}}', { text }),
+          value3: await candidateLink(ctx, loaded),
+        },
+      ),
       `ask-booked:${ask.id}`,
     );
     return ok(done);
@@ -231,18 +294,59 @@ export async function answerAsk(
     loaded.candidate,
     ask.applicationId,
     ask.kind === 'slots'
-      ? `Received: we will offer other times for your ${ask.label.toLowerCase()}`
-      : `Received: ${ask.label}`,
-    `Hello ${loaded.candidate.name},\n\nThank you. ${settings.companyName} has your ${ask.kind === 'slots' ? 'reply and will come back with other times' : 'answer'}.\n\nYour page:\n${await portalLink(ctx, loaded.candidate.id)}`,
+      ? t(
+          'email.requests.received_we_will_offer_other_times',
+          'Received: we will offer other times for your {{label}}',
+          { label: ask.label.toLowerCase() },
+        )
+      : t('email.requests.received', 'Received: {{label}}', { label: ask.label }),
+    t(
+      'email.requests.hello_thank_you_has_your_your',
+      'Hello {{name}},\n\nThank you. {{companyName}} has your {{value}}.\n\nYour page:\n{{value2}}',
+      {
+        name: loaded.candidate.name,
+        companyName: settings.companyName,
+        value:
+          ask.kind === 'slots'
+            ? t(
+                'email.requests.reply_and_will_come_back_with',
+                'reply and will come back with other times',
+              )
+            : 'answer',
+        value2: await portalLink(ctx, loaded.candidate.id),
+      },
+    ),
   );
   await tellTeam(
     ctx,
     loaded,
     ask.by,
     ask.kind === 'slots'
-      ? `${loaded.candidate.name} needs other times for ${ask.label}`
-      : `${loaded.candidate.name} answered: ${ask.label}`,
-    `${loaded.candidate.name} (${await jobTitle(ctx, loaded)})${ask.kind === 'slots' ? ' could not make any of the times offered.' : ' answered:'}${text === null ? '' : `\n\n${text}`}\n\nIn Recruiting:\n${await candidateLink(ctx, loaded)}`,
+      ? t('email.requests.needs_other_times_for', '{{name}} needs other times for {{label}}', {
+          name: loaded.candidate.name,
+          label: ask.label,
+        })
+      : t('email.requests.answered', '{{name}} answered: {{label}}', {
+          name: loaded.candidate.name,
+          label: ask.label,
+        }),
+    t(
+      'email.requests.in_recruiting',
+      '{{name}} ({{value}}){{value2}}{{value3}}\n\nIn Recruiting:\n{{value4}}',
+      {
+        name: loaded.candidate.name,
+        value: await jobTitle(ctx, loaded),
+        value2:
+          ask.kind === 'slots'
+            ? t(
+                'email.requests.could_not_make_any_of_the',
+                ' could not make any of the times offered.',
+              )
+            : ' answered:',
+        value3: text === null ? '' : `\n\n${text}`,
+        value4: await candidateLink(ctx, loaded),
+      },
+    ),
     `ask-answered:${ask.id}`,
   );
   return ok(done);
@@ -255,6 +359,7 @@ export async function requestChange(
   interviewId: string,
   reason: string,
 ): Promise<Result<Ask>> {
+  const { t } = await mailWords(ctx);
   const interview = await ctx.tx.interviews.get(interviewId);
   const app = interview === null ? null : await ctx.tx.applications.get(interview.applicationId);
   if (interview === null || app?.candidateId !== candidateId || interview.state !== 'scheduled')
@@ -284,15 +389,43 @@ export async function requestChange(
     ctx,
     loaded.candidate,
     app.id,
-    `Received: a new time for your ${interview.title.toLowerCase()} with ${settings.companyName}`,
-    `Hello ${loaded.candidate.name},\n\nWe have asked ${settings.companyName} to move your ${interview.title.toLowerCase()} from ${fmt(interview.startsAt, zone)} (${zone}). Until they do, that time stands. You will hear from them with new times.`,
+    t(
+      'email.requests.received_a_new_time_for_your',
+      'Received: a new time for your {{title}} with {{companyName}}',
+      { title: interview.title.toLowerCase(), companyName: settings.companyName },
+    ),
+    t(
+      'email.requests.hello_we_have_asked_to_move',
+      'Hello {{name}},\n\nWe have asked {{companyName}} to move your {{title}} from {{fmt}} ({{zone}}). Until they do, that time stands. You will hear from them with new times.',
+      {
+        name: loaded.candidate.name,
+        companyName: settings.companyName,
+        title: interview.title.toLowerCase(),
+        fmt: fmt(interview.startsAt, zone, (await mailWords(ctx)).language),
+        zone,
+      },
+    ),
   );
   await tellTeam(
     ctx,
     loaded,
     null,
-    `${loaded.candidate.name} asks to move the ${interview.title}`,
-    `${loaded.candidate.name} (${await jobTitle(ctx, loaded)}) asks for a different time for the ${interview.title.toLowerCase()} on ${fmt(interview.startsAt, 'UTC')} (UTC):\n\n${why}\n\nPropose new times or cancel it in Recruiting:\n${await candidateLink(ctx, loaded)}`,
+    t('email.requests.asks_to_move_the', '{{name}} asks to move the {{title}}', {
+      name: loaded.candidate.name,
+      title: interview.title,
+    }),
+    t(
+      'email.requests.asks_for_a_different_time_for',
+      '{{name}} ({{value}}) asks for a different time for the {{title}} on {{fmt}} (UTC):\n\n{{why}}\n\nPropose new times or cancel it in Recruiting:\n{{value2}}',
+      {
+        name: loaded.candidate.name,
+        value: await jobTitle(ctx, loaded),
+        title: interview.title.toLowerCase(),
+        fmt: fmt(interview.startsAt, 'UTC', (await mailWords(ctx)).language),
+        why,
+        value2: await candidateLink(ctx, loaded),
+      },
+    ),
     `change:${ask.id}`,
   );
   return ok(ask);

@@ -1,6 +1,7 @@
 import type { ComponentPropsWithoutRef, JSX } from 'react';
 
 import { cn } from '../../lib/cn';
+import { t } from '../../lib/i18n';
 
 /**
  * How a batch was sorted, as tiles that filter what is under them.
@@ -55,7 +56,7 @@ export function ImportSummary({
   tiles,
   selected = null,
   onSelect,
-  label = 'Rows by outcome',
+  label = t('components.import-summary.import-summary.rows_by_outcome', 'Rows by outcome'),
   className,
   ...props
 }: ImportSummaryProps): JSX.Element {

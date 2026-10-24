@@ -1,7 +1,8 @@
 import {
   Avatar,
-  Scheduler,
   dayColumns,
+  locale,
+  Scheduler,
   type SchedulerColumn,
   type SchedulerEvent,
 } from '@reach/ui';
@@ -71,7 +72,12 @@ export function TeamTimeline({
         allDay: true,
         title: look.name,
         tone: look.tone,
-        ...(waiting ? { tentative: true, detail: 'Waiting for approval' } : {}),
+        ...(waiting
+          ? {
+              tentative: true,
+              detail: t('approvals.timeline.waiting_for_approval', 'Waiting for approval'),
+            }
+          : {}),
       };
     });
   const counted = view.coverage.filter((c) => c.checked && c.date >= from && c.date <= to);
@@ -114,7 +120,7 @@ export function TeamTimeline({
  * many are in.
  */
 export function calendarColumns(view: CalendarView, from: string, to: string): SchedulerColumn[] {
-  return dayColumns(from, daysBetween(from, to) + 1, 'en-GB').map((day) => {
+  return dayColumns(from, daysBetween(from, to) + 1, locale()).map((day) => {
     const holidays = [
       ...new Set(view.holidays.filter((h) => h.date === day.id).map((h) => h.name)),
     ];

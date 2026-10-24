@@ -76,7 +76,8 @@ export function LettersDialog({
   const [preview, setPreview] = useState<LettersPreview | null>(null);
   const write = useWrite();
   const shown = people.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()));
-  const name = (id: string) => people.find((p) => p.personId === id)?.name ?? 'Someone';
+  const name = (id: string) =>
+    people.find((p) => p.personId === id)?.name ?? tr('library.letters.someone', 'Someone');
   const ids = [...chosen];
 
   return (

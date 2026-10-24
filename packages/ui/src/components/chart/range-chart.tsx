@@ -8,6 +8,7 @@ import { Tooltip } from '../tooltip/tooltip';
 import { ChartFrame } from './chart-window';
 import type { ChartTone } from './chart';
 import { t } from '../../lib/i18n';
+import { formatNumber } from '../../lib/intl';
 
 /**
  * A salary band, and where people actually sit in it.
@@ -146,8 +147,8 @@ export function RangeChart({
   data,
   label,
   valueLabel,
-  spreadLabel = 'Spread',
-  midLabel = 'Midpoint',
+  spreadLabel = t('components.chart.range-chart.spread', 'Spread'),
+  midLabel = t('components.chart.range-chart.midpoint', 'Midpoint'),
   format = (value) => String(value),
   rowHeight: rowHeightProp = 34,
   labelWidth = 140,
@@ -228,7 +229,18 @@ export function RangeChart({
                   ? below
                     ? t('components.chart.range-chart.below_the_minimum', ', below the minimum')
                     : t('components.chart.range-chart.above_the_maximum', ', above the maximum')
-                  : `, ${String(Math.round(((band.value - band.min) / Math.max(band.max - band.min, 1)) * 100))}% through the band`;
+                  : t(
+                      'components.chart.range-chart.through_the_band',
+                      ', {{percent}} through the band',
+                      {
+                        percent: formatNumber(
+                          (band.value - band.min) / Math.max(band.max - band.min, 1),
+                          {
+                            style: 'percent',
+                          },
+                        ),
+                      },
+                    );
 
             const outsiders = outsideOf(band);
             const readout = t(
@@ -247,11 +259,23 @@ export function RangeChart({
                 value2:
                   band.spread === undefined
                     ? ''
-                    : `. ${spreadLabel} ${format(band.spread.low)} to ${format(band.spread.high)}`,
+                    : t(
+                        'components.chart.range-chart.spread_to',
+                        '. {{spreadLabel}} {{low}} to {{high}}',
+                        {
+                          spreadLabel,
+                          low: format(band.spread.low),
+                          high: format(band.spread.high),
+                        },
+                      ),
                 value3:
                   band.people === undefined
                     ? ''
-                    : `. ${String(band.people.length)} people, ${
+                    : `${t(
+                        'components.chart.range-chart.people_count',
+                        { one: '. {{count}} person, ', other: '. {{count}} people, ' },
+                        { count: band.people.length },
+                      )}${
                         outsiders === 0
                           ? t(
                               'components.chart.range-chart.all_inside_the_band',

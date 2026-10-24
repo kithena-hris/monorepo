@@ -109,7 +109,7 @@ export function Envelopes({
           'Every request you sign or follow.',
         )}
       />
-      <Loaded load={load} what="signature requests">
+      <Loaded load={load} what={tr('envelopes.envelopes.signature_requests', 'signature requests')}>
         {(data) =>
           data.rows.length === 0 ? (
             <EmptyState
@@ -127,16 +127,26 @@ export function Envelopes({
                   key={r.id}
                   icon={<icons.edit />}
                   iconTone={r.needsYou ? 'accent' : 'neutral'}
-                  description={tr(
-                    'envelopes.envelopes.of_signed',
-                    '{{signed}} of {{of}} signed{{value}}{{value2}}',
-                    {
-                      signed: String(r.signed),
-                      of: String(r.of),
-                      value: r.waitingOn === null ? '' : ` · waiting for ${r.waitingOn}`,
-                      value2: r.dueOn === null ? '' : ` · due ${shortDate(r.dueOn)}`,
-                    },
-                  )}
+                  description={[
+                    tr('envelopes.envelopes.of_signed', '{{signed}} of {{of}} signed', {
+                      signed: r.signed,
+                      of: r.of,
+                    }),
+                    ...(r.waitingOn === null
+                      ? []
+                      : [
+                          tr('envelopes.envelopes.waiting_for', 'waiting for {{who}}', {
+                            who: r.waitingOn,
+                          }),
+                        ]),
+                    ...(r.dueOn === null
+                      ? []
+                      : [
+                          tr('envelopes.envelopes.due', 'due {{date}}', {
+                            date: shortDate(r.dueOn),
+                          }),
+                        ]),
+                  ].join(' · ')}
                   meta={
                     <Badge tone={r.needsYou ? 'accent' : ENVELOPE[r.status][1]} size="sm" dot>
                       {r.needsYou
@@ -225,7 +235,7 @@ export function SendForSignature(props: SendProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={tr('envelopes.envelopes.send_for_signature', 'Send for signature')} />
       ) : null}
-      <Loaded load={props.load} what="the document">
+      <Loaded load={props.load} what={tr('envelopes.envelopes.the_document', 'the document')}>
         {(data) =>
           data.document === null ? (
             <Alert tone="danger">
@@ -356,10 +366,13 @@ function SendSteps({
                   }
                   meta={
                     <Badge size="sm">
-                      {tr('envelopes.envelopes.signs', 'Signs {{value}}{{value2}}', {
-                        value: String(i + 1),
-                        value2: i === 0 ? 'st' : i === 1 ? 'nd' : 'th',
-                      })}
+                      {i === 0
+                        ? tr('envelopes.envelopes.signs_first', 'Signs first')
+                        : i === 1
+                          ? tr('envelopes.envelopes.signs_second', 'Signs second')
+                          : tr('envelopes.envelopes.signs_in_position', 'Signs in position {{n}}', {
+                              n: i + 1,
+                            })}
                     </Badge>
                   }
                   trailing={
@@ -567,10 +580,10 @@ function SendSteps({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>{tr('envelopes.envelopes.due', 'Due')}</FieldLabel>
+              <FieldLabel>{tr('envelopes.envelopes.due_2', 'Due')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label={tr('envelopes.envelopes.due', 'Due')}
+                  label={tr('envelopes.envelopes.due_2', 'Due')}
                   placeholder={tr('envelopes.envelopes.no_date', 'No date')}
                   value={dueOn}
                   onChange={setDueOn}
@@ -622,7 +635,11 @@ function SendSteps({
                       }),
                       message,
                       dueOn,
-                    }) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
+                    }) ??
+                      Promise.resolve({
+                        ok: false as const,
+                        message: tr('envelopes.envelopes.not_available_here', 'Not available here'),
+                      }));
                     if (!sent.ok) return sent;
                     onNavigate?.(`/documents/envelopes/${sent.id}`);
                     return { ok: true };
@@ -685,7 +702,7 @@ export function Envelope(props: EnvelopeProps): JSX.Element {
       {props.load.status === 'error' ? (
         <PageHeader title={tr('envelopes.envelopes.signature_request', 'Signature request')} />
       ) : null}
-      <Loaded load={props.load} what="the request">
+      <Loaded load={props.load} what={tr('envelopes.envelopes.the_request', 'the request')}>
         {(env) => <EnvelopePage env={env} {...props} />}
       </Loaded>
     </div>
@@ -727,7 +744,11 @@ function EnvelopePage({
         signing.values,
         signing.day,
         signing.traceId,
-      ) ?? Promise.resolve({ ok: false as const, message: 'Not available here' }));
+      ) ??
+        Promise.resolve({
+          ok: false as const,
+          message: tr('envelopes.envelopes.not_available_here', 'Not available here'),
+        }));
       if (!r.ok) return r;
       setDone(doneMessage(r.completed, r.next ?? []));
       // At once: every box of theirs holds their signature, its print under it.
@@ -750,11 +771,22 @@ function EnvelopePage({
     <>
       <PageHeader
         title={env.title}
-        description={tr('envelopes.envelopes.from', 'From {{sender}} · {{createdAt}}{{value}}', {
-          sender: env.sender,
-          createdAt: shortDate(env.createdAt),
-          value: env.dueOn === null ? '' : ` · due ${shortDate(env.dueOn)}`,
-        })}
+        description={
+          env.dueOn === null
+            ? tr('envelopes.envelopes.from', 'From {{sender}} · {{createdAt}}', {
+                sender: env.sender,
+                createdAt: shortDate(env.createdAt),
+              })
+            : tr(
+                'envelopes.envelopes.from_due',
+                'From {{sender}} · {{createdAt}} · due {{dueOn}}',
+                {
+                  sender: env.sender,
+                  createdAt: shortDate(env.createdAt),
+                  dueOn: shortDate(env.dueOn),
+                },
+              )
+        }
         actions={
           env.follows && env.status === 'sent' ? <SenderMenu env={env} {...props} /> : undefined
         }
@@ -952,8 +984,12 @@ export function SignPanel({
               )
             : tr(
                 'envelopes.envelopes.to_fill_in_start_under_the',
-                '{{length}} {{value}} to fill in. Start, under the document, takes you to each one.',
-                { length: String(left.length), value: left.length === 1 ? 'place' : 'places' },
+                {
+                  one: '{{count}} place to fill in. Start, under the document, takes you to each one.',
+                  other:
+                    '{{count}} places to fill in. Start, under the document, takes you to each one.',
+                },
+                { count: left.length },
               )}
         </p>
         {mark === null ? null : (
@@ -1056,7 +1092,9 @@ export function SignPanel({
             <DialogDescription>
               {other === 'ask'
                 ? tr('envelopes.envelopes.the_request_waits_for_you', 'The request waits for you.')
-                : `${env.sender} is told; say why.`}
+                : tr('envelopes.envelopes.sender_is_told_say_why', '{{sender}} is told; say why.', {
+                    sender: env.sender,
+                  })}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>

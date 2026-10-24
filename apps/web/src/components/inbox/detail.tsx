@@ -47,7 +47,20 @@ const SnoozeDialog = lazy(() =>
  * runs the module's own write.
  */
 
-const LANE_TAG = { task: 'Task', update: 'Update', request: 'Request', done: 'Done' } as const;
+const LANE_TAG = {
+  get task() {
+    return t('components.inbox.detail.lane_task', 'Task');
+  },
+  get update() {
+    return t('components.inbox.detail.lane_update', 'Update');
+  },
+  get request() {
+    return t('components.inbox.detail.lane_request', 'Request');
+  },
+  get done() {
+    return t('components.inbox.detail.lane_done', 'Done');
+  },
+};
 
 /** The pane's top line: kind, module › area, then Open in and the menu. */
 function Head({ item, menu }: { readonly item: Shown; readonly menu: ReactNode }): JSX.Element {
@@ -261,9 +274,11 @@ export function InboxDetail({
                   setAsking(true);
                 }}
               >
-                {t('components.inbox.detail.ask_a_question', 'Ask {{value}} a question', {
-                  value: sender === '' ? 'them' : sender,
-                })}
+                {sender === ''
+                  ? t('components.inbox.detail.ask_them_a_question', 'Ask them a question')
+                  : t('components.inbox.detail.ask_a_question', 'Ask {{value}} a question', {
+                      value: sender,
+                    })}
               </DropdownMenuItem>
             ) : null}
             {item.outcome === null && item.count === null ? (
@@ -277,7 +292,11 @@ export function InboxDetail({
                       key={c.label}
                       onSelect={() => {
                         act.run(() => snooze(item.id, c.at), {
-                          title: `Snoozed until ${when(c.at, zone)}`,
+                          title: t(
+                            'components.inbox.detail.snoozed_until',
+                            'Snoozed until {{when}}',
+                            { when: when(c.at, zone) },
+                          ),
                           next: true,
                         });
                       }}
@@ -308,7 +327,9 @@ export function InboxDetail({
             {item.snoozedUntil === null ? null : (
               <DropdownMenuItem
                 onSelect={() => {
-                  act.run(() => snooze(item.id, null), { title: 'Back in To do' });
+                  act.run(() => snooze(item.id, null), {
+                    title: t('components.inbox.detail.back_in_to_do', 'Back in To do'),
+                  });
                 }}
               >
                 {t('components.inbox.detail.wake_it_now', 'Wake it now')}
@@ -329,7 +350,9 @@ export function InboxDetail({
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                act.run(() => moveToDone([item.id]), { title: 'Moved to Done' });
+                act.run(() => moveToDone([item.id]), {
+                  title: t('components.inbox.detail.moved_to_done', 'Moved to Done'),
+                });
               }}
             >
               {t('components.inbox.detail.move_to_done', 'Move to Done')}
@@ -405,9 +428,13 @@ export function InboxDetail({
       </div>
       {item.message === null || item.message === '' ? null : (
         <ChatLog
-          label={t('components.inbox.detail.message', '{{value}} message', {
-            value: item.from?.name ?? 'Their',
-          })}
+          label={
+            item.from?.name == null
+              ? t('components.inbox.detail.their_message', 'Their message')
+              : t('components.inbox.detail.persons_message', '{{name}}’s message', {
+                  name: item.from.name,
+                })
+          }
         >
           <ChatMessage
             from="other"
@@ -438,7 +465,9 @@ export function InboxDetail({
             onPick={(at) => {
               setDialog(null);
               act.run(() => snooze(item.id, at), {
-                title: `Snoozed until ${when(at, zone)}`,
+                title: t('components.inbox.detail.snoozed_until', 'Snoozed until {{when}}', {
+                  when: when(at, zone),
+                }),
                 next: true,
               });
             }}

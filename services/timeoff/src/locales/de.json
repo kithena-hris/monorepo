@@ -1,0 +1,10 @@
+{
+  "email.nudge.a_few_days_away": "Ein paar freie Tage bewirken mehr, als man denkt.",
+  "email.nudge.bridge": "Wenn Sie {{day}} freinehmen, haben Sie mit {{holiday}} 4 Tage frei.",
+  "email.nudge.days_left_one": "Sie haben dieses Jahr noch {{count}} Tag übrig.",
+  "email.nudge.days_left_other": "Sie haben dieses Jahr noch {{count}} Tage übrig.",
+  "email.nudge.heading": "{{name}}, Sie hatten seit {{month}} keinen freien Tag",
+  "email.nudge.private": "Niemand sonst sieht diese Nachricht.",
+  "email.nudge.would_be_lost_one": "{{count}} davon würde am {{date}} verfallen, wenn er nicht gebucht wird.",
+  "email.nudge.would_be_lost_other": "{{count}} davon würden am {{date}} verfallen, wenn sie nicht gebucht werden."
+}
