@@ -1,6 +1,7 @@
 import { logger } from '@kithena/telemetry';
 
 import type { Mailer } from '../application/ports.js';
+import { mailWords } from './mail-words.js';
 
 /**
  * Recruiting's email through messaging (`platform/messaging`, PRD §12.7):
@@ -12,6 +13,7 @@ import type { Mailer } from '../application/ports.js';
 export function httpMailer(config: { readonly baseUrl: string; readonly token: string }): Mailer {
   const endpoint = new URL('/api/internal/messaging/correspondence', config.baseUrl).toString();
   return {
+    words: mailWords(config),
     async send(input) {
       const said = { module: 'recruiting', dedupeKey: input.dedupeKey };
       const response = await fetch(endpoint, {

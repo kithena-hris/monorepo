@@ -1,9 +1,9 @@
-import { err, ok, type Result } from '@kithena/domain-kit';
+import { err, ok, type Result, type Words } from '@kithena/domain-kit';
 import type { Instant } from '@kithena/contracts';
 
 import { may } from '../domain/access/access.js';
 import { currentStage } from '../domain/pipeline/application.js';
-import { adminOnly, forbidden, type Ctx } from './context.js';
+import { adminOnly, forbidden, mailWords, type Ctx } from './context.js';
 import { portalLink } from './intake.js';
 import {
   loadApplication,
@@ -52,52 +52,95 @@ export const PLACEHOLDERS = [
   { key: 'link', label: 'The candidate’s own page' },
 ] as const;
 
-export const DEFAULT_EMAILS: Readonly<
-  Record<EmailPurpose, { readonly name: string; readonly subject: string; readonly body: string }>
-> = {
-  rejection: {
-    name: 'Application not taken forward',
-    subject: 'Your application to {{company}}',
-    body: 'Hello {{first_name}},\n\nThank you for applying for {{job}} and for the time you gave us. We will not be taking your application further this time.\n\nWe would be glad to hear from you again for a role that fits, and we wish you well in your search.\n\n{{sender}}\n{{company}}',
-  },
-  selection: {
-    name: 'Moving to the next step',
-    subject: 'Good news about your application to {{company}}',
-    body: 'Hello {{first_name}},\n\nThank you for your application for {{job}}. We would like to take it to the next step: {{stage}}.\n\nWe will be in touch shortly with what happens next. Everything about your application is on your page:\n{{link}}\n\n{{sender}}\n{{company}}',
-  },
-  interview_confirmation: {
-    name: 'Interview confirmed',
-    subject: 'Appointment scheduled: {{interview}} with {{company}}',
-    body: 'Hello {{first_name}},\n\nYour {{interview}} for {{job}} is confirmed.\nWhere: {{where}}\n\nIf that time no longer works, ask for a change from your page:\n{{link}}\n\nWe look forward to meeting you.\n{{sender}}\n{{company}}',
-  },
-  stage_expectations: {
-    name: 'What to expect at this stage',
-    subject: 'What to expect next: {{stage}} with {{company}}',
-    body: 'Hello {{first_name}},\n\nYour application for {{job}} is now at {{stage}}. Here is what to expect:\n\n{{expectations}}\n\nIf anything is unclear, reply to this email and we will help.\n\n{{sender}}\n{{company}}',
-  },
-  offer: {
-    name: 'Your offer',
-    subject: 'Your offer from {{company}}',
-    body: 'Hello {{first_name}},\n\nWe are delighted to offer you the role of {{job}}. Read the offer, and accept or decline it, on your page:\n{{link}}\n\n{{sender}}\n{{company}}',
-  },
-};
+type BuiltIn = { readonly name: string; readonly subject: string; readonly body: string };
+
+/**
+ * The words each email sends until the company writes its own, in the
+ * company's language (`mailWords`): the placeholders stay as they are in
+ * every language, because a template fills them in at the send.
+ */
+export function defaultEmails(t: Words): Readonly<Record<EmailPurpose, BuiltIn>> {
+  return {
+    rejection: {
+      name: t('email.builtin.rejection.name', 'Application not taken forward'),
+      subject: t('email.builtin.rejection.subject', 'Your application to {{company}}'),
+      body: t(
+        'email.builtin.rejection.body',
+        'Hello {{first_name}},\n\nThank you for applying for {{job}} and for the time you gave us. We will not be taking your application further this time.\n\nWe would be glad to hear from you again for a role that fits, and we wish you well in your search.\n\n{{sender}}\n{{company}}',
+      ),
+    },
+    selection: {
+      name: t('email.builtin.selection.name', 'Moving to the next step'),
+      subject: t(
+        'email.builtin.selection.subject',
+        'Good news about your application to {{company}}',
+      ),
+      body: t(
+        'email.builtin.selection.body',
+        'Hello {{first_name}},\n\nThank you for your application for {{job}}. We would like to take it to the next step: {{stage}}.\n\nWe will be in touch shortly with what happens next. Everything about your application is on your page:\n{{link}}\n\n{{sender}}\n{{company}}',
+      ),
+    },
+    interview_confirmation: {
+      name: t('email.builtin.interview_confirmation.name', 'Interview confirmed'),
+      subject: t(
+        'email.builtin.interview_confirmation.subject',
+        'Appointment scheduled: {{interview}} with {{company}}',
+      ),
+      body: t(
+        'email.builtin.interview_confirmation.body',
+        'Hello {{first_name}},\n\nYour {{interview}} for {{job}} is confirmed.\nWhere: {{where}}\n\nIf that time no longer works, ask for a change from your page:\n{{link}}\n\nWe look forward to meeting you.\n{{sender}}\n{{company}}',
+      ),
+    },
+    stage_expectations: {
+      name: t('email.builtin.stage_expectations.name', 'What to expect at this stage'),
+      subject: t(
+        'email.builtin.stage_expectations.subject',
+        'What to expect next: {{stage}} with {{company}}',
+      ),
+      body: t(
+        'email.builtin.stage_expectations.body',
+        'Hello {{first_name}},\n\nYour application for {{job}} is now at {{stage}}. Here is what to expect:\n\n{{expectations}}\n\nIf anything is unclear, reply to this email and we will help.\n\n{{sender}}\n{{company}}',
+      ),
+    },
+    offer: {
+      name: t('email.builtin.offer.name', 'Your offer'),
+      subject: t('email.builtin.offer.subject', 'Your offer from {{company}}'),
+      body: t(
+        'email.builtin.offer.body',
+        'Hello {{first_name}},\n\nWe are delighted to offer you the role of {{job}}. Read the offer, and accept or decline it, on your page:\n{{link}}\n\n{{sender}}\n{{company}}',
+      ),
+    },
+  };
+}
 
 /**
  * The email asking a candidate to choose their interview times: not one the
  * composer opens, so kept beside the standard ones, and the company's own
  * once it writes one in settings. `{{interview}}` is the interview's name.
  */
-export const INVITATION_EMAIL = {
-  name: 'Choose your interview times',
-  subject: 'Appointment requested: choose times for your {{interview}} with {{company}}',
-  body: "Hello {{first_name}},\n\n{{company}} would like to meet you for a {{interview}} about {{job}}. Pick ten times that suit you; every one already fits the team's calendars. We will confirm one of them by email.\n\nThe link works for fourteen days.\n\n{{sender}}\n{{company}}",
-} as const;
+export function invitationEmail(t: Words): BuiltIn {
+  return {
+    name: t('email.builtin.interview_invitation.name', 'Choose your interview times'),
+    subject: t(
+      'email.builtin.interview_invitation.subject',
+      'Appointment requested: choose times for your {{interview}} with {{company}}',
+    ),
+    body: t(
+      'email.builtin.interview_invitation.body',
+      'Hello {{first_name}},\n\n{{company}} would like to meet you for a {{interview}} about {{job}}. Pick ten times that suit you; every one already fits the team’s calendars. We will confirm one of them by email.\n\nThe link works for fourteen days.\n\n{{sender}}\n{{company}}',
+    ),
+  };
+}
 
 /** Every email Recruiting sends in words a company may change, with Kithena's words for each. */
-export const BUILT_IN_EMAILS = { ...DEFAULT_EMAILS, interview_invitation: INVITATION_EMAIL };
+export function builtInEmails(t: Words) {
+  return { ...defaultEmails(t), interview_invitation: invitationEmail(t) };
+}
 
-const fmt = (iso: string, timeZone: string): string =>
-  new Intl.DateTimeFormat('en-GB', { dateStyle: 'full', timeStyle: 'short', timeZone }).format(
+export type BuiltInPurpose = EmailPurpose | 'interview_invitation';
+
+const fmt = (iso: string, timeZone: string, language = 'en-GB'): string =>
+  new Intl.DateTimeFormat(language, { dateStyle: 'full', timeStyle: 'short', timeZone }).format(
     new Date(iso),
   );
 
@@ -125,7 +168,10 @@ export async function emailValues(
     job: job?.title ?? '',
     company: settings.companyName,
     stage: stage?.candidateName ?? stage?.name ?? '',
-    interview: next === undefined ? '' : `${next.title}, ${fmt(next.startsAt, zone)} (${zone})`,
+    interview:
+      next === undefined
+        ? ''
+        : `${next.title}, ${fmt(next.startsAt, zone, (await mailWords(ctx)).language)} (${zone})`,
     where: next?.videoUrl ?? next?.place ?? '',
     sender,
     link: options.link ? await portalLink(ctx, loaded.candidate.id) : '{{link}}',
@@ -174,7 +220,7 @@ async function expectationsOf(ctx: Ctx, loaded: Loaded, category: string): Promi
 /** The company's template for a purpose, in the candidate's language first, else the built-in words. */
 export async function emailFor(
   ctx: Ctx,
-  purpose: keyof typeof BUILT_IN_EMAILS,
+  purpose: BuiltInPurpose,
   language: string | null,
 ): Promise<{
   readonly subject: string;
@@ -187,7 +233,7 @@ export async function emailFor(
   const chosen = mine.find((t) => t.language === language) ?? mine[0];
   if (chosen !== undefined)
     return { subject: chosen.subject ?? '', body: chosen.body, templateId: chosen.id };
-  const built = BUILT_IN_EMAILS[purpose];
+  const built = builtInEmails((await mailWords(ctx)).t)[purpose];
   return { subject: built.subject, body: built.body, templateId: null };
 }
 
@@ -232,14 +278,15 @@ export async function seedEmailTemplates(ctx: Ctx): Promise<Result<readonly Temp
     (await ctx.tx.templates.list()).filter((t) => t.kind === 'email').map((t) => t.purpose),
   );
   const added: Template[] = [];
+  const words = await mailWords(ctx);
   for (const purpose of EMAIL_PURPOSES) {
     if (held.has(purpose)) continue;
-    const built = DEFAULT_EMAILS[purpose];
+    const built = defaultEmails(words.t)[purpose];
     const template: Template = {
       id: ctx.deps.newId(),
       kind: 'email',
       purpose,
-      language: 'en',
+      language: words.language.slice(0, 2),
       name: built.name,
       subject: built.subject,
       body: built.body,
@@ -303,6 +350,7 @@ export async function sendStageExpectations(
   applicationId: string,
   message: ComposedEmail,
 ): Promise<Result<true>> {
+  const { t } = await mailWords(ctx);
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'candidate.message')) return err(forbidden());
@@ -316,9 +364,16 @@ export async function sendStageExpectations(
     render(message.subject, values),
     render(message.body, values),
     {
-      heading: `What to expect: ${stage === '' ? 'your next step' : stage}`,
+      heading: t('email.emails.what_to_expect', 'What to expect: {{value}}', {
+        value: stage === '' ? t('email.emails.your_next_step', 'your next step') : stage,
+      }),
       ...(link.startsWith('https://')
-        ? { action: { label: 'See your application', href: link } }
+        ? {
+            action: {
+              label: t('email.emails.see_your_application', 'See your application'),
+              href: link,
+            },
+          }
         : {}),
     },
   );

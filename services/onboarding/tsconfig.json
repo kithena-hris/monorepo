@@ -6,6 +6,7 @@
   },
   "include": [
     "src/**/*",
+    "src/**/*.json",
     "module.manifest.ts",
     "vitest.config.ts",
     "vitest.contract.ts",

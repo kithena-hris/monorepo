@@ -31,6 +31,7 @@ import {
   notFound,
   publish,
   type Ctx,
+  mailWords,
 } from './context.js';
 import { reviewsFor } from './cycles.js';
 import { formOf } from './forms.js';
@@ -540,6 +541,7 @@ export async function requestUnlockOf(
   id: string,
   reason: string,
 ): Promise<Result<{ ok: true }>> {
+  const { t } = await mailWords(ctx);
   const r = await ctx.tx.reviews.get(id);
   if (r === null) return err(notFound('review'));
   if (r.authorId !== ctx.viewer.personId)
@@ -568,8 +570,14 @@ export async function requestUnlockOf(
     const buttons = [decide(true), decide(false)].filter((b) => b !== null);
     ctx.mail.push({
       to: m.workEmail,
-      subject: `${name(r.authorId)} asks to unlock a review`,
-      text: `${title(r.kind)} about ${name(r.subjectId)}: “${reason}”`,
+      subject: t('email.reviews.asks_to_unlock_a_review', '{{name}} asks to unlock a review', {
+        name: name(r.authorId),
+      }),
+      text: t('email.reviews.about', '{{title}} about {{name}}: “{{reason}}”', {
+        title: title(r.kind),
+        name: name(r.subjectId),
+        reason,
+      }),
       dedupeKey: `unlock:${id}:${m.personId}:${ctx.at}`,
       chat: { buttons, only: true },
     });
@@ -1045,6 +1053,7 @@ export async function nominatePeers(
   id: string,
   input: { people: string[]; note: string | null },
 ): Promise<Result<{ state: string }>> {
+  const { t } = await mailWords(ctx);
   const n = await ctx.tx.nominations.get(id);
   if (n === null) return err(notFound('nomination'));
   if (n.by !== ctx.viewer.personId && !(n.by === 'hr' && ctx.viewer.hr))
@@ -1084,7 +1093,11 @@ export async function nominatePeers(
     });
     ctx.mail.push({
       to: approver.workEmail,
-      subject: `${name(n.subjectId)}’s peer reviewers are waiting for you`,
+      subject: t(
+        'email.reviews.s_peer_reviewers_are_waiting_for',
+        '{{name}}’s peer reviewers are waiting for you',
+        { name: name(n.subjectId) },
+      ),
       text: `${c.name}: ${done.value.nominees.map((x) => name(x.personId)).join(', ')}.`,
       dedupeKey: `nominations:${id}:${ctx.at}`,
       chat: { buttons: all === null ? [] : [all], only: true },

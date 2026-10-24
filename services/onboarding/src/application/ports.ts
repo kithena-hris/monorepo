@@ -1,4 +1,4 @@
-import type { Clock, PendingEvent } from '@kithena/domain-kit';
+import type { Clock, PendingEvent, Words } from '@kithena/domain-kit';
 import type {
   CalendarDate,
   HireIntake,
@@ -135,6 +135,17 @@ export interface Mailer {
     readonly text: string;
     readonly dedupeKey: string;
   }): Promise<void>;
+  /**
+   * The company's language and this module's words in it: every email is
+   * written in the company's language, whatever its reader chose for screens.
+   */
+  words?(tenantId: string): Promise<MailWords>;
+}
+
+/** A language and this module's words for its emails in it. */
+export interface MailWords {
+  readonly language: string;
+  readonly t: Words;
 }
 
 export interface Deps {

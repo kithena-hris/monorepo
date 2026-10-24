@@ -15,14 +15,14 @@ import { visibleScorecards } from '../domain/interview/interview.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { asksOf, openAvailability } from './asks.js';
 import { jobTerms } from './job-terms.js';
-import { jobFacts, notFound, recruiterOnly, type Ctx } from './context.js';
+import { jobFacts, mailWords, notFound, recruiterOnly, type Ctx } from './context.js';
 import { internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
 import { checkOffer } from './offers.js';
 import { generalSettings } from './setup.js';
-import { BUILT_IN_EMAILS } from './emails.js';
+import { builtInEmails } from './emails.js';
 import { jobChannel } from './chat.js';
 import type { ApplicationRecord, JobRecord } from './ports.js';
 
@@ -663,7 +663,10 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     scorecards: await ctx.tx.scorecardTemplates.list(),
     templates: await ctx.tx.templates.list(),
     // The words each standard email sends until the company writes its own, to read before changing.
-    builtInEmails: Object.entries(BUILT_IN_EMAILS).map(([purpose, e]) => ({ purpose, ...e })),
+    builtInEmails: Object.entries(builtInEmails((await mailWords(ctx)).t)).map(([purpose, e]) => ({
+      purpose,
+      ...e,
+    })),
     // The full catalogue of each entity, the standard library included, and every category.
     benefits: await everyCatalogue(ctx),
     benefitCategories: await categoriesOf(ctx),

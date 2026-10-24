@@ -2,7 +2,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { may } from '../domain/access/access.js';
 import { mayStartBackgroundCheck } from '../domain/prehire/background.js';
-import { forbidden, notFound, type Ctx } from './context.js';
+import { forbidden, notFound, type Ctx, mailWords } from './context.js';
 import { loadApplication } from './moves.js';
 import { decidePrehireCondition } from './offers.js';
 
@@ -53,10 +53,15 @@ export async function sendAssessment(
     reportUrl: null,
   };
   await ctx.tx.settings.set(`assessment:${applicationId}`, record);
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: loaded.value.candidate.email,
-    subject: 'Your assessment',
-    text: `Hello ${loaded.value.candidate.name},\n\nThe next step is an assessment. Start it here:\n${invited.value.url}`,
+    subject: t('email.assessment.subject', 'Your assessment'),
+    text: t(
+      'email.assessment.text',
+      'Hello {{name}},\n\nThe next step is an assessment. Start it here:\n{{link}}',
+      { name: loaded.value.candidate.name, link: invited.value.url },
+    ),
     dedupeKey: `assessment:${applicationId}:${invited.value.externalId}`,
   });
   return ok(record);

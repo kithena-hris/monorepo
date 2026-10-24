@@ -6,6 +6,7 @@ import { addDays } from '../domain/dates.js';
 import type { Ctx } from './context.js';
 import { publicJob, sha256 } from './intake.js';
 import { generalSettings } from './setup.js';
+import { mailWords } from './context.js';
 
 /**
  * J11, job alerts (PRD §10, "Email me jobs like this"): a search saved
@@ -68,10 +69,38 @@ export async function subscribeAlert(
   };
   await ctx.tx.settings.set(KEY, [...list, alert]);
   const company = (await generalSettings(ctx)).companyName;
+  const { t } = await mailWords(ctx);
+  const confirm = await link(ctx, 'confirm', token);
+  const daily = alert.frequency === 'daily';
   ctx.mail.push({
     to: input.email,
-    subject: `Confirm your job alert for ${company}`,
-    text: `Hello,\n\nSomeone asked for ${alert.frequency} emails about ${alert.query === '' ? 'new jobs' : `jobs matching “${alert.query}”`} at ${company}. To start them, confirm here:\n${await link(ctx, 'confirm', token)}\n\nIf it was not you, ignore this email and nothing is sent.`,
+    subject: t('email.alert_confirm.subject', 'Confirm your job alert for {{company}}', {
+      company,
+    }),
+    text:
+      alert.query === ''
+        ? daily
+          ? t(
+              'email.alert_confirm.daily_new_jobs',
+              'Hello,\n\nSomeone asked for daily emails about new jobs at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.',
+              { company, link: confirm },
+            )
+          : t(
+              'email.alert_confirm.weekly_new_jobs',
+              'Hello,\n\nSomeone asked for weekly emails about new jobs at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.',
+              { company, link: confirm },
+            )
+        : daily
+          ? t(
+              'email.alert_confirm.daily_matching',
+              'Hello,\n\nSomeone asked for daily emails about jobs matching “{{query}}” at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.',
+              { company, link: confirm, query: alert.query },
+            )
+          : t(
+              'email.alert_confirm.weekly_matching',
+              'Hello,\n\nSomeone asked for weekly emails about jobs matching “{{query}}” at {{company}}. To start them, confirm here:\n{{link}}\n\nIf it was not you, ignore this email and nothing is sent.',
+              { company, link: confirm, query: alert.query },
+            ),
     dedupeKey: `alert-confirm:${alert.id}`,
   });
   return ok({ sent: true });
@@ -132,14 +161,21 @@ export async function sendAlertDigests(ctx: Ctx): Promise<number> {
       continue;
     }
     const settings = await generalSettings(ctx);
+    const { t } = await mailWords(ctx);
     ctx.mail.push({
       to: alert.email,
-      subject: `${String(matches.length)} new job${matches.length === 1 ? '' : 's'} at ${company}`,
+      subject: t(
+        'email.alert.subject',
+        { one: '{{count}} new job at {{company}}', other: '{{count}} new jobs at {{company}}' },
+        { count: matches.length, company },
+      ),
       text: `${matches
         .map((j) => `${j.title}\n${ctx.deps.jobsOrigin}/${settings.companySlug}/${j.slug}`)
-        .join(
-          '\n\n',
-        )}\n\nYou get this because you asked for it. To stop, one click:\n${await link(ctx, 'stop', alert.stopToken)}`,
+        .join('\n\n')}\n\n${t(
+        'email.alert.stop',
+        'You get this because you asked for it. To stop, one click:\n{{link}}',
+        { link: await link(ctx, 'stop', alert.stopToken) },
+      )}`,
       dedupeKey: `alert:${alert.id}:${ctx.today}`,
     });
     next.push({ ...alert, lastSentOn: ctx.today });

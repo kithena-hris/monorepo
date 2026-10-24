@@ -1,6 +1,7 @@
 import { logger } from '@kithena/telemetry';
 
 import type { NudgeMailer } from '../application/ports.js';
+import { mailWords } from './mail-words.js';
 
 /**
  * Time Off's nudges, through `platform/messaging` over internal HTTP
@@ -16,6 +17,7 @@ export function httpNudgeMailer(config: {
 }): NudgeMailer {
   const endpoint = new URL('/api/internal/messaging/notice', config.baseUrl).toString();
   return {
+    words: mailWords(config),
     async send(tenantId, m) {
       const response = await fetch(endpoint, {
         method: 'POST',

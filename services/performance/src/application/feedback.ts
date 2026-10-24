@@ -11,7 +11,17 @@ import {
   type Audience,
 } from '../domain/feedback.js';
 import { published } from '../domain/template.js';
-import { audit, event, forbidden, me, names, notFound, publish, type Ctx } from './context.js';
+import {
+  audit,
+  event,
+  forbidden,
+  me,
+  names,
+  notFound,
+  publish,
+  type Ctx,
+  mailWords,
+} from './context.js';
 import { people, subtitle } from './members.js';
 import { settingsOf } from './settings.js';
 
@@ -212,7 +222,8 @@ export async function giveFeedback(
       { feedbackId: id, to: input.to, praise: input.kind === 'praise' },
     ),
   );
-  await audit(ctx, { kind: 'feedback',
+  await audit(ctx, {
+    kind: 'feedback',
     action: input.kind === 'praise' ? 'Gave praise' : 'Gave feedback',
     target: (await names(ctx))(input.to),
     targetId: id,
@@ -227,7 +238,12 @@ export async function undoFeedback(ctx: Ctx, id: string): Promise<Result<{ ok: t
   const done = undo(f, ctx.viewer.personId ?? '', Date.parse(ctx.at));
   if (!done.ok) return done;
   await ctx.tx.feedback.save(done.value);
-  await audit(ctx, { kind: 'feedback', action: 'Undid feedback', target: 'Feedback', targetId: id });
+  await audit(ctx, {
+    kind: 'feedback',
+    action: 'Undid feedback',
+    target: 'Feedback',
+    targetId: id,
+  });
   return ok({ ok: true });
 }
 
@@ -242,6 +258,7 @@ export async function requestFeedback(
     due: CalendarDate | null;
   },
 ): Promise<Result<{ id: string }>> {
+  const { t } = await mailWords(ctx);
   const who = me(ctx);
   if (!who.ok) return who;
   const about = input.about ?? who.value;
@@ -271,12 +288,25 @@ export async function requestFeedback(
     if (email)
       ctx.mail.push({
         to: email,
-        subject: `${name(who.value)} asked for your feedback`,
-        text: `${name(who.value)} would like your feedback${input.topic === null ? '' : ` on ${input.topic}`}. Answer in Kithena, under Performance › Feedback.`,
+        subject: t('email.feedback.asked_for_your_feedback', '{{name}} asked for your feedback', {
+          name: name(who.value),
+        }),
+        text: t(
+          'email.feedback.would_like_your_feedback_answer_in',
+          '{{name}} would like your feedback{{value}}. Answer in Kithena, under Performance › Feedback.',
+          {
+            name: name(who.value),
+            value:
+              input.topic === null
+                ? ''
+                : t('email.feedback.on', ' on {{topic}}', { topic: input.topic }),
+          },
+        ),
         dedupeKey: `request:${id}:${p}`,
       });
   }
-  await audit(ctx, { kind: 'request',
+  await audit(ctx, {
+    kind: 'request',
     action: 'Requested feedback',
     target: `${String(to.length)} people`,
     targetId: id,
@@ -296,7 +326,8 @@ export async function declineRequest(ctx: Ctx, id: string): Promise<Result<{ ok:
       { personId: who.value, feedbackId: null, declined: true },
     ],
   });
-  await audit(ctx, { kind: 'request',
+  await audit(ctx, {
+    kind: 'request',
     action: 'Declined a feedback request',
     target: 'Feedback request',
     targetId: id,
@@ -356,7 +387,8 @@ export async function saveNote(
     shared: input.shared,
     at: ctx.at,
   });
-  await audit(ctx, { kind: 'note',
+  await audit(ctx, {
+    kind: 'note',
     action: input.id === null ? 'Wrote a note' : 'Edited a note',
     target: 'Note',
     targetId: id,

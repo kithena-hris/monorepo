@@ -448,6 +448,8 @@ export function compose(config: Config): RequestHandler {
     language: language ?? inEnglish,
     internalTokens: [
       config.noticeToken ?? '',
+      config.timeOffNoticeToken ?? '',
+      config.documentsNoticeToken ?? '',
       config.recruitingToken ?? '',
       config.onboardingToken ?? '',
       config.performanceToken ?? '',

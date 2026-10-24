@@ -4,7 +4,7 @@ import { addDays } from '../domain/dates.js';
 import { sendAlertDigests } from './alerts.js';
 import { chatDaily } from './chat.js';
 import { expireOffer } from '../domain/offer/offer.js';
-import { contextOf, deliver, type Ctx, type Outgoing } from './context.js';
+import { contextOf, deliver, type Ctx, type Outgoing, mailWords } from './context.js';
 import { portalLink } from './intake.js';
 import { rejectDueKnockouts } from './knockouts.js';
 import { sweepRetention } from './privacy.js';
@@ -133,10 +133,22 @@ export async function daily(
             for (const m of await ctx.tx.pools.of(member.candidateId))
               await ctx.tx.pools.remove(m.poolId, member.candidateId);
           } else if (addDays(consent.expiresOn, -30) === ctx.today) {
+            const { t } = await mailWords(ctx);
             ctx.mail.push({
               to: candidate.email,
-              subject: `Stay in ${settings.companyName}’s talent pool?`,
-              text: `Hello ${candidate.name},\n\nYou agreed that ${settings.companyName} may keep your details for future roles until ${consent.expiresOn}. To stay, renew on your page; otherwise we remove you then:\n${await portalLink(ctx, candidate.id)}`,
+              subject: t('email.pool_renew.subject', 'Stay in {{company}}’s talent pool?', {
+                company: settings.companyName,
+              }),
+              text: t(
+                'email.pool_renew.text',
+                'Hello {{name}},\n\nYou agreed that {{company}} may keep your details for future roles until {{until}}. To stay, renew on your page; otherwise we remove you then:\n{{link}}',
+                {
+                  name: candidate.name,
+                  company: settings.companyName,
+                  until: consent.expiresOn,
+                  link: await portalLink(ctx, candidate.id),
+                },
+              ),
               dedupeKey: `pool-renew:${candidate.id}:${consent.expiresOn}`,
             });
             renewals += 1;
@@ -152,10 +164,39 @@ export async function daily(
         const app = await ctx.tx.applications.get(interview.applicationId);
         const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
         if (candidate === null) continue;
+        const { t } = await mailWords(ctx);
+        const vars = {
+          name: candidate.name,
+          interview: interview.title,
+          company: settings.companyName,
+          time: interview.startsAt.slice(11, 16),
+          link: await portalLink(ctx, candidate.id),
+        };
         ctx.mail.push({
           to: candidate.email,
-          subject: `Tomorrow: ${interview.title} with ${settings.companyName}`,
-          text: `Hello ${candidate.name},\n\nA reminder of your ${interview.title} tomorrow at ${interview.startsAt.slice(11, 16)} UTC${interview.videoUrl === null ? (interview.place === null ? '' : `, at ${interview.place}`) : `: ${interview.videoUrl}`}.\n\nTo reschedule, use your page:\n${await portalLink(ctx, candidate.id)}`,
+          subject: t(
+            'email.interview_reminder.subject',
+            'Tomorrow: {{interview}} with {{company}}',
+            vars,
+          ),
+          text:
+            interview.videoUrl !== null
+              ? t(
+                  'email.interview_reminder.video',
+                  'Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC: {{video}}.\n\nTo reschedule, use your page:\n{{link}}',
+                  { ...vars, video: interview.videoUrl },
+                )
+              : interview.place !== null
+                ? t(
+                    'email.interview_reminder.place',
+                    'Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC, at {{place}}.\n\nTo reschedule, use your page:\n{{link}}',
+                    { ...vars, place: interview.place },
+                  )
+                : t(
+                    'email.interview_reminder.plain',
+                    'Hello {{name}},\n\nA reminder of your {{interview}} tomorrow at {{time}} UTC.\n\nTo reschedule, use your page:\n{{link}}',
+                    vars,
+                  ),
           dedupeKey: `interview-reminder:${interview.id}`,
         });
       }

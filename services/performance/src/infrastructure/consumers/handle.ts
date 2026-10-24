@@ -158,6 +158,7 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
         if (!e) return 'rejected';
         const { personId, managerId, previousManagerId } = e.payload;
         const at = deps.clock.now().toISOString();
+        const words = (await deps.mailer?.words?.(e.tenantId).catch(() => null))?.t;
         const [done, mail] = await deps.uow.run(e.tenantId, async (tx) => {
           const moved = await patch(tx, personId, e.eventId, (m) => ({
             ...m,
@@ -167,13 +168,18 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
           if (moved !== 'applied') return [moved, []] as const;
           return [
             moved,
-            await onReportingLineMoved(tx, deps.newId, {
-              personId,
-              previousManagerId,
-              managerId,
-              at,
-              today: deps.clock.today('UTC') as CalendarDate,
-            }),
+            await onReportingLineMoved(
+              tx,
+              deps.newId,
+              {
+                personId,
+                previousManagerId,
+                managerId,
+                at,
+                today: deps.clock.today('UTC') as CalendarDate,
+              },
+              words,
+            ),
           ] as const;
         });
         await deliver(deps, e.tenantId, mail);
@@ -183,6 +189,7 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
         const e = parse(PersonTerminated, raw);
         if (!e) return 'rejected';
         const leaverId = e.payload.personId;
+        const words = (await deps.mailer?.words?.(e.tenantId).catch(() => null))?.t;
         const [done, mail] = await deps.uow.run(e.tenantId, async (tx) => {
           const left = await patch(tx, leaverId, e.eventId, (m) => ({
             ...m,
@@ -199,12 +206,17 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
           return [
             left,
             left === 'applied'
-              ? await leaverManagerReviews(tx, deps.newId, {
-                  leaverId,
-                  cancelled,
-                  at: deps.clock.now().toISOString(),
-                  today: deps.clock.today('UTC') as CalendarDate,
-                })
+              ? await leaverManagerReviews(
+                  tx,
+                  deps.newId,
+                  {
+                    leaverId,
+                    cancelled,
+                    at: deps.clock.now().toISOString(),
+                    today: deps.clock.today('UTC') as CalendarDate,
+                  },
+                  words,
+                )
               : [],
           ] as const;
         });

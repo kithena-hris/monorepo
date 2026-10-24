@@ -5,10 +5,11 @@ import {
   type DomainFailure,
   type PendingEvent,
   type Result,
+  wordsIn,
 } from '@kithena/domain-kit';
 import type { CalendarDate, Instant } from '@kithena/contracts';
 
-import type { Caller, Deps, Member, Tx } from './ports.js';
+import type { Caller, Deps, Member, Tx, MailWords } from './ports.js';
 
 /**
  * What every use case starts from (ONB-008): who is asking, today, and the
@@ -38,6 +39,16 @@ export interface Viewer {
   /** HR: an administrator, or a person settings name as HR. */
   readonly hr: boolean;
   readonly it: boolean;
+}
+
+const ENGLISH: MailWords = { language: 'en-US', t: wordsIn('en-US', {}) };
+
+/**
+ * The words an email is written in: the company's language, as messaging
+ * answers it. US English with no mailer, or when it cannot be asked.
+ */
+export async function mailWords(ctx: Pick<Ctx, 'deps' | 'caller'>): Promise<MailWords> {
+  return (await ctx.deps.mailer?.words?.(ctx.caller.tenantId).catch(() => null)) ?? ENGLISH;
 }
 
 export interface Ctx {

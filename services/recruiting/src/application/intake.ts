@@ -15,7 +15,7 @@ import { answersSchema } from '../domain/form/form.js';
 import { poolConsent } from '../domain/privacy/retention.js';
 import { ownership } from '../domain/referral/referral.js';
 import { score, type Answer } from '../domain/screening/questionnaire.js';
-import { asPerson, event, notFound, publish, type Ctx } from './context.js';
+import { asPerson, event, notFound, publish, type Ctx, mailWords } from './context.js';
 import type { ApplicationRecord, Candidate, CandidateFile, Deps, JobRecord } from './ports.js';
 import { generalSettings } from './setup.js';
 import { pagesFor } from './jobs.js';
@@ -110,10 +110,18 @@ export async function requestCode(
   const expires = new Date(Date.parse(ctx.at) + CODE_MINUTES * 60_000).toISOString();
   await ctx.tx.codes.put(normalEmail(email), job.id, sha256(code), expires as never);
   const company = (await generalSettings(ctx)).companyName;
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: email,
-    subject: `${code} is your code to apply to ${company}`,
-    text: `Hello ${name},\n\nYour code to send your application for ${job.title} is ${code}. It works for ${String(CODE_MINUTES)} minutes.\n\nIf you did not ask for it, ignore this email.`,
+    subject: t('email.apply_code.subject', '{{code}} is your code to apply to {{company}}', {
+      code,
+      company,
+    }),
+    text: t(
+      'email.apply_code.text',
+      'Hello {{name}},\n\nYour code to send your application for {{job}} is {{code}}. It works for {{minutes}} minutes.\n\nIf you did not ask for it, ignore this email.',
+      { name, job: job.title, code, minutes: CODE_MINUTES },
+    ),
     dedupeKey: `code:${job.id}:${normalEmail(email)}:${ctx.at}`,
   });
   // Without a mailer (tests, a local run) the code comes back so the flow can be finished.
@@ -453,10 +461,17 @@ export async function apply(
     });
   }
   const portalUrl = await portalLink(ctx, candidate.id);
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: email,
-    subject: `Your application to ${settings.companyName}`,
-    text: `Hello ${name},\n\nThank you for applying for ${job.title}. You can follow your application, and withdraw it, here:\n${portalUrl}`,
+    subject: t('email.applied.subject', 'Your application to {{company}}', {
+      company: settings.companyName,
+    }),
+    text: t(
+      'email.applied.text',
+      'Hello {{name}},\n\nThank you for applying for {{job}}. You can follow your application, and withdraw it, here:\n{{link}}',
+      { name, job: job.title, link: portalUrl },
+    ),
     dedupeKey: `applied:${landed.value.id}`,
   });
   return ok({ applicationId: landed.value.id, candidateId: candidate.id, portalUrl });
@@ -578,10 +593,22 @@ export async function addCandidate(
   if (landed.ok && sourced) {
     // A sourced person is told within a month, with the opt-out (GDPR art. 14).
     const settings = await generalSettings(ctx);
+    const { t } = await mailWords(ctx);
     ctx.mail.push({
       to: email,
-      subject: `${settings.companyName} added you as a possible candidate`,
-      text: `Hello ${name},\n\n${settings.companyName} found your public profile and is considering you for ${job.title}. We hold your name, contact details and the profile we found, to contact you about this role. You can see what we hold, or ask us to delete it, here:\n${await portalLink(ctx, candidate.id)}`,
+      subject: t('email.sourced.subject', '{{company}} added you as a possible candidate', {
+        company: settings.companyName,
+      }),
+      text: t(
+        'email.sourced.text',
+        'Hello {{name}},\n\n{{company}} found your public profile and is considering you for {{job}}. We hold your name, contact details and the profile we found, to contact you about this role. You can see what we hold, or ask us to delete it, here:\n{{link}}',
+        {
+          name,
+          company: settings.companyName,
+          job: job.title,
+          link: await portalLink(ctx, candidate.id),
+        },
+      ),
       dedupeKey: `sourced:${candidate.id}`,
     });
   }
@@ -622,10 +649,24 @@ export async function putForward(
   );
   if (!landed.ok) return landed;
   const settings = await generalSettings(ctx);
+  const { t } = await mailWords(ctx);
   ctx.mail.push({
     to: candidate.email,
-    subject: `${settings.companyName} would like to consider you for ${job.title}`,
-    text: `Hello ${candidate.name},\n\n${settings.companyName} has put your application forward for a new opening, ${job.title}. The ad is here:\n${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}\n\nYou can follow it, or withdraw, here:\n${await portalLink(ctx, candidate.id)}`,
+    subject: t('email.put_forward.subject', '{{company}} would like to consider you for {{job}}', {
+      company: settings.companyName,
+      job: job.title,
+    }),
+    text: t(
+      'email.put_forward.text',
+      'Hello {{name}},\n\n{{company}} has put your application forward for a new opening, {{job}}. The ad is here:\n{{ad}}\n\nYou can follow it, or withdraw, here:\n{{link}}',
+      {
+        name: candidate.name,
+        company: settings.companyName,
+        job: job.title,
+        ad: `${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}`,
+        link: await portalLink(ctx, candidate.id),
+      },
+    ),
     dedupeKey: `put-forward:${landed.value.id}`,
   });
   return landed;
@@ -655,11 +696,25 @@ export async function refer(
     createdAt: ctx.at,
   });
   const settings = await generalSettings(ctx);
-  const referrer = ctx.member?.displayName ?? 'Someone at the company';
+  const { t } = await mailWords(ctx);
+  const referrer = ctx.member?.displayName ?? t('email.referral.someone', 'Someone at the company');
   ctx.mail.push({
     to: email,
-    subject: `${referrer} thinks you’d be great for ${job.title}`,
-    text: `Hello ${name},\n\n${referrer} referred you for ${job.title} at ${settings.companyName}. If you would like to apply, start here:\n${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}?src=ref-${person.value}\n\nNothing about you is kept unless you apply.`,
+    subject: t('email.referral.subject', '{{referrer}} thinks you’d be great for {{job}}', {
+      referrer,
+      job: job.title,
+    }),
+    text: t(
+      'email.referral.text',
+      'Hello {{name}},\n\n{{referrer}} referred you for {{job}} at {{company}}. If you would like to apply, start here:\n{{link}}\n\nNothing about you is kept unless you apply.',
+      {
+        name,
+        referrer,
+        job: job.title,
+        company: settings.companyName,
+        link: `${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}?src=ref-${person.value}`,
+      },
+    ),
     dedupeKey: `referral:${id}`,
   });
   return ok({ referralId: id });

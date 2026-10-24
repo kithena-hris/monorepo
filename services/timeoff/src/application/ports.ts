@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { isTimeZone, type Clock, type PendingEvent } from '@kithena/domain-kit';
+import { isTimeZone, type Clock, type PendingEvent, type Words } from '@kithena/domain-kit';
 import {
   CalendarDate,
   CountryCode,
@@ -749,6 +749,17 @@ export interface NudgeMailer {
       readonly lede: string;
     },
   ): Promise<void>;
+  /**
+   * The company's language and Time Off's words in it: a nudge is an email,
+   * and every email is written in the company's language.
+   */
+  words?(tenantId: TenantId): Promise<MailWords>;
+}
+
+/** A language and Time Off's words for its emails in it. */
+export interface MailWords {
+  readonly language: string;
+  readonly t: Words;
 }
 
 export interface Notifier {

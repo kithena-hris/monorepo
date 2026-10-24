@@ -5,6 +5,7 @@ import {
   type DomainFailure,
   type PendingEvent,
   type Result,
+  wordsIn,
 } from '@kithena/domain-kit';
 import {
   PerformanceActivityRecorded,
@@ -14,7 +15,7 @@ import {
   type ModuleActivity,
 } from '@kithena/contracts';
 
-import type { Caller, ChatButton, Deps, Member, Tx } from './ports.js';
+import type { Caller, ChatButton, Deps, Member, Tx, MailWords } from './ports.js';
 
 /**
  * What every use case starts from (PRF-004): who is asking, what they are to
@@ -37,7 +38,8 @@ export interface Outgoing {
    * In the company's chat app too, by default; `false` for a cycle whose
    * reminders keep out of it, `only` for a notice with buttons and no email.
    */
-  readonly chat?: false | 'only' | { readonly buttons: readonly ChatButton[]; readonly only?: boolean };
+  readonly chat?:
+    false | 'only' | { readonly buttons: readonly ChatButton[]; readonly only?: boolean };
 }
 
 export interface Viewer {
@@ -50,6 +52,16 @@ export interface Viewer {
   readonly reports: ReadonlySet<string>;
   /** Everyone below, at any depth. */
   readonly org: ReadonlySet<string>;
+}
+
+const ENGLISH: MailWords = { language: 'en-US', t: wordsIn('en-US', {}) };
+
+/**
+ * The words an email is written in: the company's language, as messaging
+ * answers it. US English with no mailer, or when it cannot be asked.
+ */
+export async function mailWords(ctx: Pick<Ctx, 'deps' | 'caller'>): Promise<MailWords> {
+  return (await ctx.deps.mailer?.words?.(ctx.caller.tenantId).catch(() => null)) ?? ENGLISH;
 }
 
 export interface Ctx {
@@ -193,7 +205,12 @@ export async function audit(
   };
   await publish(
     ctx,
-    event(ctx, PerformanceActivityRecorded.name, { type: 'activity', id: ctx.deps.newId() }, payload),
+    event(
+      ctx,
+      PerformanceActivityRecorded.name,
+      { type: 'activity', id: ctx.deps.newId() },
+      payload,
+    ),
   );
 }
 

@@ -7,6 +7,7 @@ import type { Ctx } from './context.js';
 import { publicJob } from './intake.js';
 import type { Model } from './ports.js';
 import { generalSettings } from './setup.js';
+import { mailWords } from './context.js';
 
 /**
  * J8, the job assistant (PRD §10.6, REC-121). On a job page it answers from
@@ -66,14 +67,19 @@ export async function askRecruiter(
 ): Promise<Result<{ sent: true }>> {
   const job = await publicJob(ctx, slug);
   if (job === null) return err(failure('NOT_FOUND', 'No such job'));
-  for (const t of await ctx.tx.jobs.team(job.id)) {
-    if (t.role !== 'recruiter') continue;
-    const member = await ctx.tx.members.get(t.personId as never);
+  const { t } = await mailWords(ctx);
+  for (const place of await ctx.tx.jobs.team(job.id)) {
+    if (place.role !== 'recruiter') continue;
+    const member = await ctx.tx.members.get(place.personId as never);
     if (member?.workEmail == null) continue;
     ctx.mail.push({
       to: member.workEmail,
-      subject: `A question about ${job.title}`,
-      text: `Someone asked on Kithena Jobs:\n\n${question.slice(0, 2000)}\n\nReply to them at ${email}.`,
+      subject: t('email.question.subject', 'A question about {{job}}', { job: job.title }),
+      text: t(
+        'email.question.text',
+        'Someone asked on Kithena Jobs:\n\n{{question}}\n\nReply to them at {{email}}.',
+        { question: question.slice(0, 2000), email },
+      ),
       dedupeKey: `ask:${job.id}:${email}:${ctx.at}`,
     });
   }
