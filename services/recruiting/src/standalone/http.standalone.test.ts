@@ -268,3 +268,21 @@ describe('Kithena Jobs’ reads', () => {
     expect((await lookup()).status).toBe(404);
   });
 });
+
+describe('what the composition hands the server', () => {
+  it('keeps the timer at each interview’s end, so its scorecards are asked for', () => {
+    const ends = { at: () => Promise.resolve(), drop: () => Promise.resolve() };
+    const { deps } = recruitingServer(
+      {
+        uow: memoryUnitOfWork(),
+        blobs: memoryBlobs(),
+        jobsOrigin: 'https://jobs.example',
+        extractText: () => Promise.resolve(null),
+        callerFrom: callerFromHeaders(TOKEN),
+        interviewEnds: ends,
+      },
+      uuidv7,
+    );
+    expect(deps.interviewEnds).toBe(ends);
+  });
+});
