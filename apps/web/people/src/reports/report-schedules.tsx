@@ -996,14 +996,13 @@ export function ScheduleForm({
             <Stack gap={3}>
               <p>
                 {t(
-                  'reports.report-schedules.this_report_is_built_again_for',
-                  'This report is built again for each of its',
-                )}{' '}
-                {String(draft.recipients.length)}{' '}
-                {draft.recipients.length === 1 ? 'recipient' : 'recipients'}
-                {t(
-                  'reports.report-schedules.every_time_it_runs_as_that',
-                  ', every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                  'reports.report-schedules.built_again_for_each_recipient',
+                  {
+                    one: 'This report is built again for each of its {{count}} recipient, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                    other:
+                      'This report is built again for each of its {{count}} recipients, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                  },
+                  { count: draft.recipients.length },
                 )}
               </p>
               <p>

@@ -94,7 +94,10 @@ export function RequestSetupLink(): JSX.Element {
             required
             autoComplete="username"
             disabled={state.kind === 'sending'}
-            placeholder="you@yourcompany.com"
+            placeholder={t(
+              'components.request-setup-link.you_yourcompany_com',
+              'you@yourcompany.com',
+            )}
             onChange={(event) => {
               setEmail(event.target.value);
               if (problem !== null) setProblem(null);

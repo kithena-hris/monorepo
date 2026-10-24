@@ -747,14 +747,16 @@ export function HoursChoice({ data, props }: TermsProps): JSX.Element {
               label: tr('job-terms.full_time_there', 'Full time there'),
               value:
                 options.fullTimeWeeklyMinutes === null
-                  ? 'Not set'
+                  ? tr('job-terms.not_set', 'Not set')
                   : hoursOf(options.fullTimeWeeklyMinutes),
             },
             {
               label: tr('job-terms.so_this_is', 'So this is'),
               value: (
                 <Badge size="sm" variant="soft" tone="accent">
-                  {options.hours === 'full_time' ? 'Full time' : 'Part time'}
+                  {options.hours === 'full_time'
+                    ? tr('job-terms.full_time', 'Full time')
+                    : tr('job-terms.part_time', 'Part time')}
                 </Badge>
               ),
             },

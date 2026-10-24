@@ -65,7 +65,9 @@ export const DATA_TYPE_LABEL: Record<DataType, string> = {
   get country(): string {
     return t('settings.words.country', 'Country');
   },
-  currency: 'Currency',
+  get currency(): string {
+    return t('settings.words.currency', 'Currency');
+  },
   get language(): string {
     return t('settings.words.language', 'Language');
   },
@@ -208,7 +210,12 @@ export const DATA_TYPE_HINT: Record<DataType, string> = {
       'A country from the standard list. Nationality.',
     );
   },
-  currency: 'A currency from the standard list. Currency they are paid in.',
+  get currency(): string {
+    return t(
+      'settings.words.a_currency_from_the_standard_list',
+      'A currency from the standard list. Currency they are paid in.',
+    );
+  },
   get language(): string {
     return t(
       'settings.words.a_language_from_the_standard_list_preferred',
@@ -607,7 +614,9 @@ export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
   get workModel(): string {
     return t('settings.words.work_model', 'Work model');
   },
-  status: 'Status',
+  get status(): string {
+    return t('settings.words.status', 'Status');
+  },
   get attribute(): string {
     return t('settings.words.another_field', 'Another field');
   },
@@ -619,13 +628,48 @@ export const OPERAND_LABEL: Record<ListOperand | 'attribute', string> = {
  */
 export const FACT_VALUES: Record<'status', readonly Choice[]> = {
   status: [
-    { value: 'provisional', label: 'Provisional' },
-    { value: 'pre_hire', label: 'Pre-hire' },
-    { value: 'active', label: 'Active' },
-    { value: 'on_leave', label: 'On leave' },
-    { value: 'notice', label: 'On notice' },
-    { value: 'terminated', label: 'Left' },
-    { value: 'discarded', label: 'Discarded' },
+    {
+      value: 'provisional',
+      get label(): string {
+        return t('settings.words.provisional', 'Provisional');
+      },
+    },
+    {
+      value: 'pre_hire',
+      get label(): string {
+        return t('settings.words.pre_hire', 'Pre-hire');
+      },
+    },
+    {
+      value: 'active',
+      get label(): string {
+        return t('settings.words.active', 'Active');
+      },
+    },
+    {
+      value: 'on_leave',
+      get label(): string {
+        return t('settings.words.on_leave', 'On leave');
+      },
+    },
+    {
+      value: 'notice',
+      get label(): string {
+        return t('settings.words.on_notice', 'On notice');
+      },
+    },
+    {
+      value: 'terminated',
+      get label(): string {
+        return t('settings.words.left', 'Left');
+      },
+    },
+    {
+      value: 'discarded',
+      get label(): string {
+        return t('settings.words.discarded', 'Discarded');
+      },
+    },
   ],
 };
 

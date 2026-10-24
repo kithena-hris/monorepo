@@ -205,7 +205,7 @@ function WhatChanged({ data }: { readonly data: InsightsData }): JSX.Element {
         action={
           <Badge tone="assistant" size="sm">
             {data.points.some((p) => p.ai === true)
-              ? 'AI'
+              ? tr('insights.insights.ai', 'AI')
               : tr('insights.insights.templated', 'Templated')}
           </Badge>
         }
@@ -431,7 +431,7 @@ function TimeOffTab({ data }: { readonly data: InsightsData }): JSX.Element {
         <Teams
           data={data}
           label={tr('insights.insights.days_taken_by_team', 'Days taken by team')}
-          value="Days taken"
+          value={tr('insights.insights.days_taken', 'Days taken')}
           of={(t) => amount(t.daysTaken)}
         />
       </PageSection>
@@ -543,7 +543,7 @@ function BalancesTab({ data }: { readonly data: InsightsData }): JSX.Element {
           <Teams
             data={data}
             label={tr('insights.insights.days_left_by_team', 'Days left by team')}
-            value="Days left"
+            value={tr('insights.insights.days_left_title', 'Days left')}
             of={(t) => amount(t.left)}
           />
         </PageSection>

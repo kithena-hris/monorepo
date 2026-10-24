@@ -687,22 +687,35 @@ function reasons(plan: Plan): { icon: ReactNode; title: string; detail: string }
   if (run > 0 && back !== null) {
     out.push({
       icon: <icons.parental aria-hidden />,
-      title: 'Most time at the start',
+      title: t('parental.plan.most_time_at_the_start', 'Most time at the start'),
       detail: `${String(run)} of your ${String(e.flexibleWeeks)} flexible weeks follow the mandatory ${String(e.mandatoryWeeks)}, so you’re home until ${dayDate(addDays(back, -1))}.`,
     });
   }
   if (plan.reminders.length > 0) {
     out.push({
       icon: <icons.notifications aria-hidden />,
-      title: 'Reminders for notice',
-      detail: `Each flexible block needs ${String(e.noticeDays)} days’ notice. You’re reminded on ${plan.reminders.map((r) => shortDate(r.remindOn)).join(', ')}.`,
+      title: t('parental.plan.reminders_for_notice', 'Reminders for notice'),
+      detail: t(
+        'parental.plan.each_flexible_block_needs_days_notice',
+        'Each flexible block needs {{String}} days’ notice. You’re reminded on {{join}}.',
+        {
+          String: String(e.noticeDays),
+          join: plan.reminders.map((r) => shortDate(r.remindOn)).join(', '),
+        },
+      ),
     });
   }
   if (plan.keptWeeks > 0) {
     out.push({
       icon: <icons.scheduled aria-hidden />,
-      title: `${weeks(plan.keptWeeks)} kept for later`,
-      detail: `Book them any time before ${longDate(e.laterBefore)}.`,
+      title: t('parental.plan.kept_for_later', '{{weeks}} kept for later', {
+        weeks: weeks(plan.keptWeeks),
+      }),
+      detail: t(
+        'parental.plan.book_them_any_time_before',
+        'Book them any time before {{longDate}}.',
+        { longDate: longDate(e.laterBefore) },
+      ),
     });
   }
   return out;
@@ -1156,10 +1169,16 @@ function summary(data: ParentalData, plan: Plan): { label: string; value: string
       label: t('parental.plan.first_day', 'First day'),
       value:
         plan.role === 'adopting'
-          ? `The decision, ${longDate(plan.childDate)}`
+          ? t('parental.plan.the_decision', 'The decision, {{longDate}}', {
+              longDate: longDate(plan.childDate),
+            })
           : plan.birth === null
-            ? `The birth, due ${longDate(plan.childDate)}`
-            : `The birth, ${longDate(plan.childDate)}`,
+            ? t('parental.plan.the_birth_due', 'The birth, due {{longDate}}', {
+                longDate: longDate(plan.childDate),
+              })
+            : t('parental.plan.the_birth', 'The birth, {{longDate}}', {
+                longDate: longDate(plan.childDate),
+              }),
     },
     ...(back === null
       ? []
@@ -1174,7 +1193,14 @@ function summary(data: ParentalData, plan: Plan): { label: string; value: string
       : []),
     {
       label: t('parental.plan.who_sees_it', 'Who sees it'),
-      value: `HR, ${data.managerName ?? 'your manager'}. Team sees ${plan.teamSees === 'type' ? '“Parental leave”' : '“Away”'}`,
+      value:
+        plan.teamSees === 'type'
+          ? t('parental.plan.hr_team_sees_type', 'HR, {{manager}}. Team sees “Parental leave”', {
+              manager: data.managerName ?? t('parental.plan.your_manager', 'your manager'),
+            })
+          : t('parental.plan.hr_team_sees_away', 'HR, {{manager}}. Team sees “Away”', {
+              manager: data.managerName ?? t('parental.plan.your_manager', 'your manager'),
+            }),
     },
   ];
 }

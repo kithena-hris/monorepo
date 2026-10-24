@@ -396,7 +396,7 @@ function NewCycle({
 }): JSX.Element {
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const [basics, setBasics] = useState<Pick<CycleSetup, 'name' | 'description' | 'start'>>({
-    name: 'New cycle',
+    name: tr('cycles.new_cycle', 'New cycle'),
     description: '',
     start: { date: addDays(today, 30), time: '09:00', zone: 'UTC' },
   });
@@ -409,7 +409,9 @@ function NewCycle({
   useEffect(() => {
     if (created.current !== null) return;
     created.current = act
-      .call('CreatePerformanceCycle', { input: { name: 'New cycle', start: null, copyFrom: null } })
+      .call('CreatePerformanceCycle', {
+        input: { name: tr('cycles.new_cycle', 'New cycle'), start: null, copyFrom: null },
+      })
       .then((d) => {
         if (!d.ok) {
           setError(d.message);
@@ -1017,7 +1019,7 @@ function filterFields(data: {
     {
       id: 'title',
       label: tr('cycles.job_title', 'Job title'),
-      operators: [{ id: 'contains', label: 'contains', value: 'text' }],
+      operators: [{ id: 'contains', label: tr('cycles.contains', 'contains'), value: 'text' }],
     },
     {
       id: 'hiredOn',
@@ -2699,15 +2701,19 @@ function Launch({ c, data }: { readonly c: CycleSetup; readonly data: SetupData 
                 : []),
               {
                 label: tr('cycles.acknowledgement', 'Acknowledgement'),
-                value: v.acknowledge ? 'Asked for' : 'Not asked for',
+                value: v.acknowledge
+                  ? tr('cycles.asked_for', 'Asked for')
+                  : tr('cycles.not_asked_for', 'Not asked for'),
               },
               {
                 label: tr('cycles.their_comment', 'Their comment'),
-                value: v.subjectComment ? 'Allowed' : 'Not allowed',
+                value: v.subjectComment ? 'Allowed' : tr('cycles.not_allowed', 'Not allowed'),
               },
               {
                 label: tr('cycles.peer_summary', 'Peer summary'),
-                value: v.peerSummary ? 'Shared, without names' : 'Kept back',
+                value: v.peerSummary
+                  ? tr('cycles.shared_without_names', 'Shared, without names')
+                  : tr('cycles.kept_back', 'Kept back'),
               },
               {
                 label: tr('cycles.response_minimum', 'Response minimum'),
@@ -3249,7 +3255,7 @@ function Insights({ data }: { readonly data: OverviewData }): JSX.Element | null
             }),
           }))}
           center={`${String(done)}%`}
-          centerLabel="submitted"
+          centerLabel={tr('cycles.submitted_center', 'submitted')}
           showLegend
         />
       </ChartCard>
@@ -3350,7 +3356,7 @@ function PeopleToolbar({
     {
       id: 'overdue',
       label: tr('cycles.anything_overdue', 'Anything overdue'),
-      operators: [{ id: 'is', label: 'is', value: 'options' }],
+      operators: [{ id: 'is', label: tr('cycles.is', 'is'), value: 'options' }],
       options: [
         { value: 'yes', label: tr('cycles.yes', 'Yes') },
         { value: 'no', label: tr('cycles.no', 'No') },
@@ -4376,7 +4382,10 @@ function CloseDialog({
               'cycles.unlocked_and_edited_once_submitted_before',
               'Unlocked and edited, once submitted before',
             ),
-            value: 'Completed, on the last submitted revision',
+            value: tr(
+              'cycles.completed_on_the_last_submitted_revision',
+              'Completed, on the last submitted revision',
+            ),
           },
           {
             label: tr('cycles.draft_never_submitted', 'Draft, never submitted'),
@@ -4549,7 +4558,10 @@ function AddDialog({
             onClick={() => {
               act.run(
                 'AddPerformanceParticipant',
-                { id, input: { personId: chosen, reason: 'Late joiner' } },
+                {
+                  id,
+                  input: { personId: chosen, reason: tr('cycles.late_joiner', 'Late joiner') },
+                },
                 onDone,
               );
             }}

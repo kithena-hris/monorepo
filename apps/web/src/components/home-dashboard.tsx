@@ -20,7 +20,7 @@ export function HomeDashboard({ greeting, account, toDo }: HomeDashboardProps): 
     <div className="flex flex-col gap-6">
       <PageHeader
         className="@3xl/page:pe-64"
-        title={`Hi ${greeting}`}
+        title={t('components.home-dashboard.hi', 'Hi {{greeting}}', { greeting })}
         actions={account ? <span className="flex @3xl/page:hidden">{account}</span> : undefined}
       />
       {toDo ?? (

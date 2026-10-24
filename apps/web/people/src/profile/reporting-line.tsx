@@ -72,10 +72,23 @@ export function ReportingLine({
         {line.peers.length === 0 ? null : (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             <p className="text-sm text-fg-muted">
-              {line.morePeers ? t('profile.reporting-line.more_than', 'More than') + ' ' : ''}
-              {String(line.peers.length)} {line.peers.length === 1 ? 'peer' : 'peers'}{' '}
-              {t('profile.reporting-line.with_the_same_manager_as', 'with the same manager as')}{' '}
-              {firstName}
+              {line.morePeers
+                ? t(
+                    'profile.reporting-line.more_peers_same_manager',
+                    {
+                      one: 'More than {{count}} peer with the same manager as {{firstName}}',
+                      other: 'More than {{count}} peers with the same manager as {{firstName}}',
+                    },
+                    { count: line.peers.length, firstName },
+                  )
+                : t(
+                    'profile.reporting-line.peers_same_manager',
+                    {
+                      one: '{{count}} peer with the same manager as {{firstName}}',
+                      other: '{{count}} peers with the same manager as {{firstName}}',
+                    },
+                    { count: line.peers.length, firstName },
+                  )}
             </p>
             <AvatarGroup
               max={8}

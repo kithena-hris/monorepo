@@ -135,9 +135,9 @@ const PRODUCT: Record<Provider, string> = {
 const productOf = (provider: string): string =>
   provider in PRODUCT ? PRODUCT[provider as Provider] : provider;
 
-const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
+const MODULE = (): Record<string, { name: string; icon: IconName; does: string }> => ({
   payroll: {
-    name: 'Payroll',
+    name: t('settings.integrations.payroll', 'Payroll'),
     icon: 'payroll',
     get does(): string {
       return t(
@@ -147,7 +147,7 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
     },
   },
   benefits: {
-    name: 'Benefits',
+    name: t('settings.integrations.benefits', 'Benefits'),
     icon: 'health',
     get does(): string {
       return t(
@@ -157,7 +157,7 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
     },
   },
   projects: {
-    name: 'Projects',
+    name: t('settings.integrations.projects', 'Projects'),
     icon: 'cards',
     get does(): string {
       return t(
@@ -166,7 +166,7 @@ const MODULE: Record<string, { name: string; icon: IconName; does: string }> = {
       );
     },
   },
-};
+});
 
 const region = new Intl.DisplayNames(['en'], { type: 'region' });
 
@@ -437,7 +437,7 @@ function Ready({
           >
             <List aria-label={t('settings.integrations.kithena_modules', 'Kithena modules')}>
               {data.modules.map((m) => {
-                const known = MODULE[m.key];
+                const known = MODULE()[m.key];
                 return (
                   <ListItem
                     key={m.key}

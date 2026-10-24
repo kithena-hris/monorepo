@@ -423,6 +423,10 @@
     "text": "Probation ends",
     "context": "Performance: reviews, goals, feedback, learning. automations.tsx, AutomationDialog: the options of <Choose>."
   },
+  "automations.probation_reviews": {
+    "text": "Probation reviews",
+    "context": "Performance: reviews, goals, feedback, learning. automations.tsx, AutomationDialog: a \"name\" value."
+  },
   "automations.probation_reviews_quarterly_check_ins_and": {
     "text": "Probation reviews, quarterly check-ins and half-yearly cycles can run on their own.",
     "context": "Performance: reviews, goals, feedback, learning. automations.tsx, Automations: the description of <EmptyState>."
@@ -791,6 +795,34 @@
     "text": "Was",
     "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, Calibration: text inside <TableHead>."
   },
+  "cycle-plan.due": {
+    "text": "{{label}} due",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value. Filled in: {{label}}."
+  },
+  "cycle-plan.everyone_at_once": {
+    "text": "Everyone at once",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"meta\" value."
+  },
+  "cycle-plan.nominating": {
+    "text": "Nominating",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.nominations": {
+    "text": "Nominations",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.nominations_close": {
+    "text": "Nominations close",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.release": {
+    "text": "Release",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
+  "cycle-plan.released": {
+    "text": "Released",
+    "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
+  },
   "cycle-plan.reminder": {
     "text": "Reminder",
     "context": "Performance: reviews, goals, feedback, learning. cycle-plan.ts: a \"label\" value."
@@ -935,6 +967,10 @@
     "text": "Ask who to show, in words",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PeopleToolbar: the aria-label of <Input>."
   },
+  "cycles.asked_for": {
+    "text": "Asked for",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
   "cycles.at": {
     "text": "At",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Basics: text inside <FieldLabel>."
@@ -1071,6 +1107,10 @@
     "text": "Completed",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: the items of <Badge>."
   },
+  "cycles.completed_on_the_last_submitted_revision": {
+    "text": "Completed, on the last submitted revision",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: the items of <KeyValues>."
+  },
   "cycles.conditions": {
     "text": "Conditions",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, FilterChips: the label of <FilterBuilder>."
@@ -1082,6 +1122,10 @@
   "cycles.confirm": {
     "text": "Confirm",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CyclePlan: the footer of <Button>."
+  },
+  "cycles.contains": {
+    "text": "contains",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx: a \"label\" value."
   },
   "cycles.continue_to_setup": {
     "text": "Continue to setup",
@@ -1427,6 +1471,10 @@
     "text": "Inbox",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, ReminderOptions: the label of <SwitchRow>."
   },
+  "cycles.is": {
+    "text": "is",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PeopleToolbar: a \"label\" value."
+  },
   "cycles.is_after": {
     "text": "is after",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx: a \"label\" value."
@@ -1471,6 +1519,10 @@
     "text": "Keep them unreleased",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, CloseDialog: text inside <SegmentedControlItem>."
   },
+  "cycles.kept_back": {
+    "text": "Kept back",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
   "cycles.kind_due_in_days_one": {
     "text": "{{kindLabel}} due {{due}}, in {{count}} day",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the description of <ChartCard>. Filled in: {{kindLabel}}, {{due}}, {{count}}. Plural: the words for a {{count}} of one."
@@ -1486,6 +1538,10 @@
   "cycles.last_deadline": {
     "text": "Last deadline",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the label of <Stat>."
+  },
+  "cycles.late_joiner": {
+    "text": "Late joiner",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, AddDialog: the onClick of <Button>."
   },
   "cycles.later_so_it_will_be_scheduled": {
     "text": "Later, so it will be scheduled.",
@@ -1654,6 +1710,14 @@
   "cycles.none_overdue": {
     "text": "none overdue",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the description of <ChartCard>."
+  },
+  "cycles.not_allowed": {
+    "text": "Not allowed",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
+  "cycles.not_asked_for": {
+    "text": "Not asked for",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
   },
   "cycles.not_in_this_cycle": {
     "text": "Not in this cycle",
@@ -2007,6 +2071,10 @@
     "text": "Share the peer summary",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Reviews: the label of <SwitchRow>."
   },
+  "cycles.shared_without_names": {
+    "text": "Shared, without names",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Launch: the items of <KeyValues>."
+  },
   "cycles.shown_beside_the_review": {
     "text": "Shown beside the review",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Reviews: text inside <RadioCard>."
@@ -2070,6 +2138,10 @@
   "cycles.submitted": {
     "text": "Submitted",
     "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
+  },
+  "cycles.submitted_center": {
+    "text": "submitted",
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, Insights: the centerLabel of <DonutChart>."
   },
   "cycles.take_back_in": {
     "text": "Take back in",
@@ -3293,7 +3365,7 @@
   },
   "home.new_cycle": {
     "text": "New cycle",
-    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the actions of <Button>."
+    "context": "Performance: reviews, goals, feedback, learning. home.tsx, Home: the onClick of <Button>."
   },
   "home.no_cycle_is_running": {
     "text": "No cycle is running",
@@ -3767,6 +3839,10 @@
     "text": "You can still open it.",
     "context": "Performance: reviews, goals, feedback, learning. learning.tsx, Item: text inside <Alert>."
   },
+  "learning.your_company": {
+    "text": "Your company",
+    "context": "Performance: reviews, goals, feedback, learning. learning.tsx, NewItem: text built in code."
+  },
   "load.could_not_load": {
     "text": "Could not load {{what}}",
     "context": "Performance: reviews, goals, feedback, learning. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
@@ -4179,12 +4255,12 @@
     "text": "Context",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the items of <TertiaryNav>."
   },
-  "reviews.count_answers_one": {
-    "text": "{{count}} answer",
+  "reviews.count_answers_no_names_one": {
+    "text": "{{count}} answer, no names",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "reviews.count_answers_other": {
-    "text": "{{count}} answers",
+  "reviews.count_answers_no_names_other": {
+    "text": "{{count}} answers, no names",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "reviews.count_changes_one": {
@@ -4219,12 +4295,12 @@
     "text": "{{count}} required questions",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, SubmitDialog: the title of <Alert>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
-  "reviews.count_reviews_one": {
-    "text": "{{count}} review",
+  "reviews.count_reviews_names_hidden_one": {
+    "text": "{{count}} review, names hidden",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "reviews.count_reviews_other": {
-    "text": "{{count}} reviews",
+  "reviews.count_reviews_names_hidden_other": {
+    "text": "{{count}} reviews, names hidden",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "reviews.count_sentences_one": {
@@ -4383,6 +4459,10 @@
     "text": "Handed over from {{from}}",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the title of <Alert>. Filled in: {{from}}."
   },
+  "reviews.held_back_under": {
+    "text": "Held back: under {{minimum}}",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>. Filled in: {{minimum}}."
+  },
   "reviews.how_it_reads": {
     "text": "How it reads",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, ReadsChip: text inside <Button>."
@@ -4394,6 +4474,10 @@
   "reviews.instead": {
     "text": "Instead: “{{rewrite}}”",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, ReadFlags: text inside <span>. Filled in: {{rewrite}}."
+  },
+  "reviews.is_writing_it": {
+    "text": "{{by}} is writing it",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>. Filled in: {{by}}."
   },
   "reviews.it_could_not_be_read_just": {
     "text": "It could not be read just now.",
@@ -4471,6 +4555,10 @@
     "text": "Nobody else has written about them yet.",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: text inside <p>."
   },
+  "reviews.not_enough_responses_to_share_confidentially": {
+    "text": "Not enough responses to share confidentially",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>."
+  },
   "reviews.not_final_until_calibration": {
     "text": "Not final until calibration",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the title of <Alert>."
@@ -4482,6 +4570,10 @@
   "reviews.not_saved_yet": {
     "text": "Not saved yet",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: text built in code."
+  },
+  "reviews.not_submitted": {
+    "text": "Not submitted",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the items of <KeyValues>."
   },
   "reviews.note_to_optional": {
     "text": "Note to {{approver}} (optional)",
@@ -4566,6 +4658,10 @@
   "reviews.prefill_with_ai": {
     "text": "Prefill with AI",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Writing: the actions of <Button>."
+  },
+  "reviews.read_s_review": {
+    "text": "Read {{by}}’s review",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <To>. Filled in: {{by}}."
   },
   "reviews.reading_what_others_said": {
     "text": "Reading what others said…",
@@ -4730,6 +4826,10 @@
   "reviews.submitted": {
     "text": "Submitted {{at}}",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, About: the sub of <Person>. Filled in: {{at}}."
+  },
+  "reviews.submitted_not_released": {
+    "text": "Submitted by {{by}}, not released yet",
+    "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, AboutMe: the items of <KeyValues>. Filled in: {{by}}."
   },
   "reviews.summary_of_what_others_said": {
     "text": "Summary of what others said",
@@ -5022,6 +5122,10 @@
   "settings.agreed_on_2": {
     "text": "{{entity}} agreed on",
     "context": "Performance: reviews, goals, feedback, learning. settings.tsx, Body: the label of <DatePicker>. Filled in: {{entity}}."
+  },
+  "settings.ai": {
+    "text": "AI",
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"ai\" value."
   },
   "settings.ai_log": {
     "text": "AI log",

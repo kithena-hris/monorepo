@@ -65,7 +65,7 @@ export const KIND_LABEL: Readonly<Record<FieldKind, string>> = {
   get date(): string {
     return t('envelopes.prepare.dated_signature', 'Dated signature');
   },
-  name: 'Full name',
+  name: t('envelopes.prepare.full_name', 'Full name'),
   get title(): string {
     return t('envelopes.prepare.job_title', 'Job title');
   },

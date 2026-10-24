@@ -182,7 +182,9 @@ export function Decision({
           inset
           label={t('approvals.decision.last_time_off', 'Last time off')}
           value={
-            data.lastTaken === null ? 'None yet' : spanLabel(data.lastTaken.from, data.lastTaken.to)
+            data.lastTaken === null
+              ? t('approvals.decision.none_yet', 'None yet')
+              : spanLabel(data.lastTaken.from, data.lastTaken.to)
           }
         />
       </div>

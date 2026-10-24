@@ -978,9 +978,15 @@ export function chipOf(
       };
     // Everybody below a manager, however deep: "Marco's team".
     case 'under':
-      return { field: 'Team of', text: formatList(condition.values.map(shown), 'or') };
+      return {
+        field: t('directory.directory.team_of', 'Team of'),
+        text: formatList(condition.values.map(shown), 'or'),
+      };
     case 'contains':
-      return { field: label, text: `mentions “${first}”` };
+      return {
+        field: label,
+        text: t('directory.directory.mentions', 'mentions “{{first}}”', { first }),
+      };
     default:
       return { field: label, text: formatList(condition.values.map(shown), 'or') };
   }
@@ -1900,7 +1906,7 @@ function Body({
       : [
           {
             key: 'group',
-            field: 'Grouped by',
+            field: t('directory.directory.grouped_by', 'Grouped by'),
             text: grouping.label,
             onRemove: () => {
               onGroupChange(null);
@@ -1915,7 +1921,7 @@ function Body({
       : [
           {
             key: 'sort',
-            field: 'Sorted by',
+            field: t('directory.directory.sorted_by_field', 'Sorted by'),
             // "most missing details · top 1"
             text: `${orderWords(sort, fields, metrics).replace(/^(ordered|sorted) by /u, '')}${
               top === null ? '' : ` · top ${String(top)}`
@@ -2298,9 +2304,11 @@ function Body({
               {peeked.missing === null || peeked.missing === 0 ? null : (
                 <p className="flex items-center gap-2 text-sm text-fg-muted">
                   <MissingMark count={peeked.missing} />
-                  {t('directory.directory.required', 'required')}{' '}
-                  {peeked.missing === 1 ? 'detail' : 'details'}{' '}
-                  {t('directory.directory.to_fill_in', 'to fill in')}
+                  {t(
+                    'directory.directory.required_details_to_fill_in',
+                    { one: 'required detail to fill in', other: 'required details to fill in' },
+                    { count: peeked.missing },
+                  )}
                 </p>
               )}
               {/*

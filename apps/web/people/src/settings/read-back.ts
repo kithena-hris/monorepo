@@ -54,7 +54,10 @@ export function readBack(
         );
       return t('settings.read-back.cannot', '{{who}} cannot.', { who });
     });
-  if (visibility.includes('directory')) sentences.push('Everyone can find it in the directory.');
+  if (visibility.includes('directory'))
+    sentences.push(
+      t('settings.read-back.everyone_can_find_it_in_the', 'Everyone can find it in the directory.'),
+    );
   return sentences.join(' ');
 }
 

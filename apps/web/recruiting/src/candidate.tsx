@@ -705,7 +705,10 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                               poolId,
                               input: {
                                 candidateId: data.candidate.id,
-                                reason: 'Added from the profile',
+                                reason: tr(
+                                  'candidate.added_from_the_profile',
+                                  'Added from the profile',
+                                ),
                               },
                             },
                             () => {
@@ -981,7 +984,9 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                                   },
                                   {
                                     label: tr('candidate.adjustments', 'Adjustments'),
-                                    value: chosen.adjustments ?? 'None asked',
+                                    value:
+                                      chosen.adjustments ??
+                                      tr('candidate.none_asked', 'None asked'),
                                   },
                                 ]}
                               />

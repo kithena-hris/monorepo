@@ -387,6 +387,10 @@
     "text": "{{names}} are off. The team asks for {{required}}.",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/decision.tsx, WhatToKnow: the description of <IconListItem>. Filled in: {{count}}, {{names}}, {{required}}. Plural: the words for any other {{count}}."
   },
+  "approvals.decision.none_yet": {
+    "text": "None yet",
+    "context": "Time Off: leave, absences, time tracking, policies. approvals/decision.tsx, Decision: the value of <Stat>."
+  },
   "approvals.decision.not_yours_to_decide": {
     "text": "Not yours to decide",
     "context": "Time Off: leave, absences, time tracking, policies. approvals/decision.tsx, Decision: the title of <Alert>."
@@ -955,6 +959,10 @@
     "text": "Remind them",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, Ready: the action of <Button>."
   },
+  "attendance.pay-period.reminded_and_their_managers": {
+    "text": "Reminded {{people}} and their managers",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, Ready: the onClick of <Button>. Filled in: {{people}}."
+  },
   "attendance.pay-period.reminding": {
     "text": "Reminding",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/pay-period.tsx, Ready: the loadingLabel of <Button>."
@@ -1438,6 +1446,10 @@
   "attendance.timesheet.note_optional": {
     "text": "Note (optional)",
     "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, FixClockOut: text inside <FieldLabel>."
+  },
+  "attendance.timesheet.now": {
+    "text": "now",
+    "context": "Time Off: leave, absences, time tracking, policies. attendance/timesheet.tsx, Days: text inside <TableCell>."
   },
   "attendance.timesheet.of": {
     "text": "Of {{planned}}",
@@ -2211,6 +2223,10 @@
     "text": "Time off and attendance across the company · {{people}} · as of {{longDate}}",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, Insights: the description of <PageHeader>. Filled in: {{people}}, {{longDate}}."
   },
+  "insights.insights.ai": {
+    "text": "AI",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, WhatChanged: the action of <Badge>."
+  },
   "insights.insights.by_month": {
     "text": "By month",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the title of <PageSection>."
@@ -2226,6 +2242,14 @@
   "insights.insights.days_left_by_team": {
     "text": "Days left by team",
     "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, BalancesTab: the title of <PageSection>."
+  },
+  "insights.insights.days_left_title": {
+    "text": "Days left",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, BalancesTab: the value of <Teams>."
+  },
+  "insights.insights.days_taken": {
+    "text": "Days taken",
+    "context": "Time Off: leave, absences, time tracking, policies. insights/insights.tsx, TimeOffTab: the value of <Teams>."
   },
   "insights.insights.days_taken_by_month": {
     "text": "Days taken by month",
@@ -3267,6 +3291,10 @@
     "text": "Company certificate for Social Security",
     "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx: a \"title\" value."
   },
+  "parental.case.dates_and_handover": {
+    "text": "Dates and handover",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, Ready: the items of <KeyValues>."
+  },
   "parental.case.done": {
     "text": "Done",
     "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx: text inside <Badge>."
@@ -3286,6 +3314,10 @@
   "parental.case.every_total_is_within_the_entitlement": {
     "text": "Every total is within the entitlement",
     "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, RULES: a \"passed\" value."
+  },
+  "parental.case.everything_plus_documents": {
+    "text": "Everything, plus documents",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, Ready: the items of <KeyValues>."
   },
   "parental.case.flexible_weeks_are_taken_in_whole": {
     "text": "Flexible weeks are taken in whole weeks",
@@ -3310,6 +3342,10 @@
   "parental.case.health_insurance_in_benefits_after_the": {
     "text": "Health insurance in Benefits, after the birth certificate.",
     "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx: a \"detail\" value."
+  },
+  "parental.case.hr": {
+    "text": "HR",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, Ready: the items of <KeyValues>."
   },
   "parental.case.is_reminded_on_nothing_to_do": {
     "text": "{{firstName}} is reminded on {{remindOn}}. Nothing to do now.",
@@ -3350,6 +3386,14 @@
   "parental.case.scheduled": {
     "text": "Scheduled",
     "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx: text inside <Badge>."
+  },
+  "parental.case.sees_away_dates": {
+    "text": "“Away”, dates",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, Ready: the items of <KeyValues>."
+  },
+  "parental.case.sees_type_dates": {
+    "text": "“Parental leave”, dates",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/case.tsx, Ready: the items of <KeyValues>."
   },
   "parental.case.sent": {
     "text": "Sent {{sentAt}}",
@@ -3515,6 +3559,10 @@
     "text": "Book any time",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, VerticalPlan: the description of <ListItem>."
   },
+  "parental.plan.book_them_any_time_before": {
+    "text": "Book them any time before {{longDate}}.",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"detail\" value. Filled in: {{longDate}}."
+  },
   "parental.plan.built_from_the_law_where_you": {
     "text": "Built from the law where you work and your company’s policy. Private until you send it to HR and {{managerWord}}.",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Frame: the description of <PageHeader>. Filled in: {{managerWord}}."
@@ -3562,6 +3610,10 @@
   "parental.plan.due_date": {
     "text": "Due date",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, About: text inside <FieldLabel>."
+  },
+  "parental.plan.each_flexible_block_needs_days_notice": {
+    "text": "Each flexible block needs {{String}} days’ notice. You’re reminded on {{join}}.",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"detail\" value. Filled in: {{String}}, {{join}}."
   },
   "parental.plan.family": {
     "text": "Family",
@@ -3627,6 +3679,14 @@
     "text": "HR prepares the certificate you need for your claim.",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, EntitlementCard: the description of <ListItem>."
   },
+  "parental.plan.hr_team_sees_away": {
+    "text": "HR, {{manager}}. Team sees “Away”",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"value\" value. Filled in: {{manager}}."
+  },
+  "parental.plan.hr_team_sees_type": {
+    "text": "HR, {{manager}}. Team sees “Parental leave”",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"value\" value. Filled in: {{manager}}."
+  },
   "parental.plan.if_the_baby_arrives_early_or": {
     "text": "If the baby arrives early or late, the plan shifts. Record the date and the mandatory weeks move with it.",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Send: text inside <Alert>."
@@ -3641,7 +3701,7 @@
   },
   "parental.plan.kept_for_later": {
     "text": "{{weeks}} kept for later",
-    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, VerticalPlan: text inside <ListItem>. Filled in: {{weeks}}."
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"title\" value. Filled in: {{weeks}}."
   },
   "parental.plan.kept_for_later_2": {
     "text": "Kept for later",
@@ -3666,6 +3726,10 @@
   "parental.plan.mandatory_2": {
     "text": "{{from}}, mandatory",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, VERTICAL: a \"title\" value. Filled in: {{from}}."
+  },
+  "parental.plan.most_time_at_the_start": {
+    "text": "Most time at the start",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"title\" value."
   },
   "parental.plan.needs_the_integration": {
     "text": "{{detail}}. Needs the {{needs}} integration.",
@@ -3759,6 +3823,10 @@
     "text": "Recurring meetings",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Handover: the label of <Integration>."
   },
+  "parental.plan.reminders_for_notice": {
+    "text": "Reminders for notice",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"title\" value."
+  },
   "parental.plan.remove": {
     "text": "Remove {{work}}",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Handover: the aria-label of <Button>. Filled in: {{work}}."
@@ -3807,6 +3875,14 @@
     "text": "The baby is here",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Sent: the title of <PageSection>."
   },
+  "parental.plan.the_birth": {
+    "text": "The birth, {{longDate}}",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"value\" value. Filled in: {{longDate}}."
+  },
+  "parental.plan.the_birth_due": {
+    "text": "The birth, due {{longDate}}",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"value\" value. Filled in: {{longDate}}."
+  },
   "parental.plan.the_birth_parent": {
     "text": "The birth parent",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, ROLES: text built in code."
@@ -3822,6 +3898,10 @@
   "parental.plan.the_dates_follow_the_birth": {
     "text": "The dates follow the birth",
     "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx, Send: the title of <Alert>."
+  },
+  "parental.plan.the_decision": {
+    "text": "The decision, {{longDate}}",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/plan.tsx: a \"value\" value. Filled in: {{longDate}}."
   },
   "parental.plan.the_handover_was_not_saved": {
     "text": "The handover was not saved",
@@ -3998,6 +4078,10 @@
   "parental.shared.text_3": {
     "text": "{{from}} · {{spanLabel}}",
     "context": "Time Off: leave, absences, time tracking, policies. parental/shared.tsx, PlanTrack: a \"label\" value. Filled in: {{from}}, {{spanLabel}}."
+  },
+  "parental.shared.until": {
+    "text": "{{weeks}} until {{year}}",
+    "context": "Time Off: leave, absences, time tracking, policies. parental/shared.tsx, PlanTrack: a \"label\" value. Filled in: {{weeks}}, {{year}}."
   },
   "parental.shared.vacation": {
     "text": "Vacation",
@@ -4215,6 +4299,10 @@
     "text": "{{name}} · {{days}} · {{days2}} away",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Consequences: the description of <Stat>. Filled in: {{name}}, {{days}}, {{days2}}."
   },
+  "request.request.borrow_days_from": {
+    "text": "Borrow {{amount}} days from {{nextYear}}",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <RadioCard>. Filled in: {{amount}}, {{nextYear}}."
+  },
   "request.request.can_still_approve_it": {
     "text": "{{approver}} can still approve it.",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Consequences: text inside <Alert>. Filled in: {{approver}}."
@@ -4307,6 +4395,14 @@
     "text": "Loading the types and your balances.",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, RequestTimeOff: text inside <DialogDescription>."
   },
+  "request.request.make_days_unpaid": {
+    "text": "Make {{amount}} days unpaid",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <RadioCard>. Filled in: {{amount}}."
+  },
+  "request.request.name_off": {
+    "text": "{{name}} off",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, DatePicker: a \"label\" value. Filled in: {{name}}."
+  },
   "request.request.next": {
     "text": "Next",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Panel: text inside <Button>."
@@ -4330,6 +4426,10 @@
   "request.request.note_optional": {
     "text": "Note (optional)",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, Consequences: text inside <FieldLabel>."
+  },
+  "request.request.nothing_borrowed": {
+    "text": "Nothing borrowed",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: the impact of <RadioCard>."
   },
   "request.request.of_in_below_the_team_minimum": {
     "text": "{{in}} of {{of}} in, below the team minimum",
@@ -4390,6 +4490,14 @@
   "request.request.shorten_it_to_dates_that_fit": {
     "text": "Shorten it to dates that fit, or ask HR.",
     "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <Alert>."
+  },
+  "request.request.shorten_to_half": {
+    "text": "Shorten to {{spanLabel}}, half the last day",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <RadioCard>. Filled in: {{spanLabel}}."
+  },
+  "request.request.shorten_to_span": {
+    "text": "Shorten to {{spanLabel}}",
+    "context": "Time Off: leave, absences, time tracking, policies. request/request.tsx, BelowZero: text inside <RadioCard>. Filled in: {{spanLabel}}."
   },
   "request.request.someone": {
     "text": "Someone",
@@ -4511,6 +4619,10 @@
     "text": "an approver",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: text built in code."
   },
+  "requests.requests.approved_by": {
+    "text": "Approved by {{role}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{role}}."
+  },
   "requests.requests.ask_again": {
     "text": "Ask again",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <Button>."
@@ -4535,6 +4647,10 @@
     "text": "Cancel request",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Detail: text inside <Button>."
   },
+  "requests.requests.cancelled": {
+    "text": "Cancelled",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
+  },
   "requests.requests.change": {
     "text": "Change {{label}}",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <DialogTitle>. Filled in: {{label}}."
@@ -4546,6 +4662,14 @@
   "requests.requests.continue": {
     "text": "Continue",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: text inside <Button>."
+  },
+  "requests.requests.declined_by": {
+    "text": "Declined by {{role}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{role}}."
+  },
+  "requests.requests.escalated_nobody_answered_in_time": {
+    "text": "Escalated: nobody answered in time.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
   },
   "requests.requests.give_back_days_you_dont_need": {
     "text": "Give back days you don’t need. Shortening is approved automatically.",
@@ -4591,6 +4715,10 @@
     "text": "New last day",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the label of <Calendar>."
   },
+  "requests.requests.no_payroll_change": {
+    "text": "No payroll change",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
+  },
   "requests.requests.no_time_off_taken_yet_this": {
     "text": "No time off taken yet this year.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, EMPTY: text built in code."
@@ -4611,6 +4739,10 @@
     "text": "Or choose the note",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, NoteNeeded: the label of <Dropzone>."
   },
+  "requests.requests.paid_vacation_so_your_pay_stays": {
+    "text": "Paid vacation, so your pay stays the same.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
+  },
   "requests.requests.pick_new_dates_the_old_ones": {
     "text": "Pick new dates. The old ones stay booked until the new ones are approved.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the description of <RadioCard>."
@@ -4625,11 +4757,19 @@
   },
   "requests.requests.suggested_other_dates": {
     "text": "{{capital}} suggested other dates",
-    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Suggestions: text inside <h3>. Filled in: {{capital}}."
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{capital}}."
   },
   "requests.requests.take": {
     "text": "Take {{label}} · {{days}}",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Suggestions: text inside <Button>. Filled in: {{label}}, {{days}}."
+  },
+  "requests.requests.take_one_or_keep_yours_and": {
+    "text": "Take one, or keep yours and it goes back to them.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
+  },
+  "requests.requests.taken": {
+    "text": "Taken",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
   },
   "requests.requests.taking_one_approves_it_keeping_yours": {
     "text": "Taking one approves it. Keeping yours sends it back.",
@@ -4651,9 +4791,25 @@
     "text": "That did not go through",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Suggestions: the title of <Alert>."
   },
+  "requests.requests.the_days_are_booked_while_it": {
+    "text": "The days are booked while it waits.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
+  },
+  "requests.requests.the_days_went_back_to_your": {
+    "text": "The days went back to your balance.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
+  },
+  "requests.requests.then": {
+    "text": "Then {{role}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{role}}."
+  },
   "requests.requests.up_to_back": {
     "text": "Up to {{days}} back",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, ChangeDialog: the impact of <RadioCard>. Filled in: {{days}}."
+  },
+  "requests.requests.waiting_for": {
+    "text": "Waiting for {{role}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{role}}."
   },
   "requests.requests.what_happened": {
     "text": "What happened",
@@ -4675,9 +4831,17 @@
     "text": "Withdraw request",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Detail: text inside <Button>."
   },
+  "requests.requests.withdrawn": {
+    "text": "Withdrawn",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value."
+  },
   "requests.requests.you_asked_for": {
     "text": "You asked for {{spanLabel}}.",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value. Filled in: {{spanLabel}}."
+  },
+  "requests.requests.you_asked_to_move_it_to": {
+    "text": "You asked to move it to {{spanLabel}}",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"title\" value. Filled in: {{spanLabel}}."
   },
   "requests.requests.your_manager": {
     "text": "your manager",
@@ -4686,6 +4850,10 @@
   "requests.requests.your_note": {
     "text": "Your note:",
     "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx, Detail: text inside <span>."
+  },
+  "requests.requests.your_old_dates_stay_booked_until": {
+    "text": "Your old dates stay booked until the new ones are approved.",
+    "context": "Time Off: leave, absences, time tracking, policies. requests/requests.tsx: a \"children\" value."
   },
   "requests.requests.your_requests": {
     "text": "your requests",
@@ -5643,6 +5811,10 @@
     "text": "Approved time off appears as out of office. Holidays appear for each location.",
     "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, Ready: the description of <PageSection>."
   },
+  "settings.integrations.benefits": {
+    "text": "Benefits",
+    "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, MODULE: a \"name\" value."
+  },
   "settings.integrations.calendar": {
     "text": "Calendar",
     "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, Ready: the title of <PageSection>."
@@ -5798,6 +5970,14 @@
   "settings.integrations.overtime_unpaid_leave_negative_balances_and": {
     "text": "Overtime, unpaid leave, negative balances and parental pay changes each month.",
     "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, MODULE: a \"payroll\" value."
+  },
+  "settings.integrations.payroll": {
+    "text": "Payroll",
+    "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, MODULE: a \"name\" value."
+  },
+  "settings.integrations.projects": {
+    "text": "Projects",
+    "context": "Time Off: leave, absences, time tracking, policies. settings/integrations.tsx, MODULE: a \"name\" value."
   },
   "settings.integrations.reviewed": {
     "text": "Reviewed",

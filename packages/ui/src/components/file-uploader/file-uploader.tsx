@@ -226,7 +226,7 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'count',
-            message: `Only ${String(maxFiles)} ${maxFiles === 1 ? 'file' : 'files'} allowed.`,
+            message: t('components.file-uploader.file-uploader.only_files_allowed', { one: 'Only {{count}} file allowed.', other: 'Only {{count}} files allowed.' }, { count: maxFiles }),
           });
           continue;
         }
@@ -234,7 +234,7 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'type',
-            message: `${displayName(file.name)} is not an accepted type. Allowed: ${accept.join(', ')}.`,
+            message: t('components.file-uploader.file-uploader.is_not_an_accepted_type_allowed', '{{displayName}} is not an accepted type. Allowed: {{join}}.', { displayName: displayName(file.name), join: accept.join(', ') }),
           });
           continue;
         }
@@ -242,7 +242,7 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'size',
-            message: `${displayName(file.name)} is ${formatBytes(file.size)}. The limit is ${formatBytes(maxSize)} per file.`,
+            message: t('components.file-uploader.file-uploader.is_the_limit_is_per_file', '{{displayName}} is {{formatBytes}}. The limit is {{formatBytes2}} per file.', { displayName: displayName(file.name), formatBytes: formatBytes(file.size), formatBytes2: formatBytes(maxSize) }),
           });
           continue;
         }
@@ -250,7 +250,7 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'total',
-            message: `Adding ${displayName(file.name)} would exceed the ${formatBytes(maxTotalSize)} total.`,
+            message: t('components.file-uploader.file-uploader.adding_would_exceed_the_total', 'Adding {{displayName}} would exceed the {{formatBytes}} total.', { displayName: displayName(file.name), formatBytes: formatBytes(maxTotalSize) }),
           });
           continue;
         }
@@ -267,7 +267,7 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'duplicate',
-            message: `${displayName(file.name)} has already been added.`,
+            message: t('components.file-uploader.file-uploader.has_already_been_added', '{{displayName}} has already been added.', { displayName: displayName(file.name) }),
           });
           continue;
         }
@@ -394,7 +394,7 @@ export function FileUploader({
               })
             : null}
           {maxTotalSize !== undefined
-            ? ` · ${formatBytes(usedBytes)} of ${formatBytes(maxTotalSize)}`
+            ? t('components.file-uploader.file-uploader.of', ' · {{formatBytes}} of {{formatBytes2}}', { formatBytes: formatBytes(usedBytes), formatBytes2: formatBytes(maxTotalSize) })
             : null}
         </span>
       </div>
@@ -441,12 +441,14 @@ export function FileUploader({
           </span>
           <p className="text-sm font-semibold text-fg">
             <span className="text-accent-fg underline underline-offset-3">
-              {t('components.file-uploader.file-uploader.choose', 'Choose')}{' '}
-              {multiple ? 'files' : t('components.file-uploader.file-uploader.a_file', 'a file')}
+              {multiple
+                ? t('components.file-uploader.file-uploader.choose_files', 'Choose files')
+                : t('components.file-uploader.file-uploader.choose_a_file', 'Choose a file')}
             </span>{' '}
             <span>
-              {t('components.file-uploader.file-uploader.or_drop', 'or drop')}{' '}
-              {multiple ? 'them' : 'it'} {t('components.file-uploader.file-uploader.here', 'here')}
+              {multiple
+                ? t('components.file-uploader.file-uploader.or_drop_them_here', 'or drop them here')
+                : t('components.file-uploader.file-uploader.or_drop_it_here', 'or drop it here')}
             </span>
           </p>
           <p className="text-xs text-fg-muted">

@@ -2066,7 +2066,10 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');
         const places = data.locations.filter((l) => data.job.locationIds.includes(l.id));
-        const company = data.company ?? { name: 'Your company', logoUrl: null };
+        const company = data.company ?? {
+          name: tr('job.your_company', 'Your company'),
+          logoUrl: null,
+        };
         const pay =
           data.job.salary === null
             ? null
@@ -2182,18 +2185,18 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
           },
         ];
         const rail = [
-          { label: tr('job.location', 'Location'), value: where ?? 'Not set' },
+          { label: tr('job.location', 'Location'), value: where ?? tr('job.not_set', 'Not set') },
           { label: tr('job.work_mode', 'Work mode'), value: mode },
           {
             label: tr('job.contract', 'Contract'),
-            value: data.job.outline.contractType ?? 'Not set',
+            value: data.job.outline.contractType ?? tr('job.not_set', 'Not set'),
           },
           { label: tr('job.hours', 'Hours'), value: hours },
           {
             label: tr('job.holiday', 'Holiday'),
             value:
               data.terms.vacationDays === null
-                ? 'Not set'
+                ? tr('job.not_set', 'Not set')
                 : `${String(data.terms.vacationDays)} days a year`,
           },
         ];
@@ -2693,7 +2696,9 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       {
                         label: tr('job.internal_title', 'Internal title'),
                         value:
-                          data.job.internalTitle === '' ? 'Same as the ad' : data.job.internalTitle,
+                          data.job.internalTitle === ''
+                            ? tr('job.same_as_the_ad', 'Same as the ad')
+                            : data.job.internalTitle,
                       },
                       {
                         label: tr('job.internal_only', 'Internal only'),

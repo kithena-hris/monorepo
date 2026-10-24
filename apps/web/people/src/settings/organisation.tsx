@@ -733,7 +733,10 @@ function Locations({
                   {place.timeZone}
                   {later.map((z) => (
                     <span key={z.effectiveFrom} className="text-fg-muted">
-                      {` · ${z.timeZone} from ${z.effectiveFrom}`}
+                      {tr('settings.organisation.zone_from', ' · {{timeZone}} from {{effectiveFrom}}', {
+                        timeZone: z.timeZone,
+                        effectiveFrom: z.effectiveFrom,
+                      })}
                     </span>
                   ))}
                 </span>
@@ -1420,7 +1423,11 @@ function EditDialog({
       <ZonePicker
         key="zone"
         state={state}
-        label={editing.kind === 'zone' ? 'New time zone' : 'Time zone'}
+        label={
+          editing.kind === 'zone'
+            ? tr('settings.organisation.new_time_zone', 'New time zone')
+            : tr('settings.organisation.time_zone', 'Time zone')
+        }
         value={zone}
         onChange={setZone}
         invalid={shown && problems.zone}
@@ -1437,8 +1444,11 @@ function EditDialog({
         />
         <p className="text-fg-muted text-xs">
           {editing.kind === 'zone'
-            ? 'In force from the start of this day in the new zone. The same day again corrects an earlier change.'
-            : 'Leave empty for today.'}
+            ? tr(
+                'settings.organisation.in_force_from_the_start_of',
+                'In force from the start of this day in the new zone. The same day again corrects an earlier change.',
+              )
+            : tr('settings.organisation.leave_empty_for_today', 'Leave empty for today.')}
         </p>
       </div>,
     );
@@ -1961,7 +1971,12 @@ function Company({
           <Field>
             <FieldLabel>{tr('settings.organisation.company', 'Company')}</FieldLabel>
             <FieldControl>
-              <Input readOnly value={settings.displayName ?? 'Not known yet'} />
+              <Input
+                readOnly
+                value={
+                  settings.displayName ?? tr('settings.organisation.not_known_yet', 'Not known yet')
+                }
+              />
             </FieldControl>
             <FieldDescription>
               {settings.slug === null
@@ -2075,13 +2090,18 @@ function RemindersAndPrivacy({
                     'settings.organisation.reminders_to_employees',
                     'Reminders to employees',
                   ),
-                  value: 'By email, at most once a week, until their profile is complete',
+                  value: tr(
+                    'settings.organisation.by_email_at_most_once_a',
+                    'By email, at most once a week, until their profile is complete',
+                  ),
                 },
                 { label: tr('settings.organisation.when', 'When'), value: reminders.cadence },
                 { label: tr('settings.organisation.at', 'At'), value: reminders.window },
                 {
                   label: tr('settings.organisation.in_chat', 'In chat'),
-                  value: reminders.inChat ? 'Also, when connected' : 'Email only',
+                  value: reminders.inChat
+                    ? tr('settings.organisation.also_when_connected', 'Also, when connected')
+                    : tr('settings.organisation.email_only', 'Email only'),
                 },
               ]}
             />

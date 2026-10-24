@@ -1429,7 +1429,9 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               };
             }
             return actions.createReportSchedule({
-              name: (choice.reason ?? 'Monthly export').slice(0, 80),
+              name: (
+                choice.reason ?? t('components.people-screen.monthly_export', 'Monthly export')
+              ).slice(0, 80),
               ...audienceOf,
               kind: 'export',
               format: choice.format === 'pdf' ? 'pdf' : 'xlsx',

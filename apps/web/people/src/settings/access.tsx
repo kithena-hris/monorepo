@@ -44,7 +44,9 @@ export const AUDIENCES: readonly AccessAudience[] = [
   },
   {
     id: 'hr',
-    label: 'HR',
+    get label(): string {
+      return t('settings.access.hr', 'HR');
+    },
     get description(): string {
       return t('settings.access.your_hr_team', 'Your HR team');
     },

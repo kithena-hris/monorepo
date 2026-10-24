@@ -231,7 +231,10 @@ export function PlanTrack({
       ? [
           {
             id: 'kept',
-            label: `${weeks(plan.keptWeeks)} until ${year(e.laterBefore)}`,
+            label: t('parental.shared.until', '{{weeks}} until {{year}}', {
+              weeks: weeks(plan.keptWeeks),
+              year: year(e.laterBefore),
+            }),
             start: addDays(lastDay, 1),
             end: domain.end,
             tone: 'chart-3',

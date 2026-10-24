@@ -972,7 +972,10 @@ function Composer({
                     label: tr('offers.signature', 'Signature'),
                     value:
                       data.checked.terms.signature === 'wet_ink'
-                        ? 'Wet ink: printed and signed by hand'
+                        ? tr(
+                            'offers.wet_ink_printed_and_signed_by',
+                            'Wet ink: printed and signed by hand',
+                          )
                         : 'Electronic',
                   },
                   {
@@ -1474,7 +1477,7 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                     label: tr('offers.terms', 'Terms'),
                     value:
                       t == null
-                        ? 'Not complete'
+                        ? tr('offers.not_complete', 'Not complete')
                         : `${words(t.contractType)} · ${String(t.weeklyMinutes / 60)} h a week`,
                   },
                   {
@@ -1611,10 +1614,16 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                             label: tr('offers.signing', 'Signing'),
                             value:
                               k.route === 'wet_ink'
-                                ? 'Wet ink: printed, signed by hand by both, scan uploaded'
+                                ? tr(
+                                    'offers.wet_ink_printed_signed_by_hand',
+                                    'Wet ink: printed, signed by hand by both, scan uploaded',
+                                  )
                                 : k.route === 'documents'
                                   ? 'Through Documents'
-                                  : 'Signed contract uploaded',
+                                  : tr(
+                                      'offers.signed_contract_uploaded',
+                                      'Signed contract uploaded',
+                                    ),
                           },
                           {
                             label: tr('offers.documents', 'Documents'),
@@ -1622,7 +1631,10 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                           },
                           {
                             label: tr('offers.signed', 'Signed'),
-                            value: k.signedOn === null ? 'Not yet' : day(k.signedOn),
+                            value:
+                              k.signedOn === null
+                                ? tr('offers.not_yet', 'Not yet')
+                                : day(k.signedOn),
                           },
                         ]}
                       />

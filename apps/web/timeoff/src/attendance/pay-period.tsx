@@ -291,7 +291,11 @@ function Ready({
                         run(
                           'remind',
                           () => onRemind(data.month, null),
-                          `Reminded ${people(data.late.length)} and their managers`,
+                          tr(
+                            'attendance.pay-period.reminded_and_their_managers',
+                            'Reminded {{people}} and their managers',
+                            { people: people(data.late.length) },
+                          ),
                         );
                       }}
                     >

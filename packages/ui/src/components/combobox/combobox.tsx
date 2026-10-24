@@ -522,8 +522,11 @@ export function Combobox({
         </ul>
 
         <p aria-live="polite" className="sr-only">
-          {flat.length} {flat.length === 1 ? 'option' : 'options'}{' '}
-          {t('components.combobox.combobox.available', 'available')}
+          {t(
+            'components.combobox.combobox.options_available',
+            { one: '{{count}} option available', other: '{{count}} options available' },
+            { count: flat.length },
+          )}
         </p>
       </PopoverContent>
     </Popover>

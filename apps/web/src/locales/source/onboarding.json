@@ -71,6 +71,14 @@
     "text": "From a signed contract to the end of probation. Hires arrive from Recruiting, People, or another system.",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Home: the description of <PageHeader>."
   },
+  "home.hr": {
+    "text": "HR",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <span>."
+  },
+  "home.it": {
+    "text": "IT",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <span>."
+  },
   "home.late": {
     "text": "Late",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: a \"header\" value."
@@ -334,6 +342,10 @@
   "plan.nobody_yet": {
     "text": "Nobody yet",
     "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <SelectItem>."
+  },
+  "plan.not_chosen": {
+    "text": "Not chosen",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: the items of <KeyValues>."
   },
   "plan.not_passed": {
     "text": "Not passed",

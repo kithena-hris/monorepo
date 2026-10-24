@@ -159,7 +159,9 @@ const PAGES: Readonly<
     section: 'calibration',
   },
   ai: {
-    title: 'AI',
+    get title(): string {
+      return tr('settings.ai', 'AI');
+    },
     get description(): string {
       return tr(
         'settings.each_ai_feature_on_or_off_every',

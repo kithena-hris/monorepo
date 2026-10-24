@@ -919,6 +919,10 @@
     "text": "People",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
+  "components.app-shell.people_you_can_see": {
+    "text": "People you can see",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"group\" value."
+  },
   "components.app-shell.performance": {
     "text": "Performance",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
@@ -1070,6 +1074,10 @@
   "components.google-sign-in.sign_in_with_google": {
     "text": "Sign in with Google",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/google-sign-in.tsx, GoogleSignIn: text inside <a>."
+  },
+  "components.home-dashboard.hi": {
+    "text": "Hi {{greeting}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-dashboard.tsx, HomeDashboard: the title of <PageHeader>. Filled in: {{greeting}}."
   },
   "components.home-dashboard.nothing_needs_you_yet": {
     "text": "Nothing needs you yet",
@@ -1502,6 +1510,10 @@
   "components.inbox.detail-people.remind_the": {
     "text": "Remind the {{length}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>. Filled in: {{length}}."
+  },
+  "components.inbox.detail-people.reminded": {
+    "text": "{{name}} reminded",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onClick of <Button>. Filled in: {{name}}."
   },
   "components.inbox.detail-people.reminded_count_one": {
     "text": "Reminded {{count}} person",
@@ -2094,6 +2106,10 @@
   "components.inbox.detail.tomorrow_morning": {
     "text": "Tomorrow morning",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx: a \"label\" value."
+  },
+  "components.inbox.detail.undo": {
+    "text": "Undo",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: a \"label\" value."
   },
   "components.inbox.detail.wake_it_now": {
     "text": "Wake it now",
@@ -2767,6 +2783,10 @@
     "text": "Work email address",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <FieldLabel>."
   },
+  "components.passkey-sign-in.you_yourcompany_com": {
+    "text": "you@yourcompany.com",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: the placeholder of <Input>."
+  },
   "components.people-area.export": {
     "text": "Export",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"label\" value."
@@ -2855,6 +2875,10 @@
     "text": "Kept Confidential to HR in Documents, and deleted after 90 days.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"description\" value."
   },
+  "components.people-screen.monthly_export": {
+    "text": "Monthly export",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"name\" value."
+  },
   "components.people-screen.people": {
     "text": "People",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: the area of <RemoteScreen>."
@@ -2942,6 +2966,10 @@
   "components.request-setup-link.work_email_address": {
     "text": "Work email address",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: text inside <FieldLabel>."
+  },
+  "components.request-setup-link.you_yourcompany_com": {
+    "text": "you@yourcompany.com",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/request-setup-link.tsx, RequestSetupLink: the placeholder of <Input>."
   },
   "components.settings-index.find_a_setting": {
     "text": "Find a setting",
@@ -3134,6 +3162,10 @@
   "components.waking.waking_up_usually_under_a_minute": {
     "text": "Waking up {{area}}, usually under a minute",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the title of <EmptyState>. Filled in: {{area}}."
+  },
+  "lib.activity.ai": {
+    "text": "AI",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
   },
   "lib.activity.documents": {
     "text": "Documents",
@@ -3627,6 +3659,14 @@
     "text": "Your signature is HR’s to change",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/my-signature.ts: a \"message\" value."
   },
+  "lib.people-screens.people_could_not_be_asked": {
+    "text": "People could not be asked",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/people-screens.ts: text built in code."
+  },
+  "lib.people-screens.the_day_a_detail_goes_missing": {
+    "text": "The day a detail goes missing, then once a week",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/people-screens.ts: a \"cadence\" value."
+  },
   "lib.people.module_did_not_answer": {
     "text": "{{module}} did not answer",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/people.ts: a \"message\" value. Filled in: {{module}}."
@@ -3659,17 +3699,113 @@
     "text": "Recruiting",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"recruiting\" value."
   },
+  "lib.remotes.sections": {
+    "text": "{{area}} sections",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts: a \"siblingsLabel\" value. Filled in: {{area}}."
+  },
   "lib.remotes.time_off": {
     "text": "Time off",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"timeoff\" value."
+  },
+  "lib.settings-modules.activity": {
+    "text": "Activity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
   },
   "lib.settings-modules.activity_log": {
     "text": "Activity log",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"label\" value."
   },
+  "lib.settings-modules.documents": {
+    "text": "Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.how_the_app_works_for_you": {
+    "text": "How the app works for you. Only you see and change these.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.keyboard_shortcuts": {
+    "text": "Keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"label\" value."
+  },
+  "lib.settings-modules.leave_types_holidays_and_attendance_how": {
+    "text": "Leave types, holidays and attendance: how time off is earned, asked for and approved.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.notifications": {
+    "text": "Notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"label\" value."
+  },
+  "lib.settings-modules.onboarding": {
+    "text": "Onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.performance": {
+    "text": "Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.recruiting": {
+    "text": "Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.settings_changes_imports_and_exports_sensitive": {
+    "text": "Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins, with filters.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.the_keys_that_take_you_somewhere": {
+    "text": "The keys that take you somewhere, and whether single keys work at all.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.the_scale_reviews_feedback_goals_learning": {
+    "text": "The scale, reviews, feedback, goals, learning, calibration, AI and who sees what.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.the_signature_your_documents_are_signed": {
+    "text": "The signature your documents are signed with: typed or drawn, kept here.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.time_off": {
+    "text": "Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.where_your_tasks_and_updates_reach": {
+    "text": "Where your tasks and updates reach you: phone, email, quiet hours.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.who_did_what_and_when_across": {
+    "text": "Who did what, and when, across every module your company has.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
   "lib.settings-modules.who_did_what_in_module": {
     "text": "Who did what in {{module}}, and when. Never the values themselves.",
     "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value. Filled in: {{module}}."
+  },
+  "lib.settings-modules.who_does_hrs_and_its_onboarding": {
+    "text": "Who does HR’s and IT’s onboarding tasks, holidays, and the country of a People hire.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.you": {
+    "text": "You",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"title\" value."
+  },
+  "lib.settings-modules.your_careers_page_the_hiring_rules": {
+    "text": "Your careers page, the hiring rules, pipelines and approvals, scorecards, pay and benefits.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.your_employee_records_what_they_hold": {
+    "text": "Your employee records: what they hold, who can see and change them, and where they go.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
+  },
+  "lib.settings-modules.your_signature": {
+    "text": "Your signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"label\" value."
+  },
+  "lib.settings-modules.your_signature_document_types_who_sees": {
+    "text": "Your signature, document types, who sees what, and how long it is kept.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value."
   },
   "lib.shell-data.a_people_administrator": {
     "text": "A People administrator",

@@ -82,6 +82,7 @@
   "plan.move_the_tasks": "काम खिसकाएँ",
   "plan.new_start_date": "नई शुरुआत की तारीख़",
   "plan.nobody_yet": "अभी कोई नहीं",
+  "plan.not_chosen": "नहीं चुना गया",
   "plan.not_passed": "पास नहीं हुआ",
   "plan.of_tasks": "{{total}} में से {{done}} काम",
   "plan.outcome": "नतीजा",

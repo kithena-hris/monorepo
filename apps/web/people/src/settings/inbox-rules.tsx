@@ -199,14 +199,20 @@ export function InboxRulesTab({
                     'settings.inbox-rules.approvals_that_wait_for_7_days',
                     'Approvals that wait for 7 days',
                   ),
-                  value: 'They lapse and the requester is told, as in Review',
+                  value: t(
+                    'settings.inbox-rules.they_lapse_and_the_requester_is',
+                    'They lapse and the requester is told, as in Review',
+                  ),
                 },
                 {
                   label: t(
                     'settings.inbox-rules.hand_over_automatically',
                     'Hand over automatically',
                   ),
-                  value: 'Each approver turns it on in Time off › Approvals › Cover',
+                  value: t(
+                    'settings.inbox-rules.each_approver_turns_it_on_in',
+                    'Each approver turns it on in Time off › Approvals › Cover',
+                  ),
                 },
               ]}
             />
@@ -228,7 +234,10 @@ export function InboxRulesTab({
               items={[
                 {
                   label: t('settings.inbox-rules.approve_time_off', 'Approve time off'),
-                  value: 'Set in Time off › Settings › Approval rules',
+                  value: t(
+                    'settings.inbox-rules.set_in_time_off_settings_approval',
+                    'Set in Time off › Settings › Approval rules',
+                  ),
                 },
               ]}
             />
@@ -258,7 +267,7 @@ export function InboxRulesTab({
               items={[
                 {
                   label: t('settings.inbox-rules.import_rows_to_check', 'Import rows to check'),
-                  value: 'Whoever ran the import',
+                  value: t('settings.inbox-rules.whoever_ran_the_import', 'Whoever ran the import'),
                 },
               ]}
             />
@@ -277,7 +286,7 @@ export function InboxRulesTab({
               },
               {
                 label: t('settings.inbox-rules.requests_for_details', 'Requests for details'),
-                value: 'HR and managers',
+                value: t('settings.inbox-rules.hr_and_managers', 'HR and managers'),
               },
             ]}
           />

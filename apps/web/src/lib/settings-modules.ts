@@ -42,9 +42,11 @@ export function settingsModules(
   if (shell.settings.length > 0) {
     modules.push({
       key: 'people',
-      title: 'People',
-      description:
+      title: t('lib.settings-modules.people', 'People'),
+      description: t(
+        'lib.settings-modules.your_employee_records_what_they_hold',
         'Your employee records: what they hold, who can see and change them, and where they go.',
+      ),
       settings: shell.settings.map((place) => ({
         path: place.path,
         label: place.label,
@@ -61,9 +63,11 @@ export function settingsModules(
   if (timeOff.length > 0) {
     modules.push({
       key: 'time-off',
-      title: 'Time off',
-      description:
+      title: t('lib.settings-modules.time_off', 'Time off'),
+      description: t(
+        'lib.settings-modules.leave_types_holidays_and_attendance_how',
         'Leave types, holidays and attendance: how time off is earned, asked for and approved.',
+      ),
       settings: [
         ...timeOff.map((place) => ({
           path: place.path,
@@ -84,13 +88,19 @@ export function settingsModules(
   if (documentsHere) {
     modules.push({
       key: 'documents',
-      title: 'Documents',
-      description: 'Your signature, document types, who sees what, and how long it is kept.',
+      title: t('lib.settings-modules.documents', 'Documents'),
+      description: t(
+        'lib.settings-modules.your_signature_document_types_who_sees',
+        'Your signature, document types, who sees what, and how long it is kept.',
+      ),
       settings: [
         {
           path: '/settings/documents/signature',
-          label: 'Your signature',
-          description: 'The signature your documents are signed with: typed or drawn, kept here.',
+          label: t('lib.settings-modules.your_signature', 'Your signature'),
+          description: t(
+            'lib.settings-modules.the_signature_your_documents_are_signed',
+            'The signature your documents are signed with: typed or drawn, kept here.',
+          ),
           icon: 'edit',
           now: null,
           attention: null,
@@ -113,9 +123,11 @@ export function settingsModules(
   if (recruiting.length > 0) {
     modules.push({
       key: 'recruiting',
-      title: 'Recruiting',
-      description:
+      title: t('lib.settings-modules.recruiting', 'Recruiting'),
+      description: t(
+        'lib.settings-modules.your_careers_page_the_hiring_rules',
         'Your careers page, the hiring rules, pipelines and approvals, scorecards, pay and benefits.',
+      ),
       settings: [
         ...recruiting.map((place) => ({
           path: place.path,
@@ -135,9 +147,11 @@ export function settingsModules(
   if (onboarding.length > 0) {
     modules.push({
       key: 'onboarding',
-      title: 'Onboarding',
-      description:
+      title: t('lib.settings-modules.onboarding', 'Onboarding'),
+      description: t(
+        'lib.settings-modules.who_does_hrs_and_its_onboarding',
         'Who does HR’s and IT’s onboarding tasks, holidays, and the country of a People hire.',
+      ),
       settings: [
         ...onboarding.map((place) => ({
           path: place.path,
@@ -157,9 +171,11 @@ export function settingsModules(
   if (performanceSettings.length > 0) {
     modules.push({
       key: 'performance',
-      title: 'Performance',
-      description:
+      title: t('lib.settings-modules.performance', 'Performance'),
+      description: t(
+        'lib.settings-modules.the_scale_reviews_feedback_goals_learning',
         'The scale, reviews, feedback, goals, learning, calibration, AI and who sees what.',
+      ),
       settings: [
         ...performanceSettings.map((place) => ({
           path: place.path,
@@ -179,14 +195,19 @@ export function settingsModules(
   if (shell.roles.admin || shell.roles.hr) {
     modules.push({
       key: 'activity',
-      title: 'Activity',
-      description: 'Who did what, and when, across every module your company has.',
+      title: t('lib.settings-modules.activity', 'Activity'),
+      description: t(
+        'lib.settings-modules.who_did_what_and_when_across',
+        'Who did what, and when, across every module your company has.',
+      ),
       settings: [
         {
           path: '/settings/activity',
-          label: 'Activity log',
-          description:
+          label: t('lib.settings-modules.activity_log', 'Activity log'),
+          description: t(
+            'lib.settings-modules.settings_changes_imports_and_exports_sensitive',
             'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins, with filters.',
+          ),
           icon: 'history',
           now: null,
           attention: null,
@@ -198,21 +219,30 @@ export function settingsModules(
   // A person's own settings, after the company's: everybody has these.
   modules.push({
     key: 'you',
-    title: 'You',
-    description: 'How the app works for you. Only you see and change these.',
+    title: t('lib.settings-modules.you', 'You'),
+    description: t(
+      'lib.settings-modules.how_the_app_works_for_you',
+      'How the app works for you. Only you see and change these.',
+    ),
     settings: [
       {
         path: '/settings/notifications',
-        label: 'Notifications',
-        description: 'Where your tasks and updates reach you: phone, email, quiet hours.',
+        label: t('lib.settings-modules.notifications', 'Notifications'),
+        description: t(
+          'lib.settings-modules.where_your_tasks_and_updates_reach',
+          'Where your tasks and updates reach you: phone, email, quiet hours.',
+        ),
         icon: 'notifications',
         now: null,
         attention: null,
       },
       {
         path: '/settings/shortcuts',
-        label: 'Keyboard shortcuts',
-        description: 'The keys that take you somewhere, and whether single keys work at all.',
+        label: t('lib.settings-modules.keyboard_shortcuts', 'Keyboard shortcuts'),
+        description: t(
+          'lib.settings-modules.the_keys_that_take_you_somewhere',
+          'The keys that take you somewhere, and whether single keys work at all.',
+        ),
         icon: 'shortcuts',
         now: shortcutsNow,
         attention: null,

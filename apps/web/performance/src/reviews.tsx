@@ -372,16 +372,24 @@ function AboutMe({
                         value:
                           c.manager.released === null ? (
                             c.manager.writing ? (
-                              `${c.manager.by} is writing it`
+                              t('reviews.is_writing_it', '{{by}} is writing it', {
+                                by: c.manager.by,
+                              })
                             ) : (
-                              `Submitted by ${c.manager.by}, not released yet`
+                              t(
+                                'reviews.submitted_not_released',
+                                'Submitted by {{by}}, not released yet',
+                                { by: c.manager.by },
+                              )
                             )
                           ) : (
                             <To
                               href={`/performance/released/${c.manager.id}`}
                               onNavigate={onNavigate}
                             >
-                              {`Read ${c.manager.by}’s review`}
+                              {t('reviews.read_s_review', 'Read {{by}}’s review', {
+                                by: c.manager.by,
+                              })}
                             </To>
                           ),
                       },
@@ -393,13 +401,23 @@ function AboutMe({
                         label: t('reviews.peer_reviews', 'Peer reviews'),
                         value:
                           c.peers.count === 0 ? (
-                            'Not enough responses to share confidentially'
+                            t(
+                              'reviews.not_enough_responses_to_share_confidentially',
+                              'Not enough responses to share confidentially',
+                            )
                           ) : (
                             <To
                               href={`/performance/released/${c.peers.ids[0] ?? ''}`}
                               onNavigate={onNavigate}
                             >
-                              {`${t('reviews.count_reviews', { one: '{{count}} review', other: '{{count}} reviews' }, { count: c.peers.count })}, names hidden`}
+                              {t(
+                                'reviews.count_reviews_names_hidden',
+                                {
+                                  one: '{{count}} review, names hidden',
+                                  other: '{{count}} reviews, names hidden',
+                                },
+                                { count: c.peers.count },
+                              )}
                             </To>
                           ),
                       },
@@ -2453,7 +2471,7 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                           label: t('reviews.manager_review', 'Manager review'),
                           value:
                             data.release.manager === null
-                              ? 'Not submitted'
+                              ? t('reviews.not_submitted', 'Not submitted')
                               : data.release.manager.released === null
                                 ? `Submitted ${day(data.release.manager.at)}`
                                 : `Released ${day(data.release.manager.released)}`,
@@ -2461,8 +2479,17 @@ export function About(props: ScreenProps<AboutData>): JSX.Element {
                         {
                           label: t('reviews.peer_summary', 'Peer summary'),
                           value: data.release.peerSummary
-                            ? `${t('reviews.count_answers', { one: '{{count}} answer', other: '{{count}} answers' }, { count: data.peers })}, no names`
-                            : `Held back: under ${String(data.cycle.minimum)}`,
+                            ? t(
+                                'reviews.count_answers_no_names',
+                                {
+                                  one: '{{count}} answer, no names',
+                                  other: '{{count}} answers, no names',
+                                },
+                                { count: data.peers },
+                              )
+                            : t('reviews.held_back_under', 'Held back: under {{minimum}}', {
+                                minimum: data.cycle.minimum,
+                              }),
                         },
                       ]}
                     />

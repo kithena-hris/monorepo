@@ -215,13 +215,19 @@ const DAY = 86_400_000;
 /** "today", "yesterday", "5 days ago": how long something has waited, in days. */
 export function waited(since: string, now: string): string {
   const days = Math.max(0, Math.floor((Date.parse(now) - Date.parse(since)) / DAY));
-  if (days === 0) return 'today';
-  if (days === 1) return 'yesterday';
+  if (days === 0) return tr('home.people-home.today', 'today');
+  if (days === 1) return tr('home.people-home.yesterday', 'yesterday');
   if (days < 60)
-    return tr('home.people-home.days_ago', '{{days}} days ago', { days: String(days) });
-  return tr('home.people-home.months_ago', '{{floor}} months ago', {
-    floor: String(Math.floor(days / 30)),
-  });
+    return tr(
+      'home.people-home.days_ago_count',
+      { one: '{{count}} day ago', other: '{{count}} days ago' },
+      { count: days },
+    );
+  return tr(
+    'home.people-home.months_ago_count',
+    { one: '{{count}} month ago', other: '{{count}} months ago' },
+    { count: Math.floor(days / 30) },
+  );
 }
 
 /** "2 years, 3 months": whole months from a start date to today, both calendar dates. */
@@ -979,14 +985,18 @@ function HrHome({
         description={[
           unusual(approvals) ??
             (oldest === undefined
-              ? 'Waiting for your decision'
-              : `Oldest asked ${waited(oldest.requestedAt, state.now)}`),
-          askers === null ? null : `asked by ${byWhom(askers)}`,
+              ? tr('home.people-home.waiting_for_your_decision', 'Waiting for your decision')
+              : tr('home.people-home.oldest_asked_when', 'Oldest asked {{when}}', {
+                  when: waited(oldest.requestedAt, state.now),
+                })),
+          askers === null
+            ? null
+            : tr('home.people-home.asked_by', 'asked by {{who}}', { who: byWhom(askers) }),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
         href={review('changes')}
-        word="Review"
+        word={tr('home.people-home.word_review', 'Review')}
         primary
       />,
     );
@@ -1002,15 +1012,21 @@ function HrHome({
           { count: hr.identifiers ?? 0 },
         )}
         description={[
-          'Failed a check, or couldn’t be verified',
-          ((by) => (by === null ? null : `entered by ${byWhom(by)}`))(
+          tr(
+            'home.people-home.failed_a_check_or_couldnt_be',
+            'Failed a check, or couldn’t be verified',
+          ),
+          ((by) =>
+            by === null
+              ? null
+              : tr('home.people-home.entered_by', 'entered by {{who}}', { who: byWhom(by) }))(
             whoOf(hr.identifiersBy ?? []),
           ),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
         href={review('ids')}
-        word="Review"
+        word={tr('home.people-home.word_review', 'Review')}
       />,
     );
   }
@@ -1025,15 +1041,20 @@ function HrHome({
           { count: hr.duplicates ?? 0 },
         )}
         description={[
-          'Same work email, or name and birth date',
+          tr(
+            'home.people-home.same_work_email_or_name_and',
+            'Same work email, or name and birth date',
+          ),
           (hr.duplicatesBy ?? []).length === 0
             ? null
-            : `flagged by ${formatList(hr.duplicatesBy ?? [])}`,
+            : tr('home.people-home.flagged_by', 'flagged by {{who}}', {
+                who: formatList(hr.duplicatesBy ?? []),
+              }),
         ]
           .filter((x) => x !== null)
           .join(' · ')}
         href={review('duplicates')}
-        word="Compare"
+        word={tr('home.people-home.word_compare', 'Compare')}
       />,
     );
   }
@@ -1062,7 +1083,7 @@ function HrHome({
               )
         }
         href={review('access')}
-        word="Decide"
+        word={tr('home.people-home.word_decide', 'Decide')}
       />,
     );
   }
@@ -1084,7 +1105,7 @@ function HrHome({
           'Missing details only HR keeps',
         )}
         href={review('missing')}
-        word="Fill in"
+        word={tr('home.people-home.fill_in', 'Fill in')}
       />,
     );
   }
@@ -1109,7 +1130,7 @@ function HrHome({
           'Reminded by email once a week',
         )}
         href={review('missing')}
-        word="Remind"
+        word={tr('home.people-home.word_remind', 'Remind')}
       />,
     );
   }
@@ -1126,7 +1147,7 @@ function HrHome({
             value={headcount.value.toLocaleString(locale())}
             description={
               headcount.change === null
-                ? 'today'
+                ? tr('home.people-home.today', 'today')
                 : tr('home.people-home.in_12_months', '{{value}}{{change}} in 12 months', {
                     value: headcount.change >= 0 ? '+' : '',
                     change: String(headcount.change),
@@ -1269,7 +1290,7 @@ function HrHome({
                 {tr('home.people-home.your_own_record_is', 'Your own record is')}{' '}
                 <b className="text-fg">
                   {me.missing === null || me.missing === 0
-                    ? 'complete'
+                    ? tr('home.people-home.complete', 'complete')
                     : tr('home.people-home.missing', 'missing {{counted}}', {
                         counted: tr(
                           'home.people-home.count_details',

@@ -542,7 +542,7 @@ function NewItem({
 }): JSX.Element {
   const [title, setTitle] = useState('');
   const [kind, setKind] = useState('course');
-  const [provider, setProvider] = useState('Your company');
+  const [provider, setProvider] = useState(tr('learning.your_company', 'Your company'));
   const [minutes, setMinutes] = useState<number | null>(30);
   const [url, setUrl] = useState('');
   const [ack, setAck] = useState('');

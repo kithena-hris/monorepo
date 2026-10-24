@@ -122,7 +122,9 @@ export type ExportDescribed =
 const FORMATS: readonly { value: ExportFormat; label: string; description: string }[] = [
   {
     value: 'csv',
-    label: 'CSV',
+    get label(): string {
+      return t('export.export-builder.csv', 'CSV');
+    },
     get description(): string {
       return t(
         'export.export-builder.for_another_system_or_to_import',
@@ -195,7 +197,9 @@ export function suggestionsFor(
   if (more !== undefined) {
     out.push({
       id: 'add',
-      label: `Also add ${more.label.toLowerCase()}`,
+      label: t('export.export-builder.also_add', 'Also add {{toLowerCase}}', {
+        toLowerCase: more.label.toLowerCase(),
+      }),
       patch: { fields: [...chosen, more.key].join(',') },
     });
   }
@@ -205,7 +209,7 @@ export function suggestionsFor(
     const kept = chosen.filter((k) => !names.some((n) => n.key === k));
     out.push({
       id: 'mask',
-      label: 'Mask names',
+      label: t('export.export-builder.mask_names', 'Mask names'),
       patch: {
         fields: [...kept, ...(number && !picked.has(number.key) ? [number.key] : [])].join(','),
       },
@@ -213,8 +217,16 @@ export function suggestionsFor(
   }
   out.push(
     format === 'csv'
-      ? { id: 'format', label: 'As Excel', patch: { format: 'xlsx' } }
-      : { id: 'format', label: 'As CSV', patch: { format: 'csv' } },
+      ? {
+          id: 'format',
+          label: t('export.export-builder.as_excel', 'As Excel'),
+          patch: { format: 'xlsx' },
+        }
+      : {
+          id: 'format',
+          label: t('export.export-builder.as_csv', 'As CSV'),
+          patch: { format: 'csv' },
+        },
   );
   return out;
 }

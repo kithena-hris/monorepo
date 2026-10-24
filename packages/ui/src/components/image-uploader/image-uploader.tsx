@@ -303,7 +303,7 @@ export function ImageUploader({
           failed.push({
             file,
             reason: 'count',
-            message: `Only ${String(maxFiles)} ${maxFiles === 1 ? 'image' : 'images'} allowed.`,
+            message: t('components.image-uploader.image-uploader.only_images_allowed', { one: 'Only {{count}} image allowed.', other: 'Only {{count}} images allowed.' }, { count: maxFiles }),
           });
           continue;
         }
@@ -311,9 +311,9 @@ export function ImageUploader({
           failed.push({
             file,
             reason: 'type',
-            message: `${file.name} is ${file.type || 'an unknown type'}. Allowed: ${accept
+            message: t('components.image-uploader.image-uploader.is_allowed', '{{name}} is {{value}}. Allowed: {{join}}.', { name: file.name, value: file.type || t('components.image-uploader.image-uploader.an_unknown_type', 'an unknown type'), join: accept
               .map((type) => type.replace('image/', ''))
-              .join(', ')}.`,
+              .join(', ') }),
           });
           continue;
         }
@@ -321,7 +321,7 @@ export function ImageUploader({
           failed.push({
             file,
             reason: 'size',
-            message: `${file.name} is ${formatBytes(file.size)}. The limit is ${formatBytes(maxSize)}.`,
+            message: t('components.image-uploader.image-uploader.is_the_limit_is', '{{name}} is {{formatBytes}}. The limit is {{formatBytes2}}.', { name: file.name, formatBytes: formatBytes(file.size), formatBytes2: formatBytes(maxSize) }),
           });
           continue;
         }
@@ -350,7 +350,7 @@ export function ImageUploader({
           failed.push({
             file,
             reason: 'dimensions',
-            message: `${file.name} is ${String(size.width)}×${String(size.height)}. The minimum is ${String(minDimensions.width)}×${String(minDimensions.height)}.`,
+            message: t('components.image-uploader.image-uploader.is_the_minimum_is', '{{name}} is {{String}}×{{String2}}. The minimum is {{String3}}×{{String4}}.', { name: file.name, String: String(size.width), String2: String(size.height), String3: String(minDimensions.width), String4: String(minDimensions.height) }),
             ...(keep ? { previewUrl } : {}),
           });
           continue;
@@ -664,15 +664,14 @@ export function ImageUploader({
               </span>
               <p className="text-sm font-semibold text-fg">
                 <span className="text-accent-fg underline underline-offset-3">
-                  {t('components.image-uploader.image-uploader.choose', 'Choose')}{' '}
                   {multiple
-                    ? 'images'
-                    : t('components.image-uploader.image-uploader.an_image', 'an image')}
+                    ? t('components.image-uploader.image-uploader.choose_images', 'Choose images')
+                    : t('components.image-uploader.image-uploader.choose_an_image', 'Choose an image')}
                 </span>{' '}
                 <span>
-                  {t('components.image-uploader.image-uploader.or_drop', 'or drop')}{' '}
-                  {multiple ? 'them' : 'it'}{' '}
-                  {t('components.image-uploader.image-uploader.here', 'here')}
+                  {multiple
+                    ? t('components.image-uploader.image-uploader.or_drop_them_here', 'or drop them here')
+                    : t('components.image-uploader.image-uploader.or_drop_it_here', 'or drop it here')}
                 </span>
               </p>
               <p className="text-xs text-fg-muted">

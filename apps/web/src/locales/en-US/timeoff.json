@@ -4,6 +4,7 @@
   "attendance.exceptions.export_for_the_labour_inspector_as": "Export for the labor inspector as PDF",
   "kiosk.kiosk.not_recognised": "Not recognized",
   "nav./time-off/requests/cancelled.label": "Canceled",
+  "requests.requests.cancelled": "Canceled",
   "requests.requests.nothing_cancelled": "Nothing canceled.",
   "settings.approval-settings.shortening_or_cancelling_time_off": "Shortening or canceling time off",
   "words.cancelled": "Canceled"

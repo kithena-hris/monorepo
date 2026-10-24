@@ -153,7 +153,10 @@ function eventOptions(events: readonly string[]): ComboboxOption[] {
       value: e,
       label: words.charAt(0).toUpperCase() + words.slice(1),
       description: e,
-      group: e.split('.')[1] === 'person' ? 'A person' : 'The company',
+      group:
+        e.split('.')[1] === 'person'
+          ? t('settings.integrations.integrations.a_person', 'A person')
+          : t('settings.integrations.integrations.the_company', 'The company'),
     };
   });
 }
@@ -469,8 +472,18 @@ function Directory({
             ),
             status:
               slack.connection === null
-                ? { tone: 'neutral' as const, text: 'Not connected' }
-                : { tone: 'success' as const, text: `Connected to ${slack.connection.workspace}` },
+                ? {
+                    tone: 'neutral' as const,
+                    text: t('settings.integrations.integrations.not_connected', 'Not connected'),
+                  }
+                : {
+                    tone: 'success' as const,
+                    text: t(
+                      'settings.integrations.integrations.connected_to',
+                      'Connected to {{workspace}}',
+                      { workspace: slack.connection.workspace },
+                    ),
+                  },
             action:
               slack.connection === null
                 ? t('settings.integrations.integrations.connect', 'Connect')
@@ -488,10 +501,20 @@ function Directory({
       ),
       status:
         live.length === 0
-          ? { tone: 'neutral', text: 'None yet' }
+          ? { tone: 'neutral', text: t('settings.integrations.integrations.none_yet', 'None yet') }
           : retrying > 0
-            ? { tone: 'warning', text: `${String(retrying)} retrying` }
-            : { tone: 'success', text: `${String(live.length)} active` },
+            ? {
+                tone: 'warning',
+                text: t('settings.integrations.integrations.retrying_count', '{{String}} retrying', {
+                  String: String(retrying),
+                }),
+              }
+            : {
+                tone: 'success',
+                text: t('settings.integrations.integrations.active', '{{String}} active', {
+                  String: String(live.length),
+                }),
+              },
       action:
         live.length === 0
           ? t('settings.integrations.integrations.add_one', 'Add one')
@@ -509,8 +532,16 @@ function Directory({
             ),
             status:
               scimLive.length === 0
-                ? { tone: 'neutral' as const, text: 'Not connected' }
-                : { tone: 'success' as const, text: `From ${scimLive[0]?.system ?? 'one system'}` },
+                ? {
+                    tone: 'neutral' as const,
+                    text: t('settings.integrations.integrations.not_connected', 'Not connected'),
+                  }
+                : {
+                    tone: 'success' as const,
+                    text: t('settings.integrations.integrations.from', 'From {{value}}', {
+                      value: scimLive[0]?.system ?? 'one system',
+                    }),
+                  },
             action:
               scimLive.length === 0
                 ? t('settings.integrations.integrations.connect', 'Connect')
@@ -905,7 +936,10 @@ function AddEndpoint({
                 <Input
                   type="email"
                   autoComplete="email"
-                  placeholder="it-team@yourcompany.com"
+                  placeholder={t(
+                    'settings.integrations.integrations.it_team_yourcompany_com',
+                    'it-team@yourcompany.com',
+                  )}
                   value={alertEmail}
                   onChange={(e) => {
                     setAlertEmail(e.target.value);

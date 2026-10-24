@@ -84,6 +84,7 @@
   "plan.move_the_tasks": "Przesuń zadania",
   "plan.new_start_date": "Nowa data rozpoczęcia",
   "plan.nobody_yet": "Jeszcze nikt",
+  "plan.not_chosen": "Nie wybrano",
   "plan.not_passed": "Niezaliczony",
   "plan.of_tasks": "Zadania: {{done}} z {{total}}",
   "plan.outcome": "Wynik",

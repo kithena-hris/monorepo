@@ -119,7 +119,13 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                       // Straight into setup: its Basics step names the cycle and sets its start.
                       act.run(
                         'CreatePerformanceCycle',
-                        { input: { name: 'New cycle', start: null, copyFrom: null } },
+                        {
+                          input: {
+                            name: tr('home.new_cycle', 'New cycle'),
+                            start: null,
+                            copyFrom: null,
+                          },
+                        },
                         (d) => {
                           props.onNavigate?.(
                             `/performance/cycles/${(d as { id: string }).id}/setup`,

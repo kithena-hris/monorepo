@@ -1023,6 +1023,10 @@
     "text": "For",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
   },
+  "envelopes.prepare.full_name": {
+    "text": "Full name",
+    "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: a \"name\" value."
+  },
   "envelopes.prepare.initials": {
     "text": "Initials",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, KIND_LABEL: text built in code."
@@ -1103,6 +1107,10 @@
     "text": "Whose box",
     "context": "Documents: files, e-signatures, letters. envelopes/prepare.tsx, WhereTheySign: text inside <FieldLabel>."
   },
+  "envelopes.sign-view.add_your_name": {
+    "text": "Add your name",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, ACT: a \"name\" value."
+  },
   "envelopes.sign-view.adopt_and_sign": {
     "text": "Adopt and sign",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, StepBar: text inside <Button>."
@@ -1126,6 +1134,10 @@
   "envelopes.sign-view.dec": {
     "text": "Dec",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.electronically_signed_via_kithena_on_signature": {
+    "text": "Electronically signed via Kithena on {{when}}\nSignature ID: {{traceId}}",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx: text built in code. Filled in: {{when}}, {{traceId}}."
   },
   "envelopes.sign-view.everybody_has_signed_the_sealed_copy": {
     "text": "Everybody has signed. The sealed copy, with its certificate of completion, is on its way to your email.",
@@ -1170,6 +1182,10 @@
   "envelopes.sign-view.may": {
     "text": "May",
     "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, MONTHS: text built in code."
+  },
+  "envelopes.sign-view.name": {
+    "text": "Name",
+    "context": "Documents: files, e-signatures, letters. envelopes/sign-view.tsx, HINT: a \"name\" value."
   },
   "envelopes.sign-view.next": {
     "text": "Next",
@@ -1614,6 +1630,10 @@
   "library.library.grant": {
     "text": "Grant",
     "context": "Documents: files, e-signatures, letters. library/library.tsx, AccessDecision: text inside <Button>."
+  },
+  "library.library.hi_we_need_your_a_photo": {
+    "text": "Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.",
+    "context": "Documents: files, e-signatures, letters. library/library.tsx, AskDialog: text built in code. Filled in: {{first}}, {{toLowerCase}}."
   },
   "library.library.kithena_is_reading_your_documents": {
     "text": "Kithena is reading your documents",

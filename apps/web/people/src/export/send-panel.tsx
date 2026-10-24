@@ -260,13 +260,22 @@ export function SendPanel({
                     }}
                   >
                     {/* Short enough for one line: the alert above names each field. */}
-                    {t('export.send-panel.download_now_without', 'Download now (without')}{' '}
-                    {gap.fields.length === 1
-                      ? (gap.fields[0]?.label.toLowerCase() ?? 'it')
-                      : t('export.send-panel.fields', '{{length}} fields', {
-                          length: String(gap.fields.length),
-                        })}
-                    )
+                    {gap.fields.length === 1 && gap.fields[0] !== undefined
+                      ? t(
+                          'export.send-panel.download_now_without_field',
+                          'Download now (without {{field}})',
+                          {
+                            field: gap.fields[0].label.toLowerCase(),
+                          },
+                        )
+                      : t(
+                          'export.send-panel.download_now_without_fields',
+                          {
+                            one: 'Download now (without {{count}} field)',
+                            other: 'Download now (without {{count}} fields)',
+                          },
+                          { count: gap.fields.length },
+                        )}
                   </Button>
                 )}
               </>

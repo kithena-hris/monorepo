@@ -839,6 +839,10 @@
     "text": "You",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/chat/chat.tsx, ChatMessage: text built in code."
   },
+  "components.chip.chip.more": {
+    "text": "+{{String}} more",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/chip/chip.tsx, ChipRow: text inside <Chip>. Filled in: {{String}}."
+  },
   "components.chip.chip.remove": {
     "text": "Remove {{name}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/chip/chip.tsx, Chip: text built in code. Filled in: {{name}}."
@@ -883,10 +887,6 @@
     "text": "Skip",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/coach-mark/coach-mark.tsx, CoachMark: text built in code."
   },
-  "components.combobox.combobox.available": {
-    "text": "available",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text inside <p>."
-  },
   "components.combobox.combobox.clear": {
     "text": "Clear {{label}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: the aria-label of <button>. Filled in: {{label}}."
@@ -894,6 +894,14 @@
   "components.combobox.combobox.no_matches": {
     "text": "No matches.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text built in code."
+  },
+  "components.combobox.combobox.options_available_one": {
+    "text": "{{count}} option available",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.combobox.combobox.options_available_other": {
+    "text": "{{count}} options available",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/combobox/combobox.tsx, Combobox: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.combobox.combobox.remove": {
     "text": "Remove {{label}}",
@@ -1103,9 +1111,9 @@
     "text": "Sensitive",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/field/field.tsx, FieldLabel: text inside <Badge>."
   },
-  "components.file-uploader.file-uploader.a_file": {
-    "text": "a file",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  "components.file-uploader.file-uploader.adding_would_exceed_the_total": {
+    "text": "Adding {{displayName}} would exceed the {{formatBytes}} total.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{displayName}}, {{formatBytes}}."
   },
   "components.file-uploader.file-uploader.any_file": {
     "text": "Any file",
@@ -1127,8 +1135,12 @@
     "text": "Cancel {{name}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: the aria-label of <Button>. Filled in: {{name}}."
   },
-  "components.file-uploader.file-uploader.choose": {
-    "text": "Choose",
+  "components.file-uploader.file-uploader.choose_a_file": {
+    "text": "Choose a file",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.choose_files": {
+    "text": "Choose files",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
   },
   "components.file-uploader.file-uploader.files": {
@@ -1143,9 +1155,17 @@
     "text": "{{count}} files added.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
-  "components.file-uploader.file-uploader.here": {
-    "text": "here",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  "components.file-uploader.file-uploader.has_already_been_added": {
+    "text": "{{displayName}} has already been added.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{displayName}}."
+  },
+  "components.file-uploader.file-uploader.is_not_an_accepted_type_allowed": {
+    "text": "{{displayName}} is not an accepted type. Allowed: {{join}}.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{displayName}}, {{join}}."
+  },
+  "components.file-uploader.file-uploader.is_the_limit_is_per_file": {
+    "text": "{{displayName}} is {{formatBytes}}. The limit is {{formatBytes2}} per file.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{displayName}}, {{formatBytes}}, {{formatBytes2}}."
   },
   "components.file-uploader.file-uploader.kb": {
     "text": "{{value}} kB",
@@ -1155,8 +1175,24 @@
     "text": "{{value}} MB",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx: text built in code. Filled in: {{value}}."
   },
-  "components.file-uploader.file-uploader.or_drop": {
-    "text": "or drop",
+  "components.file-uploader.file-uploader.of": {
+    "text": " · {{formatBytes}} of {{formatBytes2}}",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>. Filled in: {{formatBytes}}, {{formatBytes2}}."
+  },
+  "components.file-uploader.file-uploader.only_files_allowed_one": {
+    "text": "Only {{count}} file allowed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.file-uploader.file-uploader.only_files_allowed_other": {
+    "text": "Only {{count}} files allowed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.file-uploader.file-uploader.or_drop_it_here": {
+    "text": "or drop it here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
+  },
+  "components.file-uploader.file-uploader.or_drop_them_here": {
+    "text": "or drop them here",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/file-uploader/file-uploader.tsx, FileUploader: text inside <span>."
   },
   "components.file-uploader.file-uploader.refused": {
@@ -1335,9 +1371,9 @@
     "text": "Add photo",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
   },
-  "components.image-uploader.image-uploader.an_image": {
-    "text": "an image",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  "components.image-uploader.image-uploader.an_unknown_type": {
+    "text": "an unknown type",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"value\" value."
   },
   "components.image-uploader.image-uploader.at_least_size": {
     "text": " · at least {{width}}×{{height}}",
@@ -1351,8 +1387,12 @@
     "text": "Change",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <span>."
   },
-  "components.image-uploader.image-uploader.choose": {
-    "text": "Choose",
+  "components.image-uploader.image-uploader.choose_an_image": {
+    "text": "Choose an image",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.choose_images": {
+    "text": "Choose images",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
   },
   "components.image-uploader.image-uploader.dismiss": {
@@ -1362,10 +1402,6 @@
   "components.image-uploader.image-uploader.dismissed": {
     "text": "{{name}} dismissed.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{name}}."
-  },
-  "components.image-uploader.image-uploader.here": {
-    "text": "here",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
   },
   "components.image-uploader.image-uploader.image": {
     "text": "Image",
@@ -1379,13 +1415,21 @@
     "text": "{{count}} images added. {{length2}} of {{maxFiles}} in total.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text built in code. Filled in: {{count}}, {{length2}}, {{maxFiles}}. Plural: the words for any other {{count}}."
   },
+  "components.image-uploader.image-uploader.is_allowed": {
+    "text": "{{name}} is {{value}}. Allowed: {{join}}.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{name}}, {{value}}, {{join}}."
+  },
   "components.image-uploader.image-uploader.is_not_an_accepted_image_type": {
     "text": "{{name}} is not an accepted image type.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: a \"message\" value. Filled in: {{name}}."
   },
   "components.image-uploader.image-uploader.is_the_limit_is": {
     "text": "{{name}} is {{formatBytes}}. The limit is {{formatBytes2}}.",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, AvatarUploader: a \"message\" value. Filled in: {{name}}, {{formatBytes}}, {{formatBytes2}}."
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{name}}, {{formatBytes}}, {{formatBytes2}}."
+  },
+  "components.image-uploader.image-uploader.is_the_minimum_is": {
+    "text": "{{name}} is {{String}}×{{String2}}. The minimum is {{String3}}×{{String4}}.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{name}}, {{String}}, {{String2}}, {{String3}}, {{String4}}."
   },
   "components.image-uploader.image-uploader.kb": {
     "text": "{{value}} kB",
@@ -1403,8 +1447,20 @@
     "text": "Not an image",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
   },
-  "components.image-uploader.image-uploader.or_drop": {
-    "text": "or drop",
+  "components.image-uploader.image-uploader.only_images_allowed_one": {
+    "text": "Only {{count}} image allowed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.image-uploader.image-uploader.only_images_allowed_other": {
+    "text": "Only {{count}} images allowed.",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.image-uploader.image-uploader.or_drop_it_here": {
+    "text": "or drop it here",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
+  },
+  "components.image-uploader.image-uploader.or_drop_them_here": {
+    "text": "or drop them here",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/image-uploader/image-uploader.tsx, ImageUploader: text inside <span>."
   },
   "components.image-uploader.image-uploader.refused": {
@@ -1659,6 +1715,10 @@
     "text": "Show {{label}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx, MaskedValue: the aria-label of <Button>. Filled in: {{label}}."
   },
+  "components.masked-value.masked-value.value": {
+    "text": "value",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/masked-value/masked-value.tsx, MaskedValue: text built in code."
+  },
   "components.merge-compare.merge-compare.keep": {
     "text": "{{labelText}}: keep {{value}}",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/merge-compare/merge-compare.tsx, MergeCompare: the aria-label of <RadioGroupPrimitive.Item>. Filled in: {{labelText}}, {{value}}."
@@ -1694,6 +1754,14 @@
   "components.nav.grouped-nav.pinned": {
     "text": ", pinned",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <span>."
+  },
+  "components.nav.grouped-nav.results_count_one": {
+    "text": "{{count}} result",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <p>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.nav.grouped-nav.results_count_other": {
+    "text": "{{count}} results",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/nav/grouped-nav.tsx, GroupedNav: text inside <p>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.nav.grouped-nav.results_one": {
     "text": "{{count}} result",
@@ -2170,6 +2238,18 @@
   "components.rich-text.rich-text-editor.add_or_edit_link": {
     "text": "Add or edit link",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx, LinkControls: the aria-label of <button>."
+  },
+  "components.rich-text.rich-text-editor.align_centre": {
+    "text": "Align centre",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx: a \"label\" value."
+  },
+  "components.rich-text.rich-text-editor.align_left": {
+    "text": "Align left",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx: a \"label\" value."
+  },
+  "components.rich-text.rich-text-editor.align_right": {
+    "text": "Align right",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/rich-text/rich-text-editor.tsx: a \"label\" value."
   },
   "components.rich-text.rich-text-editor.apply": {
     "text": "Apply",
@@ -2738,6 +2818,14 @@
   "components.table.data-table.rows_are_sorted_by_a_column": {
     "text": "Rows are sorted by a column, so they cannot be reordered by hand. Clear the sort to drag them.",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <p>."
+  },
+  "components.table.data-table.rows_word_one": {
+    "text": "row",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.table.data-table.rows_word_other": {
+    "text": "rows",
+    "context": "shared interface components (buttons, tables, pickers, dialogs). components/table/data-table.tsx, DataTable: text inside <span>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.table.data-table.select": {
     "text": "Select {{name}}",

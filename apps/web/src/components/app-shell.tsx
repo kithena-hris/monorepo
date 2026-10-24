@@ -1150,7 +1150,7 @@ function SearchPalette({
     ...found.map((p): CommandItem => ({
       id: `person:${p.value}`,
       label: p.label,
-      group: 'People you can see',
+      group: tr('components.app-shell.people_you_can_see', 'People you can see'),
       avatar: <Avatar name={p.label} size="sm" />,
       onSelect: () => {
         router.push(`/people/${p.value}` as Route);

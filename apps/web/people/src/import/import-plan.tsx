@@ -744,13 +744,14 @@ export function DoneStep({ done }: { readonly done: ImportDoneView }): JSX.Eleme
         {(done.held ?? 0) > 0 ? (
           <Alert tone="info">
             {t(
-              'import.import-plan.count_sensitive_values_wait',
-              { one: '{{count}} sensitive value waits', other: '{{count}} sensitive values wait' },
+              'import.import-plan.sensitive_values_wait_for_hr',
+              {
+                one: '{{count}} sensitive value waits for HR’s approval and is not applied until then.',
+                other:
+                  '{{count}} sensitive values wait for HR’s approval and are not applied until then.',
+              },
               { count: done.held ?? 0 },
-            )}{' '}
-            {t('import.import-plan.for_hrs_approval_and', 'for HR’s approval and')}{' '}
-            {done.held === 1 ? 'is' : 'are'}{' '}
-            {t('import.import-plan.not_applied_until_then', 'not applied until then.')}
+            )}
           </Alert>
         ) : null}
         {done.created > 0 ? (

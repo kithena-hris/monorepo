@@ -385,7 +385,11 @@ function Days({
               <TableCell className="font-medium whitespace-nowrap">{shortDate(d.date)}</TableCell>
               <TableCell className={`${deskOnly} tabular-nums`}>{time(first)}</TableCell>
               <TableCell className={`${deskOnly} tabular-nums`}>
-                {d.status === 'open' ? '—' : d.status === 'live' ? 'now' : time(last)}
+                {d.status === 'open'
+                  ? '—'
+                  : d.status === 'live'
+                    ? t('attendance.timesheet.now', 'now')
+                    : time(last)}
               </TableCell>
               <TableCell className={`${deskOnly} tabular-nums`}>
                 {d.breakMinutes > 0 ? duration(d.breakMinutes) : d.status === 'live' ? '—' : ''}

@@ -844,7 +844,11 @@ export function AskDialog({
   const [key, setKey] = useState(typeKey);
   const typeName = types.find((t) => t.key === key)?.name ?? 'document';
   const [message, setMessage] = useState(
-    `Hi ${first}, we need your ${typeName.toLowerCase()}. A photo is fine.`,
+    tr(
+      'library.library.hi_we_need_your_a_photo',
+      'Hi {{first}}, we need your {{toLowerCase}}. A photo is fine.',
+      { first, toLowerCase: typeName.toLowerCase() },
+    ),
   );
   const write = useWrite();
   return (

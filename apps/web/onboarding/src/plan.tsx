@@ -177,7 +177,10 @@ function PlanBody({
             <KeyValues
               items={[
                 { label: tr('plan.manager', 'Manager'), value: data.manager ?? '—' },
-                { label: tr('plan.buddy', 'Buddy'), value: data.buddy ?? 'Not chosen' },
+                {
+                  label: tr('plan.buddy', 'Buddy'),
+                  value: data.buddy ?? tr('plan.not_chosen', 'Not chosen'),
+                },
                 {
                   label: tr('plan.probation', 'Probation'),
                   value: p.probationEnd === null ? 'None' : `Ends ${day(p.probationEnd)}`,

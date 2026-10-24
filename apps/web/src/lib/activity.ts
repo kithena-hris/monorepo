@@ -70,7 +70,12 @@ export const AREAS = [
       return t('lib.activity.reads_and_exports', 'Reads and exports');
     },
   },
-  { value: 'ai', label: 'AI' },
+  {
+    value: 'ai',
+    get label(): string {
+      return t('lib.activity.ai', 'AI');
+    },
+  },
 ] as const;
 export type Area = (typeof AREAS)[number]['value'];
 

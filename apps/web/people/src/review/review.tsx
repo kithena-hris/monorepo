@@ -409,7 +409,7 @@ const accessRow = (r: FullValuesRequest): Row => ({
 const shareRow = (share: ShareRequest): Row => ({
   id: `export-${share.id}`,
   kind: 'exports',
-  name: share.requestedBy.name ?? 'A colleague',
+  name: share.requestedBy.name ?? t('review.review.a_colleague_name', 'A colleague'),
   avatarUrl: share.requestedBy.avatarUrl ?? null,
   // "Export to Nora Becker · 6 people" (E5); an older request, uncounted, says why instead.
   summary: t('review.review.export_to', 'Export to {{value}} · {{value2}}', {
@@ -1371,7 +1371,9 @@ function ExportDetail({
           {
             label: t('review.review.who', 'Who'),
             value: [
-              (share.audience ?? 'Everybody you can see').replace(/\byou\b/u, firstName(asker)),
+              (
+                share.audience ?? t('review.review.everybody_you_can_see', 'Everybody you can see')
+              ).replace(/\byou\b/u, firstName(asker)),
               share.people == null ? null : peopleCount(share.people),
             ]
               .filter((x) => x !== null)
@@ -1380,7 +1382,10 @@ function ExportDetail({
           { label: t('review.review.fields', 'Fields'), value: listed(share.fields) },
           {
             label: t('review.review.as_of', 'As of'),
-            value: share.asOf === null ? 'The day it is sent' : spokenDate(share.asOf),
+            value:
+              share.asOf === null
+                ? t('review.review.the_day_it_is_sent', 'The day it is sent')
+                : spokenDate(share.asOf),
           },
           { label: t('review.review.format', 'Format'), value: FORMAT_LABEL[share.format] },
           { label: t('review.review.reason', 'Reason'), value: `“${share.reason}”` },
@@ -1543,7 +1548,7 @@ function decisionsOf(state: ReviewState): Decision[] {
 
 // At module scope, so the table keeps one set of columns and redraws a row
 // only when its decision changes, not every time a page lands.
-const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
+const DECIDED_COLUMNS = (): readonly DataColumn<Decision>[] => [
   {
     id: 'person',
     get header(): string {
@@ -1580,7 +1585,7 @@ const DECIDED_COLUMNS: readonly DataColumn<Decision>[] = [
     get header(): string {
       return t('review.review.by', 'By');
     },
-    shortHeader: 'By',
+    shortHeader: t('review.review.by', 'By'),
     cell: (d) => d.by,
   },
   {
@@ -1674,7 +1679,7 @@ function Decided({
             fill
             {...(pages.loadMore === undefined ? {} : { onEndReached: pages.loadMore })}
             loadingMore={pages.loading}
-            columns={DECIDED_COLUMNS}
+            columns={DECIDED_COLUMNS()}
           />
         </PageSection>
       )}

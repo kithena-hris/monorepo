@@ -165,7 +165,11 @@ export function traceCaption(traceId: string, at: Date): string {
       pad2: pad(at.getUTCMinutes()),
     },
   );
-  return `Electronically signed via Kithena on ${when}\nSignature ID: ${traceId}`;
+  return t(
+    'envelopes.sign-view.electronically_signed_via_kithena_on_signature',
+    'Electronically signed via Kithena on {{when}}\nSignature ID: {{traceId}}',
+    { when, traceId },
+  );
 }
 
 /**
@@ -283,7 +287,7 @@ export function useSigning(
 }
 
 /** What pressing the focused box does, said on the bar's main button. */
-const ACT: Readonly<Record<FieldKind, string>> = {
+const ACT = (): Readonly<Record<FieldKind, string>> => ({
   get signature(): string {
     return t('envelopes.sign-view.sign', 'Sign');
   },
@@ -293,7 +297,7 @@ const ACT: Readonly<Record<FieldKind, string>> = {
   get date(): string {
     return t('envelopes.sign-view.sign_and_date', 'Sign and date');
   },
-  name: 'Add your name',
+  name: t('envelopes.sign-view.add_your_name', 'Add your name'),
   get title(): string {
     return t('envelopes.sign-view.type_it', 'Type it');
   },
@@ -303,7 +307,7 @@ const ACT: Readonly<Record<FieldKind, string>> = {
   get checkbox(): string {
     return t('envelopes.sign-view.tick', 'Tick');
   },
-};
+});
 
 export function DocumentToSign({
   env,
@@ -415,7 +419,7 @@ export function DocumentToSign({
                   hint:
                     signing === null
                       ? (env.signers.find((s) => s.id === f.signerId)?.name ?? '')
-                      : HINT[f.kind],
+                      : HINT()[f.kind],
                   done,
                   // Printed the moment it is filled, as the sealed file prints it.
                   ...(live === null || !done
@@ -620,7 +624,7 @@ function StepBar({
         >
           {SIGNED.has(focused.kind) && mark === null
             ? t('envelopes.sign-view.adopt_and_sign', 'Adopt and sign')
-            : ACT[focused.kind]}
+            : ACT()[focused.kind]}
         </Button>
       </PinnedBar>
     );
@@ -642,7 +646,7 @@ function StepBar({
   );
 }
 
-const HINT: Readonly<Record<FieldKind, string>> = {
+const HINT = (): Readonly<Record<FieldKind, string>> => ({
   get signature(): string {
     return t('envelopes.sign-view.sign', 'Sign');
   },
@@ -652,7 +656,7 @@ const HINT: Readonly<Record<FieldKind, string>> = {
   get date(): string {
     return t('envelopes.sign-view.sign_and_date', 'Sign and date');
   },
-  name: 'Name',
+  name: t('envelopes.sign-view.name', 'Name'),
   get title(): string {
     return t('envelopes.sign-view.title', 'Title');
   },
@@ -660,7 +664,7 @@ const HINT: Readonly<Record<FieldKind, string>> = {
     return t('envelopes.sign-view.text_3', 'Text');
   },
   checkbox: '',
-};
+});
 
 /** K5: Reach's adopt dialog, where adopting also signs the box that asked. */
 export function AdoptDialog({
@@ -678,7 +682,7 @@ export function AdoptDialog({
     <AdoptSignatureDialog
       open={open}
       name={name}
-      action="Adopt and sign"
+      action={t('envelopes.sign-view.adopt_and_sign', 'Adopt and sign')}
       onOpenChange={onOpenChange}
       onAdopt={onAdopt}
     />

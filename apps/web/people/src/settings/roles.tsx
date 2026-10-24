@@ -101,7 +101,9 @@ const ROLES: readonly {
   },
   {
     role: 'hr',
-    label: 'HR',
+    get label(): string {
+      return t('settings.roles.hr', 'HR');
+    },
     get means(): string {
       return t(
         'settings.roles.sees_and_corrects_everybodys_record',
@@ -192,7 +194,7 @@ function Roles({
               <div className="flex min-w-0 flex-col">
                 <span className="font-medium">
                   {who}
-                  {me ? ' (you)' : ''}
+                  {me ? t('settings.roles.you', ' (you)') : ''}
                 </span>
                 {person.name !== null && person.workEmail !== null ? (
                   <span className="text-fg-muted text-sm">{person.workEmail}</span>

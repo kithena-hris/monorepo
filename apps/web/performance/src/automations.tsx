@@ -340,7 +340,7 @@ function AutomationDialog({
   const [step, setStep] = useState(0);
   const [a, setA] = useState<AutomationBody>(
     start ?? {
-      name: 'Probation reviews',
+      name: tr('automations.probation_reviews', 'Probation reviews'),
       trigger: {
         kind: 'event',
         event: 'hired',

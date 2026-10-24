@@ -865,7 +865,11 @@ function Record({
                     {t('profile.profile.complete_3', '% complete')}
                     {gaps.length === 0
                       ? ''
-                      : ` · ${String(gaps.length)} ${gaps.length === 1 ? 'detail' : 'details'} left`}
+                      : t(
+                          'profile.profile.details_left',
+                          { one: ' · {{count}} detail left', other: ' · {{count}} details left' },
+                          { count: gaps.length },
+                        )}
                   </p>
                 </div>
               </Card>
@@ -1000,11 +1004,17 @@ function Record({
                           'Sent to HR for approval',
                         )}
                       >
-                        {formatList(held[section.key] ?? [])}{' '}
-                        {(held[section.key] ?? []).length === 1 ? 'is' : 'are'}{' '}
                         {t(
-                          'profile.profile.not_changed_until_hr_approves_the',
-                          'not changed until HR approves; the record keeps what it had until then.',
+                          'profile.profile.held_until_hr_approves',
+                          {
+                            one: '{{fields}} is not changed until HR approves; the record keeps what it had until then.',
+                            other:
+                              '{{fields}} are not changed until HR approves; the record keeps what it had until then.',
+                          },
+                          {
+                            count: (held[section.key] ?? []).length,
+                            fields: formatList(held[section.key] ?? []),
+                          },
                         )}
                       </Alert>
                     )}

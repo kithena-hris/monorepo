@@ -151,10 +151,14 @@ function Runs({
                   <span className="font-medium">{run.period}</span>
                   {run.missed > 0 ? (
                     <span className="text-fg-muted text-sm">
-                      {t('reports.report-runs.covers_earlier', 'Covers {{missed}} earlier', {
-                        missed: String(run.missed),
-                      })}{' '}
-                      {run.missed === 1 ? 'period' : 'periods'}
+                      {t(
+                        'reports.report-runs.covers_earlier_periods',
+                        {
+                          one: 'Covers {{count}} earlier period',
+                          other: 'Covers {{count}} earlier periods',
+                        },
+                        { count: run.missed },
+                      )}
                     </span>
                   ) : null}
                   <ul

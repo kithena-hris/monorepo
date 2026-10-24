@@ -82,6 +82,7 @@
   "plan.move_the_tasks": "பணிகளை நகர்த்தவும்",
   "plan.new_start_date": "புதிய தொடக்கத் தேதி",
   "plan.nobody_yet": "இன்னும் யாரும் இல்லை",
+  "plan.not_chosen": "தேர்ந்தெடுக்கப்படவில்லை",
   "plan.not_passed": "தேர்ச்சி பெறவில்லை",
   "plan.of_tasks": "{{total}} பணிகளில் {{done}}",
   "plan.outcome": "முடிவு",
