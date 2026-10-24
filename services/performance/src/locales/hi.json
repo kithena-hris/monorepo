@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "नमस्ते {{name}}, आपको {{name2}} में समीक्षाएँ लिखनी हैं। जारी रखने के लिए Kithena खोलें।",
+  "email.cycles.reminder": "याद दिलाना: {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} ने आपका फ़ीडबैक माँगा है",
+  "email.feedback.on": " {{topic}} पर",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} आपका फ़ीडबैक चाहते हैं{{value}}। Kithena में प्रदर्शन › फ़ीडबैक के अंतर्गत जवाब दें।",
+  "email.launch.due_a_review_in": "{{due}} तक: {{name}} में एक समीक्षा",
+  "email.launch.hi_has_started_your_reviews_are": "नमस्ते {{name}}, {{name2}} शुरू हो गया है। आपकी समीक्षाएँ Kithena में प्रदर्शन › मेरी समीक्षाएँ के अंतर्गत हैं।",
+  "email.launch.hi_your_review_about_in_is": "नमस्ते {{name}}, {{name3}} में {{name2}} के बारे में आपकी समीक्षा {{due}} तक देनी है।",
+  "email.launch.overdue_a_review_in": "देर हो चुकी है: {{name}} में एक समीक्षा",
+  "email.launch.you_have_reviews_to_write": "आपको समीक्षाएँ लिखनी हैं: {{name}}",
+  "email.learning.cancelled": "रद्द",
+  "email.learning.invitation": "न्योता",
+  "email.learning.on_utc_is_cancelled": "{{when}} (UTC) का {{title}} रद्द कर दिया गया है।",
+  "email.learning.you_are_invited_to_on_utc": "आपको {{when}} (UTC) को {{title}} में आमंत्रित किया गया है{{value}}। आपके कैलेंडर के लिए न्योता संलग्न है।",
+  "email.manager-change.a_cycle": "एक साइकिल",
+  "email.manager-change.draft_stays": "आपका ड्राफ़्ट Kithena में रहता है, ताकि आप उसे हटाने तक पढ़ सकें।",
+  "email.manager-change.no_longer_reports_to_you": "नमस्ते {{name}}, {{who}} अब आपको रिपोर्ट नहीं करते, इसलिए {{where}} में आप उनके मैनेजर समीक्षक नहीं हैं और आपको इसे जमा नहीं करना है।",
+  "email.manager-change.reports_to_someone_else_now": "नमस्ते {{name}}, {{who}} अब {{to}} को रिपोर्ट करते हैं, इसलिए {{where}} में आप उनके मैनेजर समीक्षक नहीं हैं और आपको इसे जमा नहीं करना है।",
+  "email.manager-change.reports_to_you_now": "नमस्ते {{name}}, {{who}} अब आपको रिपोर्ट करते हैं, इसलिए {{where}} में उनकी मैनेजर समीक्षा आपको लिखनी है। शुरू करने के लिए Kithena खोलें।",
+  "email.manager-change.someone": "कोई",
+  "email.manager-change.you_no_longer_write": "अब आप {{who}} की मैनेजर समीक्षा नहीं लिखेंगे",
+  "email.manager-change.you_write_their_review": "आप {{who}} की मैनेजर समीक्षा लिखेंगे",
+  "email.reviews.about": "{{name}} के बारे में {{title}}: “{{reason}}”",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} एक समीक्षा अनलॉक करने को कह रहे हैं",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "{{name}} के सहकर्मी समीक्षक आपका इंतज़ार कर रहे हैं"
+}
