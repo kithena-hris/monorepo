@@ -1,4 +1,5 @@
 import {
+  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -406,6 +407,193 @@ function OfferCard({
           ? tr('candidate.make_an_offer', 'Make an offer')
           : tr('candidate.open_the_offer', 'Open the offer')}
       </Button>
+    </Card>
+  );
+}
+
+/**
+ * The contract stage: the accepted offer becomes a contract. The card opens
+ * it, where Kithena drafts it from the offer and the law of the employing
+ * entity, HR checks every fact, and sends it to sign.
+ */
+function ContractCard({
+  name,
+  onOpen,
+}: {
+  readonly name: string;
+  readonly onOpen: () => void;
+}): JSX.Element {
+  return (
+    <Card padded className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <IconTile tone="accent">
+          <icons.document aria-hidden />
+        </IconTile>
+        <div className="min-w-0">
+          <p className="font-semibold">
+            {tr('candidate.prepare_the_contract_title', 'Prepare the contract')}
+          </p>
+          <p className="text-sm text-fg-muted">
+            {tr(
+              'candidate.prepare_the_contract_hint',
+              '{{name}} accepted the offer. Kithena drafts the contract from it and the law of the employing entity; you check every fact and send it to {{name}} to sign.',
+              { name },
+            )}
+          </p>
+        </div>
+      </div>
+      <Button onClick={onOpen} startIcon={<icons.document aria-hidden />}>
+        {tr('candidate.prepare_the_contract', 'Prepare the contract')}
+      </Button>
+    </Card>
+  );
+}
+
+interface HireAccount {
+  readonly personId: string;
+  readonly status: string;
+  readonly state: 'not_invited' | 'scheduled' | 'invited' | 'signed_up';
+  readonly sendOn: string | null;
+  readonly sentAt: string | null;
+}
+
+/**
+ * Hired: the invitation to set up an account at the company, now or on a
+ * day. People holds the hire from the signature on, and the sign-up page has
+ * their details filled in from it; signing up makes them an employee who is
+ * onboarding until the first day. Hidden where the company has no People.
+ */
+function AccountCard({
+  name,
+  email,
+  props,
+}: {
+  readonly name: string;
+  readonly email: string;
+  readonly props: ScreenProps<CandidateData>;
+}): JSX.Element | null {
+  const act = useAct(props);
+  const [account, setAccount] = useState<HireAccount | null | 'loading' | 'absent'>('loading');
+  const [sendOn, setSendOn] = useState<string | null>(null);
+  const load = (): void => {
+    void act.call('HireAccount', { email }).then((done) => {
+      setAccount(done.ok ? ((done.data as HireAccount | null) ?? null) : 'absent');
+    });
+  };
+  useEffect(load, [email]);
+  if (account === 'absent') return null;
+  const invite = (on: string | null): void => {
+    act.run(
+      'InviteHire',
+      { personId: account === 'loading' || account === null ? '' : account.personId, sendOn: on },
+      (made) => {
+        setAccount(made as HireAccount);
+        setSendOn(null);
+      },
+    );
+  };
+  const said =
+    account === 'loading'
+      ? tr('candidate.account_loading', 'Looking up {{name}}’s account…', { name })
+      : account === null
+        ? tr(
+            'candidate.account_no_record_yet',
+            '{{name}}’s record in People is being made from the signed contract. It is here in a moment.',
+            { name },
+          )
+        : account.state === 'signed_up'
+          ? tr(
+              'candidate.account_signed_up',
+              '{{name}} signed up and is an employee, onboarding until their first day.',
+              { name },
+            )
+          : account.state === 'invited'
+            ? tr(
+                'candidate.account_invited',
+                'Invitation sent on {{date}}. {{name}} confirms the details already filled in, adds what is missing, and signs up.',
+                { name, date: day((account.sentAt ?? '').slice(0, 10)) },
+              )
+            : account.state === 'scheduled'
+              ? tr('candidate.account_scheduled', 'The invitation goes to {{name}} on {{date}}.', {
+                  name,
+                  date: day(account.sendOn ?? ''),
+                })
+              : tr(
+                  'candidate.account_not_invited',
+                  'Invite {{name}} to set up their account at the company, now or on a day you choose. The sign-up page has their details filled in from the contract.',
+                  { name },
+                );
+  const live = account !== 'loading' && account !== null && account.state !== 'signed_up';
+  return (
+    <Card padded className="flex flex-col gap-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <IconTile
+          tone={account !== 'loading' && account?.state === 'signed_up' ? 'success' : 'accent'}
+        >
+          <icons.people aria-hidden />
+        </IconTile>
+        <div className="min-w-0">
+          <p className="font-semibold">{tr('candidate.account_title', 'Account at the company')}</p>
+          <p className="text-sm text-fg-muted">{said}</p>
+        </div>
+        {account !== 'loading' && account !== null ? (
+          <StateBadge
+            state={
+              account.state === 'signed_up'
+                ? 'approved'
+                : account.state === 'not_invited'
+                  ? 'draft'
+                  : 'pending_approval'
+            }
+            label={
+              account.state === 'signed_up'
+                ? tr('candidate.account_state_onboarding', 'Onboarding')
+                : account.state === 'invited'
+                  ? tr('candidate.account_state_invited', 'Invited')
+                  : account.state === 'scheduled'
+                    ? tr('candidate.account_state_scheduled', 'Scheduled')
+                    : tr('candidate.account_state_not_invited', 'Not invited')
+            }
+          />
+        ) : null}
+      </div>
+      <Refusal error={act.error} />
+      {live ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <Button
+            loading={act.pending}
+            startIcon={<icons.email aria-hidden />}
+            onClick={() => {
+              invite(null);
+            }}
+          >
+            {account.state === 'invited'
+              ? tr('candidate.send_invitation_again', 'Send it again')
+              : tr('candidate.send_invitation_now', 'Send the invitation now')}
+          </Button>
+          {account.state === 'invited' ? null : (
+            <>
+              <DatePicker
+                label={tr('candidate.or_send_it_on', 'Or send it on')}
+                value={sendOn ?? account.sendOn}
+                onChange={(d) => {
+                  setSendOn(d);
+                }}
+              />
+              <Button
+                variant="secondary"
+                disabled={sendOn === null}
+                loading={act.pending}
+                onClick={() => {
+                  invite(sendOn);
+                }}
+              >
+                {tr('candidate.schedule_invitation', 'Schedule')}
+              </Button>
+            </>
+          )}
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -956,6 +1144,27 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       ) : null}
                     </div>
                   </Card>
+                  {chosen.may.includes('offer.edit') &&
+                  stage?.category === 'contract' &&
+                  chosen.offers.some((o) => o.state === 'accepted') ? (
+                    <ContractCard
+                      name={data.candidate.name}
+                      onOpen={() => {
+                        const accepted = chosen.offers.find((o) => o.state === 'accepted');
+                        if (accepted !== undefined)
+                          props.onNavigate?.(`/recruiting/offers/${accepted.id}/contract`);
+                      }}
+                    />
+                  ) : null}
+                  {chosen.may.includes('offer.edit') &&
+                  chosen.outcome === 'hired' &&
+                  data.candidate.email !== undefined ? (
+                    <AccountCard
+                      name={data.candidate.name}
+                      email={data.candidate.email}
+                      props={props}
+                    />
+                  ) : null}
                   {chosen.may.includes('offer.edit') &&
                   (stage?.category === 'offer' ||
                     stage?.category === 'hired' ||

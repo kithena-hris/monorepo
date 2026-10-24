@@ -838,6 +838,16 @@ export const OPERATIONS = {
     createPerson(attributes: $attributes, hireDate: $hireDate, idempotencyKey: $key) { id }
   }`,
 
+  /** Where a hire stands with their account, by work email (the hire's card in Recruiting) */
+  PersonInvitation: `query PersonInvitation($email: String!) {
+    personInvitation(email: $email) { personId status state sendOn sentAt }
+  }`,
+
+  /** Invite a hire to the company now, or on sendOn */
+  InvitePerson: `mutation InvitePerson($personId: ID!, $sendOn: String, $key: String!) {
+    invitePerson(personId: $personId, sendOn: $sendOn, idempotencyKey: $key) { personId status state sendOn sentAt }
+  }`,
+
   DiscardPerson: `mutation DiscardPerson($personId: ID!, $key: String!) {
     discardPerson(personId: $personId, idempotencyKey: $key) { id }
   }`,

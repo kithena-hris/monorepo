@@ -117,6 +117,9 @@ const STATUS: Record<string, string> = {
   get pre_hire(): string {
     return t('profile.employment.starting_soon', 'Starting soon');
   },
+  get onboarding(): string {
+    return t('profile.employment.onboarding', 'Onboarding');
+  },
   get active(): string {
     return t('profile.employment.active', 'Active');
   },
@@ -174,6 +177,7 @@ export function dayAfter(day: string): string {
 const OFFERED: Record<string, readonly Asking[]> = {
   provisional: ['hire', 'discard'],
   pre_hire: ['terminate'],
+  onboarding: ['terminate'],
   active: ['giveNotice', 'startLeave', 'terminate'],
   on_leave: ['endLeave', 'giveNotice', 'terminate'],
   notice: ['withdrawNotice', 'terminate'],

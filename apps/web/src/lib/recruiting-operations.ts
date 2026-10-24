@@ -245,6 +245,8 @@ export const OPERATIONS = {
   SendOffer: write('SendOffer', 'sendOffer', ...ID('offerId'), false),
   WithdrawOffer: write('WithdrawOffer', 'withdrawOffer', ...ID('offerId'), false),
   UploadSignedContract: write('UploadSignedContract', 'uploadSignedContract', ...ID('offerId')),
+  /** The contract drafted from the accepted offer and the law of the entity's country */
+  DraftContract: write('DraftContract', 'draftContract', ...ID('offerId'), false),
   /** The shell filed the contract in Documents and sent it (PRD §21.2): Recruiting marks it out for signature. */
   ContractSent: write('ContractSent', 'contractSent', ...ID('offerId'), false),
   DecideCondition: write('DecideCondition', 'decideCondition', ...two('applicationId', 'kind')),

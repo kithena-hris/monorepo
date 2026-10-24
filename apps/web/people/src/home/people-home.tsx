@@ -295,6 +295,12 @@ const STATUS: Readonly<
     },
     tone: 'info',
   },
+  onboarding: {
+    get label(): string {
+      return tr('home.people-home.onboarding', 'Onboarding');
+    },
+    tone: 'info',
+  },
   provisional: {
     get label(): string {
       return tr('home.people-home.not_hired_yet', 'Not hired yet');

@@ -473,6 +473,12 @@ export const STATUS_VALUES: readonly Choice[] = [
     },
   },
   {
+    value: 'onboarding',
+    get label(): string {
+      return t('people.settings.fields-model.onboarding', 'Onboarding');
+    },
+  },
+  {
     value: 'active',
     get label(): string {
       return t('people.settings.fields-model.active', 'Active');

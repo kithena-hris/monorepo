@@ -167,6 +167,7 @@ interface ProfileData {
 const STATUS = (): Record<string, string> => ({
   provisional: t('people.profile.provisional', 'Provisional'),
   pre_hire: t('people.profile.starting_soon', 'Starting soon'),
+  onboarding: t('people.profile.onboarding', 'Onboarding'),
   active: t('people.profile.active', 'Active'),
   on_leave: t('people.profile.on_leave', 'On leave'),
   notice: t('people.profile.on_notice', 'On notice'),

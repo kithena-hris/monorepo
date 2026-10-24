@@ -56,6 +56,7 @@ export type MoveKind =
 const OFFERED: Record<string, readonly MoveKind[]> = {
   provisional: ['hire', 'discard'],
   pre_hire: ['terminate'],
+  onboarding: ['terminate'],
   active: ['giveNotice', 'startLeave', 'terminate'],
   on_leave: ['endLeave', 'giveNotice', 'terminate'],
   notice: ['withdrawNotice', 'terminate'],

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation InvitePerson($personId: ID!, $sendOn: String, $key: String!) {\n    invitePerson(personId: $personId, sendOn: $sendOn, idempotencyKey: $key) { personId status state sendOn sentAt }\n  }"}
