@@ -1,1 +1,12 @@
-{}
+{
+  "email.nudge.a_few_days_away": "Alguns dias de folga rendem mais do que parece.",
+  "email.nudge.bridge": "Se tirar {{day}}, fica com 4 dias de folga com {{holiday}}.",
+  "email.nudge.days_left_many": "Restam-lhe {{count}} dias este ano.",
+  "email.nudge.days_left_one": "Resta-lhe {{count}} dia este ano.",
+  "email.nudge.days_left_other": "Restam-lhe {{count}} dias este ano.",
+  "email.nudge.heading": "{{name}}, não tira um dia de folga desde {{month}}",
+  "email.nudge.private": "Mais ninguém vê esta mensagem.",
+  "email.nudge.would_be_lost_many": "{{count}} perdem-se a {{date}} se continuarem por marcar.",
+  "email.nudge.would_be_lost_one": "{{count}} perde-se a {{date}} se continuar por marcar.",
+  "email.nudge.would_be_lost_other": "{{count}} perdem-se a {{date}} se continuarem por marcar."
+}

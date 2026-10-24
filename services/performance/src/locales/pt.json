@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "Olá, {{name}}: tem avaliações para escrever em {{name2}}. Abra o Kithena para continuar.",
+  "email.cycles.reminder": "Lembrete: {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} pediu a sua opinião",
+  "email.feedback.on": " sobre {{topic}}",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} gostaria da sua opinião{{value}}. Responda no Kithena, em Desempenho › Feedback.",
+  "email.launch.due_a_review_in": "Prazo {{due}}: uma avaliação em {{name}}",
+  "email.launch.hi_has_started_your_reviews_are": "Olá, {{name}}: {{name2}} começou. As suas avaliações estão no Kithena, em Desempenho › As minhas avaliações.",
+  "email.launch.hi_your_review_about_in_is": "Olá, {{name}}: a sua avaliação sobre {{name2}} em {{name3}} tem prazo a {{due}}.",
+  "email.launch.overdue_a_review_in": "Em atraso: uma avaliação em {{name}}",
+  "email.launch.you_have_reviews_to_write": "Tem avaliações para escrever: {{name}}",
+  "email.learning.cancelled": "Cancelado",
+  "email.learning.invitation": "Convite",
+  "email.learning.on_utc_is_cancelled": "{{title}} de {{when}} (UTC) foi cancelado.",
+  "email.learning.you_are_invited_to_on_utc": "Está convidado para {{title}} a {{when}} (UTC){{value}}. O convite segue em anexo para o seu calendário.",
+  "email.manager-change.a_cycle": "um ciclo",
+  "email.manager-change.draft_stays": "O seu rascunho fica no Kithena para o ler até o eliminar.",
+  "email.manager-change.no_longer_reports_to_you": "Olá, {{name}}: {{who}} já não reporta a si, pelo que deixou de ser chefia avaliadora dessa pessoa em {{where}} e não tem de enviar a avaliação.",
+  "email.manager-change.reports_to_someone_else_now": "Olá, {{name}}: {{who}} reporta agora a {{to}}, pelo que deixou de ser chefia avaliadora dessa pessoa em {{where}} e não tem de enviar a avaliação.",
+  "email.manager-change.reports_to_you_now": "Olá, {{name}}: {{who}} reporta agora a si, pelo que a avaliação da chefia em {{where}} passa a ser sua. Abra o Kithena para a começar.",
+  "email.manager-change.someone": "Alguém",
+  "email.manager-change.you_no_longer_write": "Deixou de escrever a avaliação da chefia de {{who}}",
+  "email.manager-change.you_write_their_review": "Passa a escrever a avaliação da chefia de {{who}}",
+  "email.reviews.about": "{{title}} sobre {{name}}: «{{reason}}»",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} pede para desbloquear uma avaliação",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Os avaliadores pares de {{name}} aguardam por si"
+}
