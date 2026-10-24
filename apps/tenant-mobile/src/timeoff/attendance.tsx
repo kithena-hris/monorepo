@@ -1181,7 +1181,7 @@ function qrPath(text: string): { path: string; size: number } {
       }
       const start = x;
       while (row[x] === true) x++;
-      path += `M${start} ${y}h${x - start}v1h-${x - start}z`;
+      path += `M${String(start)} ${String(y)}h${String(x - start)}v1h-${String(x - start)}z`;
     }
   });
   return { path, size };
