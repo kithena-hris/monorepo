@@ -1243,7 +1243,7 @@ function ExportDetail({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  const asker = share.requestedBy.name ?? t('review.review.a_colleague', 'A colleague');
+  const asker = share.requestedBy.name ?? t('review.review.a_colleague_2', 'A colleague');
   const them = firstName(share.recipient.name);
   const decided = share.state !== 'pending';
   const decide = (approve: boolean): void => {

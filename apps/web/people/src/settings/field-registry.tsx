@@ -1178,7 +1178,7 @@ function Asked({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel>
-          {t('settings.field-registry.asked_at_sign_up', 'Asked at sign-up')}
+          {t('settings.field-registry.asked_at_sign_up_2', 'Asked at sign-up')}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={now}

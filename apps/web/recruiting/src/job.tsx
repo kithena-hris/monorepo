@@ -1996,7 +1996,7 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
   const focus = part === undefined && asked !== null && isSetupPart(asked) ? asked : null;
   const edit = (next: string | null) => props.onFilter?.({ edit: next });
   return (
-    <Loaded load={props.load} what={tr('job.the_job', 'the job')}>
+    <Loaded load={props.load} what={tr('job.the_job_2', 'the job')}>
       {(data) => {
         const ad = data.ads[0];
         const live = data.targets.some((t) => t.target === 'kithena_jobs' && t.state === 'live');

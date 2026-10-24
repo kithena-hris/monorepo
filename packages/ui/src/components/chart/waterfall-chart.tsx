@@ -250,7 +250,7 @@ export function WaterfallChart({
               <th scope="col">{t('components.chart.waterfall-chart.step', 'Step')}</th>
               <th scope="col">{t('components.chart.waterfall-chart.change', 'Change')}</th>
               <th scope="col">
-                {t('components.chart.waterfall-chart.running_total', 'Running total')}
+                {t('components.chart.waterfall-chart.running_total_2', 'Running total')}
               </th>
             </tr>
           </thead>

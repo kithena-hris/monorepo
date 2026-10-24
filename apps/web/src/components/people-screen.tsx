@@ -1513,7 +1513,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
               return {
                 ok: false,
                 message: t(
-                  'components.people-screen.the_upload_did_not_go_through_try',
+                  'components.people-screen.the_upload_did_not_go_through_try_the_upload_did_not_go_through',
                   'The upload did not go through; try again',
                 ),
               };

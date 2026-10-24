@@ -672,7 +672,7 @@ export function AppShell({
             sidebarHeader={
               <Link
                 href="/"
-                aria-label={tr('components.app-shell.home', '{{companyName}}, home', {
+                aria-label={tr('components.app-shell.home_2', '{{companyName}}, home', {
                   companyName,
                 })}
                 className="flex min-w-0 flex-1 items-center gap-2.5"
@@ -1253,7 +1253,7 @@ function PersonMenu({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
+              {tr('components.app-shell.end_viewing_as_2', 'End viewing as')} {person.name}
               {viewKeys.length === 0 ? null : (
                 <DropdownMenuShortcut className="flex">
                   <KbdShortcut keys={viewKeys} />
@@ -1456,7 +1456,7 @@ export function AccountSheet({
           <>
             <DropdownMenuItem onSelect={endViewing}>
               <icons.close />
-              {tr('components.app-shell.end_viewing_as', 'End viewing as')} {person.name}
+              {tr('components.app-shell.end_viewing_as_2', 'End viewing as')} {person.name}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -1590,7 +1590,7 @@ function MobileTabs({
   }[] = [
     {
       href: '/',
-      label: tr('components.app-shell.home_2', 'Home'),
+      label: tr('components.app-shell.home_tab', 'Home'),
       icon: <Home />,
       current: pathname === '/',
     },

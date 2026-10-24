@@ -1180,7 +1180,7 @@ export function ExistingStep({
           <span className="text-fg-subtle">—</span>
         ) : (
           <span className="font-medium text-warning-fg">
-            {missingOf(p).toLocaleString(locale())} {tr('import.new-fields.missing', 'missing')}
+            {missingOf(p).toLocaleString(locale())} {tr('import.new-fields.missing_2', 'missing')}
           </span>
         ),
     },

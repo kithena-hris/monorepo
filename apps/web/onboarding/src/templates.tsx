@@ -599,7 +599,7 @@ export function Analytics(props: ScreenProps<AnalyticsData>): JSX.Element {
     <Loaded load={props.load} what={tr('templates.onboarding_analytics', 'onboarding analytics')}>
       {(data) => (
         <div className="flex flex-col gap-4">
-          <PageHeader title={tr('templates.onboarding_analytics', 'Onboarding analytics')} />
+          <PageHeader title={tr('templates.onboarding_analytics_2', 'Onboarding analytics')} />
           <h2 className="sr-only">{tr('templates.figures', 'Figures')}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <Stat

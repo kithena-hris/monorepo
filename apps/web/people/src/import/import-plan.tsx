@@ -230,7 +230,7 @@ const whoOf = (r: { readonly row: number; readonly name?: string | null }): stri
 
 const LEFT_EMPTY_COLUMNS: DataColumn<LeftEmptyRow>[] = [
   { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
-  { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
+  { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
   {
     id: 'cell',
     header: t('import.import-plan.cell', 'Cell'),
@@ -385,7 +385,7 @@ export function PlanStep({
 
   const blockedColumns: DataColumn<BlockedRow>[] = [
     { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
-    { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
+    { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
       header: t('import.import-plan.cell', 'Cell'),
@@ -399,7 +399,7 @@ export function PlanStep({
   ];
   const findingColumns: DataColumn<CellFinding>[] = [
     { id: 'name', header: t('import.import-plan.name', 'Name'), cell: whoOf },
-    { id: 'row', header: t('import.import-plan.row', 'Row'), numeric: true, cell: (r) => r.row },
+    { id: 'row', header: t('import.import-plan.row_2', 'Row'), numeric: true, cell: (r) => r.row },
     {
       id: 'cell',
       header: t('import.import-plan.cell', 'Cell'),

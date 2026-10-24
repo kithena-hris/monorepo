@@ -403,7 +403,7 @@ export function GroupedNav({
         <div className="mb-1.5 touch:mb-0">
           <SearchField
             size="sm"
-            label={t('components.nav.grouped-nav.search', 'Search {{label}}', { label })}
+            label={t('components.nav.grouped-nav.search_2', 'Search {{label}}', { label })}
             placeholder={searchPlaceholder}
             value={query}
             onValueChange={setQuery}

@@ -580,10 +580,10 @@ function SendSteps({
               </FieldControl>
             </Field>
             <Field>
-              <FieldLabel>{tr('envelopes.envelopes.due', 'Due')}</FieldLabel>
+              <FieldLabel>{tr('envelopes.envelopes.due_2', 'Due')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label={tr('envelopes.envelopes.due', 'Due')}
+                  label={tr('envelopes.envelopes.due_2', 'Due')}
                   placeholder={tr('envelopes.envelopes.no_date', 'No date')}
                   value={dueOn}
                   onChange={setDueOn}

@@ -1,4 +1,416 @@
 {
+  "app.api.mobile.inbox.route.that_did_not_save_try_again": {
+    "text": "That did not save; try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/inbox/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.inbox.route.viewing_as_somebody_is_read_only": {
+    "text": "Viewing as somebody is read-only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/inbox/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.notifications.route.that_did_not_save_try_again": {
+    "text": "That did not save; try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/notifications/route.ts, PUT: a \"message\" value."
+  },
+  "app.api.mobile.notifications.route.viewing_as_somebody_is_read_only": {
+    "text": "Viewing as somebody is read-only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/notifications/route.ts, PUT: a \"message\" value."
+  },
+  "app.api.mobile.read.route.send_a_photo_or_a_pdf_of": {
+    "text": "Send a photo or a PDF of up to 2 MB.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/read/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.read.route.that_file_is_not_a_pdf_with": {
+    "text": "That file is not a PDF with text in it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/read/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.read.route.that_photo_could_not_be_read_try": {
+    "text": "That photo could not be read. Try again in better light.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/read/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.view-as.route.end_this_view_first": {
+    "text": "End this view first",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/view-as/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.view-as.route.say_why": {
+    "text": "Say why.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/view-as/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.view-as.route.sign_in_again": {
+    "text": "Sign in again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/view-as/route.ts, POST: a \"message\" value."
+  },
+  "app.api.mobile.view-as.route.viewing_as_them_could_not_be_started": {
+    "text": "Viewing as them could not be started. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/api/mobile/view-as/route.ts, POST: a \"message\" value."
+  },
+  "app.app.documents.actions.documents_refused": {
+    "text": "Documents refused",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.exports_over_25_mb_are_downloaded": {
+    "text": "Exports over 25 MB are downloaded",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.no": {
+    "text": "No",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: text built in code."
+  },
+  "app.app.documents.actions.notes_are_up_to_25_mb": {
+    "text": "Notes are up to 25 MB",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.people_made_no_file": {
+    "text": "People made no file",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.sick_note": {
+    "text": "Sick note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"detail\" value."
+  },
+  "app.app.documents.actions.the_export_could_not_be_read": {
+    "text": "The export could not be read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.the_file_could_not_be_handed_to": {
+    "text": "The file could not be handed to People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.the_file_could_not_be_read_from": {
+    "text": "The file could not be read from Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.there_is_nothing_here_you_can_change": {
+    "text": "There is nothing here you can change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.this_document_is_about_nobody": {
+    "text": "This document is about nobody",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.this_letter_is_about_nobody": {
+    "text": "This letter is about nobody",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"message\" value."
+  },
+  "app.app.documents.actions.yes": {
+    "text": "Yes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: text built in code."
+  },
+  "app.app.documents.actions.your_document": {
+    "text": "Your document",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/documents/actions.ts: a \"detail\" value."
+  },
+  "app.app.inbox.actions.no_such_request": {
+    "text": "No such request",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.inbox.actions.no_such_task": {
+    "text": "No such task",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.inbox.actions.that_did_not_save_try_again": {
+    "text": "That did not save; try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.inbox.actions.that_did_not_work": {
+    "text": "That did not work",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.inbox.actions.that_request_cannot_be_nudged": {
+    "text": "That request cannot be nudged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.inbox.actions.viewing_as_somebody_is_read_only": {
+    "text": "Viewing as somebody is read-only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/inbox/actions.ts: a \"message\" value."
+  },
+  "app.app.onboarding.actions.not_something_this_page_can_do": {
+    "text": "Not something this page can do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/onboarding/actions.ts: a \"message\" value."
+  },
+  "app.app.people.actions.done_but_the_secret_was_not_shown": {
+    "text": "Done, but the secret was not shown. Rotate it to see a new one.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/people/actions.ts: a \"message\" value."
+  },
+  "app.app.people.actions.done_but_the_token_was_not_shown": {
+    "text": "Done, but the token was not shown. Rotate it to see a new one.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/people/actions.ts: a \"message\" value."
+  },
+  "app.app.people.actions.people_answered_in_a_way_this_page": {
+    "text": "People answered in a way this page cannot read",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/people/actions.ts: a \"message\" value."
+  },
+  "app.app.people.actions.their_manager_reviews_were_not_handed_over": {
+    "text": "Their manager reviews were not handed over: {{reason}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/people/actions.ts: a \"message\" value. Filled in: {{reason}}."
+  },
+  "app.app.people.menu.page.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/people/menu/page.tsx, PeopleMenuPage: the title of <PageHeader>."
+  },
+  "app.app.performance.actions.documents_did_not_take_the_file": {
+    "text": "Documents did not take the file",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/performance/actions.ts: a \"message\" value."
+  },
+  "app.app.performance.actions.not_something_this_page_can_do": {
+    "text": "Not something this page can do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/performance/actions.ts: a \"message\" value."
+  },
+  "app.app.performance.actions.which_review": {
+    "text": "Which review?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/performance/actions.ts: a \"message\" value."
+  },
+  "app.app.recruiting.actions.not_something_this_page_can_do": {
+    "text": "Not something this page can do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
+  "app.app.recruiting.actions.this_contract_has_already_been_sent": {
+    "text": "This contract has already been sent",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
+  "app.app.recruiting.actions.this_contract_is_not_signed_through_documents": {
+    "text": "This contract is not signed through Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.language.actions.that_language_is_not_available": {
+    "text": "That language is not available.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/language/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.language.actions.you_are_viewing_as_somebody_else_so": {
+    "text": "You are viewing as somebody else, so nothing can be changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/language/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.language.actions.your_language_could_not_be_saved_just": {
+    "text": "Your language could not be saved just now. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/language/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.notifications.actions.that_did_not_save_try_again": {
+    "text": "That did not save; try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.notifications.actions.those_settings_are_not_ones_kithena_knows": {
+    "text": "Those settings are not ones Kithena knows",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.notifications.actions.viewing_as_somebody_is_read_only": {
+    "text": "Viewing as somebody is read-only",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.page.administrators_one": {
+    "text": "{{count}} administrator",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/roles\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.administrators_other": {
+    "text": "{{count}} administrators",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/roles\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.changed_shortcuts_one": {
+    "text": "{{count}} changed shortcut",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx, Settings: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.changed_shortcuts_other": {
+    "text": "{{count}} changed shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx, Settings: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.drafts_one": {
+    "text": "{{count}} draft",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"badge\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.drafts_other": {
+    "text": "{{count}} drafts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"badge\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.drafts_to_publish_one": {
+    "text": "{{count}} draft to publish",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"chip\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.drafts_to_publish_other": {
+    "text": "{{count}} drafts to publish",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"chip\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.fields_one": {
+    "text": "{{count}} field",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.fields_other": {
+    "text": "{{count}} fields",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.fields_sent_out_one": {
+    "text": "{{count}} field sent out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.fields_sent_out_other": {
+    "text": "{{count}} fields sent out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.filtered_to_people_settings": {
+    "text": "Filtered to People settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/activity?area=fields,organisation,roles,integrations\" value."
+  },
+  "app.app.settings.page.in_finance": {
+    "text": "{{count}} in finance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/roles\" value. Filled in: {{count}}."
+  },
+  "app.app.settings.page.in_hr": {
+    "text": "{{count}} in HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/roles\" value. Filled in: {{count}}."
+  },
+  "app.app.settings.page.legal_entities_one": {
+    "text": "{{count}} legal entity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.legal_entities_other": {
+    "text": "{{count}} legal entities",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.locations_one": {
+    "text": "{{count}} location",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.locations_other": {
+    "text": "{{count}} locations",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.needs_attention": {
+    "text": "Needs attention",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"badge\" value."
+  },
+  "app.app.settings.page.no_provisioning": {
+    "text": "no provisioning",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value."
+  },
+  "app.app.settings.page.no_webhooks": {
+    "text": "No webhooks",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value."
+  },
+  "app.app.settings.page.nobody_in_finance": {
+    "text": "Nobody in finance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"chip\" value."
+  },
+  "app.app.settings.page.not_published_yet": {
+    "text": "not published yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value."
+  },
+  "app.app.settings.page.org_units_one": {
+    "text": "{{count}} org unit",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.org_units_other": {
+    "text": "{{count}} org units",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/organisation\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.provisioning_from": {
+    "text": "provisioning from {{system}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value. Filled in: {{system}}."
+  },
+  "app.app.settings.page.single_keys_off": {
+    "text": "single keys off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx, Settings: text built in code."
+  },
+  "app.app.settings.page.the_defaults": {
+    "text": "The defaults",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx, Settings: text built in code."
+  },
+  "app.app.settings.page.unpublished_changes_one": {
+    "text": "{{count}} unpublished change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.unpublished_changes_other": {
+    "text": "{{count}} unpublished changes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.page.version": {
+    "text": "version {{version}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/fields\" value. Filled in: {{version}}."
+  },
+  "app.app.settings.page.webhooks_one": {
+    "text": "{{count}} webhook",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.settings.page.webhooks_other": {
+    "text": "{{count}} webhooks",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/page.tsx: a \"/settings/people/integrations\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.settings.shortcuts.actions.those_keys_could_not_be_read_try": {
+    "text": "Those keys could not be read. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/shortcuts/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.shortcuts.actions.you_are_viewing_as_somebody_else_so": {
+    "text": "You are viewing as somebody else, so nothing can be changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/shortcuts/actions.ts: a \"message\" value."
+  },
+  "app.app.settings.shortcuts.actions.your_shortcuts_could_not_be_saved_just": {
+    "text": "Your shortcuts could not be saved just now. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/shortcuts/actions.ts: a \"message\" value."
+  },
+  "app.app.time-off.actions.need_a_closer_look_one": {
+    "text": "{{count}} needs a closer look and was not approved.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/time-off/actions.ts: a \"message\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "app.app.time-off.actions.need_a_closer_look_other": {
+    "text": "{{count}} need a closer look and were not approved.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/time-off/actions.ts: a \"message\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "app.app.time-off.actions.time_off_did_not_answer": {
+    "text": "Time Off did not answer",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/time-off/actions.ts: a \"message\" value."
+  },
+  "app.assistant.actions.ask_me_anything_about_your_people": {
+    "text": "Ask me anything about your people.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/assistant/actions.ts: a \"text\" value."
+  },
+  "app.assistant.actions.your_session_ended_sign_in_again_to": {
+    "text": "Your session ended. Sign in again to keep asking.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/assistant/actions.ts: a \"text\" value."
+  },
+  "app.kiosk.deviceId.api.action.route.this_kiosk_is_not_registered_here": {
+    "text": "This kiosk is not registered here",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/kiosk/[deviceId]/api/[action]/route.ts: a \"message\" value."
+  },
+  "app.kiosk.deviceId.api.action.route.time_off_could_not_be_reached": {
+    "text": "Time Off could not be reached",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/kiosk/[deviceId]/api/[action]/route.ts: a \"message\" value."
+  },
+  "app.kiosk.deviceid.page.kiosk": {
+    "text": "Kiosk",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/kiosk/[deviceId]/page.tsx: a \"title\" value."
+  },
+  "app.layout.reference_client_the_api_is_the": {
+    "text": "Reference client. The API is the product.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/layout.tsx: a \"description\" value."
+  },
+  "app.login.page.choose_the_work_google_account_your_hr": {
+    "text": "Choose the work Google account your HR team invited, or use your passkey.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: text inside <Alert>."
+  },
+  "app.login.page.or": {
+    "text": "or",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: text inside <span>."
+  },
+  "app.login.page.sign_in": {
+    "text": "Sign in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: the title of <PageHeader>."
+  },
+  "app.login.page.that_google_account_could_not_sign_you": {
+    "text": "That Google account could not sign you in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: the title of <Alert>."
+  },
+  "app.login.page.use_the_passkey_on_this_device_or": {
+    "text": "Use the passkey on this device, or your work Google account. There is no password to remember.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: the description of <PageHeader>."
+  },
+  "app.login.page.use_the_passkey_on_this_device_there": {
+    "text": "Use the passkey on this device. There is no password to remember.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/login/page.tsx, Login: the description of <PageHeader>."
+  },
+  "app.recover.page.lost_the_device_or_replaced_it_tell": {
+    "text": "Lost the device, or replaced it? Tell us your work address and we will email you a fresh setup link.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/recover/page.tsx, Recover: the description of <PageHeader>."
+  },
+  "app.recover.page.set_up_a_new_passkey": {
+    "text": "Set up a new passkey",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/recover/page.tsx, Recover: the title of <PageHeader>."
+  },
   "app.sign.[token].sign-by-link.adopt_your_signature": {
     "text": "Adopt your signature",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
@@ -26,6 +438,10 @@
   "app.sign.[token].sign-by-link.decline_to_sign": {
     "text": "Decline to sign",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Button>."
+  },
+  "app.sign.[token].sign-by-link.declined_the_sender_is_told": {
+    "text": "Declined. The sender is told.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: the onClick of <Button>."
   },
   "app.sign.[token].sign-by-link.everybody_has_signed": {
     "text": "Everybody has signed",
@@ -75,6 +491,10 @@
     "text": "Start, under the document, takes you to each place to sign.",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <p>."
   },
+  "app.sign.[token].sign-by-link.that_code_is_not_right_try_again": {
+    "text": "That code is not right. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: the onComplete of <PinInput>."
+  },
   "app.sign.[token].sign-by-link.the_document_could_not_be_opened": {
     "text": "The document could not be opened.",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <Alert>."
@@ -114,6 +534,38 @@
   "app.sign.[token].sign-by-link.your_part": {
     "text": "Your part",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/sign-by-link.tsx, SignNow: text inside <CardTitle>."
+  },
+  "app.sign.token.actions.kithena_could_not_be_reached_try_again": {
+    "text": "Kithena could not be reached. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/actions.ts: a \"message\" value."
+  },
+  "app.sign.token.actions.that_did_not_work": {
+    "text": "That did not work.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/actions.ts: a \"message\" value."
+  },
+  "app.sign.token.actions.this_link_is_for_another_company": {
+    "text": "This link is for another company.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/sign/[token]/actions.ts: a \"message\" value."
+  },
+  "app.signed-out.page.is_not_set_on_this_deployment": {
+    "text": "is not set on this deployment.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/signed-out/page.tsx, SignedOut: text inside <Alert>."
+  },
+  "app.signed-out.page.nowhere_to_send_you": {
+    "text": "Nowhere to send you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/signed-out/page.tsx, SignedOut: the title of <Alert>."
+  },
+  "app.signed-out.page.sign_in": {
+    "text": "Sign in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/signed-out/page.tsx, SignedOut: text inside <a>."
+  },
+  "app.signed-out.page.that_sign_in_did_not_finish_links": {
+    "text": "That sign-in did not finish. Links expire after a minute, so this usually just means the tab was left open.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/signed-out/page.tsx, SignedOut: the description of <PageHeader>."
+  },
+  "app.signed-out.page.you_are_not_signed_in": {
+    "text": "You are not signed in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/signed-out/page.tsx, SignedOut: the title of <PageHeader>."
   },
   "components.activity-log.about": {
     "text": "About",
@@ -155,6 +607,10 @@
     "text": "By",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <Chip>."
   },
+  "components.activity-log.by_kithena_support_sign_in_not_in_log": {
+    "text": "By Kithena support; the sign-in it came from is not in the log",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
+  },
   "components.activity-log.during_kithena_supports_sign_in_at": {
     "text": "During Kithena support’s sign-in at {{at}}{{value}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{at}}, {{value}}."
@@ -163,6 +619,10 @@
     "text": "Every module",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: text inside <ChipGroupItem>."
   },
+  "components.activity-log.for_reason": {
+    "text": ", for: {{reason}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{reason}}."
+  },
   "components.activity-log.from": {
     "text": "From {{value}}.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>. Filled in: {{value}}."
@@ -170,6 +630,10 @@
   "components.activity-log.it_is_still_being_set_up": {
     "text": "It is still being set up for your workspace. Nothing is lost: what happens in the meantime is listed here once it is ready.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, ActivityLog: the description of <EmptyState>."
+  },
+  "components.activity-log.kithena_itself": {
+    "text": "Kithena itself",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
   },
   "components.activity-log.module": {
     "text": "Module",
@@ -259,6 +723,10 @@
     "text": "Signed in from the Kithena back office",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Detail: text inside <p>."
   },
+  "components.activity-log.someone_at_your_company": {
+    "text": "Someone at your company",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx: text built in code."
+  },
   "components.activity-log.text": {
     "text": "{{moduleName}} · {{value}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/activity-log.tsx, Entries: text inside <Badge>. Filled in: {{moduleName}}, {{value}}."
@@ -327,7 +795,15 @@
     "text": "Dark mode",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, ThemeChoice: text inside <DropdownMenuCheckboxItem>."
   },
+  "components.app-shell.documents": {
+    "text": "Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
+  },
   "components.app-shell.end_viewing_as": {
+    "text": "End viewing as {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"label\" value. Filled in: {{name}}."
+  },
+  "components.app-shell.end_viewing_as_2": {
     "text": "End viewing as",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
   },
@@ -340,10 +816,14 @@
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx: text built in code."
   },
   "components.app-shell.home": {
+    "text": "Home",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
+  },
+  "components.app-shell.home_2": {
     "text": "{{companyName}}, home",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AppShell: the aria-label of <Link>. Filled in: {{companyName}}."
   },
-  "components.app-shell.home_2": {
+  "components.app-shell.home_tab": {
     "text": "Home",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
   },
@@ -353,11 +833,59 @@
   },
   "components.app-shell.inbox": {
     "text": "Inbox",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
   "components.app-shell.keyboard_shortcuts": {
     "text": "Keyboard shortcuts",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuItem>."
+  },
+  "components.app-shell.keyword_add": {
+    "text": "add",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_csv": {
+    "text": "csv",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_dark": {
+    "text": "dark",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_download": {
+    "text": "download",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_exit": {
+    "text": "exit",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_hotkeys": {
+    "text": "hotkeys",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_keys": {
+    "text": "keys",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_light": {
+    "text": "light",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_new": {
+    "text": "new",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_stop": {
+    "text": "stop",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_theme": {
+    "text": "theme",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
+  },
+  "components.app-shell.keyword_view_as": {
+    "text": "view as",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"keywords\" value."
   },
   "components.app-shell.language": {
     "text": "Language",
@@ -383,13 +911,25 @@
     "text": "Nobody and nothing by that name.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: the empty of <CommandPalette>."
   },
+  "components.app-shell.onboarding": {
+    "text": "Onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
+  },
   "components.app-shell.people": {
     "text": "People",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
+  },
+  "components.app-shell.performance": {
+    "text": "Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
   "components.app-shell.preferences": {
     "text": "Preferences",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, PersonMenu: text inside <DropdownMenuSubTrigger>."
+  },
+  "components.app-shell.recruiting": {
+    "text": "Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
   },
   "components.app-shell.search": {
     "text": "Search",
@@ -429,7 +969,11 @@
   },
   "components.app-shell.time_off": {
     "text": "Time off",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, MobileTabs: a \"label\" value."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, AREAS: text built in code."
+  },
+  "components.app-shell.viewing_as": {
+    "text": "Viewing as {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/app-shell.tsx, SearchPalette: a \"group\" value. Filled in: {{name}}."
   },
   "components.app-shell.viewing_as_read_only": {
     "text": "Viewing as {{value}} · read-only",
@@ -471,6 +1015,10 @@
     "text": "Nudged",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, InboxAnswer: the onClick of <Chip>."
   },
+  "components.assistant-panel.opens_tasks_for_you_never_finishes_one": {
+    "text": "Opens tasks for you; never finishes one on its own.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the disclaimer of <span>."
+  },
   "components.assistant-panel.people_in_this_answer": {
     "text": "People in this answer",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, Mentioned: the aria-label of <ul>."
@@ -486,6 +1034,22 @@
   "components.assistant-panel.try_asking": {
     "text": "Try asking",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx, AssistantWindow: the aria-label of <ChipRow>."
+  },
+  "components.assistant-panel.what_do_i_need_to_do_this_week": {
+    "text": "What do I need to do this week?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx: text built in code."
+  },
+  "components.assistant-panel.whats_waiting_for_me": {
+    "text": "What’s waiting for me?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx: text built in code."
+  },
+  "components.assistant-panel.whats_waiting_on_others": {
+    "text": "What’s waiting on others?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx: text built in code."
+  },
+  "components.assistant-panel.who_reports_to_me": {
+    "text": "Who reports to me?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/assistant-panel.tsx: text built in code."
   },
   "components.assistant.ask_kithena": {
     "text": "Ask Kithena",
@@ -506,6 +1070,14 @@
   "components.google-sign-in.sign_in_with_google": {
     "text": "Sign in with Google",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/google-sign-in.tsx, GoogleSignIn: text inside <a>."
+  },
+  "components.home-dashboard.nothing_needs_you_yet": {
+    "text": "Nothing needs you yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-dashboard.tsx, HomeDashboard: the title of <EmptyState>."
+  },
+  "components.home-dashboard.requests_documents_and_approvals_appear_here_as": {
+    "text": "Requests, documents and approvals appear here as each module is switched on.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/home-dashboard.tsx, HomeDashboard: the description of <EmptyState>."
   },
   "components.inbox.bell.open": {
     "text": "Open",
@@ -599,6 +1171,10 @@
     "text": "A change to this goes to HR before it is on your record.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: text inside <FieldDescription>."
   },
+  "components.inbox.detail-people.acknowledged": {
+    "text": "Acknowledged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the onClick of <Button>."
+  },
   "components.inbox.detail-people.add_to_my_record": {
     "text": "Add to my record",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
@@ -607,17 +1183,21 @@
     "text": "All done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the valueLabel of <Progress>."
   },
+  "components.inbox.detail-people.anyone_reminded_in_the_last_day_is": {
+    "text": "Anyone reminded in the last day is not emailed again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onClick of <Button>."
+  },
   "components.inbox.detail-people.ask": {
     "text": "Ask {{sender}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>. Filled in: {{sender}}."
   },
-  "components.inbox.detail-people.at": {
-    "text": "at {{takenAt}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{takenAt}}."
-  },
   "components.inbox.detail-people.cancel_for_everyone": {
     "text": "Cancel for everyone",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>."
+  },
+  "components.inbox.detail-people.cancel_it": {
+    "text": "Cancel it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the confirm of <NoteDialog>."
   },
   "components.inbox.detail-people.cancel_this_for": {
     "text": "Cancel this for {{name}}?",
@@ -626,6 +1206,14 @@
   "components.inbox.detail-people.cancel_this_for_everyone": {
     "text": "Cancel this for everyone?",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the title of <ConfirmDialog>."
+  },
+  "components.inbox.detail-people.cancelled": {
+    "text": "Cancelled",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onConfirm of <NoteDialog>."
+  },
+  "components.inbox.detail-people.cancelled_for_everyone": {
+    "text": "Cancelled for everyone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onConfirm of <ConfirmDialog>."
   },
   "components.inbox.detail-people.cancelled_this": {
     "text": "{{value}} cancelled this{{value2}}",
@@ -659,9 +1247,17 @@
     "text": "{{length}} done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <span>. Filled in: {{length}}."
   },
+  "components.inbox.detail-people.done_2": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the onClick of <Button>."
+  },
   "components.inbox.detail-people.download": {
     "text": "Download",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
+  },
+  "components.inbox.detail-people.due_date_changed": {
+    "text": "Due date changed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onPick of <DueDialog>."
   },
   "components.inbox.detail-people.failed_times_in_a_row": {
     "text": "Failed {{attempts}} times in a row",
@@ -670,6 +1266,10 @@
   "components.inbox.detail-people.failing_since": {
     "text": "Failing since",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the items of <KeyValues>."
+  },
+  "components.inbox.detail-people.field_sent_to_hr": {
+    "text": "{{field}} sent to HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: the onClick of <Button>. Filled in: {{field}}."
   },
   "components.inbox.detail-people.fill_in": {
     "text": "Fill in",
@@ -699,6 +1299,14 @@
     "text": "HR stops seeing it and the record keeps {{shown}}. You can ask again any time.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the description of <ConfirmDialog>. Filled in: {{shown}}."
   },
+  "components.inbox.detail-people.hr_was_nudged": {
+    "text": "HR was nudged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the onClick of <Button>."
+  },
+  "components.inbox.detail-people.hrs_note": {
+    "text": "HR’s note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the items of <KeyValues>."
+  },
   "components.inbox.detail-people.i_cant_do_this": {
     "text": "I can’t do this",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
@@ -706,6 +1314,10 @@
   "components.inbox.detail-people.i_cant_sign_this": {
     "text": "I can’t sign this",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
+  },
+  "components.inbox.detail-people.image": {
+    "text": "Image",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>."
   },
   "components.inbox.detail-people.it_goes_on_your_record_straight": {
     "text": "It goes on your record straight away.",
@@ -719,33 +1331,69 @@
     "text": "It moves on its own at midnight",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the hint of <Actions>."
   },
+  "components.inbox.detail-people.it_moves_to_done": {
+    "text": "It moves to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the onConfirm of <ConfirmDialog>."
+  },
+  "components.inbox.detail-people.it_stops_counting_for_the_other_admins": {
+    "text": "It stops counting for the other admins",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the onClick of <Button>."
+  },
+  "components.inbox.detail-people.its_yours": {
+    "text": "It’s yours",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the onClick of <Button>."
+  },
+  "components.inbox.detail-people.its_yours_now": {
+    "text": "It’s yours now",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the onConfirm of <NoteDialog>."
+  },
   "components.inbox.detail-people.ive_read_it": {
     "text": "I’ve read it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: text inside <Button>."
   },
-  "components.inbox.detail-people.kb": {
-    "text": "{{max}} KB",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{max}}."
+  "components.inbox.detail-people.keep_it": {
+    "text": "Keep it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the cancel of <ConfirmDialog>."
   },
   "components.inbox.detail-people.kept_in": {
     "text": "Kept in",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the items of <KeyValues>."
   },
+  "components.inbox.detail-people.kept_in_the_profile_under_documents": {
+    "text": "Kept in the profile under Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the onSign of <SignDialog>."
+  },
+  "components.inbox.detail-people.labels_added": {
+    "text": "{{labels}} added",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: a \"title\" value. Filled in: {{labels}}."
+  },
   "components.inbox.detail-people.mark_done": {
     "text": "Mark done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: text inside <Button>."
-  },
-  "components.inbox.detail-people.mb": {
-    "text": "{{value}} MB",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{value}}."
   },
   "components.inbox.detail-people.move_to_done": {
     "text": "Move to Done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Button>."
   },
+  "components.inbox.detail-people.moved_to_done": {
+    "text": "Moved to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the onClick of <Button>."
+  },
+  "components.inbox.detail-people.name_took_it": {
+    "text": "{{name}} took it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{name}}."
+  },
+  "components.inbox.detail-people.name_took_it_at": {
+    "text": "{{name}} took it at {{when}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{name}}, {{when}}."
+  },
   "components.inbox.detail-people.no": {
     "text": "No",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code."
+  },
+  "components.inbox.detail-people.no_answer_at_all": {
+    "text": "no answer at all",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: text inside <Alert>."
   },
   "components.inbox.detail-people.note": {
     "text": "Note",
@@ -783,6 +1431,10 @@
     "text": "on {{closedAt}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: the title of <Alert>. Filled in: {{closedAt}}."
   },
+  "components.inbox.detail-people.on_your_record_now": {
+    "text": "On your record now · {{sender}} gets an update",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: a \"description\" value. Filled in: {{sender}}."
+  },
   "components.inbox.detail-people.open": {
     "text": "Open",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Checklist: the trailing of <a>."
@@ -811,6 +1463,14 @@
     "text": "Open Review",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <a>."
   },
+  "components.inbox.detail-people.pdf": {
+    "text": "PDF",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>."
+  },
+  "components.inbox.detail-people.persons_note": {
+    "text": "{{name}}’s note",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the items of <KeyValues>. Filled in: {{name}}."
+  },
   "components.inbox.detail-people.preview": {
     "text": "Preview",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the trailing of <Button>."
@@ -835,6 +1495,14 @@
     "text": "Remind the {{length}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: text inside <Button>. Filled in: {{length}}."
   },
+  "components.inbox.detail-people.reminded_count_one": {
+    "text": "Reminded {{count}} person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onClick of <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.detail-people.reminded_count_other": {
+    "text": "Reminded {{count}} people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the onClick of <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.inbox.detail-people.reply_to": {
     "text": "Reply to {{sender}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the label of <ChatComposer>. Filled in: {{sender}}."
@@ -847,13 +1515,13 @@
     "text": "Review items keep their own tools: compare, the reasons for a flag, history. They aren’t copied here, so the two can’t disagree.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <p>."
   },
-  "components.inbox.detail-people.s_note": {
-    "text": "{{value}}’s note",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the items of <KeyValues>. Filled in: {{value}}."
-  },
   "components.inbox.detail-people.sees_that_you_have_it_now": {
     "text": "{{value}} sees that you have it now.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the description of <NoteDialog>. Filled in: {{value}}."
+  },
+  "components.inbox.detail-people.send_back": {
+    "text": "Send back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the confirm of <NoteDialog>."
   },
   "components.inbox.detail-people.send_this_back_to": {
     "text": "Send this back to {{sender}}?",
@@ -863,9 +1531,21 @@
     "text": "Send to HR",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, CorrectBody: text inside <Button>."
   },
+  "components.inbox.detail-people.sender_gets_an_update": {
+    "text": "{{sender}} gets an update",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the onSend of <ChatComposer>. Filled in: {{sender}}."
+  },
   "components.inbox.detail-people.sending_is_switched_off": {
     "text": "Sending is switched off",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the title of <Alert>."
+  },
+  "components.inbox.detail-people.sent": {
+    "text": "Sent",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Thread: the onSend of <ChatComposer>."
+  },
+  "components.inbox.detail-people.sent_back": {
+    "text": "Sent back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the onConfirm of <NoteDialog>."
   },
   "components.inbox.detail-people.sent_by": {
     "text": "Sent by",
@@ -886,6 +1566,14 @@
   "components.inbox.detail-people.some_of_this_goes_to_hr": {
     "text": "Some of this goes to HR first.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <p>."
+  },
+  "components.inbox.detail-people.somebody_took_it": {
+    "text": "Somebody took it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
+  },
+  "components.inbox.detail-people.somebody_took_it_at": {
+    "text": "Somebody took it at {{when}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{when}}."
   },
   "components.inbox.detail-people.steps": {
     "text": "Steps",
@@ -915,10 +1603,6 @@
     "text": "Taking it tells the other admins you’re on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
   },
-  "components.inbox.detail-people.text": {
-    "text": "{{text}} {{text2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx: text built in code. Filled in: {{text}}, {{text2}}."
-  },
   "components.inbox.detail-people.text_2": {
     "text": "{{size}} · {{value}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>. Filled in: {{size}}, {{value}}."
@@ -947,10 +1631,6 @@
     "text": "{{length}} to go",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Asked: the valueLabel of <Progress>. Filled in: {{length}}."
   },
-  "components.inbox.detail-people.took_it": {
-    "text": "{{value}} took it{{value2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>. Filled in: {{value}}, {{value2}}."
-  },
   "components.inbox.detail-people.waiting_in_review": {
     "text": "Waiting in Review",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: the aria-label of <List>."
@@ -971,6 +1651,10 @@
     "text": "Who sees this",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the items of <KeyValues>."
   },
+  "components.inbox.detail-people.whoever_has_it": {
+    "text": "Whoever has it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the description of <NoteDialog>."
+  },
   "components.inbox.detail-people.with_a_reason_to_whoever_asked": {
     "text": "With a reason, to whoever asked.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Details: text inside <Alert>."
@@ -982,6 +1666,10 @@
   "components.inbox.detail-people.withdraw_your_change": {
     "text": "Withdraw your {{label}} change?",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the title of <ConfirmDialog>. Filled in: {{label}}."
+  },
+  "components.inbox.detail-people.withdrawn": {
+    "text": "Withdrawn",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Change: the onConfirm of <ConfirmDialog>."
   },
   "components.inbox.detail-people.yes": {
     "text": "Yes",
@@ -1023,13 +1711,25 @@
     "text": "Agenda",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
   },
+  "components.inbox.detail-recruiting.asked_first_for_more_times": {
+    "text": "Asked {{first}} for more times",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}."
+  },
   "components.inbox.detail-recruiting.book_and_send_the_invitation": {
     "text": "Book and send the invitation",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: text inside <Button>."
   },
+  "components.inbox.detail-recruiting.booked_first_day_at_hour": {
+    "text": "Booked: {{first}}, {{day}} at {{hour}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}, {{day}}, {{hour}}."
+  },
   "components.inbox.detail-recruiting.candidate": {
     "text": "Candidate",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
+  },
+  "components.inbox.detail-recruiting.first_has_the_invitation": {
+    "text": "{{first}} has the invitation with the meeting link",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}."
   },
   "components.inbox.detail-recruiting.interview": {
     "text": "Interview",
@@ -1059,6 +1759,10 @@
     "text": "The times the candidate gave",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the aria-label of <RadioGroup>."
   },
+  "components.inbox.detail-recruiting.these_are_left_out_of_the_new": {
+    "text": "These are left out of the new link",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>."
+  },
   "components.inbox.detail-recruiting.this_cant_be_shown_here": {
     "text": "This can’t be shown here",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the title of <Alert>."
@@ -1074,6 +1778,10 @@
   "components.inbox.detail-timeoff.approve": {
     "text": "Approve",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <Button>."
+  },
+  "components.inbox.detail-timeoff.approved_their_time_off": {
+    "text": "Approved {{who}}’s time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: a \"title\" value. Filled in: {{who}}."
   },
   "components.inbox.detail-timeoff.asked_first_for": {
     "text": "Asked first for",
@@ -1095,6 +1803,10 @@
     "text": "Declined",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <Dates>."
   },
+  "components.inbox.detail-timeoff.declined_their_time_off": {
+    "text": "Declined {{who}}’s time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: a \"title\" value. Filled in: {{who}}."
+  },
   "components.inbox.detail-timeoff.each_day": {
     "text": "Each day",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the aria-label of <List>."
@@ -1107,9 +1819,21 @@
     "text": "{{who}} has left after this",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: the items of <KeyValues>. Filled in: {{who}}."
   },
+  "components.inbox.detail-timeoff.holder_was_nudged": {
+    "text": "{{holder}} was nudged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the onClick of <Button>. Filled in: {{holder}}."
+  },
   "components.inbox.detail-timeoff.instead_of": {
     "text": "Instead of",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the items of <KeyValues>."
+  },
+  "components.inbox.detail-timeoff.it_moves_to_done": {
+    "text": "It moves to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the onConfirm of <ConfirmDialog>."
+  },
+  "components.inbox.detail-timeoff.keep_it": {
+    "text": "Keep it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the cancel of <ConfirmDialog>."
   },
   "components.inbox.detail-timeoff.left_after_this": {
     "text": "Left after this",
@@ -1171,9 +1895,21 @@
     "text": "{{holder}} stops seeing it. You can ask again any time.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the description of <ConfirmDialog>. Filled in: {{holder}}."
   },
-  "components.inbox.detail-timeoff.that_week": {
-    "text": "{{value}} that week{{value2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>. Filled in: {{value}}, {{value2}}."
+  "components.inbox.detail-timeoff.team_that_week": {
+    "text": "{{team}} that week",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>. Filled in: {{team}}."
+  },
+  "components.inbox.detail-timeoff.team_that_week_already_out_one": {
+    "text": "{{team}} that week · {{count}} of {{of}} already out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>. Filled in: {{team}}, {{count}}, {{of}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.detail-timeoff.team_that_week_already_out_other": {
+    "text": "{{team}} that week · {{count}} of {{of}} already out",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>. Filled in: {{team}}, {{count}}, {{of}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.detail-timeoff.the_team": {
+    "text": "The team",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Approval: text inside <h3>."
   },
   "components.inbox.detail-timeoff.this_cant_be_shown_here": {
     "text": "This can’t be shown here",
@@ -1211,6 +1947,10 @@
     "text": "Withdraw your time-off request?",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the title of <ConfirmDialog>."
   },
+  "components.inbox.detail-timeoff.withdrawn": {
+    "text": "Withdrawn",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Request: the onConfirm of <ConfirmDialog>."
+  },
   "components.inbox.detail-timeoff.you_asked_for_instead": {
     "text": "You asked for {{label}} instead",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-timeoff.tsx, Decided: text inside <a>. Filled in: {{label}}."
@@ -1231,6 +1971,14 @@
     "text": "Ask {{value}} a question",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>. Filled in: {{value}}."
   },
+  "components.inbox.detail.ask_them_a_question": {
+    "text": "Ask them a question",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
+  },
+  "components.inbox.detail.back_in_to_do": {
+    "text": "Back in To do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onSelect of <DropdownMenuItem>."
+  },
   "components.inbox.detail.copy_link": {
     "text": "Copy link",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
@@ -1247,6 +1995,22 @@
     "text": "Kithena",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the author of <ChatMessage>."
   },
+  "components.inbox.detail.lane_done": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, LANE_TAG: text built in code."
+  },
+  "components.inbox.detail.lane_request": {
+    "text": "Request",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, LANE_TAG: text built in code."
+  },
+  "components.inbox.detail.lane_task": {
+    "text": "Task",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, LANE_TAG: text built in code."
+  },
+  "components.inbox.detail.lane_update": {
+    "text": "Update",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, LANE_TAG: text built in code."
+  },
   "components.inbox.detail.link_copied": {
     "text": "Link copied",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: a \"title\" value."
@@ -1258,10 +2022,6 @@
   "components.inbox.detail.mark_unread": {
     "text": "Mark unread",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
-  },
-  "components.inbox.detail.message": {
-    "text": "{{value}} message",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the label of <ChatLog>. Filled in: {{value}}."
   },
   "components.inbox.detail.monday": {
     "text": "Monday",
@@ -1275,6 +2035,10 @@
     "text": "Move to Done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
   },
+  "components.inbox.detail.moved_to_done": {
+    "text": "Moved to Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onSelect of <DropdownMenuItem>."
+  },
   "components.inbox.detail.mute_updates_like_this": {
     "text": "Mute updates like this…",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
@@ -1283,6 +2047,10 @@
     "text": "Open in {{openIn}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, Head: text inside <a>. Filled in: {{openIn}}."
   },
+  "components.inbox.detail.persons_message": {
+    "text": "{{name}}’s message",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the label of <ChatLog>. Filled in: {{name}}."
+  },
   "components.inbox.detail.pick_a_date_and_time": {
     "text": "Pick a date and time…",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuItem>."
@@ -1290,6 +2058,10 @@
   "components.inbox.detail.remind_me_later": {
     "text": "Remind me later",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: text inside <DropdownMenuSubTrigger>."
+  },
+  "components.inbox.detail.snoozed_until": {
+    "text": "Snoozed until {{when}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the onSelect of <DropdownMenuItem>. Filled in: {{when}}."
   },
   "components.inbox.detail.text": {
     "text": "{{moduleName}} › {{area}}",
@@ -1302,6 +2074,10 @@
   "components.inbox.detail.that_did_not_work": {
     "text": "That did not work",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the title of <Alert>."
+  },
+  "components.inbox.detail.their_message": {
+    "text": "Their message",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail.tsx, InboxDetail: the label of <ChatLog>."
   },
   "components.inbox.detail.this_afternoon": {
     "text": "This afternoon",
@@ -1327,6 +2103,22 @@
     "text": "A signed copy is kept in the profile under Documents.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the description of <Frame>."
   },
+  "components.inbox.dialogs.approve_count_one": {
+    "text": "Approve {{count}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.dialogs.approve_count_other": {
+    "text": "Approve {{count}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.dialogs.approve_time_off_requests_one": {
+    "text": "Approve {{count}} time-off request?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.dialogs.approve_time_off_requests_other": {
+    "text": "Approve {{count}} time-off requests?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.inbox.dialogs.cancel": {
     "text": "Cancel",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, ConfirmDialog: text built in code."
@@ -1334,6 +2126,26 @@
   "components.inbox.dialogs.countersign": {
     "text": "Countersign",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the footer of <Button>."
+  },
+  "components.inbox.dialogs.countersign_document": {
+    "text": "Countersign {{documentName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the title of <Frame>. Filled in: {{documentName}}."
+  },
+  "components.inbox.dialogs.decline_count_one": {
+    "text": "Decline {{count}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.dialogs.decline_count_other": {
+    "text": "Decline {{count}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.dialogs.decline_time_off_requests_one": {
+    "text": "Decline {{count}} time-off request?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.dialogs.decline_time_off_requests_other": {
+    "text": "Decline {{count}} time-off requests?",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.dialogs.draw": {
     "text": "Draw",
@@ -1387,6 +2199,10 @@
     "text": "Mute updates like this?",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the title of <Frame>."
   },
+  "components.inbox.dialogs.muted": {
+    "text": "Muted",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, MuteDialog: the onClick of <Button>."
+  },
   "components.inbox.dialogs.note_for": {
     "text": "Note for {{sender}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <FieldLabel>. Filled in: {{sender}}."
@@ -1423,21 +2239,21 @@
     "text": "Send this back to {{sender}}?",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the title of <Frame>. Filled in: {{sender}}."
   },
+  "components.inbox.dialogs.sent_back": {
+    "text": "Sent back",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: the onClick of <Button>."
+  },
   "components.inbox.dialogs.sign": {
     "text": "Sign",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the footer of <Button>."
   },
+  "components.inbox.dialogs.sign_document": {
+    "text": "Sign {{documentName}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the title of <Frame>. Filled in: {{documentName}}."
+  },
   "components.inbox.dialogs.something_else": {
     "text": "Something else",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <RadioGroupItem>."
-  },
-  "components.inbox.dialogs.text": {
-    "text": "{{value}} {{documentName}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: the title of <Frame>. Filled in: {{value}}, {{documentName}}."
-  },
-  "components.inbox.dialogs.text_2": {
-    "text": "{{value}} {{n}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the footer of <Button>. Filled in: {{value}}, {{n}}."
   },
   "components.inbox.dialogs.the_time_the_place_your_company": {
     "text": "The time, the place your company works from and your name are recorded in the document’s history.",
@@ -1446,10 +2262,6 @@
   "components.inbox.dialogs.this_doesnt_apply_to_me": {
     "text": "This doesn’t apply to me",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SendBackDialog: text inside <RadioGroupItem>."
-  },
-  "components.inbox.dialogs.time_off_requests": {
-    "text": "{{value}} {{n}} time-off requests?",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, BulkDecideDialog: the title of <Frame>. Filled in: {{value}}, {{n}}."
   },
   "components.inbox.dialogs.type": {
     "text": "Type",
@@ -1475,13 +2287,17 @@
     "text": "Your full name",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dialogs.tsx, SignDialog: text inside <FieldLabel>."
   },
-  "components.inbox.format.day": {
-    "text": "{{shown}} day{{value}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{shown}}, {{value}}."
+  "components.inbox.format.days_one": {
+    "text": "{{shown}} day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{count}}, {{shown}}. Plural: the words for a {{count}} of one."
   },
-  "components.inbox.format.decide_by": {
-    "text": "Decide by",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code."
+  "components.inbox.format.days_other": {
+    "text": "{{shown}} days",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{count}}, {{shown}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.format.decide_by_day": {
+    "text": "Decide by {{day}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{day}}."
   },
   "components.inbox.format.decide_by_tomorrow": {
     "text": "Decide by tomorrow",
@@ -1491,9 +2307,9 @@
     "text": "Decide today",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
   },
-  "components.inbox.format.due": {
-    "text": "Due",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code."
+  "components.inbox.format.due_day": {
+    "text": "Due {{day}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{day}}."
   },
   "components.inbox.format.due_today": {
     "text": "Due today",
@@ -1503,33 +2319,21 @@
     "text": "Due tomorrow",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value."
   },
-  "components.inbox.format.overdue_day": {
-    "text": "Overdue {{value}} day{{value2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{value}}, {{value2}}."
+  "components.inbox.format.overdue_days_one": {
+    "text": "Overdue {{count}} day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
   },
-  "components.inbox.format.text": {
-    "text": "{{slice}} {{value}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{slice}}, {{value}}."
-  },
-  "components.inbox.format.text_2": {
-    "text": "{{shortDay}}, {{time}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{shortDay}}, {{time}}."
-  },
-  "components.inbox.format.text_3": {
-    "text": "{{word}} {{shortDay}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{word}}, {{shortDay}}."
-  },
-  "components.inbox.format.text_4": {
-    "text": "{{long}} – {{long2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{long}}, {{long2}}."
+  "components.inbox.format.overdue_days_other": {
+    "text": "Overdue {{count}} days",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: a \"label\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.format.text_5": {
     "text": "{{moduleName}} › {{area}}",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{moduleName}}, {{area}}."
   },
-  "components.inbox.format.to": {
-    "text": "{{name}} to {{name2}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{name}}, {{name2}}."
+  "components.inbox.format.weekday_to_weekday": {
+    "text": "{{from}} to {{to}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/format.ts: text built in code. Filled in: {{from}}, {{to}}."
   },
   "components.inbox.home-card.my_requests": {
     "text": "My requests",
@@ -1569,7 +2373,7 @@
   },
   "components.inbox.notification-settings.daily_digest": {
     "text": "Daily digest",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, EMAIL: text built in code."
   },
   "components.inbox.notification-settings.everything_from": {
     "text": "Everything from {{moduleName}}",
@@ -1607,6 +2411,10 @@
     "text": "Notifications",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the breadcrumb of <BreadcrumbPage>."
   },
+  "components.inbox.notification-settings.off": {
+    "text": "Off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, EMAIL: text built in code."
+  },
   "components.inbox.notification-settings.phone": {
     "text": "Phone",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: the trailing of <FieldLabel>."
@@ -1614,6 +2422,10 @@
   "components.inbox.notification-settings.quiet_hours": {
     "text": "Quiet hours",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, Settings: text inside <CardTitle>."
+  },
+  "components.inbox.notification-settings.right_away": {
+    "text": "Right away",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/notification-settings.tsx, EMAIL: text built in code."
   },
   "components.inbox.notification-settings.saving": {
     "text": "Saving",
@@ -1671,9 +2483,13 @@
     "text": "New",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
   },
-  "components.inbox.rows.repl": {
-    "text": "{{replies}} repl{{value}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{replies}}, {{value}}."
+  "components.inbox.rows.replies_one": {
+    "text": "{{count}} reply",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.rows.replies_other": {
+    "text": "{{count}} replies",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.rows.select": {
     "text": "Select {{title}}",
@@ -1681,6 +2497,10 @@
   },
   "components.inbox.rows.snoozed": {
     "text": "Snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
+  "components.inbox.rows.somebody_is_on_it": {
+    "text": "Somebody is on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
   },
   "components.inbox.rows.text": {
@@ -1739,6 +2559,26 @@
     "text": "It opens here.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
+  "components.inbox.screen.item": {
+    "text": "Item",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the detailLabel of <ListDetail>."
+  },
+  "components.inbox.screen.lane_done": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
+  },
+  "components.inbox.screen.lane_requests": {
+    "text": "My requests",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
+  },
+  "components.inbox.screen.lane_todo": {
+    "text": "To do",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
+  },
+  "components.inbox.screen.lane_updates": {
+    "text": "Updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
+  },
   "components.inbox.screen.mark_all_read": {
     "text": "Mark all read",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
@@ -1746,6 +2586,14 @@
   "components.inbox.screen.mark_read": {
     "text": "Mark read",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
+  },
+  "components.inbox.screen.modules_did_not_answer_one": {
+    "text": "{{modules}} did not answer just now; its items will be back.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <p>. Filled in: {{count}}, {{modules}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.screen.modules_did_not_answer_other": {
+    "text": "{{modules}} did not answer just now; their items will be back.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <p>. Filled in: {{count}}, {{modules}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.screen.move_to_done": {
     "text": "Move to Done",
@@ -1779,6 +2627,10 @@
     "text": "Notifications",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the actions of <a>."
   },
+  "components.inbox.screen.one_snoozed_until": {
+    "text": "1 snoozed until {{day}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{day}}."
+  },
   "components.inbox.screen.only_time_off_approvals_can_be": {
     "text": "Only time-off approvals can be decided together",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>."
@@ -1811,9 +2663,13 @@
     "text": "{{length}} selected",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>. Filled in: {{length}}."
   },
-  "components.inbox.screen.snoozed": {
-    "text": "{{length}} snoozed{{value}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{length}}, {{value}}."
+  "components.inbox.screen.snoozed_count_one": {
+    "text": "{{count}} snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.screen.snoozed_count_other": {
+    "text": "{{count}} snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.inbox.screen.source": {
     "text": "Source",
@@ -1899,6 +2755,26 @@
     "text": "Work email address",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/passkey-sign-in.tsx, PasskeySignIn: text inside <FieldLabel>."
   },
+  "components.people-area.export": {
+    "text": "Export",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"label\" value."
+  },
+  "components.people-area.import": {
+    "text": "Import",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"section\" value."
+  },
+  "components.people-area.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"label\" value."
+  },
+  "components.people-area.people_settings": {
+    "text": "People settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"group\" value."
+  },
+  "components.people-area.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-area.tsx, PeopleArea: a \"label\" value."
+  },
   "components.people-nav.fields_and_roles_are_in": {
     "text": "Fields and roles are in",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSections: the footer of <span>."
@@ -1911,13 +2787,17 @@
     "text": "People sections",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleSubnav: text built in code."
   },
+  "components.people-nav.search_count_people_one": {
+    "text": "Search {{count}} person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the placeholder of <SearchField>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.people-nav.search_count_people_other": {
+    "text": "Search {{count}} people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the placeholder of <SearchField>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.people-nav.search_people": {
     "text": "Search people",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the label of <SearchField>."
-  },
-  "components.people-nav.search_people_2": {
-    "text": "Search {{toLocaleString}} people",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-nav.tsx, PeopleMenu: the placeholder of <SearchField>. Filled in: {{toLocaleString}}."
   },
   "components.people-nav.sections": {
     "text": "{{title}} sections",
@@ -1963,6 +2843,10 @@
     "text": "Kept Confidential to HR in Documents, and deleted after 90 days.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"description\" value."
   },
+  "components.people-screen.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: the area of <RemoteScreen>."
+  },
   "components.people-screen.save_to_documents": {
     "text": "Save to Documents",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"label\" value."
@@ -1979,8 +2863,24 @@
     "text": "That file could not be read.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx: a \"message\" value."
   },
+  "components.people-screen.that_image_could_not_be_read_try": {
+    "text": "That image could not be read; try a PNG or a JPEG.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx: a \"message\" value."
+  },
   "components.people-screen.the_pdf_could_not_be_made": {
     "text": "The PDF could not be made",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.people-screen.the_upload_did_not_finish_try_again": {
+    "text": "The upload did not finish; try again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx: a \"message\" value."
+  },
+  "components.people-screen.the_upload_did_not_go_through_try": {
+    "text": "The upload did not go through; try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx: a \"message\" value."
+  },
+  "components.people-screen.the_upload_did_not_go_through_try_the_upload_did_not_go_through": {
+    "text": "The upload did not go through; try again",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
   },
   "components.remote-screen.is_unavailable": {
@@ -2050,6 +2950,10 @@
   "components.settings-index.nothing_here_for_you_to_change": {
     "text": "Nothing here for you to change",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the title of <EmptyState>."
+  },
+  "components.settings-index.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/settings-index.tsx, SettingsIndex: the area of <Waking>."
   },
   "components.settings-index.settings": {
     "text": "Settings",
@@ -2127,6 +3031,10 @@
     "text": "Add a field of the type “A signature” in Settings › Employee fields, and choose when people are asked for it: at sign-up, during onboarding, or any time.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <Alert>."
   },
+  "components.signature-settings.hr_keeps_this_one_ask_them_to": {
+    "text": "HR keeps this one; ask them to change it.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: text inside <CardDescription>."
+  },
   "components.signature-settings.not_saved": {
     "text": "Not saved",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the title of <Alert>."
@@ -2166,14 +3074,6 @@
   "components.signature-settings.your_signature": {
     "text": "Your signature",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/signature-settings.tsx, SignatureSettings: the breadcrumb of <BreadcrumbPage>."
-  },
-  "components.since.h": {
-    "text": "{{hours}}h",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/since.ts: text built in code. Filled in: {{hours}}."
-  },
-  "components.since.m": {
-    "text": "{{max}}m",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/since.ts: text built in code. Filled in: {{max}}."
   },
   "components.since.yesterday": {
     "text": "Yesterday",
@@ -2222,5 +3122,1045 @@
   "components.waking.waking_up_usually_under_a_minute": {
     "text": "Waking up {{area}}, usually under a minute",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/waking.tsx, Waking: the title of <EmptyState>. Filled in: {{area}}."
+  },
+  "lib.activity.documents": {
+    "text": "Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.employee_fields": {
+    "text": "Employee fields",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.imports_and_exports": {
+    "text": "Imports and exports",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.integrations": {
+    "text": "Integrations",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.kithena_support": {
+    "text": "Kithena support",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, WHO: text built in code."
+  },
+  "lib.activity.onboarding": {
+    "text": "Onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.organisation": {
+    "text": "Organisation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.performance": {
+    "text": "Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.reads_and_exports": {
+    "text": "Reads and exports",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.records": {
+    "text": "Records",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.recruiting": {
+    "text": "Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.roles": {
+    "text": "Roles",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.sensitive_access": {
+    "text": "Sensitive access",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.sign_in": {
+    "text": "Sign-in",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.activity.sign_in_and_support": {
+    "text": "Sign-in and support",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, AREAS: text built in code."
+  },
+  "lib.activity.system": {
+    "text": "System",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, WHO: text built in code."
+  },
+  "lib.activity.time_off": {
+    "text": "Time Off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/activity.ts, MODULES: text built in code."
+  },
+  "lib.assistant.not_sure_i_can_help": {
+    "text": "I’m not sure I can help with that one. Try asking about your people: who is in a team, who reports to whom, how many people work where, or what is waiting for your approval.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/assistant.ts: text built in code."
+  },
+  "lib.contract-text.benefits": {
+    "text": "Benefits: {{benefits}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{benefits}}."
+  },
+  "lib.contract-text.contract": {
+    "text": "Contract: {{contract}}, {{employment}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{contract}}, {{employment}}."
+  },
+  "lib.contract-text.contract_ending": {
+    "text": "Contract: {{contract}}, {{employment}}, ending {{end}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{contract}}, {{employment}}, {{end}}."
+  },
+  "lib.contract-text.contractor": {
+    "text": "contractor",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.days_one": {
+    "text": "{{count}} day",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.days_other": {
+    "text": "{{count}} days",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.employment_contract": {
+    "text": "Employment contract – {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{name}}."
+  },
+  "lib.contract-text.engages_as": {
+    "text": "{{company}} engages {{name}} as {{role}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{company}}, {{name}}, {{role}}."
+  },
+  "lib.contract-text.fixed_term": {
+    "text": "fixed term",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.full_time": {
+    "text": "full time",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.hours_and_minutes": {
+    "text": "{{hours}} {{minutes}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{minutes}}."
+  },
+  "lib.contract-text.hours_one": {
+    "text": "{{count}} hour",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.hours_other": {
+    "text": "{{count}} hours",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.hybrid": {
+    "text": "hybrid",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.minutes_one": {
+    "text": "{{count}} minute",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: a \"minutes\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.minutes_other": {
+    "text": "{{count}} minutes",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: a \"minutes\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.mobility": {
+    "text": "Mobility: the employee may be asked to work from another of the employer’s locations.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.months_one": {
+    "text": "{{count}} month",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.months_other": {
+    "text": "{{count}} months",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.non_compete_compensated_one": {
+    "text": "Non-compete: {{count}} month after the employment ends, compensated at {{percent}} of pay.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}, {{percent}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.non_compete_compensated_other": {
+    "text": "Non-compete: {{count}} months after the employment ends, compensated at {{percent}} of pay.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}, {{percent}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.non_compete_one": {
+    "text": "Non-compete: {{count}} month after the employment ends.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.non_compete_other": {
+    "text": "Non-compete: {{count}} months after the employment ends.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.notice": {
+    "text": "Notice: {{employee}} by the employee, {{employer}} by the employer.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{employee}}, {{employer}}."
+  },
+  "lib.contract-text.on_site": {
+    "text": "on site",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.part_time": {
+    "text": "part time",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.pay_a_month": {
+    "text": "Pay: {{pay}} a month.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.pay_a_month_in_payments": {
+    "text": "Pay: {{pay}} a month, paid in {{payments}} payments a year.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}, {{payments}}."
+  },
+  "lib.contract-text.pay_a_year": {
+    "text": "Pay: {{pay}} a year.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.pay_a_year_in_payments": {
+    "text": "Pay: {{pay}} a year, paid in {{payments}} payments a year.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}, {{payments}}."
+  },
+  "lib.contract-text.pay_an_hour": {
+    "text": "Pay: {{pay}} an hour.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.pay_an_hour_in_payments": {
+    "text": "Pay: {{pay}} an hour, paid in {{payments}} payments a year.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}, {{payments}}."
+  },
+  "lib.contract-text.permanent": {
+    "text": "permanent",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.probation": {
+    "text": "Probation: {{length}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{length}}."
+  },
+  "lib.contract-text.probation_none": {
+    "text": "Probation: none.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.relocation": {
+    "text": "Relocation: {{pay}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.remote": {
+    "text": "remote",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code."
+  },
+  "lib.contract-text.role": {
+    "text": "Role: {{role}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{role}}."
+  },
+  "lib.contract-text.signed_with_this_contract": {
+    "text": "Signed with this contract: {{documents}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{documents}}."
+  },
+  "lib.contract-text.signing_bonus": {
+    "text": "Signing bonus: {{pay}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.start_date": {
+    "text": "Start date: {{date}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{date}}."
+  },
+  "lib.contract-text.these_are_the_terms_of_offer_version": {
+    "text": "These are the terms of offer version {{version}} ({{hash}}), which the employee accepted.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{version}}, {{hash}}."
+  },
+  "lib.contract-text.this_contract_is_between": {
+    "text": "This contract is between {{company}} (the employer) and {{name}} (the employee).",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{company}}, {{name}}."
+  },
+  "lib.contract-text.variable_pay_at_target": {
+    "text": "Variable pay at target: {{pay}} a year.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{pay}}."
+  },
+  "lib.contract-text.weeks_one": {
+    "text": "{{count}} week",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.weeks_other": {
+    "text": "{{count}} weeks",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.contract-text.working_time": {
+    "text": "Working time: {{hours}} a week ({{fte}} FTE).",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}."
+  },
+  "lib.contract-text.working_time_mode": {
+    "text": "Working time: {{hours}} a week ({{fte}} FTE), {{mode}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}, {{mode}}."
+  },
+  "lib.contract-text.working_time_mode_days_one": {
+    "text": "Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} day on site.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}, {{mode}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.contract-text.working_time_mode_days_other": {
+    "text": "Working time: {{hours}} a week ({{fte}} FTE), {{mode}} with {{count}} days on site.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/contract-text.ts: text built in code. Filled in: {{hours}}, {{fte}}, {{mode}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.nothing_needs_you": {
+    "text": "Nothing needs you. New tasks appear in your Inbox.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."
+  },
+  "lib.inbox.ask.nothing_you_asked_for_is_waiting": {
+    "text": "Nothing you asked for is waiting on anybody.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."
+  },
+  "lib.inbox.ask.nothing_you_asked_for_is_waiting_now": {
+    "text": "Nothing you asked for is waiting on anybody right now.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."
+  },
+  "lib.inbox.ask.nudge_name": {
+    "text": "Nudge {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"label\" value. Filled in: {{name}}."
+  },
+  "lib.inbox.ask.nudge_them": {
+    "text": "Nudge them",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"label\" value."
+  },
+  "lib.inbox.ask.overdue": {
+    "text": "overdue",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: text built in code."
+  },
+  "lib.inbox.ask.requests_waiting_on_somebody_one": {
+    "text": "{{count}} of your requests is waiting on somebody.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.requests_waiting_on_somebody_other": {
+    "text": "{{count}} of your requests are waiting on somebody.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.status_sent_days_ago_one": {
+    "text": "{{title}}: {{status}}, sent {{count}} day ago.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{title}}, {{status}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.status_sent_days_ago_other": {
+    "text": "{{title}}: {{status}}, sent {{count}} days ago.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{title}}, {{status}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.status_sent_today": {
+    "text": "{{title}}: {{status}}, sent today.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{title}}, {{status}}."
+  },
+  "lib.inbox.ask.tasks_due_this_week_one": {
+    "text": "{{count}} task is due this week.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.tasks_due_this_week_other": {
+    "text": "{{count}} tasks are due this week.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.tasks_due_today_or_overdue_one": {
+    "text": "{{count}} task is due today or overdue.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.tasks_due_today_or_overdue_other": {
+    "text": "{{count}} tasks are due today or overdue.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.tasks_to_do_none_due_this_week_one": {
+    "text": "{{count}} task to do, none due this week.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.tasks_to_do_none_due_this_week_other": {
+    "text": "{{count}} tasks to do, none due this week.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.title_is_due": {
+    "text": " {{title}} is due {{when}}.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{title}}, {{when}}."
+  },
+  "lib.inbox.ask.title_is_overdue": {
+    "text": " {{title}} is overdue.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{title}}."
+  },
+  "lib.inbox.ask.today": {
+    "text": "today",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: text built in code."
+  },
+  "lib.inbox.ask.tomorrow": {
+    "text": "tomorrow",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: text built in code."
+  },
+  "lib.inbox.ask.updates_you_havent_opened_one": {
+    "text": "{{count}} update you haven’t opened.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.inbox.ask.updates_you_havent_opened_other": {
+    "text": "{{count}} updates you haven’t opened.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.inbox.ask.waiting": {
+    "text": "waiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"status\" value."
+  },
+  "lib.inbox.ask.you_can_nudge_them_now": {
+    "text": " You can nudge them now.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."
+  },
+  "lib.inbox.ask.you_have_read_every_update": {
+    "text": "You have read every update.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/ask.ts: a \"text\" value."
+  },
+  "lib.inbox.model.due_this_week": {
+    "text": "Due this week",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.earlier": {
+    "text": "Earlier",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.later": {
+    "text": "Later",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.no_due_date": {
+    "text": "No due date",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.overdue": {
+    "text": "Overdue",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.queues": {
+    "text": "Queues",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.today": {
+    "text": "Today",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.model.yesterday": {
+    "text": "Yesterday",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/model.ts: text built in code."
+  },
+  "lib.inbox.notifications.calendars_and_balances": {
+    "text": "Calendars and balances",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.details_documents_approvals": {
+    "text": "Details, documents, approvals, checklists",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, TASK_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.documents_shared_with_you": {
+    "text": "Documents shared with you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.people_and_time_off": {
+    "text": "People and Time Off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.reminders_before_due": {
+    "text": "Reminders before a task is due",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, TASK_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.someone_asks_you": {
+    "text": "Someone asks you to do something",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, TASK_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.someone_joins_or_leaves": {
+    "text": "Someone joins or leaves your team",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.tasks_handed_to_you": {
+    "text": "Tasks handed to you while someone is away",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, TASK_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.time_off": {
+    "text": "Time Off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.notifications.your_requests_are_decided": {
+    "text": "Your requests are decided",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/notifications.ts, UPDATE_ROWS: text built in code."
+  },
+  "lib.inbox.plain.documents": {
+    "text": "Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.inbox.plain.onboarding": {
+    "text": "Onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.inbox.plain.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.inbox.plain.performance": {
+    "text": "Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.inbox.plain.recruiting": {
+    "text": "Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.inbox.plain.time_off": {
+    "text": "Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/inbox/plain.ts: text built in code."
+  },
+  "lib.my-signature.that_is_not_a_signature": {
+    "text": "That is not a signature",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/my-signature.ts: a \"message\" value."
+  },
+  "lib.my-signature.your_company_keeps_no_signature": {
+    "text": "Your company keeps no signature on file",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/my-signature.ts: a \"message\" value."
+  },
+  "lib.my-signature.your_signature_is_hrs_to_change": {
+    "text": "Your signature is HR’s to change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/my-signature.ts: a \"message\" value."
+  },
+  "lib.people.module_did_not_answer": {
+    "text": "{{module}} did not answer",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/people.ts: a \"message\" value. Filled in: {{module}}."
+  },
+  "lib.people.module_did_not_answer_in_time": {
+    "text": "{{module}} did not answer in time",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/people.ts: a \"message\" value. Filled in: {{module}}."
+  },
+  "lib.people.sign_in_again": {
+    "text": "Sign in again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/people.ts: text built in code."
+  },
+  "lib.remotes.documents": {
+    "text": "Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"documents\" value."
+  },
+  "lib.remotes.onboarding": {
+    "text": "Onboarding",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"onboarding\" value."
+  },
+  "lib.remotes.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts: text built in code."
+  },
+  "lib.remotes.performance": {
+    "text": "Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"performance\" value."
+  },
+  "lib.remotes.recruiting": {
+    "text": "Recruiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"recruiting\" value."
+  },
+  "lib.remotes.time_off": {
+    "text": "Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/remotes.ts, AREAS: a \"timeoff\" value."
+  },
+  "lib.settings-modules.activity_log": {
+    "text": "Activity log",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"label\" value."
+  },
+  "lib.settings-modules.who_did_what_in_module": {
+    "text": "Who did what in {{module}}, and when. Never the values themselves.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/settings-modules.ts: a \"description\" value. Filled in: {{module}}."
+  },
+  "lib.shell-data.a_people_administrator": {
+    "text": "A People administrator",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"name\" value."
+  },
+  "lib.shell-data.add_your": {
+    "text": "Add your {{field}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{field}}."
+  },
+  "lib.shell-data.an_imported_file": {
+    "text": "An imported file",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value."
+  },
+  "lib.shell-data.answer_it_to_move_it_on": {
+    "text": "{{name}} · answer it to move it on",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value. Filled in: {{name}}."
+  },
+  "lib.shell-data.approve_a_change": {
+    "text": "Approve a {{field}} change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{field}}."
+  },
+  "lib.shell-data.area_settings": {
+    "text": "{{area}} settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"group\" value. Filled in: {{area}}."
+  },
+  "lib.shell-data.asked_by": {
+    "text": "{{name}} · asked by {{by}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value. Filled in: {{name}}, {{by}}."
+  },
+  "lib.shell-data.asked_by_name": {
+    "text": "Asked by {{by}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value. Filled in: {{by}}."
+  },
+  "lib.shell-data.asked_by_you": {
+    "text": "Asked by you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value."
+  },
+  "lib.shell-data.for_minutes_read_only_one": {
+    "text": "For {{count}} min, read-only: nothing was changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.shell-data.for_minutes_read_only_other": {
+    "text": "For {{count}} min, read-only: nothing was changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.shell-data.hr_asked_about_your_change": {
+    "text": "HR asked about your {{field}} change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{field}}."
+  },
+  "lib.shell-data.import_failed": {
+    "text": "Import failed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value."
+  },
+  "lib.shell-data.import_finished_people_and_fields": {
+    "text": "Import finished: {{people}}, {{fields}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{people}}, {{fields}}."
+  },
+  "lib.shell-data.import_finished_people_one": {
+    "text": "Import finished: {{count}} person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.shell-data.import_finished_people_other": {
+    "text": "Import finished: {{count}} people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.shell-data.is_waiting_for_approval": {
+    "text": "{{field}} is waiting for approval",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{field}}."
+  },
+  "lib.shell-data.new_fields_count_one": {
+    "text": "{{count}} new field",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"fields\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.shell-data.new_fields_count_other": {
+    "text": "{{count}} new fields",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"fields\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.shell-data.people_count_one": {
+    "text": "{{count}} person",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"people\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "lib.shell-data.people_count_other": {
+    "text": "{{count}} people",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"people\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "lib.shell-data.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"label\" value."
+  },
+  "lib.shell-data.viewed_kithena_as_you": {
+    "text": "{{name}} viewed Kithena as you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "lib.shell-data.your_sensitive_personal_details_were_visible": {
+    "text": " Your sensitive personal details were visible.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shell-data.ts: a \"detail\" value."
+  },
+  "lib.shortcuts.a_list_key_is_one_key": {
+    "text": "A key for a list or a row is one key, with or without a modifier. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.activity": {
+    "text": "Activity",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.already_does": {
+    "text": "{{keys}} already {{does}}. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{keys}}, {{does}}."
+  },
+  "lib.shortcuts.approve_review": {
+    "text": "Approve (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.approves_the_change": {
+    "text": "approves the change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.belongs_to_your_browser": {
+    "text": "{{keys}} belongs to your browser or computer. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{keys}}."
+  },
+  "lib.shortcuts.cancel": {
+    "text": "Cancel",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.cancels": {
+    "text": "cancels",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.cannot_be_changed": {
+    "text": "{{keys}} cannot be changed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{keys}}."
+  },
+  "lib.shortcuts.clear_the_selection_then_leave": {
+    "text": "Clear the selection, then leave",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.clears_the_selection": {
+    "text": "clears the selection",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.close_what_is_open": {
+    "text": "Close what is open",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.closes_what_is_open": {
+    "text": "closes what is open",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.collapse_or_expand_the_sidebar": {
+    "text": "Collapse or expand the sidebar",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.collapses_the_sidebar": {
+    "text": "collapses the sidebar",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.compares_the_pair": {
+    "text": "compares the pair",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.could_never_be_reached": {
+    "text": "{{other}} already {{does}}, so {{keys}} could never be reached. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{keys}}, {{other}}, {{does}}."
+  },
+  "lib.shortcuts.create_what_this_page_makes_a_person": {
+    "text": "Create what this page makes: a person, a schedule, an export",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.creates": {
+    "text": "creates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.decline_review": {
+    "text": "Decline (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.declines_the_change": {
+    "text": "declines the change",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.directory": {
+    "text": "Directory",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.edit_the_profile_directory": {
+    "text": "Edit the profile (Directory)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.edits_the_profile": {
+    "text": "edits the profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.extends_the_selection_down": {
+    "text": "extends the selection down",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.extends_the_selection_up": {
+    "text": "extends the selection up",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.fill_in_review": {
+    "text": "Fill in (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.fills_in_the_gaps": {
+    "text": "fills in the gaps",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.group_actions": {
+    "text": "Actions",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.group_create": {
+    "text": "Create",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.group_everywhere": {
+    "text": "Everywhere",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.group_forms": {
+    "text": "Forms",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.group_lists": {
+    "text": "Lists",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.group_navigation": {
+    "text": "Navigation",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.home": {
+    "text": "Home",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.import_export": {
+    "text": "Import & export",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.inbox": {
+    "text": "Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.insights": {
+    "text": "Insights",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.keeps_the_pair_apart": {
+    "text": "keeps the pair apart",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.key_alt": {
+    "text": "Alt",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"alt\" value."
+  },
+  "lib.shortcuts.key_backspace": {
+    "text": "Backspace",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"backspace\" value."
+  },
+  "lib.shortcuts.key_ctrl": {
+    "text": "Ctrl",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"mod\" value."
+  },
+  "lib.shortcuts.key_del": {
+    "text": "Del",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"delete\" value."
+  },
+  "lib.shortcuts.key_delete": {
+    "text": "Delete",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"delete\" value."
+  },
+  "lib.shortcuts.key_delete_mac": {
+    "text": "Delete",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"backspace\" value."
+  },
+  "lib.shortcuts.key_enter": {
+    "text": "Enter",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"enter\" value."
+  },
+  "lib.shortcuts.key_esc": {
+    "text": "Esc",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"escape\" value."
+  },
+  "lib.shortcuts.key_return": {
+    "text": "Return",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"enter\" value."
+  },
+  "lib.shortcuts.key_shift": {
+    "text": "Shift",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"shift\" value."
+  },
+  "lib.shortcuts.key_space": {
+    "text": "Space",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"space\" value."
+  },
+  "lib.shortcuts.key_tab": {
+    "text": "Tab",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, WORDS: a \"tab\" value."
+  },
+  "lib.shortcuts.keyboard_shortcuts": {
+    "text": "Keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.merge_review": {
+    "text": "Merge (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.moves_to_the_next_row": {
+    "text": "moves to the next row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.moves_to_the_next_tab": {
+    "text": "moves to the next tab",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.moves_to_the_previous_row": {
+    "text": "moves to the previous row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.moves_to_the_previous_tab": {
+    "text": "moves to the previous tab",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.my_profile": {
+    "text": "My profile",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.new_export": {
+    "text": "New export",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: a \"label\" value."
+  },
+  "lib.shortcuts.next_row_or": {
+    "text": "Next row (or ↓)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.next_tab_or_view": {
+    "text": "Next tab or view",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.not_the_same_person_review": {
+    "text": "Not the same person (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.one_key_or_two": {
+    "text": "A shortcut is one key or two in a row. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.open_or_close_the_clock": {
+    "text": "Open or close the clock",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.open_the_assistant": {
+    "text": "Open the assistant",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.open_the_row_or_enter": {
+    "text": "Open the row (or Enter)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.opens_label": {
+    "text": "opens {{label}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{label}}."
+  },
+  "lib.shortcuts.opens_search": {
+    "text": "opens search",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.opens_the_assistant": {
+    "text": "opens the assistant",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.opens_the_clock": {
+    "text": "opens the clock",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.opens_the_quick_look": {
+    "text": "opens the quick look",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.opens_the_row": {
+    "text": "opens the row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.people": {
+    "text": "People",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.press_the_keys": {
+    "text": "Press the keys for this shortcut.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.previous_row_or": {
+    "text": "Previous row (or ↑)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.previous_tab_or_view": {
+    "text": "Previous tab or view",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.quick_look": {
+    "text": "Quick look",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.remind_review": {
+    "text": "Remind (Review)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.review": {
+    "text": "Review",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.search_and_run_a_command": {
+    "text": "Search and run a command",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.search_this_page": {
+    "text": "Search this page",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.searches_the_page": {
+    "text": "searches the page",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.select_down_or": {
+    "text": "Select down (or ⇧↓)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.select_the_row": {
+    "text": "Select the row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.select_up_or": {
+    "text": "Select up (or ⇧↑)",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.selects_the_row": {
+    "text": "selects the row",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.sends_a_reminder": {
+    "text": "sends a reminder",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.settings": {
+    "text": "Settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.show_keyboard_shortcuts": {
+    "text": "Show keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.shows_the_keyboard_shortcuts": {
+    "text": "shows the keyboard shortcuts",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.starts_another": {
+    "text": "{{keys}} starts {{other}}, which {{does}}. Choose another.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code. Filled in: {{keys}}, {{other}}, {{does}}."
+  },
+  "lib.shortcuts.submit_the_form_or_dialog": {
+    "text": "Submit the form or dialog",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.submits_the_form": {
+    "text": "submits the form",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.that_shortcut_does_not_exist": {
+    "text": "That shortcut does not exist.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.then": {
+    "text": " then ",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts: text built in code."
+  },
+  "lib.shortcuts.time_off": {
+    "text": "Time off",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.view_as_this_person_or_end_viewing": {
+    "text": "View as this person, or end viewing as them",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.shortcuts.views_as_them_or_ends_it": {
+    "text": "views as them, or ends it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/shortcuts.ts, SHORTCUTS: text built in code."
+  },
+  "lib.timeoff-screens.not_a_month": {
+    "text": "“{{asked}}” is not a month",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/timeoff-screens.ts: a \"notice\" value. Filled in: {{asked}}."
+  },
+  "lib.timeoff-screens.not_a_week_or_a_month": {
+    "text": "“{{asked}}” is not a week or a month",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/timeoff-screens.ts: a \"notice\" value. Filled in: {{asked}}."
+  },
+  "lib.view-as.end_this_view_first": {
+    "text": "End this view first",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/view-as.ts: a \"message\" value."
+  },
+  "lib.view-as.viewing_as_them_could_not_be_started": {
+    "text": "Viewing as them could not be started. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. lib/view-as.ts: a \"message\" value."
   }
 }

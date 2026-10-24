@@ -45,6 +45,30 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT_DIR = join(WEB, '../..');
+
+/**
+ * Emails' namespaces and where each service keeps its words
+ * (`<dir>/locales/<language>.json`, one file a language), as
+ * `i18n-extract.mjs` names them: a module's emails never live outside it.
+ */
+const EMAIL_DIRS = {
+  'email-messaging': 'platform/messaging/src',
+  'email-recruiting': 'services/recruiting/src',
+  'email-onboarding': 'services/onboarding/src',
+  'email-performance': 'services/performance/src',
+  'email-timeoff': 'services/timeoff/src',
+};
+const SOURCES = Object.fromEntries(Object.keys(EMAIL_DIRS).map((ns) => [ns, { email: true }]));
+/** An email catalogue is kept even when empty: the service imports every language's file. */
+const EMAIL_FILES = new Set();
+const localeFile = (ns, language) => {
+  if (EMAIL_DIRS[ns] === undefined) return join(LOCALES_DIR(), language, `${ns}.json`);
+  const path = join(ROOT_DIR, EMAIL_DIRS[ns], 'locales', `${language}.json`);
+  EMAIL_FILES.add(path);
+  return path;
+};
+const LOCALES_DIR = () => join(WEB, 'src/locales');
 const LOCALES = join(WEB, 'src/locales');
 const SOURCE = join(LOCALES, 'source');
 
@@ -626,17 +650,18 @@ const LANGUAGES = {
 
 const instruction = (
   lang,
-) => `You are a senior UX writer and translator for Kithena, an HR software product used by companies in Europe and the US: employee records (People), leave and time tracking (Time Off), Recruiting, Onboarding, Documents with e-signatures, and Performance reviews. Translate interface strings from English into ${lang.name}.
+) => `You are a senior UX writer and translator for Kithena, an HR software product used by companies in Europe and the US: employee records (People), leave and time tracking (Time Off), Recruiting, Onboarding, Documents with e-signatures, and Performance reviews. Translate interface strings, and the emails the product sends, from English into ${lang.name}.
 
 How to translate:
 1. Translate the meaning in its context, the way a native UX writer would write the interface — never word for word. Each string comes with its context: the area of the product, the screen (file and component) and what it is on screen (a button, a field's label, a dialog title, an aria-label for a screen reader, a description, a fragment built in code). Buttons and menu items are short actions; labels are short noun phrases; descriptions and messages are natural sentences.
 2. Keep every {{placeholder}} exactly as written — same name, same double braces — and put it where the grammar of the language needs it. Never translate, rename, drop or add a placeholder. A placeholder may hold a name, a number, a date or another phrase.
 3. Some strings are fragments that code joins with others (", one cycle per week", "the pay", "and a web search"). Translate them as fragments that read naturally in the same place, keeping leading or trailing punctuation and spaces as they are.
-4. Keep product, brand and technical names as they are: Kithena, Slack, Microsoft Teams, Microsoft 365, Google, Google Meet, Google Calendar, Zoom, LinkedIn, Indeed, Okta, Entra, DATEV, SAP, Workday, CSV, PDF, XML, URL, API, AI, ID, SSO, SCIM. Keep keyboard keys (Enter, Esc, Shift, ⌘, Ctrl), symbols (·, →, …, ×) and units.
+4. Keep product, brand and technical names as they are: Kithena, Slack, Microsoft Teams, Microsoft 365, Google, Google Meet, Google Calendar, Zoom, LinkedIn, Indeed, Okta, Entra, DATEV, SAP, Workday, CSV, PDF, XML, URL, API, AI, ID, SSO, SCIM. A string whose context says it is a keyboard key's name (Ctrl, Shift, Enter, Space, Delete) is written as that key is printed on keyboards in the language (German Strg, Umschalt, Eingabe, Leertaste, Entf); keep symbols (⌘, ⇧, ·, →, …, ×) and units.
 5. A string that is an example value, a code, an address or a placeholder hint (an email address, a URL, a slug) comes back unchanged.
 6. Register and style: ${lang.register}
 7. Use these terms consistently: ${JSON.stringify(lang.glossary)}
 8. Keep the length close to the English where you can: these are interface strings in buttons, menus and table headers.
+9. An email (its context says so) is a letter from a company to a person: write it as a native speaker at that company would, warm and plain, with the language's own greeting and sign-off conventions. Keep its line breaks (\\n) where they are.
 
 You get a JSON object {"strings": [{"id": "…", "en": "…", "context": "…"}]}. Answer with only a JSON object mapping each id to its translation: {"<id>": "<translation>"}. Every id must be answered.`;
 
@@ -789,7 +814,7 @@ const files = new Map();
 for (const language of targets) {
   lock[language] ??= {};
   for (const ns of namespaces) {
-    const path = join(LOCALES, language, `${ns}.json`);
+    const path = localeFile(ns, language);
     const held = readJson(path, {});
     const source = sourceFor(language, ns);
     // What the code no longer says goes.
@@ -813,7 +838,7 @@ console.log(
 
 const save = () => {
   for (const [path, held] of files)
-    if (Object.keys(held).length > 0) writeJson(path, held);
+    if (Object.keys(held).length > 0 || EMAIL_FILES.has(path)) writeJson(path, held);
     else rmSync(path, { force: true });
   writeJson(lockPath, lock);
 };
@@ -893,7 +918,9 @@ save();
 const present = [];
 let all = '';
 for (const language of Object.keys(LANGUAGES))
-  for (const ns of readdirSync(SOURCE).map((f) => f.slice(0, -5))) {
+  for (const ns of readdirSync(SOURCE)
+    .map((f) => f.slice(0, -5))
+    .filter((n) => SOURCES[n]?.email !== true)) {
     const path = join(LOCALES, language, `${ns}.json`);
     if (!existsSync(path)) continue;
     present.push([language, ns]);

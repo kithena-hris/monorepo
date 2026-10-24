@@ -1,0 +1,142 @@
+{
+  "accounts": {
+    "text": "Set up email and the accounts the role needs",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "assign_buddy": {
+    "text": "Choose a buddy",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "buddy_coffee": {
+    "text": "Coffee with your buddy",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "checkin_30": {
+    "text": "30-day check-in",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "checkin_60": {
+    "text": "60-day check-in",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "checkin_90": {
+    "text": "90-day check-in",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "de_data_protection": {
+    "text": "Acknowledge data protection and confidentiality",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"DE\" value."
+  },
+  "de_nachweis": {
+    "text": "Hand over the essential terms (Nachweis) if not already given",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"DE\" value."
+  },
+  "de_social_insurance": {
+    "text": "Register with social insurance by the first payroll",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"DE\" value."
+  },
+  "de_tax_insurance": {
+    "text": "Give your tax ID, health insurer and social security number",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"DE\" value."
+  },
+  "email.plans.hello_were_glad_youre_joining_us": {
+    "text": "Hello {{givenName}},\n\nWe’re glad you’re joining us on {{startDate}}. Your first days, who meets you and what to do beforehand are here:\n{{jobsOrigin}}/welcome#{{token}}\n\nThe link is yours alone; please don’t share it.",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"text\" value. Filled in: {{givenName}}, {{startDate}}, {{jobsOrigin}}, {{token}}."
+  },
+  "email.plans.welcome_what_happens_before_your_first": {
+    "text": "Welcome: what happens before your first day",
+    "context": "An email welcoming a new hire before their first day. application/plans.ts: a \"subject\" value."
+  },
+  "equipment": {
+    "text": "Prepare the laptop and equipment",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "es_contrat_sepe": {
+    "text": "Communicate the contract to the public employment service",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"ES\" value."
+  },
+  "es_naf_bank": {
+    "text": "Give your Social Security number (NAF) and bank details",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"ES\" value."
+  },
+  "es_social_security_alta": {
+    "text": "Register with Social Security (alta) before the start",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"ES\" value."
+  },
+  "es_time_recording": {
+    "text": "Switch on daily time recording",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"ES\" value."
+  },
+  "first_goals": {
+    "text": "Agree the first goals",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "gb_pension_assessment": {
+    "text": "Assess for pension auto-enrolment",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"GB\" value."
+  },
+  "gb_right_to_work": {
+    "text": "Right-to-work check before the start",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"GB\" value."
+  },
+  "gb_starter_checklist": {
+    "text": "Fill in the starter checklist for payroll",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"GB\" value."
+  },
+  "gb_written_statement": {
+    "text": "Give the written statement of particulars",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"GB\" value."
+  },
+  "in_appointment_letter": {
+    "text": "Give the appointment letter",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"IN\" value."
+  },
+  "in_pan_bank": {
+    "text": "Give your PAN and bank details",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"IN\" value."
+  },
+  "in_pf_esi": {
+    "text": "Register for the provident fund and state insurance where they apply",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"IN\" value."
+  },
+  "in_uan": {
+    "text": "Give your provident fund UAN, or ask for a new one",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"IN\" value."
+  },
+  "meet_team": {
+    "text": "Meet the team",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "onboarding_training": {
+    "text": "Assign the onboarding training",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "personal_details": {
+    "text": "Fill in your personal details",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "us_e_verify": {
+    "text": "Run E-Verify where required",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"US\" value."
+  },
+  "us_i9_section_1": {
+    "text": "Complete Form I-9 section 1",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"US\" value."
+  },
+  "us_i9_section_2": {
+    "text": "Complete Form I-9 section 2",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"US\" value."
+  },
+  "us_w4": {
+    "text": "Fill in Form W-4 and the state withholding form",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts, TASKS: a \"US\" value."
+  },
+  "welcome_email": {
+    "text": "Send the welcome email and the first-week agenda",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  },
+  "welcome_meeting": {
+    "text": "Welcome meeting",
+    "context": "An email welcoming a new hire before their first day. domain/country.ts: a \"tasks\" value."
+  }
+}

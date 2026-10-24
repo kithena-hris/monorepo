@@ -120,7 +120,7 @@ function Ready({
         <Card padded className="flex flex-col items-center gap-3">
           <svg
             role="img"
-            aria-label={t('kiosk.code.your_kiosk_code', 'Your kiosk code')}
+            aria-label={t('kiosk.code.your_kiosk_code_2', 'Your kiosk code')}
             viewBox={`0 0 ${String(qr.size)} ${String(qr.size)}`}
             shapeRendering="crispEdges"
             className="aspect-square w-full max-w-72 rounded-md bg-white"

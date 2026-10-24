@@ -117,7 +117,7 @@ export function Templates(props: ScreenProps<TemplatesData>): JSX.Element {
         return (
           <div className="flex flex-col gap-4">
             <PageHeader
-              title={tr('templates.form_templates', 'Form templates')}
+              title={tr('templates.form_templates_2', 'Form templates')}
               description={tr(
                 'templates.the_forms_every_review_and_feedback',
                 'The forms every review and feedback request is written on. A published version never changes.',

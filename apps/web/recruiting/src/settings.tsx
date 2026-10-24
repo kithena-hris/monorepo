@@ -2541,7 +2541,7 @@ const PayBands: Body = ({ data, props }) => {
                     ? { meta: <FromPeople /> }
                     : {
                         actions: rowActions(
-                          tr('settings.pay_band', 'pay band'),
+                          tr('settings.pay_band_2', 'pay band'),
                           () => {
                             setBand(b);
                           },

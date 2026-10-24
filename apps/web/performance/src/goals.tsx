@@ -722,7 +722,7 @@ export function Goal(props: ScreenProps<GoalData>): JSX.Element {
                 ...(data.period?.name ? [data.period.name] : []),
                 ...(g.alignedTo === null
                   ? []
-                  : [t('goals.aligned_to', 'aligned to {{goal}}', { goal: g.alignedTo })]),
+                  : [t('goals.aligned_to_goal', 'aligned to {{goal}}', { goal: g.alignedTo })]),
               ].join(' · ')}
               actions={
                 <>

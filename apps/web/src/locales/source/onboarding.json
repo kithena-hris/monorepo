@@ -15,6 +15,10 @@
     "text": "Onboarding",
     "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx: a \"label\" value."
   },
+  "frame.page_tabs": {
+    "text": "Page tabs",
+    "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: the label of <TertiaryNav>."
+  },
   "frame.sections": {
     "text": "Sections",
     "context": "Onboarding: new joiners’ tasks and checklists. frame.tsx, ScreenFrame: text built in code."
@@ -139,6 +143,10 @@
     "text": "with {{manager}}",
     "context": "Onboarding: new joiners’ tasks and checklists. home.tsx: text inside <span>. Filled in: {{manager}}."
   },
+  "home.your_onboarding_tasks": {
+    "text": "your onboarding tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. home.tsx, Tasks: the what of <Loaded>."
+  },
   "load.could_not_load": {
     "text": "Could not load {{what}}",
     "context": "Onboarding: new joiners’ tasks and checklists. load.tsx, Loaded: the title of <Alert>. Filled in: {{what}}."
@@ -187,9 +195,17 @@
     "text": "Day one",
     "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PHASES: text built in code."
   },
-  "plan.ends": {
-    "text": "Ends {{probationEnd}}{{value}}",
-    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>. Filled in: {{probationEnd}}, {{value}}."
+  "plan.ends_may_be_extended_one": {
+    "text": "Ends {{probationEnd}} · may be extended by up to {{count}} month",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>. Filled in: {{probationEnd}}, {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "plan.ends_may_be_extended_other": {
+    "text": "Ends {{probationEnd}} · may be extended by up to {{count}} months",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>. Filled in: {{probationEnd}}, {{count}}. Plural: the words for any other {{count}}."
+  },
+  "plan.ends_no_extension": {
+    "text": "Ends {{probationEnd}} · no extension allowed",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>. Filled in: {{probationEnd}}."
   },
   "plan.every_open_task_that_hangs_off": {
     "text": "Every open task that hangs off the start moves with it, and probation’s end by as much.",
@@ -298,6 +314,10 @@
   "plan.submit": {
     "text": "Submit",
     "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <Button>."
+  },
+  "plan.the_plan": {
+    "text": "the plan",
+    "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, Plan: the what of <Loaded>."
   },
   "plan.until_probation_ends": {
     "text": "Until probation ends",
@@ -448,8 +468,16 @@
     "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, SettingsBody: the title of <PageHeader>."
   },
   "templates.onboarding_analytics": {
+    "text": "onboarding analytics",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the what of <Loaded>."
+  },
+  "templates.onboarding_analytics_2": {
     "text": "Onboarding analytics",
     "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Analytics: the title of <PageHeader>."
+  },
+  "templates.onboardings_settings": {
+    "text": "Onboarding’s settings",
+    "context": "Onboarding: new joiners’ tasks and checklists. templates.tsx, Settings: the what of <Loaded>."
   },
   "templates.one_line_per_country_with_time": {
     "text": "One line per country. With Time Off, its calendars are used too.",

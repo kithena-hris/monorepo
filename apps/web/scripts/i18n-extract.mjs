@@ -46,6 +46,34 @@ export const SOURCES = {
     dir: 'apps/web/performance/src',
     area: 'Performance: reviews, goals, feedback, learning',
   },
+  // Emails, always in the company's language whatever the reader chose for
+  // screens: each service keeps its own words beside its code, so a module's
+  // emails never live outside the module (`<dir>/locales/<language>.json`).
+  'email-messaging': {
+    dir: 'platform/messaging/src',
+    area: 'An email Kithena sends for a company: an invitation, a sign-in link, or a notice with one button. Short, plain and warm; it names the company it is from',
+    email: true,
+  },
+  'email-recruiting': {
+    dir: 'services/recruiting/src',
+    area: 'An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet',
+    email: true,
+  },
+  'email-onboarding': {
+    dir: 'services/onboarding/src',
+    area: 'An email welcoming a new hire before their first day',
+    email: true,
+  },
+  'email-performance': {
+    dir: 'services/performance/src',
+    area: 'An email to an employee about performance reviews, feedback or learning sessions',
+    email: true,
+  },
+  'email-timeoff': {
+    dir: 'services/timeoff/src',
+    area: 'A personal email from HR encouraging one employee to take a break, with their own numbers',
+    email: true,
+  },
 };
 
 const SKIP = /\.(test|stories)\.tsx?$|\.d\.ts$|\/(test|testing|locales)\//u;

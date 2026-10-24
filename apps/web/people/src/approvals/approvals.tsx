@@ -263,7 +263,6 @@ export function ago(at: string, now: number): string {
     : t('approvals.approvals.days', '{{days}} days', { days: String(days) });
 }
 
-
 /** How a request ended, or when it lapses: one whole phrase per outcome. */
 function decidedLine(item: ApprovalItem, now: number): string {
   const on = item.decidedAt == null ? null : longDate(item.decidedAt.slice(0, 10));
@@ -787,7 +786,7 @@ function Answer({
   return (
     <span className="mt-2 flex flex-col gap-2 font-normal">
       <Field invalid={refused !== null}>
-        <FieldLabel>{t('approvals.approvals.your_answer', 'Your answer')}</FieldLabel>
+        <FieldLabel>{t('approvals.approvals.your_answer_2', 'Your answer')}</FieldLabel>
         <FieldControl>
           <Textarea
             value={answer}

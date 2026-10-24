@@ -2996,7 +2996,7 @@ function CycleSettings({
                   icon={<icons.people />}
                   description={
                     st.peer.all
-                      ? tr('cycles.every_teammate_up_to', 'Every teammate, up to {{max}}', {
+                      ? tr('cycles.every_teammate_up_to_2', 'Every teammate, up to {{max}}', {
                           max: String(st.peer.max),
                         })
                       : tr('cycles.nominated_to_each', 'Nominated, {{min}} to {{max}} each', {

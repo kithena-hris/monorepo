@@ -1032,7 +1032,7 @@ function Checklist({ item, act }: BodyProps): JSX.Element {
             disabled={count < d.steps.length}
             onClick={() => {
               act.run(() => moveToDone([item.id]), {
-                title: t('components.inbox.detail-people.done', 'Done'),
+                title: t('components.inbox.detail-people.done_2', 'Done'),
                 next: true,
               });
             }}

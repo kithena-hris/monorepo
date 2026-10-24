@@ -515,7 +515,7 @@ function AutomationDialog({
                 label={tr('automations.group', 'Group')}
                 value={t.group}
                 options={[
-                  ['week', tr('automations.one_cycle_per_week', 'One cycle per week')],
+                  ['week', tr('automations.one_cycle_per_week_2', 'One cycle per week')],
                   ['person', tr('automations.one_cycle_per_person', 'One cycle per person')],
                 ]}
                 onChange={(v) => {

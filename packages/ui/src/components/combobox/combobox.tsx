@@ -413,7 +413,7 @@ export function Combobox({
             aria-expanded
             aria-controls={listId}
             aria-autocomplete="list"
-            aria-label={t('components.combobox.combobox.search', '{{label}} search', { label })}
+            aria-label={t('components.combobox.combobox.search_2', '{{label}} search', { label })}
             aria-activedescendant={
               flat[activeIndex] ? `${optionIdPrefix}-${String(activeIndex)}` : undefined
             }

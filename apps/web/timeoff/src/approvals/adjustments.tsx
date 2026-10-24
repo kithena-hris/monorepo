@@ -130,7 +130,7 @@ export function Adjustments(props: AdjustmentsProps): JSX.Element {
       ) : null}
       <Loaded
         load={load}
-        what={tr('approvals.adjustments.balance_adjustments', 'balance adjustments')}
+        what={tr('approvals.adjustments.balance_adjustments_2', 'balance adjustments')}
       >
         {(data) => <Ready data={data} {...props} />}
       </Loaded>

@@ -720,7 +720,7 @@ function History({
         <>
           {/* At a desk, a virtualized table that is the page's one scroll. */}
           <DataTable<TransferEntry>
-            label={t('import.import-export.imports_and_exports', 'Imports and exports')}
+            label={t('import.import-export.imports_and_exports_2', 'Imports and exports')}
             rows={shown}
             rowId={(e) => e.id}
             describeRow={titleOf}
@@ -731,7 +731,7 @@ function History({
           />
           {/* Under a finger, a list that scrolls with the page, drawn near the view. */}
           <VirtualList
-            label={t('import.import-export.imports_and_exports', 'Imports and exports')}
+            label={t('import.import-export.imports_and_exports_2', 'Imports and exports')}
             items={shown}
             itemKey={(e) => e.id}
             scroll="page"

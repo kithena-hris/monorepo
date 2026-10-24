@@ -1114,7 +1114,7 @@ function ScheduleBody({
             ))}
             <Card>
               <CardHeader>
-                <CardTitle level={2}>{tr('interviews.the_interview', 'The interview')}</CardTitle>
+                <CardTitle level={2}>{tr('interviews.the_interview_2', 'The interview')}</CardTitle>
                 <CardDescription>
                   {tr(
                     'interviews.which_interview_of_the_plan_and',

@@ -260,7 +260,7 @@ export function RangeChart({
                   band.spread === undefined
                     ? ''
                     : t(
-                        'components.chart.range-chart.spread',
+                        'components.chart.range-chart.spread_to',
                         '. {{spreadLabel}} {{low}} to {{high}}',
                         {
                           spreadLabel,

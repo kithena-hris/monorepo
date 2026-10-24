@@ -1,8 +1,10 @@
 name: translations
 
 # Every language's words, translated by the assistant's model from the English
-# the screens say (`apps/web/scripts/i18n-translate.mjs`), committed back to the
-# pull request that changed the English. Only what is new or changed is sent.
+# the screens and the emails say (`apps/web/scripts/i18n-translate.mjs`),
+# committed back to the pull request that changed the English: the screens'
+# beside the web app, each service's emails beside the service. Only what is
+# new or changed is sent.
 #
 # In `production` for the model's key, the one the services use. A pull
 # request from a fork never gets it, so never runs this.
@@ -40,7 +42,7 @@ jobs:
           ASSISTANT_API_KEY: ${{ secrets.ASSISTANT_API_KEY }}
       - name: commit the translations
         run: |
-          git add apps/web/src/locales
+          git add apps/web/src/locales platform/messaging/src/locales services/*/src/locales
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

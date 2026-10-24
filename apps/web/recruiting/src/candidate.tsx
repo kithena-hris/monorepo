@@ -1537,7 +1537,7 @@ export function Pools(props: ScreenProps<PoolsData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={tr('candidate.talent_pools', 'Talent pools')}
+            title={tr('candidate.talent_pools_2', 'Talent pools')}
             description={tr(
               'candidate.nobody_stays_without_a_lawful_basis',
               'Nobody stays without a lawful basis: consent asked by email, renewed thirty days before it ends.',

@@ -638,7 +638,7 @@ function Steps({
               }}
             >
               <SelectTrigger
-                aria-label={t('import.import-flow.goes_to', '{{header}} goes to', {
+                aria-label={t('import.import-flow.goes_to_2', '{{header}} goes to', {
                   header: c.header,
                 })}
                 aria-describedby={

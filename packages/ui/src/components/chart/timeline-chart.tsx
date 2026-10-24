@@ -544,7 +544,7 @@ function TimelineGantt({
   onDraggingChange,
   onDrop,
   empty = t('components.chart.timeline-chart.nothing_scheduled', 'Nothing scheduled.'),
-  emptyRow = t('components.chart.timeline-chart.nothing_scheduled', 'Nothing scheduled'),
+  emptyRow = t('components.chart.timeline-chart.nothing_scheduled_2', 'Nothing scheduled'),
   emptyWindow = t('components.chart.timeline-chart.nothing_in_this_range', 'Nothing in this range'),
   zoomable = false,
   window: controlledWindow,
@@ -1532,7 +1532,7 @@ function TimelineTrack({
   snapDays = 1,
   markers = [],
   empty = t('components.chart.timeline-chart.nothing_scheduled', 'Nothing scheduled.'),
-  emptyRow = t('components.chart.timeline-chart.nothing_scheduled', 'Nothing scheduled'),
+  emptyRow = t('components.chart.timeline-chart.nothing_scheduled_2', 'Nothing scheduled'),
   menuItems,
   className,
 }: TimelineChartProps): JSX.Element {
@@ -1691,7 +1691,7 @@ function TimelineTrack({
     const applied = by !== 0 && allowed(item, row);
     onDrop?.(move, applied);
     outcome.current = applied
-      ? t('components.chart.timeline-chart.moved_to', '{{label}} moved to {{dates}}.', {
+      ? t('components.chart.timeline-chart.moved_to_2', '{{label}} moved to {{dates}}.', {
           label: item.label,
           dates: dates(item, by),
         })

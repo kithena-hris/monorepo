@@ -1846,7 +1846,7 @@ function SubmitDialog({
           {check.reading === 'reading' ? (
             <Asking
               busy
-              what={t('reviews.reading_your_draft', 'Reading your draft…')}
+              what={t('reviews.reading_your_draft_2', 'Reading your draft…')}
               error={null}
             />
           ) : check.reading === 'failed' ? (
@@ -2563,7 +2563,7 @@ export function Unlocks(props: ScreenProps<UnlocksData>): JSX.Element {
       {(data) => (
         <div className="flex flex-col gap-4">
           <PageHeader
-            title={t('reviews.unlock_requests', 'Unlock requests')}
+            title={t('reviews.unlock_requests_2', 'Unlock requests')}
             description={t(
               'reviews.only_hr_decides_an_unlocked_review',
               'Only HR decides. An unlocked review keeps its submitted revision until it’s submitted again.',
