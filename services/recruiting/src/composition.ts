@@ -9,6 +9,7 @@ import { yogaOptions } from './graphql/schema.js';
 import { callerFromHeaders, withMember, type RecordedEntitlements } from './http/caller.js';
 import { recruitingListener, recruitingServer } from './http/server.js';
 import { blobsFrom } from './infrastructure/blobs.js';
+import { valkeyInterviewEnds } from './infrastructure/interview-ends.js';
 import { uuidv7 } from './infrastructure/ids.js';
 import { modelFrom } from './infrastructure/model.js';
 import { webReader } from './infrastructure/web.js';
@@ -89,6 +90,9 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   const connections = configured.length === 0 && fakes ? fakeConnections() : configured;
   const inboundDomain = env['INBOUND_DOMAIN'];
   const messagingToken = env['MESSAGING_RECRUITING_TOKEN'];
+  // A timer at each interview's end, which asks for its scorecards the moment it is over.
+  const valkey = env['VALKEY_URL'];
+  const interviewEnds = valkey ? valkeyInterviewEnds(valkey) : undefined;
   const { listener, deps } = recruitingServer(
     {
       uow,
@@ -108,6 +112,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(connections.length === 0 ? {} : { connections }),
       ...(workspaceCalendar === undefined ? {} : { workspaceCalendar }),
       ...(chat === undefined ? {} : { chat }),
+      ...(interviewEnds === undefined ? {} : { interviewEnds }),
       ...(indeed === undefined ? {} : { boards: [...ownBoards(jobsOrigin), indeed] }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }

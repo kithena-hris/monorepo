@@ -292,6 +292,8 @@ services:
       # Kithena Jobs' reads, as the role that can read the public projection
       # and nothing else (PRD §31.2).
       RECRUITING_JOBS_READER_URL: postgres://svc_jobs_reader:${JOBS_READER_DB_PASSWORD:?JOBS_READER_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
+      # A timer at each interview's end (BullMQ): its scorecards are asked for the moment it is over.
+      VALKEY_URL: redis://valkey:6379
     stop_grace_period: 30s
     healthcheck:
       test:
@@ -309,6 +311,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redpanda: { condition: service_healthy }
+      valkey: { condition: service_healthy }
     deploy:
       resources:
         # ponytail: a guess, under Documents' as it draws no PDF; text is

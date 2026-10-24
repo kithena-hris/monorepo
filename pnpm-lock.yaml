@@ -2080,6 +2080,9 @@ importers:
       '@kithena/telemetry':
         specifier: workspace:*
         version: link:../../packages/telemetry
+      bullmq:
+        specifier: ^6.3.12
+        version: 6.3.12(ioredis@6.0.0)
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
