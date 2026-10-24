@@ -1,6 +1,14 @@
 import * as z from 'zod';
 
-import { asContact, asFreeText, asInternal, asPublic, policy } from '../classification.js';
+import {
+  asContact,
+  asFreeText,
+  asIdentity,
+  asInternal,
+  asPublic,
+  policy,
+} from '../classification.js';
+import { SignatureMark } from '../signature.js';
 import { defineEvent } from '../event.js';
 import { activityRecorded } from './activity.js';
 import { CalendarDate, PersonId } from '../primitives.js';
@@ -218,6 +226,22 @@ export const EnvelopeCompleted = defineEvent(
     subjectPersonId: subject(),
     /** What another module sent it for (`recruiting:offer:<id>:<version>`), so it can match without asking. */
     subjectRef: z.string().max(160).nullable().register(policy, asInternal()),
+    /**
+     * For an envelope another module sent (a `subjectRef`): each signer's
+     * signature, so the module that asked can keep the one its person signed
+     * with. A hire's contract signature becomes the signature on their record.
+     */
+    signatures: z
+      .array(
+        z.object({
+          email: z.string().max(254).nullable().register(policy, asContact()),
+          personId: PersonId.nullable(),
+          mark: SignatureMark,
+        }),
+      )
+      .max(10)
+      .default([])
+      .register(policy, asIdentity()),
   }),
 );
 

@@ -185,6 +185,10 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """
+  R22: the contract drafted from the accepted offer and the statutory particulars of the entity’s country
+  """
+  draftContract(idempotencyKey: String!, offerId: String!): JSON
   """R12: an email drafted from its purpose, the variables filled from data"""
   draftEmail(
     applicationId: String!

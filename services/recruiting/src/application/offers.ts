@@ -2,6 +2,7 @@ import { everyCatalogue, keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
+  SignatureMark,
   ConditionKind,
   ConditionState,
   PrehireCancelReason,
@@ -198,7 +199,7 @@ export async function checkOffer(
   });
 }
 
-async function editableOffer(ctx: Ctx, applicationId: string) {
+export async function editableOffer(ctx: Ctx, applicationId: string) {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'offer.edit')) return err(forbidden());
@@ -649,7 +650,7 @@ async function documentsPresent(ctx: Ctx): Promise<boolean> {
   return entitlements.includes('module.documents');
 }
 
-async function resolvedTermsOf(
+export async function resolvedTermsOf(
   ctx: Ctx,
   offer: Offer,
   job: JobRecord,
@@ -714,13 +715,14 @@ export async function contractSignedByEnvelope(
   ctx: Ctx,
   subjectRef: string,
   on: CalendarDate,
+  signatures: readonly { readonly email: string | null; readonly mark: SignatureMark }[] = [],
 ): Promise<Result<true>> {
   const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
   if (contract === null) return ok(true);
   const signed = signedByEnvelope(contract, subjectRef, on);
   if (!signed.ok) return signed;
   await ctx.tx.contracts.save({ ...signed.value, fileId: contract.fileId });
-  return hireFromContract(ctx, signed.value);
+  return hireFromContract(ctx, signed.value, signatures);
 }
 
 /** A signed copy uploaded by HR: wet ink, or no Documents (PRD §21.2). */
@@ -841,7 +843,12 @@ async function placeHire(
  * §21.3, §21.4), and moves to the hired stage, counted against the job. The
  * hiring team is told to invite them to the company's Kithena next.
  */
-async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<true>> {
+async function hireFromContract(
+  ctx: Ctx,
+  contract: Contract,
+  /** Who signed the envelope with what: the candidate's becomes the signature on their record. */
+  signatures: readonly { readonly email: string | null; readonly mark: SignatureMark }[] = [],
+): Promise<Result<true>> {
   const offer = await ctx.tx.offers.get(contract.offerId);
   const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
   const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
@@ -900,6 +907,9 @@ async function hireFromContract(ctx: Ctx, contract: Contract): Promise<Result<tr
         locationId: job.locationIds[0] ?? null,
         legalEntityId: job.entityId,
         conditions: prehire.conditions.map((c) => ({ kind: c.kind, state: c.state })),
+        signature:
+          signatures.find((s) => s.email?.toLowerCase() === candidate.email.toLowerCase())?.mark ??
+          null,
       },
       version.startDate,
     ),

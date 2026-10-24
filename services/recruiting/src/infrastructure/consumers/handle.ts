@@ -397,7 +397,12 @@ export function recruitingConsumer(
             personId: null,
             correlationId: event.correlationId,
           });
-          const signed = await contractSignedByEnvelope(ctx, ref, dateOf(event));
+          const signed = await contractSignedByEnvelope(
+            ctx,
+            ref,
+            dateOf(event),
+            event.payload.signatures,
+          );
           if (signed.ok) return 'applied';
           if (signed.error.code === 'CONTRACT_STATE') return 'unchanged';
           logger.warn(

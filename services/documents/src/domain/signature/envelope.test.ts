@@ -303,6 +303,25 @@ describe('fields beside the signature lines (K2)', () => {
     expect(fields.filter((f) => f.kind === 'date')).toHaveLength(3);
   });
 
+  it('has every signer initial each page before the last, side by side in the margin', () => {
+    const fields = fieldsAt(['a', 'b'], [{ page: 3, x: 0.1, y: 0.7 }], 3, {
+      initialEachPage: true,
+    });
+    const initials = fields.filter((f) => f.kind === 'initials');
+    expect(initials.map((f) => [f.signerId, f.page])).toEqual([
+      ['a', 1],
+      ['b', 1],
+      ['a', 2],
+      ['b', 2],
+    ]);
+    expect(initials.every((f) => f.required && f.y + f.h <= 1 && f.x + f.w <= 1)).toBe(true);
+    const [first, second] = initials;
+    expect((first?.x ?? 0) + (first?.w ?? 0)).toBeLessThanOrEqual(second?.x ?? 0);
+    expect(
+      fieldsAt(['a'], [], 1, { initialEachPage: true }).some((f) => f.kind === 'initials'),
+    ).toBe(false);
+  });
+
   it('keeps a field on its page near an edge', () => {
     const [dated] = fieldsAt(['a'], [{ page: 1, x: 0.9, y: 0.97 }], 1);
     expect((dated?.x ?? 0) + (dated?.w ?? 0)).toBeLessThanOrEqual(1);

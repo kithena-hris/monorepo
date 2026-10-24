@@ -127,6 +127,8 @@ export async function sendForSignature(
     readonly dueOn: CalendarDate | null;
     /** Another module's reference, echoed on `envelope.completed` (Recruiting PRD §21.2). */
     readonly subjectRef?: string | null;
+    /** With no fields drawn: each signer also initials every page before the last. */
+    readonly initialEachPage?: boolean | undefined;
   } & Origin,
 ): Promise<Result<{ id: string }>> {
   const mail: Mail[] = [];
@@ -188,6 +190,7 @@ export async function sendForSignature(
             signers.toSorted((a, b) => a.order - b.order).map((s) => s.id),
             await signatureLines(bytes),
             version.pages,
+            { initialEachPage: input.initialEachPage === true },
           );
     const env = send({
       id: deps.newId(),
@@ -614,6 +617,15 @@ export async function sealEnvelope(
           signedVersion: n,
           subjectPersonId: doc.subjectPersonId,
           subjectRef: env.subjectRef ?? null,
+          // Only to the module that asked for these signatures, never on an envelope of Documents' own.
+          signatures:
+            env.subjectRef === null || env.subjectRef === undefined
+              ? []
+              : env.signers.flatMap((s) =>
+                  s.signature === null
+                    ? []
+                    : [{ email: s.email, personId: s.personId, mark: s.signature }],
+                ),
         },
       ),
     ]);

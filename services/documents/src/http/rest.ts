@@ -823,6 +823,7 @@ export const ROUTES: readonly Route[] = [
       message: z.string().max(2000).default(''),
       dueOn: CalendarDate.nullable().default(null),
       subjectRef: SubjectRef,
+      initialEachPage: z.boolean().optional(),
       ...OriginBody,
     }),
     answer: Created,
@@ -1264,7 +1265,7 @@ export const ROUTES: readonly Route[] = [
     summary: 'The draft drawn as the PDF fileDraft would file, to read over before sending',
     body: z.strictObject({
       title: z.string().trim().min(1).max(200),
-      body: z.string().trim().min(1).max(20_000),
+      body: z.string().trim().min(1).max(60_000),
       signers: z
         .array(
           z.strictObject({
@@ -1288,7 +1289,7 @@ export const ROUTES: readonly Route[] = [
       title: z.string().trim().min(1).max(200),
       typeKey: z.string().max(80).nullable(),
       aboutPersonId: PersonId.nullable(),
-      body: z.string().trim().min(1).max(20_000),
+      body: z.string().trim().min(1).max(60_000),
       signers: z
         .array(
           DraftSigner.omit({ email: true }).extend({
@@ -1299,6 +1300,8 @@ export const ROUTES: readonly Route[] = [
         .max(10),
       send: z.boolean(),
       subjectRef: SubjectRef,
+      /** Each signer initials every page before the last: a contract, read and agreed page by page. */
+      initialEachPage: z.boolean().optional(),
       ...OriginBody,
     }),
     answer: z

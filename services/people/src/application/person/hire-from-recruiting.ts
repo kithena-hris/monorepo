@@ -16,7 +16,9 @@ import { SYSTEM_VIEWER } from './subject.js';
  * A hire Recruiting made, as People's own record (Recruiting PRD §21.4,
  * REC-141): `recruiting.candidate.hired` creates the person in `pre_hire`
  * from the start date, with the name, the work email, the manager, the
- * placement and the employment terms the company's schema has a field for;
+ * placement and the employment terms the company's schema has a field for,
+ * and the signature they signed the contract with in the company's signature
+ * field, so the first document they sign in Kithena is signed with it;
  * `recruiting.prehire.cancelled` discards it before the start.
  *
  * Through `PersonAccess.create`, the one hire path every transport and the
@@ -95,12 +97,18 @@ export function hiresFromRecruiting(
       const already = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
       if (!already.ok) return { outcome: 'rejected', code: already.error.code };
       if (already.value !== null) return { outcome: 'unchanged' };
-      const defined = new Set<string>(
-        version.document.attributes.filter((a) => a.deprecatedAt === null).map((a) => a.key),
-      );
-      const attributes = Object.fromEntries(
-        Object.entries(attributesOf(event.payload)).filter(([key]) => defined.has(key)),
-      );
+      const live = version.document.attributes.filter((a) => a.deprecatedAt === null);
+      const defined = new Set<string>(live.map((a) => a.key));
+      // The signature they signed the contract with, kept where the company keeps one.
+      const signatureField = live.find((a) => a.dataType === 'signature');
+      const attributes = {
+        ...Object.fromEntries(
+          Object.entries(attributesOf(event.payload)).filter(([key]) => defined.has(key)),
+        ),
+        ...(signatureField === undefined || (event.payload.signature ?? null) === null
+          ? {}
+          : { [signatureField.key]: JSON.stringify(event.payload.signature) }),
+      };
       const created = await access.create(tx, {
         ...asking(event),
         applySensitiveWithoutApproval: true,

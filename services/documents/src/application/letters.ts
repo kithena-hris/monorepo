@@ -412,6 +412,7 @@ export async function fileDraft(
     }[];
     readonly send: boolean;
     readonly subjectRef?: string | null;
+    readonly initialEachPage?: boolean | undefined;
   } & Origin,
 ): Promise<Result<{ id: string; envelopeId: string | null }>> {
   const inOrder = input.signers.toSorted((a, b) => a.order - b.order);
@@ -443,6 +444,7 @@ export async function fileDraft(
     message: '',
     dueOn: null,
     subjectRef: input.subjectRef ?? null,
+    initialEachPage: input.initialEachPage === true,
     origin: input.origin,
     companyName: input.companyName,
   });
