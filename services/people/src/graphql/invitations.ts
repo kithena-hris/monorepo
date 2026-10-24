@@ -55,7 +55,7 @@ export function defineInvitations(builder: PeopleBuilder, viaRest: ViaRest): voi
           await viaRest<{ invitation: InvitationView }>(
             ctx,
             'POST',
-            `/v1/people/${String(args.personId)}/invitation`,
+            `/v1/people/${args.personId}/invitation`,
             { body: { sendOn: args.sendOn ?? null }, key: args.idempotencyKey },
           )
         ).invitation,

@@ -23,8 +23,8 @@ export function drizzleInvitationStore(): InvitationStore {
       return {
         personId: String(row['person_id']),
         sendOn: day(row['send_on']),
-        sentAt: sent === null ? null : sent instanceof Date ? sent.toISOString() : String(sent),
-        accountId: row['account_id'] === null ? null : String(row['account_id']),
+        sentAt: sent instanceof Date ? sent.toISOString() : typeof sent === 'string' ? sent : null,
+        accountId: typeof row['account_id'] === 'string' ? row['account_id'] : null,
       } satisfies InvitationRow;
     },
     async save(tx, tenantId, row, by) {

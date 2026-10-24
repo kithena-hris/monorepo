@@ -86,7 +86,23 @@ export interface InvitationView {
 const NOBODY = '00000000-0000-0000-0000-000000000000';
 const DAY = /^\d{4}-\d{2}-\d{2}$/u;
 
-export function invitations(deps: InvitationDeps) {
+export interface Invitations {
+  forEmail(
+    tx: Tx,
+    asking: Asking & { readonly email: string },
+  ): Promise<Result<InvitationView | null>>;
+  forPerson(
+    tx: Tx,
+    asking: Asking & { readonly personId: string },
+  ): Promise<Result<InvitationView | null>>;
+  invite(
+    tx: Tx,
+    asking: Asking & { readonly personId: string; readonly sendOn: string | null },
+  ): Promise<Result<InvitationView>>;
+  sendDue(tx: Tx, tenantId: string, limit?: number): Promise<number>;
+}
+
+export function invitations(deps: InvitationDeps): Invitations {
   const hrOnly = async (tx: Tx, asking: Asking): Promise<Result<true>> => {
     const r = await deps.relations.relations(tx, asking.tenantId, asking.viewer, NOBODY);
     return r.isHr ? ok(true) : err(failure('FORBIDDEN', 'Only HR invites a person to the company'));
@@ -282,5 +298,3 @@ export function invitations(deps: InvitationDeps) {
     },
   };
 }
-
-export type Invitations = ReturnType<typeof invitations>;

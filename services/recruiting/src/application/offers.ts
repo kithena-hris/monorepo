@@ -65,7 +65,7 @@ import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } fr
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
-import { loadApplication, render, sendNow, worksCouncilCleared } from './moves.js';
+import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
 import { tellMembers } from './notify.js';
 import { generalSettings } from './setup.js';
 import type { ApplicationRecord, Candidate, JobRecord } from './ports.js';
@@ -199,7 +199,10 @@ export async function checkOffer(
   });
 }
 
-export async function editableOffer(ctx: Ctx, applicationId: string) {
+export async function editableOffer(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<Result<Loaded & { readonly job: JobRecord }>> {
   const loaded = await loadApplication(ctx, applicationId);
   if (!loaded.ok) return loaded;
   if (!may(ctx.viewer, loaded.value.facts, 'offer.edit')) return err(forbidden());

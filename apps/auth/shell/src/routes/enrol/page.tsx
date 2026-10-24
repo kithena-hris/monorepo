@@ -332,7 +332,7 @@ export default function Enrol(): JSX.Element {
           // filled in, for the person to confirm or correct.
           setAnswers(
             Object.fromEntries(
-              pending.map((q) => {
+              pending.map((q): [string, Answer] => {
                 const held = prefill?.[q.key];
                 if (q.dataType === 'boolean') return [q.key, held === 'true'];
                 return [q.key, held ?? ''];

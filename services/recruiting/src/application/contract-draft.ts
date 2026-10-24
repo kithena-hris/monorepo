@@ -96,8 +96,7 @@ export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<C
     pay: version.pay,
     benefits,
     startDate: version.startDate,
-    overtimeExempt:
-      typeof version.terms['exempt'] === 'boolean' ? (version.terms['exempt'] as boolean) : null,
+    overtimeExempt: typeof version.terms['exempt'] === 'boolean' ? version.terms['exempt'] : null,
   });
   const employer = entity?.name ?? job.title;
   const particulars = particularsFor(facts(employer, candidate.name));
