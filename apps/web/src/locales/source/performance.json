@@ -625,7 +625,7 @@
   },
   "calibration.finalised": {
     "text": "Finalised",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"finalised\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.for_you_to_accept_or_leave": {
     "text": "{{length}}, for you to accept or leave",
@@ -649,7 +649,7 @@
   },
   "calibration.in_progress": {
     "text": "In progress",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"in_progress\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.low": {
     "text": "Low",
@@ -685,7 +685,7 @@
   },
   "calibration.not_started": {
     "text": "Not started",
-    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: a \"not_started\" value."
+    "context": "Performance: reviews, goals, feedback, learning. calibration.tsx, STATE: text built in code."
   },
   "calibration.not_submitted": {
     "text": "Not submitted",
@@ -825,7 +825,7 @@
   },
   "cycles.acknowledged": {
     "text": "Acknowledged",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.acknowledgement": {
     "text": "Acknowledgement",
@@ -833,7 +833,7 @@
   },
   "cycles.active": {
     "text": "Active",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"active\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.activities": {
     "text": "Activities",
@@ -1433,7 +1433,7 @@
   },
   "cycles.is_any_of": {
     "text": "is any of",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: text built in code."
   },
   "cycles.is_before": {
     "text": "is before",
@@ -1445,7 +1445,7 @@
   },
   "cycles.is_none_of": {
     "text": "is none of",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, IS: text built in code."
   },
   "cycles.its_form_and_due_date_are": {
     "text": "Its form and due date are kept: turn it back on in Reviews.",
@@ -1649,7 +1649,7 @@
   },
   "cycles.none": {
     "text": "None",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.none_overdue": {
     "text": "none overdue",
@@ -1661,11 +1661,11 @@
   },
   "cycles.not_part_of_this_cycle": {
     "text": "Not part of this cycle",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, GOALS_LABEL: a \"none\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, GOALS_LABEL: text built in code."
   },
   "cycles.not_started": {
     "text": "Not started",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.not_started_yet_so_all_of": {
     "text": "Not started yet, so all of it can still change.",
@@ -1701,7 +1701,7 @@
   },
   "cycles.on_leave": {
     "text": "On leave",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"on_leave\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.on_leave_until_january": {
     "text": "On leave until January",
@@ -1709,7 +1709,7 @@
   },
   "cycles.on_notice": {
     "text": "On notice",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"notice\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.on_the_day": {
     "text": "On the day",
@@ -1737,7 +1737,7 @@
   },
   "cycles.overdue": {
     "text": "Overdue",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.overdue_2": {
     "text": "{{overdue}} overdue",
@@ -1849,7 +1849,7 @@
   },
   "cycles.released": {
     "text": "Released",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.remind": {
     "text": "Remind",
@@ -2037,7 +2037,7 @@
   },
   "cycles.starting_soon": {
     "text": "Starting soon",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: a \"pre_hire\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, STATUS_LABEL: text built in code."
   },
   "cycles.starts": {
     "text": "Starts",
@@ -2069,7 +2069,7 @@
   },
   "cycles.submitted": {
     "text": "Submitted",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.take_back_in": {
     "text": "Take back in",
@@ -2145,7 +2145,7 @@
   },
   "cycles.the_person_2": {
     "text": "the person",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: a \"subject\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: text built in code."
   },
   "cycles.the_persons_team_same_manager_up": {
     "text": "The person’s team (same manager), up to {{max}}. Off: peers are nominated.",
@@ -2173,7 +2173,7 @@
   },
   "cycles.their_manager_2": {
     "text": "their manager",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: a \"manager\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, PICKER: text built in code."
   },
   "cycles.their_manager_and_hr_always_see": {
     "text": "Their manager and HR always see who wrote what.",
@@ -2241,7 +2241,7 @@
   },
   "cycles.unlock_requested": {
     "text": "Unlock requested",
-    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: a \"label\" value."
+    "context": "Performance: reviews, goals, feedback, learning. cycles.tsx, REVIEW_STATES: text built in code."
   },
   "cycles.unlocked_and_edited_once_submitted_before": {
     "text": "Unlocked and edited, once submitted before",
@@ -4957,7 +4957,7 @@
   },
   "settings.access": {
     "text": "Access",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"access\" value."
   },
   "settings.actions": {
     "text": "Actions",
@@ -5081,11 +5081,11 @@
   },
   "settings.calendars_chat_and_the_tools_people": {
     "text": "Calendars, chat and the tools people may let Kithena read for their reviews.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"connections\" value."
   },
   "settings.calibration": {
     "text": "Calibration",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"calibration\" value."
   },
   "settings.calibration_suggestions": {
     "text": "Calibration suggestions",
@@ -5145,7 +5145,7 @@
   },
   "settings.confluence": {
     "text": "Confluence",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"confluence\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.connected": {
     "text": "Connected",
@@ -5153,7 +5153,7 @@
   },
   "settings.connections": {
     "text": "Connections",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"connections\" value."
   },
   "settings.copy_the_secret": {
     "text": "Copy the secret",
@@ -5237,7 +5237,7 @@
   },
   "settings.each_ai_feature_on_or_off_every": {
     "text": "Each AI feature, on or off. Every output is logged; a person confirms every number.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"ai\" value."
   },
   "settings.each_is_read_only_for_reviews": {
     "text": "Each is read only for reviews about you or by you, only for the review's period, and nothing read is kept.",
@@ -5309,7 +5309,7 @@
   },
   "settings.feedback": {
     "text": "Feedback",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"feedback\" value."
   },
   "settings.feedback_is_off_praise_and_reviews_are": {
     "text": "Feedback is off; praise and reviews are not.",
@@ -5345,15 +5345,15 @@
   },
   "settings.general": {
     "text": "General",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"general\" value."
   },
   "settings.goal_periods_their_check_in_cadence": {
     "text": "Goal periods, their check-in cadence, and whether goals are weighted.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"goals\" value."
   },
   "settings.goals": {
     "text": "Goals",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"goals\" value."
   },
   "settings.goals_key_results_and_check_ins": {
     "text": "Goals, key results and check-ins.",
@@ -5365,7 +5365,7 @@
   },
   "settings.google_meet": {
     "text": "Google Meet",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"meet\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.google_workspace": {
     "text": "Google Workspace",
@@ -5389,7 +5389,7 @@
   },
   "settings.how_long_each_kind_of_record": {
     "text": "How long each kind of record is kept after someone leaves, and legal holds.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"retention\" value."
   },
   "settings.how_long_each_kind_of_record_2": {
     "text": "How long each kind of record is kept after someone leaves. Nothing is deleted until HR confirms, and a legal hold keeps everything of the person it names.",
@@ -5429,7 +5429,7 @@
   },
   "settings.jira": {
     "text": "Jira",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"jira\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.key_results_can_follow_a_linear": {
     "text": "Key results can follow a Linear project or Jira epic",
@@ -5453,7 +5453,7 @@
   },
   "settings.learning": {
     "text": "Learning",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"learning\" value."
   },
   "settings.learning_platforms": {
     "text": "Learning platforms",
@@ -5461,7 +5461,7 @@
   },
   "settings.learning_platforms_and_the_attendance_share": {
     "text": "Learning platforms and the attendance share that completes a session.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"learning\" value."
   },
   "settings.learning_suggestions": {
     "text": "Learning suggestions",
@@ -5489,7 +5489,7 @@
   },
   "settings.linear": {
     "text": "Linear",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: a \"linear\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, SOURCE: text built in code."
   },
   "settings.linked_as": {
     "text": "Linked as {{account}}",
@@ -5777,7 +5777,7 @@
   },
   "settings.release": {
     "text": "Release",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"release\" value."
   },
   "settings.reminders_and_praise_in_google_chat": {
     "text": "Reminders and praise in Google Chat.",
@@ -5821,7 +5821,7 @@
   },
   "settings.retention": {
     "text": "Retention",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"retention\" value."
   },
   "settings.reviews": {
     "text": "reviews",
@@ -5945,15 +5945,15 @@
   },
   "settings.the_companys_rating_scale_and_the": {
     "text": "The company’s rating scale and the parts of Performance it uses.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"general\" value."
   },
   "settings.the_companys_rating_scale_its_scores": {
     "text": "The company’s rating scale, its scores, and the parts of Performance it uses.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, GENERAL: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, GENERAL: text built in code."
   },
   "settings.the_defaults_a_new_cycle_starts": {
     "text": "The defaults a new cycle starts from: who releases, the response minimum, acknowledgement.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"release\" value."
   },
   "settings.the_endpoints_secret": {
     "text": "The endpoint’s secret",
@@ -5969,7 +5969,7 @@
   },
   "settings.the_nine_box_guide_and_who": {
     "text": "The nine-box guide and who sees what in a session.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"calibration\" value."
   },
   "settings.the_receiver_and_their_manager": {
     "text": "The receiver and their manager",
@@ -6141,7 +6141,7 @@
   },
   "settings.where_a_works_council_has_agreed": {
     "text": "Where a works council has agreed to Performance, and to which parts.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"works-councils\" value."
   },
   "settings.which_events": {
     "text": "Which events",
@@ -6153,11 +6153,11 @@
   },
   "settings.who_is_hr_to_performance_beyond": {
     "text": "Who is HR to Performance, beyond the company’s administrators.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"access\" value."
   },
   "settings.who_may_give_feedback_whether_names": {
     "text": "Who may give feedback, whether names are shown, praise and its company values.",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"description\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"feedback\" value."
   },
   "settings.who_sees_it": {
     "text": "Who sees it",
@@ -6185,7 +6185,7 @@
   },
   "settings.works_councils": {
     "text": "Works councils",
-    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"title\" value."
+    "context": "Performance: reviews, goals, feedback, learning. settings.tsx, PAGES: a \"works-councils\" value."
   },
   "settings.writers_names": {
     "text": "Writers’ names",
@@ -6249,7 +6249,7 @@
   },
   "shared.goals_review": {
     "text": "Goals review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"goals\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.handed_over": {
     "text": "Handed over",
@@ -6273,7 +6273,7 @@
   },
   "shared.manager_review": {
     "text": "Manager review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"manager\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.next": {
     "text": "Next",
@@ -6293,7 +6293,7 @@
   },
   "shared.peer_review": {
     "text": "Peer review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"peer\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.released": {
     "text": "Released",
@@ -6313,11 +6313,11 @@
   },
   "shared.self_review": {
     "text": "Self review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"self\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.skip_level_review": {
     "text": "Skip-level review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"skip\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.step_of": {
     "text": "Step {{value}} of {{length}}",
@@ -6353,7 +6353,7 @@
   },
   "shared.upward_review": {
     "text": "Upward review",
-    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: a \"upward\" value."
+    "context": "Performance: reviews, goals, feedback, learning. shared.tsx, KIND: text built in code."
   },
   "shared.who": {
     "text": "Who",

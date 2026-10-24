@@ -1,1 +1,7 @@
-{}
+{
+  "components.assistant.assistant.minimise": "Minimize",
+  "components.chat.chat.minimise": "Minimize",
+  "components.kanban.kanban.moving_was_cancelled_it_is_back": "Moving {{name}} was canceled. It is back where it started.",
+  "components.kanban.kanban.moving_was_cancelled_it_is_back_2": "Moving {{cardTitle}} was canceled. It is back where it started.",
+  "components.rich-text-editor.rich-text-editor.align_centre": "Align center"
+}

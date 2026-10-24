@@ -45,7 +45,7 @@
   },
   "analytics.analytics.certification": {
     "text": "Certification",
-    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"certification\" value."
   },
   "analytics.analytics.compa_ratio_by_grade": {
     "text": "Compa-ratio by grade, {{currency}}",
@@ -57,7 +57,7 @@
   },
   "analytics.analytics.contract_ends": {
     "text": "Contract ends",
-    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"fixed_term\" value."
   },
   "analytics.analytics.expiries": {
     "text": "Expiries",
@@ -217,7 +217,7 @@
   },
   "analytics.analytics.probation_ends": {
     "text": "Probation ends",
-    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"probation\" value."
   },
   "analytics.analytics.published": {
     "text": "Published {{publishedAsOf}}",
@@ -361,7 +361,7 @@
   },
   "analytics.analytics.work_permit": {
     "text": "Work permit",
-    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. analytics/analytics.tsx, EXPIRY: a \"work_permit\" value."
   },
   "analytics.analytics.work_permits_fixed_term_contracts_probation": {
     "text": "Work permits, fixed-term contracts, probation and certifications over the next 90 days",
@@ -1029,7 +1029,7 @@
   },
   "bulk.bulk-edit.already_set": {
     "text": "Already set",
-    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: a \"unchanged\" value."
+    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: text built in code."
   },
   "bulk.bulk-edit.apply_sensitive_values_without_approval": {
     "text": "Apply sensitive values without approval",
@@ -1057,7 +1057,7 @@
   },
   "bulk.bulk-edit.changes": {
     "text": "Changes",
-    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: a \"changed\" value."
+    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: text built in code."
   },
   "bulk.bulk-edit.choose_people_in_the_directory_then": {
     "text": "Choose people in the directory, then edit them together.",
@@ -1149,7 +1149,7 @@
   },
   "bulk.bulk-edit.pending_approval": {
     "text": "Pending approval",
-    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: a \"held\" value."
+    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: text built in code."
   },
   "bulk.bulk-edit.people_without_a_start_date_become": {
     "text": "People without a start date become employees on the date you choose.",
@@ -1185,7 +1185,7 @@
   },
   "bulk.bulk-edit.refused": {
     "text": "Refused",
-    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: a \"refused\" value."
+    "context": "People: employee records, org chart, HR settings. bulk/bulk-edit.tsx, WORD: text built in code."
   },
   "bulk.bulk-edit.refused_as_each_says_below": {
     "text": "{{count}} refused, as each says below; nothing was written for them.",
@@ -1385,7 +1385,7 @@
   },
   "completeness.completeness-grid.every_required_field_has_a_value": {
     "text": "Every required field has a value for everybody it applies to.",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: text built in code."
   },
   "completeness.completeness-grid.fill_in": {
     "text": "Fill in",
@@ -1477,7 +1477,7 @@
   },
   "completeness.completeness-grid.nothing_is_missing": {
     "text": "Nothing is missing",
-    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. completeness/completeness-grid.tsx, NOTHING: text built in code."
   },
   "completeness.completeness-grid.nothing_was_saved": {
     "text": "Nothing was saved",
@@ -1789,19 +1789,19 @@
   },
   "directory.directory.is_after": {
     "text": "is after",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"date\" value."
   },
   "directory.directory.is_any_of": {
     "text": "is any of",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"select\" value."
   },
   "directory.directory.is_before": {
     "text": "is before",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"date\" value."
   },
   "directory.directory.is_between": {
     "text": "is between",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"date\" value."
   },
   "directory.directory.is_between_and": {
     "text": "{{label}} is between {{shown}} and {{shown2}}",
@@ -1809,27 +1809,27 @@
   },
   "directory.directory.is_empty": {
     "text": "is empty",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, EMPTY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, EMPTY: text built in code."
   },
   "directory.directory.is_exactly": {
     "text": "is exactly",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"text\" value."
   },
   "directory.directory.is_less_than": {
     "text": "is less than",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"number\" value."
   },
   "directory.directory.is_more_than": {
     "text": "is more than",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"number\" value."
   },
   "directory.directory.is_none_of": {
     "text": "is none of",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, OPERATORS: a \"select\" value."
   },
   "directory.directory.is_not_empty": {
     "text": "is not empty",
-    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, EMPTY: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. directory/directory.tsx, EMPTY: text built in code."
   },
   "directory.directory.is_on_or_after": {
     "text": "{{label}} is on or after {{shown}}",
@@ -2217,7 +2217,7 @@
   },
   "export.export-builder.a_roster_about_on_top": {
     "text": "A roster, About on top",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: a \"pdf\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: text built in code."
   },
   "export.export-builder.a_schedule_is_built_as_can": {
     "text": "A schedule is built as {{them}} can see it each month, so that is left out of {{them2}}’s.",
@@ -2281,7 +2281,7 @@
   },
   "export.export-builder.excel": {
     "text": "Excel",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: text built in code."
   },
   "export.export-builder.export": {
     "text": "Export",
@@ -2293,11 +2293,11 @@
   },
   "export.export-builder.for_a_person_to_read_and": {
     "text": "For a person to read and edit.",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: text built in code."
   },
   "export.export-builder.for_another_system_or_to_import": {
     "text": "For another system, or to import back.",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: text built in code."
   },
   "export.export-builder.format": {
     "text": "Format",
@@ -2329,15 +2329,15 @@
   },
   "export.export-builder.one_file_plus_about": {
     "text": "One file, plus About",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: a \"csv\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: text built in code."
   },
   "export.export-builder.one_sheet_plus_about": {
     "text": "One sheet, plus About",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: a \"xlsx\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMAT_NOTE: text built in code."
   },
   "export.export-builder.pdf_roster": {
     "text": "PDF roster",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: text built in code."
   },
   "export.export-builder.reason_for_the_audit_log": {
     "text": "Reason, for the audit log",
@@ -2393,7 +2393,7 @@
   },
   "export.export-builder.to_print_or_file_with_the": {
     "text": "To print or file, with the filter on every page.",
-    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. export/export-builder.tsx, FORMATS: text built in code."
   },
   "export.export-builder.values_as_they_were_at_the": {
     "text": "Values as they were at the end of that day. Any past date works.",
@@ -2689,7 +2689,7 @@
   },
   "export.full-values.approved_being_prepared": {
     "text": "Approved, being prepared",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"approved\" value."
   },
   "export.full-values.approving_issues_one_download_once_within": {
     "text": "Approving issues one download, once, within 24 hours. The people whose values are read can see that it happened.",
@@ -2737,11 +2737,11 @@
   },
   "export.full-values.downloaded": {
     "text": "Downloaded",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"downloaded\" value."
   },
   "export.full-values.expired": {
     "text": "Expired",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"expired\" value."
   },
   "export.full-values.expires": {
     "text": "Expires",
@@ -2801,7 +2801,7 @@
   },
   "export.full-values.ready_to_download": {
     "text": "Ready to download",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"issued\" value."
   },
   "export.full-values.reason": {
     "text": "Reason",
@@ -2821,7 +2821,7 @@
   },
   "export.full-values.rejected": {
     "text": "Rejected",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"rejected\" value."
   },
   "export.full-values.saving": {
     "text": "Saving",
@@ -2845,7 +2845,7 @@
   },
   "export.full-values.waiting_for_hr": {
     "text": "Waiting for HR",
-    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. export/full-values.tsx, STATE: a \"pending\" value."
   },
   "export.full-values.wants_to_see": {
     "text": "· wants to see",
@@ -2993,7 +2993,7 @@
   },
   "export.words.excel": {
     "text": "Excel",
-    "context": "People: employee records, org chart, HR settings. export/words.tsx, FORMAT_LABEL: a \"xlsx\" value."
+    "context": "People: employee records, org chart, HR settings. export/words.tsx, FORMAT_LABEL: text built in code."
   },
   "export.words.name_and_you": {
     "text": "{{first}} and you",
@@ -3001,7 +3001,7 @@
   },
   "export.words.pdf_roster": {
     "text": "PDF roster",
-    "context": "People: employee records, org chart, HR settings. export/words.tsx, FORMAT_LABEL: a \"pdf\" value."
+    "context": "People: employee records, org chart, HR settings. export/words.tsx, FORMAT_LABEL: text built in code."
   },
   "frame.back": {
     "text": "Back",
@@ -3053,7 +3053,7 @@
   },
   "home.people-home.active": {
     "text": "Active",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"active\" value."
   },
   "home.people-home.add": {
     "text": "Add",
@@ -3277,7 +3277,7 @@
   },
   "home.people-home.not_hired_yet": {
     "text": "Not hired yet",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"provisional\" value."
   },
   "home.people-home.nothing_for_you_to_do": {
     "text": "Nothing for you to do",
@@ -3317,11 +3317,11 @@
   },
   "home.people-home.on_leave": {
     "text": "On leave",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"on_leave\" value."
   },
   "home.people-home.on_notice": {
     "text": "On notice",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"notice\" value."
   },
   "home.people-home.open_inbox": {
     "text": "Open Inbox",
@@ -3373,7 +3373,7 @@
   },
   "home.people-home.starting_soon": {
     "text": "Starting soon",
-    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. home/people-home.tsx, STATUS: a \"pre_hire\" value."
   },
   "home.people-home.text_3": {
     "text": "{{value}}: {{title}}",
@@ -3565,7 +3565,7 @@
   },
   "import.import-export.excel": {
     "text": "Excel",
-    "context": "People: employee records, org chart, HR settings. import/import-export.tsx, FORMAT: a \"xlsx\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-export.tsx, FORMAT: text built in code."
   },
   "import.import-export.export": {
     "text": "Export",
@@ -3769,7 +3769,7 @@
   },
   "import.import-flow.approve_and_run": {
     "text": "Approve and run",
-    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: text built in code."
   },
   "import.import-flow.approved_and_imported": {
     "text": "Approved and imported.",
@@ -3825,7 +3825,7 @@
   },
   "import.import-flow.decide_whats_new": {
     "text": "Decide what’s new",
-    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: text built in code."
   },
   "import.import-flow.decided": {
     "text": "Decided",
@@ -4029,7 +4029,7 @@
   },
   "import.import-flow.upload_and_map": {
     "text": "Upload and map",
-    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-flow.tsx, STEPS: text built in code."
   },
   "import.import-flow.usual_name": {
     "text": "Usual name",
@@ -4081,7 +4081,7 @@
   },
   "import.import-plan.cell": {
     "text": "Cell",
-    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: text built in code."
   },
   "import.import-plan.change_something": {
     "text": "Change something",
@@ -4185,7 +4185,7 @@
   },
   "import.import-plan.field": {
     "text": "Field",
-    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: text built in code."
   },
   "import.import-plan.file": {
     "text": "File",
@@ -4241,7 +4241,7 @@
   },
   "import.import-plan.name": {
     "text": "Name",
-    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: text built in code."
   },
   "import.import-plan.new_fields": {
     "text": "New fields",
@@ -4301,7 +4301,7 @@
   },
   "import.import-plan.row_2": {
     "text": "Row",
-    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: text built in code."
   },
   "import.import-plan.rows": {
     "text": "Rows",
@@ -4369,7 +4369,7 @@
   },
   "import.import-plan.why_its_left_empty": {
     "text": "Why it’s left empty",
-    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. import/import-plan.tsx, LEFT_EMPTY_COLUMNS: text built in code."
   },
   "import.import-plan.why_its_skipped": {
     "text": "Why it’s skipped",
@@ -4469,7 +4469,7 @@
   },
   "import.new-fields.ask_them": {
     "text": "Ask them",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"ask\" value."
   },
   "import.new-fields.asked_incomplete_until_they_answer": {
     "text": "{{n}} asked · incomplete until they answer",
@@ -4621,7 +4621,7 @@
   },
   "import.new-fields.hr_fills_it_in": {
     "text": "HR fills it in",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"hr\" value."
   },
   "import.new-fields.i_read_the_headers_and_the": {
     "text": "I read the headers and the shape of each column, never a value, to choose the type, the options and who should see it.",
@@ -4629,7 +4629,7 @@
   },
   "import.new-fields.in_data_health_for_hr": {
     "text": "In Data health, for HR",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"shortMeans\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"hr\" value."
   },
   "import.new-fields.in_the_file": {
     "text": "{{rows}} in the file",
@@ -4701,11 +4701,11 @@
   },
   "import.new-fields.nobody_asked_today": {
     "text": "Nobody asked today",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"shortMeans\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"new\" value."
   },
   "import.new-fields.nobody_is_asked": {
     "text": "Nobody is asked",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"shortMeans\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"leave\" value."
   },
   "import.new-fields.not_imported": {
     "text": "Not imported",
@@ -4737,7 +4737,7 @@
   },
   "import.new-fields.only_new_joiners": {
     "text": "Only new joiners",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"new\" value."
   },
   "import.new-fields.ordinary": {
     "text": "Ordinary",
@@ -4805,7 +4805,7 @@
   },
   "import.new-fields.the_files_value": {
     "text": "The file’s value",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"default\" value."
   },
   "import.new-fields.the_stay_empty_new_joiners_are": {
     "text": "The {{count}} stay empty. New joiners are asked in onboarding.",
@@ -4829,7 +4829,7 @@
   },
   "import.new-fields.they_show_as_incomplete": {
     "text": "They show as incomplete",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"shortMeans\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"ask\" value."
   },
   "import.new-fields.this_column_isnt_a_field_yet": {
     "text": "This column isn’t a field yet",
@@ -4885,7 +4885,7 @@
   },
   "import.new-fields.written_for_them": {
     "text": "Written for them",
-    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"shortMeans\" value."
+    "context": "People: employee records, org chart, HR settings. import/new-fields.tsx, CHOICE: a \"default\" value."
   },
   "import.work-locations.a_new_work_location": {
     "text": "A new work location",
@@ -5345,11 +5345,11 @@
   },
   "onboarding.onboarding.optional": {
     "text": "Optional",
-    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"optional\" value."
   },
   "onboarding.onboarding.required": {
     "text": "Required",
-    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"required\" value."
   },
   "onboarding.onboarding.save": {
     "text": "Save",
@@ -5377,7 +5377,7 @@
   },
   "onboarding.onboarding.voluntary": {
     "text": "Voluntary",
-    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. onboarding/onboarding.tsx, ASK: a \"voluntary\" value."
   },
   "onboarding.onboarding.welcome": {
     "text": "Welcome, {{firstName}}",
@@ -5485,7 +5485,7 @@
   },
   "profile.employment.active": {
     "text": "Active",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"active\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.becomes_an_employee_from": {
     "text": "{{name}} becomes an employee from {{longDate}}.",
@@ -5521,15 +5521,15 @@
   },
   "profile.employment.discard_record": {
     "text": "Discard record",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"discard\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.discarded": {
     "text": "Discarded",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"discarded\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.dismissed": {
     "text": "Dismissed",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: text built in code."
   },
   "profile.employment.eligible_for_rehire": {
     "text": "Eligible for rehire",
@@ -5541,15 +5541,15 @@
   },
   "profile.employment.end_access_now": {
     "text": "End access now",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"endAccess\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.end_leave": {
     "text": "End leave",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"endLeave\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.end_of_contract": {
     "text": "End of contract",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: text built in code."
   },
   "profile.employment.end_their_access_now": {
     "text": "End their access now",
@@ -5565,11 +5565,11 @@
   },
   "profile.employment.give_notice": {
     "text": "Give notice",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"giveNotice\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.hire": {
     "text": "Hire",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"hire\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.is_an_employee": {
     "text": "Is {{name}} an employee?",
@@ -5609,7 +5609,7 @@
   },
   "profile.employment.left": {
     "text": "Left",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"terminated\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.legal_entity": {
     "text": "Legal entity",
@@ -5617,7 +5617,7 @@
   },
   "profile.employment.merged_into_another_record": {
     "text": "Merged into another record",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"merged\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.not_done": {
     "text": "Not done",
@@ -5633,11 +5633,11 @@
   },
   "profile.employment.on_leave": {
     "text": "On leave",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"on_leave\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.on_notice": {
     "text": "On notice",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"notice\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.optional": {
     "text": "Optional",
@@ -5645,7 +5645,7 @@
   },
   "profile.employment.provisional": {
     "text": "Provisional",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"provisional\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.reason": {
     "text": "Reason",
@@ -5653,7 +5653,7 @@
   },
   "profile.employment.rehire": {
     "text": "Rehire",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"rehire\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.rehire_2": {
     "text": "Rehire {{name}}",
@@ -5665,7 +5665,7 @@
   },
   "profile.employment.resigned": {
     "text": "Resigned",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, REASONS: text built in code."
   },
   "profile.employment.saving": {
     "text": "Saving",
@@ -5685,7 +5685,7 @@
   },
   "profile.employment.start_leave": {
     "text": "Start leave",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"startLeave\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.started": {
     "text": "Started",
@@ -5693,11 +5693,11 @@
   },
   "profile.employment.starting_soon": {
     "text": "Starting soon",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: a \"pre_hire\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, STATUS: text built in code."
   },
   "profile.employment.terminate": {
     "text": "Terminate",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"terminate\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.terminate_2": {
     "text": "Terminate {{name}}",
@@ -5741,7 +5741,7 @@
   },
   "profile.employment.withdraw_notice": {
     "text": "Withdraw notice",
-    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: a \"withdrawNotice\" value."
+    "context": "People: employee records, org chart, HR settings. profile/employment.tsx, LABEL: text built in code."
   },
   "profile.employment.work_location": {
     "text": "Work location",
@@ -5873,7 +5873,7 @@
   },
   "profile.inbox-asks.acknowledged": {
     "text": "Acknowledged",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"acknowledged\" value."
   },
   "profile.inbox-asks.add_details": {
     "text": "Add {{length}} details",
@@ -5945,7 +5945,7 @@
   },
   "profile.inbox-asks.kept": {
     "text": "Kept",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"kept\" value."
   },
   "profile.inbox-asks.message": {
     "text": "Message",
@@ -5981,7 +5981,7 @@
   },
   "profile.inbox-asks.sent_back": {
     "text": "Sent back",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"declined\" value."
   },
   "profile.inbox-asks.sign_it": {
     "text": "Sign it",
@@ -5989,7 +5989,7 @@
   },
   "profile.inbox-asks.signed": {
     "text": "Signed",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"signed\" value."
   },
   "profile.inbox-asks.signed_by": {
     "text": "signed by {{name}}",
@@ -5997,7 +5997,7 @@
   },
   "profile.inbox-asks.signed_by_both": {
     "text": "Signed by both",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"countersigned\" value."
   },
   "profile.inbox-asks.task": {
     "text": "Task",
@@ -6017,7 +6017,7 @@
   },
   "profile.inbox-asks.waiting": {
     "text": "Waiting",
-    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, STATE: a \"open\" value."
   },
   "profile.inbox-asks.what_should_do_with_it": {
     "text": "What should {{first}} do with it?",
@@ -6905,11 +6905,11 @@
   },
   "reports.report-runs.has_left_or_has_no_work": {
     "text": "has left, or has no work email",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"not_eligible\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.has_nothing_to_see_in_the": {
     "text": "has nothing to see in the summary",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"NOT_A_VIEWER\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.it_first_goes_out_at_its": {
     "text": "It first goes out at its next time after it was saved.",
@@ -6917,15 +6917,15 @@
   },
   "reports.report-runs.its_owner_no_longer_manages_people": {
     "text": "its owner no longer manages People",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"owner_not_allowed\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.its_segment_was_deleted": {
     "text": "its segment was deleted",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"segment_gone\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.may_not_filter_by_this_audience": {
     "text": "may not filter by this audience",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"FIELD_NOT_FILTERABLE\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.not_run_yet": {
     "text": "Not run yet",
@@ -6953,11 +6953,11 @@
   },
   "reports.report-runs.the_email_failed": {
     "text": "the email failed",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"failed\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.the_file_needs_a_reason": {
     "text": "the file needs a reason",
-    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: a \"EXPORT_REASON_REQUIRED\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-runs.tsx, WHY: text built in code."
   },
   "reports.report-runs.the_reports_history": {
     "text": "the report’s history",
@@ -7057,7 +7057,7 @@
   },
   "reports.report-schedules.failed": {
     "text": "Failed",
-    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"failed\" value."
   },
   "reports.report-schedules.fields": {
     "text": "Fields",
@@ -7161,7 +7161,7 @@
   },
   "reports.report-schedules.partly_sent": {
     "text": "Partly sent",
-    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"partial\" value."
   },
   "reports.report-schedules.pause": {
     "text": "Pause",
@@ -7221,11 +7221,11 @@
   },
   "reports.report-schedules.sent": {
     "text": "Sent",
-    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"sent\" value."
   },
   "reports.report-schedules.skipped": {
     "text": "Skipped",
-    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. reports/report-schedules.tsx, RUN_OUTCOME: a \"skipped\" value."
   },
   "reports.report-schedules.somebody_who_has_left": {
     "text": "Somebody who has left",
@@ -7345,7 +7345,7 @@
   },
   "review.duplicates.likely": {
     "text": "Likely",
-    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: a \"likely\" value."
+    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: text built in code."
   },
   "review.duplicates.match": {
     "text": "{{value}} match",
@@ -7393,7 +7393,7 @@
   },
   "review.duplicates.possible": {
     "text": "Possible",
-    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: a \"possible\" value."
+    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: text built in code."
   },
   "review.duplicates.possible_duplicate": {
     "text": "· Possible duplicate",
@@ -7433,7 +7433,7 @@
   },
   "review.duplicates.strong": {
     "text": "Strong",
-    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: a \"strong\" value."
+    "context": "People: employee records, org chart, HR settings. review/duplicates.tsx, BAND: text built in code."
   },
   "review.duplicates.the_sign_in_which_s_record": {
     "text": "The sign-in, which {{survivorName}}'s record no longer holds",
@@ -7509,7 +7509,7 @@
   },
   "review.identifier-reviews.does_not_compute": {
     "text": "Does not compute",
-    "context": "People: employee records, org chart, HR settings. review/identifier-reviews.tsx, LEVEL: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. review/identifier-reviews.tsx, LEVEL: a \"mismatch\" value."
   },
   "review.identifier-reviews.entered": {
     "text": "Entered",
@@ -7541,7 +7541,7 @@
   },
   "review.identifier-reviews.needs_attention": {
     "text": "Needs attention",
-    "context": "People: employee records, org chart, HR settings. review/identifier-reviews.tsx, LEVEL: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. review/identifier-reviews.tsx, LEVEL: a \"attention\" value."
   },
   "review.identifier-reviews.not_decided": {
     "text": "Not decided",
@@ -7617,11 +7617,11 @@
   },
   "review.review.a_request_appears_here_when_finance": {
     "text": "A request appears here when finance asks.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"access\" value."
   },
   "review.review.a_request_appears_here_when_somebody": {
     "text": "A request appears here when somebody sends an export to a person who can’t see all of it.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"exports\" value."
   },
   "review.review.accepted": {
     "text": "Accepted",
@@ -7633,7 +7633,7 @@
   },
   "review.review.all_changes_have_been_decided": {
     "text": "All changes have been decided.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"changes\" value."
   },
   "review.review.all_items": {
     "text": "All items",
@@ -7693,7 +7693,7 @@
   },
   "review.review.by": {
     "text": "By",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: text built in code."
   },
   "review.review.cant_see_all_of_it": {
     "text": "{{them}} can’t see all of it",
@@ -7709,7 +7709,7 @@
   },
   "review.review.changes": {
     "text": "Changes",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"changes\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.changes_decided_in_the_last_90": {
     "text": "Changes decided in the last 90 days appear here.",
@@ -7717,7 +7717,7 @@
   },
   "review.review.changes_id_checks_duplicates_and_requests": {
     "text": "Changes, ID checks, duplicates and requests appear here when they need you.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"all\" value."
   },
   "review.review.compare": {
     "text": "Compare",
@@ -7737,7 +7737,7 @@
   },
   "review.review.duplicates": {
     "text": "Duplicates",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"duplicates\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.entered_by": {
     "text": "Entered by {{value}}",
@@ -7753,11 +7753,11 @@
   },
   "review.review.every_national_identifier_entered_so_far": {
     "text": "Every national identifier entered so far passed its country’s checks, or has been reviewed.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"ids\" value."
   },
   "review.review.every_required_field_has_a_value": {
     "text": "Every required field has a value for everybody it applies to.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"missing\" value."
   },
   "review.review.export_to": {
     "text": "Export to {{value}} · {{value2}}",
@@ -7765,7 +7765,7 @@
   },
   "review.review.exports": {
     "text": "Exports",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"exports\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.fields": {
     "text": "Fields",
@@ -7785,7 +7785,7 @@
   },
   "review.review.full_values": {
     "text": "Full values",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"access\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.full_values_2": {
     "text": "Full values:",
@@ -7801,7 +7801,7 @@
   },
   "review.review.id_checks": {
     "text": "ID checks",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"ids\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.is_outside_what_can_see_for_one": {
     "text": "{{label}} is outside what {{them}} can see for {{count}} person",
@@ -7829,7 +7829,7 @@
   },
   "review.review.missing_details": {
     "text": "Missing details",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: a \"missing\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, CHIP: text built in code."
   },
   "review.review.no_change_waiting_for_you_looks": {
     "text": "No change waiting for you looks unusual.",
@@ -7841,7 +7841,7 @@
   },
   "review.review.no_two_records_share_a_work": {
     "text": "No two records share a work email, a name and birth date, or a unique value.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"duplicates\" value."
   },
   "review.review.nobody_in_7_days": {
     "text": "Nobody, in 7 days",
@@ -7849,7 +7849,7 @@
   },
   "review.review.none_of_your_changes_wait_for": {
     "text": "None of your changes wait for approval.",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"body\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"mine\" value."
   },
   "review.review.not_decided": {
     "text": "Not decided",
@@ -7885,35 +7885,35 @@
   },
   "review.review.nothing_is_missing": {
     "text": "Nothing is missing",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"missing\" value."
   },
   "review.review.nothing_looks_duplicated": {
     "text": "Nothing looks duplicated",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"duplicates\" value."
   },
   "review.review.nothing_to_approve": {
     "text": "Nothing to approve",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"changes\" value."
   },
   "review.review.nothing_to_decide": {
     "text": "Nothing to decide",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"access\" value."
   },
   "review.review.nothing_to_review": {
     "text": "Nothing to review",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"ids\" value."
   },
   "review.review.nothing_to_send": {
     "text": "Nothing to send",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"exports\" value."
   },
   "review.review.nothing_waiting": {
     "text": "Nothing waiting",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"mine\" value."
   },
   "review.review.nothing_waiting_for_you": {
     "text": "Nothing waiting for you",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"title\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, EMPTY: a \"all\" value."
   },
   "review.review.optional_shown_to_whoever_asked": {
     "text": "Optional. Shown to whoever asked.",
@@ -7921,11 +7921,11 @@
   },
   "review.review.outcome": {
     "text": "Outcome",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: text built in code."
   },
   "review.review.person": {
     "text": "Person",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: text built in code."
   },
   "review.review.possible_duplicate": {
     "text": "· Possible duplicate",
@@ -8009,7 +8009,7 @@
   },
   "review.review.what": {
     "text": "What",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: text built in code."
   },
   "review.review.what_kind": {
     "text": "What kind",
@@ -8021,7 +8021,7 @@
   },
   "review.review.when": {
     "text": "When",
-    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: a \"header\" value."
+    "context": "People: employee records, org chart, HR settings. review/review.tsx, DECIDED_COLUMNS: text built in code."
   },
   "review.review.who": {
     "text": "Who",
@@ -8113,39 +8113,39 @@
   },
   "settings.access.finance": {
     "text": "Finance",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.for_payroll": {
     "text": "For payroll",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.line_managers": {
     "text": "Line managers",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.manager": {
     "text": "Manager",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.managers_above_their_manager": {
     "text": "Managers above their manager",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.the_employee": {
     "text": "The employee",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.the_person_the_record_is_about": {
     "text": "The person the record is about",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.their_direct_manager": {
     "text": "Their direct manager",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.access.your_hr_team": {
     "text": "Your HR team",
-    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/access.tsx, AUDIENCES: text built in code."
   },
   "settings.country-packs.adds": {
     "text": "Adds",
@@ -8153,7 +8153,7 @@
   },
   "settings.country-packs.allocation_rules": {
     "text": "Allocation rules",
-    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"allocation\" value."
   },
   "settings.country-packs.check": {
     "text": "Check",
@@ -8161,7 +8161,7 @@
   },
   "settings.country-packs.checksum": {
     "text": "Checksum",
-    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"checksum\" value."
   },
   "settings.country-packs.country": {
     "text": "Country",
@@ -8189,11 +8189,11 @@
   },
   "settings.country-packs.ranges": {
     "text": "Ranges",
-    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"ranges\" value."
   },
   "settings.country-packs.shape_only": {
     "text": "Shape only",
-    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/country-packs.tsx, CHECK: a \"shape\" value."
   },
   "settings.country-packs.text_one": {
     "text": "{{count}} field",
@@ -8221,7 +8221,7 @@
   },
   "settings.field-change.ask_the_employee": {
     "text": "Ask the employee",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"request\" value."
   },
   "settings.field-change.back_to_the_fields": {
     "text": "Back to the fields",
@@ -8245,19 +8245,19 @@
   },
   "settings.field-change.cleared_and_listed_for_hr_in": {
     "text": "Cleared, and listed for HR in Data health.",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"hr\" value."
   },
   "settings.field-change.cleared_and_nobody_is_asked": {
     "text": "Cleared, and nobody is asked.",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"leave\" value."
   },
   "settings.field-change.cleared_and_theyre_asked_for_it": {
     "text": "Cleared, and they’re asked for it on their profile and by email.",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"request\" value."
   },
   "settings.field-change.cleared_history_keeps_what_it_was": {
     "text": "Cleared. History keeps what it was.",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"clear\" value."
   },
   "settings.field-change.could_not_check_the_values": {
     "text": "Could not check the values",
@@ -8361,7 +8361,7 @@
   },
   "settings.field-change.hr_fills_it_in_later": {
     "text": "HR fills it in later",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"hr\" value."
   },
   "settings.field-change.in_the_draft_published_with_it_one": {
     "text": "{{alsoPublished}} in the draft is published with it.",
@@ -8389,7 +8389,7 @@
   },
   "settings.field-change.leave_it_empty": {
     "text": "Leave it empty",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"leave\" value."
   },
   "settings.field-change.new_for": {
     "text": "New {{label}} for {{name}}",
@@ -8433,7 +8433,7 @@
   },
   "settings.field-change.remove_it": {
     "text": "Remove it",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"clear\" value."
   },
   "settings.field-change.select": {
     "text": "Select {{name}}{{of}}",
@@ -8461,7 +8461,7 @@
   },
   "settings.field-change.type_the_right_value": {
     "text": "Type the right value",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"edit\" value."
   },
   "settings.field-change.type_too_one": {
     "text": "{{listed}} changes type too",
@@ -8489,7 +8489,7 @@
   },
   "settings.field-change.written_now_as_a_correction": {
     "text": "Written now, as a correction.",
-    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-change.tsx, ACTION: a \"edit\" value."
   },
   "settings.field-change.you_cant_read_this_field_so": {
     "text": "You can’t read this field, so values are masked. They are still checked and converted.",
@@ -8517,7 +8517,7 @@
   },
   "settings.field-editor.access": {
     "text": "Access",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: text built in code."
   },
   "settings.field-editor.add_a_rule": {
     "text": "Add a rule",
@@ -8629,11 +8629,11 @@
   },
   "settings.field-editor.emergency_contact_name": {
     "text": "Emergency contact name",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.emergency_contact_phone": {
     "text": "Emergency contact phone",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.employees_cant_edit_this_field_to": {
     "text": "Employees can’t edit this field. To ask them for it, allow the employee to change it.",
@@ -8665,7 +8665,7 @@
   },
   "settings.field-editor.for_company_clothing": {
     "text": "For company clothing.",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.give_extra_access_on_matching_records": {
     "text": "Give extra access on matching records only, for example managers on contractors’ records.",
@@ -8685,7 +8685,7 @@
   },
   "settings.field-editor.how_they_would_like_to_be_referred": {
     "text": "How they would like to be referred to.",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.i_confirm_this_is_special_category": {
     "text": "I confirm this is special-category data. It will be excluded from AI, events and standard exports.",
@@ -8813,7 +8813,7 @@
   },
   "settings.field-editor.pronouns": {
     "text": "Pronouns",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.protection": {
     "text": "Protection",
@@ -8845,7 +8845,7 @@
   },
   "settings.field-editor.review": {
     "text": "Review",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: text built in code."
   },
   "settings.field-editor.rule_n": {
     "text": "Rule {{n}}",
@@ -8877,7 +8877,7 @@
   },
   "settings.field-editor.sensitivity": {
     "text": "Sensitivity",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: text built in code."
   },
   "settings.field-editor.shared_with_the_assistant": {
     "text": "Shared with the assistant",
@@ -8917,7 +8917,7 @@
   },
   "settings.field-editor.t_shirt_size": {
     "text": "T-shirt size",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.t_shirt_size_for_the_offsite": {
     "text": "T-shirt size for the offsite, XS to XXL. People pick it during onboarding; only HR needs it.",
@@ -8941,7 +8941,7 @@
   },
   "settings.field-editor.the_field": {
     "text": "The field",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: text built in code."
   },
   "settings.field-editor.the_field_is_added_to_the": {
     "text": "The field is added to the draft. Nobody sees it until the next version is published.",
@@ -8961,7 +8961,7 @@
   },
   "settings.field-editor.their_number_with_the_country_code": {
     "text": "Their number, with the country code.",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.they_are_allowed_to_change_it": {
     "text": "They are allowed to change it, but no form ever asks them, so in practice only",
@@ -9021,7 +9021,7 @@
   },
   "settings.field-editor.when_its_asked": {
     "text": "When it’s asked",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, STEPS: text built in code."
   },
   "settings.field-editor.where_it_sits_on_the_profile": {
     "text": "Where it sits on the profile and on forms.",
@@ -9041,7 +9041,7 @@
   },
   "settings.field-editor.who_to_call_if_something_happens_at": {
     "text": "Who to call if something happens at work.",
-    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-editor.tsx, TEMPLATES: text built in code."
   },
   "settings.field-editor.working_out_what_kind_of_data": {
     "text": "Working out what kind of data this is",
@@ -9057,7 +9057,7 @@
   },
   "settings.field-registry.a_connected_system": {
     "text": "a connected system",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_WRITER: a \"system\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_WRITER: text built in code."
   },
   "settings.field-registry.a_draft_change_applied_when_you": {
     "text": "A draft change, applied when you publish. Also + Added and − Archived.",
@@ -9089,7 +9089,7 @@
   },
   "settings.field-registry.added": {
     "text": "+ Added",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"added\" value."
   },
   "settings.field-registry.adding_the_section": {
     "text": "Adding the section",
@@ -9097,7 +9097,7 @@
   },
   "settings.field-registry.all_fields": {
     "text": "All fields",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"all\" value."
   },
   "settings.field-registry.all_sections": {
     "text": "All sections",
@@ -9105,7 +9105,7 @@
   },
   "settings.field-registry.an_external_hr_system": {
     "text": "an external HR system",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_WRITER: a \"external\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_WRITER: text built in code."
   },
   "settings.field-registry.answers_here_are_voluntary_and_only": {
     "text": "Answers here are voluntary and only ever reported in aggregate. The fields can be read; they cannot be edited or moved.",
@@ -9113,7 +9113,7 @@
   },
   "settings.field-registry.archived": {
     "text": "− Archived",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"archived\" value."
   },
   "settings.field-registry.asked": {
     "text": "Asked",
@@ -9133,7 +9133,7 @@
   },
   "settings.field-registry.asked_of_employees": {
     "text": "Asked of employees",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"employee\" value."
   },
   "settings.field-registry.asked_on_the_first_screen_after": {
     "text": "Asked on the first screen after sign-up: the sign-up page never holds a file or confidential data.",
@@ -9169,7 +9169,7 @@
   },
   "settings.field-registry.changed": {
     "text": "~ Changed",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, PENDING: a \"changed\" value."
   },
   "settings.field-registry.changes_type_or_format": {
     "text": "{{value}} changes type or format",
@@ -9233,7 +9233,7 @@
   },
   "settings.field-registry.finance": {
     "text": "Finance",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_SCOPE: a \"finance\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_SCOPE: text built in code."
   },
   "settings.field-registry.fixed_rules": {
     "text": "Fixed rules",
@@ -9265,7 +9265,7 @@
   },
   "settings.field-registry.line_managers": {
     "text": "line managers",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_SCOPE: a \"manager_chain\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, SHORT_SCOPE: text built in code."
   },
   "settings.field-registry.name": {
     "text": "Name",
@@ -9277,7 +9277,7 @@
   },
   "settings.field-registry.needs_approval_or_confidential": {
     "text": "Needs approval or confidential",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"protected\" value."
   },
   "settings.field-registry.never": {
     "text": "Never",
@@ -9313,7 +9313,7 @@
   },
   "settings.field-registry.not_yet_published": {
     "text": "Not yet published",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"draft\" value."
   },
   "settings.field-registry.nothing_published_yet": {
     "text": "Nothing published yet",
@@ -9349,7 +9349,7 @@
   },
   "settings.field-registry.required": {
     "text": "Required",
-    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, FILTERS: a \"required\" value."
   },
   "settings.field-registry.required_sometimes": {
     "text": "Required sometimes",
@@ -9465,15 +9465,15 @@
   },
   "settings.inbox-rules.14_days": {
     "text": "14 days",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: text built in code."
   },
   "settings.inbox-rules.3_days": {
     "text": "3 days",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: text built in code."
   },
   "settings.inbox-rules.7_days": {
     "text": "7 days",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: text built in code."
   },
   "settings.inbox-rules.approvals_that_wait_for_7_days": {
     "text": "Approvals that wait for 7 days",
@@ -9489,7 +9489,7 @@
   },
   "settings.inbox-rules.day_before_then_every_2_days": {
     "text": "Day before, then every 2 days",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: text built in code."
   },
   "settings.inbox-rules.days": {
     "text": "days",
@@ -9505,7 +9505,7 @@
   },
   "settings.inbox-rules.dont_remind": {
     "text": "Don’t remind",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: text built in code."
   },
   "settings.inbox-rules.hand_over_automatically": {
     "text": "Hand over automatically",
@@ -9529,7 +9529,7 @@
   },
   "settings.inbox-rules.never": {
     "text": "Never",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, OVERDUE: text built in code."
   },
   "settings.inbox-rules.not_saved": {
     "text": "Not saved",
@@ -9573,7 +9573,7 @@
   },
   "settings.inbox-rules.the_day_before_only": {
     "text": "The day before only",
-    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/inbox-rules.tsx, REMIND: text built in code."
   },
   "settings.inbox-rules.the_persons_manager_gets_an_update": {
     "text": "The person’s manager gets an update.",
@@ -10153,7 +10153,7 @@
   },
   "settings.integrations.webhook-log.delivered": {
     "text": "Delivered",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: a \"delivered\" value."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: text built in code."
   },
   "settings.integrations.webhook-log.deliveries": {
     "text": "{{failed}} deliveries",
@@ -10173,7 +10173,7 @@
   },
   "settings.integrations.webhook-log.failed": {
     "text": "Failed",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: a \"failed\" value."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: text built in code."
   },
   "settings.integrations.webhook-log.http": {
     "text": "HTTP",
@@ -10193,7 +10193,7 @@
   },
   "settings.integrations.webhook-log.pending": {
     "text": "Pending",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: a \"pending\" value."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: text built in code."
   },
   "settings.integrations.webhook-log.replay": {
     "text": "Replay",
@@ -10221,7 +10221,7 @@
   },
   "settings.integrations.webhook-log.skipped": {
     "text": "Skipped",
-    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: a \"skipped\" value."
+    "context": "People: employee records, org chart, HR settings. settings/integrations/webhook-log.tsx, WORD: text built in code."
   },
   "settings.integrations.webhook-log.status": {
     "text": "Status",
@@ -10317,11 +10317,11 @@
   },
   "settings.organisation.ask_and_let_them_skip_it": {
     "text": "Ask, and let them skip it",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: text built in code."
   },
   "settings.organisation.ask_before_anything_else": {
     "text": "Ask before anything else",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: text built in code."
   },
   "settings.organisation.asked_on_the_first_screen_after": {
     "text": "Asked on the first screen after they set up their account, beside any image or document field you collect at sign-up.",
@@ -10429,7 +10429,7 @@
   },
   "settings.organisation.dont_ask": {
     "text": "Don’t ask",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, PHOTO_AT_SIGNUP: text built in code."
   },
   "settings.organisation.due": {
     "text": "Due",
@@ -10457,7 +10457,7 @@
   },
   "settings.organisation.eu_payroll_and_tax_records": {
     "text": "EU, payroll and tax records",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: a \"eu-payroll\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: text built in code."
   },
   "settings.organisation.everything_under_it_moves_with_it": {
     "text": "Everything under it moves with it.",
@@ -10469,7 +10469,7 @@
   },
   "settings.organisation.germany_labour_records": {
     "text": "Germany, labour records",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: a \"de-labour\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: text built in code."
   },
   "settings.organisation.grade": {
     "text": "Grade",
@@ -10749,7 +10749,7 @@
   },
   "settings.organisation.spain_labour_records": {
     "text": "Spain, labour records",
-    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: a \"es-labour\" value."
+    "context": "People: employee records, org chart, HR settings. settings/organisation.tsx, FLOOR_NAMES: text built in code."
   },
   "settings.organisation.start_numbering": {
     "text": "Start numbering",
@@ -10985,11 +10985,11 @@
   },
   "settings.publish.added": {
     "text": "Added",
-    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"word\" value."
+    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"added\" value."
   },
   "settings.publish.archived": {
     "text": "Archived",
-    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"word\" value."
+    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"archived\" value."
   },
   "settings.publish.become_incomplete": {
     "text": "Become incomplete",
@@ -11001,7 +11001,7 @@
   },
   "settings.publish.changed": {
     "text": "Changed",
-    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"word\" value."
+    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"changed\" value."
   },
   "settings.publish.changes": {
     "text": "Changes",
@@ -11033,7 +11033,7 @@
   },
   "settings.publish.loosened": {
     "text": "Loosened",
-    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"word\" value."
+    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"loosened\" value."
   },
   "settings.publish.not_published": {
     "text": "Not published",
@@ -11081,7 +11081,7 @@
   },
   "settings.publish.tightened": {
     "text": "Tightened",
-    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"word\" value."
+    "context": "People: employee records, org chart, HR settings. settings/publish.tsx, MARKER: a \"tightened\" value."
   },
   "settings.publish.try_again": {
     "text": "Try again",
@@ -11129,7 +11129,7 @@
   },
   "settings.read-back.confidential_so_it_is_kept_out": {
     "text": "confidential, so it is kept out of logs and AI",
-    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: a \"confidential\" value."
+    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: text built in code."
   },
   "settings.read-back.fill_in_employee_never_asked_one": {
     "text": "{{who}} fills in {{label}}; the employee is never asked for it.",
@@ -11181,7 +11181,7 @@
   },
   "settings.read-back.not_sensitive": {
     "text": "not sensitive",
-    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: a \"public\" value."
+    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: text built in code."
   },
   "settings.read-back.only_can_change_it": {
     "text": "Only {{value}} can change it.",
@@ -11189,7 +11189,7 @@
   },
   "settings.read-back.special_category_data_so_it_never_reaches": {
     "text": "special-category data, so it never reaches AI, events or the standard export",
-    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: a \"special-category\" value."
+    "context": "People: employee records, org chart, HR settings. settings/read-back.ts, SENSITIVITY: text built in code."
   },
   "settings.read-back.the_employee": {
     "text": "The employee",
@@ -11221,11 +11221,11 @@
   },
   "settings.roles.changes_the_fields_the_settings_and": {
     "text": "Changes the fields, the settings and who holds a role, and does anything HR and Finance can.",
-    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: text built in code."
   },
   "settings.roles.finance": {
     "text": "Finance",
-    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: text built in code."
   },
   "settings.roles.find_a_person": {
     "text": "Find a person",
@@ -11289,7 +11289,7 @@
   },
   "settings.roles.people_administrator": {
     "text": "People administrator",
-    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: text built in code."
   },
   "settings.roles.people_appear_here_once_they_have": {
     "text": "People appear here once they have an account.",
@@ -11325,11 +11325,11 @@
   },
   "settings.roles.sees_and_corrects_everybodys_record": {
     "text": "Sees and corrects everybody’s record.",
-    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: text built in code."
   },
   "settings.roles.sees_pay_and_asks_for_full": {
     "text": "Sees pay, and asks for full values, for payroll.",
-    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: a \"means\" value."
+    "context": "People: employee records, org chart, HR settings. settings/roles.tsx, ROLES: text built in code."
   },
   "settings.roles.somebody_without_a_record_yet": {
     "text": "Somebody without a record yet",
@@ -11389,11 +11389,11 @@
   },
   "settings.signup-preview.legal_family_name": {
     "text": "Legal family name",
-    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: text built in code."
   },
   "settings.signup-preview.legal_first_name": {
     "text": "Legal first name",
-    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: text built in code."
   },
   "settings.signup-preview.next": {
     "text": "Next",
@@ -11405,7 +11405,7 @@
   },
   "settings.signup-preview.preferred_name": {
     "text": "Preferred name",
-    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: text built in code."
   },
   "settings.signup-preview.review": {
     "text": "Review",
@@ -11421,7 +11421,7 @@
   },
   "settings.signup-preview.what_colleagues_call_you_if_not_your": {
     "text": "What colleagues call you, if not your first name.",
-    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/signup-preview.tsx, NAMES: text built in code."
   },
   "settings.signup-preview.what_somebody_sees_from_their_email": {
     "text": "What somebody sees from their email link. Nothing here is saved or sent.",
@@ -11445,459 +11445,459 @@
   },
   "settings.words.a_calendar_day_with_no_time": {
     "text": "A calendar day with no time. Visa expiry.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"date\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_connected_system": {
     "text": "A connected system",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: a \"system\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: text built in code."
   },
   "settings.words.a_count_with_no_decimals_number": {
     "text": "A count with no decimals. Number of dependants.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"number\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_country_from_the_standard_list_nationality": {
     "text": "A country from the standard list. Nationality.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"country\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_day_and_a_time_when": {
     "text": "A day and a time. When the badge was issued.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"datetime\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_document": {
     "text": "A document",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"document_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.a_language_from_the_standard_list_preferred": {
     "text": "A language from the standard list. Preferred language.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"language\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_legal_entity": {
     "text": "A legal entity",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"legal_entity_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.a_length_of_time_a_notice": {
     "text": "A length of time. A notice period of 3 months.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"duration\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_number_that_may_have_decimals": {
     "text": "A number that may have decimals. Weekly hours, 37.5.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"decimal\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_paragraph_or_more_notes_a": {
     "text": "A paragraph or more. Notes, a short biography.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"long_text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_pdf_or_a_scan_uploaded": {
     "text": "A PDF or a scan, uploaded: a signed contract, a certificate.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"document_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_person": {
     "text": "A person",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"person_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.a_phone_number_with_its_country": {
     "text": "A phone number with its country code. An emergency contact’s phone.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"phone\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_picture_uploaded_a_png_or": {
     "text": "A picture, uploaded: a PNG or a JPEG, shown on the profile.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"image\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_postal_address_over_several_lines": {
     "text": "A postal address over several lines. A home address.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"address\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_share_out_of_100_time": {
     "text": "A share out of 100. Time on a project, 40%.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"percentage\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_signature": {
     "text": "A signature",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"signature\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.a_switch_that_is_on_or": {
     "text": "A switch that is on or off. Has a company car.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"boolean\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_team_or_department": {
     "text": "A team or department",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"org_unit_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.a_team_or_department_in_your": {
     "text": "A team or department in your organisation.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"org_unit_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_time_zone_from_the_standard": {
     "text": "A time zone from the standard list. Where they usually work from.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"time_zone\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_web_link_a_portfolio_or_linkedin": {
     "text": "A web link. A portfolio or LinkedIn page.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"url\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_word_or_a_short_line": {
     "text": "A word or a short line. A nickname, a badge number.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.a_work_location": {
     "text": "A work location",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"location_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.administrators": {
     "text": "Administrators",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: a \"admin\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: text built in code."
   },
   "settings.words.an_amount_in_a_currency_stored": {
     "text": "An amount in a currency, stored exactly. A signing bonus.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"money\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.an_email_address_checked_as_one": {
     "text": "An email address, checked as one. A personal email.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"email\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.an_external_hr_system": {
     "text": "An external HR system",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: a \"external\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: text built in code."
   },
   "settings.words.an_iban_or_account_number_stored_encrypted": {
     "text": "An IBAN or account number. Stored encrypted; screens show only its last characters.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"bank_account\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.an_identity_number_stored_encrypted_screens_show": {
     "text": "An identity number. Stored encrypted; screens show only its last characters.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"national_id\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.an_image": {
     "text": "An image",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"image\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.another_field": {
     "text": "Another field",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: a \"attribute\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: text built in code."
   },
   "settings.words.any_number_of_the_options_you": {
     "text": "Any number of the options you list. Languages spoken at work.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"multi_select\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.any_time": {
     "text": "Any time",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"anytime\" value."
   },
   "settings.words.any_time_on_their_profile": {
     "text": "Any time, on their profile",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"anytime\" value."
   },
   "settings.words.asked_in_the_checklist_a_new": {
     "text": "Asked in the checklist a new starter works through after first signing in, one section at a time. If required, it counts as missing from the day they are hired.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"onboarding\" value."
   },
   "settings.words.asked_on_the_account_setup_page": {
     "text": "Asked on the account setup page when somebody HR invited follows their invitation link, before they can use Kithena.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"enrolment\" value."
   },
   "settings.words.asked_when_the_person_first_sets": {
     "text": "Asked when the person first sets up their account (and when they recover it, if it is still missing), before they create their passkey.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"signup\" value."
   },
   "settings.words.at_sign_up": {
     "text": "At sign-up",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"signup\" value."
   },
   "settings.words.bank_account": {
     "text": "Bank account",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"bank_account\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.business_data_nobody_would_mind_hr_and": {
     "text": "Business data nobody would mind HR and managers seeing.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"internal\" value."
   },
   "settings.words.choices": {
     "text": "Choices",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.contact": {
     "text": "Contact",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.could_appear_in_the_directory_a_job": {
     "text": "Could appear in the directory. A job title, a work phone.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"public\" value."
   },
   "settings.words.country": {
     "text": "Country",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"country\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.date": {
     "text": "Date",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"date\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.date_and_time": {
     "text": "Date and time",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"datetime\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.dates_and_time": {
     "text": "Dates and time",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.decimal": {
     "text": "Decimal",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"decimal\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.duration": {
     "text": "Duration",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"duration\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.during_onboarding": {
     "text": "During onboarding",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"onboarding\" value."
   },
   "settings.words.during_onboarding_2": {
     "text": "during onboarding",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"when\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"onboarding\" value."
   },
   "settings.words.email_address": {
     "text": "Email address",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"email\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.employment_type": {
     "text": "Employment type",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: a \"employmentType\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: text built in code."
   },
   "settings.words.everyone_in_the_directory": {
     "text": "Everyone, in the directory",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: a \"directory\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: text built in code."
   },
   "settings.words.exactly_one_of_the_options_you": {
     "text": "Exactly one of the options you list. T-shirt size.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"select\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.files": {
     "text": "Files",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.finance": {
     "text": "Finance",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: a \"finance\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: text built in code."
   },
   "settings.words.fine_for_everyone_at_the_company": {
     "text": "Fine for everyone at the company",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"public\" value."
   },
   "settings.words.free_words_people_type_themselves_skills": {
     "text": "Free words people type themselves. Skills.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"tags\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.health_beliefs_ethnicity_or_similar": {
     "text": "Health, beliefs, ethnicity or similar",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"special-category\" value."
   },
   "settings.words.hr_only": {
     "text": "HR only",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"hr_only\" value."
   },
   "settings.words.in_your_organisation": {
     "text": "In your organisation",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.language": {
     "text": "Language",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"language\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.legal_entity": {
     "text": "Legal entity",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: a \"legalEntity\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: text built in code."
   },
   "settings.words.long_text": {
     "text": "Long text",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"long_text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.managers_above_them": {
     "text": "Managers above them",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: a \"manager_chain\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, SCOPE_LABEL: text built in code."
   },
   "settings.words.money": {
     "text": "Money",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"money\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.national_identifier": {
     "text": "National identifier",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"national_id\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.nobody_is_chased_before_first_day": {
     "text": "Nobody is chased for it before their first day. It sits on their profile to fill in or update whenever it changes; if required, it counts as missing from their start date.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"anytime\" value."
   },
   "settings.words.numbers_and_money": {
     "text": "Numbers and money",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.on_invitation": {
     "text": "On invitation",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"enrolment\" value."
   },
   "settings.words.on_their_profile_whenever_it_changes": {
     "text": "on their profile, whenever it changes",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"when\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"anytime\" value."
   },
   "settings.words.onboarding": {
     "text": "Onboarding",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"short\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"onboarding\" value."
   },
   "settings.words.one_of_a_list": {
     "text": "One of a list",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"select\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.one_of_your_legal_entities": {
     "text": "One of your legal entities.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"legal_entity_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.one_of_your_work_locations": {
     "text": "One of your work locations.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"location_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.only_hr_fills_it_in": {
     "text": "Only HR fills it in",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"hr_only\" value."
   },
   "settings.words.optional": {
     "text": "Optional",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: a \"never\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: text built in code."
   },
   "settings.words.ordinary_information_about_the_job": {
     "text": "Ordinary information about the job",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"internal\" value."
   },
   "settings.words.pay_home_address_performance_kept_out_of": {
     "text": "Pay, home address, performance. Kept out of logs and AI.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"confidential\" value."
   },
   "settings.words.percentage": {
     "text": "Percentage",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"percentage\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.phone_number": {
     "text": "Phone number",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"phone\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.postal_address": {
     "text": "Postal address",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"address\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.protected": {
     "text": "Protected",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.protected_by_law_gdpr_article_9_never": {
     "text": "Protected by law (GDPR Article 9). Never sent to AI, never carried on an event, never exported without a reason.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"special-category\" value."
   },
   "settings.words.required": {
     "text": "Required",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: a \"always\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: text built in code."
   },
   "settings.words.required_sometimes": {
     "text": "Required sometimes",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: a \"conditional\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, REQUIREDNESS_LABEL: text built in code."
   },
   "settings.words.several_of_a_list": {
     "text": "Several of a list",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"multi_select\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.short_text": {
     "text": "Short text",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"text\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.signing": {
     "text": "Signing",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.somebody_else_in_kithena_a_buddy": {
     "text": "Somebody else in Kithena. A buddy or a mentor.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"person_ref\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.standard_lists": {
     "text": "Standard lists",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.suits_a_home_address_after_a": {
     "text": "Suits: a home address after a move, a second phone number.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"example\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"anytime\" value."
   },
   "settings.words.suits_a_personal_email_a_preferred": {
     "text": "Suits: a personal email, a preferred language.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"example\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"enrolment\" value."
   },
   "settings.words.suits_emergency_contact_t_shirt_size": {
     "text": "Suits: emergency contact, T-shirt size, bank details.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"example\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"onboarding\" value."
   },
   "settings.words.suits_laptop_serial_number_cost_centre": {
     "text": "Suits: laptop serial number, cost centre, internal grade.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"example\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"hr_only\" value."
   },
   "settings.words.suits_preferred_name_pronouns": {
     "text": "Suits: preferred name, pronouns.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"example\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"signup\" value."
   },
   "settings.words.tags": {
     "text": "Tags",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"tags\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.text": {
     "text": "Text",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_GROUPS: text built in code."
   },
   "settings.words.the_employee": {
     "text": "The employee",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: a \"employee\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: text built in code."
   },
   "settings.words.the_employee_never_sees_a_form": {
     "text": "The employee never sees a form for it: not in onboarding and not on their own profile. If required, HR sees it as missing from the start date.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"description\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"hr_only\" value."
   },
   "settings.words.their_manager": {
     "text": "Their manager",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: a \"manager\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, WRITER_LABEL: text built in code."
   },
   "settings.words.their_own_signature_typed_in_a": {
     "text": "Their own signature, typed in a handwriting style or drawn. Documents uses it wherever they sign.",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: a \"signature\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_HINT: text built in code."
   },
   "settings.words.time_zone": {
     "text": "Time zone",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"time_zone\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.web_address": {
     "text": "Web address",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"url\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.when_they_accept_their_invitation": {
     "text": "When they accept their invitation",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"enrolment\" value."
   },
   "settings.words.when_they_accept_their_invitation_2": {
     "text": "when they accept their invitation",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"when\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"enrolment\" value."
   },
   "settings.words.when_they_first_set_up_their": {
     "text": "when they first set up their account",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"when\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, COLLECT_LABEL: a \"signup\" value."
   },
   "settings.words.whole_number": {
     "text": "Whole number",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"number\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "settings.words.work_model": {
     "text": "Work model",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: a \"workModel\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, OPERAND_LABEL: text built in code."
   },
   "settings.words.would_harm_or_embarrass_someone_if_it": {
     "text": "Would harm or embarrass someone if it leaked",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, CLASSIFICATION_LABEL: a \"confidential\" value."
   },
   "settings.words.yes_or_no": {
     "text": "Yes or no",
-    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: a \"boolean\" value."
+    "context": "People: employee records, org chart, HR settings. settings/words.ts, DATA_TYPE_LABEL: text built in code."
   },
   "setup.people-setup.all_forms_exports_and_integrations_now": {
     "text": "All forms, exports and integrations now use this version. Later changes create a new version.",
@@ -11929,7 +11929,7 @@
   },
   "setup.people-setup.country_pack": {
     "text": "Country pack",
-    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: text built in code."
   },
   "setup.people-setup.finish": {
     "text": "Finish",
@@ -11945,7 +11945,7 @@
   },
   "setup.people-setup.legal_entity": {
     "text": "Legal entity",
-    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: text built in code."
   },
   "setup.people-setup.missing": {
     "text": "{{missing}} missing",
@@ -11961,7 +11961,7 @@
   },
   "setup.people-setup.publish": {
     "text": "Publish",
-    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: text built in code."
   },
   "setup.people-setup.publish_version_1": {
     "text": "Publish version 1",
@@ -12049,7 +12049,7 @@
   },
   "setup.people-setup.your_profile": {
     "text": "Your profile",
-    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: a \"label\" value."
+    "context": "People: employee records, org chart, HR settings. setup/people-setup.tsx, STEPS: text built in code."
   },
   "split.split": {
     "text": "Split({{name}})",

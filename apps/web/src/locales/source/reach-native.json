@@ -127,6 +127,14 @@
     "text": "Stop",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/assistant/assistant.tsx, AssistantComposer: the accessibilityLabel of <Pressable>."
   },
+  "components.avatar.avatar.and_others_one": {
+    "text": "{{value}} and {{count}} other",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/avatar/avatar.tsx, AvatarGroup: text built in code. Filled in: {{count}}, {{value}}. Plural: the words for a {{count}} of one."
+  },
+  "components.avatar.avatar.and_others_other": {
+    "text": "{{value}} and {{count}} others",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/avatar/avatar.tsx, AvatarGroup: text built in code. Filled in: {{count}}, {{value}}. Plural: the words for any other {{count}}."
+  },
   "components.badge.badge.remove": {
     "text": "Remove {{children}}",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/badge/badge.tsx, Badge: the accessibilityLabel of <Pressable>. Filled in: {{children}}."
@@ -403,6 +411,14 @@
     "text": "Done",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text inside <Button>."
   },
+  "components.combobox.combobox.matches_one": {
+    "text": "{{count}} match",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.combobox.combobox.matches_other": {
+    "text": "{{count}} matches",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Panel: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.combobox.combobox.nothing_matches": {
     "text": "Nothing matches “{{query}}”",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/combobox/combobox.tsx, Combobox: text built in code. Filled in: {{query}}."
@@ -442,6 +458,14 @@
   "components.command-palette.command-palette.no_results": {
     "text": "No results",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code."
+  },
+  "components.command-palette.command-palette.results_one": {
+    "text": "{{count}} result",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.command-palette.command-palette.results_other": {
+    "text": "{{count}} results",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/command-palette/command-palette.tsx, Command: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.command-palette.command-palette.search_or_run_a_command": {
     "text": "Search or run a command",
@@ -891,9 +915,13 @@
     "text": "Choose a new photo",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, AvatarUploader: text inside <Button>."
   },
-  "components.image-uploader.image-uploader.only_allowed": {
-    "text": "Only {{String}} {{value}} allowed.",
-    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{String}}, {{value}}."
+  "components.image-uploader.image-uploader.only_allowed_one": {
+    "text": "Only {{count}} image allowed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.image-uploader.image-uploader.only_allowed_other": {
+    "text": "Only {{count}} images allowed.",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/image-uploader/image-uploader.tsx, ImageUploader: a \"message\" value. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.image-uploader.image-uploader.remove": {
     "text": "Remove {{name}}",
@@ -1154,6 +1182,22 @@
   "components.org-chart.org-chart.report_to": {
     "text": "Report to…",
     "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: the accessibilityActions of <Pressable>."
+  },
+  "components.org-chart.org-chart.reports_line_one": {
+    "text": " · {{count}} report",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text inside <CssText>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.org-chart.org-chart.reports_line_other": {
+    "text": " · {{count}} reports",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text inside <CssText>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.org-chart.org-chart.reports_one": {
+    "text": ", {{count}} report",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.org-chart.org-chart.reports_other": {
+    "text": ", {{count}} reports",
+    "context": "shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app. components/org-chart/org-chart.tsx, OrgChart: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "components.pagination.pagination.next_page": {
     "text": "Next page",

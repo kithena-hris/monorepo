@@ -350,7 +350,7 @@ export function FieldRegistry({
           <View className="flex-1" />
           <Text variant="footnote" tone="muted">
             {t(
-              'people.settings.fields.fields',
+              'people.settings.fields.fields_listed',
               { one: '{{count}} field', other: '{{count}} fields' },
               { count: listed.length },
             )}

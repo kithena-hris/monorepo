@@ -3,6 +3,7 @@
   "analytics.what-changed.choose_the_format_and_who_it": "Choose the format and who it is for; anything they may not see is left out or summarized.",
   "import.work-locations.a_new_work_location_is_added": "A new work location is added in Settings › Organization, with the name, country and time zone you give it, by the run that imports the file.",
   "import.work-locations.added_in_settings_organisation_by_the": "Added in Settings › Organization by the run",
+  "nav./settings/people/organisation.label": "Organization",
   "profile.profile.not_saved_the_change_of_manager": "Not saved: the change of manager was canceled.",
   "settings.organisation.germany_labour_records": "Germany, labor records",
   "settings.organisation.organisation": "Organization",

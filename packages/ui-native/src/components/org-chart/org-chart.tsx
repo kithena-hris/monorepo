@@ -327,7 +327,7 @@ export function OrgChart({
                 {name}
               </CssText>
               <CssText numberOfLines={1} className="text-footnote leading-[1.3] text-fg-muted">
-                {`${title}${reports > 0 ? t('components.org-chart.org-chart.reports', { one: ' · {{count}} report', other: ' · {{count}} reports' }, { count: reports }) : ''}`}
+                {`${title}${reports > 0 ? t('components.org-chart.org-chart.reports_line', { one: ' · {{count}} report', other: ' · {{count}} reports' }, { count: reports }) : ''}`}
               </CssText>
             </>
           )}

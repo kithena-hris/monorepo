@@ -10,6 +10,8 @@
   "learning.assign_it_from_the_catalogue": "Assign it from the catalog.",
   "learning.catalogue": "Catalog",
   "learning.nothing_in_the_catalogue_yet": "Nothing in the catalog yet",
+  "nav./performance/learning.description": "Courses, sessions and documents assigned to you, and the catalog",
+  "nav./performance/learning/catalogue.label": "Catalog",
   "settings.add_one_to_receive_reviews_released": "Add one to receive reviews released, cycles launched, ratings finalized and the rest.",
   "settings.summarises_what_was_written_about_a": "Summarizes what was written about a person, for their manager."
 }
