@@ -1,1 +1,27 @@
-{}
+{
+  "email.cycles.hi_you_have_reviews_to_write": "Dzień dobry {{name}}, masz oceny do napisania w cyklu {{name2}}. Otwórz Kithena, aby kontynuować.",
+  "email.cycles.reminder": "Przypomnienie: {{name}}",
+  "email.feedback.asked_for_your_feedback": "{{name}} prosi o Twoją opinię",
+  "email.feedback.on": " na temat {{topic}}",
+  "email.feedback.would_like_your_feedback_answer_in": "{{name}} prosi o Twoją opinię{{value}}. Odpowiedz w Kithena, w sekcji Ocena pracy › Feedback.",
+  "email.launch.due_a_review_in": "Termin {{due}}: ocena w cyklu {{name}}",
+  "email.launch.hi_has_started_your_reviews_are": "Dzień dobry {{name}}, cykl {{name2}} się rozpoczął. Twoje oceny znajdziesz w Kithena, w sekcji Ocena pracy › Moje oceny.",
+  "email.launch.hi_your_review_about_in_is": "Dzień dobry {{name}}, termin oceny osoby {{name2}} w cyklu {{name3}} mija {{due}}.",
+  "email.launch.overdue_a_review_in": "Po terminie: ocena w cyklu {{name}}",
+  "email.launch.you_have_reviews_to_write": "Masz oceny do napisania: {{name}}",
+  "email.learning.cancelled": "Odwołane",
+  "email.learning.invitation": "Zaproszenie",
+  "email.learning.on_utc_is_cancelled": "Wydarzenie {{title}} zaplanowane na {{when}} (UTC) zostało odwołane.",
+  "email.learning.you_are_invited_to_on_utc": "Zapraszamy na {{title}} {{when}} (UTC){{value}}. Zaproszenie do kalendarza jest w załączniku.",
+  "email.manager-change.a_cycle": "cykl",
+  "email.manager-change.draft_stays": "Wersja robocza pozostaje w Kithena do przeczytania, dopóki jej nie usuniesz.",
+  "email.manager-change.no_longer_reports_to_you": "Dzień dobry {{name}}, {{who}} nie podlega już Tobie, więc w cyklu {{where}} nie jesteś już oceniającym przełożonym i nie musisz przesyłać oceny.",
+  "email.manager-change.reports_to_someone_else_now": "Dzień dobry {{name}}, {{who}} podlega teraz osobie {{to}}, więc w cyklu {{where}} nie jesteś już oceniającym przełożonym i nie musisz przesyłać oceny.",
+  "email.manager-change.reports_to_you_now": "Dzień dobry {{name}}, {{who}} podlega teraz Tobie, więc ocenę przełożonego w cyklu {{where}} piszesz Ty. Otwórz Kithena, aby zacząć.",
+  "email.manager-change.someone": "Ktoś",
+  "email.manager-change.you_no_longer_write": "Nie piszesz już oceny przełożonego dla: {{who}}",
+  "email.manager-change.you_write_their_review": "Piszesz ocenę przełożonego dla: {{who}}",
+  "email.reviews.about": "{{title}} dotycząca {{name}}: „{{reason}}”",
+  "email.reviews.asks_to_unlock_a_review": "{{name}} prosi o odblokowanie oceny",
+  "email.reviews.s_peer_reviewers_are_waiting_for": "Oceniający współpracownicy osoby {{name}} czekają na Ciebie"
+}
