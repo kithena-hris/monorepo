@@ -28,6 +28,7 @@ const Stage = z.object({
     'assessment',
     'works_council',
     'offer',
+    'contract',
     'hired',
   ]),
 });

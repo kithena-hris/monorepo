@@ -923,6 +923,7 @@ export function Candidate(props: ScreenProps<CandidateData>): JSX.Element {
                       chosen.may.includes('pipeline.move') &&
                       nextStage !== undefined &&
                       nextStage.category !== 'hired' &&
+                      nextStage.category !== 'contract' &&
                       nextStage.category !== 'interview' ? (
                         <Button
                           size="sm"

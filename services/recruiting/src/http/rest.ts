@@ -370,6 +370,7 @@ const Stage = z.object({
     'assessment',
     'works_council',
     'offer',
+    'contract',
     'hired',
   ]),
   automations: z.array(z.record(z.string(), z.unknown())).max(10),

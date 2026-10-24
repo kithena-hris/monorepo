@@ -10,6 +10,7 @@ import {
   moveTo,
   receive,
   reject,
+  toContract,
   undo,
   type Application,
 } from './application.js';
@@ -18,6 +19,7 @@ import {
   nextWorkingMorning,
   sendAt,
   validatePipeline,
+  withContractStage,
   withWorksCouncil,
   type Stage,
 } from './pipeline.js';
@@ -25,7 +27,8 @@ import {
 let n = 0;
 const id = () => `id${String(++n)}`;
 const stages = defaultPipeline(id);
-const [applied, screening, interview, , offer, hired] = stages as [
+const [applied, screening, interview, , offer, contract, hired] = stages as [
+  Stage,
   Stage,
   Stage,
   Stage,
@@ -73,9 +76,30 @@ describe('pipelines (PRD §12.1)', () => {
       'assessment',
       'works_council',
       'offer',
+      'contract',
       'hired',
     ]);
     expect(validatePipeline(council).ok).toBe(true);
+  });
+
+  it('gives a pipeline from before the contract stage one, between the offer and the hire', () => {
+    const before = stages.filter((s) => s.category !== 'contract');
+    const added = withContractStage(before, () => 'k');
+    expect(added.map((s) => s.category)).toEqual([
+      'applied',
+      'screening',
+      'interview',
+      'assessment',
+      'offer',
+      'contract',
+      'hired',
+    ]);
+    expect(added.find((s) => s.category === 'contract')).toMatchObject({
+      id: 'k',
+      name: 'Contract',
+    });
+    expect(withContractStage(stages, () => 'never')).toEqual(stages);
+    expect(validatePipeline(added).ok).toBe(true);
   });
 
   it('tells a knockout the next working day at 09:00 in the candidate’s zone, never the same day', () => {
@@ -125,6 +149,36 @@ describe('moving an application (PRD §12.2)', () => {
       ok: false,
       error: { code: 'HIRED_BY_CONTRACT' },
     });
+  });
+
+  it('enters the contract stage only with an accepted offer', () => {
+    expect(moveTo(fresh(), stages, contract.id, 'ada', '2026-10-02T09:00:00Z', 'm1')).toMatchObject(
+      { ok: false, error: { code: 'CONTRACT_AFTER_ACCEPTANCE' } },
+    );
+    expect(
+      moveTo(fresh(), stages, contract.id, 'ada', '2026-10-02T09:00:00Z', 'm1', {
+        offerAccepted: true,
+      }).ok,
+    ).toBe(true);
+  });
+
+  it('moves an accepted offer into the contract stage, once', () => {
+    const moved = value(toContract(fresh(), stages, 'system', '2026-10-10T09:00:00Z', 'm5'));
+    expect(currentStage(moved.application)).toBe(contract.id);
+    expect(moved.application.outcome).toBe('active');
+    expect(moved.move).toMatchObject({ to: contract.id, by: 'system' });
+    expect(
+      value(toContract(moved.application, stages, 'system', '2026-10-10T09:01:00Z', 'm6')).move,
+    ).toBeNull();
+    expect(
+      toContract(
+        fresh(),
+        stages.filter((s) => s.category !== 'contract'),
+        'system',
+        'x',
+        'm7',
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'NO_STAGE' } });
   });
 
   it('refuses an offer before the works council has consented', () => {
@@ -178,8 +232,11 @@ describe('moving an application (PRD §12.2)', () => {
   });
 
   it('is hired by the contract and counts the days in its stage', () => {
-    const done = value(hire(fresh(), stages, 'system', '2026-10-20T09:00:00Z', 'm9'));
+    const signing = value(toContract(fresh(), stages, 'system', '2026-10-19T09:00:00Z', 'm8'));
+    expect(furthestCategory(signing.application, stages)).toBe('contract');
+    const done = value(hire(signing.application, stages, 'system', '2026-10-20T09:00:00Z', 'm9'));
     expect(done.application.outcome).toBe('hired');
+    expect(done.move.from).toBe(contract.id);
     expect(furthestCategory(done.application, stages)).toBe('hired');
     expect(daysInStage(fresh(), '2026-10-05T10:00:00Z')).toBe(4);
   });

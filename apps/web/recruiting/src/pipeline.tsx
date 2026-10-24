@@ -561,7 +561,8 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       id: s.id,
                       title: s.name,
                       tone: CATEGORY_TONE[s.category],
-                      locked: !canMove || s.category === 'works_council',
+                      locked:
+                        !canMove || s.category === 'works_council' || s.category === 'contract',
                     }))}
                   items={byStage}
                   describeItem={(c) => c.name}
@@ -598,7 +599,12 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       </SelectTrigger>
                       <SelectContent>
                         {data.stages
-                          .filter((s) => s.category !== 'hired' && s.category !== 'interview')
+                          .filter(
+                            (s) =>
+                              s.category !== 'hired' &&
+                              s.category !== 'contract' &&
+                              s.category !== 'interview',
+                          )
                           .map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.name}

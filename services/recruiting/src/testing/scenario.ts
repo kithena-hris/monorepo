@@ -1475,12 +1475,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         .state,
     ).toBe('accepted');
   });
+  // Accepted is the contract stage: the contract is prepared and signed there, and the signature hires.
+  await as('ada', async (ctx) => {
+    const app = await ctx.tx.applications.get(applied.applicationId);
+    const stages = await ctx.tx.jobs.stages(app?.jobId ?? '');
+    expect(app?.outcome).toBe('active');
+    expect(stages.find((s) => s.id === app?.history.at(-1)?.to)?.category).toBe('contract');
+  });
   await as('ada', async (ctx) => {
     const contract = await ctx.tx.contracts.forOffer(offer.id);
     expect(contract?.route).toBe('upload');
     const candidate = await ctx.tx.candidates.byEmail('yuki@example.com');
     const fileId = (await ctx.tx.files.of(candidate?.id ?? ''))[0]?.id ?? '';
     value(await uploadSignedContract(ctx, offer.id, fileId, CalendarDate.parse('2026-10-20')));
+    const app = await ctx.tx.applications.get(applied.applicationId);
+    expect(app?.outcome).toBe('hired');
   });
   // Whatever the country's pack made a condition (a right-to-work check, say) is checked and met.
   await as('ada', async (ctx) => {

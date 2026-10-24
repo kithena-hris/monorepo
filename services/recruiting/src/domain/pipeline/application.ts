@@ -89,6 +89,8 @@ export interface MoveNeeds {
   readonly interviewType?: string;
   /** For a DE job with a works council: § 99 consent given or deemed. */
   readonly worksCouncilCleared?: boolean;
+  /** Entering the contract stage: the candidate accepted an offer. */
+  readonly offerAccepted?: boolean;
 }
 
 export interface Moved {
@@ -120,6 +122,14 @@ export function moveTo(
       failure(
         'HIRED_BY_CONTRACT',
         'A candidate is hired when the contract is signed, not by a move',
+      ),
+    );
+  }
+  if (target.category === 'contract' && needs.offerAccepted !== true) {
+    return err(
+      failure(
+        'CONTRACT_AFTER_ACCEPTANCE',
+        'A candidate reaches the contract stage by accepting an offer',
       ),
     );
   }
@@ -207,6 +217,28 @@ export function withdraw(app: Application, at: string): Result<Application> {
   return ok({ ...app, outcome: 'withdrawn', withdrawnAt: at });
 }
 
+/**
+ * The offer is accepted: the application moves to the contract stage, where
+ * the contract is prepared and signed. Already there is no move.
+ */
+export function toContract(
+  app: Application,
+  stages: readonly Stage[],
+  by: string,
+  at: string,
+  id: string,
+): Result<{ application: Application; move: StageMove | null }> {
+  if (app.outcome !== 'active')
+    return err(failure('NOT_ACTIVE', `This application is ${app.outcome}`));
+  const contract = stages.find((s) => s.category === 'contract');
+  if (contract === undefined)
+    return err(failure('NO_STAGE', 'This pipeline has no contract stage'));
+  const from = currentStage(app);
+  if (from === contract.id) return ok({ application: app, move: null });
+  const move: StageMove = { id, from, to: contract.id, at, by, supersedes: null, reason: null };
+  return ok({ application: { ...app, history: [...app.history, move] }, move });
+}
+
 /** The contract is signed: the application moves to the hired stage (PRD §21.3). */
 export function hire(
   app: Application,
@@ -255,7 +287,8 @@ export function furthestCategory(app: Application, stages: readonly Stage[]): St
     assessment: 3,
     works_council: 4,
     offer: 5,
-    hired: 6,
+    contract: 6,
+    hired: 7,
   };
   let best: StageCategory = 'applied';
   for (const move of effectiveHistory(app)) {

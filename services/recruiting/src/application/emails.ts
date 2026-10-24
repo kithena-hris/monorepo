@@ -210,6 +210,8 @@ async function expectationsOf(ctx: Ctx, loaded: Loaded, category: string): Promi
       return 'The works council is asked to agree to the hire, as the law requires. It takes up to a week and needs nothing from you.';
     case 'offer':
       return 'We are preparing an offer. You will read it on your page, with the pay, the start date and the terms, and can accept or decline it there.';
+    case 'contract':
+      return 'Your contract is being prepared from the offer you accepted. It comes to you by email to sign, and signing it completes your hire.';
     case 'hired':
       return 'Welcome aboard. Your start is being arranged and you will hear about your first day.';
     default:
