@@ -226,7 +226,11 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'count',
-            message: t('components.file-uploader.file-uploader.only_files_allowed', { one: 'Only {{count}} file allowed.', other: 'Only {{count}} files allowed.' }, { count: maxFiles }),
+            message: t(
+              'components.file-uploader.file-uploader.only_files_allowed',
+              { one: 'Only {{count}} file allowed.', other: 'Only {{count}} files allowed.' },
+              { count: maxFiles },
+            ),
           });
           continue;
         }
@@ -234,7 +238,11 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'type',
-            message: t('components.file-uploader.file-uploader.is_not_an_accepted_type_allowed', '{{displayName}} is not an accepted type. Allowed: {{join}}.', { displayName: displayName(file.name), join: accept.join(', ') }),
+            message: t(
+              'components.file-uploader.file-uploader.is_not_an_accepted_type_allowed',
+              '{{displayName}} is not an accepted type. Allowed: {{join}}.',
+              { displayName: displayName(file.name), join: accept.join(', ') },
+            ),
           });
           continue;
         }
@@ -242,7 +250,15 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'size',
-            message: t('components.file-uploader.file-uploader.is_the_limit_is_per_file', '{{displayName}} is {{formatBytes}}. The limit is {{formatBytes2}} per file.', { displayName: displayName(file.name), formatBytes: formatBytes(file.size), formatBytes2: formatBytes(maxSize) }),
+            message: t(
+              'components.file-uploader.file-uploader.is_the_limit_is_per_file',
+              '{{displayName}} is {{formatBytes}}. The limit is {{formatBytes2}} per file.',
+              {
+                displayName: displayName(file.name),
+                formatBytes: formatBytes(file.size),
+                formatBytes2: formatBytes(maxSize),
+              },
+            ),
           });
           continue;
         }
@@ -250,7 +266,11 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'total',
-            message: t('components.file-uploader.file-uploader.adding_would_exceed_the_total', 'Adding {{displayName}} would exceed the {{formatBytes}} total.', { displayName: displayName(file.name), formatBytes: formatBytes(maxTotalSize) }),
+            message: t(
+              'components.file-uploader.file-uploader.adding_would_exceed_the_total',
+              'Adding {{displayName}} would exceed the {{formatBytes}} total.',
+              { displayName: displayName(file.name), formatBytes: formatBytes(maxTotalSize) },
+            ),
           });
           continue;
         }
@@ -267,7 +287,11 @@ export function FileUploader({
           failed.push({
             file,
             reason: 'duplicate',
-            message: t('components.file-uploader.file-uploader.has_already_been_added', '{{displayName}} has already been added.', { displayName: displayName(file.name) }),
+            message: t(
+              'components.file-uploader.file-uploader.has_already_been_added',
+              '{{displayName}} has already been added.',
+              { displayName: displayName(file.name) },
+            ),
           });
           continue;
         }
@@ -394,7 +418,11 @@ export function FileUploader({
               })
             : null}
           {maxTotalSize !== undefined
-            ? t('components.file-uploader.file-uploader.of', ' · {{formatBytes}} of {{formatBytes2}}', { formatBytes: formatBytes(usedBytes), formatBytes2: formatBytes(maxTotalSize) })
+            ? t(
+                'components.file-uploader.file-uploader.of',
+                ' · {{formatBytes}} of {{formatBytes2}}',
+                { formatBytes: formatBytes(usedBytes), formatBytes2: formatBytes(maxTotalSize) },
+              )
             : null}
         </span>
       </div>

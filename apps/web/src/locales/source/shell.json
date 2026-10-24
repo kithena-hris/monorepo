@@ -159,6 +159,14 @@
     "text": "Which review?",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/performance/actions.ts: a \"message\" value."
   },
+  "app.app.recruiting.actions.choose_the_pdf": {
+    "text": "Choose the PDF first",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
+  "app.app.recruiting.actions.contract_must_be_a_pdf": {
+    "text": "The contract must be a PDF",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
   "app.app.recruiting.actions.not_something_this_page_can_do": {
     "text": "Not something this page can do",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
@@ -170,6 +178,10 @@
   "app.app.recruiting.actions.this_contract_is_not_signed_through_documents": {
     "text": "This contract is not signed through Documents",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value."
+  },
+  "app.app.recruiting.actions.your_contract_to_sign": {
+    "text": "Your contract from {{company}}, to sign.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/recruiting/actions.ts: a \"message\" value. Filled in: {{company}}."
   },
   "app.app.settings.language.actions.that_language_is_not_available": {
     "text": "That language is not available.",

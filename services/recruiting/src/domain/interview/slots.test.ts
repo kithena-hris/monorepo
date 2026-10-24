@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { freeSlots, ics, OFFICE_WEEK, type Availability } from './slots.js';
+import { freeSlots, ics, OFFICE_WEEK, slotGrid, type Availability } from './slots.js';
 
 const marco: Availability = {
   personId: 'marco',
@@ -48,6 +48,37 @@ describe('free slots (PRD §16.4)', () => {
       60,
     );
     expect(busy).toEqual(['2026-10-19T08:00:00.000Z']);
+  });
+
+  it('keeps a taken time on the grid, marked taken, so a candidate sees it greyed out', () => {
+    const grid = slotGrid(
+      [{ ...marco, busy: [['2026-10-19T07:00:00Z', '2026-10-19T08:00:00Z']] }],
+      '2026-10-19T00:00:00Z',
+      '2026-10-19T09:00:00Z',
+      60,
+      30,
+      undefined,
+      ['2026-10-19T08:00:00.000Z'],
+    );
+    expect(grid).toEqual([
+      { at: '2026-10-19T07:00:00.000Z', taken: true },
+      { at: '2026-10-19T07:30:00.000Z', taken: true },
+      { at: '2026-10-19T08:00:00.000Z', taken: true },
+    ]);
+    // Outside working hours or on a day off is not on the grid at all.
+    expect(
+      slotGrid(
+        [{ ...marco, away: ['2026-10-19'] }],
+        '2026-10-19T00:00:00Z',
+        '2026-10-20T00:00:00Z',
+        60,
+      ),
+    ).toEqual([]);
+    // The free ones are the same as freeSlots gives.
+    const both = slotGrid([marco, sam], '2026-10-19T00:00:00Z', '2026-10-20T00:00:00Z', 60);
+    expect(both.filter((s) => !s.taken).map((s) => s.at)).toEqual(
+      freeSlots([marco, sam], '2026-10-19T00:00:00Z', '2026-10-20T00:00:00Z', 60),
+    );
   });
 
   it('writes an invitation a calendar opens', () => {

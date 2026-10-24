@@ -167,6 +167,10 @@
     "text": "a candidate",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
   },
+  "email.interviews.agenda": {
+    "text": "Agenda",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
+  },
   "email.interviews.ask_for_a_different_time": {
     "text": "Ask for a different time",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
@@ -247,13 +251,45 @@
     "text": "More times, please: your {{title}} with {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
   },
+  "email.interviews.open_in_kithena": {
+    "text": "Open in Kithena",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
   "email.interviews.received_your_times_for_the_with": {
     "text": "Received: your times for the {{title}} with {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{companyName}}."
   },
   "email.interviews.role": {
     "text": "Role",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
+  },
+  "email.interviews.scorecard_due": {
+    "text": "Your scorecard: {{title}} with {{name}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{name}}."
+  },
+  "email.interviews.scorecard_due_body": {
+    "text": "The interview is over. Rate each competency and give your recommendation by {{due}} (UTC). You see the others’ scorecards once yours is in.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"text\" value. Filled in: {{due}}."
+  },
+  "email.interviews.team_booked": {
+    "text": "Booked: {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}."
+  },
+  "email.interviews.team_booked_body": {
+    "text": "You are on the panel for this interview. The candidate has the same invitation.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
+  },
+  "email.interviews.team_cancelled": {
+    "text": "Cancelled: {{title}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}."
+  },
+  "email.interviews.team_cancelled_body": {
+    "text": "This interview is cancelled.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
+  },
+  "email.interviews.team_title": {
+    "text": "{{title}} with {{name}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{title}}, {{name}}."
   },
   "email.interviews.these_did_not_work": {
     "text": "These did not work",
@@ -269,7 +305,7 @@
   },
   "email.interviews.to_be_confirmed": {
     "text": "To be confirmed",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"value\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
   },
   "email.interviews.updated_your_new_times_for_the": {
     "text": "Updated: your new times for the {{title}} with {{companyName}}",
@@ -289,7 +325,7 @@
   },
   "email.interviews.when": {
     "text": "When",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
   },
   "email.interviews.where": {
     "text": "Where: {{where}}",
@@ -297,7 +333,7 @@
   },
   "email.interviews.where_2": {
     "text": "Where",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code."
   },
   "email.interviews.where_3": {
     "text": "Where",
@@ -307,6 +343,10 @@
     "text": "Where",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
   },
+  "email.interviews.write_my_scorecard": {
+    "text": "Write my scorecard",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
+  },
   "email.interviews.your_is_booked": {
     "text": "Your {{title}} is booked",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"heading\" value. Filled in: {{title}}."
@@ -314,6 +354,58 @@
   "email.interviews.your_times": {
     "text": "Your {{length}} times · {{zone}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{length}}, {{zone}}."
+  },
+  "email.offer.accepted_heading": {
+    "text": "Offer accepted",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.offer.declined_heading": {
+    "text": "Offer declined",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.offer.reason": {
+    "text": "Reason",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.offer.role": {
+    "text": "Role",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.offer.team_accepted": {
+    "text": "{{name}} accepted the offer for {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.team_accepted_body": {
+    "text": "{{name}} accepted version {{version}}. They are in the hired stage now. Next: prepare the contract and send it to sign.\n\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{link}}."
+  },
+  "email.offer.team_declined": {
+    "text": "{{name}} declined the offer for {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.team_declined_body": {
+    "text": "{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{link}}."
+  },
+  "email.offer.version": {
+    "text": "Version",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.offer.you_accepted": {
+    "text": "You accepted: {{job}} at {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.you_accepted_body": {
+    "text": "Thank you, {{first}}, and welcome. {{company}} now prepares your contract, and you will get it to sign. Nothing else is needed from you until then.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.you_declined": {
+    "text": "You declined the offer: {{job}} at {{company}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.you_declined_body": {
+    "text": "Thank you for telling us, {{first}}. {{company}} has your reason: “{{reason}}”. If they can change the terms, they will send you a new version.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
   "email.pool_ask.subject": {
     "text": "May {{company}} keep your details for future roles?",

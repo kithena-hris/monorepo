@@ -93,6 +93,17 @@ export async function proposeSlots(
     }),
   );
   await keepAgenda(ctx, loaded.value.app.jobId, plan.key, input.agenda);
+  // The team offering its own times answers the candidate's: their task leaves the Inbox, their link closes.
+  for (const given of await asksOf(ctx, applicationId)) {
+    if (given.kind !== 'availability' || given.state !== 'open' || given.planKey !== plan.key)
+      continue;
+    await saveAsk(ctx, { ...given, state: 'closed', closedBecause: 'dealt_with' });
+    if (given.linkHash != null) {
+      const key = `schedule:${given.linkHash}`;
+      const held = (await ctx.tx.settings.get(key)) as Record<string, unknown> | null;
+      if (held !== null) await ctx.tx.settings.set(key, { ...held, expiresAt: ctx.at });
+    }
+  }
   const { candidate } = loaded.value;
   const settings = await generalSettings(ctx);
   const zone = candidate.timeZone ?? 'UTC';

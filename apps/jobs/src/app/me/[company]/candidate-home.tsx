@@ -18,57 +18,22 @@ import {
   EmptyState,
   Field,
   FieldControl,
-  FieldDescription,
   FieldLabel,
   Input,
-  KeyValues,
   Spinner,
   Stepper,
-  Textarea,
   icons,
 } from '@reach/ui';
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { NoticeDialog, NoticeList, noticesOf, type Notice } from '../../../components/asks';
 import { publicApi, tokenFromHash } from '../../../lib/browser-api';
+import { OfferPage } from './offer-page';
 import { ReadProfile } from './read-profile';
 import { SelfIdForm } from './self-id';
 import { t as tr } from '../../../lib/i18n';
 import { locale } from '@reach/ui/intl';
 
-interface Offer {
-  readonly offer: {
-    readonly id: string;
-    readonly state: string;
-    readonly versions: readonly {
-      readonly version: number;
-      readonly startDate: string;
-      readonly expiresOn: string;
-      readonly pay: {
-        readonly baseMinor: number;
-        readonly currency: string;
-        readonly frequency: string;
-        readonly variableTargetMinor: number;
-        readonly signOnMinor: number;
-      };
-      readonly terms: {
-        readonly contractType?: string;
-        readonly weeklyMinutes?: number;
-        readonly probation?: { count: number; unit: string } | null;
-        readonly noticeEmployee?: { count: number; unit: string };
-        readonly workMode?: string;
-      };
-    }[];
-  };
-  readonly hash: string;
-}
-
-const money = (minor: number, currency: string) =>
-  new Intl.NumberFormat(locale(), { style: 'currency', currency, maximumFractionDigits: 0 }).format(
-    minor / 100,
-  );
-const length = (l: { count: number; unit: string } | null | undefined) =>
-  l == null ? 'None' : `${String(l.count)} ${l.count === 1 ? l.unit.replace(/s$/u, '') : l.unit}`;
 const words = (k: string) => k.replaceAll('_', ' ').replace(/^./u, (c) => c.toUpperCase());
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString(locale(), {
@@ -77,203 +42,6 @@ const day = (iso: string) =>
     month: 'short',
     year: 'numeric',
   });
-
-function OfferDialog({
-  company,
-  token,
-  offerId,
-  onClose,
-  onDone,
-}: {
-  readonly company: string;
-  readonly token: string;
-  readonly offerId: string;
-  readonly onClose: () => void;
-  readonly onDone: () => void;
-}): JSX.Element {
-  const [offer, setOffer] = useState<Offer | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [declining, setDeclining] = useState(false);
-  const [reason, setReason] = useState('');
-  const [pending, start] = useTransition();
-  useEffect(() => {
-    void publicApi<Offer>(company, `/me/offers/${offerId}`, { token }).then((a) => {
-      if (a.ok) setOffer(a.data);
-      else setError(a.message);
-    });
-  }, [company, offerId, token]);
-  const v = offer?.offer.versions.at(-1);
-  const act = (path: string, body: unknown) => {
-    start(async () => {
-      const done = await publicApi(company, `/me/offers/${offerId}${path}`, {
-        method: 'POST',
-        body,
-        token,
-      });
-      if (!done.ok) setError(done.message);
-      else onDone();
-    });
-  };
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {tr('app.me.[company].candidate-home.your_offer', 'Your offer')}
-          </DialogTitle>
-          <DialogDescription>
-            {v === undefined
-              ? ''
-              : tr(
-                  'app.me.[company].candidate-home.version_expires',
-                  'Version {{String}} · expires {{day}}',
-                  { String: String(v.version), day: day(v.expiresOn) },
-                )}
-          </DialogDescription>
-        </DialogHeader>
-        {error === null ? null : (
-          <Alert
-            tone="danger"
-            title={tr(
-              'app.me.[company].candidate-home.that_did_not_go_through',
-              'That did not go through',
-            )}
-          >
-            {error}
-          </Alert>
-        )}
-        {v === undefined ? (
-          error === null ? (
-            <Spinner
-              label={tr('app.me.[company].candidate-home.loading_the_offer', 'Loading the offer')}
-            />
-          ) : null
-        ) : (
-          <KeyValues
-            items={[
-              {
-                label: tr('app.me.[company].candidate-home.contract', 'Contract'),
-                value: v.terms.contractType === undefined ? '—' : words(v.terms.contractType),
-              },
-              {
-                label: tr('app.me.[company].candidate-home.hours', 'Hours'),
-                value:
-                  v.terms.weeklyMinutes === undefined
-                    ? '—'
-                    : `${String(v.terms.weeklyMinutes / 60)} hours a week`,
-              },
-              {
-                label: tr('app.me.[company].candidate-home.probation', 'Probation'),
-                value: length(v.terms.probation),
-              },
-              {
-                label: tr('app.me.[company].candidate-home.notice', 'Notice'),
-                value: length(v.terms.noticeEmployee),
-              },
-              {
-                label: tr('app.me.[company].candidate-home.pay', 'Pay'),
-                value: `${money(v.pay.baseMinor, v.pay.currency)} a ${v.pay.frequency}`,
-              },
-              ...(v.pay.variableTargetMinor > 0
-                ? [
-                    {
-                      label: tr(
-                        'app.me.[company].candidate-home.bonus_at_target',
-                        'Bonus at target',
-                      ),
-                      value: money(v.pay.variableTargetMinor, v.pay.currency),
-                    },
-                  ]
-                : []),
-              ...(v.pay.signOnMinor > 0
-                ? [
-                    {
-                      label: tr('app.me.[company].candidate-home.when_you_join', 'When you join'),
-                      value: money(v.pay.signOnMinor, v.pay.currency),
-                    },
-                  ]
-                : []),
-              {
-                label: tr('app.me.[company].candidate-home.start', 'Start'),
-                value: day(v.startDate),
-              },
-            ]}
-          />
-        )}
-        {declining ? (
-          <Field required>
-            <FieldLabel>
-              {tr('app.me.[company].candidate-home.why_you_are_declining', 'Why you are declining')}
-            </FieldLabel>
-            <FieldControl>
-              <Textarea
-                autoResize
-                value={reason}
-                placeholder={tr(
-                  'app.me.[company].candidate-home.the_pay_the_start_date_another',
-                  'The pay, the start date, another offer…',
-                )}
-                onChange={(e) => {
-                  setReason(e.target.value);
-                }}
-              />
-            </FieldControl>
-            <FieldDescription>
-              {tr(
-                'app.me.[company].candidate-home.the_recruiter_reads_this_they_may',
-                'The recruiter reads this. They may come back with an updated offer.',
-              )}
-            </FieldDescription>
-          </Field>
-        ) : null}
-        <DialogFooter>
-          {offer?.offer.state === 'sent' ? (
-            declining ? (
-              <Button
-                variant="secondary"
-                loading={pending}
-                disabled={reason.trim().length < 3}
-                onClick={() => {
-                  act('/decline', { reason: reason.trim() });
-                }}
-              >
-                {tr('app.me.[company].candidate-home.decline_the_offer', 'Decline the offer')}
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setDeclining(true);
-                  }}
-                >
-                  {tr('app.me.[company].candidate-home.decline', 'Decline')}
-                </Button>
-                <Button
-                  loading={pending}
-                  onClick={() => {
-                    act('/accept', { hash: offer.hash });
-                  }}
-                >
-                  {tr('app.me.[company].candidate-home.accept_offer', 'Accept offer')}
-                </Button>
-              </>
-            )
-          ) : (
-            <Button variant="secondary" onClick={onClose}>
-              {tr('app.me.[company].candidate-home.close', 'Close')}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 /** J6: each application under the candidate-facing stage names, with what is asked of them. */
 export function CandidateHome({ company }: { readonly company: string }): JSX.Element {
@@ -591,7 +359,7 @@ export function CandidateHome({ company }: { readonly company: string }): JSX.El
         </Card>
       </div>
       {offer === null ? null : (
-        <OfferDialog
+        <OfferPage
           company={company}
           token={token}
           offerId={offer}

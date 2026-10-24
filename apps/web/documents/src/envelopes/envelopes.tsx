@@ -68,21 +68,23 @@ import { t as tr } from '../i18n';
  * followed step by step by its sender.
  */
 
-const STATUS = () => ({
-  waiting: [tr('envelopes.envelopes.waiting', 'Waiting'), 'neutral'],
-  sent: [tr('envelopes.envelopes.sent', 'Sent'), 'info'],
-  opened: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
-  verified: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
-  signed: [tr('envelopes.envelopes.signed', 'Signed'), 'success'],
-  declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
-} as const);
+const STATUS = () =>
+  ({
+    waiting: [tr('envelopes.envelopes.waiting', 'Waiting'), 'neutral'],
+    sent: [tr('envelopes.envelopes.sent', 'Sent'), 'info'],
+    opened: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
+    verified: [tr('envelopes.envelopes.opened', 'Opened'), 'info'],
+    signed: [tr('envelopes.envelopes.signed', 'Signed'), 'success'],
+    declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
+  }) as const;
 
-const ENVELOPE = () => ({
-  sent: [tr('envelopes.envelopes.waiting_for_a_signature', 'Waiting for a signature'), 'warning'],
-  completed: [tr('envelopes.envelopes.signed_and_sealed', 'Signed and sealed'), 'success'],
-  declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
-  voided: [tr('envelopes.envelopes.cancelled', 'Cancelled'), 'neutral'],
-} as const);
+const ENVELOPE = () =>
+  ({
+    sent: [tr('envelopes.envelopes.waiting_for_a_signature', 'Waiting for a signature'), 'warning'],
+    completed: [tr('envelopes.envelopes.signed_and_sealed', 'Signed and sealed'), 'success'],
+    declined: [tr('envelopes.envelopes.declined', 'Declined'), 'danger'],
+    voided: [tr('envelopes.envelopes.cancelled', 'Cancelled'), 'neutral'],
+  }) as const;
 
 /* ------------------------------------------------------------- K10 list -- */
 

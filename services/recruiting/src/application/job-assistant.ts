@@ -8,6 +8,7 @@ import { publicJob } from './intake.js';
 import type { Model } from './ports.js';
 import { generalSettings } from './setup.js';
 import { mailWords } from './context.js';
+import { offerForCandidate } from './offers.js';
 
 /**
  * J8, the job assistant (PRD §10.6, REC-121). On a job page it answers from
@@ -121,4 +122,44 @@ export async function planSearch(
   return search?.success === true && plan.success
     ? ok({ filters: search.data, say: plan.data.say })
     : err(failure('AI_UNAVAILABLE', 'Try the filters instead'));
+}
+
+const OFFER: PromptSpec<z.infer<typeof Answer>> = {
+  feature: 'assistant',
+  version: 'offer-assistant@1',
+  instruction: `You answer a candidate's question about the job offer they were sent, only from "offer" (its terms, pay, benefits, start and expiry dates), "role" and "company". Return a JSON object {"answer":"","fromSources":true|false}. Explain a term in plain words when asked. If the offer does not say, answer that you do not know and set fromSources to false. Never negotiate, never promise or suggest a change to the terms, never advise accepting or declining, never ask for personal details. Answer in the language of the question, in at most four sentences.`,
+  answer: Answer,
+};
+
+/**
+ * The offer assistant on the candidate's offer page: an AI, said so (AI Act
+ * art. 50), answering from the offer the candidate holds and nothing else.
+ * It explains; it never negotiates, never advises and never changes a term.
+ * When the offer does not say, the page sends them to the recruiter.
+ */
+export async function askAboutOffer(
+  ctx: Ctx,
+  candidateId: string,
+  offerId: string,
+  question: string,
+): Promise<Result<JobAnswer>> {
+  const read = await offerForCandidate(ctx, candidateId, offerId);
+  if (!read.ok) return read;
+  const version = read.value.offer.versions.at(-1);
+  if (version === undefined) return err(failure('NOT_FOUND', 'No such offer'));
+  const said = await write(ctx, OFFER, {
+    question: question.slice(0, 500),
+    offer: {
+      terms: version.terms,
+      pay: version.pay,
+      benefits: read.value.setting.benefits.map((b) => ({ name: b.name, about: b.description })),
+      startDate: version.startDate,
+      expiresOn: version.expiresOn,
+      state: read.value.offer.state,
+    },
+    role: read.value.setting.job.title,
+    company: read.value.setting.company.name,
+  });
+  if (!said.ok) return said;
+  return ok({ ai: true, answer: said.value.answer, answered: said.value.fromSources });
 }

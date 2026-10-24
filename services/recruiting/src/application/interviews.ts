@@ -14,7 +14,13 @@ import {
   type InterviewState,
   type Scorecard,
 } from '../domain/interview/interview.js';
-import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
+import {
+  freeSlots,
+  ics,
+  OFFICE_WEEK,
+  slotGrid,
+  type Availability,
+} from '../domain/interview/slots.js';
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { tellInterviewers } from './chat.js';
 import {
@@ -375,12 +381,142 @@ export async function bookInterview(
   );
   await invite(ctx, booked, false);
   const candidate = await ctx.tx.candidates.get(app.candidateId);
+  await inviteTeam(
+    ctx,
+    booked,
+    candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
+    false,
+  );
   await tellInterviewers(
     ctx,
     booked,
     candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
   );
   return ok(booked);
+}
+
+/** Where the team opens a page: the tenant app when its address is known, else nothing to link. */
+async function teamLink(ctx: Ctx, path: string): Promise<string | null> {
+  const base = ctx.deps.chat?.appBase;
+  return base === undefined
+    ? null
+    : `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+}
+
+/**
+ * Everyone on the panel hears too, by email, with what the candidate is
+ * sent: when, where, the meeting link and what it is about, and the
+ * invitation for their calendar when Kithena did not put it there already.
+ * Whoever booked it hears as well, interviewer or not. An invitation is not
+ * a notification, so it goes whatever someone chose for those.
+ */
+async function inviteTeam(
+  ctx: Ctx,
+  interview: InterviewRecord,
+  candidateName: string,
+  cancelled: boolean,
+): Promise<void> {
+  const { t, language } = await mailWords(ctx);
+  const settings = await generalSettings(ctx);
+  const app = await ctx.tx.applications.get(interview.applicationId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  const where = interview.videoUrl ?? interview.place;
+  const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
+  const onCalendar = (await ctx.tx.settings.get(`calendar-event:${interview.id}`)) !== null;
+  const title = t('email.interviews.team_title', '{{title}} with {{name}}', {
+    title: interview.title,
+    name: candidateName,
+  });
+  const invitation = onCalendar
+    ? null
+    : ics({
+        uid: `${interview.id}@kithena`,
+        start: interview.startsAt,
+        minutes: interview.minutes,
+        title,
+        description: agenda?.text ?? '',
+        location: where,
+        organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
+        stamp: ctx.at,
+        cancelled,
+      });
+  const when = `${new Intl.DateTimeFormat(language, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(interview.startsAt))} (UTC)`;
+  const video = interview.videoUrl?.startsWith('https://') === true ? interview.videoUrl : null;
+  const page = await teamLink(ctx, `/recruiting/interviews/${interview.id}`);
+  const subject = cancelled
+    ? t('email.interviews.team_cancelled', 'Cancelled: {{title}}', { title })
+    : t('email.interviews.team_booked', 'Booked: {{title}}', { title });
+  const text = [
+    cancelled
+      ? t('email.interviews.team_cancelled_body', 'This interview is cancelled.')
+      : t(
+          'email.interviews.team_booked_body',
+          'You are on the panel for this interview. The candidate has the same invitation.',
+        ),
+    `${t('email.interviews.when', 'When')}: ${when}`,
+    `${t('email.interviews.where_2', 'Where')}: ${where ?? t('email.interviews.to_be_confirmed', 'To be confirmed')}`,
+    ...(job === null ? [] : [`${t('email.interviews.role', 'Role')}: ${job.title}`]),
+    ...(agenda === null ? [] : [`${t('email.interviews.agenda', 'Agenda')}\n${agenda.text}`]),
+    ...(invitation === null ? [] : [invitation]),
+  ].join('\n\n');
+  const people = [
+    ...interview.interviewerIds,
+    ...(ctx.caller.personId === null ? [] : [ctx.caller.personId]),
+  ];
+  const sent = new Set<string>();
+  for (const id of new Set(people)) {
+    const email = (await ctx.tx.members.get(id as never))?.workEmail;
+    if (!email || sent.has(email)) continue;
+    sent.add(email);
+    ctx.mail.push({
+      to: email,
+      subject,
+      text,
+      dedupeKey: `interview:${interview.id}:${cancelled ? 'cancelled' : interview.startsAt}:${email}`,
+      companyName: settings.companyName,
+      parts: {
+        themeId: settings.themeId,
+        logoUrl: settings.logoUrl,
+        heading: subject,
+        facts: [
+          { label: t('email.interviews.when', 'When'), value: when },
+          {
+            label: t('email.interviews.length', 'Length'),
+            value: t('email.interviews.minutes', '{{minutes}} minutes', {
+              minutes: interview.minutes,
+            }),
+          },
+          {
+            label: t('email.interviews.where_2', 'Where'),
+            value: where ?? t('email.interviews.to_be_confirmed', 'To be confirmed'),
+          },
+          ...(agenda === null
+            ? []
+            : [{ label: t('email.interviews.agenda', 'Agenda'), value: agenda.text }]),
+        ],
+        ...(video === null || cancelled
+          ? {}
+          : {
+              action: {
+                label: t('email.interviews.join_the_meeting', 'Join the meeting'),
+                href: video,
+              },
+            }),
+        ...(page === null
+          ? {}
+          : {
+              secondary: {
+                label: t('email.interviews.open_in_kithena', 'Open in Kithena'),
+                href: page,
+              },
+            }),
+      },
+    });
+  }
 }
 
 async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean): Promise<void> {
@@ -680,6 +816,11 @@ export async function linkSlots(
     chosen: readonly string[];
     /** How many times they gave before that the team could not make, and left out now. */
     excluded: number;
+    /**
+     * Times inside everyone's working day that are gone: booked by another
+     * interview, or ruled out by the team. Shown greyed out, never chosen.
+     */
+    taken: readonly string[];
     /** An interview already booked for this step, when there is one. */
     booked: string | null;
   }>
@@ -698,21 +839,16 @@ export async function linkSlots(
       : plan.interviewerIds;
   const people = withOrganiser(panel, link.recruiterId);
   const excluded = new Set(link.excluded ?? []);
-  const slots = freeSlots(
-    await availability(
-      ctx,
-      people,
-      from,
-      to,
-      withHolidays(people, link.away ?? {}, holidays),
-      link.weeks ?? {},
-    ),
+  const calendars = await availability(
+    ctx,
+    people,
     from,
     to,
-    plan.minutes,
-    30,
-    ctx.at,
-  ).filter((t) => !excluded.has(t));
+    withHolidays(people, link.away ?? {}, holidays),
+    link.weeks ?? {},
+  );
+  const grid = slotGrid(calendars, from, to, plan.minutes, 30, ctx.at, [...excluded]);
+  const slots = grid.filter((s) => !s.taken).map((s) => s.at);
   const open = await openThrough(ctx, app.id, sha256(token));
   const booked = (await ctx.tx.interviews.forApplication(app.id)).find(
     (i) => i.planKey === plan.key && i.state === 'scheduled',
@@ -733,6 +869,7 @@ export async function linkSlots(
     ).filter((n): n is string => n !== null),
     chosen: (open?.times ?? []).filter((t) => slots.includes(t)),
     excluded: excluded.size,
+    taken: grid.filter((s) => s.taken).map((s) => s.at),
     booked: booked?.startsAt ?? null,
   });
 }
@@ -1041,8 +1178,86 @@ export async function setInterviewState(
     );
     await takeOffCalendar(ctx, interviewId);
     await invite(ctx, next, true);
+    await inviteTeam(ctx, next, loaded.value.candidate.name, true);
   }
   return ok(next);
+}
+
+/**
+ * Every interview that has ended is done: it moves to completed on its own,
+ * so nobody has to press a button for the scorecards to be owed, and each
+ * interviewer is asked for theirs by email, due a day later (PRD §16.5). A
+ * no-show or a cancellation is still the team's to mark, before or after.
+ */
+export async function completeEndedInterviews(ctx: Ctx): Promise<number> {
+  const { t, language } = await mailWords(ctx);
+  const settings = await generalSettings(ctx);
+  const now = Date.parse(ctx.at);
+  const since = new Date(now - 3 * 86_400_000).toISOString() as Instant;
+  let done = 0;
+  for (const interview of await ctx.tx.interviews.startingBetween(since, ctx.at)) {
+    const ends = Date.parse(interview.startsAt) + interview.minutes * 60_000;
+    if (interview.state !== 'scheduled' || ends > now) continue;
+    const moved = moveInterview(interview, 'completed');
+    if (!moved.ok) continue;
+    await ctx.tx.interviews.save({ ...interview, ...moved.value });
+    await publish(
+      ctx,
+      event(
+        ctx,
+        'recruiting.interview.completed',
+        { type: 'Interview', id: interview.id },
+        {
+          interviewId: interview.id,
+          applicationId: interview.applicationId,
+          interviewerIds: interview.interviewerIds,
+          startsAt: interview.startsAt,
+        },
+      ),
+    );
+    done += 1;
+    const app = await ctx.tx.applications.get(interview.applicationId);
+    const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+    const due = new Intl.DateTimeFormat(language, {
+      dateStyle: 'full',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(ends + 24 * 3_600_000));
+    const page = await teamLink(ctx, `/recruiting/interviews/${interview.id}`);
+    const subject = t('email.interviews.scorecard_due', 'Your scorecard: {{title}} with {{name}}', {
+      title: interview.title,
+      name: candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
+    });
+    for (const id of new Set(interview.interviewerIds)) {
+      const email = (await ctx.tx.members.get(id as never))?.workEmail;
+      if (!email) continue;
+      ctx.mail.push({
+        to: email,
+        subject,
+        text: t(
+          'email.interviews.scorecard_due_body',
+          'The interview is over. Rate each competency and give your recommendation by {{due}} (UTC). You see the others’ scorecards once yours is in.',
+          { due },
+        ),
+        dedupeKey: `scorecard-due:${interview.id}:${email}`,
+        companyName: settings.companyName,
+        parts: {
+          themeId: settings.themeId,
+          logoUrl: settings.logoUrl,
+          heading: subject,
+          ...(page === null
+            ? {}
+            : {
+                action: {
+                  label: t('email.interviews.write_my_scorecard', 'Write my scorecard'),
+                  href: page,
+                },
+              }),
+        },
+      });
+    }
+  }
+  return done;
 }
 
 /* ----------------------------------------------------------- scorecards -- */
