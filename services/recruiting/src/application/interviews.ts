@@ -375,12 +375,132 @@ export async function bookInterview(
   );
   await invite(ctx, booked, false);
   const candidate = await ctx.tx.candidates.get(app.candidateId);
+  await inviteTeam(
+    ctx,
+    booked,
+    candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
+    false,
+  );
   await tellInterviewers(
     ctx,
     booked,
     candidate?.name ?? t('email.interviews.a_candidate', 'a candidate'),
   );
   return ok(booked);
+}
+
+/** Where the team opens a page: the tenant app when its address is known, else nothing to link. */
+async function teamLink(ctx: Ctx, path: string): Promise<string | null> {
+  const base = ctx.deps.chat?.appBase;
+  return base === undefined
+    ? null
+    : `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+}
+
+/**
+ * Everyone on the panel hears too, by email, with what the candidate is
+ * sent: when, where, the meeting link and what it is about, and the
+ * invitation for their calendar when Kithena did not put it there already.
+ * Whoever booked it hears as well, interviewer or not. An invitation is not
+ * a notification, so it goes whatever someone chose for those.
+ */
+async function inviteTeam(
+  ctx: Ctx,
+  interview: InterviewRecord,
+  candidateName: string,
+  cancelled: boolean,
+): Promise<void> {
+  const { t, language } = await mailWords(ctx);
+  const settings = await generalSettings(ctx);
+  const app = await ctx.tx.applications.get(interview.applicationId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  const where = interview.videoUrl ?? interview.place;
+  const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
+  const onCalendar = (await ctx.tx.settings.get(`calendar-event:${interview.id}`)) !== null;
+  const title = t('email.interviews.team_title', '{{title}} with {{name}}', {
+    title: interview.title,
+    name: candidateName,
+  });
+  const invitation = onCalendar
+    ? null
+    : ics({
+        uid: `${interview.id}@kithena`,
+        start: interview.startsAt,
+        minutes: interview.minutes,
+        title,
+        description: agenda?.text ?? '',
+        location: where,
+        organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
+        stamp: ctx.at,
+        cancelled,
+      });
+  const when = `${new Intl.DateTimeFormat(language, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(interview.startsAt))} (UTC)`;
+  const video = interview.videoUrl?.startsWith('https://') === true ? interview.videoUrl : null;
+  const page = await teamLink(ctx, `/recruiting/interviews/${interview.id}`);
+  const subject = cancelled
+    ? t('email.interviews.team_cancelled', 'Cancelled: {{title}}', { title })
+    : t('email.interviews.team_booked', 'Booked: {{title}}', { title });
+  const text = [
+    cancelled
+      ? t('email.interviews.team_cancelled_body', 'This interview is cancelled.')
+      : t(
+          'email.interviews.team_booked_body',
+          'You are on the panel for this interview. The candidate has the same invitation.',
+        ),
+    `${t('email.interviews.when', 'When')}: ${when}`,
+    `${t('email.interviews.where_2', 'Where')}: ${where ?? t('email.interviews.to_be_confirmed', 'To be confirmed')}`,
+    ...(job === null ? [] : [`${t('email.interviews.role', 'Role')}: ${job.title}`]),
+    ...(agenda === null ? [] : [`${t('email.interviews.agenda', 'Agenda')}\n${agenda.text}`]),
+    ...(invitation === null ? [] : [invitation]),
+  ].join('\n\n');
+  const people = [
+    ...interview.interviewerIds,
+    ...(ctx.caller.personId === null ? [] : [ctx.caller.personId]),
+  ];
+  const sent = new Set<string>();
+  for (const id of new Set(people)) {
+    const email = (await ctx.tx.members.get(id as never))?.workEmail;
+    if (!email || sent.has(email)) continue;
+    sent.add(email);
+    ctx.mail.push({
+      to: email,
+      subject,
+      text,
+      dedupeKey: `interview:${interview.id}:${cancelled ? 'cancelled' : interview.startsAt}:${email}`,
+      companyName: settings.companyName,
+      parts: {
+        themeId: settings.themeId,
+        logoUrl: settings.logoUrl,
+        heading: subject,
+        facts: [
+          { label: t('email.interviews.when', 'When'), value: when },
+          {
+            label: t('email.interviews.length', 'Length'),
+            value: t('email.interviews.minutes', '{{minutes}} minutes', {
+              minutes: interview.minutes,
+            }),
+          },
+          {
+            label: t('email.interviews.where_2', 'Where'),
+            value: where ?? t('email.interviews.to_be_confirmed', 'To be confirmed'),
+          },
+          ...(agenda === null
+            ? []
+            : [{ label: t('email.interviews.agenda', 'Agenda'), value: agenda.text }]),
+        ],
+        ...(video === null || cancelled
+          ? {}
+          : { action: { label: t('email.interviews.join_the_meeting', 'Join the meeting'), href: video } }),
+        ...(page === null
+          ? {}
+          : { secondary: { label: t('email.interviews.open_in_kithena', 'Open in Kithena'), href: page } }),
+      },
+    });
+  }
 }
 
 async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean): Promise<void> {
@@ -1042,6 +1162,7 @@ export async function setInterviewState(
     );
     await takeOffCalendar(ctx, interviewId);
     await invite(ctx, next, true);
+    await inviteTeam(ctx, next, loaded.value.candidate.name, true);
   }
   return ok(next);
 }
