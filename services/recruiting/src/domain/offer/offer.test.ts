@@ -137,8 +137,17 @@ describe('an offer’s life (PRD §18.3, §18.4)', () => {
     if (!submitted.ok) throw new Error();
     const sent = sendOffer(submitted.value, today, true);
     if (!sent.ok) throw new Error();
-    const declined = declineOffer(sent.value, 'Salary');
+    expect(declineOffer(sent.value, null)).toMatchObject({
+      ok: false,
+      error: { code: 'REASON_REQUIRED' },
+    });
+    expect(declineOffer(sent.value, '  ')).toMatchObject({
+      ok: false,
+      error: { code: 'REASON_REQUIRED' },
+    });
+    const declined = declineOffer(sent.value, '  Salary ');
     if (!declined.ok) throw new Error();
+    expect(declined.value.declineReason).toBe('Salary');
     const revised = reviseOffer(declined.value, '2026-10-17T09:00:00Z', {
       ...first,
       pay: pay(8_500_000),

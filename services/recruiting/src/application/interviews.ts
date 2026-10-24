@@ -14,7 +14,7 @@ import {
   type InterviewState,
   type Scorecard,
 } from '../domain/interview/interview.js';
-import { freeSlots, ics, OFFICE_WEEK, type Availability } from '../domain/interview/slots.js';
+import { freeSlots, ics, OFFICE_WEEK, slotGrid, type Availability } from '../domain/interview/slots.js';
 import { calendarBusy, putOnCalendar, takeOffCalendar } from './calendars.js';
 import { tellInterviewers } from './chat.js';
 import {
@@ -680,6 +680,11 @@ export async function linkSlots(
     chosen: readonly string[];
     /** How many times they gave before that the team could not make, and left out now. */
     excluded: number;
+    /**
+     * Times inside everyone's working day that are gone: booked by another
+     * interview, or ruled out by the team. Shown greyed out, never chosen.
+     */
+    taken: readonly string[];
     /** An interview already booked for this step, when there is one. */
     booked: string | null;
   }>
@@ -698,21 +703,16 @@ export async function linkSlots(
       : plan.interviewerIds;
   const people = withOrganiser(panel, link.recruiterId);
   const excluded = new Set(link.excluded ?? []);
-  const slots = freeSlots(
-    await availability(
-      ctx,
-      people,
-      from,
-      to,
-      withHolidays(people, link.away ?? {}, holidays),
-      link.weeks ?? {},
-    ),
+  const calendars = await availability(
+    ctx,
+    people,
     from,
     to,
-    plan.minutes,
-    30,
-    ctx.at,
-  ).filter((t) => !excluded.has(t));
+    withHolidays(people, link.away ?? {}, holidays),
+    link.weeks ?? {},
+  );
+  const grid = slotGrid(calendars, from, to, plan.minutes, 30, ctx.at, [...excluded]);
+  const slots = grid.filter((s) => !s.taken).map((s) => s.at);
   const open = await openThrough(ctx, app.id, sha256(token));
   const booked = (await ctx.tx.interviews.forApplication(app.id)).find(
     (i) => i.planKey === plan.key && i.state === 'scheduled',
@@ -733,6 +733,7 @@ export async function linkSlots(
     ).filter((n): n is string => n !== null),
     chosen: (open?.times ?? []).filter((t) => slots.includes(t)),
     excluded: excluded.size,
+    taken: grid.filter((s) => s.taken).map((s) => s.at),
     booked: booked?.startsAt ?? null,
   });
 }

@@ -287,9 +287,12 @@ export function acceptOffer(
   });
 }
 
+/** Declining says why (the recruiter reads it, and may come back with new terms). */
 export function declineOffer(offer: Offer, reason: string | null): Result<Offer> {
   if (offer.state !== 'sent') return err(failure('NOT_SENT', 'This offer is not open to decline'));
-  return ok({ ...offer, state: 'declined', declineReason: reason });
+  const why = reason?.trim() ?? '';
+  if (why === '') return err(failure('REASON_REQUIRED', 'Say why you are declining'));
+  return ok({ ...offer, state: 'declined', declineReason: why });
 }
 
 export function expireOffer(offer: Offer, today: CalendarDate): Offer {
