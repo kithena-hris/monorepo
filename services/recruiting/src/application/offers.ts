@@ -1,4 +1,4 @@
-import { keepChosen } from './catalogue.js';
+import { everyCatalogue, keepChosen } from './catalogue.js';
 import { err, failure, ok, type Result } from '@kithena/domain-kit';
 import type {
   CalendarDate,
@@ -513,12 +513,19 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
   );
 }
 
+/** What an offer is read beside: the role, the company, and the benefits it names, in words. */
+export interface OfferSetting {
+  readonly job: { readonly title: string };
+  readonly company: { readonly name: string; readonly logoUrl: string | null };
+  readonly benefits: readonly { readonly id: string; readonly name: string; readonly description: string | null }[];
+}
+
 /** Offer the candidate reads (J7): the version, its hash, total rewards and the plain terms. */
 export async function offerForCandidate(
   ctx: Ctx,
   candidateId: string,
   offerId: string,
-): Promise<Result<{ offer: Offer; hash: string }>> {
+): Promise<Result<{ offer: Offer; hash: string; setting: OfferSetting }>> {
   const offer = await ctx.tx.offers.get(offerId);
   const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
   if (
@@ -529,7 +536,26 @@ export async function offerForCandidate(
     offer.state === 'approved'
   )
     return err(notFound('offer'));
-  return ok({ offer, hash: versionHash(latest(offer)) });
+  const job = await ctx.tx.jobs.get(app.jobId);
+  const settings = await generalSettings(ctx);
+  const chosen = new Set(latest(offer).benefitIds);
+  const { language } = await mailWords(ctx);
+  const benefits = (await everyCatalogue(ctx))
+    .filter((b) => chosen.has(b.id))
+    .map((b) => ({
+      id: b.id,
+      name: b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key,
+      description: b.description ?? null,
+    }));
+  return ok({
+    offer,
+    hash: versionHash(latest(offer)),
+    setting: {
+      job: { title: job?.title ?? '' },
+      company: { name: settings.companyName, logoUrl: settings.logoUrl },
+      benefits,
+    },
+  });
 }
 
 /* ------------------------------------------------------------- contract -- */
