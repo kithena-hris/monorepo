@@ -284,6 +284,7 @@ export interface RecruitingServerOptions extends Pick<
   readonly newId?: Deps['newId'];
   readonly mailer?: Deps['mailer'];
   readonly inbound?: Deps['inbound'];
+  readonly interviewEnds?: Deps['interviewEnds'];
   readonly model?: Deps['model'];
   readonly web?: Deps['web'];
   readonly sealer?: Deps['sealer'];
@@ -314,6 +315,7 @@ export function recruitingServer(
     extractText: options.extractText,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
     ...(options.inbound === undefined ? {} : { inbound: options.inbound }),
+    ...(options.interviewEnds === undefined ? {} : { interviewEnds: options.interviewEnds }),
     ...(options.model === undefined ? {} : { model: options.model }),
     ...(options.web === undefined ? {} : { web: options.web }),
     ...(options.sealer === undefined ? {} : { sealer: options.sealer }),
