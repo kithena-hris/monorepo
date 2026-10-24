@@ -16,6 +16,7 @@ import {
 } from './dates.ts';
 import { ChartFrame, decor, Ink, useWidth, WEB } from './parts.tsx';
 import { bgTone, borderTone, type ChartTone, softTone, solidTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 export interface TimelineEntry {
   id: string;
@@ -268,7 +269,7 @@ export function TimelineChart({
       label={label}
       summary={summary}
       rows={rowsForTable}
-      valueLabel="Days"
+      valueLabel={t('components.chart.timeline-chart.days', 'Days')}
       className={cn('w-full', className)}
     >
       <GestureDetector gesture={pick}>
@@ -373,8 +374,20 @@ export function TimelineChart({
                     ...(canMove
                       ? {
                           accessibilityActions: [
-                            { name: 'later', label: 'Move a day later' },
-                            { name: 'earlier', label: 'Move a day earlier' },
+                            {
+                              name: 'later',
+                              label: t(
+                                'components.chart.timeline-chart.move_a_day_later',
+                                'Move a day later',
+                              ),
+                            },
+                            {
+                              name: 'earlier',
+                              label: t(
+                                'components.chart.timeline-chart.move_a_day_earlier',
+                                'Move a day earlier',
+                              ),
+                            },
                           ],
                           onAccessibilityAction: (event: {
                             nativeEvent: { actionName: string };

@@ -1,3 +1,5 @@
+import { t } from '../../i18n';
+
 /**
  * Import's shapes, as the web's `people/src/import/*` reads them. People sends
  * most of these as JSON text: the file's mapping, the fields it proposes, the
@@ -156,10 +158,30 @@ export const isRunning = (run: RunStatus): boolean =>
 
 /** Who fills a new field in for the people already here, in words a chip says. */
 export const FOR_EXISTING: readonly { kind: ForExisting['kind']; label: string }[] = [
-  { kind: 'ask', label: 'Ask them' },
-  { kind: 'new', label: 'Only new joiners' },
-  { kind: 'hr', label: 'HR fills it in' },
-  { kind: 'leave', label: 'Leave it empty' },
+  {
+    kind: 'ask',
+    get label(): string {
+      return t('people.transfer.model.ask_them', 'Ask them');
+    },
+  },
+  {
+    kind: 'new',
+    get label(): string {
+      return t('people.transfer.model.only_new_joiners', 'Only new joiners');
+    },
+  },
+  {
+    kind: 'hr',
+    get label(): string {
+      return t('people.transfer.model.hr_fills_it_in', 'HR fills it in');
+    },
+  },
+  {
+    kind: 'leave',
+    get label(): string {
+      return t('people.transfer.model.leave_it_empty', 'Leave it empty');
+    },
+  },
 ];
 
 /** The mapping People's import reads: every column index to a field key, or null to leave it. */

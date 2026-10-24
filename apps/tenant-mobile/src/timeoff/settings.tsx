@@ -66,45 +66,66 @@ import { leaveIcon } from './icons';
 import { hereOnce, type Office } from './office-area';
 import { todayHere } from './time';
 import { amount, shortDate } from './words';
+import { t as tr } from '../i18n';
 
 type Section =
   'leave-types' | 'negative' | 'approvals' | 'attendance' | 'holidays' | 'integrations';
 
-const SECTIONS: readonly { key: Section; label: string; line: string; icon: typeof Tags }[] = [
+const SECTIONS = (): readonly {
+  key: Section;
+  label: string;
+  line: string;
+  icon: typeof Tags;
+}[] => [
   {
     key: 'leave-types',
-    label: 'Leave types',
-    line: 'What people can take, and how much',
+    label: tr('timeoff.settings.leave_types', 'Leave types'),
+    line: tr('timeoff.settings.what_people_can_take_and_how', 'What people can take, and how much'),
     icon: Tags,
   },
   {
     key: 'negative',
-    label: 'Balance rules',
-    line: 'How far, who approves, and what happens after',
+    label: tr('timeoff.settings.balance_rules', 'Balance rules'),
+    line: tr(
+      'timeoff.settings.how_far_who_approves_and_what',
+      'How far, who approves, and what happens after',
+    ),
     icon: Scale,
   },
   {
     key: 'approvals',
-    label: 'Approvals',
-    line: 'Who approves what, automatic approval, team minimums',
+    label: tr('timeoff.settings.approvals', 'Approvals'),
+    line: tr(
+      'timeoff.settings.who_approves_what_automatic_approval_team',
+      'Who approves what, automatic approval, team minimums',
+    ),
     icon: CheckCheck,
   },
   {
     key: 'attendance',
-    label: 'Attendance',
-    line: 'Breaks, rest, weekly limits and overtime',
+    label: tr('timeoff.settings.attendance', 'Attendance'),
+    line: tr(
+      'timeoff.settings.breaks_rest_weekly_limits_and_overtime',
+      'Breaks, rest, weekly limits and overtime',
+    ),
     icon: Clock3,
   },
   {
     key: 'holidays',
-    label: 'Holidays',
-    line: 'National, regional and city holidays',
+    label: tr('timeoff.settings.holidays', 'Holidays'),
+    line: tr(
+      'timeoff.settings.national_regional_and_city_holidays',
+      'National, regional and city holidays',
+    ),
     icon: CalendarDays,
   },
   {
     key: 'integrations',
-    label: 'Integrations and kiosks',
-    line: 'Calendars, chat, kiosks at the door',
+    label: tr('timeoff.settings.integrations_and_kiosks', 'Integrations and kiosks'),
+    line: tr(
+      'timeoff.settings.calendars_chat_kiosks_at_the_door',
+      'Calendars, chat, kiosks at the door',
+    ),
     icon: Plug,
   },
 ];
@@ -116,15 +137,20 @@ export function TimeOffSettings({
 }: PeopleScreen<'TimeOffSettings'>): React.JSX.Element {
   const section = route.params?.section;
   const back = {
-    label: section === undefined ? 'Time off' : 'Settings',
+    label:
+      section === undefined
+        ? tr('timeoff.settings.time_off', 'Time off')
+        : tr('timeoff.settings.settings', 'Settings'),
     onPress: navigation.goBack,
   };
-  const title = SECTIONS.find((s) => s.key === section)?.label ?? 'Time off settings';
+  const title =
+    SECTIONS().find((s) => s.key === section)?.label ??
+    tr('timeoff.settings.time_off_settings', 'Time off settings');
   return (
     <Page title={title} back={back}>
       {section === undefined ? (
         <List>
-          {SECTIONS.map((s) => (
+          {SECTIONS().map((s) => (
             <ListItem
               key={s.key}
               icon={s.icon}
@@ -255,10 +281,10 @@ function RuleDialog({
         <DialogBody>{children}</DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.settings.cancel', 'Cancel')}
           </Button>
           <Button className="flex-1" variant="primary" loading={busy} onPress={onSave}>
-            Save
+            {tr('timeoff.settings.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -288,7 +314,7 @@ function LeaveTypes({
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading the leave types" />
+      <Loading label={tr('timeoff.settings.loading_the_leave_types', 'Loading the leave types')} />
     );
   }
   const company = load.data.parentalCompany;
@@ -301,8 +327,11 @@ function LeaveTypes({
         onSearch={(text) => {
           setDescribing(text.trim());
         }}
-        placeholder="Describe a new kind of leave"
-        label="Describe a new kind of leave"
+        placeholder={tr(
+          'timeoff.settings.describe_a_new_kind_of_leave',
+          'Describe a new kind of leave',
+        )}
+        label={tr('timeoff.settings.describe_a_new_kind_of_leave', 'Describe a new kind of leave')}
       />
       {describing === null ? null : (
         <DescribeLeaveTypeDialog
@@ -338,7 +367,11 @@ function LeaveTypes({
                 t.definition.paid === 'unpaid' ? 'unpaid' : 'paid',
                 t.definition.statutory ? 'by law' : null,
                 t.hidden ? 'hidden' : null,
-                `${String(t.policyIds.length)} ${t.policyIds.length === 1 ? 'policy' : 'policies'}`,
+                tr(
+                  'timeoff.settings.policies',
+                  { one: '{{count}} policy', other: '{{count}} policies' },
+                  { count: t.policyIds.length },
+                ),
               ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -354,22 +387,30 @@ function LeaveTypes({
       <View className="flex-row items-start gap-1.5 px-1">
         <Icon icon={Sparkles} size={13} tone="accent" />
         <Text variant="footnote" tone="accent" className="flex-1">
-          Kithena checks each type against the law where it applies.
+          {tr(
+            'timeoff.settings.kithena_checks_each_type_against_the',
+            'Kithena checks each type against the law where it applies.',
+          )}
         </Text>
       </View>
       <Button variant="ghost" startIcon={<Icon icon={Plus} />} onPress={onAdd}>
-        Add one step by step
+        {tr('timeoff.settings.add_one_step_by_step', 'Add one step by step')}
       </Button>
       <Card>
         <Stack gap={2}>
-          <CardTitle>Company parental weeks</CardTitle>
+          <CardTitle>
+            {tr('timeoff.settings.company_parental_weeks', 'Company parental weeks')}
+          </CardTitle>
           <Text variant="subhead" tone="muted">
-            Weeks the company adds to parental leave, after a length of service.
+            {tr(
+              'timeoff.settings.weeks_the_company_adds_to_parental',
+              'Weeks the company adds to parental leave, after a length of service.',
+            )}
           </Text>
           <View className="flex-row gap-2">
             <View className="flex-1">
               <NumberField
-                label="Extra weeks"
+                label={tr('timeoff.settings.extra_weeks', 'Extra weeks')}
                 size="sm"
                 min={0}
                 max={52}
@@ -379,7 +420,7 @@ function LeaveTypes({
             </View>
             <View className="flex-1">
               <NumberField
-                label="After years"
+                label={tr('timeoff.settings.after_years', 'After years')}
                 size="sm"
                 min={0}
                 max={40}
@@ -409,7 +450,7 @@ function LeaveTypes({
               ).then(reload);
             }}
           >
-            Save
+            {tr('timeoff.settings.save', 'Save')}
           </Button>
         </Stack>
       </Card>
@@ -467,14 +508,17 @@ export function TimeOffLeaveType({
   });
   const { act, busy } = useAct('timeoff');
   const [chosen, setChosen] = useState<string | null>(null);
-  const back = { label: 'Leave types', onPress: navigation.goBack };
+  const back = {
+    label: tr('timeoff.settings.leave_types', 'Leave types'),
+    onPress: navigation.goBack,
+  };
   if (load.status !== 'ready') {
     return (
       <Page title={route.params.name} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading" />
+          <Loading label={tr('timeoff.settings.loading', 'Loading')} />
         )}
       </Page>
     );
@@ -491,20 +535,22 @@ export function TimeOffLeaveType({
           <View className="flex-1 gap-0.5">
             <Text variant="headline">{d.leaveType.definition.name.default}</Text>
             <Text variant="footnote" tone="muted">
-              {`Applies in ${[...d.places.countries, ...d.places.locations].join(', ') || 'every place'}`}
+              {tr('timeoff.settings.applies_in', 'Applies in {{value}}', {
+                value: [...d.places.countries, ...d.places.locations].join(', ') || 'every place',
+              })}
             </Text>
           </View>
         </View>
       </Card>
       {d.policies.length > 1 ? (
         <Select value={policy?.id ?? ''} onValueChange={setChosen}>
-          <SelectTrigger size="sm" accessibilityLabel="Policy">
+          <SelectTrigger size="sm" accessibilityLabel={tr('timeoff.settings.policy', 'Policy')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {d.policies.map((p, i) => (
               <SelectItem key={p.id} value={p.id}>
-                {`Policy ${String(i + 1)}`}
+                {tr('timeoff.settings.policy_2', 'Policy {{String}}', { String: String(i + 1) })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -514,7 +560,12 @@ export function TimeOffLeaveType({
         d.leaveType.definition.tracked ? (
           <Card>
             <Stack gap={2}>
-              <Text>No policy yet: nobody has an allowance for it.</Text>
+              <Text>
+                {tr(
+                  'timeoff.settings.no_policy_yet_nobody_has_an',
+                  'No policy yet: nobody has an allowance for it.',
+                )}
+              </Text>
               <Button
                 variant="primary"
                 loading={busy === 'DraftTimeOffPolicy'}
@@ -527,11 +578,11 @@ export function TimeOffLeaveType({
                         allowance: [{ fromYears: 0, days: '0.000' }],
                       },
                     },
-                    'Policy started',
+                    tr('timeoff.settings.policy_started', 'Policy started'),
                   ).then(reload);
                 }}
               >
-                Start a policy
+                {tr('timeoff.settings.start_a_policy', 'Start a policy')}
               </Button>
               <Button
                 onPress={() => {
@@ -540,12 +591,17 @@ export function TimeOffLeaveType({
                   });
                 }}
               >
-                Describe it in words
+                {tr('timeoff.settings.describe_it_in_words', 'Describe it in words')}
               </Button>
             </Stack>
           </Card>
         ) : (
-          <Text tone="muted">Not taken from a balance, so it has no policy.</Text>
+          <Text tone="muted">
+            {tr(
+              'timeoff.settings.not_taken_from_a_balance_so',
+              'Not taken from a balance, so it has no policy.',
+            )}
+          </Text>
         )
       ) : (
         <PolicyCard
@@ -587,7 +643,8 @@ function PolicyCard({
   const [probation, setProbation] = useState<number | null>(null);
   const [from, setFrom] = useState<string | null>(todayHere());
   const [open, setOpen] = useState<'allowance' | 'carry' | 'probation' | null>(null);
-  if (shown === undefined) return <Text tone="muted">No version yet.</Text>;
+  if (shown === undefined)
+    return <Text tone="muted">{tr('timeoff.settings.no_version_yet', 'No version yet.')}</Text>;
   const def = shown.definition;
   const first = def.allowance[0];
   const revised: PolicyDefinition = {
@@ -625,8 +682,16 @@ function PolicyCard({
   const save = (): void => {
     void (
       draft === undefined
-        ? act('DraftTimeOffPolicy', { input: revised }, 'Saved as a draft')
-        : act('ReviseTimeOffPolicy', { policyId, input: revised }, 'Draft saved')
+        ? act(
+            'DraftTimeOffPolicy',
+            { input: revised },
+            tr('timeoff.settings.saved_as_a_draft', 'Saved as a draft'),
+          )
+        : act(
+            'ReviseTimeOffPolicy',
+            { policyId, input: revised },
+            tr('timeoff.settings.draft_saved', 'Draft saved'),
+          )
     ).then((done) => {
       if (done === null) return;
       setAllowance(null);
@@ -647,12 +712,18 @@ function PolicyCard({
     <>
       {/* The rules, each a label and a plain answer (v3 S13); a tap changes one in a modal. */}
       <Rules
-        title={draft === undefined ? 'Rules' : `Rules · draft of version ${String(shown.version)}`}
-        action="Describe"
+        title={
+          draft === undefined
+            ? tr('timeoff.settings.rules', 'Rules')
+            : tr('timeoff.settings.rules_draft_of_version', 'Rules · draft of version {{String}}', {
+                String: String(shown.version),
+              })
+        }
+        action={tr('timeoff.settings.describe', 'Describe')}
         onAction={onDescribe}
       >
         <Rule
-          label="How much"
+          label={tr('timeoff.settings.how_much', 'How much')}
           value={[
             `${amount(first?.days ?? '0')} days a year`,
             ...def.allowance
@@ -664,7 +735,7 @@ function PolicyCard({
           }}
         />
         <Rule
-          label="How it’s earned"
+          label={tr('timeoff.settings.how_its_earned', 'How it’s earned')}
           value={
             def.earning === 'monthly'
               ? `${amount((Number(first?.days ?? '0') / 12).toFixed(3))} days on the 1st of each month`
@@ -672,7 +743,7 @@ function PolicyCard({
           }
         />
         <Rule
-          label="Carry over"
+          label={tr('timeoff.settings.carry_over', 'Carry over')}
           value={
             def.carryOver === null
               ? 'Nothing carried over'
@@ -683,7 +754,7 @@ function PolicyCard({
           }}
         />
         <Rule
-          label="Waiting period"
+          label={tr('timeoff.settings.waiting_period', 'Waiting period')}
           value={
             def.probationMonths === 0
               ? 'From day one'
@@ -696,13 +767,21 @@ function PolicyCard({
       </Rules>
       {draft === undefined ? null : (
         <Text variant="footnote" tone="muted" className="px-1">
-          {`Version ${String(shown.version)} is a draft. Nothing changes for anyone until it is published below.`}
+          {tr(
+            'timeoff.settings.version_is_a_draft_nothing_changes',
+            'Version {{String}} is a draft. Nothing changes for anyone until it is published below.',
+            { String: String(shown.version) },
+          )}
         </Text>
       )}
       {open === null ? null : (
         <RuleDialog
           title={
-            open === 'allowance' ? 'How much' : open === 'carry' ? 'Carry over' : 'Waiting period'
+            open === 'allowance'
+              ? tr('timeoff.settings.how_much', 'How much')
+              : open === 'carry'
+                ? tr('timeoff.settings.carry_over', 'Carry over')
+                : tr('timeoff.settings.waiting_period', 'Waiting period')
           }
           busy={busy === 'ReviseTimeOffPolicy' || busy === 'DraftTimeOffPolicy'}
           onClose={close}
@@ -713,7 +792,7 @@ function PolicyCard({
         >
           {open === 'allowance' ? (
             <NumberField
-              label="Days a year"
+              label={tr('timeoff.settings.days_a_year', 'Days a year')}
               size="sm"
               min={0}
               max={365}
@@ -723,7 +802,7 @@ function PolicyCard({
             />
           ) : open === 'carry' ? (
             <NumberField
-              label="Carried over, at most"
+              label={tr('timeoff.settings.carried_over_at_most', 'Carried over, at most')}
               size="sm"
               min={0}
               max={365}
@@ -733,7 +812,10 @@ function PolicyCard({
             />
           ) : (
             <NumberField
-              label="Months before it is earned"
+              label={tr(
+                'timeoff.settings.months_before_it_is_earned',
+                'Months before it is earned',
+              )}
               size="sm"
               min={0}
               max={24}
@@ -746,12 +828,25 @@ function PolicyCard({
       {draft === undefined || preview.load.status !== 'ready' ? null : (
         <Card>
           <Stack gap={2}>
-            <CardTitle>{`What version ${String(preview.load.data.draftVersion)} does`}</CardTitle>
+            <CardTitle>
+              {tr('timeoff.settings.what_version_does', 'What version {{String}} does', {
+                String: String(preview.load.data.draftVersion),
+              })}
+            </CardTitle>
             <List>
               {preview.load.data.members.slice(0, 20).map((m) => (
                 <ListItem
                   key={m.personId}
-                  description={`${amount(m.allowance.current)} → ${amount(m.allowance.draft)} a year · ${amount(m.left.current)} → ${amount(m.left.draft)} left`}
+                  description={tr(
+                    'timeoff.settings.a_year_left',
+                    '{{amount}} → {{amount2}} a year · {{amount3}} → {{amount4}} left',
+                    {
+                      amount: amount(m.allowance.current),
+                      amount2: amount(m.allowance.draft),
+                      amount3: amount(m.left.current),
+                      amount4: amount(m.left.draft),
+                    },
+                  )}
                 >
                   {m.displayName}
                 </ListItem>
@@ -761,32 +856,44 @@ function PolicyCard({
               <Button
                 loading={busy === 'StartTimeOffShadowRun'}
                 onPress={() => {
-                  void act('StartTimeOffShadowRun', { policyId }, 'Shadow run started').then(
-                    preview.reload,
-                  );
+                  void act(
+                    'StartTimeOffShadowRun',
+                    { policyId },
+                    tr('timeoff.settings.shadow_run_started', 'Shadow run started'),
+                  ).then(preview.reload);
                 }}
               >
-                Run it in the shadow first
+                {tr('timeoff.settings.run_it_in_the_shadow_first', 'Run it in the shadow first')}
               </Button>
             ) : (
               <>
-                <Text
-                  variant="footnote"
-                  tone="muted"
-                >{`Running in the shadow since ${shortDate(preview.load.data.shadow.from)}, beside the live policy.`}</Text>
+                <Text variant="footnote" tone="muted">
+                  {tr(
+                    'timeoff.settings.running_in_the_shadow_since_beside',
+                    'Running in the shadow since {{shortDate}}, beside the live policy.',
+                    { shortDate: shortDate(preview.load.data.shadow.from) },
+                  )}
+                </Text>
                 <Button
                   loading={busy === 'StopTimeOffShadowRun'}
                   onPress={() => {
-                    void act('StopTimeOffShadowRun', { policyId }, 'Shadow run stopped').then(
-                      preview.reload,
-                    );
+                    void act(
+                      'StopTimeOffShadowRun',
+                      { policyId },
+                      tr('timeoff.settings.shadow_run_stopped', 'Shadow run stopped'),
+                    ).then(preview.reload);
                   }}
                 >
-                  Stop the shadow run
+                  {tr('timeoff.settings.stop_the_shadow_run', 'Stop the shadow run')}
                 </Button>
               </>
             )}
-            <DatePicker label="In effect from" size="sm" value={from} onChange={setFrom} />
+            <DatePicker
+              label={tr('timeoff.settings.in_effect_from', 'In effect from')}
+              size="sm"
+              value={from}
+              onChange={setFrom}
+            />
             <Button
               variant="primary"
               disabled={from === null}
@@ -800,7 +907,7 @@ function PolicyCard({
                 ).then(onChanged);
               }}
             >
-              Publish
+              {tr('timeoff.settings.publish', 'Publish')}
             </Button>
           </Stack>
         </Card>
@@ -840,15 +947,26 @@ export function TimeOffPolicyDescribe({
     asked ?? { leaveTypeKey: route.params.leaveTypeKey },
   );
   const { act, busy } = useAct('timeoff');
-  const back = { label: 'Leave type', onPress: navigation.goBack };
+  const back = {
+    label: tr('timeoff.settings.leave_type', 'Leave type'),
+    onPress: navigation.goBack,
+  };
   return (
-    <Page title="Describe the policy" back={back}>
+    <Page title={tr('timeoff.settings.describe_the_policy', 'Describe the policy')} back={back}>
       <Field>
-        <FieldLabel>The policy, as you would explain it</FieldLabel>
+        <FieldLabel>
+          {tr(
+            'timeoff.settings.the_policy_as_you_would_explain',
+            'The policy, as you would explain it',
+          )}
+        </FieldLabel>
         <Textarea
           value={text}
           onChange={setText}
-          placeholder="25 working days a year, 30 after five years. Up to 5 carried over, used by 31 March."
+          placeholder={tr(
+            'timeoff.settings.25_working_days_a_year_30',
+            '25 working days a year, 30 after five years. Up to 5 carried over, used by 31 March.',
+          )}
         />
       </Field>
       <Button
@@ -857,12 +975,12 @@ export function TimeOffPolicyDescribe({
           setAsked({ text: text.trim(), leaveTypeKey: route.params.leaveTypeKey });
         }}
       >
-        Read it
+        {tr('timeoff.settings.read_it', 'Read it')}
       </Button>
       {asked === null ? null : load.status === 'error' ? (
         <Alert tone="danger">{load.message}</Alert>
       ) : load.status === 'loading' ? (
-        <Loading label="Reading it" />
+        <Loading label={tr('timeoff.settings.reading_it', 'Reading it')} />
       ) : (
         <>
           {load.data.rules.length === 0 ? null : (
@@ -910,14 +1028,22 @@ export function TimeOffPolicyDescribe({
                 const policyId = route.params.policyId;
                 void (
                   policyId === undefined
-                    ? act('DraftTimeOffPolicy', { input: definition }, 'Saved as a draft')
-                    : act('ReviseTimeOffPolicy', { policyId, input: definition }, 'Draft saved')
+                    ? act(
+                        'DraftTimeOffPolicy',
+                        { input: definition },
+                        tr('timeoff.settings.saved_as_a_draft', 'Saved as a draft'),
+                      )
+                    : act(
+                        'ReviseTimeOffPolicy',
+                        { policyId, input: definition },
+                        tr('timeoff.settings.draft_saved', 'Draft saved'),
+                      )
                 ).then((done) => {
                   if (done !== null) navigation.goBack();
                 });
               }}
             >
-              Save as a draft
+              {tr('timeoff.settings.save_as_a_draft', 'Save as a draft')}
             </Button>
           )}
         </>
@@ -928,16 +1054,16 @@ export function TimeOffPolicyDescribe({
 
 type Rule = { limit: string; approvers: string; atYearEnd: string; onLeaving: string };
 
-const NEG_APPROVERS: Readonly<Record<string, string>> = {
+const NEG_APPROVERS = (): Readonly<Record<string, string>> => ({
   manager: 'their manager decides',
   manager_then_hr: 'their manager, then HR',
-  hr: 'HR decides',
-};
-const ON_LEAVING: Readonly<Record<string, string>> = {
-  final_pay: 'Taken from the last salary',
-  write_off: 'Written off',
-  hr_decides: 'HR decides',
-};
+  hr: tr('timeoff.settings.hr_decides', 'HR decides'),
+});
+const ON_LEAVING = (): Readonly<Record<string, string>> => ({
+  final_pay: tr('timeoff.settings.taken_from_the_last_salary', 'Taken from the last salary'),
+  write_off: tr('timeoff.settings.written_off', 'Written off'),
+  hr_decides: tr('timeoff.settings.hr_decides', 'HR decides'),
+});
 
 function Negative(): React.JSX.Element {
   const { load, reload } = useTimeOff<{
@@ -954,7 +1080,7 @@ function Negative(): React.JSX.Element {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading" />
+      <Loading label={tr('timeoff.settings.loading', 'Loading')} />
     );
   }
   const policy = load.data.policies.find((p) => p.policyId === editing);
@@ -963,10 +1089,17 @@ function Negative(): React.JSX.Element {
     <>
       {example?.rule == null ? null : (
         <Alert tone="accent" variant="summary">
-          {`With these rules, people can book up to ${amount(example.rule.limit)} days of ${example.leaveTypeName.toLowerCase()} beyond what they have left.`}
+          {tr(
+            'timeoff.settings.with_these_rules_people_can_book',
+            'With these rules, people can book up to {{amount}} days of {{toLowerCase}} beyond what they have left.',
+            {
+              amount: amount(example.rule.limit),
+              toLowerCase: example.leaveTypeName.toLowerCase(),
+            },
+          )}
         </Alert>
       )}
-      <Rules title="Going below zero">
+      <Rules title={tr('timeoff.settings.going_below_zero', 'Going below zero')}>
         {load.data.policies.map((p) => (
           <Rule
             key={p.policyId}
@@ -974,7 +1107,7 @@ function Negative(): React.JSX.Element {
             value={
               p.rule === null
                 ? 'Not allowed'
-                : `Up to ${amount(p.rule.limit)} days · ${NEG_APPROVERS[p.rule.approvers] ?? p.rule.approvers}`
+                : `Up to ${amount(p.rule.limit)} days · ${NEG_APPROVERS()[p.rule.approvers] ?? p.rule.approvers}`
             }
             onPress={() => {
               setEditing(p.policyId);
@@ -983,15 +1116,19 @@ function Negative(): React.JSX.Element {
         ))}
       </Rules>
       {load.data.policies.some((p) => p.rule !== null) ? (
-        <Rules title="When someone leaves">
+        <Rules title={tr('timeoff.settings.when_someone_leaves', 'When someone leaves')}>
           {load.data.policies.flatMap((p) =>
             p.rule === null
               ? []
               : [
                   <Rule
                     key={p.policyId}
-                    label={`Days below zero · ${p.leaveTypeName}`}
-                    value={ON_LEAVING[p.rule.onLeaving] ?? p.rule.onLeaving}
+                    label={tr(
+                      'timeoff.settings.days_below_zero',
+                      'Days below zero · {{leaveTypeName}}',
+                      { leaveTypeName: p.leaveTypeName },
+                    )}
+                    value={ON_LEAVING()[p.rule.onLeaving] ?? p.rule.onLeaving}
                     onPress={() => {
                       setEditing(p.policyId);
                     }}
@@ -1065,8 +1202,11 @@ function NegativeDialog({
           <DialogTitle>{policy.leaveTypeName}</DialogTitle>
           <DialogDescription>
             {policy.status === 'published'
-              ? 'Saved, it is in effect today.'
-              : 'Saved, it joins the policy’s draft.'}
+              ? tr('timeoff.settings.saved_it_is_in_effect_today', 'Saved, it is in effect today.')
+              : tr(
+                  'timeoff.settings.saved_it_joins_the_policys_draft',
+                  'Saved, it joins the policy’s draft.',
+                )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -1075,17 +1215,17 @@ function NegativeDialog({
             trailing={
               <Switch
                 checked={allowed}
-                accessibilityLabel="May go below zero"
+                accessibilityLabel={tr('timeoff.settings.may_go_below_zero', 'May go below zero')}
                 onCheckedChange={setAllowed}
               />
             }
           >
-            May go below zero
+            {tr('timeoff.settings.may_go_below_zero', 'May go below zero')}
           </ListItem>
           {allowed ? (
             <>
               <NumberField
-                label="Days below zero, at most"
+                label={tr('timeoff.settings.days_below_zero_at_most', 'Days below zero, at most')}
                 size="sm"
                 min={0}
                 max={30}
@@ -1093,27 +1233,38 @@ function NegativeDialog({
                 value={limit}
                 onChange={setLimit}
               />
-              {choose('Approved by', approvers, setApprovers, [
-                ['manager', 'Their manager'],
-                ['manager_then_hr', 'Their manager, then HR'],
+              {choose(tr('timeoff.settings.approved_by', 'Approved by'), approvers, setApprovers, [
+                ['manager', tr('timeoff.settings.their_manager', 'Their manager')],
+                [
+                  'manager_then_hr',
+                  tr('timeoff.settings.their_manager_then_hr', 'Their manager, then HR'),
+                ],
                 ['hr', 'HR'],
               ])}
-              {choose('At year end', atYearEnd, setAtYearEnd, [
-                ['next_year', 'Taken from next year'],
-                ['unpaid', 'Becomes unpaid'],
-                ['write_off', 'Written off'],
+              {choose(tr('timeoff.settings.at_year_end', 'At year end'), atYearEnd, setAtYearEnd, [
+                ['next_year', tr('timeoff.settings.taken_from_next_year', 'Taken from next year')],
+                ['unpaid', tr('timeoff.settings.becomes_unpaid', 'Becomes unpaid')],
+                ['write_off', tr('timeoff.settings.written_off', 'Written off')],
               ])}
-              {choose('When they leave', onLeaving, setOnLeaving, [
-                ['final_pay', 'Taken from the final pay'],
-                ['write_off', 'Written off'],
-                ['hr_decides', 'HR decides'],
-              ])}
+              {choose(
+                tr('timeoff.settings.when_they_leave', 'When they leave'),
+                onLeaving,
+                setOnLeaving,
+                [
+                  [
+                    'final_pay',
+                    tr('timeoff.settings.taken_from_the_final_pay', 'Taken from the final pay'),
+                  ],
+                  ['write_off', tr('timeoff.settings.written_off', 'Written off')],
+                  ['hr_decides', tr('timeoff.settings.hr_decides', 'HR decides')],
+                ],
+              )}
             </>
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.settings.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -1132,14 +1283,14 @@ function NegativeDialog({
                   await act(
                     'PublishTimeOffPolicy',
                     { policyId: policy.policyId, input: { effectiveFrom: todayHere() } },
-                    'Saved and in effect',
+                    tr('timeoff.settings.saved_and_in_effect', 'Saved and in effect'),
                   );
                 }
                 onSaved();
               });
             }}
           >
-            Save
+            {tr('timeoff.settings.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1167,12 +1318,12 @@ interface ApprovalSettings {
   }[];
 }
 
-const APPROVER: Record<string, string> = {
-  manager: 'Their manager',
+const APPROVER = (): Record<string, string> => ({
+  manager: tr('timeoff.settings.their_manager', 'Their manager'),
   hr: 'HR',
-  manager_chain: 'The manager above',
-  delegate: 'A delegate',
-};
+  manager_chain: tr('timeoff.settings.the_manager_above', 'The manager above'),
+  delegate: tr('timeoff.settings.a_delegate', 'A delegate'),
+});
 
 function Approvals(): React.JSX.Element {
   const { load, reload } = useTimeOff<ApprovalSettings>('TimeOffApprovalSettings');
@@ -1187,28 +1338,32 @@ function Approvals(): React.JSX.Element {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading" />
+      <Loading label={tr('timeoff.settings.loading', 'Loading')} />
     );
   }
   const d = load.data;
   const a = auto ?? d.autoApproval;
   const subject = (x: string): string =>
     x === 'request'
-      ? 'Time off'
+      ? tr('timeoff.settings.time_off', 'Time off')
       : x === 'plan'
-        ? 'Parental leave plans'
-        : 'Overtime and clock fixes';
+        ? tr('timeoff.settings.parental_leave_plans', 'Parental leave plans')
+        : tr('timeoff.settings.overtime_and_clock_fixes', 'Overtime and clock fixes');
   const minimum = (m: { atLeast: number; unit: 'people' | 'percent' } | null): string =>
     m === null
-      ? 'No minimum'
+      ? tr('timeoff.settings.no_minimum', 'No minimum')
       : m.unit === 'percent'
-        ? `At least ${String(m.atLeast)}% in`
-        : `At least ${String(m.atLeast)} in`;
+        ? tr('timeoff.settings.at_least_in', 'At least {{String}}% in', {
+            String: String(m.atLeast),
+          })
+        : tr('timeoff.settings.at_least_in_2', 'At least {{String}} in', {
+            String: String(m.atLeast),
+          });
   const team = d.teams.find((t) => t.teamKey === teamOpen);
   return (
     <>
       {/* Three short lists (v3 S15): who approves, how many stay in, and what if nobody answers. */}
-      <Rules title="Who approves">
+      <Rules title={tr('timeoff.settings.who_approves', 'Who approves')}>
         {d.rules.map((r, i) => (
           <Rule
             key={`${r.subject}${String(i)}`}
@@ -1216,12 +1371,12 @@ function Approvals(): React.JSX.Element {
             value={
               r.approvers.length === 0
                 ? 'Nobody. The manager is told'
-                : r.approvers.map((x) => APPROVER[x] ?? x).join(', then ')
+                : r.approvers.map((x) => APPROVER()[x] ?? x).join(', then ')
             }
           />
         ))}
       </Rules>
-      <Rules title="Team minimums">
+      <Rules title={tr('timeoff.settings.team_minimums', 'Team minimums')}>
         {d.teams.map((t) => {
           const m = t.teamKey in mins ? (mins[t.teamKey] ?? null) : t.minimum;
           return (
@@ -1237,47 +1392,64 @@ function Approvals(): React.JSX.Element {
         })}
       </Rules>
       {d.escalation === null ? null : (
-        <Rules title="If nobody decides">
+        <Rules title={tr('timeoff.settings.if_nobody_decides', 'If nobody decides')}>
           <Rule
-            label={`After ${String(d.escalation.afterWorkingDays)} working days`}
-            value={`Remind ${d.escalation.to === 'manager_chain' ? 'the manager, then their manager' : (APPROVER[d.escalation.to] ?? d.escalation.to).toLowerCase()}`}
+            label={tr('timeoff.settings.after_working_days', 'After {{String}} working days', {
+              String: String(d.escalation.afterWorkingDays),
+            })}
+            value={`Remind ${d.escalation.to === 'manager_chain' ? 'the manager, then their manager' : (APPROVER()[d.escalation.to] ?? d.escalation.to).toLowerCase()}`}
           />
         </Rules>
       )}
-      <Rules title="Approved without asking">
+      <Rules title={tr('timeoff.settings.approved_without_asking', 'Approved without asking')}>
         <ListItem
           listitem={false}
-          description="The team stays above its minimum."
+          description={tr(
+            'timeoff.settings.the_team_stays_above_its_minimum',
+            'The team stays above its minimum.',
+          )}
           trailing={
             <Switch
               checked={a.oneDayAboveMinimum}
-              accessibilityLabel="One day, above the minimum"
+              accessibilityLabel={tr(
+                'timeoff.settings.one_day_above_the_minimum',
+                'One day, above the minimum',
+              )}
               onCheckedChange={(on) => {
                 setAuto({ ...a, oneDayAboveMinimum: on });
               }}
             />
           }
         >
-          One day, above the minimum
+          {tr('timeoff.settings.one_day_above_the_minimum', 'One day, above the minimum')}
         </ListItem>
         <ListItem
           listitem={false}
-          description="Fewer days off is never a problem."
+          description={tr(
+            'timeoff.settings.fewer_days_off_is_never_a',
+            'Fewer days off is never a problem.',
+          )}
           trailing={
             <Switch
               checked={a.shortenOrCancel}
-              accessibilityLabel="Shortening or cancelling"
+              accessibilityLabel={tr(
+                'timeoff.settings.shortening_or_cancelling',
+                'Shortening or cancelling',
+              )}
               onCheckedChange={(on) => {
                 setAuto({ ...a, shortenOrCancel: on });
               }}
             />
           }
         >
-          Shortening or cancelling
+          {tr('timeoff.settings.shortening_or_cancelling', 'Shortening or cancelling')}
         </ListItem>
         <View className="px-4 pb-4 pt-1">
           <NumberField
-            label="Sick leave under this many days"
+            label={tr(
+              'timeoff.settings.sick_leave_under_this_many_days',
+              'Sick leave under this many days',
+            )}
             size="sm"
             min={0}
             max={30}
@@ -1290,7 +1462,9 @@ function Approvals(): React.JSX.Element {
       </Rules>
       {team === undefined ? null : (
         <RuleDialog
-          title={`${team.teamName}: who must stay in`}
+          title={tr('timeoff.settings.who_must_stay_in', '{{teamName}}: who must stay in', {
+            teamName: team.teamName,
+          })}
           busy={busy === 'SetTimeOffTeamMinimum'}
           onClose={() => {
             setTeamOpen(null);
@@ -1314,7 +1488,7 @@ function Approvals(): React.JSX.Element {
           }}
         >
           <NumberField
-            label="At least"
+            label={tr('timeoff.settings.at_least', 'At least')}
             size="sm"
             min={0}
             value={(team.teamKey in mins ? mins[team.teamKey] : team.minimum)?.atLeast ?? null}
@@ -1330,7 +1504,7 @@ function Approvals(): React.JSX.Element {
             fullWidth
             size="sm"
             value={(team.teamKey in mins ? mins[team.teamKey] : team.minimum)?.unit ?? 'people'}
-            accessibilityLabel="Counted as"
+            accessibilityLabel={tr('timeoff.settings.counted_as', 'Counted as')}
             onValueChange={(u) => {
               const m = team.teamKey in mins ? (mins[team.teamKey] ?? null) : team.minimum;
               setMins((all) => ({
@@ -1342,8 +1516,12 @@ function Approvals(): React.JSX.Element {
               }));
             }}
           >
-            <SegmentedControlItem value="people">People in</SegmentedControlItem>
-            <SegmentedControlItem value="percent">Percent in</SegmentedControlItem>
+            <SegmentedControlItem value="people">
+              {tr('timeoff.settings.people_in', 'People in')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="percent">
+              {tr('timeoff.settings.percent_in', 'Percent in')}
+            </SegmentedControlItem>
           </SegmentedControl>
         </RuleDialog>
       )}
@@ -1367,23 +1545,29 @@ function Approvals(): React.JSX.Element {
           })();
         }}
       >
-        Save
+        {tr('timeoff.settings.save', 'Save')}
       </Button>
       <Card>
         <Stack gap={2}>
-          <CardTitle>In chat apps</CardTitle>
+          <CardTitle>{tr('timeoff.settings.in_chat_apps', 'In chat apps')}</CardTitle>
           <ListItem
             listitem={false}
-            description="Whether an answer in chat may name a private leave type beside a person."
+            description={tr(
+              'timeoff.settings.whether_an_answer_in_chat_may',
+              'Whether an answer in chat may name a private leave type beside a person.',
+            )}
             trailing={
               <Switch
                 checked={chat ?? false}
-                accessibilityLabel="Name private leave in chat"
+                accessibilityLabel={tr(
+                  'timeoff.settings.name_private_leave_in_chat',
+                  'Name private leave in chat',
+                )}
                 onCheckedChange={setChat}
               />
             }
           >
-            Name private leave in chat
+            {tr('timeoff.settings.name_private_leave_in_chat', 'Name private leave in chat')}
           </ListItem>
           <Button
             disabled={chat === null}
@@ -1396,7 +1580,7 @@ function Approvals(): React.JSX.Element {
               );
             }}
           >
-            Save
+            {tr('timeoff.settings.save', 'Save')}
           </Button>
         </Stack>
       </Card>
@@ -1414,12 +1598,29 @@ interface AttendanceRules {
   readonly offices: readonly Office[];
 }
 
-const WAYS = [
-  ['reader', 'Badge or phone at a reader', 'At a kiosk, with a badge or the app’s code'],
-  ['web', 'Web, from the top bar', 'Everyone'],
-  ['mobile', 'Mobile app', 'Everyone'],
-  ['pin', 'Shared kiosk with a PIN', 'At a kiosk, without a badge'],
-] as const;
+const WAYS = () =>
+  [
+    [
+      'reader',
+      tr('timeoff.settings.badge_or_phone_at_a_reader', 'Badge or phone at a reader'),
+      tr('timeoff.settings.at_a_kiosk_with_a_badge', 'At a kiosk, with a badge or the app’s code'),
+    ],
+    [
+      'web',
+      tr('timeoff.settings.web_from_the_top_bar', 'Web, from the top bar'),
+      tr('timeoff.settings.everyone', 'Everyone'),
+    ],
+    [
+      'mobile',
+      tr('timeoff.settings.mobile_app', 'Mobile app'),
+      tr('timeoff.settings.everyone', 'Everyone'),
+    ],
+    [
+      'pin',
+      tr('timeoff.settings.shared_kiosk_with_a_pin', 'Shared kiosk with a PIN'),
+      tr('timeoff.settings.at_a_kiosk_without_a_badge', 'At a kiosk, without a badge'),
+    ],
+  ] as const;
 
 type WorkWindow = { readonly start: number; readonly end: number; readonly breakMinutes: number };
 type CompanyWeek = {
@@ -1427,7 +1628,15 @@ type CompanyWeek = {
   readonly name: string;
   readonly week?: Partial<Record<string, WorkWindow>>;
 };
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_NAMES = () => [
+  tr('timeoff.settings.monday', 'Monday'),
+  tr('timeoff.settings.tuesday', 'Tuesday'),
+  tr('timeoff.settings.wednesday', 'Wednesday'),
+  tr('timeoff.settings.thursday', 'Thursday'),
+  tr('timeoff.settings.friday', 'Friday'),
+  tr('timeoff.settings.saturday', 'Saturday'),
+  tr('timeoff.settings.sunday', 'Sunday'),
+];
 const hhmm = (m: number): string =>
   `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const minutesOf = (t: string): number => {
@@ -1440,10 +1649,10 @@ function weekLine(s: CompanyWeek | null): string {
   const days = Object.entries(s?.week ?? {}).filter(
     (e): e is [string, WorkWindow] => e[1] !== undefined,
   );
-  if (days.length === 0) return 'Not set';
+  if (days.length === 0) return tr('timeoff.settings.not_set', 'Not set');
   return days
     .map(
-      ([d, w]) => `${DAY_NAMES[Number(d) - 1]?.slice(0, 3) ?? d} ${hhmm(w.start)}–${hhmm(w.end)}`,
+      ([d, w]) => `${DAY_NAMES()[Number(d) - 1]?.slice(0, 3) ?? d} ${hhmm(w.start)}–${hhmm(w.end)}`,
     )
     .join(', ');
 }
@@ -1465,7 +1674,7 @@ function Attendance(): React.JSX.Element {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading" />
+      <Loading label={tr('timeoff.settings.loading', 'Loading')} />
     );
   }
   const r = rules ?? load.data.rules;
@@ -1523,7 +1732,12 @@ function Attendance(): React.JSX.Element {
     setLocating(null);
     void hereOnce().then((here) => {
       if (here === null) {
-        setLocating('Kithena could not tell where this phone is. Allow location and try again.');
+        setLocating(
+          tr(
+            'timeoff.settings.kithena_could_not_tell_where_this',
+            'Kithena could not tell where this phone is. Allow location and try again.',
+          ),
+        );
         return;
       }
       set({
@@ -1543,8 +1757,8 @@ function Attendance(): React.JSX.Element {
   return (
     <>
       {/* Switches for how people clock in (v3 S16), each saved as it flips. */}
-      <Rules title="Ways to clock in">
-        {WAYS.map(([way, label, description]) => (
+      <Rules title={tr('timeoff.settings.ways_to_clock_in', 'Ways to clock in')}>
+        {WAYS().map(([way, label, description]) => (
           <ListItem
             key={way}
             listitem={false}
@@ -1564,11 +1778,17 @@ function Attendance(): React.JSX.Element {
         ))}
         <ListItem
           listitem={false}
-          description="Location is checked only at the moment you clock in"
+          description={tr(
+            'timeoff.settings.location_is_checked_only_at_the',
+            'Location is checked only at the moment you clock in',
+          )}
           trailing={
             <Switch
               checked={r.clockIn.area}
-              accessibilityLabel="Only inside the office area"
+              accessibilityLabel={tr(
+                'timeoff.settings.only_inside_the_office_area',
+                'Only inside the office area',
+              )}
               onCheckedChange={(on) => {
                 // Nowhere to compare with yet: say where the office is first, then save both.
                 if (on && r.offices.length === 0) {
@@ -1579,10 +1799,10 @@ function Attendance(): React.JSX.Element {
             />
           }
         >
-          Only inside the office area
+          {tr('timeoff.settings.only_inside_the_office_area', 'Only inside the office area')}
         </ListItem>
         <Rule
-          label="Offices"
+          label={tr('timeoff.settings.offices', 'Offices')}
           value={
             r.offices.length === 0
               ? 'None yet'
@@ -1594,9 +1814,9 @@ function Attendance(): React.JSX.Element {
         />
       </Rules>
       {/* Three rows for what counts as a working day (v3 S16), each changed in a modal. */}
-      <Rules title="Working day">
+      <Rules title={tr('timeoff.settings.working_day', 'Working day')}>
         <Rule
-          label="Working week"
+          label={tr('timeoff.settings.working_week', 'Working week')}
           value={weekLine(load.data.defaultSchedule)}
           {...(load.data.defaultSchedule === null ||
           load.data.defaultSchedule.kind === 'fixed' ||
@@ -1609,21 +1829,21 @@ function Attendance(): React.JSX.Element {
             : {})}
         />
         <Rule
-          label="Breaks"
+          label={tr('timeoff.settings.breaks', 'Breaks')}
           value={`${String(r.breakMinutes)} minutes after ${String(hours(r.breakAfterMinutes))} hours`}
           onPress={() => {
             setOpen('breaks');
           }}
         />
         <Rule
-          label="Rest and weekly limit"
+          label={tr('timeoff.settings.rest_and_weekly_limit', 'Rest and weekly limit')}
           value={`${String(hours(r.restMinutes))} hours between days · ${String(hours(r.weeklyMaxMinutes))} a week`}
           onPress={() => {
             setOpen('limits');
           }}
         />
         <Rule
-          label="Overtime"
+          label={tr('timeoff.settings.overtime', 'Overtime')}
           value={`Manager approves · ${BECOMES[r.overtime.becomes]} at ×${r.overtime.multiplier}`}
           onPress={() => {
             setOpen('overtime');
@@ -1631,12 +1851,19 @@ function Attendance(): React.JSX.Element {
         />
       </Rules>
       {open === 'week' ? (
-        <RuleDialog title="Working week" busy={busy !== null} onClose={close} onSave={saveWeek}>
+        <RuleDialog
+          title={tr('timeoff.settings.working_week', 'Working week')}
+          busy={busy !== null}
+          onClose={close}
+          onSave={saveWeek}
+        >
           <Text variant="footnote" tone="muted">
-            Anyone without a schedule of their own works this week. Interviews are only offered
-            inside it.
+            {tr(
+              'timeoff.settings.anyone_without_a_schedule_of_their',
+              'Anyone without a schedule of their own works this week. Interviews are only offered inside it.',
+            )}
           </Text>
-          {DAY_NAMES.map((name, i) => {
+          {DAY_NAMES().map((name, i) => {
             const day = String(i + 1);
             const d = w[day];
             return (
@@ -1646,7 +1873,11 @@ function Attendance(): React.JSX.Element {
                   trailing={
                     <Switch
                       checked={d !== undefined}
-                      accessibilityLabel={`${name} is a working day`}
+                      accessibilityLabel={tr(
+                        'timeoff.settings.is_a_working_day',
+                        '{{name}} is a working day',
+                        { name },
+                      )}
                       onCheckedChange={(on) => {
                         putDay(
                           day,
@@ -1662,7 +1893,7 @@ function Attendance(): React.JSX.Element {
                   <View className="flex-row gap-2">
                     <View className="flex-1">
                       <TimePicker
-                        label={`${name} starts`}
+                        label={tr('timeoff.settings.starts', '{{name}} starts', { name })}
                         size="sm"
                         value={hhmm(d.start)}
                         onChange={(t) => {
@@ -1672,7 +1903,7 @@ function Attendance(): React.JSX.Element {
                     </View>
                     <View className="flex-1">
                       <TimePicker
-                        label={`${name} ends`}
+                        label={tr('timeoff.settings.ends', '{{name}} ends', { name })}
                         size="sm"
                         value={hhmm(d.end)}
                         onChange={(t) => {
@@ -1685,13 +1916,25 @@ function Attendance(): React.JSX.Element {
               </View>
             );
           })}
-          {weekWrong ? <Alert tone="danger">Each working day ends after it starts.</Alert> : null}
+          {weekWrong ? (
+            <Alert tone="danger">
+              {tr(
+                'timeoff.settings.each_working_day_ends_after_it',
+                'Each working day ends after it starts.',
+              )}
+            </Alert>
+          ) : null}
         </RuleDialog>
       ) : null}
       {open === 'breaks' ? (
-        <RuleDialog title="Breaks" busy={busy !== null} onClose={close} onSave={save}>
+        <RuleDialog
+          title={tr('timeoff.settings.breaks', 'Breaks')}
+          busy={busy !== null}
+          onClose={close}
+          onSave={save}
+        >
           <NumberField
-            label="Break after (hours)"
+            label={tr('timeoff.settings.break_after_hours', 'Break after (hours)')}
             size="sm"
             min={0}
             max={24}
@@ -1702,7 +1945,7 @@ function Attendance(): React.JSX.Element {
             }}
           />
           <NumberField
-            label="Break length (minutes)"
+            label={tr('timeoff.settings.break_length_minutes', 'Break length (minutes)')}
             size="sm"
             min={0}
             max={240}
@@ -1715,13 +1958,13 @@ function Attendance(): React.JSX.Element {
       ) : null}
       {open === 'limits' ? (
         <RuleDialog
-          title="Rest and weekly limit"
+          title={tr('timeoff.settings.rest_and_weekly_limit', 'Rest and weekly limit')}
           busy={busy !== null}
           onClose={close}
           onSave={save}
         >
           <NumberField
-            label="Rest between days (hours)"
+            label={tr('timeoff.settings.rest_between_days_hours', 'Rest between days (hours)')}
             size="sm"
             min={0}
             max={24}
@@ -1732,7 +1975,7 @@ function Attendance(): React.JSX.Element {
             }}
           />
           <NumberField
-            label="Weekly maximum (hours)"
+            label={tr('timeoff.settings.weekly_maximum_hours', 'Weekly maximum (hours)')}
             size="sm"
             min={0}
             max={80}
@@ -1745,15 +1988,25 @@ function Attendance(): React.JSX.Element {
         </RuleDialog>
       ) : null}
       {open === 'offices' ? (
-        <RuleDialog title="Offices" busy={busy !== null} onClose={close} onSave={save}>
+        <RuleDialog
+          title={tr('timeoff.settings.offices', 'Offices')}
+          busy={busy !== null}
+          onClose={close}
+          onSave={save}
+        >
           <Text variant="footnote" tone="muted">
-            Stand in the office and add it. A clock-in within the distance counts as there.
+            {tr(
+              'timeoff.settings.stand_in_the_office_and_add',
+              'Stand in the office and add it. A clock-in within the distance counts as there.',
+            )}
           </Text>
           {r.offices.map((o, i) => (
             <ListItem
               key={`${o.name}-${String(i)}`}
               listitem={false}
-              description={`Within ${String(o.radiusMetres)} m`}
+              description={tr('timeoff.settings.within_m', 'Within {{String}} m', {
+                String: String(o.radiusMetres),
+              })}
               trailing={
                 <Button
                   size="xs"
@@ -1762,7 +2015,7 @@ function Attendance(): React.JSX.Element {
                     set({ offices: r.offices.filter((_, j) => j !== i) });
                   }}
                 >
-                  Remove
+                  {tr('timeoff.settings.remove', 'Remove')}
                 </Button>
               }
             >
@@ -1770,12 +2023,12 @@ function Attendance(): React.JSX.Element {
             </ListItem>
           ))}
           <Field>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('timeoff.settings.name', 'Name')}</FieldLabel>
             <FieldControl>
               <Input
                 size="sm"
                 value={office.name}
-                placeholder="Madrid office"
+                placeholder={tr('timeoff.settings.madrid_office', 'Madrid office')}
                 onChange={(name) => {
                   setOffice({ ...office, name });
                 }}
@@ -1783,7 +2036,7 @@ function Attendance(): React.JSX.Element {
             </FieldControl>
           </Field>
           <NumberField
-            label="Counts within (metres)"
+            label={tr('timeoff.settings.counts_within_metres', 'Counts within (metres)')}
             size="sm"
             min={25}
             max={5000}
@@ -1795,32 +2048,43 @@ function Attendance(): React.JSX.Element {
           />
           {locating === null ? null : <Alert tone="warning">{locating}</Alert>}
           <Button disabled={office.name.trim() === ''} onPress={addHere}>
-            Add where you are now
+            {tr('timeoff.settings.add_where_you_are_now', 'Add where you are now')}
           </Button>
         </RuleDialog>
       ) : null}
       {open === 'overtime' ? (
-        <RuleDialog title="Overtime" busy={busy !== null} onClose={close} onSave={save}>
+        <RuleDialog
+          title={tr('timeoff.settings.overtime', 'Overtime')}
+          busy={busy !== null}
+          onClose={close}
+          onSave={save}
+        >
           <Field>
-            <FieldLabel>Overtime becomes</FieldLabel>
+            <FieldLabel>{tr('timeoff.settings.overtime_becomes', 'Overtime becomes')}</FieldLabel>
             <SegmentedControl
               fullWidth
               size="sm"
               value={r.overtime.becomes}
-              accessibilityLabel="Overtime becomes"
+              accessibilityLabel={tr('timeoff.settings.overtime_becomes', 'Overtime becomes')}
               onValueChange={(v) => {
                 set({
                   overtime: { ...r.overtime, becomes: v as AttendanceRules['overtime']['becomes'] },
                 });
               }}
             >
-              <SegmentedControlItem value="comp">Comp time</SegmentedControlItem>
-              <SegmentedControlItem value="paid">Pay</SegmentedControlItem>
-              <SegmentedControlItem value="choose">Manager chooses</SegmentedControlItem>
+              <SegmentedControlItem value="comp">
+                {tr('timeoff.settings.comp_time', 'Comp time')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="paid">
+                {tr('timeoff.settings.pay', 'Pay')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="choose">
+                {tr('timeoff.settings.manager_chooses', 'Manager chooses')}
+              </SegmentedControlItem>
             </SegmentedControl>
           </Field>
           <NumberField
-            label="Paid at (×)"
+            label={tr('timeoff.settings.paid_at', 'Paid at (×)')}
             size="sm"
             min={1}
             max={3}
@@ -1876,7 +2140,7 @@ function Holidays(): React.JSX.Element {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading" />
+      <Loading label={tr('timeoff.settings.loading', 'Loading')} />
     );
   }
   const d = load.data;
@@ -1896,7 +2160,7 @@ function Holidays(): React.JSX.Element {
           type="single"
           value={place?.locationKey ?? ''}
           onValueChange={setLoc}
-          accessibilityLabel="Location"
+          accessibilityLabel={tr('timeoff.settings.location', 'Location')}
           scroll
         >
           {d.locations.map((l) => (
@@ -1909,7 +2173,7 @@ function Holidays(): React.JSX.Element {
       <SegmentedControl
         value={String(year)}
         size="sm"
-        accessibilityLabel="Year"
+        accessibilityLabel={tr('timeoff.settings.year', 'Year')}
         onValueChange={(y) => {
           setYear(Number(y));
         }}
@@ -1921,7 +2185,13 @@ function Holidays(): React.JSX.Element {
         ))}
       </SegmentedControl>
       {place === undefined ? null : place.holidays.length === 0 ? (
-        <Text tone="muted">{`No holidays for ${place.locationKey} in ${String(year)} yet.`}</Text>
+        <Text tone="muted">
+          {tr(
+            'timeoff.settings.no_holidays_for_in_yet',
+            'No holidays for {{locationKey}} in {{String}} yet.',
+            { locationKey: place.locationKey, String: String(year) },
+          )}
+        </Text>
       ) : (
         <List>
           {place.holidays.map((h) => (
@@ -1949,11 +2219,11 @@ function Holidays(): React.JSX.Element {
           setAddingDay(true);
         }}
       >
-        Add a company day off
+        {tr('timeoff.settings.add_a_company_day_off', 'Add a company day off')}
       </Button>
       {addingDay && place !== undefined ? (
         <RuleDialog
-          title="A company day off"
+          title={tr('timeoff.settings.a_company_day_off', 'A company day off')}
           busy={busy !== null}
           onClose={() => {
             setAddingDay(false);
@@ -1965,7 +2235,7 @@ function Holidays(): React.JSX.Element {
               const saved = await act('SaveTimeOffHolidayCalendar', {
                 calendarKey: 'company-days',
                 input: {
-                  name: own?.name ?? 'Company days off',
+                  name: own?.name ?? tr('timeoff.settings.company_days_off', 'Company days off'),
                   level: own?.level ?? 'city',
                   weekendRule: own?.weekendRule ?? 'none',
                   holidays: [...(own?.holidays ?? []), { date: dayOff, name: dayName.trim() }].sort(
@@ -1989,23 +2259,32 @@ function Holidays(): React.JSX.Element {
           }}
         >
           <Field>
-            <FieldLabel>Day</FieldLabel>
-            <DatePicker label="Day" size="sm" value={dayOff} onChange={setDayOff} />
+            <FieldLabel>{tr('timeoff.settings.day', 'Day')}</FieldLabel>
+            <DatePicker
+              label={tr('timeoff.settings.day', 'Day')}
+              size="sm"
+              value={dayOff}
+              onChange={setDayOff}
+            />
           </Field>
           <Field>
-            <FieldLabel>What it is</FieldLabel>
+            <FieldLabel>{tr('timeoff.settings.what_it_is', 'What it is')}</FieldLabel>
             <Input
               value={dayName}
               onChange={setDayName}
               size="sm"
-              placeholder="Company anniversary"
+              placeholder={tr('timeoff.settings.company_anniversary', 'Company anniversary')}
             />
           </Field>
         </RuleDialog>
       ) : null}
       {place === undefined ? null : (
         <>
-          <Heading title={`Calendars ${place.locationKey} keeps`} />
+          <Heading
+            title={tr('timeoff.settings.calendars_keeps', 'Calendars {{locationKey}} keeps', {
+              locationKey: place.locationKey,
+            })}
+          />
           <View className="flex-row flex-wrap gap-2">
             {d.layers.map((layer) => {
               const on = place.layerKeys.includes(layer.key);
@@ -2032,19 +2311,25 @@ function Holidays(): React.JSX.Element {
         </>
       )}
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Calendars
+        {tr('timeoff.settings.calendars', 'Calendars')}
       </Text>
       <List>
         {d.layers.map((layer) => (
           <ListItem
             key={layer.key}
-            description={`${layer.level} · ${String(layer.holidays.length)} days${layer.weekendRule === 'move_to_monday' ? ' · weekend days move to Monday' : ''}`}
+            description={tr('timeoff.settings.days', '{{level}} · {{String}} days{{value}}', {
+              level: layer.level,
+              String: String(layer.holidays.length),
+              value: layer.weekendRule === 'move_to_monday' ? ' · weekend days move to Monday' : '',
+            })}
             trailing={
               <Button
                 size="sm"
                 variant="ghost"
                 startIcon={<Icon icon={Trash2} />}
-                accessibilityLabel={`Remove ${layer.name}`}
+                accessibilityLabel={tr('timeoff.settings.remove_2', 'Remove {{name}}', {
+                  name: layer.name,
+                })}
                 onPress={() => {
                   void act(
                     'RemoveTimeOffHolidayCalendar',
@@ -2061,10 +2346,18 @@ function Holidays(): React.JSX.Element {
       </List>
       <Card>
         <Stack gap={2}>
-          <CardTitle>{`Draft a year from the official list`}</CardTitle>
+          <CardTitle>
+            {tr(
+              'timeoff.settings.draft_a_year_from_the_official',
+              'Draft a year from the official list',
+            )}
+          </CardTitle>
           <Select value={layerKey} onValueChange={setLayerKey}>
-            <SelectTrigger size="sm" accessibilityLabel="Calendar">
-              <SelectValue placeholder="Which calendar" />
+            <SelectTrigger
+              size="sm"
+              accessibilityLabel={tr('timeoff.settings.calendar', 'Calendar')}
+            >
+              <SelectValue placeholder={tr('timeoff.settings.which_calendar', 'Which calendar')} />
             </SelectTrigger>
             <SelectContent>
               {d.layers.map((l) => (
@@ -2074,17 +2367,21 @@ function Holidays(): React.JSX.Element {
               ))}
             </SelectContent>
           </Select>
-          <Textarea value={source} onChange={setSource} placeholder="Paste the official list" />
+          <Textarea
+            value={source}
+            onChange={setSource}
+            placeholder={tr('timeoff.settings.paste_the_official_list', 'Paste the official list')}
+          />
           <Button
             disabled={layerKey === '' || source.trim() === ''}
             onPress={() => {
               setDrafting({ layerKey, source: source.slice(0, 4000) });
             }}
           >
-            Draft it
+            {tr('timeoff.settings.draft_it', 'Draft it')}
           </Button>
           {drafting === null ? null : draft.load.status === 'loading' ? (
-            <Loading label="Drafting" />
+            <Loading label={tr('timeoff.settings.drafting', 'Drafting')} />
           ) : draft.load.status === 'error' ? (
             <Alert tone="danger">{draft.load.message}</Alert>
           ) : draft.load.data === null ? null : (
@@ -2098,7 +2395,7 @@ function Holidays(): React.JSX.Element {
                     trailing={
                       day.confirmed ? undefined : (
                         <Badge size="sm" tone="warning">
-                          Not confirmed
+                          {tr('timeoff.settings.not_confirmed', 'Not confirmed')}
                         </Badge>
                       )
                     }
@@ -2132,7 +2429,7 @@ function Holidays(): React.JSX.Element {
                         ].sort((p, q) => p.date.localeCompare(q.date)),
                       },
                     },
-                    'Calendar saved',
+                    tr('timeoff.settings.calendar_saved', 'Calendar saved'),
                   ).then(() => {
                     setDrafting(null);
                     setSource('');
@@ -2140,7 +2437,7 @@ function Holidays(): React.JSX.Element {
                   });
                 }}
               >
-                Save the confirmed days
+                {tr('timeoff.settings.save_the_confirmed_days', 'Save the confirmed days')}
               </Button>
             </>
           )}
@@ -2169,12 +2466,12 @@ interface Integrations {
   readonly locations: readonly { locationKey: string; name: string }[];
 }
 
-const PROVIDER: Record<string, string> = {
-  google: 'Google Calendar',
-  microsoft: 'Microsoft 365',
-  slack: 'Slack',
-  teams: 'Microsoft Teams',
-};
+const PROVIDER = (): Record<string, string> => ({
+  google: tr('timeoff.settings.google_calendar', 'Google Calendar'),
+  microsoft: tr('timeoff.settings.microsoft_365', 'Microsoft 365'),
+  slack: tr('timeoff.settings.slack', 'Slack'),
+  teams: tr('timeoff.settings.microsoft_teams', 'Microsoft Teams'),
+});
 
 function Integrations(): React.JSX.Element {
   const signed = useSigned();
@@ -2186,7 +2483,7 @@ function Integrations(): React.JSX.Element {
     return load.status === 'error' ? (
       <Failed message={load.message} onRetry={reload} />
     ) : (
-      <Loading label="Loading" />
+      <Loading label={tr('timeoff.settings.loading', 'Loading')} />
     );
   }
   const d = load.data;
@@ -2199,10 +2496,15 @@ function Integrations(): React.JSX.Element {
             icon={Plug}
             description={
               i.connected
-                ? `Connected${i.account === null ? '' : ` · ${i.account}`}`
+                ? tr('timeoff.settings.connected', 'Connected{{value}}', {
+                    value: i.account === null ? '' : ` · ${i.account}`,
+                  })
                 : i.available
-                  ? 'Not connected'
-                  : 'Not set up in this deployment'
+                  ? tr('timeoff.settings.not_connected', 'Not connected')
+                  : tr(
+                      'timeoff.settings.not_set_up_in_this_deployment',
+                      'Not set up in this deployment',
+                    )
             }
             trailing={
               i.connected ? (
@@ -2217,7 +2519,7 @@ function Integrations(): React.JSX.Element {
                     ).then(reload);
                   }}
                 >
-                  Disconnect
+                  {tr('timeoff.settings.disconnect', 'Disconnect')}
                 </Button>
               ) : (
                 <Button
@@ -2234,31 +2536,46 @@ function Integrations(): React.JSX.Element {
                     });
                   }}
                 >
-                  Connect
+                  {tr('timeoff.settings.connect', 'Connect')}
                 </Button>
               )
             }
           >
-            {PROVIDER[i.provider] ?? i.provider}
+            {PROVIDER()[i.provider] ?? i.provider}
           </ListItem>
         ))}
       </List>
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Kiosks at the door
+        {tr('timeoff.settings.kiosks_at_the_door', 'Kiosks at the door')}
       </Text>
       {token === null ? null : (
-        <Alert tone="warning" title="Copy the kiosk’s code now">
+        <Alert
+          tone="warning"
+          title={tr('timeoff.settings.copy_the_kiosks_code_now', 'Copy the kiosk’s code now')}
+        >
           <Stack gap={2}>
-            <Text>It is shown once. Enter it on the kiosk to pair it.</Text>
-            <CopyField value={token} label="Copy the kiosk code" mono />
+            <Text>
+              {tr(
+                'timeoff.settings.it_is_shown_once_enter_it',
+                'It is shown once. Enter it on the kiosk to pair it.',
+              )}
+            </Text>
+            <CopyField
+              value={token}
+              label={tr('timeoff.settings.copy_the_kiosk_code', 'Copy the kiosk code')}
+              mono
+            />
           </Stack>
         </Alert>
       )}
       {d.kiosks.length === 0 ? (
         <EmptyState
           icon={Monitor}
-          title="No kiosks"
-          description="A tablet at the door people clock in on."
+          title={tr('timeoff.settings.no_kiosks', 'No kiosks')}
+          description={tr(
+            'timeoff.settings.a_tablet_at_the_door_people',
+            'A tablet at the door people clock in on.',
+          )}
         />
       ) : (
         <List>
@@ -2286,7 +2603,7 @@ function Integrations(): React.JSX.Element {
                           );
                         }}
                       >
-                        Revoke
+                        {tr('timeoff.settings.revoke', 'Revoke')}
                       </Button>
                     ),
                   }
@@ -2303,7 +2620,7 @@ function Integrations(): React.JSX.Element {
           setRegistering(true);
         }}
       >
-        Add a kiosk
+        {tr('timeoff.settings.add_a_kiosk', 'Add a kiosk')}
       </Button>
       {registering ? (
         <RegisterKiosk
@@ -2343,17 +2660,30 @@ function RegisterKiosk({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a kiosk</DialogTitle>
-          <DialogDescription>Its code is shown once, to pair the tablet.</DialogDescription>
+          <DialogTitle>{tr('timeoff.settings.add_a_kiosk', 'Add a kiosk')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'timeoff.settings.its_code_is_shown_once_to',
+              'Its code is shown once, to pair the tablet.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field required>
-            <FieldLabel>Name</FieldLabel>
-            <Input value={name} onChange={setName} size="sm" placeholder="Madrid front door" />
+            <FieldLabel>{tr('timeoff.settings.name', 'Name')}</FieldLabel>
+            <Input
+              value={name}
+              onChange={setName}
+              size="sm"
+              placeholder={tr('timeoff.settings.madrid_front_door', 'Madrid front door')}
+            />
           </Field>
           <Select value={location} onValueChange={setLocation}>
-            <SelectTrigger size="sm" accessibilityLabel="Location">
-              <SelectValue placeholder="Where it is" />
+            <SelectTrigger
+              size="sm"
+              accessibilityLabel={tr('timeoff.settings.location', 'Location')}
+            >
+              <SelectValue placeholder={tr('timeoff.settings.where_it_is', 'Where it is')} />
             </SelectTrigger>
             <SelectContent>
               {locations.map((l) => (
@@ -2366,7 +2696,7 @@ function RegisterKiosk({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('timeoff.settings.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -2381,7 +2711,7 @@ function RegisterKiosk({
               });
             }}
           >
-            Add
+            {tr('timeoff.settings.add', 'Add')}
           </Button>
         </DialogFooter>
       </DialogContent>

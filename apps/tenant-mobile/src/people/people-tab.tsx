@@ -63,6 +63,7 @@ import {
   SaveViewDialog,
   type Plan,
 } from './smart-search';
+import { t } from '../i18n';
 
 /** One page of `peopleDirectory`, as much of it as the phone draws. */
 export interface DirectoryPage {
@@ -138,7 +139,12 @@ interface Asked {
   readonly refused: Plan['refused'];
 }
 
-const peopleCount = (n: number): string => `${String(n)} ${n === 1 ? 'person' : 'people'}`;
+const peopleCount = (n: number): string =>
+  t(
+    'people.people-tab.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 
 export const STATUS_TONE: Record<string, 'success' | 'neutral' | 'warning' | 'info'> = {
   Active: 'success',
@@ -221,7 +227,10 @@ function OrgTree({
     () => (org.load.status === 'ready' ? orgTree(org.load.data.people).map(nodeOf) : []),
     [org.load],
   );
-  if (org.load.status === 'loading') return <Loading label="Loading the org chart" />;
+  if (org.load.status === 'loading')
+    return (
+      <Loading label={t('people.people-tab.loading_the_org_chart', 'Loading the org chart')} />
+    );
   if (org.load.status === 'error')
     return <Failed message={org.load.message} onRetry={org.reload} />;
   const people = org.load.data.people;
@@ -230,7 +239,7 @@ function OrgTree({
       <Card padded={false} className="overflow-hidden py-1">
         <TreeView
           items={tree}
-          label="Org chart"
+          label={t('people.people-tab.org_chart', 'Org chart')}
           defaultExpanded={tree.map((n) => n.id)}
           {...(myId === null ? {} : { defaultSelected: myId })}
           onSelectedChange={(id) => {
@@ -240,7 +249,10 @@ function OrgTree({
       </Card>
       {org.load.data.truncated ? (
         <Text variant="footnote" tone="muted">
-          Only part of the company is shown here. Search for anybody not in it.
+          {t(
+            'people.people-tab.only_part_of_the_company_is',
+            'Only part of the company is shown here. Search for anybody not in it.',
+          )}
         </Text>
       ) : null}
     </>
@@ -398,7 +410,12 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
     const got = await planOf(signed, text);
     setReading(false);
     if (!got.ok) {
-      setUnread(`“${text}” could not be read: ${got.message}`);
+      setUnread(
+        t('people.people-tab.could_not_be_read', '“{{text}}” could not be read: {{message}}', {
+          text,
+          message: got.message,
+        }),
+      );
       return;
     }
     const plan = got.plan;
@@ -440,7 +457,11 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         ...plan.notes,
         plan.remembered === null
           ? null
-          : `Read “${plan.remembered.phrase}” as ${plan.remembered.label.toLowerCase()}, as you chose before.`,
+          : t(
+              'people.people-tab.read_as_as_you_chose_before',
+              'Read “{{phrase}}” as {{toLowerCase}}, as you chose before.',
+              { phrase: plan.remembered.phrase, toLowerCase: plan.remembered.label.toLowerCase() },
+            ),
       ].filter((n): n is string => n !== null),
       ask: plan.ask,
       refused: plan.refused,
@@ -513,7 +534,15 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         const done = parsed(data) as { asked: number; more: boolean } | null;
         return done === null
           ? 'Reminded'
-          : `Asked ${peopleCount(done.asked)} for their ${what}.${done.more ? ' That is the first 500; remind again for the rest.' : ''}`;
+          : t(
+              'people.people-tab.asked_for_their',
+              'Asked {{peopleCount}} for their {{what}}.{{value}}',
+              {
+                peopleCount: peopleCount(done.asked),
+                what,
+                value: done.more ? ' That is the first 500; remind again for the rest.' : '',
+              },
+            );
       },
     );
   };
@@ -536,14 +565,21 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         onSearch={(value) => void askIt(value)}
         placeholder={
           page === null || !bare
-            ? 'Search people, or ask'
-            : `Search ${String(page.total)} people, or ask`
+            ? t('people.people-tab.search_people_or_ask', 'Search people, or ask')
+            : t('people.people-tab.search_people_or_ask_2', 'Search {{String}} people, or ask', {
+                String: String(page.total),
+              })
         }
-        label="Search people, or ask a question"
+        label={t(
+          'people.people-tab.search_people_or_ask_a_question',
+          'Search people, or ask a question',
+        )}
       />
-      {reading ? <Loading label="Reading the question" /> : null}
+      {reading ? (
+        <Loading label={t('people.people-tab.reading_the_question', 'Reading the question')} />
+      ) : null}
       {unread === null ? null : (
-        <Alert tone="danger" title="Not understood">
+        <Alert tone="danger" title={t('people.people-tab.not_understood', 'Not understood')}>
           {unread}
         </Alert>
       )}
@@ -601,7 +637,11 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                   <Icon icon={Sparkles} size={15} tone="on-accent" />
                 </View>
                 <Text variant="headline" className="flex-1">
-                  {page.total === 0 ? 'Nobody matches' : `${peopleCount(page.total)} match`}
+                  {page.total === 0
+                    ? t('people.people-tab.nobody_matches', 'Nobody matches')
+                    : t('people.people-tab.match', '{{peopleCount}} match', {
+                        peopleCount: peopleCount(page.total),
+                      })}
                 </Text>
               </View>
               {rows.slice(0, 3).map((p) => (
@@ -617,7 +657,11 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                     ? {}
                     : {
                         trailing: (
-                          <Badge size="sm" tone="warning">{`${String(p.missing)} missing`}</Badge>
+                          <Badge size="sm" tone="warning">
+                            {t('people.people-tab.missing', '{{String}} missing', {
+                              String: String(p.missing),
+                            })}
+                          </Badge>
                         ),
                       })}
                   onPress={() => {
@@ -635,7 +679,11 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                     loading={busy === 'RemindDirectory'}
                     onPress={remindAll}
                   >
-                    {page.total === 2 ? 'Remind both' : `Remind ${String(page.total)}`}
+                    {page.total === 2
+                      ? t('people.people-tab.remind_both', 'Remind both')
+                      : t('people.people-tab.remind', 'Remind {{String}}', {
+                          String: String(page.total),
+                        })}
                   </Button>
                 ) : null}
                 <Button
@@ -645,7 +693,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                     setAnswerShown(false);
                   }}
                 >
-                  Open as a list
+                  {t('people.people-tab.open_as_a_list', 'Open as a list')}
                 </Button>
               </View>
             </Card>
@@ -661,7 +709,9 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
               onPress={() => {
                 setQuery(VIEWS['starting'] ?? EVERYONE);
               }}
-              accessibilityLabel={`${startersTitle(starters)}: show them`}
+              accessibilityLabel={t('people.people-tab.show_them', '{{startersTitle}}: show them', {
+                startersTitle: startersTitle(starters),
+              })}
             >
               <View className="flex-row items-center gap-3">
                 <AvatarGroup size={36} max={2}>
@@ -689,24 +739,40 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
               {figures.headcount === null ? null : (
                 <Stat
                   className="flex-1"
-                  label="People"
+                  label={t('people.people-tab.people', 'People')}
                   value={figures.headcount.value.toLocaleString('en-GB')}
                   size={26}
                   {...(figures.headcount.change === null || figures.headcount.change === 0
                     ? {}
                     : {
-                        description: `${figures.headcount.change > 0 ? '+' : ''}${String(figures.headcount.change)} since last month`,
+                        description: t(
+                          'people.people-tab.since_last_month',
+                          '{{value}}{{String}} since last month',
+                          {
+                            value: figures.headcount.change > 0 ? '+' : '',
+                            String: String(figures.headcount.change),
+                          },
+                        ),
                       })}
                 />
               )}
               {figures.complete === null ? null : (
                 <Stat
                   className="flex-1"
-                  label="Complete"
+                  label={t('people.people-tab.complete', 'Complete')}
                   value={String(figures.complete.percent)}
                   unit="%"
                   size={26}
-                  description={`${peopleCount(figures.complete.incomplete).replace(/people|person/u, (w) => (w === 'person' ? 'record' : 'records'))} missing details`}
+                  description={t(
+                    'people.people-tab.missing_details',
+                    '{{replace}} missing details',
+                    {
+                      replace: peopleCount(figures.complete.incomplete).replace(
+                        /people|person/u,
+                        (w) => (w === 'person' ? 'record' : 'records'),
+                      ),
+                    },
+                  )}
                 />
               )}
             </View>
@@ -718,18 +784,22 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         <>
           <View className="flex-row items-center justify-between gap-3 px-1 pt-2">
             <Text variant="title3" weight="bold" accessibilityRole="header">
-              Everyone
+              {t('people.people-tab.everyone', 'Everyone')}
             </Text>
             <SegmentedControl
               value={shape}
               size="sm"
-              accessibilityLabel="Show people as"
+              accessibilityLabel={t('people.people-tab.show_people_as', 'Show people as')}
               onValueChange={(value) => {
                 setShape(value === 'org' ? 'org' : 'list');
               }}
             >
-              <SegmentedControlItem value="list">List</SegmentedControlItem>
-              <SegmentedControlItem value="org">Org chart</SegmentedControlItem>
+              <SegmentedControlItem value="list">
+                {t('people.people-tab.list', 'List')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="org">
+                {t('people.people-tab.org_chart', 'Org chart')}
+              </SegmentedControlItem>
             </SegmentedControl>
           </View>
           {shape === 'org' ? null : (
@@ -748,18 +818,23 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                           : (VIEWS[value] ?? EVERYONE),
                     );
                   }}
-                  accessibilityLabel="Views"
+                  accessibilityLabel={t('people.people-tab.views', 'Views')}
                   scroll
                 >
                   <ChipGroupItem value="everyone">
                     {label('All', view === 'everyone' && search === '' ? page?.total : null)}
                   </ChipGroupItem>
                   {team !== null && managerFilter ? (
-                    <ChipGroupItem value="team">My team</ChipGroupItem>
+                    <ChipGroupItem value="team">
+                      {t('people.people-tab.my_team', 'My team')}
+                    </ChipGroupItem>
                   ) : null}
                   {statuses ? (
                     <ChipGroupItem value="starting">
-                      {label('Starting soon', bare ? page?.notStarted : null)}
+                      {label(
+                        t('people.people-tab.starting_soon', 'Starting soon'),
+                        bare ? page?.notStarted : null,
+                      )}
                     </ChipGroupItem>
                   ) : null}
                   {statuses ? (
@@ -784,7 +859,10 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                   size="sm"
                   variant="ghost"
                   startIcon={<Icon icon={ListChecks} />}
-                  accessibilityLabel="Choose people to edit together"
+                  accessibilityLabel={t(
+                    'people.people-tab.choose_people_to_edit_together',
+                    'Choose people to edit together',
+                  )}
                   onPress={() => {
                     setPicked((p) => (p === null ? [] : null));
                   }}
@@ -795,7 +873,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                   size="sm"
                   variant="ghost"
                   startIcon={<Icon icon={SlidersHorizontal} />}
-                  accessibilityLabel="Filter people"
+                  accessibilityLabel={t('people.people-tab.filter_people', 'Filter people')}
                   onPress={() => {
                     setFiltering('chips');
                   }}
@@ -830,16 +908,24 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
   const menu = (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button size="sm" startIcon={<Icon icon={Ellipsis} />} accessibilityLabel="More" />
+        <Button
+          size="sm"
+          startIcon={<Icon icon={Ellipsis} />}
+          accessibilityLabel={t('people.people-tab.more', 'More')}
+        />
       </DropdownMenuTrigger>
-      <DropdownMenuContent label="People" align="end" className="w-[300px]">
+      <DropdownMenuContent
+        label={t('people.people-tab.people', 'People')}
+        align="end"
+        className="w-[300px]"
+      >
         <DropdownMenuItem
           icon={UserPlus}
           onSelect={() => {
             setAdding(true);
           }}
         >
-          Add a person
+          {t('people.people-tab.add_a_person', 'Add a person')}
         </DropdownMenuItem>
         <DropdownMenuItem
           icon={Upload}
@@ -847,7 +933,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             setMoving('import');
           }}
         >
-          Import from a spreadsheet
+          {t('people.people-tab.import_from_a_spreadsheet', 'Import from a spreadsheet')}
         </DropdownMenuItem>
         <DropdownMenuItem
           icon={Download}
@@ -855,7 +941,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             setMoving('export');
           }}
         >
-          Export
+          {t('people.people-tab.export', 'Export')}
         </DropdownMenuItem>
         <DropdownMenuItem
           icon={ChartColumn}
@@ -863,32 +949,40 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             navigation.navigate('Insights');
           }}
         >
-          Insights and reports
+          {t('people.people-tab.insights_and_reports', 'Insights and reports')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           icon={Copy}
           {...((waiting['duplicates'] ?? 0) > 0
-            ? { description: `${String(waiting['duplicates'])} to check` }
+            ? {
+                description: t('people.people-tab.to_check', '{{String}} to check', {
+                  String: String(waiting['duplicates']),
+                }),
+              }
             : {})}
           onSelect={() => {
             navigation.navigate('Review', { kind: 'duplicates' });
           }}
         >
-          Duplicate records
+          {t('people.people-tab.duplicate_records', 'Duplicate records')}
         </DropdownMenuItem>
         <DropdownMenuItem
           icon={ShieldCheck}
           {...((waiting['accessRequests'] ?? 0) > 0
             ? {
-                description: `${String(waiting['accessRequests'])} ${waiting['accessRequests'] === 1 ? 'request' : 'requests'}`,
+                description: t(
+                  'people.people-tab.requests',
+                  { one: '{{count}} request', other: '{{count}} requests' },
+                  { count: waiting['accessRequests'] },
+                ),
               }
             : {})}
           onSelect={() => {
             navigation.navigate('Review', { kind: 'access' });
           }}
         >
-          Sensitive data access
+          {t('people.people-tab.sensitive_data_access', 'Sensitive data access')}
         </DropdownMenuItem>
         {admin ? (
           <>
@@ -899,7 +993,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                 navigation.navigate('Settings');
               }}
             >
-              People settings
+              {t('people.people-tab.people_settings', 'People settings')}
             </DropdownMenuItem>
           </>
         ) : null}
@@ -1009,7 +1103,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
         size="sm"
         variant="primary"
         startIcon={<Icon icon={UserPlus} tone="on-accent" />}
-        accessibilityLabel="Add a person"
+        accessibilityLabel={t('people.people-tab.add_a_person', 'Add a person')}
         onPress={() => {
           setAdding(true);
         }}
@@ -1026,7 +1120,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             setPicked(null);
           }}
         >
-          Cancel
+          {t('people.people-tab.cancel', 'Cancel')}
         </Button>
         <Button
           className="flex-1"
@@ -1037,7 +1131,7 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             setPicked(null);
           }}
         >
-          {`Edit ${String(picked.length)}`}
+          {t('people.people-tab.edit', 'Edit {{String}}', { String: String(picked.length) })}
         </Button>
       </>
     ) : undefined;
@@ -1078,11 +1172,13 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             header={
               <>
                 {header}
-                {page === null ? <Loading label="Loading people" /> : null}
+                {page === null ? (
+                  <Loading label={t('people.people-tab.loading_people', 'Loading people')} />
+                ) : null}
               </>
             }
             items={page === null ? [] : rows}
-            label="People"
+            label={t('people.people-tab.people', 'People')}
             height={height}
             itemKey={(person) => person.id}
             onEndReached={() => void next()}
@@ -1091,8 +1187,11 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
             empty={
               page === null ? null : (
                 <EmptyState
-                  title="Nobody matches"
-                  description="Change the search or the view to see more people."
+                  title={t('people.people-tab.nobody_matches', 'Nobody matches')}
+                  description={t(
+                    'people.people-tab.change_the_search_or_the_view',
+                    'Change the search or the view to see more people.',
+                  )}
                 />
               )
             }
@@ -1106,7 +1205,9 @@ export function PeopleTab({ navigation, route }: PeopleScreen<'People'>): React.
                     picked !== null ? (
                       <Checkbox
                         checked={picked.includes(person.id)}
-                        accessibilityLabel={`Choose ${person.name}`}
+                        accessibilityLabel={t('people.people-tab.choose', 'Choose {{name}}', {
+                          name: person.name,
+                        })}
                         onCheckedChange={(on) => {
                           setPicked((p) =>
                             p === null

@@ -3835,6 +3835,194 @@
     "text": "Try again",
     "context": "Recruiting: jobs, candidates, interviews, offers. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./recruiting/agencies.label": {
+    "text": "Agencies",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/agencies): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/analytics.label": {
+    "text": "Analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/analytics): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/board.label": {
+    "text": "Internal board",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/board): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/candidates.description": {
+    "text": "Everyone who applied or was sourced, the pools they are kept in, the agencies who send them",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/candidates.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): the heading of the group it is listed under."
+  },
+  "nav./recruiting/candidates.label": {
+    "text": "Candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/candidates.summary": {
+    "text": "Candidates, pools, agencies",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/candidates): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/home.description": {
+    "text": "Your tasks and your jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/home.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): the heading of the group it is listed under."
+  },
+  "nav./recruiting/home.label": {
+    "text": "Home",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/home.summary": {
+    "text": "Tasks and jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/home): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/interviews.description": {
+    "text": "Interviews you run and the scorecards you owe",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/interviews.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): the heading of the group it is listed under."
+  },
+  "nav./recruiting/interviews.label": {
+    "text": "Interviews",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/interviews.summary": {
+    "text": "Interviews and scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/interviews): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/jobs.description": {
+    "text": "Every job: its pipeline and setup, the headcount behind it, how it performs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/jobs.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): the heading of the group it is listed under."
+  },
+  "nav./recruiting/jobs.label": {
+    "text": "Jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/jobs.summary": {
+    "text": "Jobs, requisitions, analytics",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/jobs): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/offers.description": {
+    "text": "Offers, their approvals, contracts and the conditions before a start",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): one sentence under its name in a menu or on a card."
+  },
+  "nav./recruiting/offers.group": {
+    "text": "Recruiting",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): the heading of the group it is listed under."
+  },
+  "nav./recruiting/offers.label": {
+    "text": "Offers",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/offers.summary": {
+    "text": "Offers and contracts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a section of the area (/recruiting/offers): a short line under its name on a phone’s row."
+  },
+  "nav./recruiting/pools.label": {
+    "text": "Talent pools",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Candidates (/recruiting/pools): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./recruiting/requisitions.label": {
+    "text": "Requisitions",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a tab of Jobs (/recruiting/requisitions): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/ai.description": {
+    "text": "What AI may help with in hiring, and what it never sees.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/ai.label": {
+    "text": "AI",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/benefits.description": {
+    "text": "What each entity offers, by category, statutory ones included.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/benefits): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/benefits.label": {
+    "text": "Benefits",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/benefits): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/careers.description": {
+    "text": "Your company's name, its page on Kithena Jobs, your own domain and where replies go.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/careers): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/careers.label": {
+    "text": "Careers page",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/careers): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/emails.description": {
+    "text": "What each moment sends, from a rejection to an offer letter.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/emails): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/emails.label": {
+    "text": "Emails and letters",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/emails): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/entities.description": {
+    "text": "Who employs, where people work, and the departments jobs sit in.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/entities): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/entities.label": {
+    "text": "Entities and locations",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/entities): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/integrations.description": {
+    "text": "Job boards, your website, your HR system and checks.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/integrations): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/integrations.label": {
+    "text": "Integrations",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/integrations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/pay.description": {
+    "text": "The range each grade pays; every offer is checked against it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pay): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/pay.label": {
+    "text": "Pay bands",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pay): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/pipelines.description": {
+    "text": "The steps candidates move through, and who approves jobs and offers.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pipelines): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/pipelines.label": {
+    "text": "Pipelines and approvals",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/pipelines): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/questionnaires.description": {
+    "text": "Questions on the apply form or at a step, with kind knockouts.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/questionnaires): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/questionnaires.label": {
+    "text": "Questionnaires",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/questionnaires): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/rules.description": {
+    "text": "Approving new jobs, internal applicants, referral bonuses and rejection reasons.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/rules): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/rules.label": {
+    "text": "Hiring rules",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/rules): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/recruiting/scorecards.description": {
+    "text": "What interviewers rate, on one four-point scale.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/scorecards): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/recruiting/scorecards.label": {
+    "text": "Scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. Navigation, a page of the area’s settings (/settings/recruiting/scorecards): its name in the sidebar, the breadcrumb and the menus."
+  },
   "offers.added_up_by_kithena": {
     "text": "Added up by Kithena",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <CardDescription>."

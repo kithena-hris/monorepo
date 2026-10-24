@@ -29,6 +29,7 @@ import {
 } from '../dropzone/files.ts';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { Progress } from '../progress/progress.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Documents, a row for each: its progress while it uploads, a Retry when it
@@ -124,8 +125,11 @@ export function FileUploader({
   value,
   onChange,
   pick,
-  label = 'Choose files',
-  hint = 'PDF, PNG or JPG, up to 10 MB',
+  label = t('components.file-uploader.file-uploader.choose_files', 'Choose files'),
+  hint = t(
+    'components.file-uploader.file-uploader.pdf_png_or_jpg_up_to',
+    'PDF, PNG or JPG, up to 10 MB',
+  ),
   accept,
   maxSize,
   maxFiles = Infinity,
@@ -163,7 +167,11 @@ export function FileUploader({
           ? {
               file,
               reason: 'count',
-              message: `${String(maxFiles)} files at most. Remove one to add another.`,
+              message: t(
+                'components.file-uploader.file-uploader.files_at_most_remove_one_to',
+                '{{String}} files at most. Remove one to add another.',
+                { String: String(maxFiles) },
+              ),
             }
           : null);
       const own = rejection ? null : (validate?.(file) ?? null);
@@ -214,8 +222,23 @@ export function FileUploader({
           pick={pick}
           onFiles={take}
           variant={compact || value.length ? 'inline' : 'panel'}
-          label={full ? `${String(kept.length)} of ${String(maxFiles)} files` : label}
-          hint={full ? 'Remove a file to add another.' : hint}
+          label={
+            full
+              ? t(
+                  'components.file-uploader.file-uploader.of_files',
+                  '{{String}} of {{String2}} files',
+                  { String: String(kept.length), String2: String(maxFiles) },
+                )
+              : label
+          }
+          hint={
+            full
+              ? t(
+                  'components.file-uploader.file-uploader.remove_a_file_to_add_another',
+                  'Remove a file to add another.',
+                )
+              : hint
+          }
           error={error}
           disabled={disabled || full}
         />
@@ -259,10 +282,12 @@ export function FileRow({
   const meta =
     item.meta ??
     (failed
-      ? (item.error ?? 'Upload failed.')
+      ? (item.error ?? t('components.file-uploader.file-uploader.upload_failed', 'Upload failed.'))
       : uploading
         ? progress === null
-          ? `Waiting · ${formatBytes(item.size)}`
+          ? t('components.file-uploader.file-uploader.waiting', 'Waiting · {{formatBytes}}', {
+              formatBytes: formatBytes(item.size),
+            })
           : `${formatBytes((item.size * progress) / 100)} of ${formatBytes(item.size)}`
         : `${typeName(item.type, name)} · ${formatBytes(item.size)}`);
   return (
@@ -294,7 +319,14 @@ export function FileRow({
           {middleTruncate(name, 30)}
         </CssText>
         {item.status === 'uploading' ? (
-          <Progress value={progress} label={`Uploading ${name}`} hideLabel thickness={6} />
+          <Progress
+            value={progress}
+            label={t('components.file-uploader.file-uploader.uploading', 'Uploading {{name}}', {
+              name,
+            })}
+            hideLabel
+            thickness={6}
+          />
         ) : null}
         <CssText
           {...(failed
@@ -311,12 +343,16 @@ export function FileRow({
           size="xs"
           disabled={disabled}
           startIcon={<Icon icon={RotateCw} />}
-          accessibilityLabel={`Retry ${name}`}
+          accessibilityLabel={t(
+            'components.file-uploader.file-uploader.retry_2',
+            'Retry {{name}}',
+            { name },
+          )}
           onPress={() => {
             onRetry(item);
           }}
         >
-          Retry
+          {t('components.file-uploader.file-uploader.retry', 'Retry')}
         </Button>
       ) : null}
       {(uploading || item.status === 'refused' || (item.status === 'error' && !onRetry)) &&
@@ -326,14 +362,27 @@ export function FileRow({
           size="xs"
           disabled={disabled}
           startIcon={<Icon icon={X} />}
-          accessibilityLabel={uploading ? `Stop uploading ${name}` : `Remove ${name}`}
+          accessibilityLabel={
+            uploading
+              ? t(
+                  'components.file-uploader.file-uploader.stop_uploading',
+                  'Stop uploading {{name}}',
+                  { name },
+                )
+              : t('components.file-uploader.file-uploader.remove', 'Remove {{name}}', { name })
+          }
           onPress={() => {
             onRemove(item);
           }}
         />
       ) : null}
       {item.status === 'done' ? (
-        <Icon icon={CircleCheck} size={18} tone="success" label="Uploaded" />
+        <Icon
+          icon={CircleCheck}
+          size={18}
+          tone="success"
+          label={t('components.file-uploader.file-uploader.uploaded', 'Uploaded')}
+        />
       ) : null}
     </View>
   );

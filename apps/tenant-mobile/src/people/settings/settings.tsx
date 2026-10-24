@@ -49,6 +49,7 @@ import type { Roles } from '../roles';
 import { AskedChange } from './field-sentence';
 import type { Registry } from './fields-model';
 import type { PeopleRoutes, PeopleScreen } from '../routes';
+import { t } from '../../i18n';
 
 /** What each of People's settings holds now, read before anybody opens one. */
 interface Overview {
@@ -98,10 +99,10 @@ const plural = (n: number, one: string, many = `${one}s`): string =>
 /** The changes People's settings make, as the log names them: its link from People's settings. */
 const PEOPLE_AREAS = ['fields', 'organisation', 'roles', 'integrations'];
 
-const LOOKS: readonly [Look, string][] = [
-  ['system', 'Automatic'],
-  ['light', 'Light'],
-  ['dark', 'Dark'],
+const LOOKS = (): readonly [Look, string][] => [
+  ['system', t('people.settings.settings.automatic', 'Automatic')],
+  ['light', t('people.settings.settings.light', 'Light')],
+  ['dark', t('people.settings.settings.dark', 'Dark')],
 ];
 
 /**
@@ -155,18 +156,20 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     });
   }, [navigation, signed]);
 
-  const back = { label: 'Back', onPress: navigation.goBack };
+  const back = { label: t('people.settings.settings.back', 'Back'), onPress: navigation.goBack };
   if (failed !== null) {
     return (
-      <Page title="Settings" back={back}>
+      <Page title={t('people.settings.settings.settings', 'Settings')} back={back}>
         <Failed message={failed} onRetry={() => void load()} />
       </Page>
     );
   }
   if (data === null) {
     return (
-      <Page title="Settings" back={back}>
-        <Loading label="Loading the settings" />
+      <Page title={t('people.settings.settings.settings', 'Settings')} back={back}>
+        <Loading
+          label={t('people.settings.settings.loading_the_settings', 'Loading the settings')}
+        />
       </Page>
     );
   }
@@ -186,10 +189,13 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
   if (data.roles !== null) {
     if (roles.admin) {
       people.push({
-        title: 'Employee fields',
+        title: t('people.settings.settings.employee_fields', 'Employee fields'),
         line:
           data.fields === null
-            ? 'What you keep about each person, who sees it and when it’s asked'
+            ? t(
+                'people.settings.settings.what_you_keep_about_each_person',
+                'What you keep about each person, who sees it and when it’s asked',
+              )
             : [
                 plural(data.fields.fields.length, 'field'),
                 data.fields.published === null
@@ -207,10 +213,13 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       });
     }
     people.push({
-      title: 'Organisation',
+      title: t('people.settings.settings.organisation', 'Organisation'),
       line:
         data.organisation === null
-          ? 'Legal entities, locations, org units, numbering, country packs, reminders and pay bands'
+          ? t(
+              'people.settings.settings.legal_entities_locations_org_units_numbering',
+              'Legal entities, locations, org units, numbering, country packs, reminders and pay bands',
+            )
           : `${plural(live(data.organisation.legalEntities), 'legal entity', 'legal entities')} · ${plural(live(data.organisation.locations), 'location')}`,
       icon: Building2,
       go: () => {
@@ -219,10 +228,13 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     });
     if (roles.hr || roles.admin) {
       people.push({
-        title: 'Roles',
+        title: t('people.settings.settings.roles', 'Roles'),
         line:
           data.holders === null
-            ? 'Who has administrator, HR and finance access'
+            ? t(
+                'people.settings.settings.who_has_administrator_hr_and_finance',
+                'Who has administrator, HR and finance access',
+              )
             : ['people_admin', 'hr', 'finance']
                 .map((role) => {
                   const n = data.holders?.holders.filter((p) => p.roles.includes(role)).length ?? 0;
@@ -241,12 +253,17 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       const i = data.integrations;
       const scim = i?.scim?.connections.filter((c) => c.revokedAt === null) ?? [];
       people.push({
-        title: 'Integrations',
+        title: t('people.settings.settings.integrations', 'Integrations'),
         line:
           i === null
-            ? 'Slack, webhooks and provisioning from your identity provider'
+            ? t(
+                'people.settings.settings.slack_webhooks_and_provisioning_from_your',
+                'Slack, webhooks and provisioning from your identity provider',
+              )
             : [
-                i.endpoints.length === 0 ? 'No webhooks' : plural(i.endpoints.length, 'webhook'),
+                i.endpoints.length === 0
+                  ? t('people.settings.settings.no_webhooks', 'No webhooks')
+                  : plural(i.endpoints.length, 'webhook'),
                 scim.length === 0
                   ? 'no provisioning'
                   : `provisioning from ${scim[0]?.system ?? ''}`,
@@ -259,8 +276,11 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     }
     if (roles.hr || roles.admin) {
       people.push({
-        title: 'Activity log',
-        line: 'Every change, who made it and when',
+        title: t('people.settings.settings.activity_log', 'Activity log'),
+        line: t(
+          'people.settings.settings.every_change_who_made_it_and',
+          'Every change, who made it and when',
+        ),
         icon: ScrollText,
         go: () => {
           navigation.navigate('Activity', { areas: PEOPLE_AREAS });
@@ -285,20 +305,63 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     if (hr || roles.admin) {
       timeOff.push(
         section(
-          'Leave types',
-          'Each kind of leave: how much, and who approves',
+          t('people.settings.settings.leave_types', 'Leave types'),
+          t(
+            'people.settings.settings.each_kind_of_leave_how_much',
+            'Each kind of leave: how much, and who approves',
+          ),
           Tags,
           'leave-types',
         ),
-        section('Holidays', 'Per location, kept up to date', CalendarDays, 'holidays'),
-        section('Approvals', 'Who approves · team minimums · escalation', CheckCheck, 'approvals'),
-        section('Attendance', 'Ways to clock in · the working day', Clock3, 'attendance'),
-        section('Balance rules', 'Going below zero · when someone leaves', Scale, 'negative'),
+        section(
+          'Holidays',
+          t(
+            'people.settings.settings.per_location_kept_up_to_date',
+            'Per location, kept up to date',
+          ),
+          CalendarDays,
+          'holidays',
+        ),
+        section(
+          'Approvals',
+          t(
+            'people.settings.settings.who_approves_team_minimums_escalation',
+            'Who approves · team minimums · escalation',
+          ),
+          CheckCheck,
+          'approvals',
+        ),
+        section(
+          'Attendance',
+          t(
+            'people.settings.settings.ways_to_clock_in_the_working',
+            'Ways to clock in · the working day',
+          ),
+          Clock3,
+          'attendance',
+        ),
+        section(
+          t('people.settings.settings.balance_rules', 'Balance rules'),
+          t(
+            'people.settings.settings.going_below_zero_when_someone_leaves',
+            'Going below zero · when someone leaves',
+          ),
+          Scale,
+          'negative',
+        ),
       );
     }
     if (roles.admin) {
       timeOff.push(
-        section('Integrations', 'Calendars, chat apps and badge readers', Plug, 'integrations'),
+        section(
+          'Integrations',
+          t(
+            'people.settings.settings.calendars_chat_apps_and_badge_readers',
+            'Calendars, chat apps and badge readers',
+          ),
+          Plug,
+          'integrations',
+        ),
       );
     }
   }
@@ -306,8 +369,11 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
   // Documents' (MS1): one row to its page, which says who may change what.
   const documents: Row[] = [
     {
-      title: 'Documents',
-      line: 'Document types · access and sharing · retention and legal holds',
+      title: t('people.settings.settings.documents', 'Documents'),
+      line: t(
+        'people.settings.settings.document_types_access_and_sharing_retention',
+        'Document types · access and sharing · retention and legal holds',
+      ),
       icon: FolderOpen,
       go: () => {
         navigation.navigate('DocumentsSettings');
@@ -319,8 +385,11 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     roles.hr || roles.admin
       ? [
           {
-            title: 'Activity log',
-            line: 'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins',
+            title: t('people.settings.settings.activity_log', 'Activity log'),
+            line: t(
+              'people.settings.settings.settings_changes_imports_and_exports_sensitive',
+              'Settings changes, imports and exports, sensitive access and Kithena support’s sign-ins',
+            ),
             icon: History,
             go: () => {
               navigation.navigate('Activity');
@@ -334,8 +403,11 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     needle === '' || asked !== null || `${r.title} ${r.line}`.toLowerCase().includes(needle);
   const you: Row[] = [
     {
-      title: 'Notifications',
-      line: 'Tasks always · updates as you choose · quiet hours',
+      title: t('people.settings.settings.notifications', 'Notifications'),
+      line: t(
+        'people.settings.settings.tasks_always_updates_as_you_choose',
+        'Tasks always · updates as you choose · quiet hours',
+      ),
       icon: Bell,
       go: () => {
         navigation.navigate('Notifications');
@@ -345,8 +417,11 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
     ...(performance
       ? [
           {
-            title: 'My connected tools',
-            line: 'What Kithena may read of your work for your reviews',
+            title: t('people.settings.settings.my_connected_tools', 'My connected tools'),
+            line: t(
+              'people.settings.settings.what_kithena_may_read_of_your',
+              'What Kithena may read of your work for your reviews',
+            ),
             icon: Plug,
             go: () => {
               navigation.navigate('PerformanceTools');
@@ -355,8 +430,8 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         ]
       : []),
     {
-      title: 'Appearance',
-      line: LOOKS.find(([value]) => value === look)?.[1] ?? 'Automatic',
+      title: t('people.settings.settings.appearance', 'Appearance'),
+      line: LOOKS().find(([value]) => value === look)?.[1] ?? 'Automatic',
       icon: Moon,
       go: () => {
         setChoosingLook(true);
@@ -365,11 +440,40 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
   ];
   const groups: (Group & { sub: string })[] = (
     [
-      { title: 'People', sub: 'What records hold, who sees them, where they go', rows: people },
-      { title: 'Time off', sub: 'How people request, earn and use days off', rows: timeOff },
-      { title: 'Documents', sub: 'What is kept, who sees it, how long it stays', rows: documents },
-      { title: 'Activity', sub: 'Who changed what, and when', rows: activity },
-      { title: 'You', sub: 'Only on your account', rows: you },
+      {
+        title: t('people.settings.settings.people', 'People'),
+        sub: t(
+          'people.settings.settings.what_records_hold_who_sees_them',
+          'What records hold, who sees them, where they go',
+        ),
+        rows: people,
+      },
+      {
+        title: t('people.settings.settings.time_off', 'Time off'),
+        sub: t(
+          'people.settings.settings.how_people_request_earn_and_use',
+          'How people request, earn and use days off',
+        ),
+        rows: timeOff,
+      },
+      {
+        title: t('people.settings.settings.documents', 'Documents'),
+        sub: t(
+          'people.settings.settings.what_is_kept_who_sees_it',
+          'What is kept, who sees it, how long it stays',
+        ),
+        rows: documents,
+      },
+      {
+        title: t('people.settings.settings.activity', 'Activity'),
+        sub: t('people.settings.settings.who_changed_what_and_when', 'Who changed what, and when'),
+        rows: activity,
+      },
+      {
+        title: t('people.settings.settings.you', 'You'),
+        sub: t('people.settings.settings.only_on_your_account', 'Only on your account'),
+        rows: you,
+      },
     ] as const
   )
     .map((g) => ({ title: g.title, sub: g.sub, rows: g.rows.filter(matches) }))
@@ -379,7 +483,13 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
   return (
     <Page large="Settings" back={back}>
       {roles.admin && data.fields !== null && data.fields.published === null ? (
-        <Alert tone="info" title="Set up the employee record">
+        <Alert
+          tone="info"
+          title={t(
+            'people.settings.settings.set_up_the_employee_record',
+            'Set up the employee record',
+          )}
+        >
           <Button
             size="sm"
             variant="primary"
@@ -387,7 +497,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
               navigation.navigate('PeopleSetup');
             }}
           >
-            Start
+            {t('people.settings.settings.start', 'Start')}
           </Button>
         </Alert>
       ) : null}
@@ -401,8 +511,15 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         onSearch={(text) => {
           if (roles.admin && text.trim().split(/\s+/u).length > 2) setAsked(text.trim());
         }}
-        placeholder={roles.admin ? 'Find a setting, or ask to change one' : 'Find a setting'}
-        label="Find a setting"
+        placeholder={
+          roles.admin
+            ? t(
+                'people.settings.settings.find_a_setting_or_ask_to',
+                'Find a setting, or ask to change one',
+              )
+            : t('people.settings.settings.find_a_setting', 'Find a setting')
+        }
+        label={t('people.settings.settings.find_a_setting', 'Find a setting')}
       />
       {asked === null || data.fields === null ? null : (
         <AskedChange
@@ -427,7 +544,9 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
                 navigation.navigate('FieldRegistry');
               }}
             >
-              {`${plural(drafts, 'draft')} to publish`}
+              {t('people.settings.settings.to_publish', '{{plural}} to publish', {
+                plural: plural(drafts, 'draft'),
+              })}
             </Chip>
           ) : null}
           {finance === 0 ? (
@@ -437,7 +556,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
                 navigation.navigate('Roles');
               }}
             >
-              Nobody in finance
+              {t('people.settings.settings.nobody_in_finance', 'Nobody in finance')}
             </Chip>
           ) : null}
         </View>
@@ -445,8 +564,8 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
       {groups.length === 0 ? (
         <EmptyState
           icon={SettingsIcon}
-          title="No setting matches"
-          description="Try another word."
+          title={t('people.settings.settings.no_setting_matches', 'No setting matches')}
+          description={t('people.settings.settings.try_another_word', 'Try another word.')}
         />
       ) : null}
       {groups.map((g) => (
@@ -481,8 +600,12 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
             </ListItem>
           ))}
           {g.title === 'You' ? (
-            <ListItem listitem={false} icon={Languages} description={`English · ${zone}`}>
-              Language and region
+            <ListItem
+              listitem={false}
+              icon={Languages}
+              description={t('people.settings.settings.english', 'English · {{zone}}', { zone })}
+            >
+              {t('people.settings.settings.language_and_region', 'Language and region')}
             </ListItem>
           ) : null}
         </Card>
@@ -496,23 +619,26 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Appearance</DialogTitle>
+              <DialogTitle>{t('people.settings.settings.appearance', 'Appearance')}</DialogTitle>
               <DialogDescription>
-                How the app looks on this phone. Only you see this.
+                {t(
+                  'people.settings.settings.how_the_app_looks_on_this',
+                  'How the app looks on this phone. Only you see this.',
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
               <SegmentedControl
                 value={look}
                 fullWidth
-                accessibilityLabel="Appearance"
+                accessibilityLabel={t('people.settings.settings.appearance', 'Appearance')}
                 onValueChange={(next) => {
-                  const chosen = LOOKS.find(([value]) => value === next)?.[0] ?? 'system';
+                  const chosen = LOOKS().find(([value]) => value === next)?.[0] ?? 'system';
                   chooseLook(chosen);
                   setLook(chosen);
                 }}
               >
-                {LOOKS.map(([value, label]) => (
+                {LOOKS().map(([value, label]) => (
                   <SegmentedControlItem key={value} value={value}>
                     {label}
                   </SegmentedControlItem>
@@ -526,7 +652,7 @@ export function Settings({ navigation }: PeopleScreen<'Settings'>): React.JSX.El
                   setChoosingLook(false);
                 }}
               >
-                Done
+                {t('people.settings.settings.done', 'Done')}
               </Button>
             </DialogFooter>
           </DialogContent>

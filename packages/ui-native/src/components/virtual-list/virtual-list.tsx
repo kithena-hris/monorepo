@@ -15,6 +15,7 @@ import { View } from 'react-native-css/components';
 import { cn } from '../../lib/cn.ts';
 import { useAnnouncer } from '../../lib/reorder.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A long list with only the visible part mounted, on FlashList: rows are
@@ -250,7 +251,10 @@ export function VirtualList<T>({
               {footer}
               {loadingMore ? (
                 <View className="h-[52px] items-center justify-center">
-                  <Spinner size={16} label="Loading more" />
+                  <Spinner
+                    size={16}
+                    label={t('components.virtual-list.virtual-list.loading_more', 'Loading more')}
+                  />
                 </View>
               ) : null}
             </>

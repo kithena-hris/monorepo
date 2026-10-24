@@ -5,6 +5,7 @@ import Svg, { Line, Path } from 'react-native-svg';
 
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A signature drawn with a finger: the web's `SignaturePad`, the same props.
@@ -31,7 +32,7 @@ export function SignaturePad({
   value,
   onValueChange,
   label,
-  clearLabel = 'Clear',
+  clearLabel = t('components.signature-pad.signature-pad.clear', 'Clear'),
   disabled = false,
   className,
 }: SignaturePadProps): React.JSX.Element {
@@ -76,7 +77,11 @@ export function SignaturePad({
       <View
         accessible
         accessibilityRole="image"
-        accessibilityLabel={value === '' ? label : `${label}: drawn`}
+        accessibilityLabel={
+          value === ''
+            ? label
+            : t('components.signature-pad.signature-pad.drawn', '{{label}}: drawn', { label })
+        }
         className={cn('h-32 w-full rounded-lg bg-surface-sunken', disabled && 'opacity-50')}
         onLayout={(e) => {
           setBox({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });

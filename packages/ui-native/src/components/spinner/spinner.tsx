@@ -13,6 +13,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { cn } from '../../lib/cn.ts';
 import { iconVariants } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /** The web spinner's sizes, in points. A number is taken as it is. */
 const SIZES = { xs: 12, sm: 16, md: 20, lg: 32, xl: 48 } as const;
@@ -46,7 +47,7 @@ export type SpinnerProps = {
 export function Spinner({
   size = 'md',
   tone = 'accent',
-  label = 'Loading',
+  label = t('components.spinner.spinner.loading', 'Loading'),
   decorative = false,
   className,
 }: SpinnerProps): React.JSX.Element {

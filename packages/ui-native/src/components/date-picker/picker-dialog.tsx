@@ -5,6 +5,7 @@ import { cn } from '../../lib/cn.ts';
 import { usePlatform } from '../../provider.tsx';
 import { Button } from '../button/button.tsx';
 import { DialogContent, DialogFooter, DialogTitle } from '../dialog/dialog.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * The centred dialog a date or a time is picked in.
@@ -21,7 +22,7 @@ export function PickerDialog({
   children,
   onCancel,
   onConfirm,
-  confirmLabel = 'Done',
+  confirmLabel = t('components.date-picker.picker-dialog.done', 'Done'),
   portalHost,
 }: {
   /** What is being picked: the field's name. */
@@ -65,10 +66,10 @@ export function PickerDialog({
       {android ? (
         <View className="flex-row justify-end gap-2">
           <Button variant="ghost" size="sm" onPress={onCancel}>
-            Cancel
+            {t('components.date-picker.picker-dialog.cancel', 'Cancel')}
           </Button>
           <Button variant="ghost" size="sm" onPress={onConfirm ?? onCancel}>
-            OK
+            {t('components.date-picker.picker-dialog.ok', 'OK')}
           </Button>
         </View>
       ) : onConfirm ? (

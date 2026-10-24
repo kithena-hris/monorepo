@@ -4,6 +4,8 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 import type { Signed } from './api';
+import { languageHeader } from '../i18n';
+import { t } from '../i18n';
 
 /**
  * Reading rather than typing (Kithena Mobile v3 P15, P19): a photo of an ID
@@ -19,27 +21,61 @@ const MOST = 3_200_000;
 
 async function send<T>(signed: Signed, kind: 'id-card' | 'offer', data: string): Promise<Read<T>> {
   if (data.length > MOST)
-    return { ok: false, message: 'That is too big to read. Try a smaller file.' };
+    return {
+      ok: false,
+      message: t(
+        'people.readers.that_is_too_big_to_read',
+        'That is too big to read. Try a smaller file.',
+      ),
+    };
   const response = await fetch(`${signed.company.origin}/api/mobile/read`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${signed.sessionId}` },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${signed.sessionId}`,
+      ...languageHeader(),
+    },
     body: JSON.stringify({ kind, data }),
   }).catch(() => null);
-  if (response === null) return { ok: false, message: 'Kithena could not be reached. Try again.' };
+  if (response === null)
+    return {
+      ok: false,
+      message: t(
+        'people.readers.kithena_could_not_be_reached_try',
+        'Kithena could not be reached. Try again.',
+      ),
+    };
   if (response.status === 401) {
     signed.signedOut();
-    return { ok: false, message: 'Sign in again.' };
+    return { ok: false, message: t('people.readers.sign_in_again', 'Sign in again.') };
   }
   const answer = (await response.json().catch(() => null)) as
     { ok: true; data: T } | { ok: false; message?: string } | null;
-  if (answer === null) return { ok: false, message: 'Kithena did not answer.' };
-  return answer.ok ? answer : { ok: false, message: answer.message ?? 'That could not be read.' };
+  if (answer === null)
+    return {
+      ok: false,
+      message: t('people.readers.kithena_did_not_answer', 'Kithena did not answer.'),
+    };
+  return answer.ok
+    ? answer
+    : {
+        ok: false,
+        message:
+          answer.message ?? t('people.readers.that_could_not_be_read', 'That could not be read.'),
+      };
 }
 
 /** P15: the camera, the photo shrunk to what reading needs, and the identifier on it. */
 export async function scanIdCard(signed: Signed): Promise<Read<{ value: string | null }>> {
   const allowed = await ImagePicker.requestCameraPermissionsAsync();
-  if (!allowed.granted) return { ok: false, message: 'Kithena needs the camera to read the card.' };
+  if (!allowed.granted)
+    return {
+      ok: false,
+      message: t(
+        'people.readers.kithena_needs_the_camera_to_read',
+        'Kithena needs the camera to read the card.',
+      ),
+    };
   const shot = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
   const asset = shot.canceled ? undefined : shot.assets[0];
   if (asset === undefined) return null;
@@ -47,7 +83,14 @@ export async function scanIdCard(signed: Signed): Promise<Read<{ value: string |
     .resize({ width: Math.min(asset.width, 1600) })
     .renderAsync();
   const small = await image.saveAsync({ compress: 0.75, format: SaveFormat.JPEG, base64: true });
-  if (small.base64 === undefined) return { ok: false, message: 'The photo could not be prepared.' };
+  if (small.base64 === undefined)
+    return {
+      ok: false,
+      message: t(
+        'people.readers.the_photo_could_not_be_prepared',
+        'The photo could not be prepared.',
+      ),
+    };
   return send(signed, 'id-card', small.base64);
 }
 

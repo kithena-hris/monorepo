@@ -6,6 +6,7 @@ import { cn } from '../../lib/cn.ts';
 import { Chip } from '../chip/chip.tsx';
 import { useField } from '../field/field.tsx';
 import { fieldText } from '../input/input.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A free list of short values: skills, email addresses, locations.
@@ -55,7 +56,7 @@ export function TagsInput({
   label,
   hideLabel = false,
   hint,
-  placeholder = 'Add a tag',
+  placeholder = t('components.tags-input.tags-input.add_a_tag', 'Add a tag'),
   max,
   validate,
   transform = (input) => input.trim(),
@@ -91,7 +92,11 @@ export function TagsInput({
       const candidate = transform(raw);
       if (candidate === '') continue;
       if (max !== undefined && next.length >= max) {
-        problem ??= `At most ${String(max)} allowed.`;
+        problem ??= t(
+          'components.tags-input.tags-input.at_most_allowed',
+          'At most {{String}} allowed.',
+          { String: String(max) },
+        );
         refused.push(candidate);
       } else if (next.includes(candidate)) {
         problem ??= `${candidate} is already on the list.`;
@@ -178,7 +183,7 @@ export function TagsInput({
                     remove(index);
                   },
                 })}
-            removeLabel={`Remove ${tag}`}
+            removeLabel={t('components.tags-input.tags-input.remove', 'Remove {{tag}}', { tag })}
           >
             {tag}
           </Chip>
@@ -189,7 +194,11 @@ export function TagsInput({
             value={draft}
             editable={!disabled}
             placeholder={placeholder}
-            accessibilityLabel={`${name}, add a tag`}
+            accessibilityLabel={t(
+              'components.tags-input.tags-input.add_a_tag_2',
+              '{{name}}, add a tag',
+              { name },
+            )}
             {...(message ? { accessibilityHint: message } : {})}
             aria-invalid={invalid || undefined}
             autoCapitalize="none"

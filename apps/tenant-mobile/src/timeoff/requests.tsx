@@ -56,6 +56,7 @@ import {
   spanLabel,
   statusOf,
 } from './words';
+import { t } from '../i18n';
 
 interface Item {
   readonly requestId: string;
@@ -111,8 +112,8 @@ export function TimeOffRequests({
   const { load, reload } = useTimeOff<{ items: Item[] }>('TimeOffMyRequests', { tab });
   return (
     <Page
-      title="Your requests"
-      back={{ label: 'Time off', onPress: navigation.goBack }}
+      title={t('timeoff.requests.your_requests', 'Your requests')}
+      back={{ label: t('timeoff.requests.time_off', 'Time off'), onPress: navigation.goBack }}
       trailing={
         <Button
           size="sm"
@@ -121,31 +122,40 @@ export function TimeOffRequests({
             navigation.navigate('TimeOffRequest');
           }}
         >
-          Request
+          {t('timeoff.requests.request', 'Request')}
         </Button>
       }
     >
       <SegmentedControl
         fullWidth
         value={tab}
-        accessibilityLabel="Which requests"
+        accessibilityLabel={t('timeoff.requests.which_requests', 'Which requests')}
         onValueChange={(v) => {
           setTab(v === 'past' ? 'past' : v === 'cancelled' ? 'cancelled' : 'upcoming');
         }}
       >
-        <SegmentedControlItem value="upcoming">Coming up</SegmentedControlItem>
-        <SegmentedControlItem value="past">Past</SegmentedControlItem>
-        <SegmentedControlItem value="cancelled">Cancelled</SegmentedControlItem>
+        <SegmentedControlItem value="upcoming">
+          {t('timeoff.requests.coming_up', 'Coming up')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="past">
+          {t('timeoff.requests.past', 'Past')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="cancelled">
+          {t('timeoff.requests.cancelled', 'Cancelled')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading your requests" />
+        <Loading label={t('timeoff.requests.loading_your_requests', 'Loading your requests')} />
       ) : load.data.items.length === 0 ? (
         <EmptyState
           icon={CalendarIcon}
-          title="Nothing here"
-          description="Requests appear here once they are sent."
+          title={t('timeoff.requests.nothing_here', 'Nothing here')}
+          description={t(
+            'timeoff.requests.requests_appear_here_once_they_are',
+            'Requests appear here once they are sent.',
+          )}
         />
       ) : (
         <List>
@@ -182,74 +192,121 @@ function steps(detail: Detail, today: string): (TimelineItemProps & { id: string
   const out: (TimelineItemProps & { id: string })[] = [
     {
       id: 'sent',
-      title: 'Sent',
+      title: t('timeoff.requests.sent', 'Sent'),
       tone: 'success',
       icon: Send,
       timestamp: shortDate(request.requestedAt.slice(0, 10)),
-      children: `You asked for ${spanLabel(request.span.from, request.span.to)}.`,
+      children: t('timeoff.requests.you_asked_for', 'You asked for {{spanLabel}}.', {
+        spanLabel: spanLabel(request.span.from, request.span.to),
+      }),
     },
   ];
   const decided = ['approved', 'taken', 'change_pending'].includes(s) ? chain.length : step;
   chain.forEach((r, i) => {
     const id = `step${String(i)}`;
     if (i < decided)
-      out.push({ id, title: `Approved by ${role(r)}`, tone: 'success', icon: Check });
+      out.push({
+        id,
+        title: t('timeoff.requests.approved_by', 'Approved by {{role}}', { role: role(r) }),
+        tone: 'success',
+        icon: Check,
+      });
     else if (i === step && s === 'declined')
       out.push({
         id,
-        title: `Declined by ${role(r)}`,
+        title: t('timeoff.requests.declined_by', 'Declined by {{role}}', { role: role(r) }),
         tone: 'danger',
         icon: X,
-        children: 'The days went back to your balance.',
+        children: t(
+          'timeoff.requests.the_days_went_back_to_your',
+          'The days went back to your balance.',
+        ),
       });
     else if (i === step && s === 'pending')
       out.push({
         id,
-        title: `Waiting for ${role(r)}`,
+        title: t('timeoff.requests.waiting_for', 'Waiting for {{role}}', { role: role(r) }),
         tone: 'warning',
         status: 'current',
         icon: Clock,
         children: detail.escalated
-          ? 'Escalated: nobody answered in time.'
-          : 'The days are booked while it waits.',
+          ? t(
+              'timeoff.requests.escalated_nobody_answered_in_time',
+              'Escalated: nobody answered in time.',
+            )
+          : t(
+              'timeoff.requests.the_days_are_booked_while_it',
+              'The days are booked while it waits.',
+            ),
       });
     else if (i > step && (s === 'pending' || s === 'counter_proposed'))
-      out.push({ id, title: `Then ${role(r)}`, status: 'upcoming', icon: Check });
+      out.push({
+        id,
+        title: t('timeoff.requests.then', 'Then {{role}}', { role: role(r) }),
+        status: 'upcoming',
+        icon: Check,
+      });
   });
   if (s === 'counter_proposed')
     out.push({
       id: 'suggested',
-      title: `${capital(role(chain[step]))} suggested other dates`,
+      title: t('timeoff.requests.suggested_other_dates', '{{capital}} suggested other dates', {
+        capital: capital(role(chain[step])),
+      }),
       tone: 'info',
       status: 'current',
       icon: CalendarIcon,
-      children: 'Take one, or keep yours and it goes back to them.',
+      children: t(
+        'timeoff.requests.take_one_or_keep_yours_and',
+        'Take one, or keep yours and it goes back to them.',
+      ),
     });
   if (s === 'change_pending' && detail.pendingChange !== null)
     out.push({
       id: 'change',
-      title: `You asked to move it to ${spanLabel(detail.pendingChange.from, detail.pendingChange.to)}`,
+      title: t(
+        'timeoff.requests.you_asked_to_move_it_to',
+        'You asked to move it to {{spanLabel}}',
+        { spanLabel: spanLabel(detail.pendingChange.from, detail.pendingChange.to) },
+      ),
       tone: 'warning',
       status: 'current',
       icon: Clock,
-      children: 'Your old dates stay booked until the new ones are approved.',
+      children: t(
+        'timeoff.requests.your_old_dates_stay_booked_until',
+        'Your old dates stay booked until the new ones are approved.',
+      ),
     });
   if (s === 'cancelled' || s === 'withdrawn')
     out.push({
       id: 'cancelled',
-      title: s === 'withdrawn' ? 'Withdrawn' : 'Cancelled',
+      title:
+        s === 'withdrawn'
+          ? t('timeoff.requests.withdrawn', 'Withdrawn')
+          : t('timeoff.requests.cancelled', 'Cancelled'),
       icon: X,
-      children: 'The days went back to your balance.',
+      children: t(
+        'timeoff.requests.the_days_went_back_to_your',
+        'The days went back to your balance.',
+      ),
     });
   if (s === 'taken' || (s === 'approved' && request.span.to < today))
-    out.push({ id: 'taken', title: 'Taken', tone: 'success', icon: CircleCheck });
+    out.push({
+      id: 'taken',
+      title: t('timeoff.requests.taken', 'Taken'),
+      tone: 'success',
+      icon: CircleCheck,
+    });
   if (request.category === 'annual_leave' && !['declined', 'cancelled', 'withdrawn'].includes(s))
     out.push({
       id: 'pay',
-      title: 'No payroll change',
+      title: t('timeoff.requests.no_payroll_change', 'No payroll change'),
       status: 'upcoming',
       icon: Wallet,
-      children: 'Paid vacation, so your pay stays the same.',
+      children: t(
+        'timeoff.requests.paid_vacation_so_your_pay_stays',
+        'Paid vacation, so your pay stays the same.',
+      ),
     });
   return out;
 }
@@ -269,14 +326,14 @@ export function TimeOffRequestDetail({
   const { act, busy } = useAct('timeoff');
   const [dialog, setDialog] = useState<'move' | 'shorten' | 'cancel' | null>(null);
   const today = todayHere();
-  const back = { label: 'Requests', onPress: navigation.goBack };
+  const back = { label: t('timeoff.requests.requests', 'Requests'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Request" back={back}>
+      <Page title={t('timeoff.requests.request', 'Request')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the request" />
+          <Loading label={t('timeoff.requests.loading_the_request', 'Loading the request')} />
         )}
       </Page>
     );
@@ -298,23 +355,30 @@ export function TimeOffRequestDetail({
       <View className="flex-row gap-2">
         <Stat
           className="flex-1"
-          label="You’re off"
+          label={t('timeoff.requests.youre_off', 'You’re off')}
           icon={<Icon icon={leaveIcon(CATEGORY_ICON[request.category])} />}
           value={longSpan(request.span.from, request.span.to)}
           description={days(request.workingDays)}
         />
         <Stat
           className="flex-1"
-          label="Back at work"
+          label={t('timeoff.requests.back_at_work', 'Back at work')}
           value={shortDate(nextWorkingDay(request.span.to))}
         />
       </View>
       {detail.canAnswer && detail.proposals.length > 0 ? (
         <Card>
           <Stack gap={2}>
-            <Text variant="headline">{`${capital(role(detail.chain[detail.step]))} suggested other dates`}</Text>
+            <Text variant="headline">
+              {t('timeoff.requests.suggested_other_dates', '{{capital}} suggested other dates', {
+                capital: capital(role(detail.chain[detail.step])),
+              })}
+            </Text>
             <Text variant="footnote" tone="muted">
-              Taking one approves it. Keeping yours sends it back.
+              {t(
+                'timeoff.requests.taking_one_approves_it_keeping_yours',
+                'Taking one approves it. Keeping yours sends it back.',
+              )}
             </Text>
             {detail.proposalMessage === null ? null : <Text>{detail.proposalMessage}</Text>}
             {detail.proposals.map((p) => (
@@ -326,11 +390,14 @@ export function TimeOffRequestDetail({
                   void act(
                     'AnswerSuggestedTimeOffDates',
                     { requestId: request.requestId, input: { accept: p.index } },
-                    'Dates taken',
+                    t('timeoff.requests.dates_taken', 'Dates taken'),
                   ).then(reload);
                 }}
               >
-                {`Take ${p.spans.map((r) => spanLabel(r.from, r.to)).join(' and ')} · ${days(p.workingDays)}`}
+                {t('timeoff.requests.take', 'Take {{join}} · {{days}}', {
+                  join: p.spans.map((r) => spanLabel(r.from, r.to)).join(' and '),
+                  days: days(p.workingDays),
+                })}
               </Button>
             ))}
             <Button
@@ -339,11 +406,11 @@ export function TimeOffRequestDetail({
                 void act(
                   'AnswerSuggestedTimeOffDates',
                   { requestId: request.requestId, input: { accept: null } },
-                  'Kept your dates',
+                  t('timeoff.requests.kept_your_dates', 'Kept your dates'),
                 ).then(reload);
               }}
             >
-              Keep my dates
+              {t('timeoff.requests.keep_my_dates', 'Keep my dates')}
             </Button>
           </Stack>
         </Card>
@@ -357,7 +424,7 @@ export function TimeOffRequestDetail({
       {detail.noteNeeded === true ? (
         <NoteNeeded requestId={request.requestId} personId={request.personId} onDone={reload} />
       ) : detail.notePresent === true ? (
-        <Text tone="muted">A note is attached.</Text>
+        <Text tone="muted">{t('timeoff.requests.a_note_is_attached', 'A note is attached.')}</Text>
       ) : null}
       {detail.canChange ? (
         <View className="flex-row gap-2">
@@ -368,7 +435,7 @@ export function TimeOffRequestDetail({
               setDialog('move');
             }}
           >
-            Change dates
+            {t('timeoff.requests.change_dates', 'Change dates')}
           </Button>
           {request.status === 'approved' ? (
             <Button
@@ -377,7 +444,7 @@ export function TimeOffRequestDetail({
                 setDialog('shorten');
               }}
             >
-              Shorten
+              {t('timeoff.requests.shorten', 'Shorten')}
             </Button>
           ) : null}
         </View>
@@ -389,7 +456,9 @@ export function TimeOffRequestDetail({
             setDialog('cancel');
           }}
         >
-          {request.status === 'approved' ? 'Cancel request' : 'Withdraw request'}
+          {request.status === 'approved'
+            ? t('timeoff.requests.cancel_request', 'Cancel request')
+            : t('timeoff.requests.withdraw_request', 'Withdraw request')}
         </Button>
       ) : null}
       {dialog === null ? null : (
@@ -443,30 +512,48 @@ function ChangeDialog({
           <DialogTitle>
             {kind === 'cancel'
               ? approved
-                ? `Cancel ${label}?`
-                : `Withdraw ${label}?`
+                ? t('timeoff.requests.cancel', 'Cancel {{label}}?', { label })
+                : t('timeoff.requests.withdraw', 'Withdraw {{label}}?', { label })
               : kind === 'move'
-                ? 'New dates'
-                : 'New last day'}
+                ? t('timeoff.requests.new_dates', 'New dates')
+                : t('timeoff.requests.new_last_day', 'New last day')}
           </DialogTitle>
           <DialogDescription>
             {kind === 'cancel'
-              ? `The ${amount(request.workingDays)} days go back to your balance.`
+              ? t(
+                  'timeoff.requests.the_days_go_back_to_your',
+                  'The {{amount}} days go back to your balance.',
+                  { amount: amount(request.workingDays) },
+                )
               : kind === 'move'
                 ? approved
-                  ? 'Your old dates stay booked until the new ones are approved.'
-                  : 'It goes to your approver again with the new dates.'
-                : 'The days after it go back to your balance.'}
+                  ? t(
+                      'timeoff.requests.your_old_dates_stay_booked_until',
+                      'Your old dates stay booked until the new ones are approved.',
+                    )
+                  : t(
+                      'timeoff.requests.it_goes_to_your_approver_again',
+                      'It goes to your approver again with the new dates.',
+                    )
+                : t(
+                    'timeoff.requests.the_days_after_it_go_back',
+                    'The days after it go back to your balance.',
+                  )}
           </DialogDescription>
         </DialogHeader>
         {kind === 'move' ? (
           <DialogBody>
-            <Calendar mode="range" label="New dates" selected={range} onSelect={setRange} />
+            <Calendar
+              mode="range"
+              label={t('timeoff.requests.new_dates', 'New dates')}
+              selected={range}
+              onSelect={setRange}
+            />
           </DialogBody>
         ) : kind === 'shorten' ? (
           <DialogBody>
             <DatePicker
-              label="Last day"
+              label={t('timeoff.requests.last_day', 'Last day')}
               size="sm"
               value={last}
               onChange={setLast}
@@ -477,7 +564,7 @@ function ChangeDialog({
         ) : null}
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Keep it
+            {t('timeoff.requests.keep_it', 'Keep it')}
           </Button>
           <Button
             className="flex-1"
@@ -511,7 +598,7 @@ function ChangeDialog({
                       },
                     },
                   },
-                  'Change sent',
+                  t('timeoff.requests.change_sent', 'Change sent'),
                 );
               else if (kind === 'shorten' && last !== null)
                 run(
@@ -523,11 +610,11 @@ function ChangeDialog({
           >
             {kind === 'cancel'
               ? approved
-                ? 'Cancel request'
-                : 'Withdraw'
+                ? t('timeoff.requests.cancel_request', 'Cancel request')
+                : t('timeoff.requests.withdraw_2', 'Withdraw')
               : kind === 'move'
-                ? 'Send the change'
-                : 'Shorten'}
+                ? t('timeoff.requests.send_the_change', 'Send the change')
+                : t('timeoff.requests.shorten', 'Shorten')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -569,7 +656,7 @@ export function ChangeOrCancel({
             {load.status === 'error' ? (
               <Text tone="muted">{load.message}</Text>
             ) : (
-              <Loading label="Loading the request" />
+              <Loading label={t('timeoff.requests.loading_the_request', 'Loading the request')} />
             )}
           </DialogBody>
         </DialogContent>
@@ -603,7 +690,7 @@ export function ChangeOrCancel({
         </DialogHeader>
         <DialogBody>
           <RadioGroup
-            accessibilityLabel="What to do"
+            accessibilityLabel={t('timeoff.requests.what_to_do', 'What to do')}
             value={choice}
             onValueChange={(v) => {
               setChoice(v === 'move' ? 'move' : v === 'shorten' ? 'shorten' : 'cancel');
@@ -612,39 +699,58 @@ export function ChangeOrCancel({
             {load.data.canChange ? (
               <RadioCard
                 value="move"
-                description={`${approver} is asked again.${approved ? ' These dates stay booked until then.' : ''}`}
+                description={t(
+                  'timeoff.requests.is_asked_again',
+                  '{{approver}} is asked again.{{value}}',
+                  { approver, value: approved ? ' These dates stay booked until then.' : '' },
+                )}
               >
-                Move the dates
+                {t('timeoff.requests.move_the_dates', 'Move the dates')}
               </RadioCard>
             ) : null}
             {load.data.canChange && lastKept !== null ? (
               <RadioCard
                 value="shorten"
-                description={`Keep until ${shortDate(lastKept)} and give back ${shortDate(request.span.to)}.`}
+                description={t(
+                  'timeoff.requests.keep_until_and_give_back',
+                  'Keep until {{shortDate}} and give back {{shortDate2}}.',
+                  { shortDate: shortDate(lastKept), shortDate2: shortDate(request.span.to) },
+                )}
                 {...(after(1) === null ? {} : { impact: after(1) ?? '' })}
               >
-                Shorten it
+                {t('timeoff.requests.shorten_it', 'Shorten it')}
               </RadioCard>
             ) : null}
             {load.data.canCancel ? (
               <RadioCard
                 value="cancel"
-                description={`${one ? 'The day goes' : 'The days go'} back to your balance straight away.`}
+                description={t(
+                  'timeoff.requests.back_to_your_balance_straight_away',
+                  '{{value}} back to your balance straight away.',
+                  { value: one ? 'The day goes' : 'The days go' },
+                )}
                 {...(after(Number(request.workingDays)) === null
                   ? {}
                   : { impact: after(Number(request.workingDays)) ?? '' })}
               >
-                {approved ? 'Cancel it' : 'Withdraw it'}
+                {approved
+                  ? t('timeoff.requests.cancel_it', 'Cancel it')
+                  : t('timeoff.requests.withdraw_it', 'Withdraw it')}
               </RadioCard>
             ) : null}
           </RadioGroup>
           {choice === 'move' ? (
-            <Calendar mode="range" label="New dates" selected={range} onSelect={setRange} />
+            <Calendar
+              mode="range"
+              label={t('timeoff.requests.new_dates', 'New dates')}
+              selected={range}
+              onSelect={setRange}
+            />
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Keep it
+            {t('timeoff.requests.keep_it', 'Keep it')}
           </Button>
           <Button
             className="flex-1"
@@ -670,17 +776,17 @@ export function ChangeOrCancel({
                       },
                     },
                   },
-                  'Change sent',
+                  t('timeoff.requests.change_sent', 'Change sent'),
                 );
             }}
           >
             {choice === 'cancel'
               ? approved
-                ? 'Cancel time off'
-                : 'Withdraw'
+                ? t('timeoff.requests.cancel_time_off', 'Cancel time off')
+                : t('timeoff.requests.withdraw_2', 'Withdraw')
               : choice === 'shorten'
-                ? 'Shorten'
-                : 'Send the change'}
+                ? t('timeoff.requests.shorten', 'Shorten')
+                : t('timeoff.requests.send_the_change', 'Send the change')}
           </Button>
         </DialogFooter>
       </DialogContent>

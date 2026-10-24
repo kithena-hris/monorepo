@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext } from 'react';
 
 import type { Company, Person } from '../account';
 import { queryClient } from '../query';
+import { languageHeader } from '../i18n';
+import { t } from '../i18n';
 
 /**
  * People, as the person signed in: one operation per request, by the name the
@@ -49,20 +51,38 @@ export async function ask<T>(
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${signed.sessionId}`,
+      ...languageHeader(),
     },
     body: JSON.stringify({ area, operation, variables }),
   }).catch(() => null);
   if (response === null) {
-    return { ok: false, code: 'OFFLINE', message: 'Kithena could not be reached. Try again.' };
+    return {
+      ok: false,
+      code: 'OFFLINE',
+      message: t(
+        'people.api.kithena_could_not_be_reached_try',
+        'Kithena could not be reached. Try again.',
+      ),
+    };
   }
   if (response.status === 401) {
     signed.signedOut();
-    return { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again.' };
+    return {
+      ok: false,
+      code: 'UNAUTHENTICATED',
+      message: t('people.api.sign_in_again', 'Sign in again.'),
+    };
   }
   const answer = (await response.json().catch(() => null)) as Answer<T> | null;
   // A write that went through: every answer kept may now be out of date.
   if (answer?.ok === true && response.headers.get('x-kithena-wrote') === '1') wrote();
-  return answer ?? { ok: false, code: 'UNAVAILABLE', message: 'People did not answer.' };
+  return (
+    answer ?? {
+      ok: false,
+      code: 'UNAVAILABLE',
+      message: t('people.api.people_did_not_answer', 'People did not answer.'),
+    }
+  );
 }
 
 export type Load<T> =
@@ -120,7 +140,11 @@ export function read<T>(
     (error: unknown): Answer<T> =>
       error instanceof Refused
         ? error.answer
-        : { ok: false, code: 'UNAVAILABLE', message: 'People did not answer.' },
+        : {
+            ok: false,
+            code: 'UNAVAILABLE',
+            message: t('people.api.people_did_not_answer', 'People did not answer.'),
+          },
   );
 }
 

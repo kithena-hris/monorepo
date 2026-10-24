@@ -2,6 +2,8 @@ import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
+import { languageHeader } from './i18n';
+import { t } from './i18n';
 
 /**
  * Signing in, keeping the session and signing out, against the company's own
@@ -18,6 +20,8 @@ export interface Company {
   readonly slug: string;
   readonly displayName: string | null;
   readonly logoUrl: string | null;
+  /** The company's language: the phone's until its reader chooses one. */
+  readonly language: string | null;
 }
 
 export interface Person {
@@ -73,7 +77,11 @@ export async function startViewing(
 ): Promise<{ ok: true; sessionId: string; person: Person } | { ok: false; message: string }> {
   const response = await fetch(`${origin}/api/mobile/view-as`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${sessionId}` },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${sessionId}`,
+      ...languageHeader(),
+    },
     body: JSON.stringify({ personId, reason }),
   }).catch(() => null);
   const body = (await response?.json().catch(() => null)) as {
@@ -83,7 +91,12 @@ export async function startViewing(
     person?: Person;
   } | null;
   if (body?.ok !== true || body.sessionId === undefined || body.person === undefined) {
-    return { ok: false, message: body?.message ?? 'Kithena could not be reached. Try again.' };
+    return {
+      ok: false,
+      message:
+        body?.message ??
+        t('account.kithena_could_not_be_reached_try', 'Kithena could not be reached. Try again.'),
+    };
   }
   await SecureStore.setItemAsync(OWN, sessionId);
   await SecureStore.setItemAsync(SESSION, body.sessionId);
@@ -94,7 +107,7 @@ export async function startViewing(
 export async function endViewing(origin: string, viewSessionId: string): Promise<string | null> {
   await fetch(`${origin}/api/mobile/view-as`, {
     method: 'DELETE',
-    headers: { authorization: `Bearer ${viewSessionId}` },
+    headers: { authorization: `Bearer ${viewSessionId}`, ...languageHeader() },
   }).catch(() => null);
   const own = await SecureStore.getItemAsync(OWN);
   await SecureStore.deleteItemAsync(OWN);
@@ -130,6 +143,7 @@ export async function companyAt(origin: string): Promise<Company | null | 'unrea
     displayName: body.displayName,
     // An uploaded logo may be a path on the company's own host.
     logoUrl: body.logoUrl?.startsWith('/') === true ? `${origin}${body.logoUrl}` : body.logoUrl,
+    language: body.language ?? null,
   };
 }
 
@@ -194,7 +208,7 @@ export async function whoAmI(
   sessionId: string,
 ): Promise<Person | 'signed-out' | 'unreachable'> {
   const response = await fetch(`${origin}/api/mobile/session`, {
-    headers: { authorization: `Bearer ${sessionId}` },
+    headers: { authorization: `Bearer ${sessionId}`, ...languageHeader() },
   }).catch(() => null);
   if (response === null) return 'unreachable';
   if (response.status === 401) {
@@ -215,7 +229,7 @@ export async function signOut(origin: string, sessionId: string): Promise<void> 
     if (id === null) continue;
     await fetch(`${origin}/api/mobile/session`, {
       method: 'DELETE',
-      headers: { authorization: `Bearer ${id}` },
+      headers: { authorization: `Bearer ${id}`, ...languageHeader() },
     }).catch(() => null);
   }
   await Promise.all([SecureStore.deleteItemAsync(SESSION), SecureStore.deleteItemAsync(OWN)]);

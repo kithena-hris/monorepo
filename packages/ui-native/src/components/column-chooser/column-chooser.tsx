@@ -13,6 +13,7 @@ import { Dialog, DialogClose, DialogContent, DialogTrigger } from '../dialog/dia
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
 import { SearchField } from '../typed-fields/typed-fields.tsx';
+import { t } from '../../lib/i18n';
 
 export type ColumnChoice = { id: string; label: string; locked?: boolean };
 
@@ -80,7 +81,7 @@ export function ColumnChooser({
   value,
   onChange,
   onReset,
-  label = 'Columns',
+  label = t('components.column-chooser.column-chooser.columns', 'Columns'),
   size = 'sm',
   inline = false,
   onDone,
@@ -103,7 +104,7 @@ export function ColumnChooser({
         onQuery={setQuery}
         done={
           <Button variant="primary" size="sm" {...(onDone ? { onPress: onDone } : {})}>
-            Done
+            {t('components.column-chooser.column-chooser.done', 'Done')}
           </Button>
         }
         className={cn(floatingSurface, 'p-4', className)}
@@ -142,7 +143,7 @@ export function ColumnChooser({
           done={
             <DialogClose asChild>
               <Button variant="primary" size="sm">
-                Done
+                {t('components.column-chooser.column-chooser.done', 'Done')}
               </Button>
             </DialogClose>
           }
@@ -213,7 +214,9 @@ function Panel({
   const row = (column: ColumnChoice, index: number): React.JSX.Element => (
     <View className="min-h-11 flex-row items-center gap-2.5">
       <ReorderHandle
-        label={`Move ${column.label}`}
+        label={t('components.column-chooser.column-chooser.move', 'Move {{label}}', {
+          label: column.label,
+        })}
         locked={column.locked ?? false}
         size={15}
         onMove={(delta) => {
@@ -238,7 +241,10 @@ function Panel({
       <View className="flex-row items-center">
         <Text weight="semibold">{label}</Text>
         <CssText className="ml-auto text-[12px] leading-none font-medium text-fg-muted tabular-nums">
-          {`${String(count)} of ${String(ordered.length)}`}
+          {t('components.column-chooser.column-chooser.of', '{{String}} of {{String2}}', {
+            String: String(count),
+            String2: String(ordered.length),
+          })}
         </CssText>
       </View>
       {ordered.length >= SEARCH_FROM ? (
@@ -246,8 +252,8 @@ function Panel({
           size="sm"
           value={query}
           onValueChange={onQuery}
-          placeholder="Find a column"
-          label="Find a column"
+          placeholder={t('components.column-chooser.column-chooser.find_a_column', 'Find a column')}
+          label={t('components.column-chooser.column-chooser.find_a_column', 'Find a column')}
         />
       ) : null}
       {needle ? (
@@ -258,7 +264,11 @@ function Panel({
           ))}
           {found.length === 0 ? (
             <CssText className="py-2 text-subhead leading-[1.3] text-fg-muted">
-              {`No column called “${query}”.`}
+              {t(
+                'components.column-chooser.column-chooser.no_column_called',
+                'No column called “{{query}}”.',
+                { query },
+              )}
             </CssText>
           ) : null}
         </View>
@@ -279,7 +289,7 @@ function Panel({
       <View className="mt-1.5 flex-row justify-between">
         {onReset ? (
           <Button variant="ghost" size="sm" onPress={onReset}>
-            Reset
+            {t('components.column-chooser.column-chooser.reset', 'Reset')}
           </Button>
         ) : (
           <View />

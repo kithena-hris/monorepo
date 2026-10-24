@@ -29,6 +29,7 @@ import {
 } from './api';
 import { AttributeInput } from './attribute-input';
 import type { PeopleScreen } from './routes';
+import { t } from '../i18n';
 
 export interface OnboardingData {
   readonly firstName: string;
@@ -42,11 +43,12 @@ export interface OnboardingData {
   readonly saved: readonly string[];
 }
 
-const ASK = {
-  required: { tone: 'warning', text: 'Required' },
-  optional: { tone: 'neutral', text: 'Optional' },
-  voluntary: { tone: 'info', text: 'Voluntary' },
-} as const;
+const ASK = () =>
+  ({
+    required: { tone: 'warning', text: t('people.onboarding.required', 'Required') },
+    optional: { tone: 'neutral', text: t('people.onboarding.optional', 'Optional') },
+    voluntary: { tone: 'info', text: t('people.onboarding.voluntary', 'Voluntary') },
+  }) as const;
 
 /**
  * A new starter's onboarding (design D7): one section card at a time, the
@@ -62,12 +64,14 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
   const [skipped, setSkipped] = useState<readonly string[]>([]);
   const [draft, setDraft] = useState<Readonly<Record<string, Value>>>({});
   const [warnings, setWarnings] = useState<readonly Finding[] | null>(null);
-  const back = { label: 'Home', onPress: navigation.goBack };
+  const back = { label: t('people.onboarding.home', 'Home'), onPress: navigation.goBack };
 
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading your onboarding" />
+        <Loading
+          label={t('people.onboarding.loading_your_onboarding', 'Loading your onboarding')}
+        />
       </Page>
     );
   if (load.status === 'error')
@@ -128,7 +132,7 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                       setWarnings(null);
                     }}
                   >
-                    Later
+                    {t('people.onboarding.later', 'Later')}
                   </Button>
                 )}
                 <Button
@@ -138,7 +142,9 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                   loading={busy !== null}
                   onPress={() => void save()}
                 >
-                  {warnings !== null && warnings.length > 0 ? 'Save anyway' : 'Save and continue'}
+                  {warnings !== null && warnings.length > 0
+                    ? t('people.onboarding.save_anyway', 'Save anyway')
+                    : t('people.onboarding.save_and_continue', 'Save and continue')}
                 </Button>
               </>
             ),
@@ -147,21 +153,40 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
       {total === 0 ? (
         <EmptyState
           icon={CircleCheck}
-          title="Nothing to fill in"
-          description="Your company has not asked for anything during onboarding."
+          title={t('people.onboarding.nothing_to_fill_in', 'Nothing to fill in')}
+          description={t(
+            'people.onboarding.your_company_has_not_asked_for',
+            'Your company has not asked for anything during onboarding.',
+          )}
         />
       ) : (
         <>
           <Alert tone="accent" variant="summary">
             {left === 0
-              ? 'All done. You can change any of this later from your profile.'
-              : `${left === 1 ? 'One short step' : `${String(left)} short steps`} left. HR only sees what you finish, and nothing you save is lost.`}
+              ? t(
+                  'people.onboarding.all_done_you_can_change_any',
+                  'All done. You can change any of this later from your profile.',
+                )
+              : t(
+                  'people.onboarding.left_hr_only_sees_what_you',
+                  '{{value}} left. HR only sees what you finish, and nothing you save is lost.',
+                  { value: left === 1 ? 'One short step' : `${String(left)} short steps` },
+                )}
           </Alert>
           {/* One checklist (P20): done steps ticked, the current one open in place. */}
           <Card padded={false} className="overflow-hidden">
             <View className="gap-2 px-4 pb-2 pt-4">
-              <Text variant="headline">{`${String(count)} of ${String(total)} done`}</Text>
-              <Progress value={count} max={total} label="Steps done" />
+              <Text variant="headline">
+                {t('people.onboarding.of_done', '{{String}} of {{String2}} done', {
+                  String: String(count),
+                  String2: String(total),
+                })}
+              </Text>
+              <Progress
+                value={count}
+                max={total}
+                label={t('people.onboarding.steps_done', 'Steps done')}
+              />
             </View>
             {data.sections.map((s, i) => {
               const finished = done.has(s.key);
@@ -179,8 +204,8 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                         {s.label}
                       </Text>
                       {s.ask === 'required' ? null : (
-                        <Badge size="sm" tone={ASK[s.ask].tone}>
-                          {ASK[s.ask].text}
+                        <Badge size="sm" tone={ASK()[s.ask].tone}>
+                          {ASK()[s.ask].text}
                         </Badge>
                       )}
                     </View>
@@ -209,7 +234,7 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
                       tone={finished ? 'success' : 'subtle'}
                     />
                   }
-                  {...(finished || s.ask === 'required' ? {} : { description: ASK[s.ask].text })}
+                  {...(finished || s.ask === 'required' ? {} : { description: ASK()[s.ask].text })}
                   {...(finished
                     ? { className: 'opacity-70' }
                     : {
@@ -232,7 +257,12 @@ export function Onboarding({ navigation }: PeopleScreen<'Onboarding'>): React.JS
             })}
           </Card>
           {section === undefined && skipped.length > 0 ? (
-            <Text tone="muted">What you left for later is on your profile, in the Me tab.</Text>
+            <Text tone="muted">
+              {t(
+                'people.onboarding.what_you_left_for_later_is',
+                'What you left for later is on your profile, in the Me tab.',
+              )}
+            </Text>
           ) : null}
         </>
       )}

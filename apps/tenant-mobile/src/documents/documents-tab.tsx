@@ -63,6 +63,7 @@ import {
   type Row,
   type TypeOption,
 } from './api';
+import { t as tr } from '../i18n';
 
 /**
  * The Documents tab (MD1, MD2, MD4–MD6, MH1, MH6): one scroll, no
@@ -147,13 +148,13 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
     <Button
       size="sm"
       variant="primary"
-      accessibilityLabel="Add a document"
+      accessibilityLabel={tr('documents.documents-tab.add_a_document', 'Add a document')}
       startIcon={<Icon icon={Plus} tone="on-accent" />}
       onPress={() => {
         setAdding({ typeKey: null, requestId: null });
       }}
     >
-      Add
+      {tr('documents.documents-tab.add', 'Add')}
     </Button>
   );
   const pick = async (how: 'scan' | 'file'): Promise<void> => {
@@ -174,18 +175,23 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
       <Input
         value={q}
         onChange={setQ}
-        placeholder="Search your documents"
+        placeholder={tr('documents.documents-tab.search_your_documents', 'Search your documents')}
         startAdornment={<Icon icon={Search} />}
-        accessibilityLabel="Search documents"
+        accessibilityLabel={tr('documents.documents-tab.search_documents', 'Search documents')}
       />
       {isQuestion && across?.q !== q.trim() ? (
         <Button startIcon={<Icon icon={Sparkles} />} onPress={askAcross}>
-          Ask Kithena
+          {tr('documents.documents-tab.ask_kithena', 'Ask Kithena')}
         </Button>
       ) : null}
       {across === null ? null : across.a === null ? (
         across.error === undefined ? (
-          <Loading label="Kithena is reading your documents" />
+          <Loading
+            label={tr(
+              'documents.documents-tab.kithena_is_reading_your_documents',
+              'Kithena is reading your documents',
+            )}
+          />
         ) : (
           <Alert tone="danger">{across.error}</Alert>
         )
@@ -201,7 +207,9 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading your documents" />
+        <Loading
+          label={tr('documents.documents-tab.loading_your_documents', 'Loading your documents')}
+        />
       ) : (
         <Body
           data={load.data}
@@ -233,12 +241,12 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
           if (!o) setAdding(null);
         }}
       >
-        <ActionSheetContent title="Add a document">
+        <ActionSheetContent title={tr('documents.documents-tab.add_a_document', 'Add a document')}>
           <ActionSheetItem icon={ScanLine} onSelect={() => void pick('scan')}>
-            Scan a paper document
+            {tr('documents.documents-tab.scan_a_paper_document', 'Scan a paper document')}
           </ActionSheetItem>
           <ActionSheetItem icon={FileUp} onSelect={() => void pick('file')}>
-            Choose a file
+            {tr('documents.documents-tab.choose_a_file', 'Choose a file')}
           </ActionSheetItem>
           {load.status === 'ready' && load.data.viewer.hr ? (
             <ActionSheetItem
@@ -248,7 +256,7 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
                 navigation.navigate('DocumentDraft');
               }}
             >
-              Draft with Kithena
+              {tr('documents.documents-tab.draft_with_kithena', 'Draft with Kithena')}
             </ActionSheetItem>
           ) : null}
           <ActionSheetItem
@@ -260,7 +268,7 @@ export function DocumentsHome({ navigation }: PeopleScreen<'Documents'>): React.
               }, 300);
             }}
           >
-            New section
+            {tr('documents.documents-tab.new_section', 'New section')}
           </ActionSheetItem>
         </ActionSheetContent>
       </ActionSheet>
@@ -352,7 +360,7 @@ function Body({
       )}
       {data.needsYou.length === 0 ? null : (
         <>
-          <Heading title="Needs you" />
+          <Heading title={tr('documents.documents-tab.needs_you', 'Needs you')} />
           <List>
             {data.needsYou.map((n) => (
               <ListItem
@@ -368,7 +376,7 @@ function Body({
                         onAnswer(n.typeKey, n.id);
                       }}
                     >
-                      Add
+                      {tr('documents.documents-tab.add', 'Add')}
                     </Button>
                   ) : n.kind === 'sign' ? (
                     <Button
@@ -378,7 +386,7 @@ function Body({
                         onSign(n.id);
                       }}
                     >
-                      Sign
+                      {tr('documents.documents-tab.sign', 'Sign')}
                     </Button>
                   ) : n.kind === 'acknowledge' ? (
                     <Button
@@ -388,7 +396,7 @@ function Body({
                         if (n.documentId !== null) onOpen(n.documentId, n.title);
                       }}
                     >
-                      Read
+                      {tr('documents.documents-tab.read', 'Read')}
                     </Button>
                   ) : (
                     <View className="flex-row gap-1.5">
@@ -398,7 +406,7 @@ function Body({
                           decide(n.id, false);
                         }}
                       >
-                        Refuse
+                        {tr('documents.documents-tab.refuse', 'Refuse')}
                       </Button>
                       <Button
                         size="xs"
@@ -407,7 +415,7 @@ function Body({
                           decide(n.id, true);
                         }}
                       >
-                        Grant
+                        {tr('documents.documents-tab.grant', 'Grant')}
                       </Button>
                     </View>
                   )
@@ -444,13 +452,16 @@ function Body({
               onRemove={() => {
                 onQueue(null);
               }}
-              removeLabel="Show every document"
+              removeLabel={tr('documents.documents-tab.show_every_document', 'Show every document')}
             >
               {shownQueue.label}
             </Chip>
           </View>
           {data.queueRows.length === 0 ? (
-            <EmptyState icon={FolderOpen} title="Nothing in this queue" />
+            <EmptyState
+              icon={FolderOpen}
+              title={tr('documents.documents-tab.nothing_in_this_queue', 'Nothing in this queue')}
+            />
           ) : (
             <List>
               {data.queueRows.map((r) => (
@@ -471,34 +482,49 @@ function Body({
         </>
       ) : (
         <>
-          <Heading title="Everything" />
+          <Heading title={tr('documents.documents-tab.everything', 'Everything')} />
           <Field>
             <Select value={show} onValueChange={onShow}>
               <FieldControl>
-                <SelectTrigger accessibilityLabel="Show">
+                <SelectTrigger accessibilityLabel={tr('documents.documents-tab.show', 'Show')}>
                   <SelectValue />
                 </SelectTrigger>
               </FieldControl>
-              <SelectContent title="Show">
-                <SelectItem value="all">All documents</SelectItem>
-                <SelectItem value="about-me">About me</SelectItem>
-                <SelectItem value="shared">Shared with me</SelectItem>
-                <SelectItem value="mine">My own</SelectItem>
-                <SelectItem value="company">Company</SelectItem>
+              <SelectContent title={tr('documents.documents-tab.show', 'Show')}>
+                <SelectItem value="all">
+                  {tr('documents.documents-tab.all_documents', 'All documents')}
+                </SelectItem>
+                <SelectItem value="about-me">
+                  {tr('documents.documents-tab.about_me', 'About me')}
+                </SelectItem>
+                <SelectItem value="shared">
+                  {tr('documents.documents-tab.shared_with_me', 'Shared with me')}
+                </SelectItem>
+                <SelectItem value="mine">
+                  {tr('documents.documents-tab.my_own', 'My own')}
+                </SelectItem>
+                <SelectItem value="company">
+                  {tr('documents.documents-tab.company', 'Company')}
+                </SelectItem>
                 {data.sections.map((s) => (
                   <SelectItem key={s.id} value={`section:${s.id}`}>
                     {`${s.name} (${String(s.count)})`}
                   </SelectItem>
                 ))}
-                <SelectItem value="__new">New section…</SelectItem>
+                <SelectItem value="__new">
+                  {tr('documents.documents-tab.new_section_2', 'New section…')}
+                </SelectItem>
               </SelectContent>
             </Select>
           </Field>
           {data.rows.length === 0 ? (
             <EmptyState
               icon={FolderOpen}
-              title="Nothing here yet"
-              description="Add a document with +."
+              title={tr('documents.documents-tab.nothing_here_yet', 'Nothing here yet')}
+              description={tr(
+                'documents.documents-tab.add_a_document_with',
+                'Add a document with +.',
+              )}
             />
           ) : (
             <List>
@@ -636,32 +662,47 @@ function FileDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a document</DialogTitle>
-          <DialogDescription>It starts Private.</DialogDescription>
+          <DialogTitle>
+            {tr('documents.documents-tab.add_a_document', 'Add a document')}
+          </DialogTitle>
+          <DialogDescription>
+            {tr('documents.documents-tab.it_starts_private', 'It starts Private.')}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           {reading === 'reading' ? (
-            <Spinner label="Kithena is reading the scan" />
+            <Spinner
+              label={tr(
+                'documents.documents-tab.kithena_is_reading_the_scan',
+                'Kithena is reading the scan',
+              )}
+            />
           ) : reading === 'read' ? (
             <Text variant="footnote" tone="muted">
-              {`Kithena filled in what it read${expiresOn === null ? '' : `, expiring ${expiresOn}`}. Check each before adding.`}
+              {tr(
+                'documents.documents-tab.kithena_filled_in_what_it_read',
+                'Kithena filled in what it read{{value}}. Check each before adding.',
+                { value: expiresOn === null ? '' : `, expiring ${expiresOn}` },
+              )}
             </Text>
           ) : null}
           <Field>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('documents.documents-tab.name', 'Name')}</FieldLabel>
             <Input value={title} onChange={setTitle} />
           </Field>
           {hr && !fixed ? (
             <Field>
-              <FieldLabel>Type</FieldLabel>
+              <FieldLabel>{tr('documents.documents-tab.type', 'Type')}</FieldLabel>
               <Select value={typeKey} onValueChange={setTypeKey}>
                 <FieldControl>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                 </FieldControl>
-                <SelectContent title="Type">
-                  <SelectItem value={PERSONAL}>My own document</SelectItem>
+                <SelectContent title={tr('documents.documents-tab.type', 'Type')}>
+                  <SelectItem value={PERSONAL}>
+                    {tr('documents.documents-tab.my_own_document', 'My own document')}
+                  </SelectItem>
                   {types.map((t) => (
                     <SelectItem key={t.key} value={t.key}>
                       {t.name}
@@ -673,14 +714,16 @@ function FileDialog({
           ) : null}
           {hr && !fixed && type?.filedTo === 'person' ? (
             <Field>
-              <FieldLabel>About</FieldLabel>
+              <FieldLabel>{tr('documents.documents-tab.about', 'About')}</FieldLabel>
               <Select value={subject ?? ''} onValueChange={setSubject}>
                 <FieldControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Who it is about" />
+                    <SelectValue
+                      placeholder={tr('documents.documents-tab.who_it_is_about', 'Who it is about')}
+                    />
                   </SelectTrigger>
                 </FieldControl>
-                <SelectContent title="About">
+                <SelectContent title={tr('documents.documents-tab.about', 'About')}>
                   {people.map((p) => (
                     <SelectItem key={p.personId} value={p.personId}>
                       {p.name}
@@ -694,7 +737,7 @@ function FileDialog({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('documents.documents-tab.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -703,7 +746,7 @@ function FileDialog({
             disabled={type?.filedTo === 'person' && subject === null}
             onPress={() => void save()}
           >
-            Save
+            {tr('documents.documents-tab.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -731,8 +774,14 @@ function ShareQuestion({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>It’s private</DialogTitle>
-          <DialogDescription>{`Only you can see ${title}. Do you want to share it?`}</DialogDescription>
+          <DialogTitle>{tr('documents.documents-tab.its_private', 'It’s private')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'documents.documents-tab.only_you_can_see_do_you',
+              'Only you can see {{title}}. Do you want to share it?',
+              { title },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Button
@@ -742,15 +791,15 @@ function ShareQuestion({
               onClose();
             }}
           >
-            Don’t ask me after uploads
+            {tr('documents.documents-tab.dont_ask_me_after_uploads', 'Don’t ask me after uploads')}
           </Button>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Keep it private
+            {tr('documents.documents-tab.keep_it_private', 'Keep it private')}
           </Button>
           <Button className="flex-1" variant="primary" onPress={onShare}>
-            Share
+            {tr('documents.documents-tab.share', 'Share')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -779,19 +828,24 @@ function NewSection({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New section</DialogTitle>
-          <DialogDescription>Only you see it. Documents keep their own access.</DialogDescription>
+          <DialogTitle>{tr('documents.documents-tab.new_section', 'New section')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'documents.documents-tab.only_you_see_it_documents_keep',
+              'Only you see it. Documents keep their own access.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{tr('documents.documents-tab.name', 'Name')}</FieldLabel>
             <Input value={name} onChange={setName} />
           </Field>
           {problem === null ? null : <Text tone="danger">{problem}</Text>}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {tr('documents.documents-tab.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -809,7 +863,7 @@ function NewSection({
               });
             }}
           >
-            Create
+            {tr('documents.documents-tab.create', 'Create')}
           </Button>
         </DialogFooter>
       </DialogContent>

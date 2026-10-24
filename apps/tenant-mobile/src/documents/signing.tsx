@@ -38,6 +38,7 @@ import { ask, useSigned, type Signed } from '../people/api';
 import { signatureFaces } from '../signature-faces';
 import { markOf } from '../signature-mark';
 import { askDocuments } from './api';
+import { t } from '../i18n';
 
 /**
  * Signing on the phone as on the web (`sign-view.tsx`), as DocuSign does it:
@@ -72,25 +73,25 @@ interface EnvelopeField {
   readonly label: string | null;
 }
 
-const KIND_LABEL: Readonly<Record<Kind, string>> = {
-  signature: 'Signature',
-  initials: 'Initials',
-  date: 'Dated signature',
-  name: 'Name',
-  title: 'Job title',
-  text: 'Text',
-  checkbox: 'Tick box',
-};
+const KIND_LABEL = (): Readonly<Record<Kind, string>> => ({
+  signature: t('documents.signing.signature', 'Signature'),
+  initials: t('documents.signing.initials', 'Initials'),
+  date: t('documents.signing.dated_signature', 'Dated signature'),
+  name: t('documents.signing.name', 'Name'),
+  title: t('documents.signing.job_title', 'Job title'),
+  text: t('documents.signing.text', 'Text'),
+  checkbox: t('documents.signing.tick_box', 'Tick box'),
+});
 
-const HINT: Readonly<Record<Kind, string>> = {
-  signature: 'Sign',
-  initials: 'Initial',
-  date: 'Sign and date',
-  name: 'Name',
-  title: 'Title',
-  text: 'Text',
+const HINT = (): Readonly<Record<Kind, string>> => ({
+  signature: t('documents.signing.sign', 'Sign'),
+  initials: t('documents.signing.initial', 'Initial'),
+  date: t('documents.signing.sign_and_date', 'Sign and date'),
+  name: t('documents.signing.name', 'Name'),
+  title: t('documents.signing.title', 'Title'),
+  text: t('documents.signing.text', 'Text'),
   checkbox: '',
-};
+});
 
 /**
  * Today on the signer's own calendar, as the phone has it: what a date box
@@ -227,7 +228,20 @@ async function onFileFor(
   };
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = () => [
+  t('documents.signing.jan', 'Jan'),
+  t('documents.signing.feb', 'Feb'),
+  t('documents.signing.mar', 'Mar'),
+  t('documents.signing.apr', 'Apr'),
+  t('documents.signing.may', 'May'),
+  t('documents.signing.jun', 'Jun'),
+  t('documents.signing.jul', 'Jul'),
+  t('documents.signing.aug', 'Aug'),
+  t('documents.signing.sep', 'Sep'),
+  t('documents.signing.oct', 'Oct'),
+  t('documents.signing.nov', 'Nov'),
+  t('documents.signing.dec', 'Dec'),
+];
 
 /** A filled box's value, in paper ink, saying where it ends so the box's caption sits under it. */
 function Filled({ children, className }: { children: string; className: string }) {
@@ -259,8 +273,12 @@ function Filled({ children, className }: { children: string; className: string }
 /** The print under a signed box, as the sealed file prints it (and the web's `traceCaption`). */
 function traceCaption(id: string, at: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  const when = `${String(at.getUTCDate())} ${MONTHS.at(at.getUTCMonth()) ?? ''} ${String(at.getUTCFullYear())}, ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
-  return `Electronically signed via Kithena on ${when}\nSignature ID: ${id}`;
+  const when = `${String(at.getUTCDate())} ${MONTHS().at(at.getUTCMonth()) ?? ''} ${String(at.getUTCFullYear())}, ${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())} UTC`;
+  return t(
+    'documents.signing.electronically_signed_via_kithena_on_signature',
+    'Electronically signed via Kithena on {{when}}\nSignature ID: {{id}}',
+    { when, id },
+  );
 }
 
 /** The file being signed, as a `data:` URL for `PdfPages`: fetched by the phone, never through the company's host. */
@@ -321,7 +339,13 @@ export function SignDocument({
         if (live)
           setLoad({
             status: 'error',
-            message: e instanceof Error ? e.message : 'The document could not be opened.',
+            message:
+              e instanceof Error
+                ? e.message
+                : t(
+                    'documents.signing.the_document_could_not_be_opened',
+                    'The document could not be opened.',
+                  ),
           });
       },
     );
@@ -332,7 +356,7 @@ export function SignDocument({
 
   if (load.status !== 'ready') {
     return (
-      <Page title="Sign" back={back}>
+      <Page title={t('documents.signing.sign', 'Sign')} back={back}>
         {load.status === 'error' ? (
           <Failed
             message={load.message}
@@ -341,7 +365,7 @@ export function SignDocument({
             }}
           />
         ) : (
-          <Loading label="Opening the document" />
+          <Loading label={t('documents.signing.opening_the_document', 'Opening the document')} />
         )}
       </Page>
     );
@@ -404,10 +428,28 @@ function Signing({
   // How far through they are, as the web's bar says it: "1 of 4 done".
   const doneCount = steps.filter((f) => signing.done(f)).length;
   const where = signing.ready
-    ? `All ${String(steps.length)} done. Finish to sign.`
+    ? t('documents.signing.all_done_finish_to_sign', 'All {{String}} done. Finish to sign.', {
+        String: String(steps.length),
+      })
     : at === -1
-      ? `${String(steps.length)} ${steps.length === 1 ? 'place' : 'places'} for you to fill in. Start takes you to each one.`
-      : `Step ${String(at + 1)} of ${String(steps.length)} · ${steps[at]?.label ?? KIND_LABEL[steps[at]?.kind ?? 'signature']} · ${String(doneCount)} of ${String(steps.length)} done`;
+      ? t(
+          'documents.signing.places_for_you_to_fill',
+          {
+            one: '{{count}} place for you to fill in. Start takes you to each one.',
+            other: '{{count}} places for you to fill in. Start takes you to each one.',
+          },
+          { count: steps.length },
+        )
+      : t(
+          'documents.signing.step_of_of_done',
+          'Step {{String}} of {{String2}} · {{value}} · {{String3}} of {{String2}} done',
+          {
+            String: String(at + 1),
+            String2: String(steps.length),
+            value: steps[at]?.label ?? KIND_LABEL()[steps[at]?.kind ?? 'signature'],
+            String3: String(doneCount),
+          },
+        );
   // The signer's colour on the sender's screen: one of six, by their place in the order.
   const tone = ((Math.max(
     0,
@@ -449,14 +491,14 @@ function Signing({
 
   return (
     <Page
-      title="Sign"
+      title={t('documents.signing.sign', 'Sign')}
       back={back}
       scroll={false}
       trailing={
         <Button
           variant="ghost"
           size="sm"
-          accessibilityLabel="More"
+          accessibilityLabel={t('documents.signing.more', 'More')}
           startIcon={<Icon icon={Ellipsis} />}
           onPress={() => {
             setMenu(true);
@@ -473,7 +515,7 @@ function Signing({
             loading={busy}
             onPress={() => void finish()}
           >
-            Finish
+            {t('documents.signing.finish', 'Finish')}
           </Button>
         ) : (
           <>
@@ -487,10 +529,10 @@ function Signing({
                 }}
               >
                 {signing.mark === null
-                  ? 'Adopt and sign'
+                  ? t('documents.signing.adopt_and_sign', 'Adopt and sign')
                   : focused.kind === 'date'
-                    ? 'Sign and date'
-                    : 'Sign'}
+                    ? t('documents.signing.sign_and_date', 'Sign and date')
+                    : t('documents.signing.sign', 'Sign')}
               </Button>
             ) : null}
             <Button
@@ -501,7 +543,9 @@ function Signing({
               }
               onPress={signing.goNext}
             >
-              {signing.focus === null ? 'Start' : 'Next'}
+              {signing.focus === null
+                ? t('documents.signing.start', 'Start')
+                : t('documents.signing.next', 'Next')}
             </Button>
           </>
         )
@@ -516,11 +560,14 @@ function Signing({
         </Text>
         <Progress
           value={steps.length === 0 ? 0 : (doneCount / steps.length) * 100}
-          label={`${String(doneCount)} of ${String(steps.length)} done`}
+          label={t('documents.signing.of_done', '{{String}} of {{String2}} done', {
+            String: String(doneCount),
+            String2: String(steps.length),
+          })}
         />
       </View>
       {problem === null ? null : (
-        <Alert tone="danger" title="Not signed">
+        <Alert tone="danger" title={t('documents.signing.not_signed', 'Not signed')}>
           {problem}
         </Alert>
       )}
@@ -543,9 +590,11 @@ function Signing({
                   h: f.h,
                   tone,
                   label: done
-                    ? `${KIND_LABEL[f.kind]}, filled`
-                    : `${f.label ?? KIND_LABEL[f.kind]}${f.required ? '' : ', optional'}`,
-                  hint: HINT[f.kind],
+                    ? t('documents.signing.filled', '{{value}}, filled', {
+                        value: KIND_LABEL()[f.kind],
+                      })
+                    : `${f.label ?? KIND_LABEL()[f.kind]}${f.required ? '' : ', optional'}`,
+                  hint: HINT()[f.kind],
                   done,
                   // Printed the moment it is filled, as the sealed file prints it.
                   ...(done ? { caption: traceCaption(traceId, new Date()) } : {}),
@@ -583,12 +632,15 @@ function Signing({
         )}
       />
       <Text variant="caption" tone="muted">
-        Signed with your Kithena login. The time and your device are recorded.
+        {t(
+          'documents.signing.signed_with_your_kithena_login_the',
+          'Signed with your Kithena login. The time and your device are recorded.',
+        )}
       </Text>
       <AdoptSignatureDialog
         open={signing.adopting}
         name={name}
-        action="Adopt and sign"
+        action={t('documents.signing.adopt_and_sign', 'Adopt and sign')}
         onOpenChange={(open) => {
           if (!open) signing.closeAdopting();
         }}
@@ -605,11 +657,11 @@ function Signing({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{typing?.label ?? KIND_LABEL[typing?.kind ?? 'text']}</DialogTitle>
+            <DialogTitle>{typing?.label ?? KIND_LABEL()[typing?.kind ?? 'text']}</DialogTitle>
           </DialogHeader>
           <DialogBody>
             <Field>
-              <FieldLabel>{typing?.label ?? KIND_LABEL[typing?.kind ?? 'text']}</FieldLabel>
+              <FieldLabel>{typing?.label ?? KIND_LABEL()[typing?.kind ?? 'text']}</FieldLabel>
               <Input value={text} maxLength={200} onChange={setText} />
             </Field>
           </DialogBody>
@@ -623,7 +675,7 @@ function Signing({
                 setText('');
               }}
             >
-              Apply
+              {t('documents.signing.apply', 'Apply')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -631,10 +683,12 @@ function Signing({
       <ActionSheet open={menu} onOpenChange={setMenu}>
         <ActionSheetContent title={env.title}>
           <ActionSheetItem icon={MessageCircle} onSelect={onAsk}>
-            {`Ask ${env.sender} a question`}
+            {t('documents.signing.ask_a_question', 'Ask {{sender}} a question', {
+              sender: env.sender,
+            })}
           </ActionSheetItem>
           <ActionSheetItem icon={X} onSelect={onDecline}>
-            Decline to sign
+            {t('documents.signing.decline_to_sign', 'Decline to sign')}
           </ActionSheetItem>
         </ActionSheetContent>
       </ActionSheet>

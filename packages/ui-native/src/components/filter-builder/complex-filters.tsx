@@ -19,6 +19,7 @@ import {
   type FilterField,
   type FilterGroup,
 } from '@reach/ui/filter-model';
+import { t as tr } from '../../lib/i18n';
 
 /**
  * The pieces a big list's filters are built from, past one row of
@@ -67,7 +68,7 @@ export function FacetList({
         </Text>
         {onShowAll ? (
           <Button variant="link" size="sm" className="ml-auto" onPress={onShowAll}>
-            Show all
+            {tr('components.filter-builder.complex-filters.show_all', 'Show all')}
           </Button>
         ) : null}
       </View>
@@ -79,7 +80,11 @@ export function FacetList({
             accessibilityRole="checkbox"
             accessibilityState={{ checked: on }}
             aria-checked={on}
-            accessibilityLabel={`${o.label}, ${String(o.count)} results`}
+            accessibilityLabel={tr(
+              'components.filter-builder.complex-filters.results',
+              '{{label}}, {{String}} results',
+              { label: o.label, String: String(o.count) },
+            )}
             onPress={() => {
               onSelectedChange(on ? selected.filter((v) => v !== o.value) : [...selected, o.value]);
             }}
@@ -216,7 +221,11 @@ function Group({
   return (
     <View
       role="group"
-      aria-label={nested ? 'Nested group' : 'Filter group'}
+      aria-label={
+        nested
+          ? tr('components.filter-builder.complex-filters.nested_group', 'Nested group')
+          : tr('components.filter-builder.complex-filters.filter_group', 'Filter group')
+      }
       className={cn(
         'gap-2 rounded-[18px] p-2.5',
         nested ? 'bg-surface-sunken' : 'border border-border-strong',
@@ -230,13 +239,24 @@ function Group({
           onValueChange={(m) => {
             onMatch(m === 'any' ? 'any' : 'all');
           }}
-          accessibilityLabel={nested ? 'Nested group matches' : 'Group matches'}
+          accessibilityLabel={
+            nested
+              ? tr(
+                  'components.filter-builder.complex-filters.nested_group_matches',
+                  'Nested group matches',
+                )
+              : tr('components.filter-builder.complex-filters.group_matches', 'Group matches')
+          }
         >
-          <SegmentedControlItem value="all">All</SegmentedControlItem>
-          <SegmentedControlItem value="any">Any</SegmentedControlItem>
+          <SegmentedControlItem value="all">
+            {tr('components.filter-builder.complex-filters.all', 'All')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="any">
+            {tr('components.filter-builder.complex-filters.any', 'Any')}
+          </SegmentedControlItem>
         </SegmentedControl>
         <CssText className="text-[13px] leading-none font-medium text-fg-muted">
-          of these are true
+          {tr('components.filter-builder.complex-filters.of_these_are_true', 'of these are true')}
         </CssText>
         {onRemoveGroup ? (
           <Button
@@ -244,7 +264,10 @@ function Group({
             size="xs"
             className="ml-auto"
             startIcon={<Icon icon={Trash2} />}
-            accessibilityLabel="Remove this group"
+            accessibilityLabel={tr(
+              'components.filter-builder.complex-filters.remove_this_group',
+              'Remove this group',
+            )}
             onPress={onRemoveGroup}
           />
         ) : null}
@@ -267,7 +290,7 @@ function Group({
           startIcon={<Icon icon={Plus} />}
           {...(onAddCondition ? { onPress: onAddCondition } : {})}
         >
-          Condition
+          {tr('components.filter-builder.complex-filters.condition', 'Condition')}
         </Button>
         {onAddGroup && !nested ? (
           <Button
@@ -276,7 +299,7 @@ function Group({
             startIcon={<Icon icon={FolderPlus} />}
             onPress={onAddGroup}
           >
-            Group
+            {tr('components.filter-builder.complex-filters.group', 'Group')}
           </Button>
         ) : null}
       </View>
@@ -303,7 +326,11 @@ function ConditionCard({
         <CssText className="text-[15px] text-fg-muted">{operator?.label ?? ''}</CssText>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${name} ${operator?.label ?? ''}`}
+          accessibilityLabel={tr(
+            'components.filter-builder.complex-filters.remove',
+            'Remove {{name}} {{value}}',
+            { name, value: operator?.label ?? '' },
+          )}
           hitSlop={14}
           onPress={onRemove}
           className="ml-auto"
@@ -353,7 +380,7 @@ export function FilterQuery({
   onTextChange,
   suggestions = [],
   suggestionsTitle,
-  label = 'Filter query',
+  label = tr('components.filter-builder.complex-filters.filter_query', 'Filter query'),
   className,
 }: FilterQueryProps): React.JSX.Element {
   const finish = (value: string): void => {
@@ -369,7 +396,11 @@ export function FilterQuery({
           <Pressable
             key={`${t}-${String(i)}`}
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${t}`}
+            accessibilityLabel={tr(
+              'components.filter-builder.complex-filters.remove_2',
+              'Remove {{t}}',
+              { t },
+            )}
             onPress={() => {
               onTokensChange(tokens.filter((_, j) => j !== i));
             }}
@@ -402,7 +433,11 @@ export function FilterQuery({
         />
       </View>
       {suggestions.length > 0 ? (
-        <View role="list" aria-label="Completions" className={menuSurface}>
+        <View
+          role="list"
+          aria-label={tr('components.filter-builder.complex-filters.completions', 'Completions')}
+          className={menuSurface}
+        >
           {suggestionsTitle ? (
             <Text mono className="px-3 pt-2 pb-1 text-[12px] font-semibold text-fg-subtle">
               {suggestionsTitle}

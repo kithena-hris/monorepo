@@ -30,6 +30,7 @@ import { flatStyle, InertOutside, quietFrame } from '../../lib/overlay.tsx';
 import { Button } from '../button/button.tsx';
 import { BackGuard, DialogFooter } from '../dialog/dialog.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A panel from the edge of the screen, for work that needs the height: a long
@@ -443,7 +444,7 @@ export function SheetHeader({
   children,
   className,
   showCloseButton = true,
-  closeLabel = 'Close',
+  closeLabel = t('components.sheet.sheet.close', 'Close'),
 }: {
   children?: ReactNode;
   className?: string | undefined;

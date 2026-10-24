@@ -36,6 +36,7 @@ import type { Described } from './describe';
 import { todayHere } from './time';
 import { leaveIcon } from './icons';
 import { addDays, amount, days, longSpan, shortDate, spanLabel } from './words';
+import { t as tr } from '../i18n';
 
 interface LeaveType {
   readonly key: string;
@@ -100,7 +101,7 @@ type Step = 'type' | 'dates' | 'review';
 
 /** "Send to Marco", "Send to Marco and HR", or "Send" when nobody approves it. */
 function sendTo(preview: Preview | null): string {
-  if (preview === null) return 'Send request';
+  if (preview === null) return tr('timeoff.request.send_request', 'Send request');
   const names = preview.approvers.map((r) =>
     r === 'manager' && preview.approver !== null
       ? (preview.approver.displayName.split(' ')[0] ?? preview.approver.displayName)
@@ -108,14 +109,16 @@ function sendTo(preview: Preview | null): string {
         ? 'HR'
         : 'your manager',
   );
-  return names.length === 0 ? 'Send' : `Send to ${names.join(' and ')}`;
+  return names.length === 0
+    ? 'Send'
+    : tr('timeoff.request.send_to', 'Send to {{join}}', { join: names.join(' and ') });
 }
 
 const leftOf = (t: LeaveType): string =>
   t.left === null
     ? t.category === 'sick_leave'
-      ? 'Paid · tell your manager today'
-      : 'Not taken from a balance'
+      ? tr('timeoff.request.paid_tell_your_manager_today', 'Paid · tell your manager today')
+      : tr('timeoff.request.not_taken_from_a_balance', 'Not taken from a balance')
     : t.unit === 'hour'
       ? `${amount(t.left)}h banked`
       : `${days(t.left)} left`;
@@ -141,7 +144,7 @@ function DateSuggestions({
       <View className="flex-row items-center gap-2">
         <AssistantMark size={16} />
         <Text variant="footnote" weight="semibold" tone="muted">
-          Kithena suggests
+          {tr('timeoff.request.kithena_suggests', 'Kithena suggests')}
         </Text>
       </View>
       <View className="flex-row flex-wrap gap-2">
@@ -152,7 +155,11 @@ function DateSuggestions({
               onPick(o.from, o.to);
             }}
           >
-            {`${spanLabel(o.from, o.to)} · ${String(o.used)} → ${String(o.away.days)} off`}
+            {tr('timeoff.request.off', '{{spanLabel}} · {{String}} → {{String2}} off', {
+              spanLabel: spanLabel(o.from, o.to),
+              String: String(o.used),
+              String2: String(o.away.days),
+            })}
           </Chip>
         ))}
       </View>
@@ -252,16 +259,19 @@ export function TimeOffRequest({
 
   const back =
     step === 'type'
-      ? { label: 'Time off', onPress: navigation.goBack }
+      ? { label: tr('timeoff.request.time_off', 'Time off'), onPress: navigation.goBack }
       : {
-          label: step === 'review' ? 'Dates' : 'Type',
+          label:
+            step === 'review'
+              ? tr('timeoff.request.dates', 'Dates')
+              : tr('timeoff.request.type', 'Type'),
           onPress: () => {
             setStep(step === 'review' ? 'dates' : 'type');
           },
         };
   if (failed !== null) {
     return (
-      <Page title="Request time off" back={back}>
+      <Page title={tr('timeoff.request.request_time_off', 'Request time off')} back={back}>
         <Failed
           message={failed}
           onRetry={() => {
@@ -273,8 +283,10 @@ export function TimeOffRequest({
   }
   if (types === null) {
     return (
-      <Page title="Request time off" back={back}>
-        <Loading label="Loading your leave types" />
+      <Page title={tr('timeoff.request.request_time_off', 'Request time off')} back={back}>
+        <Loading
+          label={tr('timeoff.request.loading_your_leave_types', 'Loading your leave types')}
+        />
       </Page>
     );
   }
@@ -286,7 +298,7 @@ export function TimeOffRequest({
 
   if (step === 'type') {
     return (
-      <Page title="Request time off" back={back}>
+      <Page title={tr('timeoff.request.request_time_off', 'Request time off')} back={back}>
         <SearchField
           value={described}
           onValueChange={setDescribed}
@@ -296,11 +308,14 @@ export function TimeOffRequest({
               sentence.trim() === '' ? undefined : { sentence: sentence.trim() },
             );
           }}
-          placeholder="Or describe it: a week off in March"
-          label="Describe the time off"
+          placeholder={tr(
+            'timeoff.request.or_describe_it_a_week_off',
+            'Or describe it: a week off in March',
+          )}
+          label={tr('timeoff.request.describe_the_time_off', 'Describe the time off')}
         />
         <RadioGroup
-          accessibilityLabel="Type"
+          accessibilityLabel={tr('timeoff.request.type', 'Type')}
           value={type ?? undefined}
           onValueChange={(key) => {
             setType(key);
@@ -319,13 +334,13 @@ export function TimeOffRequest({
           <List>
             <ListItem
               icon={Baby}
-              description="Opens the planner"
+              description={tr('timeoff.request.opens_the_planner', 'Opens the planner')}
               chevron
               onPress={() => {
                 navigation.navigate('TimeOffParental');
               }}
             >
-              Parental leave
+              {tr('timeoff.request.parental_leave', 'Parental leave')}
             </ListItem>
           </List>
         ) : null}
@@ -338,7 +353,10 @@ export function TimeOffRequest({
     for (const e of team?.entries ?? []) {
       if (e.personId === me) continue;
       for (let d = e.span.from; d <= e.span.to; d = addDays(d, 1))
-        markers[d] = { tone: 'info', label: `${name(e.personId)} off` };
+        markers[d] = {
+          tone: 'info',
+          label: tr('timeoff.request.off_2', '{{name}} off', { name: name(e.personId) }),
+        };
     }
     for (const h of team?.holidays ?? []) markers[h.date] = { tone: 'neutral', label: h.name };
     for (const c of [
@@ -347,24 +365,28 @@ export function TimeOffRequest({
     ]) {
       markers[c.date] = {
         tone: 'danger',
-        label: `${String(c.in)} of ${String(c.of)} in, below the team minimum`,
+        label: tr(
+          'timeoff.request.of_in_below_the_team_minimum',
+          '{{String}} of {{String2}} in, below the team minimum',
+          { String: String(c.in), String2: String(c.of) },
+        ),
       };
     }
     return (
       <Page
-        title={chosen?.name ?? 'Dates'}
+        title={chosen?.name ?? tr('timeoff.request.dates', 'Dates')}
         back={back}
         foot={
           <>
             <View className="flex-1 justify-center">
               <Text weight="semibold">
                 {range.start === null || range.end === null
-                  ? 'No dates yet'
+                  ? tr('timeoff.request.no_dates_yet', 'No dates yet')
                   : spanLabel(range.start, range.end)}
               </Text>
               <Text variant="footnote" tone="muted">
                 {preview === null
-                  ? 'Pick the first and last day'
+                  ? tr('timeoff.request.pick_the_first_and_last_day', 'Pick the first and last day')
                   : [
                       days(preview.span.workingDays),
                       preview.balance === null
@@ -383,7 +405,7 @@ export function TimeOffRequest({
                 setStep('review');
               }}
             >
-              Next
+              {tr('timeoff.request.next', 'Next')}
             </Button>
           </>
         }
@@ -399,7 +421,7 @@ export function TimeOffRequest({
         )}
         <Calendar
           mode="range"
-          label="Dates off"
+          label={tr('timeoff.request.dates_off', 'Dates off')}
           today={today}
           month={`${month}-01`}
           onMonthChange={(m) => {
@@ -412,20 +434,33 @@ export function TimeOffRequest({
         <SegmentedControl
           fullWidth
           size="sm"
-          accessibilityLabel="Length"
+          accessibilityLabel={tr('timeoff.request.length', 'Length')}
           value={half ? 'half' : 'full'}
           onValueChange={(v) => {
             setHalf(v === 'half');
           }}
         >
-          <SegmentedControlItem value="full">Full days</SegmentedControlItem>
-          <SegmentedControlItem value="half">Half the last day</SegmentedControlItem>
+          <SegmentedControlItem value="full">
+            {tr('timeoff.request.full_days', 'Full days')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="half">
+            {tr('timeoff.request.half_the_last_day', 'Half the last day')}
+          </SegmentedControlItem>
         </SegmentedControl>
         <Text variant="footnote" tone="muted">
-          Blue dots are teammates who are off, grey are holidays, red is a day already short.
+          {tr(
+            'timeoff.request.blue_dots_are_teammates_who_are',
+            'Blue dots are teammates who are off, grey are holidays, red is a day already short.',
+          )}
         </Text>
         {problem === null ? null : (
-          <Alert tone="danger" title="Those dates cannot be asked for">
+          <Alert
+            tone="danger"
+            title={tr(
+              'timeoff.request.those_dates_cannot_be_asked_for',
+              'Those dates cannot be asked for',
+            )}
+          >
             {problem}
           </Alert>
         )}
@@ -445,7 +480,7 @@ export function TimeOffRequest({
         );
   return (
     <Page
-      title="Review"
+      title={tr('timeoff.request.review', 'Review')}
       back={back}
       foot={
         <Button
@@ -484,23 +519,35 @@ export function TimeOffRequest({
     >
       {preview === null || chosen === null ? (
         problem === null ? (
-          <Loading label="Working out what it costs" />
+          <Loading
+            label={tr('timeoff.request.working_out_what_it_costs', 'Working out what it costs')}
+          />
         ) : (
-          <Alert tone="danger" title="Those dates cannot be asked for">
+          <Alert
+            tone="danger"
+            title={tr(
+              'timeoff.request.those_dates_cannot_be_asked_for',
+              'Those dates cannot be asked for',
+            )}
+          >
             {problem}
           </Alert>
         )
       ) : (
         <>
           <Stat
-            label="You’ll be off"
+            label={tr('timeoff.request.youll_be_off', 'You’ll be off')}
             icon={<Icon icon={leaveIcon(chosen.icon)} />}
             value={longSpan(preview.span.from, preview.span.to)}
-            description={`${chosen.name} · ${days(preview.span.workingDays)} · ${days(preview.daysAway.days)} away`}
+            description={tr('timeoff.request.away', '{{name}} · {{days}} · {{days2}} away', {
+              name: chosen.name,
+              days: days(preview.span.workingDays),
+              days2: days(preview.daysAway.days),
+            })}
           />
           {preview.balance === null ? null : (
             <Stat
-              label={`${chosen.name} left`}
+              label={tr('timeoff.request.left', '{{name}} left', { name: chosen.name })}
               from={amount(preview.balance.before)}
               value={amount(preview.balance.after).replace(/^-/, '−')}
               unit={chosen.unit === 'hour' ? 'hours' : 'days'}
@@ -520,21 +567,30 @@ export function TimeOffRequest({
             <Alert
               key={c.date}
               tone={preview.blocked ? 'danger' : 'warning'}
-              title={`${shortDate(c.date)}: only ${String(c.in)} of ${String(c.of)} would be in`}
+              title={tr(
+                'timeoff.request.only_of_would_be_in',
+                '{{shortDate}}: only {{String}} of {{String2}} would be in',
+                { shortDate: shortDate(c.date), String: String(c.in), String2: String(c.of) },
+              )}
             >
-              {`Your team asks for at least ${String(c.required)}. ${
-                preview.blocked
-                  ? 'Your team does not take requests below its minimum, so pick other dates.'
-                  : approver === null
-                    ? 'It can still be approved.'
-                    : `${approver} can still approve it.`
-              }`}
+              {tr(
+                'timeoff.request.your_team_asks_for_at_least',
+                'Your team asks for at least {{String}}. {{value}}',
+                {
+                  String: String(c.required),
+                  value: preview.blocked
+                    ? 'Your team does not take requests below its minimum, so pick other dates.'
+                    : approver === null
+                      ? 'It can still be approved.'
+                      : `${approver} can still approve it.`,
+                },
+              )}
             </Alert>
           ))}
           {others.length === 0 ? null : (
             <>
               <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-                Who else is off
+                {tr('timeoff.request.who_else_is_off', 'Who else is off')}
               </Text>
               <List>
                 {others.map((o) => (
@@ -542,7 +598,11 @@ export function TimeOffRequest({
                     key={`${o.personId}${o.span.from}`}
                     leading={<Avatar name={name(o.personId)} size={36} />}
                     description={spanLabel(o.span.from, o.span.to)}
-                    trailing={<Badge size="sm">{typeName(o.leaveTypeKey) ?? 'Off'}</Badge>}
+                    trailing={
+                      <Badge size="sm">
+                        {typeName(o.leaveTypeKey) ?? tr('timeoff.request.off_3', 'Off')}
+                      </Badge>
+                    }
                   >
                     {name(o.personId)}
                   </ListItem>
@@ -553,12 +613,20 @@ export function TimeOffRequest({
           {preview.approvers.length === 0 ? null : (
             <Field>
               <FieldLabel>
-                {approver === null ? 'Note (optional)' : `Note for ${approver} (optional)`}
+                {approver === null
+                  ? tr('timeoff.request.note_optional', 'Note (optional)')
+                  : tr('timeoff.request.note_for_optional', 'Note for {{approver}} (optional)', {
+                      approver,
+                    })}
               </FieldLabel>
               <Textarea
                 value={note}
                 onChange={setNote}
-                placeholder={`Anything ${approver ?? 'your approver'} should know`}
+                placeholder={tr(
+                  'timeoff.request.anything_should_know',
+                  'Anything {{value}} should know',
+                  { value: approver ?? 'your approver' },
+                )}
               />
             </Field>
           )}
@@ -582,25 +650,45 @@ function BelowZero({
   const below = preview.balance === null ? '' : amount(preview.balance.after).replace(/^-/, '');
   const nextYear = String(Number(span.from.slice(0, 4)) + 1);
   const who = negative.approvers
-    .map((r) => (r === 'manager' ? (approver ?? 'Your manager') : 'HR'))
+    .map((r) =>
+      r === 'manager' ? (approver ?? tr('timeoff.request.your_manager', 'Your manager')) : 'HR',
+    )
     .join(' and ');
   const [choice, setChoice] = useState(negative.kind === 'borrow' ? 'borrow' : '');
   return (
     <Stack gap={3}>
       {negative.kind === 'borrow' ? (
-        <Alert tone="warning" title={`This takes you ${below} days below zero`}>
-          {`You can borrow up to the company’s limit from next year’s allowance. ${who} need to approve it.`}
+        <Alert
+          tone="warning"
+          title={tr(
+            'timeoff.request.this_takes_you_days_below_zero',
+            'This takes you {{below}} days below zero',
+            { below },
+          )}
+        >
+          {tr(
+            'timeoff.request.you_can_borrow_up_to_the',
+            'You can borrow up to the company’s limit from next year’s allowance. {{who}} need to approve it.',
+            { who },
+          )}
         </Alert>
       ) : (
         <Alert
           tone="danger"
-          title={`This goes past the ${amount(negative.limit ?? '0')} days you can go below zero`}
+          title={tr(
+            'timeoff.request.this_goes_past_the_days_you',
+            'This goes past the {{amount}} days you can go below zero',
+            { amount: amount(negative.limit ?? '0') },
+          )}
         >
-          Shorten it to dates that fit, or ask HR.
+          {tr(
+            'timeoff.request.shorten_it_to_dates_that_fit',
+            'Shorten it to dates that fit, or ask HR.',
+          )}
         </Alert>
       )}
       <RadioGroup
-        accessibilityLabel="What to do"
+        accessibilityLabel={tr('timeoff.request.what_to_do', 'What to do')}
         value={choice}
         onValueChange={(v) => {
           setChoice(v);
@@ -613,31 +701,48 @@ function BelowZero({
             value="borrow"
             badge={
               <Badge size="sm" tone="accent">
-                Suggested
+                {tr('timeoff.request.suggested', 'Suggested')}
               </Badge>
             }
-            description={`You keep all ${amount(span.workingDays)} days as paid time off.`}
+            description={tr(
+              'timeoff.request.you_keep_all_days_as_paid',
+              'You keep all {{amount}} days as paid time off.',
+              { amount: amount(span.workingDays) },
+            )}
             impact={`${nextYear} starts at ${amount(negative.nextYearStartsAt ?? '0')}`}
           >
-            {`Borrow ${amount(negative.days ?? '0')} days from ${nextYear}`}
+            {tr('timeoff.request.borrow_days_from', 'Borrow {{amount}} days from {{nextYear}}', {
+              amount: amount(negative.days ?? '0'),
+              nextYear,
+            })}
           </RadioCard>
         ) : null}
         {negative.unpaid === null ? null : (
           <RadioCard
             value="unpaid"
             disabled
-            description="Not offered here yet: Time Off cannot split one request into paid and unpaid days. Ask HR."
+            description={tr(
+              'timeoff.request.not_offered_here_yet_time_off',
+              'Not offered here yet: Time Off cannot split one request into paid and unpaid days. Ask HR.',
+            )}
           >
-            {`Make ${amount(negative.unpaid.days)} days unpaid`}
+            {tr('timeoff.request.make_days_unpaid', 'Make {{amount}} days unpaid', {
+              amount: amount(negative.unpaid.days),
+            })}
           </RadioCard>
         )}
         {negative.shorten === null ? null : (
           <RadioCard
             value="shorten"
-            description={`${days(negative.shorten.days)} fits your balance.`}
+            description={tr('timeoff.request.fits_your_balance', '{{days}} fits your balance.', {
+              days: days(negative.shorten.days),
+            })}
             impact="Nothing borrowed"
           >
-            {`Shorten to ${spanLabel(span.from, negative.shorten.to)}${negative.shorten.endsHalfDay ? ', half the last day' : ''}`}
+            {tr('timeoff.request.shorten_to', 'Shorten to {{spanLabel}}{{value}}', {
+              spanLabel: spanLabel(span.from, negative.shorten.to),
+              value: negative.shorten.endsHalfDay ? ', half the last day' : '',
+            })}
           </RadioCard>
         )}
       </RadioGroup>

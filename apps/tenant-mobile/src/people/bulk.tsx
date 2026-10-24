@@ -39,6 +39,7 @@ import {
 } from './api';
 import { AttributeInput } from './attribute-input';
 import type { PeopleScreen } from './routes';
+import { t } from '../i18n';
 
 interface BulkState {
   readonly people: readonly { readonly id: string; readonly name: string }[];
@@ -75,14 +76,14 @@ interface Done {
   readonly rows: readonly Row[];
 }
 
-const OUTCOME: Readonly<
+const OUTCOME = (): Readonly<
   Record<Row['outcome'], { label: string; tone: 'success' | 'neutral' | 'danger' | 'warning' }>
-> = {
-  changed: { label: 'Changes', tone: 'success' },
-  unchanged: { label: 'Already so', tone: 'neutral' },
-  refused: { label: 'Skipped', tone: 'danger' },
-  held: { label: 'For approval', tone: 'warning' },
-};
+> => ({
+  changed: { label: t('people.bulk.changes', 'Changes'), tone: 'success' },
+  unchanged: { label: t('people.bulk.already_so', 'Already so'), tone: 'neutral' },
+  refused: { label: t('people.bulk.skipped', 'Skipped'), tone: 'danger' },
+  held: { label: t('people.bulk.for_approval', 'For approval'), tone: 'warning' },
+});
 
 /** A value in words, for a before and after: never more than the record would show. */
 function said(entry: Entry): string {
@@ -141,8 +142,8 @@ function Rows({ rows }: { rows: readonly Row[] }): React.JSX.Element {
                   .join('\n') || undefined
           }
           trailing={
-            <Badge size="sm" tone={OUTCOME[r.outcome].tone}>
-              {OUTCOME[r.outcome].label}
+            <Badge size="sm" tone={OUTCOME()[r.outcome].tone}>
+              {OUTCOME()[r.outcome].label}
             </Badge>
           }
         >
@@ -163,14 +164,14 @@ function Rows({ rows }: { rows: readonly Row[] }): React.JSX.Element {
 export function BulkEdit({ navigation, route }: PeopleScreen<'BulkEdit'>): React.JSX.Element {
   const { load, reload } = useRead<BulkState>('BulkEdit', { personIds: route.params.personIds });
   const [tab, setTab] = useState<'edit' | 'hire'>('edit');
-  const back = { label: 'Directory', onPress: navigation.goBack };
+  const back = { label: t('people.bulk.directory', 'Directory'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="Edit people" back={back}>
+      <Page title={t('people.bulk.edit_people', 'Edit people')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the people" />
+          <Loading label={t('people.bulk.loading_the_people', 'Loading the people')} />
         )}
       </Page>
     );
@@ -180,7 +181,13 @@ export function BulkEdit({ navigation, route }: PeopleScreen<'BulkEdit'>): React
   return (
     <Page
       title={
-        tab === 'edit' ? `Edit ${String(n)} ${n === 1 ? 'person' : 'people'}` : `Hire ${String(n)}`
+        tab === 'edit'
+          ? t(
+              'people.bulk.edit',
+              { one: 'Edit {{count}} person', other: 'Edit {{count}} people' },
+              { count: n },
+            )
+          : t('people.bulk.hire', 'Hire {{String}}', { String: String(n) })
       }
       back={back}
     >
@@ -190,13 +197,15 @@ export function BulkEdit({ navigation, route }: PeopleScreen<'BulkEdit'>): React
       <SegmentedControl
         fullWidth
         value={tab}
-        accessibilityLabel="What to do"
+        accessibilityLabel={t('people.bulk.what_to_do', 'What to do')}
         onValueChange={(v) => {
           setTab(v === 'hire' ? 'hire' : 'edit');
         }}
       >
-        <SegmentedControlItem value="edit">Set values</SegmentedControlItem>
-        <SegmentedControlItem value="hire">Hire</SegmentedControlItem>
+        <SegmentedControlItem value="edit">
+          {t('people.bulk.set_values', 'Set values')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="hire">{t('people.bulk.hire_2', 'Hire')}</SegmentedControlItem>
       </SegmentedControl>
       {tab === 'edit' ? (
         <SetValues state={state} onDone={navigation.goBack} />
@@ -265,7 +274,7 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
                       setChosen((c) => c.map((k) => (k === key ? next : k)));
                     }}
                   >
-                    <SelectTrigger size="sm" accessibilityLabel="Field">
+                    <SelectTrigger size="sm" accessibilityLabel={t('people.bulk.field', 'Field')}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -282,7 +291,9 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
                     size="sm"
                     variant="ghost"
                     startIcon={<Icon icon={X} />}
-                    accessibilityLabel={`Remove ${field.label}`}
+                    accessibilityLabel={t('people.bulk.remove', 'Remove {{label}}', {
+                      label: field.label,
+                    })}
                     onPress={() => {
                       reset();
                       setChosen((c) => c.filter((k) => k !== key));
@@ -312,11 +323,11 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
             setChosen((c) => [...c, open[0]?.key ?? '']);
           }}
         >
-          Add a field
+          {t('people.bulk.add_a_field', 'Add a field')}
         </Button>
       )}
       <DatePicker
-        label="Takes effect from"
+        label={t('people.bulk.takes_effect_from', 'Takes effect from')}
         size="sm"
         value={effectiveFrom}
         onChange={(next) => {
@@ -325,16 +336,26 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
         }}
       />
       <Text variant="footnote" tone="muted">
-        Empty clears the field. Fields kept without dates change on the day.
+        {t(
+          'people.bulk.empty_clears_the_field_fields_kept',
+          'Empty clears the field. Fields kept without dates change on the day.',
+        )}
       </Text>
       {sensitive.length === 0 ? null : (
         <ListItem
           listitem={false}
-          description={`${sensitive.map((f) => f.label).join(', ')} would wait for approval. Applied straight through, it is recorded as such.`}
+          description={t(
+            'people.bulk.would_wait_for_approval_applied_straight',
+            '{{join}} would wait for approval. Applied straight through, it is recorded as such.',
+            { join: sensitive.map((f) => f.label).join(', ') },
+          )}
           leading={
             <Checkbox
               checked={withoutApproval}
-              accessibilityLabel="Apply sensitive values without approval"
+              accessibilityLabel={t(
+                'people.bulk.apply_sensitive_values_without_approval',
+                'Apply sensitive values without approval',
+              )}
               onCheckedChange={(on) => {
                 reset();
                 setWithoutApproval(on);
@@ -342,21 +363,43 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
             />
           }
         >
-          Apply sensitive values without approval
+          {t(
+            'people.bulk.apply_sensitive_values_without_approval',
+            'Apply sensitive values without approval',
+          )}
         </ListItem>
       )}
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
       {shown === null ? null : shown.committed ? (
-        <Alert tone="success" title={`${String(count('changed'))} changed`}>
-          {`${String(count('held'))} wait for approval, ${String(count('refused'))} skipped.`}
+        <Alert
+          tone="success"
+          title={t('people.bulk.changed', '{{String}} changed', {
+            String: String(count('changed')),
+          })}
+        >
+          {t(
+            'people.bulk.wait_for_approval_skipped',
+            '{{String}} wait for approval, {{String2}} skipped.',
+            { String: String(count('held')), String2: String(count('refused')) },
+          )}
         </Alert>
       ) : (
-        <Text weight="semibold">{`${String(count('changed'))} would change, ${String(count('held'))} wait for approval, ${String(count('refused'))} skipped`}</Text>
+        <Text weight="semibold">
+          {t(
+            'people.bulk.would_change_wait_for_approval_skipped',
+            '{{String}} would change, {{String2}} wait for approval, {{String3}} skipped',
+            {
+              String: String(count('changed')),
+              String2: String(count('held')),
+              String3: String(count('refused')),
+            },
+          )}
+        </Text>
       )}
       {shown === null ? null : <Rows rows={shown.rows} />}
       {shown?.committed === true ? (
         <Button variant="primary" onPress={onDone}>
-          Back to the Directory
+          {t('people.bulk.back_to_the_directory', 'Back to the Directory')}
         </Button>
       ) : shown === null ? (
         <Button
@@ -365,7 +408,7 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
           disabled={chosen.length === 0}
           onPress={() => void run('BulkEditPreview')}
         >
-          Preview
+          {t('people.bulk.preview', 'Preview')}
         </Button>
       ) : (
         <Button
@@ -374,7 +417,9 @@ function SetValues({ state, onDone }: { state: BulkState; onDone: () => void }):
           disabled={count('changed') + count('held') === 0}
           onPress={() => void run('BulkEditPeople')}
         >
-          {`Apply to ${String(count('changed') + count('held'))}`}
+          {t('people.bulk.apply_to', 'Apply to {{String}}', {
+            String: String(count('changed') + count('held')),
+          })}
         </Button>
       )}
     </>
@@ -427,7 +472,11 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
     state.placement === null ? null : (
       <>
         <Field>
-          <FieldLabel>{who === undefined ? 'Legal entity' : `${who}: legal entity`}</FieldLabel>
+          <FieldLabel>
+            {who === undefined
+              ? t('people.bulk.legal_entity', 'Legal entity')
+              : t('people.bulk.legal_entity_2', '{{who}}: legal entity', { who })}
+          </FieldLabel>
           <Select
             value={value.entity}
             onValueChange={(entity) => {
@@ -435,8 +484,13 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
               onChange({ entity, location: '' });
             }}
           >
-            <SelectTrigger size="sm" accessibilityLabel="Legal entity">
-              <SelectValue placeholder="Where they are employed" />
+            <SelectTrigger
+              size="sm"
+              accessibilityLabel={t('people.bulk.legal_entity', 'Legal entity')}
+            >
+              <SelectValue
+                placeholder={t('people.bulk.where_they_are_employed', 'Where they are employed')}
+              />
             </SelectTrigger>
             <SelectContent>
               {state.placement.entities.map((e) => (
@@ -448,7 +502,11 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
           </Select>
         </Field>
         <Field>
-          <FieldLabel>{who === undefined ? 'Work location' : `${who}: work location`}</FieldLabel>
+          <FieldLabel>
+            {who === undefined
+              ? t('people.bulk.work_location', 'Work location')
+              : t('people.bulk.work_location_2', '{{who}}: work location', { who })}
+          </FieldLabel>
           <Select
             value={value.location}
             onValueChange={(location) => {
@@ -461,8 +519,11 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
               });
             }}
           >
-            <SelectTrigger size="sm" accessibilityLabel="Work location">
-              <SelectValue placeholder="Where they work" />
+            <SelectTrigger
+              size="sm"
+              accessibilityLabel={t('people.bulk.work_location', 'Work location')}
+            >
+              <SelectValue placeholder={t('people.bulk.where_they_work', 'Where they work')} />
             </SelectTrigger>
             <SelectContent>
               {state.placement.locations
@@ -474,7 +535,12 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
                 ))}
             </SelectContent>
           </Select>
-          <FieldDescription>Anyone already placed keeps their placement.</FieldDescription>
+          <FieldDescription>
+            {t(
+              'people.bulk.anyone_already_placed_keeps_their_placement',
+              'Anyone already placed keeps their placement.',
+            )}
+          </FieldDescription>
         </Field>
       </>
     );
@@ -482,9 +548,14 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
   const hired = shown?.rows.filter((r) => r.outcome === 'changed').length ?? 0;
   return (
     <>
-      <Text tone="muted">People without a start date become employees on the date you choose.</Text>
+      <Text tone="muted">
+        {t(
+          'people.bulk.people_without_a_start_date_become',
+          'People without a start date become employees on the date you choose.',
+        )}
+      </Text>
       <DatePicker
-        label="Start date"
+        label={t('people.bulk.start_date', 'Start date')}
         size="sm"
         value={day}
         onChange={(next) => {
@@ -499,9 +570,13 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
           {nowhere.length === 0 ? null : (
             <Alert
               tone="neutral"
-              title={`${nowhere.map((r) => r.name).join(', ')} ${nowhere.length === 1 ? 'is' : 'are'} placed nowhere`}
+              title={t(
+                'people.bulk.placed_nowhere',
+                { one: '{{join}} is placed nowhere', other: '{{join}} are placed nowhere' },
+                { count: nowhere.length, join: nowhere.map((r) => r.name).join(', ') },
+              )}
             >
-              Choose where they work below.
+              {t('people.bulk.choose_where_they_work_below', 'Choose where they work below.')}
             </Alert>
           )}
           <Rows rows={shown.rows} />
@@ -511,7 +586,9 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
                 <Card key={r.personId} variant="outline">
                   <Stack gap={2}>
                     <DatePicker
-                      label={`Start date for ${r.name}`}
+                      label={t('people.bulk.start_date_for', 'Start date for {{name}}', {
+                        name: r.name,
+                      })}
                       size="sm"
                       value={dates[r.personId] ?? day}
                       onChange={(next) => {
@@ -535,14 +612,17 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
       )}
       {shown?.committed === true ? (
         <>
-          <Alert tone="success" title={`${String(hired)} hired`} />
+          <Alert
+            tone="success"
+            title={t('people.bulk.hired', '{{String}} hired', { String: String(hired) })}
+          />
           <Button variant="primary" onPress={onDone}>
-            Back to the Directory
+            {t('people.bulk.back_to_the_directory', 'Back to the Directory')}
           </Button>
         </>
       ) : shown === null ? (
         <Button variant="primary" loading={busy} onPress={() => void run('BulkHirePreview')}>
-          Preview
+          {t('people.bulk.preview', 'Preview')}
         </Button>
       ) : (
         <Button
@@ -551,7 +631,7 @@ function Hire({ state, onDone }: { state: BulkState; onDone: () => void }): Reac
           disabled={hired === 0}
           onPress={() => void run('BulkHirePeople')}
         >
-          {`Hire ${String(hired)}`}
+          {t('people.bulk.hire', 'Hire {{String}}', { String: String(hired) })}
         </Button>
       )}
     </>

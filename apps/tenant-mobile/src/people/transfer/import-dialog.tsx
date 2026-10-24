@@ -22,6 +22,7 @@ import { ask, useSigned } from '../api';
 import { blobOf, put, type Target } from '../media';
 import { parsed } from '../review/load';
 import { mappingOf, type MapStage, type Mapping, type NewFieldsView, type PlanView } from './model';
+import { t } from '../../i18n';
 
 /**
  * Importing people in a centred modal (design v3 P8): drop a spreadsheet,
@@ -80,7 +81,7 @@ export function ImportDialog({
     setAnswered([]);
     const body = await blobOf(asset.uri);
     if (body.size > 100 * 1024 * 1024) {
-      fail('A file can be up to 100 MB.');
+      fail(t('people.transfer.import-dialog.a_file_can_be_up_to', 'A file can be up to 100 MB.'));
       return;
     }
     const target = await ask<Target>(signed, 'StartImportUpload', {
@@ -124,7 +125,12 @@ export function ImportDialog({
     }
     const view = parsed(proposed.data) as NewFieldsView | null;
     if (view === null) {
-      fail('People answered in a way this screen cannot read.');
+      fail(
+        t(
+          'people.transfer.import-dialog.people_answered_in_a_way_this',
+          'People answered in a way this screen cannot read.',
+        ),
+      );
       return;
     }
     setFields(view);
@@ -138,7 +144,12 @@ export function ImportDialog({
     }
     const p = parsed(planned.data) as PlanView | null;
     if (p === null) {
-      fail('People answered in a way this screen cannot read.');
+      fail(
+        t(
+          'people.transfer.import-dialog.people_answered_in_a_way_this',
+          'People answered in a way this screen cannot read.',
+        ),
+      );
       return;
     }
     setPlan(p);
@@ -162,7 +173,12 @@ export function ImportDialog({
     }
     const ran = parsed(answer.data) as { runId?: string } | null;
     if (typeof ran?.runId !== 'string') {
-      fail('The import did not start. Try again.');
+      fail(
+        t(
+          'people.transfer.import-dialog.the_import_did_not_start_try',
+          'The import did not start. Try again.',
+        ),
+      );
       return;
     }
     onStarted(ran.runId);
@@ -196,11 +212,16 @@ export function ImportDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import people</DialogTitle>
+          <DialogTitle>
+            {t('people.transfer.import-dialog.import_people', 'Import people')}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody>
           {problem === null ? null : (
-            <Alert tone="danger" title="That did not work">
+            <Alert
+              tone="danger"
+              title={t('people.transfer.import-dialog.that_did_not_work', 'That did not work')}
+            >
               {problem}
             </Alert>
           )}
@@ -211,9 +232,21 @@ export function ImportDialog({
               iconTone={2}
               className="bg-transparent"
               {...(stage === null
-                ? { description: 'Excel or CSV, one person a row' }
+                ? {
+                    description: t(
+                      'people.transfer.import-dialog.excel_or_csv_one_person_a',
+                      'Excel or CSV, one person a row',
+                    ),
+                  }
                 : {
-                    description: `${stage.file.rows.toLocaleString('en-GB')} rows · ${String(stage.columns.length)} columns`,
+                    description: t(
+                      'people.transfer.import-dialog.rows_columns',
+                      '{{toLocaleString}} rows · {{String}} columns',
+                      {
+                        toLocaleString: stage.file.rows.toLocaleString('en-GB'),
+                        String: String(stage.columns.length),
+                      },
+                    ),
                   })}
               trailing={
                 <Button
@@ -222,28 +255,53 @@ export function ImportDialog({
                   loading={busy === 'upload'}
                   onPress={() => void pick()}
                 >
-                  {stage === null ? 'Choose' : 'Change'}
+                  {stage === null
+                    ? t('people.transfer.import-dialog.choose', 'Choose')
+                    : t('people.transfer.import-dialog.change', 'Change')}
                 </Button>
               }
             >
-              {stage?.file.name ?? 'Choose a spreadsheet'}
+              {stage?.file.name ??
+                t('people.transfer.import-dialog.choose_a_spreadsheet', 'Choose a spreadsheet')}
             </ListItem>
           </Card>
           {stage === null ? null : (
             <Card variant="assistant">
-              <Text variant="headline">{`Matched ${String(matched)} of ${String(stage.columns.length)} columns`}</Text>
+              <Text variant="headline">
+                {t(
+                  'people.transfer.import-dialog.matched_of_columns',
+                  'Matched {{String}} of {{String2}} columns',
+                  { String: String(matched), String2: String(stage.columns.length) },
+                )}
+              </Text>
               {question === undefined ? (
                 <Text variant="subhead" tone="muted">
                   {stage.columns.some((c) => c.status === 'refused')
-                    ? 'Columns it can’t read are left out.'
-                    : 'Nothing needs you.'}
+                    ? t(
+                        'people.transfer.import-dialog.columns_it_cant_read_are_left',
+                        'Columns it can’t read are left out.',
+                      )
+                    : t('people.transfer.import-dialog.nothing_needs_you', 'Nothing needs you.')}
                 </Text>
               ) : (
                 <View className="gap-2">
                   <Text variant="subhead" tone="muted">
-                    {unsure.length === 1 ? 'One needs you:' : `${String(unsure.length)} need you:`}
+                    {unsure.length === 1
+                      ? t('people.transfer.import-dialog.one_needs_you', 'One needs you:')
+                      : t('people.transfer.import-dialog.need_you', '{{String}} need you:', {
+                          String: String(unsure.length),
+                        })}
                   </Text>
-                  <Text weight="semibold">{`Is “${question.header}” the ${fieldLabel(mapping[question.index] ?? question.key)}?`}</Text>
+                  <Text weight="semibold">
+                    {t(
+                      'people.transfer.import-dialog.is_the',
+                      'Is “{{header}}” the {{fieldLabel}}?',
+                      {
+                        header: question.header,
+                        fieldLabel: fieldLabel(mapping[question.index] ?? question.key),
+                      },
+                    )}
+                  </Text>
                   <View className="flex-row flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -252,7 +310,9 @@ export function ImportDialog({
                         answer(true);
                       }}
                     >
-                      {`Yes, ${fieldLabel(mapping[question.index] ?? question.key)}`}
+                      {t('people.transfer.import-dialog.yes', 'Yes, {{fieldLabel}}', {
+                        fieldLabel: fieldLabel(mapping[question.index] ?? question.key),
+                      })}
                     </Button>
                     <Button
                       size="sm"
@@ -260,7 +320,7 @@ export function ImportDialog({
                         answer(false);
                       }}
                     >
-                      No
+                      {t('people.transfer.import-dialog.no', 'No')}
                     </Button>
                     <Button
                       size="sm"
@@ -269,60 +329,80 @@ export function ImportDialog({
                         answer(false);
                       }}
                     >
-                      Skip it
+                      {t('people.transfer.import-dialog.skip_it', 'Skip it')}
                     </Button>
                   </View>
                 </View>
               )}
             </Card>
           )}
-          {busy === 'plan' ? <Spinner label="Checking every row" /> : null}
+          {busy === 'plan' ? (
+            <Spinner
+              label={t('people.transfer.import-dialog.checking_every_row', 'Checking every row')}
+            />
+          ) : null}
           {counts === undefined ? null : (
             <View className="flex-row gap-2">
               <Stat
                 className="flex-1"
                 inset
                 size={22}
-                label="new people"
+                label={t('people.transfer.import-dialog.new_people', 'new people')}
                 value={String(counts.create)}
               />
               <Stat
                 className="flex-1"
                 inset
                 size={22}
-                label="updates"
+                label={t('people.transfer.import-dialog.updates', 'updates')}
                 value={String(counts.update)}
               />
               <Stat
                 className="flex-1"
                 inset
                 size={22}
-                label="problems"
+                label={t('people.transfer.import-dialog.problems', 'problems')}
                 value={String(counts.blocked)}
               />
             </View>
           )}
           {plan?.blocked == null ? null : (
-            <Alert tone="danger" title="This can’t run yet">
+            <Alert
+              tone="danger"
+              title={t('people.transfer.import-dialog.this_cant_run_yet', 'This can’t run yet')}
+            >
               {plan.blocked}
             </Alert>
           )}
           {leftOut === 0 && (plan?.review.dryRun.workplaces ?? []).length === 0 ? null : (
             <Button variant="link" onPress={onFull}>
               {leftOut === 0
-                ? 'Check the work locations in the full import'
-                : `${String(leftOut)} ${leftOut === 1 ? 'column isn’t a field' : 'columns aren’t fields'} yet: open the full import`}
+                ? t(
+                    'people.transfer.import-dialog.check_the_work_locations_in_the',
+                    'Check the work locations in the full import',
+                  )
+                : t(
+                    'people.transfer.import-dialog.yet_open_the_full_import',
+                    {
+                      one: '{{count}} column isn’t a field yet: open the full import',
+                      other: '{{count}} columns aren’t fields yet: open the full import',
+                    },
+                    { count: leftOut },
+                  )}
             </Button>
           )}
           {stage === null ? (
             <Button variant="link" onPress={onHistory}>
-              Past imports and exports
+              {t(
+                'people.transfer.import-dialog.past_imports_and_exports',
+                'Past imports and exports',
+              )}
             </Button>
           ) : null}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.transfer.import-dialog.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -331,7 +411,11 @@ export function ImportDialog({
             loading={busy === 'run'}
             onPress={() => void run()}
           >
-            {toImport === 0 ? 'Import' : `Import ${String(toImport)}`}
+            {toImport === 0
+              ? t('people.transfer.import-dialog.import', 'Import')
+              : t('people.transfer.import-dialog.import_2', 'Import {{String}}', {
+                  String: String(toImport),
+                })}
           </Button>
         </DialogFooter>
       </DialogContent>

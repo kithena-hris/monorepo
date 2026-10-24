@@ -1,4 +1,6 @@
 import { ask, useRead, type Answer, type Load, type Signed } from '../people/api';
+import { languageHeader } from '../i18n';
+import { t } from '../i18n';
 
 /** One of Time Off's operations, as the person signed in: the same route as People's. */
 export const askTimeOff = <T>(
@@ -20,20 +22,35 @@ export async function calendarFeed(
 ): Promise<Answer<{ url: string }>> {
   const response = await fetch(`${signed.company.origin}/api/mobile/calendar-feed`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${signed.sessionId}` },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${signed.sessionId}`,
+      ...languageHeader(),
+    },
     body: JSON.stringify({ scope }),
   }).catch(() => null);
   if (response === null)
-    return { ok: false, code: 'OFFLINE', message: 'Kithena could not be reached. Try again.' };
+    return {
+      ok: false,
+      code: 'OFFLINE',
+      message: t(
+        'timeoff.api.kithena_could_not_be_reached_try',
+        'Kithena could not be reached. Try again.',
+      ),
+    };
   if (response.status === 401) {
     signed.signedOut();
-    return { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again.' };
+    return {
+      ok: false,
+      code: 'UNAUTHENTICATED',
+      message: t('timeoff.api.sign_in_again', 'Sign in again.'),
+    };
   }
   return (
     ((await response.json().catch(() => null)) as Answer<{ url: string }> | null) ?? {
       ok: false,
       code: 'UNAVAILABLE',
-      message: 'Time Off did not answer.',
+      message: t('timeoff.api.time_off_did_not_answer', 'Time Off did not answer.'),
     }
   );
 }

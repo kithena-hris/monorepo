@@ -1923,6 +1923,54 @@
     "text": "Try again",
     "context": "Documents: files, e-signatures, letters. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./documents/all.description": {
+    "text": "Every document you can open, what needs you, and HR’s queues",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): one sentence under its name in a menu or on a card."
+  },
+  "nav./documents/all.group": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): the heading of the group it is listed under."
+  },
+  "nav./documents/all.label": {
+    "text": "Documents",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./documents/all.summary": {
+    "text": "Every document you can open",
+    "context": "Documents: files, e-signatures, letters. Navigation, a section of the area (/documents/all): a short line under its name on a phone’s row."
+  },
+  "nav./settings/documents/access.description": {
+    "text": "What new documents start as, how far people can share, and what Confidential enforces.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/access): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/access.label": {
+    "text": "Access and sharing",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/access): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/ai.description": {
+    "text": "Summaries, questions and sorting: what Kithena may do with your documents.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/ai.label": {
+    "text": "Kithena reading",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/retention.description": {
+    "text": "One rule per kind of document, and the holds that override them.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/retention): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/retention.label": {
+    "text": "Retention and legal holds",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/retention): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/documents/types.description": {
+    "text": "Where each kind of document is filed, who sees it, what it needs and how long it is kept.",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/types): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/documents/types.label": {
+    "text": "Document types",
+    "context": "Documents: files, e-signatures, letters. Navigation, a page of the area’s settings (/settings/documents/types): its name in the sidebar, the breadcrumb and the menus."
+  },
   "people.person-file.a_persons_file": {
     "text": "A person’s file",
     "context": "Documents: files, e-signatures, letters. people/person-file.tsx, PersonFile: the title of <PageHeader>."

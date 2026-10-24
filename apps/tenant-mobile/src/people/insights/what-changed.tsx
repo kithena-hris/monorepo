@@ -33,6 +33,7 @@ import { ask, useSigned } from '../api';
 import type { Condition } from '../filters';
 import { shareBase64 } from '../media';
 import { parsed } from '../review/load';
+import { t } from '../../i18n';
 
 /** Where a point's records are. */
 type Source =
@@ -125,7 +126,12 @@ export function WhatChanged({
     void ask<string>(signed, 'WhatChanged', { segment }).then((answer) => {
       if (!live) return;
       const got = answer.ok ? (parsed(answer.data) as WhatChangedState | null) : null;
-      setState(got ?? (answer.ok ? 'People did not answer.' : answer.message));
+      setState(
+        got ??
+          (answer.ok
+            ? t('people.insights.what-changed.people_did_not_answer', 'People did not answer.')
+            : answer.message),
+      );
       // The points in the assistant's words, where there is one; People's own otherwise.
       if (got?.phrasable === true) {
         void ask<string>(signed, 'WhatChangedWorded', { segment }).then((w) => {
@@ -141,10 +147,21 @@ export function WhatChanged({
     };
   }, [signed, segment]);
 
-  if (state === null) return <Spinner label="Reading what changed" />;
+  if (state === null)
+    return (
+      <Spinner
+        label={t('people.insights.what-changed.reading_what_changed', 'Reading what changed')}
+      />
+    );
   if (typeof state === 'string') {
     return (
-      <Alert tone="danger" title="Could not load what changed">
+      <Alert
+        tone="danger"
+        title={t(
+          'people.insights.what-changed.could_not_load_what_changed',
+          'Could not load what changed',
+        )}
+      >
         {state}
       </Alert>
     );
@@ -164,7 +181,11 @@ export function WhatChanged({
           </View>
           {points.length === 0 ? (
             <Text tone="muted">
-              {`Nothing Kithena can describe changed ${state.period.inWords}, or none of it is yours to see.`}
+              {t(
+                'people.insights.what-changed.nothing_kithena_can_describe_changed_or',
+                'Nothing Kithena can describe changed {{inWords}}, or none of it is yours to see.',
+                { inWords: state.period.inWords },
+              )}
             </Text>
           ) : (
             shown.map((p, i) => (
@@ -217,15 +238,23 @@ export function WhatChanged({
                 setMore(true);
               }}
             >
-              {`Show ${String(points.length - FIRST)} more`}
+              {t('people.insights.what-changed.show_more', 'Show {{String}} more', {
+                String: String(points.length - FIRST),
+              })}
             </Button>
           ) : null}
           <Text variant="footnote" tone="muted">
-            {`Groups under ${String(state.minimum)} people are never described. ${
-              worded === null
-                ? 'Worded by Kithena’s own rules from the figures.'
-                : 'Worded by the assistant; every figure is Kithena’s.'
-            }`}
+            {t(
+              'people.insights.what-changed.groups_under_people_are_never_described',
+              'Groups under {{String}} people are never described. {{value}}',
+              {
+                String: String(state.minimum),
+                value:
+                  worded === null
+                    ? 'Worded by Kithena’s own rules from the figures.'
+                    : 'Worded by the assistant; every figure is Kithena’s.',
+              },
+            )}
           </Text>
         </Stack>
       </Card>
@@ -238,7 +267,7 @@ export function WhatChanged({
             setSharing(true);
           }}
         >
-          Share summary
+          {t('people.insights.what-changed.share_summary', 'Share summary')}
         </Button>
       )}
       {sharing ? (
@@ -291,7 +320,12 @@ function ShareDialog({
     void ask<string>(signed, 'SummaryDraft', { input: JSON.stringify(base) }).then((a) => {
       if (!live) return;
       const got = a.ok ? (parsed(a.data) as SummaryDraft | null) : null;
-      setDraft(got ?? (a.ok ? 'People did not answer.' : a.message));
+      setDraft(
+        got ??
+          (a.ok
+            ? t('people.insights.what-changed.people_did_not_answer', 'People did not answer.')
+            : a.message),
+      );
     });
     return () => {
       live = false;
@@ -333,11 +367,19 @@ function ShareDialog({
         : emailed
           ? {
               tone: 'success',
-              text: `Sent to ${who.name}. They get an email with a link that opens only for them, for seven days.`,
+              text: t(
+                'people.insights.what-changed.sent_to_they_get_an_email',
+                'Sent to {{name}}. They get an email with a link that opens only for them, for seven days.',
+                { name: who.name },
+              ),
             }
           : {
               tone: 'danger',
-              text: `Saved for ${who.name}, but the email did not go. Try again in a minute.`,
+              text: t(
+                'people.insights.what-changed.saved_for_but_the_email_did',
+                'Saved for {{name}}, but the email did not go. Try again in a minute.',
+                { name: who.name },
+              ),
             },
     );
   };
@@ -351,23 +393,31 @@ function ShareDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Share the ${state.period.name} summary`}</DialogTitle>
+          <DialogTitle>
+            {t('people.insights.what-changed.share_the_summary', 'Share the {{name}} summary', {
+              name: state.period.name,
+            })}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody>
           <SegmentedControl
             value={format}
             fullWidth
             size="sm"
-            accessibilityLabel="Format"
+            accessibilityLabel={t('people.insights.what-changed.format', 'Format')}
             onValueChange={(value) => {
               setFormat(value === 'email' ? 'email' : 'pdf');
             }}
           >
-            <SegmentedControlItem value="pdf">PDF</SegmentedControlItem>
-            <SegmentedControlItem value="email">Message</SegmentedControlItem>
+            <SegmentedControlItem value="pdf">
+              {t('people.insights.what-changed.pdf', 'PDF')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="email">
+              {t('people.insights.what-changed.message', 'Message')}
+            </SegmentedControlItem>
           </SegmentedControl>
           <Field>
-            <FieldLabel>Who it’s for</FieldLabel>
+            <FieldLabel>{t('people.insights.what-changed.who_its_for', 'Who it’s for')}</FieldLabel>
             <Select
               value={recipient ?? ME}
               onValueChange={(value) => {
@@ -375,11 +425,14 @@ function ShareDialog({
               }}
               disabled={state.recipients.length === 0}
             >
-              <SelectTrigger size="sm" accessibilityLabel="Who it’s for">
+              <SelectTrigger
+                size="sm"
+                accessibilityLabel={t('people.insights.what-changed.who_its_for', 'Who it’s for')}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ME}>You</SelectItem>
+                <SelectItem value={ME}>{t('people.insights.what-changed.you', 'You')}</SelectItem>
                 {state.recipients.map((r) => (
                   <SelectItem key={r.accountId} value={r.accountId}>
                     {r.name}
@@ -388,32 +441,58 @@ function ShareDialog({
               </SelectContent>
             </Select>
             {state.recipients.length === 0 ? (
-              <FieldDescription>For you. HR can send it to somebody else.</FieldDescription>
+              <FieldDescription>
+                {t(
+                  'people.insights.what-changed.for_you_hr_can_send_it',
+                  'For you. HR can send it to somebody else.',
+                )}
+              </FieldDescription>
             ) : null}
           </Field>
           {draft === null ? (
-            <Spinner label="Writing it for them" />
+            <Spinner
+              label={t('people.insights.what-changed.writing_it_for_them', 'Writing it for them')}
+            />
           ) : typeof draft === 'string' ? (
-            <Alert tone="danger" title="Could not prepare it">
+            <Alert
+              tone="danger"
+              title={t('people.insights.what-changed.could_not_prepare_it', 'Could not prepare it')}
+            >
               {draft}
             </Alert>
           ) : (
             <Alert
               tone="info"
-              title={who === null ? 'Written for you' : `Rewritten for ${firstName(who.name)}`}
+              title={
+                who === null
+                  ? t('people.insights.what-changed.written_for_you', 'Written for you')
+                  : t('people.insights.what-changed.rewritten_for', 'Rewritten for {{firstName}}', {
+                      firstName: firstName(who.name),
+                    })
+              }
             >
               {draft.notes.length > 0
                 ? draft.notes.join(' ')
                 : who === null
-                  ? 'Only what you can see yourself.'
-                  : `${who.name} can see all of it, so nothing was changed.`}
+                  ? t(
+                      'people.insights.what-changed.only_what_you_can_see_yourself',
+                      'Only what you can see yourself.',
+                    )
+                  : t(
+                      'people.insights.what-changed.can_see_all_of_it_so',
+                      '{{name}} can see all of it, so nothing was changed.',
+                      { name: who.name },
+                    )}
             </Alert>
           )}
           {doc === null ? null : (
             <Card variant="fill">
               <Text variant="subhead" numberOfLines={3}>
                 {nothing
-                  ? 'Nothing in this summary is theirs to see.'
+                  ? t(
+                      'people.insights.what-changed.nothing_in_this_summary_is_theirs',
+                      'Nothing in this summary is theirs to see.',
+                    )
                   : doc.points.map((p) => p.text).join(' ')}
               </Text>
             </Card>
@@ -436,9 +515,11 @@ function ShareDialog({
           >
             {who === null
               ? format === 'pdf'
-                ? 'Share PDF'
-                : 'Pick who it’s for'
-              : `Send to ${firstName(who.name)}`}
+                ? t('people.insights.what-changed.share_pdf', 'Share PDF')
+                : t('people.insights.what-changed.pick_who_its_for', 'Pick who it’s for')
+              : t('people.insights.what-changed.send_to', 'Send to {{firstName}}', {
+                  firstName: firstName(who.name),
+                })}
           </Button>
         </DialogFooter>
       </DialogContent>

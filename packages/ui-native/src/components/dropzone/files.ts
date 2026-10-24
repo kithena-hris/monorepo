@@ -1,3 +1,5 @@
+import { t as tr } from '../../lib/i18n';
+
 /*
  * Files on a phone, as the uploaders see them. Reach never opens a picker
  * itself: an app passes `pick`, which opens its own (expo-image-picker,
@@ -105,21 +107,36 @@ export function checkFile(
       file,
       reason: 'program',
       message: disguise
-        ? `Blocked: this is a program, not a ${disguise}.`
-        : 'Blocked: this is a program.',
+        ? tr(
+            'components.dropzone.files.blocked_this_is_a_program_not',
+            'Blocked: this is a program, not a {{disguise}}.',
+            { disguise },
+          )
+        : tr('components.dropzone.files.blocked_this_is_a_program', 'Blocked: this is a program.'),
     };
   }
   if (accept?.length && !matches(accept, file)) {
     const kind = file.type.startsWith('video/')
-      ? 'Videos aren’t accepted'
+      ? tr('components.dropzone.files.videos_arent_accepted', 'Videos aren’t accepted')
       : `${name} is ${/^[aeiou]/i.test(typeName(file.type, name)) ? 'an' : 'a'} ${typeName(file.type, name)}`;
-    return { file, reason: 'type', message: `${kind}. Use ${listTypes(accept)}.` };
+    return {
+      file,
+      reason: 'type',
+      message: tr('components.dropzone.files.use', '{{kind}}. Use {{listTypes}}.', {
+        kind,
+        listTypes: listTypes(accept),
+      }),
+    };
   }
   if (maxSize !== undefined && file.size > maxSize)
     return {
       file,
       reason: 'size',
-      message: `${formatBytes(file.size)} is over the ${formatBytes(maxSize)} limit.`,
+      message: tr(
+        'components.dropzone.files.is_over_the_limit',
+        '{{formatBytes}} is over the {{formatBytes2}} limit.',
+        { formatBytes: formatBytes(file.size), formatBytes2: formatBytes(maxSize) },
+      ),
     };
   if (
     minDimensions &&
@@ -130,7 +147,17 @@ export function checkFile(
     return {
       file,
       reason: 'dimensions',
-      message: `${name} is ${String(file.width)} × ${String(file.height)}. Use at least ${String(minDimensions.width)} × ${String(minDimensions.height)}.`,
+      message: tr(
+        'components.dropzone.files.is_use_at_least',
+        '{{name}} is {{String}} × {{String2}}. Use at least {{String3}} × {{String4}}.',
+        {
+          name,
+          String: String(file.width),
+          String2: String(file.height),
+          String3: String(minDimensions.width),
+          String4: String(minDimensions.height),
+        },
+      ),
     };
   return null;
 }

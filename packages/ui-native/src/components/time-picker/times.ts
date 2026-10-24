@@ -1,3 +1,5 @@
+import { locale as readerLocale } from '@reach/ui/intl';
+
 /*
  * Times of day as `HH:MM`, 24-hour, whatever the locale shows: the stored
  * value never changes with who is looking at it. The web TimePicker's
@@ -49,8 +51,10 @@ export function parseTime(text: string): string | null {
 /** Whether the locale reads the clock in twelve hours. */
 export function usesTwelveHours(locale?: string): boolean {
   return (
-    new Intl.DateTimeFormat(locale, { hour: 'numeric', timeZone: 'UTC' }).resolvedOptions()
-      .hour12 === true
+    new Intl.DateTimeFormat(locale ?? readerLocale(), {
+      hour: 'numeric',
+      timeZone: 'UTC',
+    }).resolvedOptions().hour12 === true
   );
 }
 
@@ -59,9 +63,10 @@ export function formatTime(value: string, locale?: string): string {
   const minutes = toMinutes(value);
   const options = { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' } as const;
   const twelve = usesTwelveHours(locale);
-  return new Intl.DateTimeFormat(locale, twelve ? options : { ...options, hour: '2-digit' }).format(
-    new Date(Date.UTC(1970, 0, 1, Math.floor(minutes / 60), minutes % 60)),
-  );
+  return new Intl.DateTimeFormat(
+    locale ?? readerLocale(),
+    twelve ? options : { ...options, hour: '2-digit' },
+  ).format(new Date(Date.UTC(1970, 0, 1, Math.floor(minutes / 60), minutes % 60)));
 }
 
 /** `7h 30m`, or `45m`, or `8h`: how a length of time is read back. */

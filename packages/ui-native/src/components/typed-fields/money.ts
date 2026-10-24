@@ -1,21 +1,27 @@
 /* Money as strings of minor units: formatting and parsing, never a float. */
 
 import { numberParts } from '../../lib/intl-parts.ts';
+import { locale as readerLocale } from '@reach/ui/intl';
 
 export function decimalsFor(currency: string, locale: string | undefined): number {
   return (
-    new Intl.NumberFormat(locale, { style: 'currency', currency }).resolvedOptions()
-      .maximumFractionDigits ?? 2
+    new Intl.NumberFormat(locale ?? readerLocale(), {
+      style: 'currency',
+      currency,
+    }).resolvedOptions().maximumFractionDigits ?? 2
   );
 }
 
 export function symbolFor(currency: string, locale: string | undefined): string {
-  const parts = numberParts(new Intl.NumberFormat(locale, { style: 'currency', currency }), 0);
+  const parts = numberParts(
+    new Intl.NumberFormat(locale ?? readerLocale(), { style: 'currency', currency }),
+    0,
+  );
   return parts.find((part) => part.type === 'currency')?.value ?? currency;
 }
 
 function separators(locale: string | undefined): { group: string; decimal: string } {
-  const parts = numberParts(new Intl.NumberFormat(locale), 12_345.6);
+  const parts = numberParts(new Intl.NumberFormat(locale ?? readerLocale()), 12_345.6);
   return {
     group: parts.find((part) => part.type === 'group')?.value ?? ',',
     decimal: parts.find((part) => part.type === 'decimal')?.value ?? '.',

@@ -33,6 +33,7 @@ import { useAct } from './act';
 import { ask, useSigned, type Signed } from './api';
 import { describeCondition, filterFields, type Condition, type DirectoryField } from './filters';
 import { parsed } from './review/load';
+import { t } from '../i18n';
 
 /** One reading of an ambiguous phrase, as the whole selection it would be. */
 export interface Reading {
@@ -114,7 +115,12 @@ export async function planOf(
   });
   if (!answer.ok) return answer;
   const plan = parsed(answer.data) as Plan | null;
-  return plan === null ? { ok: false, message: 'People did not answer.' } : { ok: true, plan };
+  return plan === null
+    ? {
+        ok: false,
+        message: t('people.smart-search.people_did_not_answer', 'People did not answer.'),
+      }
+    : { ok: true, plan };
 }
 
 /** A card the assistant speaks in: its mark, then a title. */
@@ -140,7 +146,12 @@ function AskCard({
   );
 }
 
-const people = (n: number): string => `${String(n)} ${n === 1 ? 'person' : 'people'}`;
+const people = (n: number): string =>
+  t(
+    'people.smart-search.people',
+    { one: '{{count}} person', other: '{{count}} people' },
+    { count: n },
+  );
 
 /**
  * Everything a question needs from the person before it is searched (C2):
@@ -167,8 +178,10 @@ export function NeedsYou({
         <AskCard
           title={
             refused.length === 1
-              ? 'One part I couldn’t use'
-              : `${String(refused.length)} parts I couldn’t use`
+              ? t('people.smart-search.one_part_i_couldnt_use', 'One part I couldn’t use')
+              : t('people.smart-search.parts_i_couldnt_use', '{{String}} parts I couldn’t use', {
+                  String: String(refused.length),
+                })
           }
         >
           {refused.map((r) => (
@@ -179,12 +192,19 @@ export function NeedsYou({
               <Text variant="subhead" tone="muted">
                 {`${r.why} ${
                   r.instead === null
-                    ? 'I left it out.'
-                    : `I can search the ${r.instead.label} field for “${r.instead.subject}” instead${
-                        r.instead.count === null
-                          ? '.'
-                          : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`
-                      }`
+                    ? t('people.smart-search.i_left_it_out', 'I left it out.')
+                    : t(
+                        'people.smart-search.i_can_search_the_field_for',
+                        'I can search the {{label}} field for “{{subject}}” instead{{value}}',
+                        {
+                          label: r.instead.label,
+                          subject: r.instead.subject,
+                          value:
+                            r.instead.count === null
+                              ? '.'
+                              : `, which ${people(r.instead.count)} ${r.instead.count === 1 ? 'has' : 'have'} listed.`,
+                        },
+                      )
                 }`}
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -196,7 +216,9 @@ export function NeedsYou({
                       onUse(r);
                     }}
                   >
-                    {`Use the ${r.instead.label} field`}
+                    {t('people.smart-search.use_the_field', 'Use the {{label}} field', {
+                      label: r.instead.label,
+                    })}
                   </Button>
                 )}
                 <Button
@@ -205,7 +227,7 @@ export function NeedsYou({
                     onRemove(r);
                   }}
                 >
-                  Remove it
+                  {t('people.smart-search.remove_it', 'Remove it')}
                 </Button>
               </View>
             </Stack>
@@ -213,7 +235,11 @@ export function NeedsYou({
         </AskCard>
       )}
       {asked === null || asked.readings.length === 0 ? null : (
-        <AskCard title={`What does “${asked.phrase}” mean here?`}>
+        <AskCard
+          title={t('people.smart-search.what_does_mean_here', 'What does “{{phrase}}” mean here?', {
+            phrase: asked.phrase,
+          })}
+        >
           {/* Rows rather than buttons: a reading is a sentence, and a button holds one line. */}
           <List>
             {asked.readings.map((r) => (
@@ -231,7 +257,10 @@ export function NeedsYou({
             ))}
           </List>
           <Text variant="footnote" tone="muted">
-            Pick one and I’ll remember it for next time.
+            {t(
+              'people.smart-search.pick_one_and_ill_remember_it',
+              'Pick one and I’ll remember it for next time.',
+            )}
           </Text>
         </AskCard>
       )}
@@ -273,15 +302,19 @@ export function Conditions({
       <View className="flex-row items-center gap-2">
         {understood ? <AssistantMark size={16} /> : null}
         <Text variant="footnote" weight="semibold" tone="muted" className="flex-1">
-          {understood ? 'Understood as' : 'Filtered by'}
+          {understood
+            ? t('people.smart-search.understood_as', 'Understood as')
+            : t('people.smart-search.filtered_by', 'Filtered by')}
         </Text>
         {onSave === undefined ? null : (
           <Button variant="link" size="sm" onPress={onSave}>
-            Save as view
+            {t('people.smart-search.save_as_view', 'Save as view')}
           </Button>
         )}
         <Button variant="link" size="sm" onPress={onEdit}>
-          {understood ? 'Edit as filters' : 'Edit'}
+          {understood
+            ? t('people.smart-search.edit_as_filters', 'Edit as filters')
+            : t('people.smart-search.edit', 'Edit')}
         </Button>
       </View>
       <View className="flex-row flex-wrap gap-2">
@@ -291,7 +324,7 @@ export function Conditions({
             <Chip
               key={`${c.key}:${String(i)}`}
               selected
-              removeLabel={`Remove ${text}`}
+              removeLabel={t('people.smart-search.remove', 'Remove {{text}}', { text })}
               onRemove={() => {
                 onRemove(i);
               }}
@@ -304,7 +337,11 @@ export function Conditions({
           <Chip
             key={`unused:${u}`}
             variant="dashed"
-            removeLabel={`Remove “${u}”, which was not used`}
+            removeLabel={t(
+              'people.smart-search.remove_which_was_not_used',
+              'Remove “{{u}}”, which was not used',
+              { u },
+            )}
             onRemove={() => {
               onDropUnused(u);
             }}
@@ -366,13 +403,18 @@ export function FiltersDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Filter people</DialogTitle>
-          <DialogDescription>Nothing applies until you press Apply.</DialogDescription>
+          <DialogTitle>{t('people.smart-search.filter_people', 'Filter people')}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'people.smart-search.nothing_applies_until_you_press_apply',
+              'Nothing applies until you press Apply.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 420 }}>
             <FilterBuilder
-              label="Conditions"
+              label={t('people.smart-search.conditions', 'Conditions')}
               fields={builderFields}
               value={draft}
               onChange={setDraft}
@@ -387,7 +429,7 @@ export function FiltersDialog({
               setDraft({ match: 'all', conditions: [] });
             }}
           >
-            Clear
+            {t('people.smart-search.clear', 'Clear')}
           </Button>
           <Button
             className="flex-1"
@@ -400,7 +442,11 @@ export function FiltersDialog({
               onClose();
             }}
           >
-            {complete.length === 0 ? 'Show all' : `Apply ${String(complete.length)}`}
+            {complete.length === 0
+              ? t('people.smart-search.show_all', 'Show all')
+              : t('people.smart-search.apply', 'Apply {{String}}', {
+                  String: String(complete.length),
+                })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -432,32 +478,37 @@ export function SaveViewDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save this view</DialogTitle>
+          <DialogTitle>{t('people.smart-search.save_this_view', 'Save this view')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <Field required>
-            <FieldLabel>Name</FieldLabel>
+            <FieldLabel>{t('people.smart-search.name', 'Name')}</FieldLabel>
             <Input value={name} onChange={setName} maxLength={80} size="sm" />
           </Field>
           <RadioGroup
-            accessibilityLabel="Who can use it"
+            accessibilityLabel={t('people.smart-search.who_can_use_it', 'Who can use it')}
             value={shared ? 'company' : 'me'}
             onValueChange={(next) => {
               setShared(next === 'company');
             }}
           >
-            <RadioGroupItem value="me">Only me</RadioGroupItem>
+            <RadioGroupItem value="me">
+              {t('people.smart-search.only_me', 'Only me')}
+            </RadioGroupItem>
             <RadioGroupItem
               value="company"
-              description="Others see only the people and fields they can already see."
+              description={t(
+                'people.smart-search.others_see_only_the_people_and',
+                'Others see only the people and fields they can already see.',
+              )}
             >
-              Share with the company
+              {t('people.smart-search.share_with_the_company', 'Share with the company')}
             </RadioGroupItem>
           </RadioGroup>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.smart-search.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -478,13 +529,13 @@ export function SaveViewDialog({
                   })),
                   match,
                 },
-                'View saved',
+                t('people.smart-search.view_saved', 'View saved'),
               ).then((saved) => {
                 if (saved !== null) onSaved(saved.id);
               });
             }}
           >
-            Save view
+            {t('people.smart-search.save_view', 'Save view')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -592,7 +643,7 @@ export function ChipFiltersDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Filter people</DialogTitle>
+          <DialogTitle>{t('people.smart-search.filter_people', 'Filter people')}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 460 }} contentContainerClassName="gap-4">
@@ -630,12 +681,14 @@ export function ChipFiltersDialog({
             ))}
             {date === null ? null : (
               <Field>
-                <FieldLabel>{`${date.label} between`}</FieldLabel>
+                <FieldLabel>
+                  {t('people.smart-search.between', '{{label}} between', { label: date.label })}
+                </FieldLabel>
                 <DatePicker mode="range" label={date.label} value={range} onChange={setRange} />
               </Field>
             )}
             <Button variant="link" onPress={onMore}>
-              More conditions
+              {t('people.smart-search.more_conditions', 'More conditions')}
             </Button>
           </ScrollView>
         </DialogBody>
@@ -647,7 +700,7 @@ export function ChipFiltersDialog({
               setRange(null);
             }}
           >
-            Clear
+            {t('people.smart-search.clear', 'Clear')}
           </Button>
           <Button
             className="flex-1"
@@ -657,7 +710,9 @@ export function ChipFiltersDialog({
               onClose();
             }}
           >
-            {total === null ? 'Show people' : `Show ${people(total)}`}
+            {total === null
+              ? t('people.smart-search.show_people', 'Show people')
+              : t('people.smart-search.show', 'Show {{people}}', { people: people(total) })}
           </Button>
         </DialogFooter>
       </DialogContent>

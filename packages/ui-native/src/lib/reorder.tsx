@@ -8,6 +8,7 @@ import Sortable from 'react-native-sortables';
 import { Icon } from '../components/icon/icon.tsx';
 import { useMotion } from './animate.ts';
 import { cn } from './cn.ts';
+import { t } from './i18n';
 
 /**
  * What every reorderable thing shares (a table's rows, a sortable list, a
@@ -114,7 +115,12 @@ export function ReorderHandle({
     return (
       <Sortable.Handle mode="fixed-order">
         <View className={cn('min-h-m-tap w-6 items-center justify-center', className)}>
-          <Icon icon={Lock} size={size - 2} tone="subtle" label={`${label}: fixed in place`} />
+          <Icon
+            icon={Lock}
+            size={size - 2}
+            tone="subtle"
+            label={t('lib.reorder.fixed_in_place', '{{label}}: fixed in place', { label })}
+          />
         </View>
       </Sortable.Handle>
     );
@@ -124,10 +130,13 @@ export function ReorderHandle({
       <Pressable
         accessibilityRole="adjustable"
         accessibilityLabel={label}
-        accessibilityHint="Drag, or use the actions, to move it"
+        accessibilityHint={t(
+          'lib.reorder.drag_or_use_the_actions_to',
+          'Drag, or use the actions, to move it',
+        )}
         accessibilityActions={[
-          { name: 'increment', label: 'Move down' },
-          { name: 'decrement', label: 'Move up' },
+          { name: 'increment', label: t('lib.reorder.move_down', 'Move down') },
+          { name: 'decrement', label: t('lib.reorder.move_up', 'Move up') },
         ]}
         onAccessibilityAction={(e: AccessibilityActionEvent) => {
           onMove(e.nativeEvent.actionName === 'decrement' ? -1 : 1);
@@ -135,7 +144,9 @@ export function ReorderHandle({
         {...(WEB
           ? ({
               role: 'button',
-              'aria-label': `${label}. Arrow keys move it`,
+              'aria-label': t('lib.reorder.arrow_keys_move_it', '{{label}}. Arrow keys move it', {
+                label,
+              }),
               onKeyDown: (e: { key: string; preventDefault: () => void }) => {
                 if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                   e.preventDefault();

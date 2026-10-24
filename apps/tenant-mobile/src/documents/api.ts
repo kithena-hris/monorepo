@@ -6,6 +6,7 @@ import { createContext } from 'react';
 
 import { ask, useRead, type Answer, type Load, type Signed } from '../people/api';
 import { blobOf } from '../people/media';
+import { t } from '../i18n';
 
 /**
  * Documents on the phone (DOC-037 to DOC-040): the web's operations, through
@@ -76,8 +77,14 @@ export interface TypeOption {
 /** "Contract · 6 pages", what a row says under its name. */
 export const meta = (row: Pick<Row, 'typeName' | 'pages' | 'subject'>): string =>
   [
-    row.typeName ?? 'Your document',
-    row.pages === null ? null : `${String(row.pages)} page${row.pages === 1 ? '' : 's'}`,
+    row.typeName ?? t('documents.api.your_document', 'Your document'),
+    row.pages === null
+      ? null
+      : t(
+          'documents.api.pages',
+          { one: '{{count}} page', other: '{{count}} pages' },
+          { count: row.pages },
+        ),
     row.subject?.name ?? null,
   ]
     .filter(Boolean)
@@ -88,12 +95,12 @@ export const access = (
   row: Pick<Row, 'level' | 'confidential' | 'everyone'>,
 ): { readonly label: string; readonly tone: Tone } =>
   row.confidential
-    ? { label: 'Confidential', tone: 'warning' }
+    ? { label: t('documents.api.confidential', 'Confidential'), tone: 'warning' }
     : row.everyone
-      ? { label: 'Everyone', tone: 'info' }
+      ? { label: t('documents.api.everyone', 'Everyone'), tone: 'info' }
       : row.level === 'shared'
-        ? { label: 'Shared', tone: 'info' }
-        : { label: 'Private', tone: 'neutral' };
+        ? { label: t('documents.api.shared', 'Shared'), tone: 'info' }
+        : { label: t('documents.api.private', 'Private'), tone: 'neutral' };
 
 export interface Picked {
   readonly name: string;
@@ -113,7 +120,9 @@ export async function scan(): Promise<Picked | null> {
   const asset = shot.canceled ? undefined : shot.assets[0];
   if (asset === undefined) return null;
   return {
-    name: `Scan ${new Date().toISOString().slice(0, 10)}.jpg`,
+    name: t('documents.api.scan_jpg', 'Scan {{slice}}.jpg', {
+      slice: new Date().toISOString().slice(0, 10),
+    }),
     mediaType: 'image/jpeg',
     body: await blobOf(asset.uri),
   };
@@ -178,7 +187,11 @@ export async function openFile(
     device: 'phone',
   });
   if (!link.ok) return link.message;
-  if (link.data.url === null) return 'Documents has no file store set up here.';
+  if (link.data.url === null)
+    return t(
+      'documents.api.documents_has_no_file_store_set',
+      'Documents has no file store set up here.',
+    );
   await WebBrowser.openBrowserAsync(link.data.url);
   return null;
 }

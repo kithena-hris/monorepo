@@ -20,6 +20,7 @@ import { Icon } from '../icon/icon.tsx';
 import { FieldBox, fieldText, Input, useFieldState } from '../input/input.tsx';
 import { Toggle } from '../toggle/toggle.tsx';
 import { PickerDialog } from './picker-dialog.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A field that opens a calendar. A single date can always be typed instead,
@@ -61,7 +62,9 @@ export type DatePickerProps = DatePickerBaseProps &
 export function DatePicker(props: DatePickerProps): React.JSX.Element {
   const {
     label,
-    placeholder = props.mode === 'range' ? 'Pick dates' : 'Pick a date',
+    placeholder = props.mode === 'range'
+      ? t('components.date-picker.date-picker.pick_dates', 'Pick dates')
+      : t('components.date-picker.date-picker.pick_a_date', 'Pick a date'),
     disabled: disabledProp,
     invalid: invalidProp,
     size = 'md',
@@ -210,7 +213,7 @@ export function DatePicker(props: DatePickerProps): React.JSX.Element {
         headline={
           picked
             ? formatDate(picked, locale, { weekday: 'short', day: 'numeric', month: 'short' })
-            : 'No date'
+            : t('components.date-picker.date-picker.no_date', 'No date')
         }
         portalHost={portalHost}
         onCancel={() => {
@@ -289,7 +292,14 @@ function TypedDate({
       }}
       placeholder={placeholder}
       accessibilityLabel={name}
-      {...(unreadable ? { accessibilityHint: 'Not a date this field can read' } : {})}
+      {...(unreadable
+        ? {
+            accessibilityHint: t(
+              'components.date-picker.date-picker.not_a_date_this_field_can',
+              'Not a date this field can read',
+            ),
+          }
+        : {})}
       invalid={invalid || unreadable}
       disabled={disabled}
       tight
@@ -300,7 +310,11 @@ function TypedDate({
             variant="ghost"
             size="xs"
             disabled={disabled}
-            accessibilityLabel={`Choose ${name.toLowerCase()} from a calendar`}
+            accessibilityLabel={t(
+              'components.date-picker.date-picker.choose_from_a_calendar',
+              'Choose {{toLowerCase}} from a calendar',
+              { toLowerCase: name.toLowerCase() },
+            )}
             startIcon={<Icon icon={CalendarDays} size={19} tone="muted" />}
           />
         </DialogTrigger>

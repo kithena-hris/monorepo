@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Company } from './account';
 import { asLabel, companyOrigin, TENANT_SUFFIX } from './address';
+import { t } from './i18n';
 
 /** A screen's frame: the canvas, inside the safe area, scrollable over the keyboard. */
 function Screen({
@@ -66,7 +67,12 @@ export function CompanyScreen({
   const go = async (): Promise<void> => {
     const origin = companyOrigin(label);
     if (origin === null) {
-      setProblem('Enter your company’s name as it appears in its Kithena address.');
+      setProblem(
+        t(
+          'screens.enter_your_companys_name_as_it',
+          'Enter your company’s name as it appears in its Kithena address.',
+        ),
+      );
       return;
     }
     setProblem(null);
@@ -75,22 +81,37 @@ export function CompanyScreen({
     setBusy(false);
     // The two failures say different things: one is a typo, the other the network.
     if (found === 'none')
-      setProblem('There is no company at that address. Check it and try again.');
+      setProblem(
+        t(
+          'screens.there_is_no_company_at_that',
+          'There is no company at that address. Check it and try again.',
+        ),
+      );
     if (found === 'unreachable')
-      setProblem('That address could not be reached. Check your connection and try again.');
+      setProblem(
+        t(
+          'screens.that_address_could_not_be_reached',
+          'That address could not be reached. Check your connection and try again.',
+        ),
+      );
   };
 
   return (
     <Screen>
       <Stack gap={2}>
         <Text accessibilityRole="header" variant="large">
-          Your company
+          {t('screens.your_company', 'Your company')}
         </Text>
-        <Text tone="muted">Enter your company’s Kithena address.</Text>
+        <Text tone="muted">
+          {t(
+            'screens.enter_your_companys_kithena_address',
+            'Enter your company’s Kithena address.',
+          )}
+        </Text>
       </Stack>
 
       <Field invalid={problem !== null} disabled={busy}>
-        <FieldLabel>Company address</FieldLabel>
+        <FieldLabel>{t('screens.company_address', 'Company address')}</FieldLabel>
         {/* Plain text, verbatim: a label has no `/` or `.com` to offer. */}
         <Input
           value={label}
@@ -102,7 +123,7 @@ export function CompanyScreen({
             setLabel(asLabel(text));
             if (problem !== null) setProblem(null);
           }}
-          placeholder="yourcompany"
+          placeholder={t('screens.yourcompany', 'yourcompany')}
           endAdornment={TENANT_SUFFIX}
           returnKeyType="go"
           autoFocus
@@ -111,7 +132,12 @@ export function CompanyScreen({
           }}
         />
         {problem === null ? (
-          <FieldDescription>The first part of the address you open Kithena at.</FieldDescription>
+          <FieldDescription>
+            {t(
+              'screens.the_first_part_of_the_address',
+              'The first part of the address you open Kithena at.',
+            )}
+          </FieldDescription>
         ) : (
           <FieldError>{problem}</FieldError>
         )}
@@ -121,12 +147,12 @@ export function CompanyScreen({
         variant="primary"
         fullWidth
         loading={busy}
-        loadingLabel="Finding your company"
+        loadingLabel={t('screens.finding_your_company', 'Finding your company')}
         onPress={() => {
           void go();
         }}
       >
-        Continue
+        {t('screens.continue', 'Continue')}
       </Button>
     </Screen>
   );
@@ -186,7 +212,12 @@ export function SignInScreen({
 
   const go = (): void => {
     if (!LOOKS_LIKE_EMAIL.test(email.trim())) {
-      setProblem('Enter the work address you were invited with.');
+      setProblem(
+        t(
+          'screens.enter_the_work_address_you_were',
+          'Enter the work address you were invited with.',
+        ),
+      );
       return;
     }
     setProblem(null);
@@ -207,16 +238,19 @@ export function SignInScreen({
         <CompanyHeading company={company} />
         <Stack gap={2}>
           <Text accessibilityRole="header" variant="large">
-            Sign in
+            {t('screens.sign_in', 'Sign in')}
           </Text>
           <Text tone="muted">
-            Use the passkey on this device. There is no password to remember.
+            {t(
+              'screens.use_the_passkey_on_this_device',
+              'Use the passkey on this device. There is no password to remember.',
+            )}
           </Text>
         </Stack>
       </Stack>
 
       <Field invalid={problem !== null} disabled={busy}>
-        <FieldLabel>Work email address</FieldLabel>
+        <FieldLabel>{t('screens.work_email_address', 'Work email address')}</FieldLabel>
         <Input
           type="email"
           value={email}
@@ -224,12 +258,17 @@ export function SignInScreen({
             setEmail(text);
             if (problem !== null) setProblem(null);
           }}
-          placeholder="you@yourcompany.com"
+          placeholder={t('screens.you_yourcompany_com', 'you@yourcompany.com')}
           returnKeyType="go"
           onSubmitEditing={go}
         />
         {problem === null ? (
-          <FieldDescription>The address your HR team invited you with.</FieldDescription>
+          <FieldDescription>
+            {t(
+              'screens.the_address_your_hr_team_invited',
+              'The address your HR team invited you with.',
+            )}
+          </FieldDescription>
         ) : (
           <FieldError>{problem}</FieldError>
         )}
@@ -240,29 +279,31 @@ export function SignInScreen({
           variant="primary"
           fullWidth
           loading={busy}
-          loadingLabel="Waiting for your passkey"
+          loadingLabel={t('screens.waiting_for_your_passkey', 'Waiting for your passkey')}
           onPress={go}
         >
-          Sign in with a passkey
+          {t('screens.sign_in_with_a_passkey', 'Sign in with a passkey')}
         </Button>
 
         {/* One message for every failure, as on the web: anybody can present a
             passkey, and telling the reasons apart answers a question that is
             not the asker's. */}
         {refused ? (
-          <Alert tone="danger" title="That did not work">
-            Use the passkey you set up for this company. If you have not set one up yet, use the
-            link your HR team sent you.
+          <Alert tone="danger" title={t('screens.that_did_not_work', 'That did not work')}>
+            {t(
+              'screens.use_the_passkey_you_set_up',
+              'Use the passkey you set up for this company. If you have not set one up yet, use the link your HR team sent you.',
+            )}
           </Alert>
         ) : null}
       </Stack>
 
       <Stack gap={1} align="start">
         <Button variant="link" onPress={onRecover}>
-          Set up a new passkey
+          {t('screens.set_up_a_new_passkey', 'Set up a new passkey')}
         </Button>
         <Button variant="link" onPress={onChangeCompany}>
-          Use a different company
+          {t('screens.use_a_different_company', 'Use a different company')}
         </Button>
       </Stack>
     </Screen>
@@ -281,15 +322,22 @@ export function UnreachableScreen({
 }): React.JSX.Element {
   return (
     <Screen>
-      <Alert tone="warning" title="Kithena could not be reached">
-        {`Nothing answered at ${hostOf(origin)}. Check your connection and try again.`}
+      <Alert
+        tone="warning"
+        title={t('screens.kithena_could_not_be_reached', 'Kithena could not be reached')}
+      >
+        {t(
+          'screens.nothing_answered_at_check_your_connection',
+          'Nothing answered at {{hostOf}}. Check your connection and try again.',
+          { hostOf: hostOf(origin) },
+        )}
       </Alert>
       <Stack gap={1}>
         <Button variant="primary" fullWidth onPress={onRetry}>
-          Try again
+          {t('screens.try_again', 'Try again')}
         </Button>
         <Button variant="link" onPress={onChangeCompany}>
-          Use a different company
+          {t('screens.use_a_different_company', 'Use a different company')}
         </Button>
       </Stack>
     </Screen>

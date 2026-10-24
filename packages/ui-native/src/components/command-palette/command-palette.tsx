@@ -16,6 +16,7 @@ import { Skeleton } from '../feedback/feedback.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Spinner } from '../spinner/spinner.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Search everything and run actions from one field.
@@ -156,8 +157,14 @@ export type CommandProps = {
 
 export function Command({
   items,
-  label = 'Search or run a command',
-  placeholder = 'Search or type a command',
+  label = t(
+    'components.command-palette.command-palette.search_or_run_a_command',
+    'Search or run a command',
+  ),
+  placeholder = t(
+    'components.command-palette.command-palette.search_or_type_a_command',
+    'Search or type a command',
+  ),
   defaultQuery = '',
   onQueryChange,
   filter = true,
@@ -165,7 +172,7 @@ export function Command({
   empty,
   defaultPath = [],
   onClose,
-  cancelLabel = 'Cancel',
+  cancelLabel = t('components.command-palette.command-palette.cancel', 'Cancel'),
   autoFocus = false,
   className,
 }: CommandProps): React.JSX.Element {
@@ -234,8 +241,12 @@ export function Command({
   const count = loading
     ? ''
     : flat.length === 0
-      ? 'No results'
-      : `${String(flat.length)} result${flat.length === 1 ? '' : 's'}`;
+      ? t('components.command-palette.command-palette.no_results', 'No results')
+      : t(
+          'components.command-palette.command-palette.results',
+          { one: '{{count}} result', other: '{{count}} results' },
+          { count: flat.length },
+        );
 
   return (
     <View className={cn('overflow-hidden rounded-[24px] bg-surface-raised shadow-xl', className)}>
@@ -243,7 +254,11 @@ export function Command({
         {page ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Back from ${page.label}`}
+            accessibilityLabel={t(
+              'components.command-palette.command-palette.back_from',
+              'Back from {{label}}',
+              { label: page.label },
+            )}
             onPress={back}
             hitSlop={9}
             className="h-[26px] flex-row items-center gap-1 rounded-[8px] bg-surface-sunken px-2.5"
@@ -278,7 +293,12 @@ export function Command({
           })}
           className="h-full min-w-0 flex-1 p-0 text-body text-fg outline-none placeholder:text-fg-subtle"
         />
-        {loading ? <Spinner size={16} label="Searching" /> : null}
+        {loading ? (
+          <Spinner
+            size={16}
+            label={t('components.command-palette.command-palette.searching', 'Searching')}
+          />
+        ) : null}
         {onClose ? (
           <Pressable accessibilityRole="button" onPress={onClose} hitSlop={12} className="shrink-0">
             <Text tone="accent" weight="medium" className="text-[15px]">
@@ -312,7 +332,7 @@ export function Command({
         ) : flat.length === 0 ? (
           (empty ?? (
             <Text tone="muted" className="p-4 text-center">
-              No results
+              {t('components.command-palette.command-palette.no_results', 'No results')}
             </Text>
           ))
         ) : (
@@ -406,7 +426,7 @@ export function CommandPalette({
   onOpenChange,
   portalHost,
   onClose,
-  label = 'Command palette',
+  label = t('components.command-palette.command-palette.command_palette', 'Command palette'),
   ...props
 }: CommandPaletteProps): React.JSX.Element {
   const container = useOverlayContainer(portalHost);

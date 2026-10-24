@@ -7,6 +7,7 @@ import Svg, { Path } from 'react-native-svg';
 import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { useFocusRing } from '../../lib/focus-ring.ts';
+import { t } from '../../lib/i18n';
 
 const WEB = Platform.OS === 'web';
 const mapping = { className: { target: 'style', nativeStyleMapping: { color: 'color' } } } as const;
@@ -131,9 +132,17 @@ export function Rating({
     return (
       <View
         role="img"
-        aria-label={`${label}: ${String(rounded)} out of ${String(max)}`}
+        aria-label={t(
+          'components.rating.rating.out_of',
+          '{{label}}: {{String}} out of {{String2}}',
+          { label, String: String(rounded), String2: String(max) },
+        )}
         accessible
-        accessibilityLabel={`${label}: ${String(rounded)} out of ${String(max)}`}
+        accessibilityLabel={t(
+          'components.rating.rating.out_of',
+          '{{label}}: {{String}} out of {{String2}}',
+          { label, String: String(rounded), String2: String(max) },
+        )}
         className={cn('flex-row items-center', className)}
         style={{ gap: size >= 24 ? 4 : 2 }}
       >
@@ -211,7 +220,7 @@ export function Rating({
           accessibilityLiveRegion="polite"
           className="ml-2 text-subhead font-semibold text-fg"
         >
-          {value === 0 ? 'Not rated' : describe(value)}
+          {value === 0 ? t('components.rating.rating.not_rated', 'Not rated') : describe(value)}
         </CssText>
       ) : null}
     </View>

@@ -31,6 +31,7 @@ import { useRead } from '../api';
 import { longDate } from '../display';
 import type { PeopleScreen } from '../routes';
 import type { DuplicatesState, MergedPair } from './model';
+import { t } from '../../i18n';
 
 /**
  * Two records that may be one person (design E4): the two stacked, the one
@@ -48,12 +49,17 @@ export function ReviewDuplicate({
   const { act, busy } = useAct();
   const [keep, setKeep] = useState<string | null>(null);
   const [take, setTake] = useState<readonly string[]>([]);
-  const back = { label: 'All items', onPress: navigation.goBack };
+  const back = {
+    label: t('people.review.duplicate.all_items', 'All items'),
+    onPress: navigation.goBack,
+  };
 
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading both records" />
+        <Loading
+          label={t('people.review.duplicate.loading_both_records', 'Loading both records')}
+        />
       </Page>
     );
   if (load.status === 'error')
@@ -67,8 +73,11 @@ export function ReviewDuplicate({
   if (comparison === null) {
     return (
       <Page back={back}>
-        <Alert tone="info" title="Already decided">
-          These two are no longer waiting.
+        <Alert tone="info" title={t('people.review.duplicate.already_decided', 'Already decided')}>
+          {t(
+            'people.review.duplicate.these_two_are_no_longer_waiting',
+            'These two are no longer waiting.',
+          )}
         </Alert>
       </Page>
     );
@@ -91,14 +100,16 @@ export function ReviewDuplicate({
             fullWidth
             loading={busy === 'DismissDuplicate'}
             onPress={() => {
-              void act('DismissDuplicate', { personIds: [a, b] }, 'Not the same person').then(
-                (done) => {
-                  if (done !== null) navigation.goBack();
-                },
-              );
+              void act(
+                'DismissDuplicate',
+                { personIds: [a, b] },
+                t('people.review.duplicate.not_the_same_person', 'Not the same person'),
+              ).then((done) => {
+                if (done !== null) navigation.goBack();
+              });
             }}
           >
-            Not the same
+            {t('people.review.duplicate.not_the_same', 'Not the same')}
           </Button>
           <Button
             className="flex-1"
@@ -116,13 +127,23 @@ export function ReviewDuplicate({
               });
             }}
           >
-            Merge
+            {t('people.review.duplicate.merge', 'Merge')}
           </Button>
         </>
       }
     >
       <Text tone="muted">
-        {`${pair?.reasons.join(', ') ?? 'They look alike'}${pair?.match == null ? '' : ` · ${pair.match === 'strong' ? 'Strong' : pair.match === 'likely' ? 'Likely' : 'Possible'} match`}. A sealed value shows its last four.`}
+        {t(
+          'people.review.duplicate.a_sealed_value_shows_its_last',
+          '{{value}}{{value2}}. A sealed value shows its last four.',
+          {
+            value: pair?.reasons.join(', ') ?? 'They look alike',
+            value2:
+              pair?.match == null
+                ? ''
+                : ` · ${pair.match === 'strong' ? 'Strong' : pair.match === 'likely' ? 'Likely' : 'Possible'} match`,
+          },
+        )}
       </Text>
       {comparison.people.map((person) => {
         const side = sideOf(person.id);
@@ -141,7 +162,11 @@ export function ReviewDuplicate({
               >
                 <Inline gap={2} wrap={false}>
                   <RadioDot checked={chosen} disabled={person.refusal !== null} />
-                  <Text weight="semibold">{`Keep ${person.name}’s record`}</Text>
+                  <Text weight="semibold">
+                    {t('people.review.duplicate.keep_s_record', 'Keep {{name}}’s record', {
+                      name: person.name,
+                    })}
+                  </Text>
                   <Badge size="sm">{person.status}</Badge>
                 </Inline>
               </Pressable>
@@ -164,7 +189,11 @@ export function ReviewDuplicate({
                     {takeable ? (
                       <Checkbox
                         checked={take.includes(row.key)}
-                        accessibilityLabel={`Take ${row.label} from ${person.name}`}
+                        accessibilityLabel={t(
+                          'people.review.duplicate.take_from',
+                          'Take {{label}} from {{name}}',
+                          { label: row.label, name: person.name },
+                        )}
                         onCheckedChange={(on) => {
                           setTake((held) =>
                             on ? [...held, row.key] : held.filter((k) => k !== row.key),
@@ -205,25 +234,40 @@ function Unmerge({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Undo merging ${merge.absorbedName}`}</DialogTitle>
+          <DialogTitle>
+            {t('people.review.duplicate.undo_merging', 'Undo merging {{absorbedName}}', {
+              absorbedName: merge.absorbedName,
+            })}
+          </DialogTitle>
           <DialogDescription>
-            {`${merge.absorbedName}’s record comes back as it was.${
-              merge.reversed.length === 0 ? '' : ` Copied back: ${merge.reversed.join(', ')}.`
-            }${merge.kept.length === 0 ? '' : ` Kept on ${merge.survivorName}, changed since: ${merge.kept.join(', ')}.`}${
-              merge.account === null ? '' : ` Sign-in: ${merge.account}.`
-            }`}
+            {t(
+              'people.review.duplicate.s_record_comes_back_as_it',
+              '{{absorbedName}}’s record comes back as it was.{{value}}{{value2}}{{value3}}',
+              {
+                absorbedName: merge.absorbedName,
+                value:
+                  merge.reversed.length === 0 ? '' : ` Copied back: ${merge.reversed.join(', ')}.`,
+                value2:
+                  merge.kept.length === 0
+                    ? ''
+                    : ` Kept on ${merge.survivorName}, changed since: ${merge.kept.join(', ')}.`,
+                value3: merge.account === null ? '' : ` Sign-in: ${merge.account}.`,
+              },
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field required invalid={shown && reason.trim() === ''}>
-            <FieldLabel>Why</FieldLabel>
+            <FieldLabel>{t('people.review.duplicate.why', 'Why')}</FieldLabel>
             <Textarea value={reason} onChange={setReason} maxLength={500} />
-            {shown && reason.trim() === '' ? <FieldError>Say why.</FieldError> : null}
+            {shown && reason.trim() === '' ? (
+              <FieldError>{t('people.review.duplicate.say_why', 'Say why.')}</FieldError>
+            ) : null}
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.review.duplicate.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -235,7 +279,7 @@ function Unmerge({
               void act(
                 'UnmergePerson',
                 { personId: merge.absorbedId, reason: reason.trim() },
-                'Merge undone',
+                t('people.review.duplicate.merge_undone', 'Merge undone'),
               ).then((done) => {
                 if (done === null) return;
                 onClose();
@@ -243,7 +287,7 @@ function Unmerge({
               });
             }}
           >
-            Undo merge
+            {t('people.review.duplicate.undo_merge', 'Undo merge')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -263,13 +307,21 @@ export function Merges({
   return (
     <Stack gap={2}>
       <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-        Merged records
+        {t('people.review.duplicate.merged_records', 'Merged records')}
       </Text>
       <List>
         {merges.map((m) => (
           <ListItem
             key={m.absorbedId}
-            description={`Into ${m.survivorName} · ${longDate(m.mergedAt.slice(0, 10))}${m.refusal === null ? '' : ` · ${m.refusal}`}`}
+            description={t(
+              'people.review.duplicate.into',
+              'Into {{survivorName}} · {{longDate}}{{value}}',
+              {
+                survivorName: m.survivorName,
+                longDate: longDate(m.mergedAt.slice(0, 10)),
+                value: m.refusal === null ? '' : ` · ${m.refusal}`,
+              },
+            )}
             {...(m.refusal === null
               ? {
                   trailing: (
@@ -279,7 +331,7 @@ export function Merges({
                         setUndoing(m);
                       }}
                     >
-                      Undo
+                      {t('people.review.duplicate.undo', 'Undo')}
                     </Button>
                   ),
                 }

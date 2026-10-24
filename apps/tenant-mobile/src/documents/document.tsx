@@ -56,6 +56,7 @@ import {
 import { Answers, Certificate } from './answers';
 import { Reading } from './reading';
 import { ActOnLetter, FillRecord } from './record';
+import { t } from '../i18n';
 
 /**
  * A document on the phone (MR1, MR4, MA1, MA2): who can see it, open it in
@@ -125,7 +126,10 @@ export function DocumentDetail({
   const [sending, setSending] = useState(false);
   const [filling, setFilling] = useState(false);
   const [acting, setActing] = useState(false);
-  const back = { label: 'Documents', onPress: navigation.goBack };
+  const back = {
+    label: t('documents.document.documents', 'Documents'),
+    onPress: navigation.goBack,
+  };
   const act = async (name: string, variables: Record<string, unknown>): Promise<boolean> => {
     setBusy(name);
     setProblem(null);
@@ -149,7 +153,7 @@ export function DocumentDetail({
   if (load.status === 'loading') {
     return (
       <Page title={title} back={back}>
-        <Loading label="Opening the document" />
+        <Loading label={t('documents.document.opening_the_document', 'Opening the document')} />
       </Page>
     );
   }
@@ -172,14 +176,22 @@ export function DocumentDetail({
       <View className="flex-row flex-wrap gap-1.5">
         <Badge tone={tag.tone}>{tag.label}</Badge>
         {row.status === null ? null : <Badge tone={row.status.tone}>{row.status.label}</Badge>}
-        {doc.held ? <Badge tone="danger">Legal hold</Badge> : null}
+        {doc.held ? (
+          <Badge tone="danger">{t('documents.document.legal_hold', 'Legal hold')}</Badge>
+        ) : null}
       </View>
       <Text tone="muted">{meta(row)}</Text>
       {row.confidential ? (
-        <Alert tone="warning" title="Confidential">
+        <Alert tone="warning" title={t('documents.document.confidential', 'Confidential')}>
           {doc.may.download
-            ? 'Your name is on every page you view. You can download it because it’s yours.'
-            : 'Your name is on every page. It cannot be downloaded, and every open is logged.'}
+            ? t(
+                'documents.document.your_name_is_on_every_page',
+                'Your name is on every page you view. You can download it because it’s yours.',
+              )
+            : t(
+                'documents.document.your_name_is_on_every_page_2',
+                'Your name is on every page. It cannot be downloaded, and every open is logged.',
+              )}
         </Alert>
       ) : null}
       {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
@@ -195,7 +207,7 @@ export function DocumentDetail({
           });
         }}
       >
-        Open
+        {t('documents.document.open', 'Open')}
       </Button>
       <View className="flex-row gap-2.5">
         {doc.may.download ? (
@@ -204,7 +216,7 @@ export function DocumentDetail({
             startIcon={<Icon icon={Download} />}
             onPress={() => void openFile(signed, id, 'download').then(setProblem)}
           >
-            Download
+            {t('documents.document.download', 'Download')}
           </Button>
         ) : null}
         {doc.may.share ? (
@@ -215,7 +227,7 @@ export function DocumentDetail({
               setSharing(true);
             }}
           >
-            Share
+            {t('documents.document.share', 'Share')}
           </Button>
         ) : null}
       </View>
@@ -228,10 +240,14 @@ export function DocumentDetail({
           }}
         >
           {doc.signing.mine && doc.signing.status === 'sent'
-            ? 'Review and sign'
+            ? t('documents.document.review_and_sign', 'Review and sign')
             : doc.signing.status === 'sent'
-              ? `Signature status · ${String(doc.signing.signed)} of ${String(doc.signing.of)}`
-              : 'Signature request'}
+              ? t(
+                  'documents.document.signature_status_of',
+                  'Signature status · {{String}} of {{String2}}',
+                  { String: String(doc.signing.signed), String2: String(doc.signing.of) },
+                )
+              : t('documents.document.signature_request', 'Signature request')}
         </Button>
       )}
       {doc.campaigns.map((c) =>
@@ -242,11 +258,11 @@ export function DocumentDetail({
             loading={busy === c.id}
             onPress={() => void act('AcknowledgeDocument', { campaignId: c.id })}
           >
-            I’ve read it
+            {t('documents.document.ive_read_it', 'I’ve read it')}
           </Button>
         ) : c.asked ? (
           <Badge key={c.id} tone="success">
-            You acknowledged it
+            {t('documents.document.you_acknowledged_it', 'You acknowledged it')}
           </Badge>
         ) : (
           <Button
@@ -255,7 +271,11 @@ export function DocumentDetail({
               navigation.navigate('DocumentCampaign', { id: c.id });
             }}
           >
-            {`Acknowledged by ${String(c.done)} of ${String(c.of)}`}
+            {t(
+              'documents.document.acknowledged_by_of',
+              'Acknowledged by {{String}} of {{String2}}',
+              { String: String(c.done), String2: String(c.of) },
+            )}
           </Button>
         ),
       )}
@@ -266,7 +286,7 @@ export function DocumentDetail({
             setSending(true);
           }}
         >
-          Send for signature
+          {t('documents.document.send_for_signature', 'Send for signature')}
         </Button>
       ) : null}
       {doc.may.share && doc.pdf && row.deletedAt === null && row.subject !== null ? (
@@ -276,7 +296,7 @@ export function DocumentDetail({
             setFilling(true);
           }}
         >
-          Fill the record from it
+          {t('documents.document.fill_the_record_from_it', 'Fill the record from it')}
         </Button>
       ) : null}
       {doc.may.share && row.kind === 'Letter' && row.deletedAt === null && row.subject !== null ? (
@@ -285,7 +305,7 @@ export function DocumentDetail({
             setActing(true);
           }}
         >
-          Act on this letter
+          {t('documents.document.act_on_this_letter', 'Act on this letter')}
         </Button>
       ) : null}
       {acting && row.subject !== null ? (
@@ -322,30 +342,37 @@ export function DocumentDetail({
       ) : null}
       {row.deletedAt === null && (row.mine || row.aboutMe) ? <Answers documentIds={[id]} /> : null}
       {doc.pdf && row.deletedAt === null ? <Reading documentId={id} /> : null}
-      <Heading title="Who can see it" />
+      <Heading title={t('documents.document.who_can_see_it', 'Who can see it')} />
       <List>
-        <ListItem description={`Owner: ${doc.owner}`}>{row.who.label}</ListItem>
+        <ListItem
+          description={t('documents.document.owner', 'Owner: {{owner}}', { owner: doc.owner })}
+        >
+          {row.who.label}
+        </ListItem>
       </List>
       {doc.may.protect || doc.may.unprotect ? (
         <ListItem
           listitem={false}
           icon={Lock}
-          description="A watermark, no download, every open logged."
+          description={t(
+            'documents.document.a_watermark_no_download_every_open',
+            'A watermark, no download, every open logged.',
+          )}
           trailing={
             <Switch
-              accessibilityLabel="Confidential"
+              accessibilityLabel={t('documents.document.confidential', 'Confidential')}
               checked={row.confidential}
               disabled={busy !== null}
               onCheckedChange={(on) => void act('SetDocumentConfidential', { input: { on } })}
             />
           }
         >
-          Confidential
+          {t('documents.document.confidential', 'Confidential')}
         </ListItem>
       ) : null}
       {doc.accessRequests.length === 0 ? null : (
         <>
-          <Heading title="Asked to open it" />
+          <Heading title={t('documents.document.asked_to_open_it', 'Asked to open it')} />
           <List>
             {doc.accessRequests.map((r) => (
               <ListItem
@@ -362,7 +389,7 @@ export function DocumentDetail({
                         }).then(reload)
                       }
                     >
-                      Refuse
+                      {t('documents.document.refuse', 'Refuse')}
                     </Button>
                     <Button
                       size="xs"
@@ -374,7 +401,7 @@ export function DocumentDetail({
                         }).then(reload)
                       }
                     >
-                      Grant
+                      {t('documents.document.grant', 'Grant')}
                     </Button>
                   </View>
                 }
@@ -385,7 +412,7 @@ export function DocumentDetail({
           </List>
         </>
       )}
-      <Heading title="Versions" />
+      <Heading title={t('documents.document.versions', 'Versions')} />
       <List>
         {doc.versions.map((v) => (
           <ListItem
@@ -394,7 +421,7 @@ export function DocumentDetail({
               .filter(Boolean)
               .join(' · ')}
           >
-            {`Version ${String(v.n)}`}
+            {t('documents.document.version', 'Version {{String}}', { String: String(v.n) })}
           </ListItem>
         ))}
       </List>
@@ -417,7 +444,7 @@ export function DocumentDetail({
             })();
           }}
         >
-          New version
+          {t('documents.document.new_version', 'New version')}
         </Button>
       ) : null}
       {doc.may.edit ? (
@@ -434,11 +461,13 @@ export function DocumentDetail({
                 setProblem(put.message);
                 return;
               }
-              await act('AddDocumentVersion', { input: { upload: put.data, note: 'Scanned' } });
+              await act('AddDocumentVersion', {
+                input: { upload: put.data, note: t('documents.document.scanned', 'Scanned') },
+              });
             })();
           }}
         >
-          Scan a new version
+          {t('documents.document.scan_a_new_version', 'Scan a new version')}
         </Button>
       ) : null}
       {doc.may.delete ? (
@@ -452,7 +481,7 @@ export function DocumentDetail({
             })
           }
         >
-          Delete
+          {t('documents.document.delete', 'Delete')}
         </Button>
       ) : null}
       {sending ? (
@@ -505,15 +534,21 @@ function Closed({
     <Page title={title} back={back}>
       <EmptyState
         icon={Lock}
-        title="You can’t open this yet"
-        description={`${owner} owns it. They’ll get a task in their Inbox, and you’ll hear back as an update.`}
+        title={t('documents.document.you_cant_open_this_yet', 'You can’t open this yet')}
+        description={t(
+          'documents.document.owns_it_theyll_get_a_task',
+          '{{owner}} owns it. They’ll get a task in their Inbox, and you’ll hear back as an update.',
+          { owner },
+        )}
       />
       {sent ? (
-        <Alert tone="success" title="Asked">{`${owner} will decide.`}</Alert>
+        <Alert tone="success" title={t('documents.document.asked', 'Asked')}>
+          {t('documents.document.will_decide', '{{owner}} will decide.', { owner })}
+        </Alert>
       ) : (
         <>
           <Field>
-            <FieldLabel>Why you need it</FieldLabel>
+            <FieldLabel>{t('documents.document.why_you_need_it', 'Why you need it')}</FieldLabel>
             <Textarea value={reason} onChange={setReason} />
           </Field>
           {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
@@ -534,7 +569,7 @@ function Closed({
               });
             }}
           >
-            Ask for access
+            {t('documents.document.ask_for_access', 'Ask for access')}
           </Button>
         </>
       )}
@@ -597,12 +632,17 @@ function ShareDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Share ${title}`}</DialogTitle>
-          <DialogDescription>Removing everyone makes it Private again.</DialogDescription>
+          <DialogTitle>{t('documents.document.share_2', 'Share {{title}}', { title })}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'documents.document.removing_everyone_makes_it_private_again',
+              'Removing everyone makes it Private again.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field>
-            <FieldLabel>Add someone</FieldLabel>
+            <FieldLabel>{t('documents.document.add_someone', 'Add someone')}</FieldLabel>
             <Select
               value={adding}
               onValueChange={(personId) => {
@@ -622,9 +662,11 @@ function ShareDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Choose someone" />
+                <SelectValue
+                  placeholder={t('documents.document.choose_someone', 'Choose someone')}
+                />
               </SelectTrigger>
-              <SelectContent title="Share with">
+              <SelectContent title={t('documents.document.share_with', 'Share with')}>
                 {people
                   .filter((p) => !named.has(p.personId))
                   .map((p) => (
@@ -639,7 +681,11 @@ function ShareDialog({
             {list.map((g) => (
               <ListItem
                 key={`${g.kind}:${g.id}`}
-                description={g.permission === 'edit' ? 'Can edit' : 'Can view'}
+                description={
+                  g.permission === 'edit'
+                    ? t('documents.document.can_edit', 'Can edit')
+                    : t('documents.document.can_view', 'Can view')
+                }
                 trailing={
                   <Button
                     size="xs"
@@ -648,7 +694,7 @@ function ShareDialog({
                       setList(list.filter((x) => x !== g));
                     }}
                   >
-                    Remove
+                    {t('documents.document.remove', 'Remove')}
                   </Button>
                 }
               >
@@ -657,16 +703,21 @@ function ShareDialog({
             ))}
           </List>
           {list.length === 0 ? (
-            <Text tone="muted">Private: only its owner and HR can open it.</Text>
+            <Text tone="muted">
+              {t(
+                'documents.document.private_only_its_owner_and_hr',
+                'Private: only its owner and HR can open it.',
+              )}
+            </Text>
           ) : null}
           {problem === null ? null : <Alert tone="danger">{problem}</Alert>}
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('documents.document.cancel', 'Cancel')}
           </Button>
           <Button className="flex-1" variant="primary" loading={busy} onPress={save}>
-            Done
+            {t('documents.document.done', 'Done')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -700,10 +751,14 @@ function SendDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send for signature</DialogTitle>
+          <DialogTitle>
+            {t('documents.document.send_for_signature', 'Send for signature')}
+          </DialogTitle>
           <DialogDescription>
-            They sign in this order. Kithena places a signature and the date for each on the last
-            page; moving fields is the web’s.
+            {t(
+              'documents.document.they_sign_in_this_order_kithena',
+              'They sign in this order. Kithena places a signature and the date for each on the last page; moving fields is the web’s.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -711,7 +766,9 @@ function SendDialog({
             {chosen.map((p, i) => (
               <ListItem
                 key={p.personId}
-                description={`Signs ${String(i + 1)}`}
+                description={t('documents.document.signs', 'Signs {{String}}', {
+                  String: String(i + 1),
+                })}
                 trailing={
                   <Button
                     size="xs"
@@ -720,7 +777,7 @@ function SendDialog({
                       setChosen(chosen.filter((x) => x !== p));
                     }}
                   >
-                    Remove
+                    {t('documents.document.remove', 'Remove')}
                   </Button>
                 }
               >
@@ -729,7 +786,7 @@ function SendDialog({
             ))}
           </List>
           <Field>
-            <FieldLabel>Add a signer</FieldLabel>
+            <FieldLabel>{t('documents.document.add_a_signer', 'Add a signer')}</FieldLabel>
             <Select
               value={adding}
               onValueChange={(personId) => {
@@ -739,9 +796,11 @@ function SendDialog({
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Choose someone" />
+                <SelectValue
+                  placeholder={t('documents.document.choose_someone', 'Choose someone')}
+                />
               </SelectTrigger>
-              <SelectContent title="Signer">
+              <SelectContent title={t('documents.document.signer', 'Signer')}>
                 {people
                   .filter((p) => !chosen.some((c) => c.personId === p.personId))
                   .map((p) => (
@@ -761,7 +820,7 @@ function SendDialog({
               onClose(null);
             }}
           >
-            Cancel
+            {t('documents.document.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -787,7 +846,7 @@ function SendDialog({
               });
             }}
           >
-            Send
+            {t('documents.document.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>

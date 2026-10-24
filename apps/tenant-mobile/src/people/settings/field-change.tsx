@@ -24,6 +24,7 @@ import { AttributeInput } from '../attribute-input';
 import { parsed } from '../review/load';
 import type { PeopleScreen } from '../routes';
 import { DATA_TYPE_LABEL } from './fields-model';
+import { t as tr } from '../../i18n';
 
 type Action = 'edit' | 'clear' | 'request' | 'hr' | 'leave';
 
@@ -59,16 +60,43 @@ interface View_ extends Review_ {
 type Chosen = Readonly<Record<string, Action>>;
 type Typed = Readonly<Record<string, Value>>;
 
-const ACTION: Readonly<Record<Action, { label: string; means: string }>> = {
-  edit: { label: 'Type the right value', means: 'Written now, as a correction.' },
-  clear: { label: 'Remove it', means: 'Cleared. History keeps what it was.' },
-  request: {
-    label: 'Ask the employee',
-    means: 'Cleared, and they’re asked for it on their profile and by email.',
+const ACTION = (): Readonly<Record<Action, { label: string; means: string }>> => ({
+  edit: {
+    label: tr('people.settings.field-change.type_the_right_value', 'Type the right value'),
+    means: tr(
+      'people.settings.field-change.written_now_as_a_correction',
+      'Written now, as a correction.',
+    ),
   },
-  hr: { label: 'HR fills it in later', means: 'Cleared, and listed for HR in Data health.' },
-  leave: { label: 'Leave it empty', means: 'Cleared, and nobody is asked.' },
-};
+  clear: {
+    label: tr('people.settings.field-change.remove_it', 'Remove it'),
+    means: tr(
+      'people.settings.field-change.cleared_history_keeps_what_it_was',
+      'Cleared. History keeps what it was.',
+    ),
+  },
+  request: {
+    label: tr('people.settings.field-change.ask_the_employee', 'Ask the employee'),
+    means: tr(
+      'people.settings.field-change.cleared_and_theyre_asked_for_it',
+      'Cleared, and they’re asked for it on their profile and by email.',
+    ),
+  },
+  hr: {
+    label: tr('people.settings.field-change.hr_fills_it_in_later', 'HR fills it in later'),
+    means: tr(
+      'people.settings.field-change.cleared_and_listed_for_hr_in',
+      'Cleared, and listed for HR in Data health.',
+    ),
+  },
+  leave: {
+    label: tr('people.settings.field-change.leave_it_empty', 'Leave it empty'),
+    means: tr(
+      'people.settings.field-change.cleared_and_nobody_is_asked',
+      'Cleared, and nobody is asked.',
+    ),
+  },
+});
 
 const plural = (n: number, one: string, many: string): string =>
   `${n.toLocaleString()} ${n === 1 ? one : many}`;
@@ -95,24 +123,30 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
       (answer) => {
         setView(
           answer.ok
-            ? ((parsed(answer.data) as View_ | null) ?? 'People did not answer.')
+            ? ((parsed(answer.data) as View_ | null) ??
+                tr('people.settings.field-change.people_did_not_answer', 'People did not answer.'))
             : answer.message,
         );
       },
     );
   }, [signed, route.params.key, route.params.to]);
 
-  const back = { label: 'Fields', onPress: navigation.goBack };
+  const back = {
+    label: tr('people.settings.field-change.fields', 'Fields'),
+    onPress: navigation.goBack,
+  };
   if (view === null) {
     return (
-      <Page title="Change a field" back={back}>
-        <Loading label="Checking every value" />
+      <Page title={tr('people.settings.field-change.change_a_field', 'Change a field')} back={back}>
+        <Loading
+          label={tr('people.settings.field-change.checking_every_value', 'Checking every value')}
+        />
       </Page>
     );
   }
   if (typeof view === 'string') {
     return (
-      <Page title="Change a field" back={back}>
+      <Page title={tr('people.settings.field-change.change_a_field', 'Change a field')} back={back}>
         <Failed
           message={view}
           onRetry={() => {
@@ -142,7 +176,9 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
 
   return (
     <Page
-      title={`To ${typeName(field.to)}`}
+      title={tr('people.settings.field-change.to', 'To {{typeName}}', {
+        typeName: typeName(field.to),
+      })}
       back={back}
       foot={
         <Button
@@ -168,7 +204,7 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
             });
           }}
         >
-          Publish the change
+          {tr('people.settings.field-change.publish_the_change', 'Publish the change')}
         </Button>
       }
     >
@@ -178,9 +214,16 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
       {view.others.length === 0 ? null : (
         <Alert
           tone="info"
-          title={`${view.others.map((o) => o.field.label).join(', ')} ${view.others.length === 1 ? 'changes' : 'change'} type too`}
+          title={tr(
+            'people.settings.field-change.type_too',
+            { one: '{{join}} changes type too', other: '{{join}} change type too' },
+            { count: view.others.length, join: view.others.map((o) => o.field.label).join(', ') },
+          )}
         >
-          Each is reviewed below and published with this one.
+          {tr(
+            'people.settings.field-change.each_is_reviewed_below_and_published',
+            'Each is reviewed below and published with this one.',
+          )}
         </Alert>
       )}
       {reviews.map((r, i) => (
@@ -200,15 +243,25 @@ export function FieldChange({ navigation, route }: PeopleScreen<'FieldChange'>):
         />
       ))}
       <Text variant="footnote" tone="muted">
-        {`Publishing writes the new version${
-          view.alsoPublished === 0
-            ? '.'
-            : `, and ${plural(view.alsoPublished, 'other change', 'other changes')} in the draft ${view.alsoPublished === 1 ? 'is' : 'are'} published with it.`
-        }`}
+        {tr(
+          'people.settings.field-change.publishing_writes_the_new_version',
+          'Publishing writes the new version{{value}}',
+          {
+            value:
+              view.alsoPublished === 0
+                ? '.'
+                : `, and ${plural(view.alsoPublished, 'other change', 'other changes')} in the draft ${view.alsoPublished === 1 ? 'is' : 'are'} published with it.`,
+          },
+        )}
       </Text>
       {shown && missing.length > 0 ? (
-        <Alert tone="danger" title="Nothing was published">
-          {`${plural(missing.length, 'value still needs', 'values still need')} typing in.`}
+        <Alert
+          tone="danger"
+          title={tr('people.settings.field-change.nothing_was_published', 'Nothing was published')}
+        >
+          {tr('people.settings.field-change.typing_in', '{{plural}} typing in.', {
+            plural: plural(missing.length, 'value still needs', 'values still need'),
+          })}
         </Alert>
       ) : null}
     </Page>
@@ -256,21 +309,38 @@ function FieldValues({
   return (
     <Stack gap={3}>
       {second ? (
-        <Text variant="headline">{`${field.label}: ${typeName(field.from)} to ${typeName(field.to)}`}</Text>
+        <Text variant="headline">
+          {tr('people.settings.field-change.to_2', '{{label}}: {{typeName}} to {{typeName2}}', {
+            label: field.label,
+            typeName: typeName(field.from),
+            typeName2: typeName(field.to),
+          })}
+        </Text>
       ) : null}
       {review.hidden ? (
-        <Alert tone="info" title="Values are masked">
+        <Alert
+          tone="info"
+          title={tr('people.settings.field-change.values_are_masked', 'Values are masked')}
+        >
           {field.encrypted
-            ? 'This field is encrypted, so only the last four characters are shown. Each value is opened only to convert it.'
-            : 'You can’t read this field, so values are masked. They are still checked and converted.'}
+            ? tr(
+                'people.settings.field-change.this_field_is_encrypted_so_only',
+                'This field is encrypted, so only the last four characters are shown. Each value is opened only to convert it.',
+              )
+            : tr(
+                'people.settings.field-change.you_cant_read_this_field_so',
+                'You can’t read this field, so values are masked. They are still checked and converted.',
+              )}
         </Alert>
       ) : null}
       <Card>
         <Stack gap={2}>
           <CardTitle>
             {review.withValue === 0
-              ? 'Nobody has a value yet'
-              : `${plural(review.withValue, 'person has', 'people have')} a value`}
+              ? tr('people.settings.field-change.nobody_has_a_value_yet', 'Nobody has a value yet')
+              : tr('people.settings.field-change.a_value', '{{plural}} a value', {
+                  plural: plural(review.withValue, 'person has', 'people have'),
+                })}
           </CardTitle>
           <Text variant="subhead" tone="muted">
             {`${plural(review.converted.count, 'converts', 'convert')}, ${plural(review.unchanged, 'stays as it is', 'stay as they are')}, ${plural(review.unfit.length, 'does not fit', 'do not fit')}.`}
@@ -283,13 +353,18 @@ function FieldValues({
       {review.unfit.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
-          title="Every value fits"
-          description="Publishing converts them all."
+          title={tr('people.settings.field-change.every_value_fits', 'Every value fits')}
+          description={tr(
+            'people.settings.field-change.publishing_converts_them_all',
+            'Publishing converts them all.',
+          )}
         />
       ) : (
         <>
           <Field>
-            <FieldLabel>{`For all of them${of}`}</FieldLabel>
+            <FieldLabel>
+              {tr('people.settings.field-change.for_all_of_them', 'For all of them{{of}}', { of })}
+            </FieldLabel>
             <Select
               value={all}
               onValueChange={(value) => {
@@ -300,14 +375,23 @@ function FieldValues({
             >
               <SelectTrigger
                 size="sm"
-                accessibilityLabel={`What to do with every value that doesn’t fit${of}`}
+                accessibilityLabel={tr(
+                  'people.settings.field-change.what_to_do_with_every_value',
+                  'What to do with every value that doesn’t fit{{of}}',
+                  { of },
+                )}
               >
-                <SelectValue placeholder="Choose one at a time below" />
+                <SelectValue
+                  placeholder={tr(
+                    'people.settings.field-change.choose_one_at_a_time_below',
+                    'Choose one at a time below',
+                  )}
+                />
               </SelectTrigger>
               <SelectContent>
                 {review.actions.map((a) => (
                   <SelectItem key={a} value={a}>
-                    {ACTION[a].label}
+                    {ACTION()[a].label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -316,7 +400,14 @@ function FieldValues({
           {all === 'edit' ? (
             // One value, given to each of them; any one can still be changed below.
             <AttributeInput
-              field={{ ...asInput, label: `${field.label} for all of them` }}
+              field={{
+                ...asInput,
+                label: tr(
+                  'people.settings.field-change.for_all_of_them_2',
+                  '{{label}} for all of them',
+                  { label: field.label },
+                ),
+              }}
               value={typed[review.unfit[0]?.personId ?? ''] ?? null}
               personId={null}
               onChange={(value) => {
@@ -330,7 +421,13 @@ function FieldValues({
               <Card key={u.personId} variant="outline">
                 <Stack gap={2}>
                   <Field>
-                    <FieldLabel>{`What to do with ${u.name}’s value${of}`}</FieldLabel>
+                    <FieldLabel>
+                      {tr(
+                        'people.settings.field-change.what_to_do_with_s_value',
+                        'What to do with {{name}}’s value{{of}}',
+                        { name: u.name, of },
+                      )}
+                    </FieldLabel>
                     <Select
                       value={action}
                       onValueChange={(value) => {
@@ -339,14 +436,18 @@ function FieldValues({
                     >
                       <SelectTrigger
                         size="sm"
-                        accessibilityLabel={`What to do with ${u.name}’s value${of}`}
+                        accessibilityLabel={tr(
+                          'people.settings.field-change.what_to_do_with_s_value',
+                          'What to do with {{name}}’s value{{of}}',
+                          { name: u.name, of },
+                        )}
                       >
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {review.actions.map((a) => (
                           <SelectItem key={a} value={a}>
-                            {ACTION[a].label}
+                            {ACTION()[a].label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -368,7 +469,7 @@ function FieldValues({
                     />
                   ) : (
                     <Text variant="footnote" tone="muted">
-                      {ACTION[action].means}
+                      {ACTION()[action].means}
                     </Text>
                   )}
                 </Stack>

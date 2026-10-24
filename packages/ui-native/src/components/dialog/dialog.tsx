@@ -19,6 +19,7 @@ import { useOverlayContainer } from '../../lib/overlay-host.tsx';
 import { flatStyle, InertOutside, quietFrame, usePresence } from '../../lib/overlay.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A modal dialog, centred on a phone too.
@@ -190,7 +191,7 @@ export function DialogContent({
   children,
   className,
   showCloseButton = false,
-  closeLabel = 'Close',
+  closeLabel = t('components.dialog.dialog.close', 'Close'),
   guard,
   portalHost,
   width,

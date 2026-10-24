@@ -39,6 +39,7 @@ import { Toggle } from '../toggle/toggle.tsx';
 // react-native-web's bundlers take `engine.web.tsx` (Tiptap itself).
 import { useRichTextEngine } from './engine';
 import type { Command } from './engine-types.ts';
+import { t as tr } from '../../lib/i18n';
 
 /**
  * Formatted text for policies, notes and comments. It stores safe HTML, the
@@ -84,32 +85,147 @@ type Tool = { command: Command; label: string; icon: LucideIcon; toggle: boolean
 
 const tools: Record<Exclude<RichTextGroup, 'link'>, readonly Tool[]> = {
   history: [
-    { command: 'undo', label: 'Undo', icon: Undo2, toggle: false },
-    { command: 'redo', label: 'Redo', icon: Redo2, toggle: false },
+    {
+      command: 'undo',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.undo', 'Undo');
+      },
+      icon: Undo2,
+      toggle: false,
+    },
+    {
+      command: 'redo',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.redo', 'Redo');
+      },
+      icon: Redo2,
+      toggle: false,
+    },
   ],
   inline: [
-    { command: 'bold', label: 'Bold', icon: Bold, toggle: true },
-    { command: 'italic', label: 'Italic', icon: Italic, toggle: true },
-    { command: 'underline', label: 'Underline', icon: Underline, toggle: true },
-    { command: 'strike', label: 'Strikethrough', icon: Strikethrough, toggle: true },
+    {
+      command: 'bold',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.bold', 'Bold');
+      },
+      icon: Bold,
+      toggle: true,
+    },
+    {
+      command: 'italic',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.italic', 'Italic');
+      },
+      icon: Italic,
+      toggle: true,
+    },
+    {
+      command: 'underline',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.underline', 'Underline');
+      },
+      icon: Underline,
+      toggle: true,
+    },
+    {
+      command: 'strike',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.strikethrough', 'Strikethrough');
+      },
+      icon: Strikethrough,
+      toggle: true,
+    },
   ],
   headings: [
-    { command: 'h2', label: 'Heading 2', icon: Heading2, toggle: true },
-    { command: 'h3', label: 'Heading 3', icon: Heading3, toggle: true },
+    {
+      command: 'h2',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.heading_2', 'Heading 2');
+      },
+      icon: Heading2,
+      toggle: true,
+    },
+    {
+      command: 'h3',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.heading_3', 'Heading 3');
+      },
+      icon: Heading3,
+      toggle: true,
+    },
   ],
   lists: [
-    { command: 'bullet', label: 'Bulleted list', icon: List, toggle: true },
-    { command: 'ordered', label: 'Numbered list', icon: ListOrdered, toggle: true },
-    { command: 'quote', label: 'Quote', icon: Quote, toggle: true },
+    {
+      command: 'bullet',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.bulleted_list', 'Bulleted list');
+      },
+      icon: List,
+      toggle: true,
+    },
+    {
+      command: 'ordered',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.numbered_list', 'Numbered list');
+      },
+      icon: ListOrdered,
+      toggle: true,
+    },
+    {
+      command: 'quote',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.quote', 'Quote');
+      },
+      icon: Quote,
+      toggle: true,
+    },
   ],
   blocks: [
-    { command: 'code', label: 'Inline code', icon: Code, toggle: true },
-    { command: 'rule', label: 'Horizontal rule', icon: Minus, toggle: false },
+    {
+      command: 'code',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.inline_code', 'Inline code');
+      },
+      icon: Code,
+      toggle: true,
+    },
+    {
+      command: 'rule',
+      get label(): string {
+        return tr(
+          'components.rich-text-editor.rich-text-editor.horizontal_rule',
+          'Horizontal rule',
+        );
+      },
+      icon: Minus,
+      toggle: false,
+    },
   ],
   align: [
-    { command: 'align-left', label: 'Align left', icon: TextAlignStart, toggle: true },
-    { command: 'align-center', label: 'Align centre', icon: TextAlignCenter, toggle: true },
-    { command: 'align-right', label: 'Align right', icon: TextAlignEnd, toggle: true },
+    {
+      command: 'align-left',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.align_left', 'Align left');
+      },
+      icon: TextAlignStart,
+      toggle: true,
+    },
+    {
+      command: 'align-center',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.align_centre', 'Align centre');
+      },
+      icon: TextAlignCenter,
+      toggle: true,
+    },
+    {
+      command: 'align-right',
+      get label(): string {
+        return tr('components.rich-text-editor.rich-text-editor.align_right', 'Align right');
+      },
+      icon: TextAlignEnd,
+      toggle: true,
+    },
   ],
 };
 
@@ -118,7 +234,10 @@ export function RichTextEditor({
   onChange,
   label,
   hint,
-  placeholder = 'Write something…',
+  placeholder = tr(
+    'components.rich-text-editor.rich-text-editor.write_something',
+    'Write something…',
+  ),
   toolbar = DEFAULT_TOOLBAR,
   characterLimit,
   showCount = false,
@@ -180,7 +299,11 @@ export function RichTextEditor({
             groups={toolbar}
             engine={engine}
             disabled={disabled}
-            label={`${name} formatting`}
+            label={tr(
+              'components.rich-text-editor.rich-text-editor.formatting',
+              '{{name}} formatting',
+              { name },
+            )}
           />
         ) : null}
         {engine.body}
@@ -209,7 +332,11 @@ export function RichTextEditor({
           )}
         >
           {characterLimit === undefined
-            ? `${String(engine.characters)} characters`
+            ? tr(
+                'components.rich-text-editor.rich-text-editor.characters',
+                '{{String}} characters',
+                { String: String(engine.characters) },
+              )
             : `${String(engine.characters)} / ${String(characterLimit)}`}
         </CssText>
       ) : null}
@@ -308,7 +435,11 @@ function LinkTool({
         shape="square"
         size="sm"
         icon={Link2}
-        accessibilityLabel={engine.link === null ? 'Add a link' : 'Edit the link'}
+        accessibilityLabel={
+          engine.link === null
+            ? tr('components.rich-text-editor.rich-text-editor.add_a_link', 'Add a link')
+            : tr('components.rich-text-editor.rich-text-editor.edit_the_link', 'Edit the link')
+        }
         pressed={engine.link !== null}
         disabled={disabled}
         onPressedChange={() => {
@@ -318,11 +449,17 @@ function LinkTool({
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{engine.link === null ? 'Add a link' : 'Edit the link'}</DialogTitle>
+          <DialogTitle>
+            {engine.link === null
+              ? tr('components.rich-text-editor.rich-text-editor.add_a_link', 'Add a link')
+              : tr('components.rich-text-editor.rich-text-editor.edit_the_link', 'Edit the link')}
+          </DialogTitle>
         </DialogHeader>
         <DialogBody>
           <Field>
-            <FieldLabel>Address</FieldLabel>
+            <FieldLabel>
+              {tr('components.rich-text-editor.rich-text-editor.address', 'Address')}
+            </FieldLabel>
             <Input type="url" value={href} onChange={setHref} autoFocus />
           </Field>
         </DialogBody>
@@ -333,7 +470,7 @@ function LinkTool({
                 setOpen(false);
               }}
             >
-              Cancel
+              {tr('components.rich-text-editor.rich-text-editor.cancel', 'Cancel')}
             </Button>
           ) : (
             <Button
@@ -343,7 +480,7 @@ function LinkTool({
                 setOpen(false);
               }}
             >
-              Remove
+              {tr('components.rich-text-editor.rich-text-editor.remove', 'Remove')}
             </Button>
           )}
           <Button
@@ -354,7 +491,9 @@ function LinkTool({
               setOpen(false);
             }}
           >
-            {engine.link === null ? 'Add' : 'Save'}
+            {engine.link === null
+              ? tr('components.rich-text-editor.rich-text-editor.add', 'Add')
+              : tr('components.rich-text-editor.rich-text-editor.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>

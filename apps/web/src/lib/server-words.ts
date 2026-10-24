@@ -1,5 +1,5 @@
 import type { T } from '@reach/ui';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { cache } from 'react';
 
 import {
@@ -23,7 +23,7 @@ import { wordsIn } from './words';
  */
 
 /**
- * The person's language: the cookie this device keeps, else the one their
+ * The person's language: the one the phone says it is in, else the cookie this device keeps, else the one their
  * account keeps (identity's `language` preference), else their company's
  * (the back office's setting), else US English.
  */
@@ -35,6 +35,9 @@ export const requestLanguage = cache(async (): Promise<Language> => {
   } catch {
     return DEFAULT_LANGUAGE;
   }
+  // The phone says which language its screens are in on every request.
+  const asked = (await headers()).get('x-kithena-language');
+  if (isLanguage(asked)) return asked;
   const cookie = jar.get(LANGUAGE_KEY)?.value;
   if (isLanguage(cookie)) return cookie;
   const kept = await readPreference('language').catch(() => null);

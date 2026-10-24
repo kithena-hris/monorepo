@@ -12,7 +12,7 @@
  *   node apps/web/scripts/i18n-extract.mjs --check   fail when they are out of date
  */
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -45,6 +45,17 @@ export const SOURCES = {
   performance: {
     dir: 'apps/web/performance/src',
     area: 'Performance: reviews, goals, feedback, learning',
+  },
+  // The phone app and its design system. Their words live beside the app
+  // (`apps/tenant-mobile/src/locales/<namespace>/<language>.json`): the phone
+  // bundles them, the web never loads them.
+  'reach-native': {
+    dir: 'packages/ui-native/src',
+    area: 'shared phone interface components (buttons, lists, pickers, sheets, charts) in Kithena’s phone app',
+  },
+  mobile: {
+    dir: 'apps/tenant-mobile/src',
+    area: 'Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone',
   },
   // Emails, always in the company's language whatever the reader chose for
   // screens: each service keeps its own words beside its code, so a module's
@@ -187,6 +198,29 @@ function extract(ns) {
       ts.forEachChild(n, visit);
     };
     visit(sf);
+  }
+  // A remote's navigation, from its `routes.json`: the shell reads each label
+  // as `nav.<path>.<field>` in the remote's namespace (`remote-manifest.ts`).
+  const routes = join(ROOT, dir, '../public/routes.json');
+  if (existsSync(routes)) {
+    const manifest = JSON.parse(readFileSync(routes, 'utf8'));
+    const PLACES = { sections: 'a section of the area', actions: 'an action the area offers', settings: 'a page of the area’s settings' };
+    const FIELDS = {
+      label: 'its name in the sidebar, the breadcrumb and the menus',
+      short: 'its short name, on a tab under a finger',
+      description: 'one sentence under its name in a menu or on a card',
+      summary: 'a short line under its name on a phone’s row',
+      group: 'the heading of the group it is listed under',
+    };
+    const place = (p, what) => {
+      for (const [field, role] of Object.entries(FIELDS))
+        if (typeof p[field] === 'string')
+          out[`nav.${p.path}.${field}`] ??= { text: p[field], context: `${area}. Navigation, ${what} (${p.path}): ${role}.` };
+      for (const [r, text] of Object.entries(p.labelFor ?? {}))
+        out[`nav.${p.path}.label_for.${r}`] ??= { text, context: `${area}. Navigation, ${what} (${p.path}): its name for a viewer whose role is ${r}.` };
+      for (const tab of p.tabs ?? []) place(tab, `a tab of ${p.label}`);
+    };
+    for (const [list, what] of Object.entries(PLACES)) for (const p of manifest[list] ?? []) place(p, what);
   }
   return {
     catalogue: Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b))),

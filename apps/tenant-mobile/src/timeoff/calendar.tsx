@@ -34,6 +34,7 @@ import type { PeopleScreen } from '../people/routes';
 import { calendarFeed, useTimeOff } from './api';
 import { todayHere } from './time';
 import { addDays, asDate, longDate, nextWorkingDay, spanLabel, statusOf } from './words';
+import { t as tr } from '../i18n';
 
 export type Scope = 'team' | 'company' | 'me';
 type View_ = 'week' | 'month' | 'year';
@@ -167,14 +168,14 @@ export function TimeOffCalendar({
 
   return (
     <Page
-      title="Calendar"
-      back={{ label: 'Time off', onPress: navigation.goBack }}
+      title={tr('timeoff.calendar.calendar', 'Calendar')}
+      back={{ label: tr('timeoff.calendar.time_off', 'Time off'), onPress: navigation.goBack }}
       trailing={
         <Button
           size="sm"
           variant="ghost"
           startIcon={<Icon icon={SlidersHorizontal} />}
-          accessibilityLabel="View and subscribe"
+          accessibilityLabel={tr('timeoff.calendar.view_and_subscribe', 'View and subscribe')}
           onPress={() => {
             setFilters(true);
           }}
@@ -184,14 +185,18 @@ export function TimeOffCalendar({
       <SegmentedControl
         fullWidth
         value={scope}
-        accessibilityLabel="Whose calendar"
+        accessibilityLabel={tr('timeoff.calendar.whose_calendar', 'Whose calendar')}
         onValueChange={(v) => {
           setScope(v === 'company' ? 'company' : v === 'me' ? 'me' : 'team');
         }}
       >
-        <SegmentedControlItem value="team">Team</SegmentedControlItem>
-        <SegmentedControlItem value="company">Company</SegmentedControlItem>
-        <SegmentedControlItem value="me">Me</SegmentedControlItem>
+        <SegmentedControlItem value="team">
+          {tr('timeoff.calendar.team', 'Team')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="company">
+          {tr('timeoff.calendar.company', 'Company')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="me">{tr('timeoff.calendar.me', 'Me')}</SegmentedControlItem>
       </SegmentedControl>
       <View className="flex-row items-center gap-2">
         <Text variant="title3" className="flex-1">
@@ -208,7 +213,7 @@ export function TimeOffCalendar({
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronLeft} />}
-          accessibilityLabel="Earlier"
+          accessibilityLabel={tr('timeoff.calendar.earlier', 'Earlier')}
           onPress={() => {
             if (view === 'week') setWeek(addDays(week, -7));
             else if (view === 'month') setMonth(addDays(`${month}-01`, -1).slice(0, 7));
@@ -218,7 +223,7 @@ export function TimeOffCalendar({
         <Button
           size="sm"
           startIcon={<Icon icon={ChevronRight} />}
-          accessibilityLabel="Later"
+          accessibilityLabel={tr('timeoff.calendar.later', 'Later')}
           onPress={() => {
             if (view === 'week') setWeek(addDays(week, 7));
             else if (view === 'month') setMonth(addDays(`${month}-28`, 7).slice(0, 7));
@@ -229,11 +234,13 @@ export function TimeOffCalendar({
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading the calendar" />
+        <Loading label={tr('timeoff.calendar.loading_the_calendar', 'Loading the calendar')} />
       ) : view === 'year' && yearly.load.status === 'ready' ? (
         <ScrollView horizontal>
           <CalendarHeatmap
-            label={`Days off in ${String(year)}`}
+            label={tr('timeoff.calendar.days_off_in', 'Days off in {{String}}', {
+              String: String(year),
+            })}
             from={`${String(year)}-01-01`}
             to={`${String(year)}-12-31`}
             data={yearly.load.data.days.map((d) => ({ date: d.date, value: d.off }))}
@@ -244,7 +251,7 @@ export function TimeOffCalendar({
         view === 'week' ? (
           <>
             <TimelineChart
-              label="Who is off this week"
+              label={tr('timeoff.calendar.who_is_off_this_week', 'Who is off this week')}
               domain={{ start: week, end: addDays(week, 4) }}
               unit="day"
               today={today}
@@ -280,18 +287,25 @@ export function TimeOffCalendar({
                   >
                     {c === undefined
                       ? dayLabel(d)
-                      : `${dayLabel(d)} · ${String(c.in)} of ${String(c.of)} in`}
+                      : tr(
+                          'timeoff.calendar.of_in',
+                          '{{dayLabel}} · {{String}} of {{String2}} in',
+                          { dayLabel: dayLabel(d), String: String(c.in), String2: String(c.of) },
+                        )}
                   </Chip>
                 );
               })}
             </View>
             <Text variant="footnote" tone="muted">
-              An outlined bar is still waiting for approval. Tap a day to see who is off.
+              {tr(
+                'timeoff.calendar.an_outlined_bar_is_still_waiting',
+                'An outlined bar is still waiting for approval. Tap a day to see who is off.',
+              )}
             </Text>
           </>
         ) : (
           <Calendar
-            label="Who is off this month"
+            label={tr('timeoff.calendar.who_is_off_this_month', 'Who is off this month')}
             today={today}
             month={`${month}-01`}
             onMonthChange={(m) => {
@@ -302,7 +316,12 @@ export function TimeOffCalendar({
                 .filter((c) => c.of - c.in > 0)
                 .map((c): [string, CalendarMarker] => [
                   c.date,
-                  { tone: c.below ? 'danger' : 'info', label: `${String(c.of - c.in)} off` },
+                  {
+                    tone: c.below ? 'danger' : 'info',
+                    label: tr('timeoff.calendar.off', '{{String}} off', {
+                      String: String(c.of - c.in),
+                    }),
+                  },
                 ]),
             )}
             onSelect={(d) => {
@@ -378,16 +397,19 @@ export function DayDialog({
             <DialogTitle className="flex-1 text-left">{longDate(date)}</DialogTitle>
             {coverage === undefined ? null : (
               <Badge size="sm" tone={coverage.below ? 'danger' : 'neutral'}>
-                {`${String(coverage.in)} of ${String(coverage.of)} in`}
+                {tr('timeoff.calendar.of_in_2', '{{String}} of {{String2}} in', {
+                  String: String(coverage.in),
+                  String2: String(coverage.of),
+                })}
               </Badge>
             )}
           </View>
         </DialogHeader>
         <DialogBody>
           {data === null ? (
-            <Loading label="Loading the day" />
+            <Loading label={tr('timeoff.calendar.loading_the_day', 'Loading the day')} />
           ) : data.entries.length === 0 ? (
-            <Text tone="muted">Nobody is off.</Text>
+            <Text tone="muted">{tr('timeoff.calendar.nobody_is_off', 'Nobody is off.')}</Text>
           ) : (
             <List>
               {data.entries.map((e) => {
@@ -398,10 +420,18 @@ export function DayDialog({
                   <ListItem
                     key={`${e.personId}${e.span.from}`}
                     leading={<Avatar name={who} size={36} />}
-                    description={`${typeOf(e.leaveTypeKey)?.name ?? 'Off'} · back ${new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' }).format(asDate(nextWorkingDay(e.span.to)))}`}
+                    description={tr('timeoff.calendar.back', '{{value}} · back {{format}}', {
+                      value: typeOf(e.leaveTypeKey)?.name ?? 'Off',
+                      format: new Intl.DateTimeFormat('en-GB', {
+                        weekday: 'short',
+                        timeZone: 'UTC',
+                      }).format(asDate(nextWorkingDay(e.span.to))),
+                    })}
                     trailing={
                       <Badge size="sm" tone={e.status === 'pending' ? 'warning' : 'neutral'}>
-                        {e.status === 'pending' ? status.label : 'Off'}
+                        {e.status === 'pending'
+                          ? status.label
+                          : tr('timeoff.calendar.off_2', 'Off')}
                       </Badge>
                     }
                   >
@@ -412,11 +442,14 @@ export function DayDialog({
             </List>
           )}
           <Text variant="footnote" tone="muted">
-            Teammates only see “Off” for sick days. Types and reasons stay with managers and HR.
+            {tr(
+              'timeoff.calendar.teammates_only_see_off_for_sick',
+              'Teammates only see “Off” for sick days. Types and reasons stay with managers and HR.',
+            )}
           </Text>
         </DialogBody>
         <DialogFooter>
-          <Button onPress={onClose}>Done</Button>
+          <Button onPress={onClose}>{tr('timeoff.calendar.done', 'Done')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -448,21 +481,32 @@ function CalendarOptions({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Calendar</DialogTitle>
-          <DialogDescription>How to see it, and where else it shows up.</DialogDescription>
+          <DialogTitle>{tr('timeoff.calendar.calendar', 'Calendar')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'timeoff.calendar.how_to_see_it_and_where',
+              'How to see it, and where else it shows up.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <SegmentedControl
             fullWidth
             value={view}
-            accessibilityLabel="View"
+            accessibilityLabel={tr('timeoff.calendar.view', 'View')}
             onValueChange={(v) => {
               onView(v as View_);
             }}
           >
-            <SegmentedControlItem value="week">Week</SegmentedControlItem>
-            <SegmentedControlItem value="month">Month</SegmentedControlItem>
-            <SegmentedControlItem value="year">Year</SegmentedControlItem>
+            <SegmentedControlItem value="week">
+              {tr('timeoff.calendar.week', 'Week')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="month">
+              {tr('timeoff.calendar.month', 'Month')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="year">
+              {tr('timeoff.calendar.year', 'Year')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {feed === null ? (
             <Button
@@ -477,10 +521,16 @@ function CalendarOptions({
                 });
               }}
             >
-              {`Subscribe to ${scope === 'me' ? 'my' : scope === 'team' ? 'the team’s' : 'the company’s'} calendar`}
+              {tr('timeoff.calendar.subscribe_to_calendar', 'Subscribe to {{value}} calendar', {
+                value: scope === 'me' ? 'my' : scope === 'team' ? 'the team’s' : 'the company’s',
+              })}
             </Button>
           ) : (
-            <CopyField value={feed} label="Copy the feed address" mono />
+            <CopyField
+              value={feed}
+              label={tr('timeoff.calendar.copy_the_feed_address', 'Copy the feed address')}
+              mono
+            />
           )}
           <Button
             variant="danger-soft"
@@ -489,16 +539,22 @@ function CalendarOptions({
               void act(
                 'RevokeTimeOffCalendarFeeds',
                 {},
-                'Every feed you subscribed to has stopped',
+                tr(
+                  'timeoff.calendar.every_feed_you_subscribed_to_has',
+                  'Every feed you subscribed to has stopped',
+                ),
               );
             }}
           >
-            Stop every feed I subscribed to
+            {tr(
+              'timeoff.calendar.stop_every_feed_i_subscribed_to',
+              'Stop every feed I subscribed to',
+            )}
           </Button>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Done
+            {tr('timeoff.calendar.done', 'Done')}
           </Button>
         </DialogFooter>
       </DialogContent>

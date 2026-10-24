@@ -8,6 +8,7 @@ import Animated from 'react-native-reanimated';
 import { usePress } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A compact, tappable value, as the web's: a **filter chip** narrows a list
@@ -151,7 +152,9 @@ export function Chip({
         </Content>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={removeLabel ?? `Remove ${text}`}
+          accessibilityLabel={
+            removeLabel ?? t('components.chip.chip.remove', 'Remove {{text}}', { text })
+          }
           accessibilityState={{ disabled }}
           disabled={disabled}
           hitSlop={10}

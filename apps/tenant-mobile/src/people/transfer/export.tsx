@@ -37,6 +37,7 @@ import { longDate } from '../display';
 import { scheduleVariables } from '../insights/schedule';
 import { parsed } from '../review/load';
 import type { PeopleScreen } from '../routes';
+import { t } from '../../i18n';
 
 interface Builder {
   readonly today: string;
@@ -151,20 +152,28 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
     };
   }, [signed, choice, mode, recipient, builder]);
 
-  const back = { label: 'Import & export', onPress: navigation.goBack };
+  const back = {
+    label: t('people.transfer.export.import_export', 'Import & export'),
+    onPress: navigation.goBack,
+  };
   if (load.status === 'loading' || choice === null)
     return (
-      <Page title="Export" back={back}>
+      <Page title={t('people.transfer.export.export', 'Export')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading what you can export" />
+          <Loading
+            label={t(
+              'people.transfer.export.loading_what_you_can_export',
+              'Loading what you can export',
+            )}
+          />
         )}
       </Page>
     );
   if (load.status === 'error')
     return (
-      <Page title="Export" back={back}>
+      <Page title={t('people.transfer.export.export', 'Export')} back={back}>
         <Failed message={load.message} onRetry={reload} />
       </Page>
     );
@@ -179,7 +188,11 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
     const answer = await ask<string>(signed, 'ExportPlan', { sentence: sentence.trim() });
     setPlanning(false);
     if (!answer.ok) {
-      toast({ title: 'That did not work', description: answer.message, tone: 'danger' });
+      toast({
+        title: t('people.transfer.export.that_did_not_work', 'That did not work'),
+        description: answer.message,
+        tone: 'danger',
+      });
       return;
     }
     const plan = parsed(answer.data) as
@@ -224,12 +237,15 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
     const done = parsed(sent) as
       { status: 'sent'; exportId: string } | { status: 'waiting'; requestId: string } | null;
     if (done?.status === 'sent') {
-      toast({ title: 'Sent', tone: 'success' });
+      toast({ title: t('people.transfer.export.sent', 'Sent'), tone: 'success' });
       navigation.replace('ExportRecord', { id: done.exportId });
     } else {
       toast({
-        title: 'Waiting for approval',
-        description: 'It is sent once a People administrator approves.',
+        title: t('people.transfer.export.waiting_for_approval', 'Waiting for approval'),
+        description: t(
+          'people.transfer.export.it_is_sent_once_a_people',
+          'It is sent once a People administrator approves.',
+        ),
         tone: 'info',
       });
       navigation.goBack();
@@ -251,9 +267,14 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         choice.match === 'any'
       ) {
         toast({
-          title: 'This group can’t be scheduled',
-          description:
+          title: t(
+            'people.transfer.export.this_group_cant_be_scheduled',
+            'This group can’t be scheduled',
+          ),
+          description: t(
+            'people.transfer.export.a_schedule_takes_a_saved_view',
             'A schedule takes a saved view or simple filters. Save this group as a view in the Directory first.',
+          ),
           tone: 'warning',
         });
         return;
@@ -263,7 +284,9 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
     const made = await act(
       'CreateReportSchedule',
       scheduleVariables({
-        name: (choice.reason.trim() || 'Monthly export').slice(0, 80),
+        name: (
+          choice.reason.trim() || t('people.transfer.export.monthly_export', 'Monthly export')
+        ).slice(0, 80),
         segmentId,
         filter,
         kind: 'export',
@@ -277,7 +300,10 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         legalEntityId: null,
         recipients: [recipient],
       }),
-      'Scheduled: on the 1st of every month',
+      t(
+        'people.transfer.export.scheduled_on_the_1st_of_every',
+        'Scheduled: on the 1st of every month',
+      ),
     );
     if (made !== null) navigation.goBack();
   };
@@ -292,7 +318,9 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         loading={busy !== null}
         onPress={() => void download()}
       >
-        {`Download ${choice.format === 'xlsx' ? 'Excel' : choice.format.toUpperCase()}`}
+        {t('people.transfer.export.download', 'Download {{value}}', {
+          value: choice.format === 'xlsx' ? 'Excel' : choice.format.toUpperCase(),
+        })}
       </Button>
     ) : mode === 'send' ? (
       <Button
@@ -304,8 +332,10 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         onPress={() => void send()}
       >
         {gap === null || preview?.approvers.length === 0
-          ? 'Send'
-          : `Send when ${preview?.approvers[0]?.name?.split(' ')[0] ?? 'an administrator'} approves`}
+          ? t('people.transfer.export.send', 'Send')
+          : t('people.transfer.export.send_when_approves', 'Send when {{value}} approves', {
+              value: preview?.approvers[0]?.name?.split(' ')[0] ?? 'an administrator',
+            })}
       </Button>
     ) : (
       <Button
@@ -316,46 +346,65 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         disabled={recipient === null}
         onPress={() => void schedule()}
       >
-        Schedule monthly
+        {t('people.transfer.export.schedule_monthly', 'Schedule monthly')}
       </Button>
     );
 
   return (
-    <Page title="Export" back={back} foot={foot}>
+    <Page title={t('people.transfer.export.export', 'Export')} back={back} foot={foot}>
       <SearchField
         value={sentence}
         onValueChange={setSentence}
         onSearch={() => void describe()}
-        placeholder="Describe it: “salaries in Madrid as of 30 June”"
-        label="Describe the export"
+        placeholder={t(
+          'people.transfer.export.describe_it_salaries_in_madrid_as',
+          'Describe it: “salaries in Madrid as of 30 June”',
+        )}
+        label={t('people.transfer.export.describe_the_export', 'Describe the export')}
       />
-      {planning ? <Text tone="muted">Building it…</Text> : null}
+      {planning ? (
+        <Text tone="muted">{t('people.transfer.export.building_it', 'Building it…')}</Text>
+      ) : null}
       {note === null ? null : (
-        <Alert tone="accent" icon={Sparkles} title="Here’s the export I’ve built">
-          {`${note} Check it before it goes anywhere.`}
+        <Alert
+          tone="accent"
+          icon={Sparkles}
+          title={t(
+            'people.transfer.export.heres_the_export_ive_built',
+            'Here’s the export I’ve built',
+          )}
+        >
+          {t(
+            'people.transfer.export.check_it_before_it_goes_anywhere',
+            '{{note}} Check it before it goes anywhere.',
+            { note },
+          )}
         </Alert>
       )}
       <Card>
         <KeyValues
           items={[
             {
-              label: 'Who',
+              label: t('people.transfer.export.who', 'Who'),
               value: `${audience?.label ?? 'Everyone'}${audience?.count == null ? '' : ` · ${String(audience.count)}`}`,
             },
-            { label: 'Fields', value: String(choice.fields.length) },
-            { label: 'As of', value: longDate(choice.asOf) },
+            {
+              label: t('people.transfer.export.fields', 'Fields'),
+              value: String(choice.fields.length),
+            },
+            { label: t('people.transfer.export.as_of', 'As of'), value: longDate(choice.asOf) },
           ]}
         />
       </Card>
       <Field>
-        <FieldLabel>Who</FieldLabel>
+        <FieldLabel>{t('people.transfer.export.who', 'Who')}</FieldLabel>
         <Select
           value={choice.who}
           onValueChange={(who) => {
             set({ who, conditions: [] });
           }}
         >
-          <SelectTrigger accessibilityLabel="Who">
+          <SelectTrigger accessibilityLabel={t('people.transfer.export.who', 'Who')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -368,9 +417,9 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         </Select>
       </Field>
       <Field>
-        <FieldLabel>As of</FieldLabel>
+        <FieldLabel>{t('people.transfer.export.as_of', 'As of')}</FieldLabel>
         <DatePicker
-          label="As of"
+          label={t('people.transfer.export.as_of', 'As of')}
           value={choice.asOf}
           onChange={(asOf) => {
             if (asOf !== null) set({ asOf });
@@ -378,29 +427,35 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         />
       </Field>
       <Field>
-        <FieldLabel>Format</FieldLabel>
+        <FieldLabel>{t('people.transfer.export.format', 'Format')}</FieldLabel>
         <SegmentedControl
           value={choice.format}
           fullWidth
-          accessibilityLabel="Format"
+          accessibilityLabel={t('people.transfer.export.format', 'Format')}
           onValueChange={(format) => {
             set({ format: format as Choice['format'] });
           }}
         >
-          <SegmentedControlItem value="xlsx">Excel</SegmentedControlItem>
-          <SegmentedControlItem value="csv">CSV</SegmentedControlItem>
-          <SegmentedControlItem value="pdf">PDF</SegmentedControlItem>
+          <SegmentedControlItem value="xlsx">
+            {t('people.transfer.export.excel', 'Excel')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="csv">
+            {t('people.transfer.export.csv', 'CSV')}
+          </SegmentedControlItem>
+          <SegmentedControlItem value="pdf">
+            {t('people.transfer.export.pdf', 'PDF')}
+          </SegmentedControlItem>
         </SegmentedControl>
       </Field>
       {choice.format === 'pdf' ? (
         <Inline justify="between">
-          <Text>Include photos</Text>
+          <Text>{t('people.transfer.export.include_photos', 'Include photos')}</Text>
           <Switch
             checked={choice.photos}
             onCheckedChange={(photos) => {
               set({ photos });
             }}
-            accessibilityLabel="Include photos"
+            accessibilityLabel={t('people.transfer.export.include_photos', 'Include photos')}
           />
         </Inline>
       ) : null}
@@ -427,7 +482,9 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
         </Card>
       ))}
       <Field required invalid={shown && reasonMissing}>
-        <FieldLabel>Reason, for the audit log</FieldLabel>
+        <FieldLabel>
+          {t('people.transfer.export.reason_for_the_audit_log', 'Reason, for the audit log')}
+        </FieldLabel>
         <Input
           value={choice.reason}
           onChange={(reason) => {
@@ -435,30 +492,47 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
           }}
           maxLength={200}
         />
-        {shown && reasonMissing ? <FieldError>Say why, for the audit log.</FieldError> : null}
+        {shown && reasonMissing ? (
+          <FieldError>
+            {t('people.transfer.export.say_why_for_the_audit_log', 'Say why, for the audit log.')}
+          </FieldError>
+        ) : null}
       </Field>
       <SegmentedControl
         value={mode}
         fullWidth
-        accessibilityLabel="What to do with it"
+        accessibilityLabel={t('people.transfer.export.what_to_do_with_it', 'What to do with it')}
         onValueChange={(next) => {
           setMode(next as Mode);
         }}
       >
-        <SegmentedControlItem value="download">Download</SegmentedControlItem>
-        <SegmentedControlItem value="send">Send</SegmentedControlItem>
-        <SegmentedControlItem value="schedule">Schedule</SegmentedControlItem>
+        <SegmentedControlItem value="download">
+          {t('people.transfer.export.download_2', 'Download')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="send">
+          {t('people.transfer.export.send', 'Send')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="schedule">
+          {t('people.transfer.export.schedule', 'Schedule')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {mode === 'download' ? (
         <Text variant="footnote" tone="muted">
-          Only what you can see in People. Its link expires in 24 hours.
+          {t(
+            'people.transfer.export.only_what_you_can_see_in',
+            'Only what you can see in People. Its link expires in 24 hours.',
+          )}
         </Text>
       ) : (
         <>
           <Field>
-            <FieldLabel>{mode === 'send' ? 'Send to' : 'Every month to'}</FieldLabel>
+            <FieldLabel>
+              {mode === 'send'
+                ? t('people.transfer.export.send_to', 'Send to')
+                : t('people.transfer.export.every_month_to', 'Every month to')}
+            </FieldLabel>
             <Combobox
-              label="Send to"
+              label={t('people.transfer.export.send_to', 'Send to')}
               options={(preview?.candidates ?? []).map((c) => ({
                 value: c.accountId,
                 label: c.name,
@@ -467,12 +541,15 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
               onChange={(next) => {
                 setRecipient(typeof next === 'string' ? next : null);
               }}
-              placeholder="Choose a colleague"
-              searchPlaceholder="Type a name"
+              placeholder={t('people.transfer.export.choose_a_colleague', 'Choose a colleague')}
+              searchPlaceholder={t('people.transfer.export.type_a_name', 'Type a name')}
             />
             {mode === 'schedule' ? (
               <FieldDescription>
-                On the 1st of every month at 07:00, built as they can see it.
+                {t(
+                  'people.transfer.export.on_the_1st_of_every_month',
+                  'On the 1st of every month at 07:00, built as they can see it.',
+                )}
               </FieldDescription>
             ) : null}
           </Field>
@@ -481,13 +558,30 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
               tone="warning"
               title={
                 gap.fields.length > 0
-                  ? `${gap.fields.map((f) => f.label).join(', ')} ${gap.fields.length === 1 ? 'needs' : 'need'} their access`
-                  : `They can’t see ${String(gap.unlisted)} of these people`
+                  ? t(
+                      'people.transfer.export.their_access',
+                      { one: '{{join}} needs their access', other: '{{join}} need their access' },
+                      { count: gap.fields.length, join: gap.fields.map((f) => f.label).join(', ') },
+                    )
+                  : t(
+                      'people.transfer.export.they_cant_see_of_these_people',
+                      'They can’t see {{String}} of these people',
+                      { String: String(gap.unlisted) },
+                    )
               }
             >
               <Stack gap={2}>
                 <Text>
-                  {`It waits for ${preview?.approvers.map((a) => a.name ?? 'a People administrator').join(' or ') ?? 'an administrator'} to approve.`}
+                  {t(
+                    'people.transfer.export.it_waits_for_to_approve',
+                    'It waits for {{value}} to approve.',
+                    {
+                      value:
+                        preview?.approvers
+                          .map((a) => a.name ?? 'a People administrator')
+                          .join(' or ') ?? 'an administrator',
+                    },
+                  )}
                 </Text>
                 {gap.fields.length === 0 ? null : (
                   <Button
@@ -495,15 +589,22 @@ export function Export({ navigation, route }: PeopleScreen<'Export'>): React.JSX
                     variant="ghost"
                     onPress={() => void download(gap.fields.map((f) => f.key))}
                   >
-                    {`Download now (without ${gap.fields.map((f) => f.label.toLowerCase()).join(', ')})`}
+                    {t(
+                      'people.transfer.export.download_now_without',
+                      'Download now (without {{join}})',
+                      { join: gap.fields.map((f) => f.label.toLowerCase()).join(', ') },
+                    )}
                   </Button>
                 )}
               </Stack>
             </Alert>
           ) : null}
           {preview?.tooLarge === true ? (
-            <Alert tone="warning" title="Too large to send">
-              Download it instead.
+            <Alert
+              tone="warning"
+              title={t('people.transfer.export.too_large_to_send', 'Too large to send')}
+            >
+              {t('people.transfer.export.download_it_instead', 'Download it instead.')}
             </Alert>
           ) : null}
           {preview !== null && preview.sensitive.length > 0 ? (
@@ -554,33 +655,45 @@ export function ExportRecord({
       if (answer.ok) setLinks(answer.data.links);
     });
   }, [signed, record?.status, route.params.id]);
-  const back = { label: 'Import & export', onPress: navigation.goBack };
+  const back = {
+    label: t('people.transfer.export.import_export', 'Import & export'),
+    onPress: navigation.goBack,
+  };
   if (load.status === 'loading')
     return (
-      <Page title="Export" back={back}>
-        <Loading label="Loading the export" />
+      <Page title={t('people.transfer.export.export', 'Export')} back={back}>
+        <Loading label={t('people.transfer.export.loading_the_export', 'Loading the export')} />
       </Page>
     );
   if (load.status === 'error' || record === null)
     return (
-      <Page title="Export" back={back}>
+      <Page title={t('people.transfer.export.export', 'Export')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Alert tone="warning" title="This export is no longer available">
-            It was made for somebody else, or it no longer exists.
+          <Alert
+            tone="warning"
+            title={t(
+              'people.transfer.export.this_export_is_no_longer_available',
+              'This export is no longer available',
+            )}
+          >
+            {t(
+              'people.transfer.export.it_was_made_for_somebody_else',
+              'It was made for somebody else, or it no longer exists.',
+            )}
           </Alert>
         )}
       </Page>
     );
   return (
-    <Page title="Export" back={back}>
+    <Page title={t('people.transfer.export.export', 'Export')} back={back}>
       <Card>
         <KeyValues
           layout="stacked"
           items={[
             {
-              label: 'Status',
+              label: t('people.transfer.export.status', 'Status'),
               value:
                 record.status === 'queued'
                   ? 'Being made'
@@ -588,30 +701,57 @@ export function ExportRecord({
                     ? 'Ready'
                     : 'Expired',
             },
-            { label: 'Asked by', value: record.requestedBy.name ?? 'A colleague' },
+            {
+              label: t('people.transfer.export.asked_by', 'Asked by'),
+              value: record.requestedBy.name ?? 'A colleague',
+            },
             ...(record.sentTo === null
               ? []
               : [
                   {
-                    label: 'Sent to',
+                    label: t('people.transfer.export.sent_to', 'Sent to'),
                     value: `${record.sentTo.name ?? 'A colleague'}${record.openedAt === null ? '' : ' · opened'}`,
                   },
                 ]),
-            ...(record.reason === null ? [] : [{ label: 'Reason', value: record.reason }]),
+            ...(record.reason === null
+              ? []
+              : [{ label: t('people.transfer.export.reason', 'Reason'), value: record.reason }]),
             ...(record.rowCount === null
               ? []
-              : [{ label: 'People', value: String(record.rowCount) }]),
+              : [
+                  {
+                    label: t('people.transfer.export.people', 'People'),
+                    value: String(record.rowCount),
+                  },
+                ]),
             {
-              label: 'Fields',
+              label: t('people.transfer.export.fields', 'Fields'),
               value: `${String(record.fields.length)}${record.sensitive > 0 ? ` · ${String(record.sensitive)} sensitive` : ''}`,
             },
-            ...(record.asOf === null ? [] : [{ label: 'As of', value: longDate(record.asOf) }]),
+            ...(record.asOf === null
+              ? []
+              : [
+                  {
+                    label: t('people.transfer.export.as_of', 'As of'),
+                    value: longDate(record.asOf),
+                  },
+                ]),
             ...(record.expiresAt === null
               ? []
-              : [{ label: 'Link expires', value: new Date(record.expiresAt).toLocaleString() }]),
+              : [
+                  {
+                    label: t('people.transfer.export.link_expires', 'Link expires'),
+                    value: new Date(record.expiresAt).toLocaleString(),
+                  },
+                ]),
             ...(record.keptUntil === null
               ? []
-              : [{ label: 'Record kept until', value: longDate(record.keptUntil.slice(0, 10)) }]),
+              : [
+                  {
+                    label: t('people.transfer.export.record_kept_until', 'Record kept until'),
+                    value: longDate(record.keptUntil.slice(0, 10)),
+                  },
+                ]),
           ]}
         />
       </Card>
@@ -621,7 +761,7 @@ export function ExportRecord({
           variant="primary"
           onPress={() => void WebBrowser.openBrowserAsync(l.url)}
         >
-          {`Download ${l.name}`}
+          {t('people.transfer.export.download_3', 'Download {{name}}', { name: l.name })}
         </Button>
       ))}
     </Page>

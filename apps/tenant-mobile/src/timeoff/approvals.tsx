@@ -50,6 +50,7 @@ import type { PeopleScreen } from '../people/routes';
 import { useTimeOff } from './api';
 import { todayHere } from './time';
 import { addDays, amount, asDate, days, shortDate, spanLabel, statusOf } from './words';
+import { t } from '../i18n';
 
 interface Item {
   readonly requestId: string;
@@ -130,14 +131,17 @@ export function TimeOffApprovals({
   );
   return (
     <Page
-      title="Time off to approve"
-      back={{ label: 'Back', onPress: navigation.goBack }}
+      title={t('timeoff.approvals.time_off_to_approve', 'Time off to approve')}
+      back={{ label: t('timeoff.approvals.back', 'Back'), onPress: navigation.goBack }}
       trailing={
         <Button
           size="sm"
           variant="ghost"
           startIcon={<Icon icon={UserRoundCog} />}
-          accessibilityLabel="Who approves while you are away"
+          accessibilityLabel={t(
+            'timeoff.approvals.who_approves_while_you_are_away',
+            'Who approves while you are away',
+          )}
           onPress={() => {
             navigation.navigate('TimeOffDelegation');
           }}
@@ -147,25 +151,34 @@ export function TimeOffApprovals({
       <SegmentedControl
         fullWidth
         value={tab}
-        accessibilityLabel="Which requests"
+        accessibilityLabel={t('timeoff.approvals.which_requests', 'Which requests')}
         onValueChange={(v) => {
           setTab(v === 'coming_up' ? 'coming_up' : v === 'decided' ? 'decided' : 'waiting');
         }}
       >
-        <SegmentedControlItem value="waiting">To do</SegmentedControlItem>
-        <SegmentedControlItem value="coming_up">Coming up</SegmentedControlItem>
-        <SegmentedControlItem value="decided">Decided</SegmentedControlItem>
+        <SegmentedControlItem value="waiting">
+          {t('timeoff.approvals.to_do', 'To do')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="coming_up">
+          {t('timeoff.approvals.coming_up', 'Coming up')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="decided">
+          {t('timeoff.approvals.decided', 'Decided')}
+        </SegmentedControlItem>
       </SegmentedControl>
       {load.status === 'error' ? (
         <Failed message={load.message} onRetry={reload} />
       ) : load.status === 'loading' ? (
-        <Loading label="Loading the requests" />
+        <Loading label={t('timeoff.approvals.loading_the_requests', 'Loading the requests')} />
       ) : tab === 'waiting' ? (
         load.data.clear.length === 0 && load.data.lookCloser.length === 0 ? (
           <EmptyState
             icon={InboxIcon}
-            title="Nothing waiting"
-            description="New requests from your team come here, sorted into what is clear and what needs a look."
+            title={t('timeoff.approvals.nothing_waiting', 'Nothing waiting')}
+            description={t(
+              'timeoff.approvals.new_requests_from_your_team_come',
+              'New requests from your team come here, sorted into what is clear and what needs a look.',
+            )}
           />
         ) : (
           <>
@@ -174,7 +187,9 @@ export function TimeOffApprovals({
                 <View className="flex-row items-center gap-2 px-1">
                   <Icon icon={Sparkles} size={14} />
                   <Text variant="footnote" weight="semibold" className="flex-1">
-                    {`Clear to approve · ${String(load.data.clear.length)}`}
+                    {t('timeoff.approvals.clear_to_approve', 'Clear to approve · {{String}}', {
+                      String: String(load.data.clear.length),
+                    })}
                   </Text>
                   <Button
                     size="sm"
@@ -188,11 +203,20 @@ export function TimeOffApprovals({
                         (d) =>
                           d.refused.length === 0
                             ? 'Approved'
-                            : `${String(d.refused.length)} ${d.refused.length === 1 ? 'needs' : 'need'} a closer look and ${d.refused.length === 1 ? 'was' : 'were'} not approved`,
+                            : t(
+                                'timeoff.approvals.need_a_closer_look_and',
+                                {
+                                  one: '{{count}} needs a closer look and was not approved',
+                                  other: '{{count}} need a closer look and were not approved',
+                                },
+                                { count: d.refused.length },
+                              ),
                       ).then(reload);
                     }}
                   >
-                    {`Approve ${String(load.data.clear.length)}`}
+                    {t('timeoff.approvals.approve', 'Approve {{String}}', {
+                      String: String(load.data.clear.length),
+                    })}
                   </Button>
                 </View>
                 <List>
@@ -207,7 +231,9 @@ export function TimeOffApprovals({
                 <View className="flex-row items-center gap-2 px-1">
                   <Icon icon={Eye} size={14} />
                   <Text variant="footnote" weight="semibold">
-                    {`Look closer · ${String(load.data.lookCloser.length)}`}
+                    {t('timeoff.approvals.look_closer', 'Look closer · {{String}}', {
+                      String: String(load.data.lookCloser.length),
+                    })}
                   </Text>
                 </View>
                 <List>{load.data.lookCloser.map((l) => row(l.item, closer(l.reason)))}</List>
@@ -218,8 +244,18 @@ export function TimeOffApprovals({
       ) : load.data.items.length === 0 ? (
         <EmptyState
           icon={InboxIcon}
-          title={tab === 'coming_up' ? 'Nothing approved is coming up' : 'Nothing decided yet'}
-          description="Requests you approve show up here."
+          title={
+            tab === 'coming_up'
+              ? t(
+                  'timeoff.approvals.nothing_approved_is_coming_up',
+                  'Nothing approved is coming up',
+                )
+              : t('timeoff.approvals.nothing_decided_yet', 'Nothing decided yet')
+          }
+          description={t(
+            'timeoff.approvals.requests_you_approve_show_up_here',
+            'Requests you approve show up here.',
+          )}
         />
       ) : (
         <List>
@@ -298,14 +334,14 @@ export function TimeOffDecision({
   });
   const { act, busy } = useAct('timeoff');
   const [suggesting, setSuggesting] = useState(false);
-  const back = { label: 'Approvals', onPress: navigation.goBack };
+  const back = { label: t('timeoff.approvals.approvals', 'Approvals'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
       <Page title={route.params.name} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the request" />
+          <Loading label={t('timeoff.approvals.loading_the_request', 'Loading the request')} />
         )}
       </Page>
     );
@@ -333,7 +369,7 @@ export function TimeOffDecision({
               <>
                 <Button
                   startIcon={<Icon icon={X} />}
-                  accessibilityLabel="Decline"
+                  accessibilityLabel={t('timeoff.approvals.decline', 'Decline')}
                   loading={busy === 'DecideTimeOffRequest'}
                   onPress={() => {
                     decide('decline');
@@ -345,7 +381,9 @@ export function TimeOffDecision({
                     setSuggesting(true);
                   }}
                 >
-                  {swap === undefined ? 'Suggest dates' : 'Suggest swap'}
+                  {swap === undefined
+                    ? t('timeoff.approvals.suggest_dates', 'Suggest dates')
+                    : t('timeoff.approvals.suggest_swap', 'Suggest swap')}
                 </Button>
                 <Button
                   className="flex-1"
@@ -356,7 +394,7 @@ export function TimeOffDecision({
                     decide('approve');
                   }}
                 >
-                  Approve
+                  {t('timeoff.approvals.approve_2', 'Approve')}
                 </Button>
               </>
             ),
@@ -371,13 +409,14 @@ export function TimeOffDecision({
         {r.leaveTypeName}
       </ListItem>
       {d.lastTaken === null ? null : (
-        <Text
-          variant="footnote"
-          tone="muted"
-        >{`Last time off: ${spanLabel(d.lastTaken.from, d.lastTaken.to)}`}</Text>
+        <Text variant="footnote" tone="muted">
+          {t('timeoff.approvals.last_time_off', 'Last time off: {{spanLabel}}', {
+            spanLabel: spanLabel(d.lastTaken.from, d.lastTaken.to),
+          })}
+        </Text>
       )}
       <TimelineChart
-        label="The team that week"
+        label={t('timeoff.approvals.the_team_that_week', 'The team that week')}
         domain={{ start: monday, end: addDays(monday, 4) }}
         unit="day"
         today={todayHere()}
@@ -402,7 +441,7 @@ export function TimeOffDecision({
             items: [
               {
                 id: `${o.personId}${o.span.from}`,
-                label: 'Off',
+                label: t('timeoff.approvals.off', 'Off'),
                 start: o.span.from,
                 end: o.span.to,
                 tone: 'neutral' as const,
@@ -415,9 +454,17 @@ export function TimeOffDecision({
         <Alert
           key={c.date}
           tone="warning"
-          title={`${shortDate(c.date)}: ${String(c.in)} of ${String(c.of)} in`}
+          title={t('timeoff.approvals.of_in', '{{shortDate}}: {{String}} of {{String2}} in', {
+            shortDate: shortDate(c.date),
+            String: String(c.in),
+            String2: String(c.of),
+          })}
         >
-          {`The team asks for at least ${String(c.required)}.`}
+          {t(
+            'timeoff.approvals.the_team_asks_for_at_least',
+            'The team asks for at least {{String}}.',
+            { String: String(c.required) },
+          )}
         </Alert>
       ))}
       <Card>
@@ -425,9 +472,9 @@ export function TimeOffDecision({
           <View className="flex-row items-center gap-2">
             <AssistantMark size={20} />
             <Text variant="headline" className="flex-1">
-              What to know
+              {t('timeoff.approvals.what_to_know', 'What to know')}
             </Text>
-            {d.whatToKnow.ai ? <Badge size="sm">AI</Badge> : null}
+            {d.whatToKnow.ai ? <Badge size="sm">{t('timeoff.approvals.ai', 'AI')}</Badge> : null}
           </View>
           {d.triage.reason === null ? null : (
             <Text weight="semibold">{closer(d.triage.reason)}</Text>
@@ -438,7 +485,17 @@ export function TimeOffDecision({
       </Card>
       {swap === undefined ? null : (
         <Text variant="subhead">
-          {`Suggest: ${swap.swapped === null ? spanLabel(swap.spans[0]?.from ?? '', swap.spans.at(-1)?.to ?? '') : `swap ${swap.swapped.out.map(shortDate).join(', ')} for ${swap.swapped.in.map(shortDate).join(', ')}`}. ${d.member.firstName} can accept in one tap.`}
+          {t(
+            'timeoff.approvals.suggest_can_accept_in_one_tap',
+            'Suggest: {{value}}. {{firstName}} can accept in one tap.',
+            {
+              value:
+                swap.swapped === null
+                  ? spanLabel(swap.spans[0]?.from ?? '', swap.spans.at(-1)?.to ?? '')
+                  : `swap ${swap.swapped.out.map(shortDate).join(', ')} for ${swap.swapped.in.map(shortDate).join(', ')}`,
+              firstName: d.member.firstName,
+            },
+          )}
         </Text>
       )}
       {suggesting ? (
@@ -491,9 +548,14 @@ function SuggestDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`Suggest dates to ${name}`}</DialogTitle>
+          <DialogTitle>
+            {t('timeoff.approvals.suggest_dates_to', 'Suggest dates to {{name}}', { name })}
+          </DialogTitle>
           <DialogDescription>
-            They can take them in one tap, or keep theirs and it comes back to you.
+            {t(
+              'timeoff.approvals.they_can_take_them_in_one',
+              'They can take them in one tap, or keep theirs and it comes back to you.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -502,30 +564,39 @@ function SuggestDialog({
               fullWidth
               size="sm"
               value={own ? 'own' : 'swap'}
-              accessibilityLabel="Which dates"
+              accessibilityLabel={t('timeoff.approvals.which_dates', 'Which dates')}
               onValueChange={(v) => {
                 setOwn(v === 'own');
               }}
             >
-              <SegmentedControlItem value="swap">The swap</SegmentedControlItem>
-              <SegmentedControlItem value="own">Other dates</SegmentedControlItem>
+              <SegmentedControlItem value="swap">
+                {t('timeoff.approvals.the_swap', 'The swap')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="own">
+                {t('timeoff.approvals.other_dates', 'Other dates')}
+              </SegmentedControlItem>
             </SegmentedControl>
           )}
           {own ? (
-            <Calendar mode="range" label="Dates to suggest" selected={range} onSelect={setRange} />
+            <Calendar
+              mode="range"
+              label={t('timeoff.approvals.dates_to_suggest', 'Dates to suggest')}
+              selected={range}
+              onSelect={setRange}
+            />
           ) : (
             <Text weight="semibold">
               {(swap?.spans ?? []).map((s) => spanLabel(s.from, s.to)).join(' and ')}
             </Text>
           )}
           <Field>
-            <FieldLabel>Message (optional)</FieldLabel>
+            <FieldLabel>{t('timeoff.approvals.message_optional', 'Message (optional)')}</FieldLabel>
             <Textarea value={message} onChange={setMessage} />
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('timeoff.approvals.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -548,7 +619,7 @@ function SuggestDialog({
               });
             }}
           >
-            Send
+            {t('timeoff.approvals.send', 'Send')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -586,30 +657,35 @@ export function TimeOffDelegation({
   const [to, setTo] = useState<string | null>(null);
   const [automatic, setAutomatic] = useState(false);
   const [salary, setSalary] = useState(false);
-  const back = { label: 'Approvals', onPress: navigation.goBack };
+  const back = { label: t('timeoff.approvals.approvals', 'Approvals'), onPress: navigation.goBack };
   if (load.status !== 'ready') {
     return (
-      <Page title="While you’re away" back={back}>
+      <Page title={t('timeoff.approvals.while_youre_away', 'While you’re away')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading" />
+          <Loading label={t('timeoff.approvals.loading', 'Loading')} />
         )}
       </Page>
     );
   }
   const d = load.data;
   return (
-    <Page title="While you’re away" back={back}>
+    <Page title={t('timeoff.approvals.while_youre_away', 'While you’re away')} back={back}>
       {d.delegation === null ? (
         <>
           <Text tone="muted">
-            Somebody approves for you while you are away; every decision says it was on your behalf.
+            {t(
+              'timeoff.approvals.somebody_approves_for_you_while_you',
+              'Somebody approves for you while you are away; every decision says it was on your behalf.',
+            )}
           </Text>
           <Field>
-            <FieldLabel>Who approves for you</FieldLabel>
+            <FieldLabel>
+              {t('timeoff.approvals.who_approves_for_you', 'Who approves for you')}
+            </FieldLabel>
             <Combobox
-              label="Who approves for you"
+              label={t('timeoff.approvals.who_approves_for_you', 'Who approves for you')}
               size="sm"
               options={d.candidates.map((c) => ({ value: c.personId, label: c.displayName }))}
               value={delegate}
@@ -620,39 +696,64 @@ export function TimeOffDelegation({
           </Field>
           <ListItem
             listitem={false}
-            description="Whenever you are off, without setting dates."
+            description={t(
+              'timeoff.approvals.whenever_you_are_off_without_setting',
+              'Whenever you are off, without setting dates.',
+            )}
             trailing={
               <Switch
                 checked={automatic}
-                accessibilityLabel="Automatically while I’m off"
+                accessibilityLabel={t(
+                  'timeoff.approvals.automatically_while_im_off',
+                  'Automatically while I’m off',
+                )}
                 onCheckedChange={setAutomatic}
               />
             }
           >
-            Automatically while I’m off
+            {t('timeoff.approvals.automatically_while_im_off', 'Automatically while I’m off')}
           </ListItem>
           {automatic ? null : (
             <View className="flex-row gap-2">
               <View className="flex-1">
-                <DatePicker label="From" size="sm" value={from} onChange={setFrom} />
+                <DatePicker
+                  label={t('timeoff.approvals.from', 'From')}
+                  size="sm"
+                  value={from}
+                  onChange={setFrom}
+                />
               </View>
               <View className="flex-1">
-                <DatePicker label="To" size="sm" value={to} onChange={setTo} />
+                <DatePicker
+                  label={t('timeoff.approvals.to', 'To')}
+                  size="sm"
+                  value={to}
+                  onChange={setTo}
+                />
               </View>
             </View>
           )}
           <ListItem
             listitem={false}
-            description="Overtime paid out and comp time: decisions that touch pay."
+            description={t(
+              'timeoff.approvals.overtime_paid_out_and_comp_time',
+              'Overtime paid out and comp time: decisions that touch pay.',
+            )}
             trailing={
               <Switch
                 checked={salary}
-                accessibilityLabel="Include decisions that touch pay"
+                accessibilityLabel={t(
+                  'timeoff.approvals.include_decisions_that_touch_pay',
+                  'Include decisions that touch pay',
+                )}
                 onCheckedChange={setSalary}
               />
             }
           >
-            Include decisions that touch pay
+            {t(
+              'timeoff.approvals.include_decisions_that_touch_pay',
+              'Include decisions that touch pay',
+            )}
           </ListItem>
           <Button
             variant="primary"
@@ -675,17 +776,21 @@ export function TimeOffDelegation({
               ).then(reload);
             }}
           >
-            Delegate
+            {t('timeoff.approvals.delegate', 'Delegate')}
           </Button>
         </>
       ) : (
         <Card>
           <Stack gap={2}>
-            <Text variant="headline">{`${d.delegation.delegateName} approves for you`}</Text>
+            <Text variant="headline">
+              {t('timeoff.approvals.approves_for_you', '{{delegateName}} approves for you', {
+                delegateName: d.delegation.delegateName,
+              })}
+            </Text>
             <Text tone="muted">
               {[
                 d.delegation.automatic
-                  ? 'Whenever you are off'
+                  ? t('timeoff.approvals.whenever_you_are_off', 'Whenever you are off')
                   : d.delegation.range === null
                     ? null
                     : spanLabel(d.delegation.range.from, d.delegation.range.to),
@@ -701,25 +806,28 @@ export function TimeOffDelegation({
                 void act(
                   'RemoveTimeOffDelegation',
                   { approverId: d.approverId },
-                  'Delegation ended',
+                  t('timeoff.approvals.delegation_ended', 'Delegation ended'),
                 ).then(reload);
               }}
             >
-              End it
+              {t('timeoff.approvals.end_it', 'End it')}
             </Button>
           </Stack>
         </Card>
       )}
       {d.escalatesTo === null ? null : (
-        <Text
-          variant="footnote"
-          tone="muted"
-        >{`Anything nobody answers in time goes to ${d.escalatesTo.displayName}.`}</Text>
+        <Text variant="footnote" tone="muted">
+          {t(
+            'timeoff.approvals.anything_nobody_answers_in_time_goes',
+            'Anything nobody answers in time goes to {{displayName}}.',
+            { displayName: d.escalatesTo.displayName },
+          )}
+        </Text>
       )}
       {d.coveringFor.length === 0 ? null : (
         <>
           <Text variant="footnote" weight="semibold" tone="muted" className="px-1">
-            You approve for
+            {t('timeoff.approvals.you_approve_for', 'You approve for')}
           </Text>
           <List>
             {d.coveringFor.map((c) => (
@@ -728,7 +836,7 @@ export function TimeOffDelegation({
                 leading={<Avatar name={c.approverName} size={36} />}
                 description={
                   c.automatic
-                    ? 'Whenever they are off'
+                    ? t('timeoff.approvals.whenever_they_are_off', 'Whenever they are off')
                     : c.range === null
                       ? ''
                       : spanLabel(c.range.from, c.range.to)
@@ -781,7 +889,9 @@ export function ClashDialog({
             {load.status === 'error' ? (
               <Text tone="muted">{load.message}</Text>
             ) : (
-              <Loading label="Working out the options" />
+              <Loading
+                label={t('timeoff.approvals.working_out_the_options', 'Working out the options')}
+              />
             )}
           </DialogBody>
         </DialogContent>
@@ -794,7 +904,11 @@ export function ClashDialog({
   const words = (a: Alternative): string =>
     a.swapped === null
       ? `Suggest ${a.spans.map((s) => spanLabel(s.from, s.to)).join(' and ')}`
-      : `Ask ${name} to swap ${a.swapped.out.map((x) => dayName.format(asDate(x))).join(', ')} for ${a.swapped.in.map((x) => dayName.format(asDate(x))).join(', ')}`;
+      : t('timeoff.approvals.ask_to_swap_for', 'Ask {{name}} to swap {{join}} for {{join2}}', {
+          name,
+          join: a.swapped.out.map((x) => dayName.format(asDate(x))).join(', '),
+          join2: a.swapped.in.map((x) => dayName.format(asDate(x))).join(', '),
+        });
   const picked = choice === 'approve' ? null : ways[Number(choice)];
   return (
     <Dialog
@@ -808,16 +922,29 @@ export function ClashDialog({
           <DialogTitle>
             {short === undefined
               ? `${name}’s ${spanLabel(d.request.span.from, d.request.span.to)}`
-              : `${dayName.format(asDate(short.date))} would be short`}
+              : t('timeoff.approvals.would_be_short', '{{format}} would be short', {
+                  format: dayName.format(asDate(short.date)),
+                })}
           </DialogTitle>
           {short === undefined ? null : (
             <DialogDescription>
-              {`${ways.length === 0 ? 'One way' : `${String(ways.length + 1)} ways`} to decide. The team asks for at least ${String(short.required)} in.`}
+              {t(
+                'timeoff.approvals.to_decide_the_team_asks_for',
+                '{{value}} to decide. The team asks for at least {{String}} in.',
+                {
+                  value: ways.length === 0 ? 'One way' : `${String(ways.length + 1)} ways`,
+                  String: String(short.required),
+                },
+              )}
             </DialogDescription>
           )}
         </DialogHeader>
         <DialogBody>
-          <RadioGroup accessibilityLabel="What to do" value={choice} onValueChange={setChoice}>
+          <RadioGroup
+            accessibilityLabel={t('timeoff.approvals.what_to_do', 'What to do')}
+            value={choice}
+            onValueChange={setChoice}
+          >
             {ways.map((a, i) => (
               <RadioCard
                 key={`${a.kind}${String(i)}`}
@@ -826,7 +953,7 @@ export function ClashDialog({
                   ? {
                       badge: (
                         <Badge size="sm" tone="accent" icon={Sparkles}>
-                          Suggested
+                          {t('timeoff.approvals.suggested', 'Suggested')}
                         </Badge>
                       ),
                     }
@@ -845,18 +972,26 @@ export function ClashDialog({
               value="approve"
               description={
                 short === undefined
-                  ? `${days(d.request.workingDays)} as asked.`
-                  : `${String(short.in)} of ${String(short.of)} in on ${dayName.format(asDate(short.date))}.`
+                  ? t('timeoff.approvals.as_asked', '{{days}} as asked.', {
+                      days: days(d.request.workingDays),
+                    })
+                  : t('timeoff.approvals.of_in_on', '{{String}} of {{String2}} in on {{format}}.', {
+                      String: String(short.in),
+                      String2: String(short.of),
+                      format: dayName.format(asDate(short.date)),
+                    })
               }
-              {...(short === undefined ? {} : { impact: 'Below the minimum' })}
+              {...(short === undefined
+                ? {}
+                : { impact: t('timeoff.approvals.below_the_minimum', 'Below the minimum') })}
             >
-              Approve anyway
+              {t('timeoff.approvals.approve_anyway', 'Approve anyway')}
             </RadioCard>
           </RadioGroup>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('timeoff.approvals.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -882,13 +1017,15 @@ export function ClashDialog({
                     message: picked.message?.text ?? null,
                   },
                 },
-                `Sent to ${name}`,
+                t('timeoff.approvals.sent_to', 'Sent to {{name}}', { name }),
               ).then((done) => {
                 if (done !== null) onDone();
               });
             }}
           >
-            {picked === undefined || picked === null ? 'Approve' : `Send to ${name}`}
+            {picked === undefined || picked === null
+              ? t('timeoff.approvals.approve_2', 'Approve')
+              : t('timeoff.approvals.send_to', 'Send to {{name}}', { name })}
           </Button>
         </DialogFooter>
       </DialogContent>

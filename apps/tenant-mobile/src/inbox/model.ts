@@ -100,6 +100,7 @@ export interface InboxAnswer {
 
 export { dayIn, dueOf, shortDay } from './time';
 import { dayIn, shortDay } from './time';
+import { t } from '../i18n';
 
 export const MODULE_NAMES: Readonly<Record<string, string>> = {
   people: 'People',
@@ -168,7 +169,11 @@ export function ago(at: string, now: string): string {
 /** "1 day", "2.5 days". */
 export const days = (n: string | number): string => {
   const v = Number(n);
-  return `${Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/u, '')} day${v === 1 ? '' : 's'}`;
+  return t(
+    'inbox.model.days',
+    { one: '{{value}} day', other: '{{value}} days' },
+    { count: v, value: Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/u, '') },
+  );
 };
 
 /** "28–30 December", "30 December – 2 January". */
@@ -195,9 +200,11 @@ export function snoozeChoices(now: Date, due: string | null): { label: string; a
   };
   const monday = (8 - now.getDay()) % 7 || 7;
   return [
-    ...(now.getHours() < 15 ? [{ label: 'This afternoon', at: at(0, 16) }] : []),
-    { label: 'Tomorrow morning', at: at(1, 9) },
-    { label: 'Monday', at: at(monday, 9) },
+    ...(now.getHours() < 15
+      ? [{ label: t('inbox.model.this_afternoon', 'This afternoon'), at: at(0, 16) }]
+      : []),
+    { label: t('inbox.model.tomorrow_morning', 'Tomorrow morning'), at: at(1, 9) },
+    { label: t('inbox.model.monday', 'Monday'), at: at(monday, 9) },
   ]
     .filter((c) => due === null || c.at.toISOString().slice(0, 10) <= due)
     .map((c) => ({ label: c.label, at: c.at.toISOString() }));

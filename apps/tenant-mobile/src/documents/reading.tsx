@@ -18,6 +18,7 @@ import { View } from 'react-native';
 
 import { useSigned } from '../people/api';
 import { askDocuments } from './api';
+import { t } from '../i18n';
 
 /**
  * Kithena reading a document on the phone (MR1, MR2, MR5; PRD §14), as the
@@ -90,14 +91,16 @@ export function Reading({ documentId }: { readonly documentId: string }): React.
   if (!summary.available) {
     return summary.dates.length === 0 ? null : (
       <Card variant="assistant">
-        <CardTitle>Dates in this document</CardTitle>
+        <CardTitle>
+          {t('documents.reading.dates_in_this_document', 'Dates in this document')}
+        </CardTitle>
         <Text>{summary.dates.join(' · ')}</Text>
       </Card>
     );
   }
   return (
     <Card variant="assistant">
-      <CardTitle>Summary</CardTitle>
+      <CardTitle>{t('documents.reading.summary', 'Summary')}</CardTitle>
       {summary.summary.map((c) => (
         <AssistantText key={c.text}>{said(c)}</AssistantText>
       ))}
@@ -111,7 +114,7 @@ export function Reading({ documentId }: { readonly documentId: string }): React.
         </List>
       )}
       {summary.watch === null ? null : (
-        <Alert tone="warning" title="Worth knowing">
+        <Alert tone="warning" title={t('documents.reading.worth_knowing', 'Worth knowing')}>
           {said(summary.watch)}
         </Alert>
       )}
@@ -120,11 +123,14 @@ export function Reading({ documentId }: { readonly documentId: string }): React.
           <AssistantMessage from="user">{x.q}</AssistantMessage>
           <AssistantMessage from="assistant" streaming={x.a === null && x.error === undefined}>
             {x.a === null ? (
-              <AssistantText>{x.error ?? 'Reading…'}</AssistantText>
+              <AssistantText>{x.error ?? t('documents.reading.reading', 'Reading…')}</AssistantText>
             ) : x.a.available ? (
               x.a.answer.map((c) => <AssistantText key={c.text}>{said(c)}</AssistantText>)
             ) : (
-              <AssistantText>{x.a.reason ?? 'The document does not say.'}</AssistantText>
+              <AssistantText>
+                {x.a.reason ??
+                  t('documents.reading.the_document_does_not_say', 'The document does not say.')}
+              </AssistantText>
             )}
           </AssistantMessage>
         </View>
@@ -147,7 +153,7 @@ export function Reading({ documentId }: { readonly documentId: string }): React.
         onValueChange={setQuestion}
         onSubmit={ask}
         streaming={busy}
-        placeholder="Ask about this document…"
+        placeholder={t('documents.reading.ask_about_this_document', 'Ask about this document…')}
         disclaimer="Answers can be wrong; check the page."
       />
     </Card>
@@ -170,7 +176,10 @@ export function AcrossAnswer({
       {answer.available ? (
         answer.answer.map((c) => <AssistantText key={c.text}>{c.text}</AssistantText>)
       ) : (
-        <AssistantText>{answer.reason ?? 'Nothing you can open says.'}</AssistantText>
+        <AssistantText>
+          {answer.reason ??
+            t('documents.reading.nothing_you_can_open_says', 'Nothing you can open says.')}
+        </AssistantText>
       )}
       {answer.sources.length === 0 ? null : (
         <AssistantSources>
@@ -188,7 +197,10 @@ export function AcrossAnswer({
         </AssistantSources>
       )}
       <Text variant="footnote" tone="muted">
-        Only from documents you can open.
+        {t(
+          'documents.reading.only_from_documents_you_can_open',
+          'Only from documents you can open.',
+        )}
       </Text>
     </Card>
   );

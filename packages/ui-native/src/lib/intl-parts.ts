@@ -1,3 +1,5 @@
+import { locale as readerLocale } from '@reach/ui/intl';
+
 /**
  * `formatToParts`, on an engine that may not have it.
  *
@@ -69,7 +71,7 @@ export function numberParts(format: Intl.NumberFormat, value: number): Part[] {
  * 'month', 'year']` for en-GB. Read off a date whose three numbers differ.
  */
 export function dateOrder(locale: string | undefined): ('day' | 'month' | 'year')[] {
-  const format = new Intl.DateTimeFormat(locale, { timeZone: 'UTC' });
+  const format = new Intl.DateTimeFormat(locale ?? readerLocale(), { timeZone: 'UTC' });
   const sample = new Date(Date.UTC(2026, 10, 22));
   if (typeof format.formatToParts === 'function') {
     return format

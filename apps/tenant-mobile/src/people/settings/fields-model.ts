@@ -1,3 +1,5 @@
+import { t } from '../../i18n';
+
 /**
  * Employee fields as the web's settings screens hold them (`people/src/settings`:
  * `model.ts`, `words.ts`, `access.tsx`, `predicate-editor.tsx`, the field
@@ -114,7 +116,9 @@ export type ClassificationAdvice =
     };
 
 export const DATA_TYPE_LABEL: Readonly<Record<string, string>> = {
-  text: 'Short text',
+  get text(): string {
+    return t('people.settings.fields-model.short_text', 'Short text');
+  },
   long_text: 'Long text',
   number: 'Whole number',
   decimal: 'Decimal',
@@ -147,49 +151,131 @@ export const DATA_TYPE_LABEL: Readonly<Record<string, string>> = {
 };
 
 export const DATA_TYPE_GROUPS: readonly { label: string; types: readonly string[] }[] = [
-  { label: 'Text', types: ['text', 'long_text'] },
-  { label: 'Choices', types: ['select', 'multi_select', 'tags', 'boolean'] },
-  { label: 'Numbers and money', types: ['number', 'decimal', 'percentage', 'money'] },
-  { label: 'Dates and time', types: ['date', 'datetime', 'duration'] },
-  { label: 'Contact', types: ['email', 'phone', 'url', 'address'] },
-  { label: 'Standard lists', types: ['country', 'currency', 'language', 'time_zone'] },
   {
-    label: 'In your organisation',
+    get label(): string {
+      return t('people.settings.fields-model.text', 'Text');
+    },
+    types: ['text', 'long_text'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.choices', 'Choices');
+    },
+    types: ['select', 'multi_select', 'tags', 'boolean'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.numbers_and_money', 'Numbers and money');
+    },
+    types: ['number', 'decimal', 'percentage', 'money'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.dates_and_time', 'Dates and time');
+    },
+    types: ['date', 'datetime', 'duration'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.contact', 'Contact');
+    },
+    types: ['email', 'phone', 'url', 'address'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.standard_lists', 'Standard lists');
+    },
+    types: ['country', 'currency', 'language', 'time_zone'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.in_your_organisation', 'In your organisation');
+    },
     types: ['person_ref', 'org_unit_ref', 'legal_entity_ref', 'location_ref'],
   },
-  { label: 'Protected', types: ['national_id', 'bank_account'] },
-  { label: 'Files', types: ['document_ref', 'image'] },
-  { label: 'Signing', types: ['signature'] },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.protected', 'Protected');
+    },
+    types: ['national_id', 'bank_account'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.files', 'Files');
+    },
+    types: ['document_ref', 'image'],
+  },
+  {
+    get label(): string {
+      return t('people.settings.fields-model.signing', 'Signing');
+    },
+    types: ['signature'],
+  },
 ];
 
 /** When a field is asked for, in the order a person meets each moment. */
 export const COLLECT: readonly { value: CollectAt; label: string; description: string }[] = [
   {
     value: 'signup',
-    label: 'At sign-up',
-    description: 'When they first set up their account, before they create their passkey.',
+    get label(): string {
+      return t('people.settings.fields-model.at_sign_up', 'At sign-up');
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.when_they_first_set_up_their',
+        'When they first set up their account, before they create their passkey.',
+      );
+    },
   },
   {
     value: 'enrolment',
-    label: 'When they accept their invitation',
-    description: 'On the account setup page, before they can use Kithena.',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.when_they_accept_their_invitation',
+        'When they accept their invitation',
+      );
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.on_the_account_setup_page_before',
+        'On the account setup page, before they can use Kithena.',
+      );
+    },
   },
   {
     value: 'onboarding',
-    label: 'During onboarding',
-    description:
-      'In the new starter’s checklist. If required, missing from the day they are hired.',
+    get label(): string {
+      return t('people.settings.fields-model.during_onboarding', 'During onboarding');
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.in_the_new_starters_checklist_if',
+        'In the new starter’s checklist. If required, missing from the day they are hired.',
+      );
+    },
   },
   {
     value: 'anytime',
-    label: 'Any time, on their profile',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.any_time_on_their_profile',
+        'Any time, on their profile',
+      );
+    },
     description:
       'Nobody is chased before their first day; if required, missing from their start date.',
   },
   {
     value: 'hr_only',
-    label: 'Only HR fills it in',
-    description: 'The employee never sees a form for it. If required, HR sees it as missing.',
+    get label(): string {
+      return t('people.settings.fields-model.only_hr_fills_it_in', 'Only HR fills it in');
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.the_employee_never_sees_a_form',
+        'The employee never sees a form for it. If required, HR sees it as missing.',
+      );
+    },
   },
 ];
 
@@ -200,24 +286,63 @@ export const CLASSIFICATION: readonly {
 }[] = [
   {
     value: 'public',
-    label: 'Fine for everyone at the company',
-    description: 'Could appear in the directory.',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.fine_for_everyone_at_the_company',
+        'Fine for everyone at the company',
+      );
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.could_appear_in_the_directory',
+        'Could appear in the directory.',
+      );
+    },
   },
   {
     value: 'internal',
-    label: 'Ordinary information about the job',
-    description: 'Nobody would mind HR and managers seeing it.',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.ordinary_information_about_the_job',
+        'Ordinary information about the job',
+      );
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.nobody_would_mind_hr_and_managers',
+        'Nobody would mind HR and managers seeing it.',
+      );
+    },
   },
   {
     value: 'confidential',
-    label: 'Would harm or embarrass someone if it leaked',
-    description: 'Pay, home address, performance. Kept out of logs and AI.',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.would_harm_or_embarrass_someone_if',
+        'Would harm or embarrass someone if it leaked',
+      );
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.pay_home_address_performance_kept_out',
+        'Pay, home address, performance. Kept out of logs and AI.',
+      );
+    },
   },
   {
     value: 'special-category',
-    label: 'Health, beliefs, ethnicity or similar',
-    description:
-      'Protected by law. Never sent to AI, never carried on an event, never exported without a reason.',
+    get label(): string {
+      return t(
+        'people.settings.fields-model.health_beliefs_ethnicity_or_similar',
+        'Health, beliefs, ethnicity or similar',
+      );
+    },
+    get description(): string {
+      return t(
+        'people.settings.fields-model.protected_by_law_never_sent_to',
+        'Protected by law. Never sent to AI, never carried on an event, never exported without a reason.',
+      );
+    },
   },
 ];
 
@@ -231,9 +356,24 @@ export const atLeast = (candidate: Classification, floor: Classification): boole
   ORDER.indexOf(candidate) >= ORDER.indexOf(floor);
 
 export const REQUIREDNESS: readonly { value: RequirednessMode; label: string }[] = [
-  { value: 'never', label: 'Optional' },
-  { value: 'always', label: 'Required' },
-  { value: 'conditional', label: 'Required sometimes' },
+  {
+    value: 'never',
+    get label(): string {
+      return t('people.settings.fields-model.optional', 'Optional');
+    },
+  },
+  {
+    value: 'always',
+    get label(): string {
+      return t('people.settings.fields-model.required', 'Required');
+    },
+  },
+  {
+    value: 'conditional',
+    get label(): string {
+      return t('people.settings.fields-model.required_sometimes', 'Required sometimes');
+    },
+  },
 ];
 
 export const OPERAND_LABEL: Readonly<Record<ListOperand | 'attribute', string>> = {
@@ -246,23 +386,94 @@ export const OPERAND_LABEL: Readonly<Record<ListOperand | 'attribute', string>> 
 };
 
 export const STATUS_VALUES: readonly Choice[] = [
-  { value: 'provisional', label: 'Provisional' },
-  { value: 'pre_hire', label: 'Pre-hire' },
-  { value: 'active', label: 'Active' },
-  { value: 'on_leave', label: 'On leave' },
-  { value: 'notice', label: 'On notice' },
-  { value: 'terminated', label: 'Left' },
-  { value: 'discarded', label: 'Discarded' },
+  {
+    value: 'provisional',
+    get label(): string {
+      return t('people.settings.fields-model.provisional', 'Provisional');
+    },
+  },
+  {
+    value: 'pre_hire',
+    get label(): string {
+      return t('people.settings.fields-model.pre_hire', 'Pre-hire');
+    },
+  },
+  {
+    value: 'active',
+    get label(): string {
+      return t('people.settings.fields-model.active', 'Active');
+    },
+  },
+  {
+    value: 'on_leave',
+    get label(): string {
+      return t('people.settings.fields-model.on_leave', 'On leave');
+    },
+  },
+  {
+    value: 'notice',
+    get label(): string {
+      return t('people.settings.fields-model.on_notice', 'On notice');
+    },
+  },
+  {
+    value: 'terminated',
+    get label(): string {
+      return t('people.settings.fields-model.left', 'Left');
+    },
+  },
+  {
+    value: 'discarded',
+    get label(): string {
+      return t('people.settings.fields-model.discarded', 'Discarded');
+    },
+  },
 ];
 
 /** Who may see and change a field, one row per audience, the person outwards. */
 export const AUDIENCES: readonly { id: ViewerScope; label: string; canChange: boolean }[] = [
-  { id: 'self', label: 'The employee', canChange: true },
-  { id: 'manager', label: 'Their manager', canChange: true },
-  { id: 'manager_chain', label: 'Managers above', canChange: false },
-  { id: 'hr', label: 'HR', canChange: true },
-  { id: 'finance', label: 'Finance', canChange: true },
-  { id: 'directory', label: 'Everyone', canChange: false },
+  {
+    id: 'self',
+    get label(): string {
+      return t('people.settings.fields-model.the_employee', 'The employee');
+    },
+    canChange: true,
+  },
+  {
+    id: 'manager',
+    get label(): string {
+      return t('people.settings.fields-model.their_manager', 'Their manager');
+    },
+    canChange: true,
+  },
+  {
+    id: 'manager_chain',
+    get label(): string {
+      return t('people.settings.fields-model.managers_above', 'Managers above');
+    },
+    canChange: false,
+  },
+  {
+    id: 'hr',
+    get label(): string {
+      return t('people.settings.fields-model.hr', 'HR');
+    },
+    canChange: true,
+  },
+  {
+    id: 'finance',
+    get label(): string {
+      return t('people.settings.fields-model.finance', 'Finance');
+    },
+    canChange: true,
+  },
+  {
+    id: 'directory',
+    get label(): string {
+      return t('people.settings.fields-model.everyone', 'Everyone');
+    },
+    canChange: false,
+  },
 ];
 
 const WRITER: Partial<Record<ViewerScope, WriterRole>> = {
@@ -310,11 +521,50 @@ export const GROUPS: readonly {
   description?: string;
   canChange: boolean;
 }[] = [
-  { id: 'self', label: 'The employee', canChange: true },
-  { id: 'manager', label: 'Manager', description: 'Their direct manager', canChange: true },
-  { id: 'manager_chain', label: 'Line managers', description: 'Managers above', canChange: false },
-  { id: 'hr', label: 'HR', canChange: true },
-  { id: 'finance', label: 'Finance', description: 'For payroll', canChange: true },
+  {
+    id: 'self',
+    get label(): string {
+      return t('people.settings.fields-model.the_employee', 'The employee');
+    },
+    canChange: true,
+  },
+  {
+    id: 'manager',
+    get label(): string {
+      return t('people.settings.fields-model.manager', 'Manager');
+    },
+    get description(): string {
+      return t('people.settings.fields-model.their_direct_manager', 'Their direct manager');
+    },
+    canChange: true,
+  },
+  {
+    id: 'manager_chain',
+    get label(): string {
+      return t('people.settings.fields-model.line_managers', 'Line managers');
+    },
+    get description(): string {
+      return t('people.settings.fields-model.managers_above', 'Managers above');
+    },
+    canChange: false,
+  },
+  {
+    id: 'hr',
+    get label(): string {
+      return t('people.settings.fields-model.hr', 'HR');
+    },
+    canChange: true,
+  },
+  {
+    id: 'finance',
+    get label(): string {
+      return t('people.settings.fields-model.finance', 'Finance');
+    },
+    get description(): string {
+      return t('people.settings.fields-model.for_payroll', 'For payroll');
+    },
+    canChange: true,
+  },
 ];
 
 /** Everyone at the company can see it: it shows in the directory. */
@@ -392,14 +642,28 @@ export const EMPTY_PREDICATE: Predicate = {
 
 /** What stops a predicate being saved, or null when it may be. */
 export function predicateProblem(predicate: Predicate): string | null {
-  if (predicate.clauses.length === 0) return 'Add at least one condition.';
+  if (predicate.clauses.length === 0)
+    return t(
+      'people.settings.fields-model.add_at_least_one_condition',
+      'Add at least one condition.',
+    );
   for (const clause of predicate.clauses) {
     if (clause.operand !== 'attribute') {
-      if (clause.in.length === 0) return 'Every condition needs at least one value.';
+      if (clause.in.length === 0)
+        return t(
+          'people.settings.fields-model.every_condition_needs_at_least_one',
+          'Every condition needs at least one value.',
+        );
     } else if (clause.key === '') {
-      return 'Choose the field a condition reads.';
+      return t(
+        'people.settings.fields-model.choose_the_field_a_condition_reads',
+        'Choose the field a condition reads.',
+      );
     } else if (clause.is === 'equals' && (clause.equals ?? '').trim() === '') {
-      return 'Say what the field has to equal.';
+      return t(
+        'people.settings.fields-model.say_what_the_field_has_to',
+        'Say what the field has to equal.',
+      );
     }
   }
   return null;
@@ -507,32 +771,57 @@ export function problemsIn(
 ): Record<string, string> {
   const problems: Record<string, string> = {};
   if (part === 0) {
-    if (draft.label.trim() === '') problems['label'] = 'Give the field a name.';
+    if (draft.label.trim() === '')
+      problems['label'] = t(
+        'people.settings.fields-model.give_the_field_a_name',
+        'Give the field a name.',
+      );
     if (draft.dataType === 'money' && draft.currency !== '' && !/^[A-Z]{3}$/.test(draft.currency)) {
-      problems['currency'] = 'A three-letter currency code, like EUR.';
+      problems['currency'] = t(
+        'people.settings.fields-model.a_three_letter_currency_code_like',
+        'A three-letter currency code, like EUR.',
+      );
     }
     if (!KEY.test(draft.key)) {
-      problems['key'] = 'Lower-case letters, digits and underscores, starting with a letter.';
+      problems['key'] = t(
+        'people.settings.fields-model.lower_case_letters_digits_and_underscores',
+        'Lower-case letters, digits and underscores, starting with a letter.',
+      );
     } else if (keyTaken(draft.key)) {
-      problems['key'] = 'Another field already uses this key.';
+      problems['key'] = t(
+        'people.settings.fields-model.another_field_already_uses_this_key',
+        'Another field already uses this key.',
+      );
     }
     if (WITH_OPTIONS.has(draft.dataType) && draft.options.length === 0) {
-      problems['options'] = 'Add at least one option.';
+      problems['options'] = t(
+        'people.settings.fields-model.add_at_least_one_option',
+        'Add at least one option.',
+      );
     }
   }
   if (part === 1) {
     if (draft.ownership.length === 0)
-      problems['ownership'] = 'Somebody has to be able to change it.';
+      problems['ownership'] = t(
+        'people.settings.fields-model.somebody_has_to_be_able_to',
+        'Somebody has to be able to change it.',
+      );
     if (
       draft.visibility.length === 0 &&
       (draft.visibilityRules.length === 0 || draft.requiredness !== 'never')
     ) {
-      problems['visibility'] = 'Nobody could ever read it. Choose at least one.';
+      problems['visibility'] = t(
+        'people.settings.fields-model.nobody_could_ever_read_it_choose',
+        'Nobody could ever read it. Choose at least one.',
+      );
     }
     for (const rule of draft.visibilityRules) {
       const problem =
         rule.scopes.length === 0
-          ? 'Every rule shows the field to somebody.'
+          ? t(
+              'people.settings.fields-model.every_rule_shows_the_field_to',
+              'Every rule shows the field to somebody.',
+            )
           : predicateProblem(rule.when);
       if (problem !== null) problems['rules'] = problem;
     }
@@ -552,17 +841,28 @@ export function problemsIn(
       if (problem !== null) problems['requiredWhen'] = problem;
     }
     if (draft.requiredness !== 'never' && draft.visibility.length === 0) {
-      problems['unseen'] =
-        'A required field needs somebody who can always see it. Choose who under Access.';
+      problems['unseen'] = t(
+        'people.settings.fields-model.a_required_field_needs_somebody_who',
+        'A required field needs somebody who can always see it. Choose who under Access.',
+      );
     }
   }
   if (part === 3) {
-    if (draft.classification === null) problems['kind'] = 'Choose what kind of data this is.';
+    if (draft.classification === null)
+      problems['kind'] = t(
+        'people.settings.fields-model.choose_what_kind_of_data_this',
+        'Choose what kind of data this is.',
+      );
     else if (draft.classification === 'special-category' && !draft.confirmedSpecial) {
-      problems['kind'] = 'Special-category data needs your explicit confirmation.';
+      problems['kind'] = t(
+        'people.settings.fields-model.special_category_data_needs_your_explicit',
+        'Special-category data needs your explicit confirmation.',
+      );
     } else if (draft.classification === 'special-category' && draft.visibilityRules.length > 0) {
-      problems['kind'] =
-        'Special-category data is never shown by a rule. Remove the rules under Access.';
+      problems['kind'] = t(
+        'people.settings.fields-model.special_category_data_is_never_shown',
+        'Special-category data is never shown by a rule. Remove the rules under Access.',
+      );
     }
   }
   return problems;

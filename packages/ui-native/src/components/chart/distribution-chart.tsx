@@ -9,6 +9,7 @@ import { dayNumber, isoOf, weekdayOf, WEEKDAYS } from './dates.ts';
 import type { ChartCommonProps } from './bar-chart.tsx';
 import { ChartFrame, decor, Ink, pct, useWidth, WEB, type ChartPoint } from './parts.tsx';
 import { bgTone, inkTone, seriesTone, type ChartTone } from './tones.ts';
+import { formatNumber } from '@reach/ui/intl';
 
 export interface DonutSlice extends ChartPoint {
   tone?: ChartTone;
@@ -431,7 +432,7 @@ export function FunnelChart({
   tone = 'chart-1',
   onSelect,
   selectedIndex,
-  format = (v) => v.toLocaleString('en-GB'),
+  format = (v) => formatNumber(v),
   menuItems,
   className,
 }: FunnelChartProps): React.JSX.Element {

@@ -22,6 +22,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Input, useFieldState } from '../input/input.tsx';
 import { RadioGroup, RadioGroupItem } from '../radio-group/radio-group.tsx';
 import { formatTime, fromMinutes, parseTime, toMinutes, usesTwelveHours } from './times.ts';
+import { t } from '../../lib/i18n';
 
 export { formatDuration, formatTime, parseTime } from './times.ts';
 
@@ -89,7 +90,9 @@ export function TimePicker({
       variant="ghost"
       size="xs"
       disabled={state.disabled}
-      accessibilityLabel={`Choose ${name.toLowerCase()}`}
+      accessibilityLabel={t('components.time-picker.time-picker.choose', 'Choose {{toLowerCase}}', {
+        toLowerCase: name.toLowerCase(),
+      })}
       startIcon={<Icon icon={Clock} size={19} tone="muted" />}
       {...(android
         ? {}
@@ -117,7 +120,14 @@ export function TimePicker({
       }}
       placeholder={placeholder}
       accessibilityLabel={name}
-      {...(unreadable ? { accessibilityHint: 'Not a time this field can read' } : {})}
+      {...(unreadable
+        ? {
+            accessibilityHint: t(
+              'components.time-picker.time-picker.not_a_time_this_field_can',
+              'Not a time this field can read',
+            ),
+          }
+        : {})}
       invalid={state.invalid || unreadable}
       disabled={state.disabled}
       className="tabular-nums"
@@ -149,7 +159,9 @@ export function TimePicker({
       >
         <View className={cn(className)}>{field}</View>
         <PickerDialog
-          title={`Enter ${name.toLowerCase()}`}
+          title={t('components.time-picker.time-picker.enter', 'Enter {{toLowerCase}}', {
+            toLowerCase: name.toLowerCase(),
+          })}
           headline={formatTime(shown, locale)}
           portalHost={portalHost}
           onCancel={() => {
@@ -244,7 +256,7 @@ export function TimeWheel({
       />
       {hours ? (
         <WheelColumn
-          label={`${label}, hour`}
+          label={t('components.time-picker.time-picker.hour', '{{label}}, hour', { label })}
           items={hours.map(String)}
           index={hour % 12}
           onIndex={(i) => {
@@ -253,7 +265,7 @@ export function TimeWheel({
         />
       ) : (
         <WheelColumn
-          label={`${label}, hour`}
+          label={t('components.time-picker.time-picker.hour', '{{label}}, hour', { label })}
           items={Array.from({ length: 24 }, (_, i) => pad(i))}
           index={hour}
           onIndex={(i) => {
@@ -262,7 +274,7 @@ export function TimeWheel({
         />
       )}
       <WheelColumn
-        label={`${label}, minutes`}
+        label={t('components.time-picker.time-picker.minutes', '{{label}}, minutes', { label })}
         items={minuteValues.map(pad)}
         index={minuteValues.indexOf(nearestMinute)}
         onIndex={(i) => {
@@ -271,7 +283,7 @@ export function TimeWheel({
       />
       {twelve ? (
         <WheelColumn
-          label={`${label}, AM or PM`}
+          label={t('components.time-picker.time-picker.am_or_pm', '{{label}}, AM or PM', { label })}
           items={['AM', 'PM']}
           index={pm ? 1 : 0}
           onIndex={(i) => {
@@ -483,7 +495,7 @@ function TimeInput({
     <View className="gap-3 pt-1 pb-2">
       <View className="flex-row items-start gap-3">
         <Box
-          label="Hour"
+          label={t('components.time-picker.time-picker.hour_2', 'Hour')}
           value={twelve ? String(shownHour) : pad(shownHour)}
           max={twelve ? 12 : 23}
           onValue={(h) => {
@@ -495,7 +507,7 @@ function TimeInput({
           :
         </CssText>
         <Box
-          label="Minute"
+          label={t('components.time-picker.time-picker.minute', 'Minute')}
           value={pad(minute)}
           max={59}
           onValue={(m) => {
@@ -506,7 +518,7 @@ function TimeInput({
       {twelve ? (
         <RadioGroup
           orientation="horizontal"
-          accessibilityLabel="AM or PM"
+          accessibilityLabel={t('components.time-picker.time-picker.am_or_pm_2', 'AM or PM')}
           value={pm ? 'PM' : 'AM'}
           onValueChange={(half) => {
             if ((half === 'PM') !== pm)
@@ -514,8 +526,12 @@ function TimeInput({
           }}
           className="self-center"
         >
-          <RadioGroupItem value="AM">AM</RadioGroupItem>
-          <RadioGroupItem value="PM">PM</RadioGroupItem>
+          <RadioGroupItem value="AM">
+            {t('components.time-picker.time-picker.am', 'AM')}
+          </RadioGroupItem>
+          <RadioGroupItem value="PM">
+            {t('components.time-picker.time-picker.pm', 'PM')}
+          </RadioGroupItem>
         </RadioGroup>
       ) : null}
     </View>

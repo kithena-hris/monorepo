@@ -5,6 +5,8 @@ import type { Signed } from '../people/api';
 import { useSigned } from '../people/api';
 import { queryClient } from '../query';
 import type { InboxAnswer, Mute } from './model';
+import { languageHeader } from '../i18n';
+import { t } from '../i18n';
 
 /**
  * The Inbox's own two calls (INB-040): the merged read and the person's state.
@@ -26,17 +28,35 @@ async function call<T>(signed: Signed, path: string, init: RequestInit = {}): Pr
     headers: {
       'content-type': 'application/json',
       authorization: `Bearer ${signed.sessionId}`,
+      ...languageHeader(),
     },
   }).catch(() => null);
   if (response === null) {
-    return { ok: false, code: 'OFFLINE', message: 'Kithena could not be reached. Try again.' };
+    return {
+      ok: false,
+      code: 'OFFLINE',
+      message: t(
+        'inbox.api.kithena_could_not_be_reached_try',
+        'Kithena could not be reached. Try again.',
+      ),
+    };
   }
   if (response.status === 401) {
     signed.signedOut();
-    return { ok: false, code: 'UNAUTHENTICATED', message: 'Sign in again.' };
+    return {
+      ok: false,
+      code: 'UNAUTHENTICATED',
+      message: t('inbox.api.sign_in_again', 'Sign in again.'),
+    };
   }
   const answer = (await response.json().catch(() => null)) as Answer<T> | null;
-  return answer ?? { ok: false, code: 'UNAVAILABLE', message: 'Kithena did not answer.' };
+  return (
+    answer ?? {
+      ok: false,
+      code: 'UNAVAILABLE',
+      message: t('inbox.api.kithena_did_not_answer', 'Kithena did not answer.'),
+    }
+  );
 }
 
 /** A refusal, thrown so it is never kept as the Inbox. */
@@ -62,7 +82,10 @@ export function readInbox(signed: Signed, maxAge = 0): Promise<Answer<InboxAnswe
     (error: unknown): Answer<InboxAnswer> => ({
       ok: false,
       code: 'UNAVAILABLE',
-      message: error instanceof Error ? error.message : 'Kithena did not answer.',
+      message:
+        error instanceof Error
+          ? error.message
+          : t('inbox.api.kithena_did_not_answer', 'Kithena did not answer.'),
     }),
   );
 }

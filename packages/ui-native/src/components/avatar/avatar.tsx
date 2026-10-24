@@ -5,6 +5,7 @@ import { Image, Text as CssText, View } from 'react-native-css/components';
 
 import { cn } from '../../lib/cn.ts';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /** The web avatar's sizes, in points. A number is taken as it is. */
 const SIZES = { xs: 20, sm: 24, md: 32, lg: 40, xl: 48, '2xl': 64, '3xl': 80 } as const;
@@ -212,7 +213,11 @@ export function AvatarGroup({
   const names = shown.map((a) => a.props.name);
   const said =
     rest > 0
-      ? `${names.join(', ')} and ${String(rest)} ${rest === 1 ? 'other' : 'others'}`
+      ? t(
+          'components.avatar.avatar.and_others',
+          { one: '{{value}} and {{count}} other', other: '{{value}} and {{count}} others' },
+          { count: rest, value: names.join(', ') },
+        )
       : names.join(', ');
 
   // Each avatar sits in a 2pt surface-coloured ring, so the overlap reads as

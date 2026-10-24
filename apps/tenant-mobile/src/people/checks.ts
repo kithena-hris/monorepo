@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /**
  * What the phone works out from a value as it is typed (design v3 P15, P20):
  * the right control letter for a Spanish NIF, and whether an IBAN's check
@@ -24,25 +26,25 @@ export function nifSuggestion(typed: string): string | null {
  * ponytail: a short list, not the Banco de España register; an unknown code
  * still checks out, it is only not named.
  */
-const ES_BANKS: Readonly<Record<string, string>> = {
-  '0049': 'Banco Santander',
-  '0075': 'Banco Santander',
-  '0081': 'Banco Sabadell',
-  '0128': 'Bankinter',
+const ES_BANKS = (): Readonly<Record<string, string>> => ({
+  '0049': t('people.checks.banco_santander', 'Banco Santander'),
+  '0075': t('people.checks.banco_santander', 'Banco Santander'),
+  '0081': t('people.checks.banco_sabadell', 'Banco Sabadell'),
+  '0128': t('people.checks.bankinter', 'Bankinter'),
   '0182': 'BBVA',
-  '0487': 'Banco Mare Nostrum',
+  '0487': t('people.checks.banco_mare_nostrum', 'Banco Mare Nostrum'),
   '1465': 'ING',
-  '2038': 'CaixaBank',
-  '2080': 'Abanca',
-  '2085': 'Ibercaja',
-  '2095': 'Kutxabank',
-  '2100': 'CaixaBank',
-  '2103': 'Unicaja',
-  '3058': 'Cajamar',
-  '0238': 'Banco Pichincha',
-  '1491': 'Triodos Bank',
-  '0073': 'Openbank',
-};
+  '2038': t('people.checks.caixabank', 'CaixaBank'),
+  '2080': t('people.checks.abanca', 'Abanca'),
+  '2085': t('people.checks.ibercaja', 'Ibercaja'),
+  '2095': t('people.checks.kutxabank', 'Kutxabank'),
+  '2100': t('people.checks.caixabank', 'CaixaBank'),
+  '2103': t('people.checks.unicaja', 'Unicaja'),
+  '3058': t('people.checks.cajamar', 'Cajamar'),
+  '0238': t('people.checks.banco_pichincha', 'Banco Pichincha'),
+  '1491': t('people.checks.triodos_bank', 'Triodos Bank'),
+  '0073': t('people.checks.openbank', 'Openbank'),
+});
 
 /** An IBAN as somebody reads it: valid or not, and the bank where it is known. */
 export function ibanCheck(typed: string): { valid: boolean; bank: string | null } | null {
@@ -57,6 +59,6 @@ export function ibanCheck(typed: string): { valid: boolean; bank: string | null 
   let rest = 0;
   for (const digit of numeric) rest = (rest * 10 + Number(digit)) % 97;
   const valid = rest === 1;
-  const bank = v.startsWith('ES') ? (ES_BANKS[v.slice(4, 8)] ?? null) : null;
+  const bank = v.startsWith('ES') ? (ES_BANKS()[v.slice(4, 8)] ?? null) : null;
   return { valid, bank };
 }

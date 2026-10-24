@@ -18,6 +18,7 @@ import {
 } from '../context-menu/context-menu.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { bgTone, borderTone, type ChartTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 /**
  * The parts every chart is built from: the card, the frame that carries the
@@ -371,7 +372,7 @@ const hiddenStyle = {
 export function ChartDataTable({
   caption,
   data,
-  valueLabel = 'Value',
+  valueLabel = t('components.chart.parts.value', 'Value'),
   format = (value) => String(value),
 }: {
   caption: string;
@@ -391,7 +392,7 @@ export function ChartDataTable({
   return (
     <View style={hiddenStyle} role="table" aria-label={caption}>
       <View role="row">
-        <CssText role="columnheader">Period</CssText>
+        <CssText role="columnheader">{t('components.chart.parts.period', 'Period')}</CssText>
         <CssText role="columnheader">{valueLabel}</CssText>
       </View>
       {data.map((point, index) => (
@@ -512,7 +513,7 @@ export function ChartZoomControls({
     <View className={cn('flex-row items-center gap-1', className)}>
       <Button
         size="xs"
-        accessibilityLabel="Zoom out"
+        accessibilityLabel={t('components.chart.parts.zoom_out', 'Zoom out')}
         startIcon={<Icon icon={ZoomOut} />}
         disabled={!state.canZoomOut}
         onPress={() => {
@@ -521,7 +522,7 @@ export function ChartZoomControls({
       />
       <Button
         size="xs"
-        accessibilityLabel="Zoom in"
+        accessibilityLabel={t('components.chart.parts.zoom_in', 'Zoom in')}
         startIcon={<Icon icon={ZoomIn} />}
         disabled={!state.canZoomIn}
         onPress={() => {
@@ -529,7 +530,7 @@ export function ChartZoomControls({
         }}
       />
       <Button size="xs" variant="ghost" disabled={!state.windowed} onPress={state.reset}>
-        Reset
+        {t('components.chart.parts.reset', 'Reset')}
       </Button>
     </View>
   );
@@ -611,7 +612,7 @@ export function ChartFrame({
     ...(windowState
       ? [
           {
-            label: 'Zoom in',
+            label: t('components.chart.parts.zoom_in', 'Zoom in'),
             icon: ZoomIn,
             disabled: !windowState.canZoomIn,
             onPress: () => {
@@ -619,7 +620,7 @@ export function ChartFrame({
             },
           },
           {
-            label: 'Zoom out',
+            label: t('components.chart.parts.zoom_out', 'Zoom out'),
             icon: ZoomOut,
             disabled: !windowState.canZoomOut,
             onPress: () => {
@@ -627,7 +628,7 @@ export function ChartFrame({
             },
           },
           {
-            label: 'Reset zoom',
+            label: t('components.chart.parts.reset_zoom', 'Reset zoom'),
             icon: Maximize2,
             disabled: !windowState.windowed,
             onPress: windowState.reset,
@@ -635,7 +636,10 @@ export function ChartFrame({
         ]
       : []),
     {
-      label: status === 'copied' ? 'Copied' : 'Copy as CSV',
+      label:
+        status === 'copied'
+          ? t('components.chart.parts.copied', 'Copied')
+          : t('components.chart.parts.copy_as_csv', 'Copy as CSV'),
       icon: Copy,
       onPress: () => {
         void copy(toCsv(rows));
@@ -659,8 +663,16 @@ export function ChartFrame({
               <CssText
                 accessible
                 accessibilityLabel={summary ? `${label}. ${summary}` : label}
-                accessibilityHint="Chart options are in the actions"
-                accessibilityActions={[{ name: 'menu', label: 'Chart options' }]}
+                accessibilityHint={t(
+                  'components.chart.parts.chart_options_are_in_the_actions',
+                  'Chart options are in the actions',
+                )}
+                accessibilityActions={[
+                  {
+                    name: 'menu',
+                    label: t('components.chart.parts.chart_options', 'Chart options'),
+                  },
+                ]}
                 onAccessibilityAction={() => {
                   setOpen(true);
                 }}

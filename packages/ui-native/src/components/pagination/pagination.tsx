@@ -7,6 +7,7 @@ import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Pages of results. On a phone it is "Page 3 of 52" between two arrows at the
@@ -73,7 +74,7 @@ export function Pagination({
   siblings = 1,
   totalItems,
   pageSize,
-  label = 'Pagination',
+  label = t('components.pagination.pagination.pagination', 'Pagination'),
   className,
 }: PaginationProps): React.JSX.Element {
   const first = totalItems && pageSize ? (page - 1) * pageSize + 1 : null;
@@ -82,7 +83,7 @@ export function Pagination({
     <Button
       size="sm"
       startIcon={<Icon icon={ChevronLeft} />}
-      accessibilityLabel="Previous page"
+      accessibilityLabel={t('components.pagination.pagination.previous_page', 'Previous page')}
       disabled={page <= 1}
       onPress={() => {
         onPageChange(page - 1);
@@ -93,7 +94,7 @@ export function Pagination({
     <Button
       size="sm"
       startIcon={<Icon icon={ChevronRight} />}
-      accessibilityLabel="Next page"
+      accessibilityLabel={t('components.pagination.pagination.next_page', 'Next page')}
       disabled={page >= pageCount}
       onPress={() => {
         onPageChange(page + 1);
@@ -137,11 +138,12 @@ export function Pagination({
       ) : (
         <View accessibilityLiveRegion="polite" {...({ 'aria-live': 'polite' } as object)}>
           <Text variant="subhead" weight="medium" tone="muted" tabular>
-            Page{' '}
+            {t('components.pagination.pagination.page', 'Page')}{' '}
             <Text variant="subhead" weight="semibold" tabular>
               {String(page)}
             </Text>{' '}
-            of {String(pageCount)}
+            {t('components.pagination.pagination.of', 'of ')}
+            {String(pageCount)}
           </Text>
         </View>
       )}
@@ -152,11 +154,11 @@ export function Pagination({
   return (
     <View className="gap-2">
       <Text variant="footnote" tone="muted" tabular className="text-center">
-        Showing{' '}
+        {t('components.pagination.pagination.showing', 'Showing')}{' '}
         <Text variant="footnote" weight="medium" tabular>
           {`${String(first)}–${String(last)}`}
         </Text>{' '}
-        of{' '}
+        {t('components.pagination.pagination.of_2', 'of')}{' '}
         <Text variant="footnote" weight="medium" tabular>
           {String(totalItems)}
         </Text>
@@ -184,7 +186,9 @@ function PageButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Page ${String(page)}`}
+      accessibilityLabel={t('components.pagination.pagination.page_2', 'Page {{String}}', {
+        String: String(page),
+      })}
       accessibilityState={{ selected: current }}
       {...(current ? ({ 'aria-current': 'page' } as object) : {})}
       hitSlop={2}

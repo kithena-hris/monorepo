@@ -11,6 +11,7 @@ import { CircleAlert } from 'lucide-react-native';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { t } from './i18n';
 
 /** The tab bar's height and its gap above the home indicator: what content keeps clear of. */
 export const TAB_ROOM = 64 + 12;
@@ -139,7 +140,7 @@ export function Failed({
     <EmptyState
       icon={CircleAlert}
       tone="danger"
-      title="That could not be loaded"
+      title={t('frame.that_could_not_be_loaded', 'That could not be loaded')}
       description={message}
       action={<Button onPress={onRetry}>Try again</Button>}
     />

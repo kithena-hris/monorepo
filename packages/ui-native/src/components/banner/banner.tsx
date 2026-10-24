@@ -16,6 +16,7 @@ import { Text as CssText, View } from 'react-native-css/components';
 import { cn } from '../../lib/cn.ts';
 import { Button } from '../button/button.tsx';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A message about the whole app or account, full width at the top of the
@@ -107,7 +108,7 @@ export function Banner({
   icon,
   actions,
   onDismiss,
-  dismissLabel = 'Dismiss',
+  dismissLabel = t('components.banner.banner.dismiss', 'Dismiss'),
   rounded = false,
   className,
 }: BannerProps): React.JSX.Element {
@@ -177,8 +178,8 @@ export type BannerStackProps = {
  */
 export function BannerStack({
   children,
-  previousLabel = 'Previous message',
-  nextLabel = 'Next message',
+  previousLabel = t('components.banner.banner.previous_message', 'Previous message'),
+  nextLabel = t('components.banner.banner.next_message', 'Next message'),
   className,
 }: BannerStackProps): React.JSX.Element | null {
   const banners = Children.toArray(children).filter(isValidElement) as ReactElement<BannerProps>[];
@@ -200,7 +201,10 @@ export function BannerStack({
           }}
         />
         <CssText className="text-[12px] font-semibold leading-none text-fg-muted tabular-nums">
-          {`${String(at + 1)} of ${String(banners.length)}`}
+          {t('components.banner.banner.of', '{{String}} of {{String2}}', {
+            String: String(at + 1),
+            String2: String(banners.length),
+          })}
         </CssText>
         <Button
           variant="ghost"

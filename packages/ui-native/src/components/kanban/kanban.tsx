@@ -60,6 +60,7 @@ import {
   type Geometry,
   type Lane,
 } from './kanban-geometry.ts';
+import { t } from '../../lib/i18n';
 
 /**
  * Work moving between stages, as the web's `Kanban`, drawn for a phone.
@@ -215,10 +216,33 @@ const COLLAPSED = { height: 0, marginTop: -GAP, opacity: 0, overflow: 'hidden' }
 const OVERLAY = { position: 'absolute', left: 0, top: 0, zIndex: 10 } as const;
 
 const MOVE_ACTIONS = [
-  { name: 'decrement', label: 'Move up' },
-  { name: 'increment', label: 'Move down' },
-  { name: 'previous', label: 'Move to the previous column' },
-  { name: 'next', label: 'Move to the next column' },
+  {
+    name: 'decrement',
+    get label(): string {
+      return t('components.kanban.kanban.move_up', 'Move up');
+    },
+  },
+  {
+    name: 'increment',
+    get label(): string {
+      return t('components.kanban.kanban.move_down', 'Move down');
+    },
+  },
+  {
+    name: 'previous',
+    get label(): string {
+      return t(
+        'components.kanban.kanban.move_to_the_previous_column',
+        'Move to the previous column',
+      );
+    },
+  },
+  {
+    name: 'next',
+    get label(): string {
+      return t('components.kanban.kanban.move_to_the_next_column', 'Move to the next column');
+    },
+  },
 ];
 const ACTION_STEP: Record<string, 'up' | 'down' | 'left' | 'right'> = {
   decrement: 'up',
@@ -463,7 +487,13 @@ export function Kanban<T extends { id: string }>({
         );
       } else {
         setPicked({ id: item.id, from: column.id, index });
-        announce(`Picked up ${name} from ${column.title}, position ${String(index + 1)}.`);
+        announce(
+          t(
+            'components.kanban.kanban.picked_up_from_position',
+            'Picked up {{name}} from {{title}}, position {{String}}.',
+            { name, title: column.title, String: String(index + 1) },
+          ),
+        );
       }
       return;
     }
@@ -471,7 +501,13 @@ export function Kanban<T extends { id: string }>({
       e.preventDefault();
       moveCard(item.id, picked.from, picked.index, 'quiet');
       setPicked(null);
-      announce(`Moving ${name} was cancelled. It is back where it started.`);
+      announce(
+        t(
+          'components.kanban.kanban.moving_was_cancelled_it_is_back',
+          'Moving {{name}} was cancelled. It is back where it started.',
+          { name },
+        ),
+      );
       return;
     }
     const arrows: Record<string, 'up' | 'down' | 'left' | 'right'> = {
@@ -561,7 +597,11 @@ export function Kanban<T extends { id: string }>({
     const item = find(itemId);
     if (item) {
       announce(
-        `Picked up ${cardTitle(item)} from ${titleOf(laneId)}, position ${String(index + 1)}.`,
+        t(
+          'components.kanban.kanban.picked_up_from_position_2',
+          'Picked up {{cardTitle}} from {{titleOf}}, position {{String}}.',
+          { cardTitle: cardTitle(item), titleOf: titleOf(laneId), String: String(index + 1) },
+        ),
       );
     }
   };
@@ -572,7 +612,14 @@ export function Kanban<T extends { id: string }>({
     const held = lift.current;
     const item = held ? find(held.id) : undefined;
     if (!held || !item) return;
-    if (!laneId) announce(`Moving ${cardTitle(item)} was cancelled. It is back where it started.`);
+    if (!laneId)
+      announce(
+        t(
+          'components.kanban.kanban.moving_was_cancelled_it_is_back_2',
+          'Moving {{cardTitle}} was cancelled. It is back where it started.',
+          { cardTitle: cardTitle(item) },
+        ),
+      );
     else if (laneId === held.from && index === held.index) {
       announce(`${cardTitle(item)} was dropped where it started.`);
     } else moveCard(held.id, laneId, index);
@@ -650,18 +697,33 @@ export function Kanban<T extends { id: string }>({
 
   const grip = (item: T, column: KanbanColumnDef, pan?: PanGesture): ReactNode => {
     const name = cardTitle(item);
-    if (column.locked) return <Icon icon={Lock} size={15} tone="subtle" label="Locked" />;
+    if (column.locked)
+      return (
+        <Icon
+          icon={Lock}
+          size={15}
+          tone="subtle"
+          label={t('components.kanban.kanban.locked', 'Locked')}
+        />
+      );
     const control = (
       <Pressable
         accessibilityRole="adjustable"
-        accessibilityLabel={`Move ${name}`}
-        accessibilityHint="Long-press and drag, or use the actions, to move it"
+        accessibilityLabel={t('components.kanban.kanban.move', 'Move {{name}}', { name })}
+        accessibilityHint={t(
+          'components.kanban.kanban.long_press_and_drag_or_use',
+          'Long-press and drag, or use the actions, to move it',
+        )}
         accessibilityActions={MOVE_ACTIONS}
         onAccessibilityAction={onMoveAction(item.id)}
         {...(WEB
           ? ({
               role: 'button',
-              'aria-label': `Move ${name}. Space picks it up, arrows move it, Escape puts it back`,
+              'aria-label': t(
+                'components.kanban.kanban.move_space_picks_it_up_arrows',
+                'Move {{name}}. Space picks it up, arrows move it, Escape puts it back',
+                { name },
+              ),
               'aria-pressed': picked?.id === item.id,
               onKeyDown: keyHandler(item),
             } as object)
@@ -691,22 +753,31 @@ export function Kanban<T extends { id: string }>({
             variant="ghost"
             size="xs"
             startIcon={<Icon icon={Ellipsis} />}
-            accessibilityLabel={`Actions for ${name}`}
+            accessibilityLabel={t('components.kanban.kanban.actions_for', 'Actions for {{name}}', {
+              name,
+            })}
             className="-my-1.5 -mr-1.5"
           />
         </DropdownMenuTrigger>
-        <DropdownMenuContent label={`Actions for ${name}`} className="w-[240px]">
+        <DropdownMenuContent
+          label={t('components.kanban.kanban.actions_for', 'Actions for {{name}}', { name })}
+          className="w-[240px]"
+        >
           {column.locked ? (
             <DropdownMenuItem
               icon={ArrowRightLeft}
               disabled
-              description={`${column.title} is locked`}
+              description={t('components.kanban.kanban.is_locked', '{{title}} is locked', {
+                title: column.title,
+              })}
             >
-              Move to
+              {t('components.kanban.kanban.move_to', 'Move to')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger icon={ArrowRightLeft}>Move to</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger icon={ArrowRightLeft}>
+                {t('components.kanban.kanban.move_to', 'Move to')}
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 {columns
                   .filter((c) => c.id !== column.id)
@@ -735,7 +806,7 @@ export function Kanban<T extends { id: string }>({
               moveCard(item.id, column.id, 0);
             }}
           >
-            Move to top
+            {t('components.kanban.kanban.move_to_top', 'Move to top')}
           </DropdownMenuItem>
           <DropdownMenuItem
             icon={ArrowDownToLine}
@@ -744,7 +815,7 @@ export function Kanban<T extends { id: string }>({
               moveCard(item.id, column.id, cards.length);
             }}
           >
-            Move to bottom
+            {t('components.kanban.kanban.move_to_bottom', 'Move to bottom')}
           </DropdownMenuItem>
           {cardActions.length > 0 ? <DropdownMenuSeparator /> : null}
           {cardActions
@@ -792,7 +863,10 @@ export function Kanban<T extends { id: string }>({
             {...(whole && !WEB
               ? {
                   accessibilityRole: 'adjustable' as const,
-                  accessibilityHint: 'Long-press and drag, or use the actions, to move it',
+                  accessibilityHint: t(
+                    'components.kanban.kanban.long_press_and_drag_or_use',
+                    'Long-press and drag, or use the actions, to move it',
+                  ),
                   accessibilityActions: MOVE_ACTIONS,
                   onAccessibilityAction: onMoveAction(item.id),
                 }
@@ -806,7 +880,7 @@ export function Kanban<T extends { id: string }>({
           {selectable ? (
             <Pressable
               accessibilityRole="checkbox"
-              accessibilityLabel={`Select ${name}`}
+              accessibilityLabel={t('components.kanban.kanban.select', 'Select {{name}}', { name })}
               accessibilityState={{ checked: on }}
               aria-checked={on}
               hitSlop={10}
@@ -855,7 +929,11 @@ export function Kanban<T extends { id: string }>({
           {column.title}
         </CssText>
         <CssText
-          accessibilityLabel={over ? `${count}, full` : `${count} cards`}
+          accessibilityLabel={
+            over
+              ? t('components.kanban.kanban.full', '{{count}}, full', { count })
+              : t('components.kanban.kanban.cards', '{{count}} cards', { count })
+          }
           className={cn(
             'text-[12px] leading-none font-semibold',
             over ? 'text-danger-fg' : 'text-fg-muted',
@@ -863,7 +941,14 @@ export function Kanban<T extends { id: string }>({
         >
           {count}
         </CssText>
-        {column.locked ? <Icon icon={Lock} size={13} tone="subtle" label="Locked" /> : null}
+        {column.locked ? (
+          <Icon
+            icon={Lock}
+            size={13}
+            tone="subtle"
+            label={t('components.kanban.kanban.locked', 'Locked')}
+          />
+        ) : null}
         {column.description ? (
           <CssText numberOfLines={1} className="shrink text-[12px] leading-none text-fg-muted">
             {column.description}
@@ -875,7 +960,11 @@ export function Kanban<T extends { id: string }>({
               variant="ghost"
               size="xs"
               startIcon={<Icon icon={Plus} size={16} tone="subtle" />}
-              accessibilityLabel={`Add a card to ${column.title}`}
+              accessibilityLabel={t(
+                'components.kanban.kanban.add_a_card_to',
+                'Add a card to {{title}}',
+                { title: column.title },
+              )}
               onPress={() => {
                 onAddCard(column.id);
               }}
@@ -889,11 +978,20 @@ export function Kanban<T extends { id: string }>({
                   variant="ghost"
                   size="xs"
                   startIcon={<Icon icon={Ellipsis} size={16} tone="subtle" />}
-                  accessibilityLabel={`Actions for ${column.title}`}
+                  accessibilityLabel={t(
+                    'components.kanban.kanban.actions_for_2',
+                    'Actions for {{title}}',
+                    { title: column.title },
+                  )}
                   className="-my-2"
                 />
               </DropdownMenuTrigger>
-              <DropdownMenuContent label={`Actions for ${column.title}`} className="w-[220px]">
+              <DropdownMenuContent
+                label={t('components.kanban.kanban.actions_for_2', 'Actions for {{title}}', {
+                  title: column.title,
+                })}
+                className="w-[220px]"
+              >
                 {columnActions
                   .filter((a) => a.hidden?.([column]) !== true)
                   .map((a) => (
@@ -969,7 +1067,10 @@ export function Kanban<T extends { id: string }>({
     return (
       <View
         role="list"
-        aria-label={`${def.title}, ${String(real.length)} cards`}
+        aria-label={t('components.kanban.kanban.cards_2', '{{title}}, {{String}} cards', {
+          title: def.title,
+          String: String(real.length),
+        })}
         className="gap-2"
         {...(onLayout ? { onLayout } : {})}
       >
@@ -1059,7 +1160,7 @@ export function Kanban<T extends { id: string }>({
             fullWidth
             value={current}
             onValueChange={setCurrent}
-            accessibilityLabel={`${label}: stage`}
+            accessibilityLabel={t('components.kanban.kanban.stage', '{{label}}: stage', { label })}
           >
             {columns.map((c) => (
               <SegmentedControlItem key={c.id} value={c.id}>
@@ -1099,7 +1200,9 @@ export function Kanban<T extends { id: string }>({
             role="status"
             className="text-[14px] leading-none font-semibold text-fg-on-invert"
           >
-            {`${String(chosen.length)} selected`}
+            {t('components.kanban.kanban.selected', '{{String}} selected', {
+              String: String(chosen.length),
+            })}
           </CssText>
           <View className="mx-2 h-5 w-px bg-fg-on-invert opacity-25" />
           {bulkActions

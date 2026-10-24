@@ -5,6 +5,7 @@ import Sortable from 'react-native-sortables';
 
 import { cn } from '../../lib/cn.ts';
 import { move, ReorderHandle, useAnnouncer, useDragMotion } from '../../lib/reorder.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A short list reordered by dragging, as the web's `SortableList`: long-press
@@ -76,11 +77,24 @@ export function SortableList<T extends SortableItem>({
         {...(whole
           ? {
               accessible: true,
-              accessibilityLabel: `${name}, ${String(index + 1)} of ${String(total)}`,
-              accessibilityHint: 'Long-press and drag, or use the actions, to move it',
+              accessibilityLabel: t(
+                'components.sortable-list.sortable-list.of',
+                '{{name}}, {{String}} of {{String2}}',
+                { name, String: String(index + 1), String2: String(total) },
+              ),
+              accessibilityHint: t(
+                'components.sortable-list.sortable-list.long_press_and_drag_or_use',
+                'Long-press and drag, or use the actions, to move it',
+              ),
               accessibilityActions: [
-                { name: 'increment', label: 'Move down' },
-                { name: 'decrement', label: 'Move up' },
+                {
+                  name: 'increment',
+                  label: t('components.sortable-list.sortable-list.move_down', 'Move down'),
+                },
+                {
+                  name: 'decrement',
+                  label: t('components.sortable-list.sortable-list.move_up', 'Move up'),
+                },
               ],
               onAccessibilityAction: (e: AccessibilityActionEvent) => {
                 reorder(index, index + (e.nativeEvent.actionName === 'decrement' ? -1 : 1));
@@ -91,7 +105,11 @@ export function SortableList<T extends SortableItem>({
           ? ({
               tabIndex: 0,
               role: 'button',
-              'aria-label': `${name}, ${String(index + 1)} of ${String(total)}. Arrow keys move it`,
+              'aria-label': t(
+                'components.sortable-list.sortable-list.of_arrow_keys_move_it',
+                '{{name}}, {{String}} of {{String2}}. Arrow keys move it',
+                { name, String: String(index + 1), String2: String(total) },
+              ),
               onKeyDown: (e: { key: string; preventDefault: () => void }) => {
                 if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                   e.preventDefault();
@@ -110,7 +128,11 @@ export function SortableList<T extends SortableItem>({
       >
         {activator === 'handle' || item.locked ? (
           <ReorderHandle
-            label={`Move ${name}, ${String(index + 1)} of ${String(total)}`}
+            label={t(
+              'components.sortable-list.sortable-list.move_of',
+              'Move {{name}}, {{String}} of {{String2}}',
+              { name, String: String(index + 1), String2: String(total) },
+            )}
             locked={item.locked ?? false}
             size={16}
             onMove={(delta) => {

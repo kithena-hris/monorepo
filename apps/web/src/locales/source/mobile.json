@@ -1,0 +1,10 @@
+{
+  "language.back": {
+    "text": "Back",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. language.tsx, LanguageSettings: the back of <Page>."
+  },
+  "language.title": {
+    "text": "Language",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. language.tsx, LanguageSettings: the title of <Page>."
+  }
+}

@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 
 import { ask, formInputs, useSigned } from '../people/api';
 import { askDocuments } from './api';
+import { t as tr } from '../i18n';
 
 /**
  * Documents that answer HR on the phone (Documents MJ1, MJ2, MJ5; J1, J2,
@@ -120,16 +121,34 @@ export function Answers({
       !answer.ok
         ? answer.message
         : held === 0
-          ? 'Saved to your record.'
-          : `Saved. ${String(held)} wait for HR to approve.`,
+          ? tr('documents.answers.saved_to_your_record', 'Saved to your record.')
+          : tr(
+              'documents.answers.saved_wait_for_hr_to_approve',
+              'Saved. {{String}} wait for HR to approve.',
+              { String: String(held) },
+            ),
     );
   };
   return (
     <Card variant="assistant">
       <CardTitle>
         {asked > 0
-          ? `HR is waiting for ${String(asked)} detail${asked === 1 ? '' : 's'} from you`
-          : `Your record is missing ${String(waiting.length)} detail${waiting.length === 1 ? '' : 's'}`}
+          ? tr(
+              'documents.answers.hr_is_waiting_for_detail_from',
+              {
+                one: 'HR is waiting for {{count}} detail from you',
+                other: 'HR is waiting for {{count}} details from you',
+              },
+              { count: asked },
+            )
+          : tr(
+              'documents.answers.your_record_is_missing_detail',
+              {
+                one: 'Your record is missing {{count}} detail',
+                other: 'Your record is missing {{count}} details',
+              },
+              { count: waiting.length },
+            )}
       </CardTitle>
       {found === null ? (
         <Button
@@ -142,12 +161,25 @@ export function Answers({
             });
           }}
         >
-          {documentIds.length === 1 ? 'Look in this document' : 'Look in your documents'}
+          {documentIds.length === 1
+            ? tr('documents.answers.look_in_this_document', 'Look in this document')
+            : tr('documents.answers.look_in_your_documents', 'Look in your documents')}
         </Button>
       ) : found === 'looking' ? (
-        <Spinner label="Kithena is reading your documents" />
+        <Spinner
+          label={tr(
+            'documents.answers.kithena_is_reading_your_documents',
+            'Kithena is reading your documents',
+          )}
+        />
       ) : found.length === 0 ? (
-        <Text tone="muted">None of them is in {documentIds.length === 1 ? 'it' : 'them'}.</Text>
+        <Text tone="muted">
+          {tr('documents.answers.none_of_them_is_in', 'None of them is in ')}
+          {documentIds.length === 1
+            ? tr('documents.answers.it', 'it')
+            : tr('documents.answers.them', 'them')}
+          .
+        </Text>
       ) : (
         <>
           {found.map((f) => (
@@ -157,13 +189,15 @@ export function Answers({
               supporting={
                 f.asked ? (
                   <Badge size="sm" tone="accent">
-                    HR asked
+                    {tr('documents.answers.hr_asked', 'HR asked')}
                   </Badge>
                 ) : undefined
               }
               trailing={
                 <Checkbox
-                  accessibilityLabel={`Save ${f.label}`}
+                  accessibilityLabel={tr('documents.answers.save', 'Save {{label}}', {
+                    label: f.label,
+                  })}
                   checked={ticked.has(f.key)}
                   disabled={saved !== null}
                   onCheckedChange={(on) => {
@@ -186,7 +220,9 @@ export function Answers({
               disabled={ticked.size === 0}
               onPress={() => void save(found)}
             >
-              {`Save ${String(ticked.size)} to your record`}
+              {tr('documents.answers.save_to_your_record', 'Save {{String}} to your record', {
+                String: String(ticked.size),
+              })}
             </Button>
           ) : (
             <Text>{saved}</Text>
@@ -194,7 +230,10 @@ export function Answers({
         </>
       )}
       <Text variant="footnote" tone="muted">
-        Read for you alone. Nothing is sent until you save it.
+        {tr(
+          'documents.answers.read_for_you_alone_nothing_is',
+          'Read for you alone. Nothing is sent until you save it.',
+        )}
       </Text>
     </Card>
   );
@@ -241,7 +280,7 @@ export function Certificate({
       fields: readonly { name: string; value: string; page: number }[];
     }>(signed, 'ReadDocumentFields', {
       documentId,
-      input: { names: ['Event', 'Date of the event'] },
+      input: { names: ['Event', tr('documents.answers.date_of_the_event', 'Date of the event')] },
     });
     if (!fields.ok) {
       setRead({ problem: fields.message });
@@ -269,16 +308,38 @@ export function Certificate({
     });
   };
   if (read === null) {
-    return <Button onPress={() => void look()}>Leave this certificate entitles you to</Button>;
+    return (
+      <Button onPress={() => void look()}>
+        {tr(
+          'documents.answers.leave_this_certificate_entitles_you_to',
+          'Leave this certificate entitles you to',
+        )}
+      </Button>
+    );
   }
-  if (read === 'reading') return <Spinner label="Kithena is reading the certificate" />;
+  if (read === 'reading')
+    return (
+      <Spinner
+        label={tr(
+          'documents.answers.kithena_is_reading_the_certificate',
+          'Kithena is reading the certificate',
+        )}
+      />
+    );
   if ('problem' in read) return <Text tone="danger">{read.problem}</Text>;
   return (
     <Card variant="assistant">
-      <CardTitle>What this certificate unlocks</CardTitle>
-      <Text>{`${read.event ?? 'It does not say what it records.'}${read.date === null ? '' : ` · ${read.date}`}`}</Text>
+      <CardTitle>
+        {tr('documents.answers.what_this_certificate_unlocks', 'What this certificate unlocks')}
+      </CardTitle>
+      <Text>{`${read.event ?? tr('documents.answers.it_does_not_say_what_it', 'It does not say what it records.')}${read.date === null ? '' : ` · ${read.date}`}`}</Text>
       {read.leave === null ? (
-        <Text tone="muted">None of your leave types is for it.</Text>
+        <Text tone="muted">
+          {tr(
+            'documents.answers.none_of_your_leave_types_is',
+            'None of your leave types is for it.',
+          )}
+        </Text>
       ) : (
         <Button
           variant="primary"
@@ -286,7 +347,10 @@ export function Certificate({
             if (read.leave !== null) onRequest(read.leave.key, read.date ?? undefined);
           }}
         >
-          {`Request ${read.leave.name}${read.date === null ? '' : ` from ${read.date}`}`}
+          {tr('documents.answers.request', 'Request {{name}}{{value}}', {
+            name: read.leave.name,
+            value: read.date === null ? '' : ` from ${read.date}`,
+          })}
         </Button>
       )}
     </Card>

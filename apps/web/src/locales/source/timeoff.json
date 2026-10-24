@@ -2703,6 +2703,250 @@
     "text": "Try again",
     "context": "Time Off: leave, absences, time tracking, policies. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./settings/time-off/approvals.description": {
+    "text": "Who approves what, cover minimums and when a request escalates.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/approvals): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/approvals.label": {
+    "text": "Approvals",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/approvals): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/time-off/attendance.description": {
+    "text": "Schedules, breaks, overtime and how clocking in works.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/attendance): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/attendance.label": {
+    "text": "Attendance",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/attendance): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/time-off/holidays.description": {
+    "text": "The public holidays each location keeps, year by year.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/holidays): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/holidays.label": {
+    "text": "Holidays",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/holidays): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/time-off/integrations.description": {
+    "text": "Calendars, chat apps and badge readers.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/integrations): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/integrations.label": {
+    "text": "Integrations",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/integrations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/time-off/leave-types.description": {
+    "text": "The kinds of time off people can request, and how each one is paid and approved.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/leave-types): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/leave-types.label": {
+    "text": "Leave types",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/leave-types): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/time-off/negative-balance.description": {
+    "text": "What happens when someone books more than they have earned.",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/negative-balance): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/time-off/negative-balance.label": {
+    "text": "Negative balance",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a page of the area’s settings (/settings/time-off/negative-balance): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/adjustments.label": {
+    "text": "Balance adjustments",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/adjustments): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/adjustments.short": {
+    "text": "Adjustments",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/adjustments): its short name, on a tab under a finger."
+  },
+  "nav./time-off/approvals/coming-up.label": {
+    "text": "Coming up",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/coming-up): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/decided.label": {
+    "text": "Decided",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/decided): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/delegation.label": {
+    "text": "Delegation",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/delegation): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/waiting.description": {
+    "text": "Requests waiting for a decision, and your own",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): one sentence under its name in a menu or on a card."
+  },
+  "nav./time-off/approvals/waiting.group": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): the heading of the group it is listed under."
+  },
+  "nav./time-off/approvals/waiting.label": {
+    "text": "My requests",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/approvals/waiting.label_for.hr": {
+    "text": "Requests",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name for a viewer whose role is hr."
+  },
+  "nav./time-off/approvals/waiting.label_for.manager": {
+    "text": "Requests",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): its name for a viewer whose role is manager."
+  },
+  "nav./time-off/approvals/waiting.short": {
+    "text": "Waiting",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/approvals/waiting): its short name, on a tab under a finger."
+  },
+  "nav./time-off/approvals/waiting.summary": {
+    "text": "Decisions and your own requests",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/approvals/waiting): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/attendance/exceptions.label": {
+    "text": "Exceptions",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/exceptions): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/kiosk-code.label": {
+    "text": "Kiosk code",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/kiosk-code): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/kiosk-code.short": {
+    "text": "Kiosk",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/kiosk-code): its short name, on a tab under a finger."
+  },
+  "nav./time-off/attendance/now.description": {
+    "text": "Your timesheet and schedule; for managers and HR, who is in and what needs fixing",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): one sentence under its name in a menu or on a card."
+  },
+  "nav./time-off/attendance/now.group": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): the heading of the group it is listed under."
+  },
+  "nav./time-off/attendance/now.label": {
+    "text": "Attendance",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/now.summary": {
+    "text": "Timesheets and schedules",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/attendance/now): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/attendance/pay-period.label": {
+    "text": "Pay period",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/pay-period): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/pay-period.short": {
+    "text": "Period",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/pay-period): its short name, on a tab under a finger."
+  },
+  "nav./time-off/attendance/requests.label": {
+    "text": "Requests",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/requests): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/schedule.label": {
+    "text": "Schedule",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/schedule): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/timesheet.label": {
+    "text": "My timesheet",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheet): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/attendance/timesheet.short": {
+    "text": "Mine",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheet): its short name, on a tab under a finger."
+  },
+  "nav./time-off/attendance/timesheets.label": {
+    "text": "Timesheets",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Attendance (/time-off/attendance/timesheets): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/calendar/month.description": {
+    "text": "Who is away, by month, as a timeline or across the year",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): one sentence under its name in a menu or on a card."
+  },
+  "nav./time-off/calendar/month.group": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): the heading of the group it is listed under."
+  },
+  "nav./time-off/calendar/month.label": {
+    "text": "Calendar",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/calendar/month.summary": {
+    "text": "Who is away, and when",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/calendar/month): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/calendar/timeline.label": {
+    "text": "Timeline",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Calendar (/time-off/calendar/timeline): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/calendar/year.label": {
+    "text": "Year",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Calendar (/time-off/calendar/year): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/insights/attendance.label": {
+    "text": "Attendance",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/attendance): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/insights/balances.label": {
+    "text": "Balances",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/balances): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/insights/time-off.label": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of Insights (/time-off/insights/time-off): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/insights/what-changed.description": {
+    "text": "Unbooked days, people who have not had a break, and attendance trends",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): one sentence under its name in a menu or on a card."
+  },
+  "nav./time-off/insights/what-changed.group": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): the heading of the group it is listed under."
+  },
+  "nav./time-off/insights/what-changed.label": {
+    "text": "Insights",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/insights/what-changed.summary": {
+    "text": "Trends across the company",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/insights/what-changed): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/overview.description": {
+    "text": "Your balances, the clock, what is coming up and who is away",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): one sentence under its name in a menu or on a card."
+  },
+  "nav./time-off/overview.group": {
+    "text": "Time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): the heading of the group it is listed under."
+  },
+  "nav./time-off/overview.label": {
+    "text": "Overview",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/overview.summary": {
+    "text": "Balances and what is coming up",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a section of the area (/time-off/overview): a short line under its name on a phone’s row."
+  },
+  "nav./time-off/parental/cases.label": {
+    "text": "Parental leave",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/parental/cases): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/parental/cases.short": {
+    "text": "Parental",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/parental/cases): its short name, on a tab under a finger."
+  },
+  "nav./time-off/request.label": {
+    "text": "Request time off",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, an action the area offers (/time-off/request): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/requests/cancelled.label": {
+    "text": "Cancelled",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/cancelled): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/requests/past.label": {
+    "text": "Past",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/past): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./time-off/requests/upcoming.label": {
+    "text": "Upcoming",
+    "context": "Time Off: leave, absences, time tracking, policies. Navigation, a tab of My requests (/time-off/requests/upcoming): its name in the sidebar, the breadcrumb and the menus."
+  },
   "overview.overview.a_year": {
     "text": "{{yearly}} a year",
     "context": "Time Off: leave, absences, time tracking, policies. overview/overview.tsx, Balances: the valueLabel of <Progress>. Filled in: {{yearly}}."

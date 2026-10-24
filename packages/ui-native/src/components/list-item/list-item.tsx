@@ -14,6 +14,7 @@ import { useReducedMotion } from '../../provider.tsx';
 import { spokenName } from '../../lib/spoken-name.tsx';
 import { Icon, type LucideIcon } from '../icon/icon.tsx';
 import { swipeOutcome } from './swipe.ts';
+import { t } from '../../lib/i18n';
 
 /**
  * The row most lists are built from, and the rounded group that holds them,
@@ -161,7 +162,7 @@ function Body({
     <>
       {unread ? (
         <View
-          accessibilityLabel="Unread"
+          accessibilityLabel={t('components.list-item.list-item.unread', 'Unread')}
           className="-ml-2.5 -mr-1.5 size-2 rounded-full bg-accent-solid"
         />
       ) : null}

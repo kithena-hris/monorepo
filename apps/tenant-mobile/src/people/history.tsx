@@ -39,6 +39,7 @@ import { useRead, valueOf, valuesOf, type Entry, type RecordField } from './api'
 import { DisplayValue, longDate } from './display';
 import { previousOf, titleOf, type HistoryChange } from './history-model';
 import type { PeopleScreen } from './routes';
+import { t } from '../i18n';
 
 interface HistoryData {
   readonly person: { readonly id: string; readonly name: string };
@@ -75,11 +76,17 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
   const { load, reload } = useRead<HistoryData>('History', { personId: personId ?? null, asOf });
 
   const frame = (children: React.ReactNode): React.JSX.Element => (
-    <Page title="History" back={{ label: back, onPress: navigation.goBack }}>
+    <Page
+      title={t('people.history.history', 'History')}
+      back={{ label: back, onPress: navigation.goBack }}
+    >
       {children}
     </Page>
   );
-  if (load.status === 'loading') return frame(<Loading label="Loading the history" />);
+  if (load.status === 'loading')
+    return frame(
+      <Loading label={t('people.history.loading_the_history', 'Loading the history')} />,
+    );
   if (load.status === 'error') return frame(<Failed message={load.message} onRetry={reload} />);
 
   const data = load.data;
@@ -101,11 +108,11 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
   return frame(
     <>
       <Select value={only} onValueChange={setOnly}>
-        <SelectTrigger accessibilityLabel="Field">
+        <SelectTrigger accessibilityLabel={t('people.history.field', 'Field')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>All fields</SelectItem>
+          <SelectItem value={ALL}>{t('people.history.all_fields', 'All fields')}</SelectItem>
           {[...fields.values()].map((f) => (
             <SelectItem key={f.key} value={f.key}>
               {f.label}
@@ -116,21 +123,36 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
       <SegmentedControl
         value={asOf === null ? 'changes' : 'as-of'}
         fullWidth
-        accessibilityLabel="Show"
+        accessibilityLabel={t('people.history.show', 'Show')}
         onValueChange={(next) => {
           setAsOf(next === 'changes' ? null : new Date().toISOString().slice(0, 10));
         }}
       >
-        <SegmentedControlItem value="changes">Changes</SegmentedControlItem>
-        <SegmentedControlItem value="as-of">As of a date</SegmentedControlItem>
+        <SegmentedControlItem value="changes">
+          {t('people.history.changes', 'Changes')}
+        </SegmentedControlItem>
+        <SegmentedControlItem value="as-of">
+          {t('people.history.as_of_a_date', 'As of a date')}
+        </SegmentedControlItem>
       </SegmentedControl>
 
       {asOf !== null ? (
         <>
-          <DatePicker label="See the record as it was on" value={asOf} onChange={setAsOf} />
-          <Alert tone="info" title={`As it stood on ${longDate(asOf)}`}>
-            Includes later corrections. Fields without dates, like a phone number, show only their
-            changes.
+          <DatePicker
+            label={t('people.history.see_the_record_as_it_was', 'See the record as it was on')}
+            value={asOf}
+            onChange={setAsOf}
+          />
+          <Alert
+            tone="info"
+            title={t('people.history.as_it_stood_on', 'As it stood on {{longDate}}', {
+              longDate: longDate(asOf),
+            })}
+          >
+            {t(
+              'people.history.includes_later_corrections_fields_without_dates',
+              'Includes later corrections. Fields without dates, like a phone number, show only their changes.',
+            )}
           </Alert>
           {data.sections.map((section) => {
             const sectionFields = section.fields.filter((f) => only === ALL || f.key === only);
@@ -148,7 +170,9 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
                       value: dated.has(field.key) ? (
                         <DisplayValue field={field} value={values[field.key]} />
                       ) : (
-                        <Text tone="subtle">Not kept by date</Text>
+                        <Text tone="subtle">
+                          {t('people.history.not_kept_by_date', 'Not kept by date')}
+                        </Text>
                       ),
                     }))}
                   />
@@ -158,7 +182,7 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
           })}
         </>
       ) : shown.length === 0 ? (
-        <EmptyState title="No changes recorded" />
+        <EmptyState title={t('people.history.no_changes_recorded', 'No changes recorded')} />
       ) : (
         [...days].map(([day, items]) => (
           <Stack key={day} gap={2}>
@@ -166,7 +190,11 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
               {dayTitle(day)}
             </Text>
             <Card>
-              <Timeline accessibilityLabel={`Changes, ${dayTitle(day)}`}>
+              <Timeline
+                accessibilityLabel={t('people.history.changes_2', 'Changes, {{dayTitle}}', {
+                  dayTitle: dayTitle(day),
+                })}
+              >
                 {items.map((change, i) => {
                   const field = fields.get(change.key) as RecordField;
                   const previous = previousOf(change, changes);
@@ -217,7 +245,9 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
                           />
                         </Inline>
                         <Text variant="footnote" tone="muted">
-                          {(kind === 'system' ? 'Done automatically' : `By ${change.by}`) +
+                          {(kind === 'system'
+                            ? t('people.history.done_automatically', 'Done automatically')
+                            : `By ${change.by}`) +
                             (dated.has(change.key) &&
                             change.effectiveFrom !== change.recordedAt.slice(0, 10)
                               ? ` · effective ${longDate(change.effectiveFrom)}`
@@ -226,27 +256,36 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
                         {sealed ? (
                           <Inline gap={2}>
                             <Badge size="sm" icon={Lock}>
-                              Sealed
+                              {t('people.history.sealed', 'Sealed')}
                             </Badge>
                             <Text variant="footnote" tone="muted">
-                              Only the change is shown.
+                              {t(
+                                'people.history.only_the_change_is_shown',
+                                'Only the change is shown.',
+                              )}
                             </Text>
                           </Inline>
                         ) : null}
                         {corrected !== undefined ? (
                           <Inline gap={2}>
                             <Badge size="sm" tone="accent">
-                              Correction
+                              {t('people.history.correction', 'Correction')}
                             </Badge>
                             <Text variant="footnote" tone="muted">
-                              {`Replaces the value recorded ${longDate(corrected.recordedAt.slice(0, 10))}.`}
+                              {t(
+                                'people.history.replaces_the_value_recorded',
+                                'Replaces the value recorded {{longDate}}.',
+                                { longDate: longDate(corrected.recordedAt.slice(0, 10)) },
+                              )}
                             </Text>
                           </Inline>
                         ) : replacement !== undefined ? (
                           <Inline gap={2}>
-                            <Badge size="sm">Superseded</Badge>
+                            <Badge size="sm">{t('people.history.superseded', 'Superseded')}</Badge>
                             <Text variant="footnote" tone="muted">
-                              {`Corrected on ${longDate(replacement.recordedAt.slice(0, 10))}.`}
+                              {t('people.history.corrected_on', 'Corrected on {{longDate}}.', {
+                                longDate: longDate(replacement.recordedAt.slice(0, 10)),
+                              })}
                             </Text>
                           </Inline>
                         ) : null}
@@ -265,7 +304,7 @@ export function History({ navigation, route }: PeopleScreen<'History'>): React.J
             setAsOf(null);
           }}
         >
-          Back to the changes
+          {t('people.history.back_to_the_changes', 'Back to the changes')}
         </Button>
       )}
     </>,
@@ -301,7 +340,8 @@ export function HistoryDialog({
     return d === today ? 'Today' : d === yesterday ? 'Yesterday' : short.format(new Date(iso));
   };
   let body: React.ReactNode;
-  if (load.status === 'loading') body = <Loading label="Loading the history" />;
+  if (load.status === 'loading')
+    body = <Loading label={t('people.history.loading_the_history', 'Loading the history')} />;
   else if (load.status === 'error') body = <Failed message={load.message} onRetry={reload} />;
   else {
     const data = load.data;
@@ -323,10 +363,10 @@ export function HistoryDialog({
             type="single"
             value={only}
             onValueChange={setOnly}
-            accessibilityLabel="Sections"
+            accessibilityLabel={t('people.history.sections', 'Sections')}
             scroll
           >
-            <ChipGroupItem value={ALL}>All</ChipGroupItem>
+            <ChipGroupItem value={ALL}>{t('people.history.all', 'All')}</ChipGroupItem>
             {data.sections
               .filter((sec) => changes.some((c) => sectionOf.get(c.key) === sec.key))
               .map((sec) => (
@@ -338,7 +378,9 @@ export function HistoryDialog({
         </View>
         <ScrollView style={{ flexGrow: 0, maxHeight: 380 }}>
           {shown.length === 0 ? (
-            <Text tone="muted">No changes recorded.</Text>
+            <Text tone="muted">
+              {t('people.history.no_changes_recorded_2', 'No changes recorded.')}
+            </Text>
           ) : (
             shown.map((change, i) => {
               const field = fields.get(change.key) as RecordField;
@@ -388,13 +430,19 @@ export function HistoryDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>History</DialogTitle>
-          <DialogDescription>{`Every change to ${personId === null ? 'your' : `${first}’s`} record, newest first.`}</DialogDescription>
+          <DialogTitle>{t('people.history.history', 'History')}</DialogTitle>
+          <DialogDescription>
+            {t(
+              'people.history.every_change_to_record_newest_first',
+              'Every change to {{value}} record, newest first.',
+              { value: personId === null ? 'your' : `${first}’s` },
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>{body}</DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onAsOf}>
-            See the record as it was on…
+            {t('people.history.see_the_record_as_it_was_2', 'See the record as it was on…')}
           </Button>
         </DialogFooter>
       </DialogContent>

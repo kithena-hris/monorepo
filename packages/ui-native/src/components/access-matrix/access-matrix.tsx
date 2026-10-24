@@ -3,6 +3,7 @@ import { View } from 'react-native-css/components';
 import { cn } from '../../lib/cn.ts';
 import { Checkbox } from '../checkbox/checkbox.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Who can see a value and who can change it, as one table of checkboxes:
@@ -61,8 +62,8 @@ export function AccessMatrix({
   onChange,
   allSee = false,
   allSeeReason = 'because everyone can see it',
-  seeLabel = 'See',
-  changeLabel = 'Change',
+  seeLabel = t('components.access-matrix.access-matrix.see', 'See'),
+  changeLabel = t('components.access-matrix.access-matrix.change', 'Change'),
   className,
 }: AccessMatrixProps): React.JSX.Element {
   const press = (id: string, column: AccessColumn) => (): void => {
@@ -72,7 +73,7 @@ export function AccessMatrix({
     <View className={cn('overflow-hidden rounded-2xl border border-border', className)}>
       <View className="flex-row items-center bg-surface-sunken px-3 py-2.5">
         <Text variant="caption" weight="semibold" tone="muted" className="flex-1">
-          Group
+          {t('components.access-matrix.access-matrix.group', 'Group')}
         </Text>
         <Text variant="caption" weight="semibold" tone="muted" className="w-14 text-center">
           {seeLabel}
@@ -102,7 +103,15 @@ export function AccessMatrix({
               <Checkbox
                 checked={see}
                 disabled={onChange === undefined || why !== null}
-                accessibilityLabel={`${a.label} can ${seeLabel.toLowerCase()}${why === null ? '' : `, ${why}`}`}
+                accessibilityLabel={t(
+                  'components.access-matrix.access-matrix.can',
+                  '{{label}} can {{toLowerCase}}{{value}}',
+                  {
+                    label: a.label,
+                    toLowerCase: seeLabel.toLowerCase(),
+                    value: why === null ? '' : `, ${why}`,
+                  },
+                )}
                 onCheckedChange={press(a.id, 'see')}
               />
             </View>
@@ -111,7 +120,11 @@ export function AccessMatrix({
                 <Checkbox
                   checked={change}
                   disabled={onChange === undefined}
-                  accessibilityLabel={`${a.label} can ${changeLabel.toLowerCase()}`}
+                  accessibilityLabel={t(
+                    'components.access-matrix.access-matrix.can_2',
+                    '{{label}} can {{toLowerCase}}',
+                    { label: a.label, toLowerCase: changeLabel.toLowerCase() },
+                  )}
                   onCheckedChange={press(a.id, 'change')}
                 />
               )}

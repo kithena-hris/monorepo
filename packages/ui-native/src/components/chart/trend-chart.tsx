@@ -22,6 +22,7 @@ import {
   type UseChartWindowResult,
 } from './parts.tsx';
 import { bgTone, inkTone, seriesTone, type ChartTone } from './tones.ts';
+import { t } from '../../lib/i18n';
 
 /** `M x,y L …` through every point. */
 function linePath(points: readonly [number, number][]): string {
@@ -537,9 +538,13 @@ export function ChartBrush({
       <View
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel="Visible range"
+        accessibilityLabel={t('components.chart.trend-chart.visible_range', 'Visible range')}
         accessibilityValue={{
-          text: `${String(start + 1)} to ${String(end + 1)} of ${String(total)}`,
+          text: t(
+            'components.chart.trend-chart.to_of',
+            '{{String}} to {{String2}} of {{String3}}',
+            { String: String(start + 1), String2: String(end + 1), String3: String(total) },
+          ),
         }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(event) => {

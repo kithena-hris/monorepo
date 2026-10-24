@@ -59,12 +59,25 @@ const EMAIL_DIRS = {
   'email-performance': 'services/performance/src',
   'email-timeoff': 'services/timeoff/src',
 };
-const SOURCES = Object.fromEntries(Object.keys(EMAIL_DIRS).map((ns) => [ns, { email: true }]));
-/** An email catalogue is kept even when empty: the service imports every language's file. */
+/** The phone's namespaces, kept beside the app that bundles them. */
+const PHONE_DIRS = {
+  'reach-native': 'apps/tenant-mobile/src/locales/reach-native',
+  mobile: 'apps/tenant-mobile/src/locales/mobile',
+};
+const SOURCES = Object.fromEntries([
+  ...Object.keys(EMAIL_DIRS).map((ns) => [ns, { email: true, beside: true }]),
+  ...Object.keys(PHONE_DIRS).map((ns) => [ns, { beside: true }]),
+]);
+/** A catalogue kept beside its code is kept even when empty: the code imports every language's file. */
 const EMAIL_FILES = new Set();
 const localeFile = (ns, language) => {
-  if (EMAIL_DIRS[ns] === undefined) return join(LOCALES_DIR(), language, `${ns}.json`);
-  const path = join(ROOT_DIR, EMAIL_DIRS[ns], 'locales', `${language}.json`);
+  const phone = PHONE_DIRS[ns];
+  if (EMAIL_DIRS[ns] === undefined && phone === undefined)
+    return join(LOCALES_DIR(), language, `${ns}.json`);
+  const path =
+    phone === undefined
+      ? join(ROOT_DIR, EMAIL_DIRS[ns], 'locales', `${language}.json`)
+      : join(ROOT_DIR, phone, `${language}.json`);
   EMAIL_FILES.add(path);
   return path;
 };
@@ -920,7 +933,7 @@ let all = '';
 for (const language of Object.keys(LANGUAGES))
   for (const ns of readdirSync(SOURCE)
     .map((f) => f.slice(0, -5))
-    .filter((n) => SOURCES[n]?.email !== true)) {
+    .filter((n) => SOURCES[n]?.beside !== true)) {
     const path = join(LOCALES, language, `${ns}.json`);
     if (!existsSync(path)) continue;
     present.push([language, ns]);

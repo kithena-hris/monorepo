@@ -23,6 +23,7 @@ import {
   type SignatureStyle,
   type SignatureValue,
 } from './signature.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Adopting a signature, the web's `AdoptSignatureDialog`: the person's name
@@ -35,9 +36,12 @@ export function AdoptSignatureDialog({
   value = null,
   onOpenChange,
   onAdopt,
-  title = 'Adopt your signature',
-  action = 'Adopt',
-  note = 'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
+  title = t('components.signature.adopt-signature.adopt_your_signature', 'Adopt your signature'),
+  action = t('components.signature.adopt-signature.adopt', 'Adopt'),
+  note = t(
+    'components.signature.adopt-signature.by_adopting_it_you_agree_this',
+    'By adopting it, you agree this electronic signature is the legal equivalent of your handwritten one.',
+  ),
 }: {
   readonly open: boolean;
   /** Their legal name: what a typed signature says. Empty when nobody knows it yet. */
@@ -73,33 +77,50 @@ export function AdoptSignatureDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Choose how it looks, or draw it.</DialogDescription>
+          <DialogDescription>
+            {t(
+              'components.signature.adopt-signature.choose_how_it_looks_or_draw',
+              'Choose how it looks, or draw it.',
+            )}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <SegmentedControl
             fullWidth
             value={how}
-            accessibilityLabel="How you sign"
+            accessibilityLabel={t(
+              'components.signature.adopt-signature.how_you_sign',
+              'How you sign',
+            )}
             onValueChange={(v) => {
               setHow(v === 'draw' ? 'draw' : 'type');
             }}
           >
-            <SegmentedControlItem value="type">Choose a style</SegmentedControlItem>
-            <SegmentedControlItem value="draw">Draw</SegmentedControlItem>
+            <SegmentedControlItem value="type">
+              {t('components.signature.adopt-signature.choose_a_style', 'Choose a style')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="draw">
+              {t('components.signature.adopt-signature.draw', 'Draw')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {how === 'type' ? (
             <>
               <Field disabled={locked}>
-                <FieldLabel>Your legal name</FieldLabel>
+                <FieldLabel>
+                  {t('components.signature.adopt-signature.your_legal_name', 'Your legal name')}
+                </FieldLabel>
                 <Input value={typed} maxLength={120} readOnly={locked} onChange={setTyped} />
                 {locked ? (
                   <FieldDescription>
-                    A signature is your legal first and last name, as your company keeps them.
+                    {t(
+                      'components.signature.adopt-signature.a_signature_is_your_legal_first',
+                      'A signature is your legal first and last name, as your company keeps them.',
+                    )}
                   </FieldDescription>
                 ) : null}
               </Field>
               <RadioGroup
-                accessibilityLabel="Style"
+                accessibilityLabel={t('components.signature.adopt-signature.style', 'Style')}
                 value={style}
                 onValueChange={(v) => {
                   setStyle(v as SignatureStyle);
@@ -114,7 +135,11 @@ export function AdoptSignatureDialog({
                       <View className="h-14 w-full">
                         <Signature
                           value={{ kind: 'typed', text: shown, style: k }}
-                          label={`${shown}, in the ${SIGNATURE_STYLE_LABEL[k].toLowerCase()} style`}
+                          label={t(
+                            'components.signature.adopt-signature.in_the_style',
+                            '{{shown}}, in the {{toLowerCase}} style',
+                            { shown, toLowerCase: SIGNATURE_STYLE_LABEL[k].toLowerCase() },
+                          )}
                         />
                       </View>
                     </View>
@@ -123,7 +148,14 @@ export function AdoptSignatureDialog({
               </RadioGroup>
             </>
           ) : (
-            <SignaturePad label="Draw your signature" value={path} onValueChange={setPath} />
+            <SignaturePad
+              label={t(
+                'components.signature.adopt-signature.draw_your_signature',
+                'Draw your signature',
+              )}
+              value={path}
+              onValueChange={setPath}
+            />
           )}
           <CssText className="text-footnote text-fg-muted">{note}</CssText>
         </DialogBody>
@@ -134,7 +166,7 @@ export function AdoptSignatureDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('components.signature.adopt-signature.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -189,27 +221,51 @@ export function SignatureInput({
         )}
       >
         {value === null ? (
-          <CssText className="text-subhead text-fg-muted">No signature yet</CssText>
+          <CssText className="text-subhead text-fg-muted">
+            {t('components.signature.adopt-signature.no_signature_yet', 'No signature yet')}
+          </CssText>
         ) : (
-          <Signature value={value} label={`${name || label}: signature`} />
+          <Signature
+            value={value}
+            label={t('components.signature.adopt-signature.signature', '{{value}}: signature', {
+              value: name || label,
+            })}
+          />
         )}
       </View>
       <Button
         size="sm"
         className="self-start"
         disabled={disabled}
-        accessibilityLabel={value === null ? `Adopt a signature, ${label}` : `Change it, ${label}`}
+        accessibilityLabel={
+          value === null
+            ? t(
+                'components.signature.adopt-signature.adopt_a_signature',
+                'Adopt a signature, {{label}}',
+                { label },
+              )
+            : t('components.signature.adopt-signature.change_it', 'Change it, {{label}}', { label })
+        }
         onPress={() => {
           setOpen(true);
         }}
       >
-        {value === null ? 'Adopt a signature' : 'Change it'}
+        {value === null
+          ? t('components.signature.adopt-signature.adopt_a_signature_2', 'Adopt a signature')
+          : t('components.signature.adopt-signature.change_it_2', 'Change it')}
       </Button>
       <AdoptSignatureDialog
         open={open}
         name={name}
         value={value}
-        title={value === null ? 'Adopt your signature' : 'Change your signature'}
+        title={
+          value === null
+            ? t('components.signature.adopt-signature.adopt_your_signature', 'Adopt your signature')
+            : t(
+                'components.signature.adopt-signature.change_your_signature',
+                'Change your signature',
+              )
+        }
         onOpenChange={setOpen}
         onAdopt={(next) => {
           onChange(next);

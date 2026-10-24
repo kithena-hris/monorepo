@@ -11,6 +11,7 @@ import { Icon } from '../icon/icon.tsx';
 import { Input, type InputProps } from '../input/input.tsx';
 import { RadioGroup, RadioGroupItem } from '../radio-group/radio-group.tsx';
 import { decimalsFor, formatMinor, parseMinor, symbolFor } from './money.ts';
+import { t } from '../../lib/i18n';
 
 export { formatMinor, parseMinor } from './money.ts';
 
@@ -53,7 +54,7 @@ export function SearchField({
   value,
   onValueChange,
   onSearch,
-  label = 'Search',
+  label = t('components.typed-fields.typed-fields.search', 'Search'),
   hideIcon = false,
   ask = false,
   ...props
@@ -92,7 +93,7 @@ export function SearchField({
               variant="primary"
               className="size-[34px]"
               startIcon={<Icon icon={ArrowUp} size={17} tone="on-accent" />}
-              accessibilityLabel="Ask"
+              accessibilityLabel={t('components.typed-fields.typed-fields.ask', 'Ask')}
               onPress={() => onSearch?.(value)}
             />
           )
@@ -101,7 +102,11 @@ export function SearchField({
             variant="ghost"
             size="xs"
             startIcon={<Icon icon={CircleX} size={18} tone="subtle" />}
-            accessibilityLabel={`Clear ${label.toLowerCase()}`}
+            accessibilityLabel={t(
+              'components.typed-fields.typed-fields.clear',
+              'Clear {{toLowerCase}}',
+              { toLowerCase: label.toLowerCase() },
+            )}
             onPress={() => {
               onValueChange('');
               onSearch?.('');
@@ -174,7 +179,7 @@ export function CurrencyField({
       endAdornment={
         currencies && onCurrencyChange ? (
           <ChoiceButton
-            label="Currency"
+            label={t('components.typed-fields.typed-fields.currency', 'Currency')}
             value={currency}
             options={currencies.map((code) => ({ value: code, label: code }))}
             onChange={onCurrencyChange}
@@ -192,22 +197,118 @@ export function CurrencyField({
 export type DialCode = { country: string; code: string; label: string };
 
 export const commonDialCodes: readonly DialCode[] = [
-  { country: 'GB', code: '+44', label: 'United Kingdom' },
-  { country: 'IE', code: '+353', label: 'Ireland' },
-  { country: 'DE', code: '+49', label: 'Germany' },
-  { country: 'FR', code: '+33', label: 'France' },
-  { country: 'ES', code: '+34', label: 'Spain' },
-  { country: 'NL', code: '+31', label: 'Netherlands' },
-  { country: 'PL', code: '+48', label: 'Poland' },
-  { country: 'US', code: '+1', label: 'United States' },
-  { country: 'CA', code: '+1', label: 'Canada' },
-  { country: 'IN', code: '+91', label: 'India' },
-  { country: 'AU', code: '+61', label: 'Australia' },
-  { country: 'NG', code: '+234', label: 'Nigeria' },
-  { country: 'ZA', code: '+27', label: 'South Africa' },
-  { country: 'BR', code: '+55', label: 'Brazil' },
-  { country: 'JP', code: '+81', label: 'Japan' },
-  { country: 'SG', code: '+65', label: 'Singapore' },
+  {
+    country: 'GB',
+    code: '+44',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.united_kingdom', 'United Kingdom');
+    },
+  },
+  {
+    country: 'IE',
+    code: '+353',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.ireland', 'Ireland');
+    },
+  },
+  {
+    country: 'DE',
+    code: '+49',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.germany', 'Germany');
+    },
+  },
+  {
+    country: 'FR',
+    code: '+33',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.france', 'France');
+    },
+  },
+  {
+    country: 'ES',
+    code: '+34',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.spain', 'Spain');
+    },
+  },
+  {
+    country: 'NL',
+    code: '+31',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.netherlands', 'Netherlands');
+    },
+  },
+  {
+    country: 'PL',
+    code: '+48',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.poland', 'Poland');
+    },
+  },
+  {
+    country: 'US',
+    code: '+1',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.united_states', 'United States');
+    },
+  },
+  {
+    country: 'CA',
+    code: '+1',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.canada', 'Canada');
+    },
+  },
+  {
+    country: 'IN',
+    code: '+91',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.india', 'India');
+    },
+  },
+  {
+    country: 'AU',
+    code: '+61',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.australia', 'Australia');
+    },
+  },
+  {
+    country: 'NG',
+    code: '+234',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.nigeria', 'Nigeria');
+    },
+  },
+  {
+    country: 'ZA',
+    code: '+27',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.south_africa', 'South Africa');
+    },
+  },
+  {
+    country: 'BR',
+    code: '+55',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.brazil', 'Brazil');
+    },
+  },
+  {
+    country: 'JP',
+    code: '+81',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.japan', 'Japan');
+    },
+  },
+  {
+    country: 'SG',
+    code: '+65',
+    get label(): string {
+      return t('components.typed-fields.typed-fields.singapore', 'Singapore');
+    },
+  },
 ];
 
 /** The flag, from the two regional-indicator letters of an ISO country code. */
@@ -251,7 +352,7 @@ export function PhoneField({
       onChange={onValueChange}
       startAdornment={
         <ChoiceButton
-          label="Country code"
+          label={t('components.typed-fields.typed-fields.country_code', 'Country code')}
           value={selected?.country ?? country}
           options={dialCodes.map((d) => ({
             value: d.country,

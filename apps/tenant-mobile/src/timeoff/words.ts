@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /**
  * How the screens say what Time Off sends, as the web's `timeoff/src/words.ts`:
  * amounts, leave types' icons and colours, and dates, so a date reads the
@@ -86,25 +88,33 @@ export function relativeDay(today: string, date: string): string {
   if (n === 0) return 'Today';
   if (n === 1) return 'Tomorrow';
   if (n === -1) return 'Yesterday';
-  return n > 0 ? `In ${String(n)} days` : `${String(-n)} days ago`;
+  return n > 0
+    ? t('timeoff.words.in_days', 'In {{String}} days', { String: String(n) })
+    : `${String(-n)} days ago`;
 }
 
 export type StatusTone = 'success' | 'warning' | 'neutral' | 'info' | 'danger';
 
 /** A request's status as a person reads it (PRD §8.1). */
-const STATUS: Record<string, { readonly label: string; readonly tone: StatusTone }> = {
-  pending: { label: 'Waiting for approval', tone: 'warning' },
-  approved: { label: 'Approved', tone: 'success' },
-  counter_proposed: { label: 'New dates suggested', tone: 'info' },
-  change_pending: { label: 'Change waiting', tone: 'warning' },
-  taken: { label: 'Taken', tone: 'neutral' },
-  declined: { label: 'Declined', tone: 'danger' },
-  cancelled: { label: 'Cancelled', tone: 'neutral' },
-  withdrawn: { label: 'Withdrawn', tone: 'neutral' },
-};
+const STATUS = (): Record<string, { readonly label: string; readonly tone: StatusTone }> => ({
+  pending: {
+    label: t('timeoff.words.waiting_for_approval', 'Waiting for approval'),
+    tone: 'warning',
+  },
+  approved: { label: t('timeoff.words.approved', 'Approved'), tone: 'success' },
+  counter_proposed: {
+    label: t('timeoff.words.new_dates_suggested', 'New dates suggested'),
+    tone: 'info',
+  },
+  change_pending: { label: t('timeoff.words.change_waiting', 'Change waiting'), tone: 'warning' },
+  taken: { label: t('timeoff.words.taken', 'Taken'), tone: 'neutral' },
+  declined: { label: t('timeoff.words.declined', 'Declined'), tone: 'danger' },
+  cancelled: { label: t('timeoff.words.cancelled', 'Cancelled'), tone: 'neutral' },
+  withdrawn: { label: t('timeoff.words.withdrawn', 'Withdrawn'), tone: 'neutral' },
+});
 
 export const statusOf = (status: string): { readonly label: string; readonly tone: StatusTone } =>
-  STATUS[status] ?? { label: status, tone: 'neutral' };
+  STATUS()[status] ?? { label: status, tone: 'neutral' };
 
 /** A bridge's days to ask for: "Mon 7 Dec", or "9–11 Dec" for more than one. */
 export const bridgeDays = (b: { readonly from: string; readonly to: string }): string =>

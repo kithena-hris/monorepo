@@ -3779,6 +3779,306 @@
     "text": "Try again",
     "context": "Performance: reviews, goals, feedback, learning. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./performance/automations.description": {
+    "text": "Cycles that make themselves, on a calendar or after an event",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/automations.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): the heading of the group it is listed under."
+  },
+  "nav./performance/automations.label": {
+    "text": "Automations",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/automations.summary": {
+    "text": "Automations",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/automations): a short line under its name on a phone’s row."
+  },
+  "nav./performance/calibration.description": {
+    "text": "Scores compared across teams before release",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/calibration.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): the heading of the group it is listed under."
+  },
+  "nav./performance/calibration.label": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/calibration.summary": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/calibration): a short line under its name on a phone’s row."
+  },
+  "nav./performance/cycles.description": {
+    "text": "Review cycles: set up, live, closed",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/cycles.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): the heading of the group it is listed under."
+  },
+  "nav./performance/cycles.label": {
+    "text": "Cycles",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/cycles.summary": {
+    "text": "Cycles",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/cycles): a short line under its name on a phone’s row."
+  },
+  "nav./performance/feedback.description": {
+    "text": "Feedback and praise, given whenever it is useful",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/feedback.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): the heading of the group it is listed under."
+  },
+  "nav./performance/feedback.label": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback.summary": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/feedback): a short line under its name on a phone’s row."
+  },
+  "nav./performance/feedback/praise.label": {
+    "text": "Praise",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/praise): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback/requests.label": {
+    "text": "Requests",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/requests): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/feedback/sent.label": {
+    "text": "Sent",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/feedback/sent): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals.description": {
+    "text": "Goals and key results, mine, my team's and the company's",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/goals.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): the heading of the group it is listed under."
+  },
+  "nav./performance/goals.label": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals.summary": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/goals): a short line under its name on a phone’s row."
+  },
+  "nav./performance/goals/company.label": {
+    "text": "Company",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Goals (/performance/goals/company): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/goals/team.label": {
+    "text": "My team",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Goals (/performance/goals/team): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/home.description": {
+    "text": "What you owe, what is owed to you, and your goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/home.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): the heading of the group it is listed under."
+  },
+  "nav./performance/home.label": {
+    "text": "Home",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/home.summary": {
+    "text": "What needs you",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/home): a short line under its name on a phone’s row."
+  },
+  "nav./performance/learning.description": {
+    "text": "Courses, sessions and documents assigned to you, and the catalogue",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/learning.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): the heading of the group it is listed under."
+  },
+  "nav./performance/learning.label": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/learning.summary": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/learning): a short line under its name on a phone’s row."
+  },
+  "nav./performance/learning/catalogue.label": {
+    "text": "Catalogue",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning/catalogue): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/learning/sessions.label": {
+    "text": "Sessions",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Learning (/performance/learning/sessions): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/notes.label": {
+    "text": "Notes",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Feedback (/performance/notes): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews.description": {
+    "text": "Reviews you write, and the ones written about you",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/reviews.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): the heading of the group it is listed under."
+  },
+  "nav./performance/reviews.label": {
+    "text": "My reviews",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews.summary": {
+    "text": "Reviews",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/reviews): a short line under its name on a phone’s row."
+  },
+  "nav./performance/reviews/done.label": {
+    "text": "Done",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of My reviews (/performance/reviews/done): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/reviews/owed.label": {
+    "text": "Owed to me",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of My reviews (/performance/reviews/owed): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/templates.description": {
+    "text": "The forms reviews and feedback are written on",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): one sentence under its name in a menu or on a card."
+  },
+  "nav./performance/templates.group": {
+    "text": "Performance",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): the heading of the group it is listed under."
+  },
+  "nav./performance/templates.label": {
+    "text": "Form templates",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./performance/templates.summary": {
+    "text": "Templates",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a section of the area (/performance/templates): a short line under its name on a phone’s row."
+  },
+  "nav./performance/unlocks.label": {
+    "text": "Unlocks",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a tab of Cycles (/performance/unlocks): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/access.description": {
+    "text": "Who is HR to Performance.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/access): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/access.label": {
+    "text": "Access",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/access): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/ai-log.description": {
+    "text": "Every AI output, for whom and on what.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai-log): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/ai-log.label": {
+    "text": "AI log",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai-log): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/ai.description": {
+    "text": "Each AI feature, on or off; every output is logged.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/ai.label": {
+    "text": "AI",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/ai): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/calibration.description": {
+    "text": "The nine-box guide and who sees what in a session.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/calibration): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/calibration.label": {
+    "text": "Calibration",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/calibration): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/connected-tools.description": {
+    "text": "What Kithena may read of your own work for your reviews.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connected-tools): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/connected-tools.label": {
+    "text": "My connected tools",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connected-tools): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/connections.description": {
+    "text": "Calendars, chat and the tools people may let Kithena read.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connections): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/connections.label": {
+    "text": "Connections",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/connections): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/feedback.description": {
+    "text": "Who gives feedback, whether names are shown, praise and company values.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/feedback): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/feedback.label": {
+    "text": "Feedback",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/feedback): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/general.description": {
+    "text": "The rating scale and the parts of Performance the company uses.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/general): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/general.label": {
+    "text": "General",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/general): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/goals.description": {
+    "text": "Goal periods, check-in cadence and weighting.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/goals): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/goals.label": {
+    "text": "Goals",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/goals): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/learning.description": {
+    "text": "Learning platforms and session attendance.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/learning): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/learning.label": {
+    "text": "Learning",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/learning): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/release.description": {
+    "text": "The defaults a cycle starts from: who releases, the response minimum, acknowledgement.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/release): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/release.label": {
+    "text": "Release",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/release): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/retention.description": {
+    "text": "How long records are kept, and legal holds.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/retention): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/retention.label": {
+    "text": "Retention",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/retention): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/webhooks.description": {
+    "text": "Performance’s events sent to your own systems, signed.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/webhooks): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/webhooks.label": {
+    "text": "Webhooks",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/webhooks): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/performance/works-councils.description": {
+    "text": "Where a works council has agreed, and to what.",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/works-councils): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/performance/works-councils.label": {
+    "text": "Works councils",
+    "context": "Performance: reviews, goals, feedback, learning. Navigation, a page of the area’s settings (/settings/performance/works-councils): its name in the sidebar, the breadcrumb and the menus."
+  },
   "reviews.a_note_for_the_writer": {
     "text": "A note for the writer",
     "context": "Performance: reviews, goals, feedback, learning. reviews.tsx, Unlocks: text inside <FieldLabel>."

@@ -5087,6 +5087,158 @@
     "text": "Try again",
     "context": "People: employee records, org chart, HR settings. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./people/directory/list?add=person.label": {
+    "text": "Add person",
+    "context": "People: employee records, org chart, HR settings. Navigation, an action the area offers (/people/directory/list?add=person): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/directory/list.description": {
+    "text": "Everyone, as a list, cards or an org chart",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/directory/list): one sentence under its name in a menu or on a card."
+  },
+  "nav./people/directory/list.group": {
+    "text": "People",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/directory/list): the heading of the group it is listed under."
+  },
+  "nav./people/directory/list.label": {
+    "text": "Directory",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/directory/list): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/directory/list.summary": {
+    "text": "List, cards or org chart",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/directory/list): a short line under its name on a phone’s row."
+  },
+  "nav./people/import-export.description": {
+    "text": "Bring people in, take data out",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): one sentence under its name in a menu or on a card."
+  },
+  "nav./people/import-export.group": {
+    "text": "People",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): the heading of the group it is listed under."
+  },
+  "nav./people/import-export.label": {
+    "text": "Import & export",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/import-export.summary": {
+    "text": "Move data in and out",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/import-export): a short line under its name on a phone’s row."
+  },
+  "nav./people/insights/data-quality.label": {
+    "text": "Data quality",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/data-quality): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/insights/data-quality.short": {
+    "text": "Quality",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/data-quality): its short name, on a tab under a finger."
+  },
+  "nav./people/insights/headcount.label": {
+    "text": "Headcount",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/headcount): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/insights/pay.label": {
+    "text": "Pay & diversity",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/pay): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/insights/pay.short": {
+    "text": "Pay",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/pay): its short name, on a tab under a finger."
+  },
+  "nav./people/insights/turnover.label": {
+    "text": "Turnover",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Insights (/people/insights/turnover): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/insights/what-changed.description": {
+    "text": "Summary, charts and scheduled reports",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): one sentence under its name in a menu or on a card."
+  },
+  "nav./people/insights/what-changed.group": {
+    "text": "People",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): the heading of the group it is listed under."
+  },
+  "nav./people/insights/what-changed.label": {
+    "text": "Insights",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/insights/what-changed.summary": {
+    "text": "Analytics and reports",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/insights/what-changed): a short line under its name on a phone’s row."
+  },
+  "nav./people/review/asked.label": {
+    "text": "I asked",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/asked): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/review/decided.label": {
+    "text": "Decided",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/decided): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/review/flagged.label": {
+    "text": "Flagged",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/flagged): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/review/waiting.description": {
+    "text": "Every decision and missing detail, in one queue",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): one sentence under its name in a menu or on a card."
+  },
+  "nav./people/review/waiting.group": {
+    "text": "People",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): the heading of the group it is listed under."
+  },
+  "nav./people/review/waiting.label": {
+    "text": "Review",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./people/review/waiting.label_for.finance": {
+    "text": "Your requests",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is finance."
+  },
+  "nav./people/review/waiting.label_for.hr": {
+    "text": "Waiting for me",
+    "context": "People: employee records, org chart, HR settings. Navigation, a tab of Review (/people/review/waiting): its name for a viewer whose role is hr."
+  },
+  "nav./people/review/waiting.summary": {
+    "text": "Every decision, in one queue",
+    "context": "People: employee records, org chart, HR settings. Navigation, a section of the area (/people/review/waiting): a short line under its name on a phone’s row."
+  },
+  "nav./settings/activity?area=fields,organisation,roles,integrations.description": {
+    "text": "Who did what, and when. Never the values themselves.",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/activity?area=fields,organisation,roles,integrations): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/activity?area=fields,organisation,roles,integrations.label": {
+    "text": "Activity log",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/activity?area=fields,organisation,roles,integrations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/people/fields.description": {
+    "text": "What you keep about each person, who sees it and when it’s asked.",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/fields): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/people/fields.label": {
+    "text": "Employee fields",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/fields): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/people/integrations.description": {
+    "text": "Slack, webhooks and provisioning from your identity provider.",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/integrations): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/people/integrations.label": {
+    "text": "Integrations",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/integrations): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/people/organisation.description": {
+    "text": "Legal entities, locations, org units, numbering, country packs, reminders and pay bands.",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/organisation): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/people/organisation.label": {
+    "text": "Organisation",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/organisation): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./settings/people/roles.description": {
+    "text": "Who has administrator, HR and finance access.",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/roles): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/people/roles.label": {
+    "text": "Roles",
+    "context": "People: employee records, org chart, HR settings. Navigation, a page of the area’s settings (/settings/people/roles): its name in the sidebar, the breadcrumb and the menus."
+  },
   "onboarding.add-person.add_a_person": {
     "text": "Add a person",
     "context": "People: employee records, org chart, HR settings. onboarding/add-person.tsx, AddPersonDialog: text inside <DialogTitle>."

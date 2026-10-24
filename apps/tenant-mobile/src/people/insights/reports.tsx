@@ -49,6 +49,7 @@ import { useAct } from '../act';
 import { ask, useRead, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
 import { scheduleVariables, type ScheduleDraft } from './schedule';
+import { t } from '../../i18n';
 
 type Every = 'day' | 'week' | 'month';
 
@@ -87,29 +88,47 @@ interface SchedulesState {
 }
 
 const EACH_SEES_THEIR_OWN = 'Each recipient sees only the people and columns they have access to.';
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAYS = () => [
+  t('people.insights.reports.monday', 'Monday'),
+  t('people.insights.reports.tuesday', 'Tuesday'),
+  t('people.insights.reports.wednesday', 'Wednesday'),
+  t('people.insights.reports.thursday', 'Thursday'),
+  t('people.insights.reports.friday', 'Friday'),
+  t('people.insights.reports.saturday', 'Saturday'),
+  t('people.insights.reports.sunday', 'Sunday'),
+];
 const hh = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
 
 export function cadenceText(r: Pick<ScheduleRow, 'every' | 'weekday' | 'day' | 'hour'>): string {
   if (r.every === 'week')
-    return `Weekly on ${WEEKDAYS[(r.weekday ?? 1) - 1] ?? 'Monday'} at ${hh(r.hour)}`;
-  if (r.every === 'month') return `Monthly on day ${String(r.day ?? 1)} at ${hh(r.hour)}`;
-  return `Daily at ${hh(r.hour)}`;
+    return t('people.insights.reports.weekly_on_at', 'Weekly on {{value}} at {{hh}}', {
+      value: WEEKDAYS()[(r.weekday ?? 1) - 1] ?? 'Monday',
+      hh: hh(r.hour),
+    });
+  if (r.every === 'month')
+    return t('people.insights.reports.monthly_on_day_at', 'Monthly on day {{String}} at {{hh}}', {
+      String: String(r.day ?? 1),
+      hh: hh(r.hour),
+    });
+  return t('people.insights.reports.daily_at', 'Daily at {{hh}}', { hh: hh(r.hour) });
 }
 
-const RUN_OUTCOME: Record<
+const RUN_OUTCOME = (): Record<
   string,
   { label: string; tone: 'success' | 'warning' | 'danger' | 'neutral' }
-> = {
-  sent: { label: 'Sent', tone: 'success' },
-  partial: { label: 'Partly sent', tone: 'warning' },
-  failed: { label: 'Failed', tone: 'danger' },
-  skipped: { label: 'Skipped', tone: 'neutral' },
-};
+> => ({
+  sent: { label: t('people.insights.reports.sent', 'Sent'), tone: 'success' },
+  partial: { label: t('people.insights.reports.partly_sent', 'Partly sent'), tone: 'warning' },
+  failed: { label: t('people.insights.reports.failed', 'Failed'), tone: 'danger' },
+  skipped: { label: t('people.insights.reports.skipped', 'Skipped'), tone: 'neutral' },
+});
 const outcomeOf = (outcome: string | null) =>
   outcome === null
-    ? { label: 'Did not finish', tone: 'neutral' as const }
-    : (RUN_OUTCOME[outcome] ?? { label: outcome, tone: 'neutral' as const });
+    ? {
+        label: t('people.insights.reports.did_not_finish', 'Did not finish'),
+        tone: 'neutral' as const,
+      }
+    : (RUN_OUTCOME()[outcome] ?? { label: outcome, tone: 'neutral' as const });
 
 const draftOf = (row: ScheduleRow | null): ScheduleDraft => ({
   name: row?.name ?? '',
@@ -152,18 +171,26 @@ export function ScheduledReports({
   const { act } = useAct();
   const [open, setOpen] = useState<ScheduleRow | 'new' | null>(null);
   const [deleting, setDeleting] = useState<ScheduleRow | null>(null);
-  const back = { label: 'Insights', onPress: navigation.goBack };
+  const back = {
+    label: t('people.insights.reports.insights', 'Insights'),
+    onPress: navigation.goBack,
+  };
   const done = (made: unknown): void => {
     if (made !== null) reload();
   };
 
   if (load.status !== 'ready') {
     return (
-      <Page title="Scheduled reports" back={back}>
+      <Page title={t('people.insights.reports.scheduled_reports', 'Scheduled reports')} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the scheduled reports" />
+          <Loading
+            label={t(
+              'people.insights.reports.loading_the_scheduled_reports',
+              'Loading the scheduled reports',
+            )}
+          />
         )}
       </Page>
     );
@@ -171,7 +198,7 @@ export function ScheduledReports({
   const state = load.data;
   return (
     <Page
-      title="Scheduled reports"
+      title={t('people.insights.reports.scheduled_reports', 'Scheduled reports')}
       back={back}
       {...(state.canManage
         ? {
@@ -180,7 +207,10 @@ export function ScheduledReports({
                 size="sm"
                 variant="primary"
                 startIcon={<Icon icon={Plus} />}
-                accessibilityLabel="New scheduled report"
+                accessibilityLabel={t(
+                  'people.insights.reports.new_scheduled_report',
+                  'New scheduled report',
+                )}
                 onPress={() => {
                   setOpen('new');
                 }}
@@ -190,15 +220,26 @@ export function ScheduledReports({
         : {})}
     >
       <Text tone="muted">
-        A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.
+        {t(
+          'people.insights.reports.a_file_or_the_summary_emailed',
+          'A file or the summary, emailed as a link on a cadence. Nobody is sent the data itself.',
+        )}
       </Text>
       {!state.canManage ? (
-        <Alert tone="info">Only HR and People administrators schedule reports.</Alert>
+        <Alert tone="info">
+          {t(
+            'people.insights.reports.only_hr_and_people_administrators_schedule',
+            'Only HR and People administrators schedule reports.',
+          )}
+        </Alert>
       ) : state.schedules.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
-          title="No scheduled reports"
-          description="Schedule an Excel file, a PDF roster or the summary for the people who need it."
+          title={t('people.insights.reports.no_scheduled_reports', 'No scheduled reports')}
+          description={t(
+            'people.insights.reports.schedule_an_excel_file_a_pdf',
+            'Schedule an Excel file, a PDF roster or the summary for the people who need it.',
+          )}
         />
       ) : (
         <List>
@@ -222,17 +263,25 @@ export function ScheduledReports({
                       size="sm"
                       variant="ghost"
                       startIcon={<Icon icon={Ellipsis} />}
-                      accessibilityLabel={`Actions for ${row.name}`}
+                      accessibilityLabel={t(
+                        'people.insights.reports.actions_for',
+                        'Actions for {{name}}',
+                        { name: row.name },
+                      )}
                     />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent label={`Actions for ${row.name}`}>
+                  <DropdownMenuContent
+                    label={t('people.insights.reports.actions_for', 'Actions for {{name}}', {
+                      name: row.name,
+                    })}
+                  >
                     <DropdownMenuItem
                       icon={Pencil}
                       onSelect={() => {
                         setOpen(row);
                       }}
                     >
-                      Edit
+                      {t('people.insights.reports.edit', 'Edit')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       icon={row.paused ? Play : Pause}
@@ -244,7 +293,9 @@ export function ScheduledReports({
                         ).then(done);
                       }}
                     >
-                      {row.paused ? 'Resume' : 'Pause'}
+                      {row.paused
+                        ? t('people.insights.reports.resume', 'Resume')
+                        : t('people.insights.reports.pause', 'Pause')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       icon={History}
@@ -252,7 +303,7 @@ export function ScheduledReports({
                         navigation.navigate('ReportHistory', { id: row.id, name: row.name });
                       }}
                     >
-                      History
+                      {t('people.insights.reports.history', 'History')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       icon={Trash2}
@@ -261,7 +312,7 @@ export function ScheduledReports({
                         setDeleting(row);
                       }}
                     >
-                      Delete
+                      {t('people.insights.reports.delete', 'Delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -294,9 +345,14 @@ export function ScheduledReports({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`Delete ${deleting.name}?`}</DialogTitle>
+              <DialogTitle>
+                {t('people.insights.reports.delete_2', 'Delete {{name}}?', { name: deleting.name })}
+              </DialogTitle>
               <DialogDescription>
-                Nobody will receive it again, and its run history is deleted with it.
+                {t(
+                  'people.insights.reports.nobody_will_receive_it_again_and',
+                  'Nobody will receive it again, and its run history is deleted with it.',
+                )}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -306,7 +362,7 @@ export function ScheduledReports({
                   setDeleting(null);
                 }}
               >
-                Cancel
+                {t('people.insights.reports.cancel', 'Cancel')}
               </Button>
               <Button
                 className="flex-1"
@@ -317,7 +373,7 @@ export function ScheduledReports({
                   void act('DeleteReportSchedule', { id }, 'Deleted').then(done);
                 }}
               >
-                Delete
+                {t('people.insights.reports.delete', 'Delete')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -395,18 +451,36 @@ function ScheduleForm({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Each recipient gets only what they may see</DialogTitle>
-            <DialogDescription>Confirm before this schedule is saved.</DialogDescription>
+            <DialogTitle>
+              {t(
+                'people.insights.reports.each_recipient_gets_only_what_they',
+                'Each recipient gets only what they may see',
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                'people.insights.reports.confirm_before_this_schedule_is_saved',
+                'Confirm before this schedule is saved.',
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <Text>
-              {`This report is built again for each of its ${String(draft.recipients.length)} ${
-                draft.recipients.length === 1 ? 'recipient' : 'recipients'
-              }, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.`}
+              {t(
+                'people.insights.reports.this_report_is_built_again_for',
+                {
+                  one: 'This report is built again for each of its {{count}} recipient, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                  other:
+                    'This report is built again for each of its {{count}} recipients, every time it runs, as that person. Each one gets only the people they may list and the columns they may read — so different recipients may receive different people and different columns, and a manager’s file can be much shorter than HR’s.',
+                },
+                { count: draft.recipients.length },
+              )}
             </Text>
             <Text>
-              People who have left or lost access receive nothing. Emails contain a sign-in link,
-              never data.
+              {t(
+                'people.insights.reports.people_who_have_left_or_lost',
+                'People who have left or lost access receive nothing. Emails contain a sign-in link, never data.',
+              )}
             </Text>
           </DialogBody>
           <DialogFooter>
@@ -416,10 +490,10 @@ function ScheduleForm({
                 setConfirming(false);
               }}
             >
-              Back
+              {t('people.insights.reports.back', 'Back')}
             </Button>
             <Button className="flex-1" variant="primary" loading={saving} onPress={save}>
-              Save it
+              {t('people.insights.reports.save_it', 'Save it')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -436,15 +510,22 @@ function ScheduleForm({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{row === null ? 'New scheduled report' : `Edit ${row.name}`}</DialogTitle>
+          <DialogTitle>
+            {row === null
+              ? t('people.insights.reports.new_scheduled_report', 'New scheduled report')
+              : t('people.insights.reports.edit_2', 'Edit {{name}}', { name: row.name })}
+          </DialogTitle>
           <DialogDescription>
-            It first goes out at its next time, not when it is saved.
+            {t(
+              'people.insights.reports.it_first_goes_out_at_its',
+              'It first goes out at its next time, not when it is saved.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <ScrollView style={{ flexGrow: 0, maxHeight: 440 }} contentContainerClassName="gap-4">
             <Field required>
-              <FieldLabel>Name</FieldLabel>
+              <FieldLabel>{t('people.insights.reports.name', 'Name')}</FieldLabel>
               <Input
                 value={draft.name}
                 maxLength={80}
@@ -454,39 +535,57 @@ function ScheduleForm({
                 }}
               />
               <FieldDescription>
-                Only you and other HR see it; it is not in the email.
+                {t(
+                  'people.insights.reports.only_you_and_other_hr_see',
+                  'Only you and other HR see it; it is not in the email.',
+                )}
               </FieldDescription>
             </Field>
             <RadioGroup
-              accessibilityLabel="Report"
+              accessibilityLabel={t('people.insights.reports.report', 'Report')}
               value={draft.kind === 'summary' ? 'summary' : draft.format}
               onValueChange={(value) => {
                 if (value === 'summary') set({ kind: 'summary', segmentId: null, filter: [] });
                 else set({ kind: 'export', format: value === 'pdf' ? 'pdf' : 'xlsx' });
               }}
             >
-              <RadioCard value="xlsx" description="For a person to read and edit.">
-                Excel file
+              <RadioCard
+                value="xlsx"
+                description={t(
+                  'people.insights.reports.for_a_person_to_read_and',
+                  'For a person to read and edit.',
+                )}
+              >
+                {t('people.insights.reports.excel_file', 'Excel file')}
               </RadioCard>
-              <RadioCard value="pdf" description="To print or file.">
-                PDF roster
+              <RadioCard
+                value="pdf"
+                description={t('people.insights.reports.to_print_or_file', 'To print or file.')}
+              >
+                {t('people.insights.reports.pdf_roster', 'PDF roster')}
               </RadioCard>
               <RadioCard
                 value="summary"
-                description="Headcount, movement and completeness, read signed in."
+                description={t(
+                  'people.insights.reports.headcount_movement_and_completeness_read_signed',
+                  'Headcount, movement and completeness, read signed in.',
+                )}
               >
-                Summary
+                {t('people.insights.reports.summary', 'Summary')}
               </RadioCard>
             </RadioGroup>
             {draft.kind === 'export' ? (
               <>
                 <Field>
-                  <FieldLabel>Fields</FieldLabel>
+                  <FieldLabel>{t('people.insights.reports.fields', 'Fields')}</FieldLabel>
                   <Combobox
-                    label="Fields"
+                    label={t('people.insights.reports.fields', 'Fields')}
                     multiple
                     size="sm"
-                    placeholder="Every field each recipient may read"
+                    placeholder={t(
+                      'people.insights.reports.every_field_each_recipient_may_read',
+                      'Every field each recipient may read',
+                    )}
                     options={state.fields.map((f) => ({ value: f.key, label: f.label }))}
                     value={draft.fields ?? []}
                     onChange={(value) => {
@@ -495,12 +594,14 @@ function ScheduleForm({
                     }}
                   />
                   <FieldDescription>
-                    Leave empty for every field. A recipient who cannot read a field gets the file
-                    without it.
+                    {t(
+                      'people.insights.reports.leave_empty_for_every_field_a',
+                      'Leave empty for every field. A recipient who cannot read a field gets the file without it.',
+                    )}
                   </FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel>Reason</FieldLabel>
+                  <FieldLabel>{t('people.insights.reports.reason', 'Reason')}</FieldLabel>
                   <Input
                     value={draft.reason ?? ''}
                     maxLength={500}
@@ -510,7 +611,10 @@ function ScheduleForm({
                     }}
                   />
                   <FieldDescription>
-                    Needed when pay or a bank account is in the file; kept with every run.
+                    {t(
+                      'people.insights.reports.needed_when_pay_or_a_bank',
+                      'Needed when pay or a bank account is in the file; kept with every run.',
+                    )}
                   </FieldDescription>
                 </Field>
               </>
@@ -523,15 +627,29 @@ function ScheduleForm({
                 else if (value !== 'filter') set({ segmentId: value, filter: [] });
               },
               [
-                ['everybody', 'Everybody each recipient may see'],
+                [
+                  'everybody',
+                  t(
+                    'people.insights.reports.everybody_each_recipient_may_see',
+                    'Everybody each recipient may see',
+                  ),
+                ],
                 ...(row !== null && row.filter.length > 0
-                  ? [['filter', 'The filter it was saved with'] as const]
+                  ? [
+                      [
+                        'filter',
+                        t(
+                          'people.insights.reports.the_filter_it_was_saved_with',
+                          'The filter it was saved with',
+                        ),
+                      ] as const,
+                    ]
                   : []),
                 ...segments.map((s) => [s.id, s.name] as const),
               ],
             )}
             {select(
-              'How often',
+              t('people.insights.reports.how_often', 'How often'),
               draft.every,
               (value) => {
                 set({ every: value === 'day' ? 'day' : value === 'month' ? 'month' : 'week' });
@@ -549,12 +667,12 @@ function ScheduleForm({
                   (value) => {
                     set({ weekday: Number(value) });
                   },
-                  WEEKDAYS.map((name, i) => [String(i + 1), name] as const),
+                  WEEKDAYS().map((name, i) => [String(i + 1), name] as const),
                 )
               : null}
             {draft.every === 'month'
               ? select(
-                  'Day of the month',
+                  t('people.insights.reports.day_of_the_month', 'Day of the month'),
                   String(draft.day),
                   (value) => {
                     set({ day: Number(value) });
@@ -573,26 +691,41 @@ function ScheduleForm({
             {state.legalEntities.length === 0
               ? null
               : select(
-                  'On whose clock',
+                  t('people.insights.reports.on_whose_clock', 'On whose clock'),
                   draft.legalEntityId ?? 'default',
                   (value) => {
                     set({ legalEntityId: value === 'default' ? null : value });
                   },
                   [
-                    ['default', 'The company’s default time zone'],
+                    [
+                      'default',
+                      t(
+                        'people.insights.reports.the_companys_default_time_zone',
+                        'The company’s default time zone',
+                      ),
+                    ],
                     ...state.legalEntities.map((e) => [e.id, e.name] as const),
                   ],
                 )}
             <Field required>
-              <FieldLabel>Recipients</FieldLabel>
+              <FieldLabel>{t('people.insights.reports.recipients', 'Recipients')}</FieldLabel>
               <Combobox
-                label="Recipients"
+                label={t('people.insights.reports.recipients', 'Recipients')}
                 multiple
                 size="sm"
-                placeholder="Pick up to 25 people"
+                placeholder={t(
+                  'people.insights.reports.pick_up_to_25_people',
+                  'Pick up to 25 people',
+                )}
                 options={state.people.map((p) => ({
                   value: p.accountId,
-                  label: p.name ?? p.workEmail ?? 'Somebody without a name yet',
+                  label:
+                    p.name ??
+                    p.workEmail ??
+                    t(
+                      'people.insights.reports.somebody_without_a_name_yet',
+                      'Somebody without a name yet',
+                    ),
                   ...(p.name !== null && p.workEmail !== null ? { description: p.workEmail } : {}),
                 }))}
                 value={draft.recipients}
@@ -610,7 +743,7 @@ function ScheduleForm({
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.insights.reports.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -622,7 +755,7 @@ function ScheduleForm({
               else save();
             }}
           >
-            Save
+            {t('people.insights.reports.save', 'Save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -680,7 +813,10 @@ export function ReportHistory({
     void page(null);
   }, [signed, route.params.id]);
 
-  const back = { label: 'Reports', onPress: navigation.goBack };
+  const back = {
+    label: t('people.insights.reports.reports', 'Reports'),
+    onPress: navigation.goBack,
+  };
   if (failed !== null) {
     return (
       <Page title={route.params.name} back={back}>
@@ -697,18 +833,23 @@ export function ReportHistory({
   return (
     <Page title={route.params.name} back={back}>
       {runs === null ? (
-        <Loading label="Loading the runs" />
+        <Loading label={t('people.insights.reports.loading_the_runs', 'Loading the runs')} />
       ) : runs.length === 0 ? (
         <EmptyState
           icon={History}
-          title="Not run yet"
-          description="It first goes out at its next time after it was saved."
+          title={t('people.insights.reports.not_run_yet', 'Not run yet')}
+          description={t(
+            'people.insights.reports.it_first_goes_out_at_its_2',
+            'It first goes out at its next time after it was saved.',
+          )}
         />
       ) : (
         <>
           <Text variant="footnote" tone="muted">
-            Each run, newest first. A run after the backend slept covers the periods it missed; only
-            the latest is sent.
+            {t(
+              'people.insights.reports.each_run_newest_first_a_run',
+              'Each run, newest first. A run after the backend slept covers the periods it missed; only the latest is sent.',
+            )}
           </Text>
           <List>
             {runs.map((run) => {
@@ -718,7 +859,14 @@ export function ReportHistory({
                   key={run.period}
                   description={[
                     run.missed > 0
-                      ? `Covers ${String(run.missed)} earlier ${run.missed === 1 ? 'period' : 'periods'}`
+                      ? t(
+                          'people.insights.reports.covers_earlier_periods',
+                          {
+                            one: 'Covers {{count}} earlier period',
+                            other: 'Covers {{count}} earlier periods',
+                          },
+                          { count: run.missed },
+                        )
                       : null,
                     ...run.recipients.map((r) =>
                       r.accountId === null
@@ -749,7 +897,7 @@ export function ReportHistory({
                 });
               }}
             >
-              Show older
+              {t('people.insights.reports.show_older', 'Show older')}
             </Button>
           )}
         </>

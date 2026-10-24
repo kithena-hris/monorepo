@@ -17,6 +17,7 @@ import { Page } from '../frame';
 import { useSigned } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { askDocuments } from './api';
+import { t } from '../i18n';
 
 /**
  * Draft with Kithena on the phone, as on the web (PRD §14.2): HR says what
@@ -147,18 +148,26 @@ export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): Re
 
   return (
     <Page
-      title="Draft with Kithena"
-      back={{ label: 'Close', onPress: navigation.goBack }}
+      title={t('documents.draft.draft_with_kithena', 'Draft with Kithena')}
+      back={{ label: t('documents.draft.close', 'Close'), onPress: navigation.goBack }}
       foot={
         <ChatComposer
-          accessibilityLabel="Message Kithena"
-          placeholder="An offer letter for Omar, 85,000 a year. He signs, then me."
+          accessibilityLabel={t('documents.draft.message_kithena', 'Message Kithena')}
+          placeholder={t(
+            'documents.draft.an_offer_letter_for_omar_85',
+            'An offer letter for Omar, 85,000 a year. He signs, then me.',
+          )}
           busy={busy}
           onSend={send}
         />
       }
     >
-      <ChatLog accessibilityLabel="Conversation with Kithena">
+      <ChatLog
+        accessibilityLabel={t(
+          'documents.draft.conversation_with_kithena',
+          'Conversation with Kithena',
+        )}
+      >
         <ChatMessage author="Kithena">{OPENING}</ChatMessage>
         {said.map((m, i) => (
           <ChatMessage
@@ -180,12 +189,21 @@ export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): Re
             {draft.typeName === null ? null : <Badge>{draft.typeName}</Badge>}
           </View>
           {draft.about === null ? null : (
-            <Text variant="footnote" tone="muted">{`About ${draft.about}`}</Text>
+            <Text variant="footnote" tone="muted">
+              {t('documents.draft.about', 'About {{about}}', { about: draft.about })}
+            </Text>
           )}
           <Text>{draft.body}</Text>
           {draft.figures.length === 0 ? null : (
             <Alert tone="warning">
-              {`Check ${draft.figures.join(', ')}: nobody gave Kithena ${draft.figures.length === 1 ? 'this figure' : 'these figures'}.`}
+              {t(
+                'documents.draft.check_nobody_gave_kithena',
+                {
+                  one: 'Check {{join}}: nobody gave Kithena this figure.',
+                  other: 'Check {{join}}: nobody gave Kithena these figures.',
+                },
+                { count: draft.figures.length, join: draft.figures.join(', ') },
+              )}
             </Alert>
           )}
           {signs ? (
@@ -195,9 +213,9 @@ export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): Re
                 .map((s) => {
                   const badge =
                     s.personId !== null ? null : s.email === null ? (
-                      <Badge tone="warning">Not found</Badge>
+                      <Badge tone="warning">{t('documents.draft.not_found', 'Not found')}</Badge>
                     ) : (
-                      <Badge tone="info">Outside</Badge>
+                      <Badge tone="info">{t('documents.draft.outside', 'Outside')}</Badge>
                     );
                   return (
                     <ListItem
@@ -219,7 +237,7 @@ export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): Re
                 press(true);
               }}
             >
-              Send for signature
+              {t('documents.draft.send_for_signature', 'Send for signature')}
             </Button>
           ) : null}
           <Button
@@ -228,7 +246,9 @@ export function DocumentDraft({ navigation }: PeopleScreen<'DocumentDraft'>): Re
               press(false);
             }}
           >
-            {signs ? 'File without sending' : 'File it'}
+            {signs
+              ? t('documents.draft.file_without_sending', 'File without sending')
+              : t('documents.draft.file_it', 'File it')}
           </Button>
         </View>
       )}

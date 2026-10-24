@@ -6,6 +6,7 @@ import Animated from 'react-native-reanimated';
 import { usePulse } from '../../lib/animate.ts';
 import { cn } from '../../lib/cn.ts';
 import { Icon, type IconProps, type LucideIcon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Events in order, as the web's: history, approvals, and changes that take
@@ -139,7 +140,9 @@ export function TimelineItem({
         </View>
         {effectiveFrom ? (
           <CssText className="mt-0.5 text-[13px] leading-[1.4] text-fg-muted">
-            Effective {effectiveFrom}
+            {t('components.timeline.timeline.effective', 'Effective  {{effectiveFrom}}', {
+              effectiveFrom,
+            })}
           </CssText>
         ) : null}
         {typeof children === 'string' ? (

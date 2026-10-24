@@ -24,6 +24,7 @@ import {
 import { type LucideIcon, Icon } from '../icon/icon.tsx';
 import { EdgePanel } from '../sheet/sheet.tsx';
 import { Text } from '../text/text.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * A short list of actions that slides up from the bottom: the phone's menu.
@@ -131,7 +132,12 @@ export type ActionSheetContentProps = {
 
 export function ActionSheetContent(props: ActionSheetContentProps): React.JSX.Element | null {
   if (useContext(AsMenu)) {
-    const { title, label = 'Actions', portalHost, children } = props;
+    const {
+      title,
+      label = t('components.action-sheet.action-sheet.actions', 'Actions'),
+      portalHost,
+      children,
+    } = props;
     return (
       <DropdownMenuContent
         label={typeof title === 'string' ? title : label}
@@ -149,9 +155,9 @@ export function ActionSheetContent(props: ActionSheetContentProps): React.JSX.El
 function SheetContent({
   title,
   description,
-  label = 'Actions',
+  label = t('components.action-sheet.action-sheet.actions', 'Actions'),
   header,
-  cancelLabel = 'Cancel',
+  cancelLabel = t('components.action-sheet.action-sheet.cancel', 'Cancel'),
   portalHost,
   className,
   children,

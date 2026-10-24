@@ -32,6 +32,7 @@ import {
   type FilterGroup,
   type FilterValueKind,
 } from '@reach/ui/filter-model';
+import { t } from '../../lib/i18n';
 
 /**
  * Filters built out of conditions, as the web's `FilterBuilder`: each a
@@ -95,13 +96,16 @@ export function FilterBuilder({
   fields,
   value,
   onChange,
-  label = 'Conditions',
+  label = t('components.filter-builder.filter-builder.conditions', 'Conditions'),
   maxConditions = 10,
   newId = defaultId,
   allowGroups = false,
   errors = {},
   title,
-  emptyDescription = 'Add a condition to narrow the list.',
+  emptyDescription = t(
+    'components.filter-builder.filter-builder.add_a_condition_to_narrow_the',
+    'Add a condition to narrow the list.',
+  ),
   action,
   className,
 }: FilterBuilderProps): React.JSX.Element {
@@ -131,7 +135,7 @@ export function FilterBuilder({
       <Card className={className}>
         <EmptyState
           icon={Filter}
-          title="No filters yet"
+          title={t('components.filter-builder.filter-builder.no_filters_yet', 'No filters yet')}
           description={emptyDescription}
           action={
             <Button
@@ -182,7 +186,7 @@ export function FilterBuilder({
   const match =
     items < 2 ? null : (
       <MatchToggle
-        label="Match"
+        label={t('components.filter-builder.filter-builder.match', 'Match')}
         match={value.match}
         onChange={(m) => {
           onChange(setMatch(value, null, m));
@@ -197,37 +201,59 @@ export function FilterBuilder({
         <View key={group.id} role="listitem" className="gap-2">
           {value.conditions.length + index > 0 ? (
             <CssText className="text-[12px] leading-none font-semibold text-fg-muted">
-              {value.match === 'all' ? 'and' : 'or'}
+              {value.match === 'all'
+                ? t('components.filter-builder.filter-builder.and', 'and')
+                : t('components.filter-builder.filter-builder.or', 'or')}
             </CssText>
           ) : null}
           <View
             role="group"
-            aria-label={`Group, ${group.match} of these`}
+            aria-label={t(
+              'components.filter-builder.filter-builder.group_of_these',
+              'Group, {{match}} of these',
+              { match: group.match },
+            )}
             className="gap-2 rounded-[16px] border border-border-strong p-2.5"
           >
             <View className="flex-row flex-wrap items-center gap-2">
               <MatchToggle
-                label="Match in this group"
+                label={t(
+                  'components.filter-builder.filter-builder.match_in_this_group',
+                  'Match in this group',
+                )}
                 match={group.match}
                 onChange={(m) => {
                   onChange(setMatch(value, group.id, m));
                 }}
               />
               <CssText className="text-[13px] leading-none font-medium text-fg-muted">
-                of these are true
+                {t(
+                  'components.filter-builder.filter-builder.of_these_are_true',
+                  'of these are true',
+                )}
               </CssText>
               <Button
                 variant="ghost"
                 size="sm"
                 className="ml-auto"
                 startIcon={<Icon icon={Trash2} />}
-                accessibilityLabel="Remove this group"
+                accessibilityLabel={t(
+                  'components.filter-builder.filter-builder.remove_this_group',
+                  'Remove this group',
+                )}
                 onPress={() => {
                   onChange(removeItem(value, group.id));
                 }}
               />
             </View>
-            <View role="list" aria-label="Conditions in this group" className="gap-2">
+            <View
+              role="list"
+              aria-label={t(
+                'components.filter-builder.filter-builder.conditions_in_this_group',
+                'Conditions in this group',
+              )}
+              className="gap-2"
+            >
               {group.conditions.map((c, i) => card(c, i, group.match))}
             </View>
             <View className="flex-row">
@@ -240,7 +266,7 @@ export function FilterBuilder({
                   add(group.id);
                 }}
               >
-                Condition
+                {t('components.filter-builder.filter-builder.condition', 'Condition')}
               </Button>
             </View>
           </View>
@@ -260,7 +286,7 @@ export function FilterBuilder({
           add(null);
         }}
       >
-        Add condition
+        {t('components.filter-builder.filter-builder.add_condition', 'Add condition')}
       </Button>
       {allowGroups ? (
         <Button
@@ -270,13 +296,17 @@ export function FilterBuilder({
           disabled={full || fields.length === 0}
           onPress={addNested}
         >
-          Add group
+          {t('components.filter-builder.filter-builder.add_group', 'Add group')}
         </Button>
       ) : null}
       {action ? <View className="ml-auto">{action}</View> : null}
       {full ? (
         <Text variant="footnote" tone="muted" className="basis-full">
-          {`Up to ${String(maxConditions)} conditions. Remove one to add another.`}
+          {t(
+            'components.filter-builder.filter-builder.up_to_conditions_remove_one_to',
+            'Up to {{String}} conditions. Remove one to add another.',
+            { String: String(maxConditions) },
+          )}
         </Text>
       ) : null}
     </View>
@@ -288,7 +318,7 @@ export function FilterBuilder({
         {match ? (
           <View className="flex-row items-center gap-2">
             <Text variant="subhead" tone="muted">
-              Match
+              {t('components.filter-builder.filter-builder.match', 'Match')}
             </Text>
             {match}
           </View>
@@ -318,7 +348,7 @@ export function FilterBuilder({
             onChange({ match: value.match, conditions: [] });
           }}
         >
-          Clear
+          {t('components.filter-builder.filter-builder.clear', 'Clear')}
         </Button>
       </View>
       {list}
@@ -345,8 +375,12 @@ function MatchToggle({
       }}
       accessibilityLabel={label}
     >
-      <SegmentedControlItem value="all">All</SegmentedControlItem>
-      <SegmentedControlItem value="any">Any</SegmentedControlItem>
+      <SegmentedControlItem value="all">
+        {t('components.filter-builder.filter-builder.all', 'All')}
+      </SegmentedControlItem>
+      <SegmentedControlItem value="any">
+        {t('components.filter-builder.filter-builder.any', 'Any')}
+      </SegmentedControlItem>
     </SegmentedControl>
   );
 }
@@ -378,7 +412,7 @@ function ConditionCard({
         <CssText className="text-[12px] leading-none font-semibold text-fg-muted">{joiner}</CssText>
       ) : null}
       <Choice
-        label={`${said}, field`}
+        label={t('components.filter-builder.filter-builder.field', '{{said}}, field', { said })}
         value={condition.field}
         options={fields.map((f) => ({ value: f.id, label: f.label }))}
         onChange={(id) => {
@@ -386,7 +420,9 @@ function ConditionCard({
         }}
       />
       <Choice
-        label={`${said}, operator`}
+        label={t('components.filter-builder.filter-builder.operator', '{{said}}, operator', {
+          said,
+        })}
         value={condition.operator}
         options={(field?.operators ?? []).map((o) => ({ value: o.id, label: o.label }))}
         onChange={(id) => {
@@ -397,7 +433,11 @@ function ConditionCard({
         <View className="flex-1">
           <ValueInput
             kind={operator?.value ?? 'none'}
-            label={`${said}, value for ${fieldName}`}
+            label={t(
+              'components.filter-builder.filter-builder.value_for',
+              '{{said}}, value for {{fieldName}}',
+              { said, fieldName },
+            )}
             options={field?.options ?? []}
             values={condition.values}
             invalid={error !== undefined}
@@ -410,7 +450,11 @@ function ConditionCard({
           variant="ghost"
           size="sm"
           startIcon={<Icon icon={Trash2} />}
-          accessibilityLabel={`Remove condition ${String(n)}, ${fieldName}`}
+          accessibilityLabel={t(
+            'components.filter-builder.filter-builder.remove_condition',
+            'Remove condition {{String}}, {{fieldName}}',
+            { String: String(n), fieldName },
+          )}
           onPress={onRemove}
         />
       </View>
@@ -449,7 +493,7 @@ function ValueInput({
         <Input
           size="sm"
           value={first}
-          placeholder="Value"
+          placeholder={t('components.filter-builder.filter-builder.value', 'Value')}
           accessibilityLabel={label}
           invalid={invalid}
           {...(kind === 'number' ? { keyboardType: 'decimal-pad' as const } : {})}
@@ -476,7 +520,7 @@ function ValueInput({
           size="sm"
           mode="range"
           label={label}
-          placeholder="Pick a period"
+          placeholder={t('components.filter-builder.filter-builder.pick_a_period', 'Pick a period')}
           invalid={invalid}
           value={values.length === 0 ? null : { start: values[0] || null, end: values[1] || null }}
           onChange={(range) => {
@@ -489,7 +533,7 @@ function ValueInput({
         <Choice
           label={label}
           value={first}
-          placeholder="Choose one"
+          placeholder={t('components.filter-builder.filter-builder.choose_one', 'Choose one')}
           options={options}
           invalid={invalid}
           onChange={(v) => {
@@ -503,7 +547,7 @@ function ValueInput({
           size="sm"
           multiple
           label={label}
-          placeholder="Choose any"
+          placeholder={t('components.filter-builder.filter-builder.choose_any', 'Choose any')}
           options={options}
           invalid={invalid}
           value={values}
@@ -575,7 +619,11 @@ export function AppliedFilters({
           key={f.id}
           field={f.field}
           selected
-          removeLabel={`Remove ${f.field} ${f.label}`}
+          removeLabel={t(
+            'components.filter-builder.filter-builder.remove',
+            'Remove {{field}} {{label}}',
+            { field: f.field, label: f.label },
+          )}
           onRemove={() => {
             onRemove(f.id);
           }}
@@ -586,7 +634,7 @@ export function AppliedFilters({
       {children}
       {onClearAll && filters.length > 1 ? (
         <Button variant="ghost" size="sm" onPress={onClearAll}>
-          Clear all
+          {t('components.filter-builder.filter-builder.clear_all', 'Clear all')}
         </Button>
       ) : null}
     </View>

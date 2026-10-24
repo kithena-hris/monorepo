@@ -7,6 +7,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '../field/field.
 import { Icon } from '../icon/icon.tsx';
 import { Input } from '../input/input.tsx';
 import { formatNumber, parseNumber } from './number-format.ts';
+import { t } from '../../lib/i18n';
 
 export type NumberFieldProps = {
   /** `null` is empty, which is a different fact from 0. */
@@ -94,7 +95,11 @@ export function NumberField({
           variant="ghost"
           size="xs"
           startIcon={<Icon icon={Minus} />}
-          accessibilityLabel={`Decrease ${label}`}
+          accessibilityLabel={t(
+            'components.number-field.number-field.decrease',
+            'Decrease {{label}}',
+            { label },
+          )}
           disabled={inert || atMin}
           onPress={() => {
             stepBy(-1);
@@ -104,7 +109,11 @@ export function NumberField({
           variant="ghost"
           size="xs"
           startIcon={<Icon icon={Plus} />}
-          accessibilityLabel={`Increase ${label}`}
+          accessibilityLabel={t(
+            'components.number-field.number-field.increase',
+            'Increase {{label}}',
+            { label },
+          )}
           disabled={inert || atMax}
           onPress={() => {
             stepBy(1);

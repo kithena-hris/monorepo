@@ -24,6 +24,7 @@ import { useAct } from './act';
 import { ask, useSigned } from './api';
 import { PersonPicker } from './attribute-input';
 import { readOffer } from './readers';
+import { t } from '../i18n';
 
 /** Shape only, as the web's: whether it is free is People's answer. */
 const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
@@ -81,9 +82,12 @@ export function AddPersonDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a person</DialogTitle>
+          <DialogTitle>{t('people.add-person.add_a_person', 'Add a person')}</DialogTitle>
           <DialogDescription>
-            Enter what HR owns. They fill in the rest when they accept.
+            {t(
+              'people.add-person.enter_what_hr_owns_they_fill',
+              'Enter what HR owns. They fill in the rest when they accept.',
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -94,7 +98,7 @@ export function AddPersonDialog({
               fullWidth
               startIcon={<Icon icon={Sparkles} tone="accent" />}
               loading={reading}
-              loadingLabel="Reading the offer"
+              loadingLabel={t('people.add-person.reading_the_offer', 'Reading the offer')}
               onPress={() => {
                 setReading(true);
                 void readOffer(signed).then(async (read) => {
@@ -105,7 +109,7 @@ export function AddPersonDialog({
                   if (!read.ok) {
                     setReading(false);
                     toast({
-                      title: 'That did not work',
+                      title: t('people.add-person.that_did_not_work', 'That did not work'),
                       description: read.message,
                       tone: 'danger',
                     });
@@ -141,52 +145,72 @@ export function AddPersonDialog({
                   toast(
                     filled === 0
                       ? {
-                          title: 'Nothing to fill in',
-                          description:
+                          title: t('people.add-person.nothing_to_fill_in', 'Nothing to fill in'),
+                          description: t(
+                            'people.add-person.the_letter_does_not_say_their',
                             'The letter does not say their name, email or start date plainly.',
+                          ),
                           tone: 'warning',
                         }
                       : {
-                          title: 'Filled in from the offer',
-                          description: 'Check each field before adding.',
+                          title: t(
+                            'people.add-person.filled_in_from_the_offer',
+                            'Filled in from the offer',
+                          ),
+                          description: t(
+                            'people.add-person.check_each_field_before_adding',
+                            'Check each field before adding.',
+                          ),
                           tone: 'success',
                         },
                   );
                 });
               }}
             >
-              Fill in from their signed offer
+              {t(
+                'people.add-person.fill_in_from_their_signed_offer',
+                'Fill in from their signed offer',
+              )}
             </Button>
             <View className="flex-row gap-2.5">
               <View className="flex-1">
                 <Field required invalid={tried && missing.given}>
-                  <FieldLabel>First name</FieldLabel>
+                  <FieldLabel>{t('people.add-person.first_name', 'First name')}</FieldLabel>
                   <Input value={given} onChange={setGiven} autoComplete="off" size="sm" />
-                  {tried && missing.given ? <FieldError>Enter it.</FieldError> : null}
+                  {tried && missing.given ? (
+                    <FieldError>{t('people.add-person.enter_it', 'Enter it.')}</FieldError>
+                  ) : null}
                 </Field>
               </View>
               <View className="flex-1">
                 <Field required invalid={tried && missing.family}>
-                  <FieldLabel>Family name</FieldLabel>
+                  <FieldLabel>{t('people.add-person.family_name', 'Family name')}</FieldLabel>
                   <Input value={family} onChange={setFamily} autoComplete="off" size="sm" />
-                  {tried && missing.family ? <FieldError>Enter it.</FieldError> : null}
+                  {tried && missing.family ? (
+                    <FieldError>{t('people.add-person.enter_it', 'Enter it.')}</FieldError>
+                  ) : null}
                 </Field>
               </View>
             </View>
             <Field required invalid={tried && missing.email}>
-              <FieldLabel>Work email</FieldLabel>
+              <FieldLabel>{t('people.add-person.work_email', 'Work email')}</FieldLabel>
               <Input type="email" value={email} onChange={setEmail} autoComplete="off" size="sm" />
               {tried && missing.email ? (
-                <FieldError>Enter the address they will sign in with.</FieldError>
+                <FieldError>
+                  {t(
+                    'people.add-person.enter_the_address_they_will_sign',
+                    'Enter the address they will sign in with.',
+                  )}
+                </FieldError>
               ) : null}
             </Field>
             <View className="flex-row gap-2.5">
               <View className="flex-1">
                 <Field>
-                  <FieldLabel>Starts</FieldLabel>
+                  <FieldLabel>{t('people.add-person.starts', 'Starts')}</FieldLabel>
                   <DatePicker
-                    label="Starts"
-                    placeholder="Optional"
+                    label={t('people.add-person.starts', 'Starts')}
+                    placeholder={t('people.add-person.optional', 'Optional')}
                     value={hireDate}
                     onChange={setHireDate}
                     size="sm"
@@ -195,17 +219,17 @@ export function AddPersonDialog({
               </View>
               <View className="flex-1">
                 <Field>
-                  <FieldLabel>Manager</FieldLabel>
+                  <FieldLabel>{t('people.add-person.manager', 'Manager')}</FieldLabel>
                   {/* Searched over everybody, a title and department under each name (PEO-122). */}
                   <PersonPicker
-                    label="Manager"
+                    label={t('people.add-person.manager', 'Manager')}
                     known={named}
                     value={manager}
                     onChange={(id) => {
                       setManager(id ?? '');
                     }}
                     disabled={false}
-                    placeholder="Optional"
+                    placeholder={t('people.add-person.optional', 'Optional')}
                     size="sm"
                   />
                 </Field>
@@ -220,7 +244,7 @@ export function AddPersonDialog({
               onOpenChange(false);
             }}
           >
-            Cancel
+            {t('people.add-person.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -228,7 +252,7 @@ export function AddPersonDialog({
             loading={busy === 'CreatePerson'}
             onPress={() => void add()}
           >
-            Add
+            {t('people.add-person.add', 'Add')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -11,6 +11,7 @@ import { createContext, useContext } from 'react';
 
 import { Page } from './frame';
 import type { PeopleScreen } from './people/routes';
+import { t } from './i18n';
 
 /** Which modules the company has beyond the tabs, as the tab bar learned it. */
 export const MoreModules = createContext<{
@@ -43,7 +44,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
               navigation.navigate('Recruiting');
             }}
           >
-            Recruiting
+            {t('more.recruiting', 'Recruiting')}
           </ListItem>
         ) : null}
         {modules.documents ? (
@@ -54,7 +55,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
               navigation.navigate('Documents');
             }}
           >
-            Documents
+            {t('more.documents', 'Documents')}
           </ListItem>
         ) : null}
         {modules.onboarding ? (
@@ -65,7 +66,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
               navigation.navigate('OnboardingTasks');
             }}
           >
-            Onboarding
+            {t('more.onboarding', 'Onboarding')}
           </ListItem>
         ) : null}
         {modules.performance ? (
@@ -76,7 +77,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
               navigation.navigate('Performance');
             }}
           >
-            Performance
+            {t('more.performance', 'Performance')}
           </ListItem>
         ) : null}
       </List>
@@ -88,7 +89,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
             navigation.navigate('Profile');
           }}
         >
-          Profile
+          {t('more.profile', 'Profile')}
         </ListItem>
         <ListItem
           icon={SettingsIcon}
@@ -97,7 +98,7 @@ export function More({ navigation }: PeopleScreen<'More'>): React.JSX.Element {
             navigation.navigate('Settings');
           }}
         >
-          Settings
+          {t('more.settings', 'Settings')}
         </ListItem>
       </List>
     </Page>

@@ -24,6 +24,7 @@ import { Failed, Loading, Page } from '../../frame';
 import { useAct } from '../act';
 import { ask, useSigned } from '../api';
 import type { PeopleScreen } from '../routes';
+import { t } from '../../i18n';
 
 interface PackSection {
   readonly key: string;
@@ -47,7 +48,12 @@ interface SetupState {
   readonly published: number | null;
 }
 
-const STEPS = ['Legal entity', 'Country pack', 'Publish', 'Your profile'];
+const STEPS = () => [
+  t('people.settings.setup.legal_entity', 'Legal entity'),
+  t('people.settings.setup.country_pack', 'Country pack'),
+  t('people.settings.setup.publish', 'Publish'),
+  t('people.settings.setup.your_profile', 'Your profile'),
+];
 
 /**
  * Setting up the employee record, the first time (the web's People setup):
@@ -76,10 +82,13 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
     });
   }, [signed]);
 
-  const back = { label: 'Settings', onPress: navigation.goBack };
+  const back = {
+    label: t('people.settings.setup.settings', 'Settings'),
+    onPress: navigation.goBack,
+  };
   if (failed !== null) {
     return (
-      <Page title="Set up" back={back}>
+      <Page title={t('people.settings.setup.set_up', 'Set up')} back={back}>
         <Failed
           message={failed}
           onRetry={() => {
@@ -91,8 +100,8 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
   }
   if (state === null) {
     return (
-      <Page title="Set up" back={back}>
-        <Loading label="Loading the setup" />
+      <Page title={t('people.settings.setup.set_up', 'Set up')} back={back}>
+        <Loading label={t('people.settings.setup.loading_the_setup', 'Loading the setup')} />
       </Page>
     );
   }
@@ -105,14 +114,23 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
     state.countries.find((c) => c.code === entity.country)?.name ?? entity.country;
 
   return (
-    <Page title="Set up the employee record" back={back}>
+    <Page
+      title={t('people.settings.setup.set_up_the_employee_record', 'Set up the employee record')}
+      back={back}
+    >
       <Text tone="muted">
-        What your company keeps about each person. You can change all of it later.
+        {t(
+          'people.settings.setup.what_your_company_keeps_about_each',
+          'What your company keeps about each person. You can change all of it later.',
+        )}
       </Text>
       <Stepper
-        label="Setting up the employee record"
+        label={t(
+          'people.settings.setup.setting_up_the_employee_record',
+          'Setting up the employee record',
+        )}
         orientation="horizontal"
-        steps={STEPS.map((label, i) => ({
+        steps={STEPS().map((label, i) => ({
           label,
           status: i < step ? 'done' : i === step ? 'current' : 'todo',
           ...(i < step && step < 3
@@ -126,12 +144,17 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
       />
       {step === 0 ? (
         <>
-          <Text weight="semibold">Confirm the legal entity</Text>
+          <Text weight="semibold">
+            {t('people.settings.setup.confirm_the_legal_entity', 'Confirm the legal entity')}
+          </Text>
           <Text variant="subhead" tone="muted">
-            The company that employs people. Its country decides which fields the law requires.
+            {t(
+              'people.settings.setup.the_company_that_employs_people_its',
+              'The company that employs people. Its country decides which fields the law requires.',
+            )}
           </Text>
           <Field required invalid={nameMissing}>
-            <FieldLabel>Registered name</FieldLabel>
+            <FieldLabel>{t('people.settings.setup.registered_name', 'Registered name')}</FieldLabel>
             <Input
               size="sm"
               value={entity.name}
@@ -139,18 +162,28 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
                 setEntity({ ...entity, name });
               }}
             />
-            <FieldError>Give the entity’s registered name.</FieldError>
+            <FieldError>
+              {t(
+                'people.settings.setup.give_the_entitys_registered_name',
+                'Give the entity’s registered name.',
+              )}
+            </FieldError>
           </Field>
           <Field required>
-            <FieldLabel>Country</FieldLabel>
+            <FieldLabel>{t('people.settings.setup.country', 'Country')}</FieldLabel>
             <Select
               value={entity.country}
               onValueChange={(country) => {
                 setEntity({ ...entity, country });
               }}
             >
-              <SelectTrigger size="sm" accessibilityLabel="Country">
-                <SelectValue placeholder="Choose a country" />
+              <SelectTrigger
+                size="sm"
+                accessibilityLabel={t('people.settings.setup.country', 'Country')}
+              >
+                <SelectValue
+                  placeholder={t('people.settings.setup.choose_a_country', 'Choose a country')}
+                />
               </SelectTrigger>
               <SelectContent>
                 {state.countries.map((c) => (
@@ -161,7 +194,10 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
               </SelectContent>
             </Select>
             <FieldDescription>
-              Where the entity is registered, not where people work.
+              {t(
+                'people.settings.setup.where_the_entity_is_registered_not',
+                'Where the entity is registered, not where people work.',
+              )}
             </FieldDescription>
           </Field>
           <Button
@@ -181,21 +217,34 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
               });
             }}
           >
-            Continue
+            {t('people.settings.setup.continue', 'Continue')}
           </Button>
         </>
       ) : null}
       {step === 1 || step === 2 ? (
         <>
           {pack === null ? (
-            <Alert tone="warning" title={`No country pack for ${countryName} yet`}>
-              You can still publish: the core fields every company needs are always there, and you
-              can add the rest yourself.
+            <Alert
+              tone="warning"
+              title={t(
+                'people.settings.setup.no_country_pack_for_yet',
+                'No country pack for {{countryName}} yet',
+                { countryName },
+              )}
+            >
+              {t(
+                'people.settings.setup.you_can_still_publish_the_core',
+                'You can still publish: the core fields every company needs are always there, and you can add the rest yourself.',
+              )}
             </Alert>
           ) : (
             <>
               <Alert tone="info">
-                {`The entity is registered in ${pack.countryName}, so the ${pack.countryName} pack is selected. Fields its law requires are required and cannot be turned off.`}
+                {t(
+                  'people.settings.setup.the_entity_is_registered_in_so',
+                  'The entity is registered in {{countryName}}, so the {{countryName}} pack is selected. Fields its law requires are required and cannot be turned off.',
+                  { countryName: pack.countryName },
+                )}
               </Alert>
               <List>
                 {pack.sections.map((s) => {
@@ -222,7 +271,11 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
                 })}
               </List>
               <Badge size="sm" tone="warning">
-                {`${String(pack.sections.reduce((n, s) => n + s.requiredByLaw, 0))} fields required by law`}
+                {t(
+                  'people.settings.setup.fields_required_by_law',
+                  '{{String}} fields required by law',
+                  { String: String(pack.sections.reduce((n, s) => n + s.requiredByLaw, 0)) },
+                )}
               </Badge>
             </>
           )}
@@ -233,12 +286,23 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
                 setStep(2);
               }}
             >
-              Continue
+              {t('people.settings.setup.continue', 'Continue')}
             </Button>
           ) : (
             <>
-              <Alert tone="info" title="Publish version 1">
-                {`${String(enabled.length)} ${enabled.length === 1 ? 'section' : 'sections'} of the ${countryName} pack, beside the core fields. People can be added once it is published.`}
+              <Alert
+                tone="info"
+                title={t('people.settings.setup.publish_version_1', 'Publish version 1')}
+              >
+                {t(
+                  'people.settings.setup.of_the_pack_beside_the_core',
+                  {
+                    one: '{{count}} section of the {{countryName}} pack, beside the core fields. People can be added once it is published.',
+                    other:
+                      '{{count}} sections of the {{countryName}} pack, beside the core fields. People can be added once it is published.',
+                  },
+                  { count: enabled.length, countryName },
+                )}
               </Alert>
               <Button
                 variant="primary"
@@ -247,13 +311,13 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
                   void act(
                     'PublishSetup',
                     { country: entity.country, sections: enabled.map((s) => s.key) },
-                    'Version 1 published',
+                    t('people.settings.setup.version_1_published', 'Version 1 published'),
                   ).then((done) => {
                     if (done !== null) setStep(3);
                   });
                 }}
               >
-                Publish
+                {t('people.settings.setup.publish', 'Publish')}
               </Button>
             </>
           )}
@@ -263,22 +327,31 @@ export function PeopleSetup({ navigation }: PeopleScreen<'PeopleSetup'>): React.
               setStep(step - 1);
             }}
           >
-            Back
+            {t('people.settings.setup.back', 'Back')}
           </Button>
         </>
       ) : null}
       {step === 3 ? (
         <>
-          <Alert tone="success" title="The employee record is published">
-            Yours is the first record checked against it. Fill in what is missing.
+          <Alert
+            tone="success"
+            title={t(
+              'people.settings.setup.the_employee_record_is_published',
+              'The employee record is published',
+            )}
+          >
+            {t(
+              'people.settings.setup.yours_is_the_first_record_checked',
+              'Yours is the first record checked against it. Fill in what is missing.',
+            )}
           </Alert>
           <Button
             variant="primary"
             onPress={() => {
-              navigation.navigate('Profile', { back: 'Set up' });
+              navigation.navigate('Profile', { back: t('people.settings.setup.set_up', 'Set up') });
             }}
           >
-            Open your profile
+            {t('people.settings.setup.open_your_profile', 'Open your profile')}
           </Button>
         </>
       ) : null}

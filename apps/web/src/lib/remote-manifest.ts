@@ -1,6 +1,8 @@
 import { cache } from 'react';
 
-import { RouteManifest } from './manifest-schema';
+import type { T } from '@reach/ui/i18n';
+
+import { RouteManifest, type Place } from './manifest-schema';
 import {
   areaOf,
   matchPath,
@@ -11,7 +13,55 @@ import {
   type RemoteRoute,
   type SlotName,
 } from './remotes';
+import { serverWords } from './server-words';
 import { timed } from './timing';
+
+/**
+ * A place's words in the reader's language. A remote's `routes.json` is
+ * English, as its code is; each label is a key in the remote's namespace,
+ * `nav.<path>.<field>` (`i18n-extract.mjs` reads them out of the file), so
+ * the sidebar, the breadcrumb and the tabs all read in the page's language.
+ */
+function placeIn<P extends Omit<Place, 'tabs' | 'summary'> & { tabs?: unknown; summary?: string }>(
+  place: P,
+  t: T,
+): P {
+  const key = (field: string) => `nav.${place.path}.${field}`;
+  const said = (field: 'label' | 'short' | 'description' | 'summary' | 'group') => {
+    const english = place[field];
+    return english === undefined ? {} : { [field]: t(key(field), english) };
+  };
+  return {
+    ...place,
+    ...said('label'),
+    ...said('short'),
+    ...said('description'),
+    ...said('summary'),
+    ...said('group'),
+    ...(place.labelFor === undefined
+      ? {}
+      : {
+          labelFor: Object.fromEntries(
+            Object.entries(place.labelFor).map(([role, english]) => [
+              role,
+              t(key(`label_for.${role}`), english),
+            ]),
+          ),
+        }),
+    ...(Array.isArray(place.tabs)
+      ? { tabs: (place.tabs as Place[]).map((tab) => placeIn(tab, t)) }
+      : {}),
+  };
+}
+
+type Nav = RemoteRoute['nav'];
+
+/** Every place of an area's navigation in the reader's language. */
+async function navIn(area: Area, nav: Nav): Promise<Nav> {
+  const t = await serverWords(area.name);
+  const each = (places: Nav['sections']) => places.map((place) => placeIn(place, t));
+  return { sections: each(nav.sections), actions: each(nav.actions), settings: each(nav.settings) };
+}
 
 /*
  * The server's half of `remotes.ts`: reading and checking a remote's
@@ -61,7 +111,13 @@ export async function remoteRoute(path: string): Promise<RemoteRoute | null | un
   const matched = matchRoute(manifest, path);
   return matched == null
     ? matched
-    : { entry: `${remotePath(area)}/remoteEntry.js`, base, area, ...matched };
+    : {
+        entry: `${remotePath(area)}/remoteEntry.js`,
+        base,
+        area,
+        ...matched,
+        nav: await navIn(area, matched.nav),
+      };
 }
 
 /**
@@ -98,7 +154,7 @@ export async function remoteNav(area: Area): Promise<{
   if (!parsed.success) return null;
   const { routes, sections, actions, settings, slots } = parsed.data;
   return {
-    nav: { sections, actions, settings },
+    nav: await navIn(area, { sections, actions, settings }),
     routes: routes.map((r) => r.path),
     screens: Object.fromEntries(routes.map((r) => [r.path, r.component])),
     slots: Object.fromEntries(

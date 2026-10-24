@@ -34,6 +34,7 @@ import { Failed, Heading, Loading, Page } from '../frame';
 import { ask, useRead, useSigned, type Load } from '../people/api';
 import type { PeopleScreen } from '../people/routes';
 import { sessionCode } from './session-code';
+import { t as tr } from '../i18n';
 
 /**
  * Performance on the phone (PRF-080 to PRF-089; design Mobile v2, PFM1 to
@@ -115,31 +116,31 @@ const html = (text: string): string =>
     )
     .join('');
 
-const KIND: Readonly<Record<string, string>> = {
-  self: 'Self review',
-  manager: 'Manager review',
-  peer: 'Peer review',
-  upward: 'Upward review',
-  skip: 'Skip-level review',
-  goals: 'Goals review',
-};
-const kindLabel = (k: string): string => KIND[k] ?? k;
+const KIND = (): Readonly<Record<string, string>> => ({
+  self: tr('performance.screens.self_review', 'Self review'),
+  manager: tr('performance.screens.manager_review_2', 'Manager review'),
+  peer: tr('performance.screens.peer_review', 'Peer review'),
+  upward: tr('performance.screens.upward_review', 'Upward review'),
+  skip: tr('performance.screens.skip_level_review', 'Skip-level review'),
+  goals: tr('performance.screens.goals_review', 'Goals review'),
+});
+const kindLabel = (k: string): string => KIND()[k] ?? k;
 
-const STATE: Readonly<Record<string, readonly [string, Tone]>> = {
-  not_started: ['Not started', 'neutral'],
-  draft: ['In progress', 'warning'],
-  submitted: ['Submitted', 'success'],
-  unlock: ['Unlock requested', 'warning'],
-  unlocked: ['Unlocked', 'info'],
-  released: ['Released', 'accent'],
-  ack: ['Acknowledged', 'success'],
-  detached: ['Detached', 'neutral'],
-  overdue: ['Overdue', 'danger'],
-  declined: ['Declined', 'neutral'],
-};
+const STATE = (): Readonly<Record<string, readonly [string, Tone]>> => ({
+  not_started: [tr('performance.screens.not_started', 'Not started'), 'neutral'],
+  draft: [tr('performance.screens.in_progress', 'In progress'), 'warning'],
+  submitted: [tr('performance.screens.submitted_2', 'Submitted'), 'success'],
+  unlock: [tr('performance.screens.unlock_requested', 'Unlock requested'), 'warning'],
+  unlocked: [tr('performance.screens.unlocked', 'Unlocked'), 'info'],
+  released: [tr('performance.screens.released_2', 'Released'), 'accent'],
+  ack: [tr('performance.screens.acknowledged_2', 'Acknowledged'), 'success'],
+  detached: [tr('performance.screens.detached', 'Detached'), 'neutral'],
+  overdue: [tr('performance.screens.overdue_2', 'Overdue'), 'danger'],
+  declined: [tr('performance.screens.declined', 'Declined'), 'neutral'],
+});
 
 function StateBadge({ state }: { readonly state: string }): React.JSX.Element {
-  const [label, tone] = STATE[state] ?? [state, 'neutral'];
+  const [label, tone] = STATE()[state] ?? [state, 'neutral'];
   return (
     <Badge size="sm" tone={tone}>
       {label}
@@ -171,7 +172,7 @@ function Screen<T>({
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label={`Loading ${what}`} />
+          <Loading label={tr('performance.screens.loading', 'Loading {{what}}', { what })} />
         )}
       </Page>
     );
@@ -273,8 +274,8 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
     viewer.status === 'ready' ? viewer.data : { hr: false, manager: false, calibrator: false };
   return (
     <Screen
-      title="Performance"
-      back={{ label: 'More', onPress: navigation.goBack }}
+      title={tr('performance.screens.performance', 'Performance')}
+      back={{ label: tr('performance.screens.more', 'More'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="your reviews"
@@ -288,7 +289,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                 navigation.navigate('PerformanceFeedback');
               }}
             >
-              Feedback
+              {tr('performance.screens.feedback', 'Feedback')}
             </ListItem>
             <ListItem
               chevron
@@ -296,7 +297,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                 navigation.navigate('PerformanceGoals');
               }}
             >
-              Goals
+              {tr('performance.screens.goals', 'Goals')}
             </ListItem>
             <ListItem
               chevron
@@ -304,7 +305,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                 navigation.navigate('PerformanceLearning');
               }}
             >
-              Learning
+              {tr('performance.screens.learning', 'Learning')}
             </ListItem>
             {roles.manager || roles.hr ? (
               <ListItem
@@ -313,7 +314,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                   navigation.navigate('PerformanceTeam');
                 }}
               >
-                My team’s cycles
+                {tr('performance.screens.my_teams_cycles', 'My team’s cycles')}
               </ListItem>
             ) : null}
             {roles.hr ? (
@@ -323,7 +324,7 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                   navigation.navigate('PerformanceUnlocks');
                 }}
               >
-                Unlock requests
+                {tr('performance.screens.unlock_requests', 'Unlock requests')}
               </ListItem>
             ) : null}
             <ListItem
@@ -332,30 +333,39 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                 navigation.navigate('PerformanceAsk');
               }}
             >
-              Ask Kithena
+              {tr('performance.screens.ask_kithena', 'Ask Kithena')}
             </ListItem>
           </List>
           <SegmentedControl
             fullWidth
-            accessibilityLabel="Reviews"
+            accessibilityLabel={tr('performance.screens.reviews', 'Reviews')}
             value={tab}
             onValueChange={(v) => {
               setTab(v === 'about' ? 'about' : 'write');
             }}
           >
-            <SegmentedControlItem value="write">I owe</SegmentedControlItem>
-            <SegmentedControlItem value="about">Owed to me</SegmentedControlItem>
+            <SegmentedControlItem value="write">
+              {tr('performance.screens.i_owe', 'I owe')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="about">
+              {tr('performance.screens.owed_to_me', 'Owed to me')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {tab === 'write' ? (
             data.rows.length === 0 ? (
-              <Text tone="muted">No reviews to write.</Text>
+              <Text tone="muted">
+                {tr('performance.screens.no_reviews_to_write', 'No reviews to write.')}
+              </Text>
             ) : (
               <List>
                 {data.rows.map((r) => (
                   <ListItem
                     key={r.id}
                     chevron
-                    description={`${r.about} · due ${day(r.due)}`}
+                    description={tr('performance.screens.due', '{{about}} · due {{day}}', {
+                      about: r.about,
+                      day: day(r.due),
+                    })}
                     trailing={<StateBadge state={r.state} />}
                     onPress={() => {
                       navigation.navigate('PerformanceWrite', { id: r.id, title: r.title });
@@ -375,17 +385,19 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                     {c.self === null ? null : (
                       <ListItem
                         chevron
-                        description={`Due ${day(c.self.due)}`}
+                        description={tr('performance.screens.due_2', 'Due {{day}}', {
+                          day: day(c.self.due),
+                        })}
                         trailing={<StateBadge state={c.self.state} />}
                         onPress={() => {
                           if (c.self !== null)
                             navigation.navigate('PerformanceWrite', {
                               id: c.self.id,
-                              title: 'Self review',
+                              title: tr('performance.screens.self_review', 'Self review'),
                             });
                         }}
                       >
-                        Your self review
+                        {tr('performance.screens.your_self_review', 'Your self review')}
                       </ListItem>
                     )}
                     {c.manager === null ? null : (
@@ -394,9 +406,16 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                         description={
                           c.manager.released === null
                             ? c.manager.writing
-                              ? `${c.manager.by} is writing it`
-                              : 'Submitted, not released yet'
-                            : `Released ${day(c.manager.released)}`
+                              ? tr('performance.screens.is_writing_it', '{{by}} is writing it', {
+                                  by: c.manager.by,
+                                })
+                              : tr(
+                                  'performance.screens.submitted_not_released_yet',
+                                  'Submitted, not released yet',
+                                )
+                            : tr('performance.screens.released', 'Released {{day}}', {
+                                day: day(c.manager.released),
+                              })
                         }
                         trailing={
                           c.score === null ? undefined : (
@@ -411,7 +430,9 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                             navigation.navigate('PerformanceReleased', { id: c.manager.id });
                         }}
                       >
-                        {`Manager review · ${c.manager.by}`}
+                        {tr('performance.screens.manager_review', 'Manager review · {{by}}', {
+                          by: c.manager.by,
+                        })}
                       </ListItem>
                     )}
                     {c.peers === null ? null : (
@@ -419,8 +440,11 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                         chevron={c.peers.count > 0}
                         description={
                           c.peers.count === 0
-                            ? 'Not enough peers answered to show them'
-                            : 'Without names'
+                            ? tr(
+                                'performance.screens.not_enough_peers_answered_to_show',
+                                'Not enough peers answered to show them',
+                              )
+                            : tr('performance.screens.without_names', 'Without names')
                         }
                         onPress={() => {
                           const first = c.peers?.ids[0];
@@ -428,7 +452,9 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                             navigation.navigate('PerformanceReleased', { id: first });
                         }}
                       >
-                        {`Peer reviews · ${String(c.peers.count)}`}
+                        {tr('performance.screens.peer_reviews', 'Peer reviews · {{String}}', {
+                          String: String(c.peers.count),
+                        })}
                       </ListItem>
                     )}
                   </List>
@@ -438,7 +464,9 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
           {/* Peers to pick or approve sit with what you owe, as on the web. */}
           {tab === 'write' && data.nominations.length > 0 ? (
             <>
-              <Text variant="headline">Peers to pick or approve</Text>
+              <Text variant="headline">
+                {tr('performance.screens.peers_to_pick_or_approve', 'Peers to pick or approve')}
+              </Text>
               <List>
                 {data.nominations.map((n) => (
                   <ListItem
@@ -450,8 +478,14 @@ export function PerformanceReviews({ navigation }: PeopleScreen<'Performance'>):
                     }}
                   >
                     {n.kind === 'nominate'
-                      ? `Pick ${String(n.min)} to ${String(n.max)} peers for ${n.subject}`
-                      : `Approve ${n.subject}’s peers`}
+                      ? tr(
+                          'performance.screens.pick_to_peers_for',
+                          'Pick {{String}} to {{String2}} peers for {{subject}}',
+                          { String: String(n.min), String2: String(n.max), subject: n.subject },
+                        )
+                      : tr('performance.screens.approve_s_peers', 'Approve {{subject}}’s peers', {
+                          subject: n.subject,
+                        })}
                   </ListItem>
                 ))}
               </List>
@@ -575,16 +609,17 @@ interface Write {
 }
 
 /** The tones an answer can be rephrased in, several at once (the server's `REPHRASE_TONES`). */
-const TONES = [
-  ['clearer', 'Clearer'],
-  ['concise', 'More concise'],
-  ['specific', 'More specific'],
-  ['warmer', 'Warmer'],
-  ['direct', 'More direct'],
-  ['formal', 'More formal'],
-  ['constructive', 'More constructive'],
-  ['confident', 'More confident'],
-] as const;
+const TONES = () =>
+  [
+    ['clearer', tr('performance.screens.clearer', 'Clearer')],
+    ['concise', tr('performance.screens.more_concise', 'More concise')],
+    ['specific', tr('performance.screens.more_specific', 'More specific')],
+    ['warmer', tr('performance.screens.warmer', 'Warmer')],
+    ['direct', tr('performance.screens.more_direct', 'More direct')],
+    ['formal', tr('performance.screens.more_formal', 'More formal')],
+    ['constructive', tr('performance.screens.more_constructive', 'More constructive')],
+    ['confident', tr('performance.screens.more_confident', 'More confident')],
+  ] as const;
 
 /**
  * Rephrase, as on the web: choose one tone or several, see the answer said
@@ -634,7 +669,7 @@ function Rephrase({
           setOpen(true);
         }}
       >
-        Rephrase
+        {tr('performance.screens.rephrase', 'Rephrase')}
       </Button>
       {open ? (
         <Dialog
@@ -645,12 +680,19 @@ function Rephrase({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Rephrase this answer</DialogTitle>
+              <DialogTitle>
+                {tr('performance.screens.rephrase_this_answer', 'Rephrase this answer')}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody>
-              <Text tone="muted">Choose one or more tones. The meaning and the lists stay.</Text>
+              <Text tone="muted">
+                {tr(
+                  'performance.screens.choose_one_or_more_tones_the',
+                  'Choose one or more tones. The meaning and the lists stay.',
+                )}
+              </Text>
               <View className="flex-row flex-wrap gap-2">
-                {TONES.map(([v, l]) => (
+                {TONES().map(([v, l]) => (
                   <Chip
                     key={v}
                     selected={tones.includes(v)}
@@ -666,7 +708,7 @@ function Rephrase({
               {error === null ? null : <Alert tone="danger">{error}</Alert>}
             </DialogBody>
             <DialogFooter>
-              <Button onPress={close}>Cancel</Button>
+              <Button onPress={close}>{tr('performance.screens.cancel', 'Cancel')}</Button>
               {result === null ? (
                 <Button
                   variant="primary"
@@ -674,12 +716,12 @@ function Rephrase({
                   disabled={tones.length === 0}
                   onPress={run}
                 >
-                  Rephrase
+                  {tr('performance.screens.rephrase', 'Rephrase')}
                 </Button>
               ) : (
                 <>
                   <Button loading={busy} disabled={tones.length === 0} onPress={run}>
-                    Try again
+                    {tr('performance.screens.try_again', 'Try again')}
                   </Button>
                   <Button
                     variant="primary"
@@ -688,7 +730,7 @@ function Rephrase({
                       close();
                     }}
                   >
-                    Use this
+                    {tr('performance.screens.use_this', 'Use this')}
                   </Button>
                 </>
               )}
@@ -710,14 +752,14 @@ export function PerformanceWrite({
     { id: route.params.id },
     'performance',
   );
-  const back = { label: 'Reviews', onPress: navigation.goBack };
+  const back = { label: tr('performance.screens.reviews', 'Reviews'), onPress: navigation.goBack };
   if (load.status !== 'ready')
     return (
       <Page title={route.params.title} back={back}>
         {load.status === 'error' ? (
           <Failed message={load.message} onRetry={reload} />
         ) : (
-          <Loading label="Loading the review" />
+          <Loading label={tr('performance.screens.loading_the_review', 'Loading the review')} />
         )}
       </Page>
     );
@@ -781,7 +823,10 @@ function Writing({
       else
         setProblem(
           r.code === 'STALE' || r.code === 'CONFLICT'
-            ? 'Saved elsewhere since you opened it: reopen the review to see both.'
+            ? tr(
+                'performance.screens.saved_elsewhere_since_you_opened_it',
+                'Saved elsewhere since you opened it: reopen the review to see both.',
+              )
             : r.message,
         );
     });
@@ -792,7 +837,9 @@ function Writing({
   if (current === undefined)
     return (
       <Page title={data.review.title} back={back}>
-        <Text tone="muted">This form has no questions.</Text>
+        <Text tone="muted">
+          {tr('performance.screens.this_form_has_no_questions', 'This form has no questions.')}
+        </Text>
       </Page>
     );
   const q = current.q;
@@ -810,7 +857,7 @@ function Writing({
               setAt(at - 1);
             }}
           >
-            Back
+            {tr('performance.screens.back', 'Back')}
           </Button>
           <Button
             variant="secondary"
@@ -818,7 +865,7 @@ function Writing({
               setEvidence(true);
             }}
           >
-            Evidence
+            {tr('performance.screens.evidence', 'Evidence')}
           </Button>
           {at < questions.length - 1 ? (
             <Button
@@ -827,7 +874,7 @@ function Writing({
                 setAt(at + 1);
               }}
             >
-              Next
+              {tr('performance.screens.next', 'Next')}
             </Button>
           ) : (
             <Button
@@ -837,14 +884,24 @@ function Writing({
                 setSubmitting(true);
               }}
             >
-              Submit
+              {tr('performance.screens.submit', 'Submit')}
             </Button>
           )}
         </View>
       }
     >
-      <Text tone="muted">{`${data.review.subject.name} · ${current.section} · ${String(at + 1)} of ${String(questions.length)}`}</Text>
-      <Progress label="Questions" value={((at + 1) / questions.length) * 100} />
+      <Text tone="muted">
+        {tr('performance.screens.of', '{{name}} · {{section}} · {{String}} of {{String2}}', {
+          name: data.review.subject.name,
+          section: current.section,
+          String: String(at + 1),
+          String2: String(questions.length),
+        })}
+      </Text>
+      <Progress
+        label={tr('performance.screens.questions', 'Questions')}
+        value={((at + 1) / questions.length) * 100}
+      />
       {former === null ? null : (
         <>
           <Alert tone="warning">{`You are no longer ${data.review.subject.name}’s manager, so this review cannot be submitted; ${former.to ?? 'their new manager'} writes theirs. It stays here for you to read until you delete it.`}</Alert>
@@ -856,23 +913,37 @@ function Writing({
                 setAsking('discard');
               }}
             >
-              Delete this review
+              {tr('performance.screens.delete_this_review', 'Delete this review')}
             </Button>
           ) : null}
         </>
       )}
       {data.review.handover === null ? null : (
-        <Alert tone="info">{`Handed over from ${data.review.handover.from}${data.review.handover.note === null ? '' : `: ${data.review.handover.note}`}`}</Alert>
+        <Alert tone="info">
+          {tr('performance.screens.handed_over_from', 'Handed over from {{from}}{{value}}', {
+            from: data.review.handover.from,
+            value: data.review.handover.note === null ? '' : `: ${data.review.handover.note}`,
+          })}
+        </Alert>
       )}
       <Problem text={problem ?? write.problem} />
       <Heading title={q.prompt} />
       {q.help === null ? null : <Text tone="muted">{q.help}</Text>}
       {q.private ? (
-        <Badge tone="warning">{`Private: hidden from ${data.review.subject.name.split(' ')[0] ?? 'them'}`}</Badge>
+        <Badge tone="warning">
+          {tr('performance.screens.private_hidden_from', 'Private: hidden from {{value}}', {
+            value: data.review.subject.name.split(' ')[0] ?? 'them',
+          })}
+        </Badge>
       ) : null}
       {data.suggestions[q.id] !== undefined && data.suggestions[q.id]?.confirmed === false ? (
         <>
-          <Alert tone="info">{`Suggested by AI: ${String(data.suggestions[q.id]?.value ?? '')}. ${data.suggestions[q.id]?.reason ?? ''}`}</Alert>
+          <Alert tone="info">
+            {tr('performance.screens.suggested_by_ai', 'Suggested by AI: {{String}}. {{value}}', {
+              String: String(data.suggestions[q.id]?.value ?? ''),
+              value: data.suggestions[q.id]?.reason ?? '',
+            })}
+          </Alert>
           {data.may.write ? (
             <Button
               size="sm"
@@ -880,7 +951,7 @@ function Writing({
                 write.run('ConfirmPerformanceSuggestion', { id: data.review.id, questionId: q.id });
               }}
             >
-              Confirm the suggestion
+              {tr('performance.screens.confirm_the_suggestion', 'Confirm the suggestion')}
             </Button>
           ) : null}
         </>
@@ -982,7 +1053,10 @@ function Writing({
       ) : (
         <Text variant="title2">
           {data.score === null
-            ? 'Computed once the ratings are in'
+            ? tr(
+                'performance.screens.computed_once_the_ratings_are_in',
+                'Computed once the ratings are in',
+              )
             : `${data.score.display} · ${data.score.label}`}
         </Text>
       )}
@@ -992,7 +1066,7 @@ function Writing({
             setAsking('unlock');
           }}
         >
-          Ask to change it
+          {tr('performance.screens.ask_to_change_it', 'Ask to change it')}
         </Button>
       ) : null}
       {data.may.withdraw ? (
@@ -1001,7 +1075,7 @@ function Writing({
             write.run('WithdrawPerformanceUnlock', { id: data.review.id });
           }}
         >
-          Withdraw the unlock request
+          {tr('performance.screens.withdraw_the_unlock_request', 'Withdraw the unlock request')}
         </Button>
       ) : null}
       {data.may.decline ? (
@@ -1011,7 +1085,7 @@ function Writing({
             setAsking('decline');
           }}
         >
-          I can’t review them
+          {tr('performance.screens.i_cant_review_them', 'I can’t review them')}
         </Button>
       ) : null}
       {asking === 'discard' ? (
@@ -1023,10 +1097,18 @@ function Writing({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete this review?</DialogTitle>
+              <DialogTitle>
+                {tr('performance.screens.delete_this_review_2', 'Delete this review?')}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody>
-              <Text tone="muted">{`What you wrote about ${data.review.subject.name} is deleted, and nobody sees it. This cannot be undone.`}</Text>
+              <Text tone="muted">
+                {tr(
+                  'performance.screens.what_you_wrote_about_is_deleted',
+                  'What you wrote about {{name}} is deleted, and nobody sees it. This cannot be undone.',
+                  { name: data.review.subject.name },
+                )}
+              </Text>
             </DialogBody>
             <DialogFooter>
               <Button
@@ -1034,7 +1116,7 @@ function Writing({
                   setAsking(null);
                 }}
               >
-                Keep it
+                {tr('performance.screens.keep_it', 'Keep it')}
               </Button>
               <Button
                 variant="danger"
@@ -1043,7 +1125,7 @@ function Writing({
                   setAsking(null);
                 }}
               >
-                Delete
+                {tr('performance.screens.delete', 'Delete')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1060,17 +1142,22 @@ function Writing({
             <DialogHeader>
               <DialogTitle>
                 {asking === 'unlock'
-                  ? 'Ask HR to unlock it'
-                  : `Decline reviewing ${data.review.subject.name}?`}
+                  ? tr('performance.screens.ask_hr_to_unlock_it', 'Ask HR to unlock it')
+                  : tr('performance.screens.decline_reviewing', 'Decline reviewing {{name}}?', {
+                      name: data.review.subject.name,
+                    })}
               </DialogTitle>
             </DialogHeader>
             <DialogBody>
               <Textarea
-                accessibilityLabel="Why"
+                accessibilityLabel={tr('performance.screens.why', 'Why')}
                 placeholder={
                   asking === 'unlock'
-                    ? 'What you need to change, and why'
-                    : 'Why, for whoever asked'
+                    ? tr(
+                        'performance.screens.what_you_need_to_change_and',
+                        'What you need to change, and why',
+                      )
+                    : tr('performance.screens.why_for_whoever_asked', 'Why, for whoever asked')
                 }
                 value={reason}
                 onChange={setReason}
@@ -1082,7 +1169,7 @@ function Writing({
                   setAsking(null);
                 }}
               >
-                Cancel
+                {tr('performance.screens.cancel', 'Cancel')}
               </Button>
               <Button
                 variant="primary"
@@ -1103,7 +1190,7 @@ function Writing({
                   setReason('');
                 }}
               >
-                Send
+                {tr('performance.screens.send', 'Send')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1118,11 +1205,13 @@ function Writing({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Evidence</DialogTitle>
+              <DialogTitle>{tr('performance.screens.evidence', 'Evidence')}</DialogTitle>
             </DialogHeader>
             <DialogBody>
               <View className="gap-3">
-                {data.panel.goals.length === 0 ? null : <Heading title="Goals" />}
+                {data.panel.goals.length === 0 ? null : (
+                  <Heading title={tr('performance.screens.goals', 'Goals')} />
+                )}
                 {data.panel.goals.map((g) => (
                   <Progress
                     key={g.id}
@@ -1130,11 +1219,15 @@ function Writing({
                     value={g.progress}
                   />
                 ))}
-                {data.panel.feedback.length === 0 ? null : <Heading title="Feedback" />}
+                {data.panel.feedback.length === 0 ? null : (
+                  <Heading title={tr('performance.screens.feedback', 'Feedback')} />
+                )}
                 {data.panel.feedback.slice(0, 5).map((f) => (
                   <Text key={f.id}>{`${f.from}, ${day(f.at)}: ${plain(f.text)}`}</Text>
                 ))}
-                {data.panel.reviews.length === 0 ? null : <Heading title="Other reviews" />}
+                {data.panel.reviews.length === 0 ? null : (
+                  <Heading title={tr('performance.screens.other_reviews', 'Other reviews')} />
+                )}
                 {data.panel.reviews.map((r) => (
                   <Text
                     key={r.id}
@@ -1144,7 +1237,12 @@ function Writing({
                   data.panel.feedback.length +
                   data.panel.reviews.length ===
                 0 ? (
-                  <Text tone="muted">Nothing yet for this cycle.</Text>
+                  <Text tone="muted">
+                    {tr(
+                      'performance.screens.nothing_yet_for_this_cycle',
+                      'Nothing yet for this cycle.',
+                    )}
+                  </Text>
                 ) : null}
               </View>
             </DialogBody>
@@ -1154,7 +1252,7 @@ function Writing({
                   setEvidence(false);
                 }}
               >
-                Close
+                {tr('performance.screens.close', 'Close')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1169,18 +1267,47 @@ function Writing({
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{`Submit your ${kindLabel(data.review.kind).toLowerCase()}?`}</DialogTitle>
+              <DialogTitle>
+                {tr('performance.screens.submit_your', 'Submit your {{toLowerCase}}?', {
+                  toLowerCase: kindLabel(data.review.kind).toLowerCase(),
+                })}
+              </DialogTitle>
             </DialogHeader>
             <DialogBody>
               <View className="gap-3">
                 {data.score === null ? null : (
-                  <Text>{`Performance score ${data.score.display} · ${data.score.label}`}</Text>
+                  <Text>
+                    {tr(
+                      'performance.screens.performance_score',
+                      'Performance score {{display}} · {{label}}',
+                      { display: data.score.display, label: data.score.label },
+                    )}
+                  </Text>
                 )}
                 {data.missing.length === 0 ? null : (
-                  <Alert tone="warning">{`${String(data.missing.length)} required question${data.missing.length === 1 ? '' : 's'} still need an answer.`}</Alert>
+                  <Alert tone="warning">
+                    {tr(
+                      'performance.screens.required_question_still_need_an_answer',
+                      {
+                        one: '{{count}} required question still need an answer.',
+                        other: '{{count}} required questions still need an answer.',
+                      },
+                      { count: data.missing.length },
+                    )}
+                  </Alert>
                 )}
                 {unconfirmed.length === 0 ? null : (
-                  <Text>{`Submitting confirms the ${String(unconfirmed.length)} AI suggestion${unconfirmed.length === 1 ? '' : 's'} as your own answer.`}</Text>
+                  <Text>
+                    {tr(
+                      'performance.screens.submitting_confirms_the_ai_suggestion_as',
+                      {
+                        one: 'Submitting confirms the {{count}} AI suggestion as your own answer.',
+                        other:
+                          'Submitting confirms the {{count}} AI suggestions as your own answer.',
+                      },
+                      { count: unconfirmed.length },
+                    )}
+                  </Text>
                 )}
                 {data.review.cycle?.names === 'writer' ? (
                   <Switch
@@ -1189,7 +1316,9 @@ function Writing({
                       setHideName(!on);
                     }}
                   >
-                    {`Show my name to ${data.review.subject.name.split(' ')[0] ?? 'them'}`}
+                    {tr('performance.screens.show_my_name_to', 'Show my name to {{value}}', {
+                      value: data.review.subject.name.split(' ')[0] ?? 'them',
+                    })}
                   </Switch>
                 ) : null}
               </View>
@@ -1200,7 +1329,7 @@ function Writing({
                   setSubmitting(false);
                 }}
               >
-                Not yet
+                {tr('performance.screens.not_yet', 'Not yet')}
               </Button>
               <Button
                 variant="primary"
@@ -1222,7 +1351,7 @@ function Writing({
                   );
                 }}
               >
-                Submit
+                {tr('performance.screens.submit', 'Submit')}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1263,8 +1392,8 @@ export function PerformanceReleased({
   const [comment, setComment] = useState('');
   return (
     <Screen
-      title="Your review"
-      back={{ label: 'Reviews', onPress: navigation.goBack }}
+      title={tr('performance.screens.your_review', 'Your review')}
+      back={{ label: tr('performance.screens.reviews', 'Reviews'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="the review"
@@ -1273,7 +1402,7 @@ export function PerformanceReleased({
         <>
           <Text tone="muted">{`${data.review.title}${data.review.by === null ? '' : ` · ${data.review.by}`} · ${data.review.cycle ?? ''}`}</Text>
           {data.score === null ? null : (
-            <Text variant="title2">{`${data.score.display} · ${data.score.label}${data.score.final ? '' : ' (not final)'}`}</Text>
+            <Text variant="title2">{`${data.score.display} · ${data.score.label}${data.score.final ? '' : tr('performance.screens.not_final', ' (not final)')}`}</Text>
           )}
           {data.definition.sections.map((s) => (
             <View key={s.id} className="gap-2">
@@ -1305,16 +1434,22 @@ export function PerformanceReleased({
           ))}
           <Problem text={write.problem} />
           {data.review.acknowledged !== null ? (
-            <Alert tone="success">{`Acknowledged ${day(data.review.acknowledged.at)}`}</Alert>
+            <Alert tone="success">
+              {tr('performance.screens.acknowledged', 'Acknowledged {{day}}', {
+                day: day(data.review.acknowledged.at),
+              })}
+            </Alert>
           ) : data.may.acknowledge ? (
             <>
               {data.may.comment ? (
                 <Field>
-                  <FieldLabel>A response (optional)</FieldLabel>
+                  <FieldLabel>
+                    {tr('performance.screens.a_response_optional', 'A response (optional)')}
+                  </FieldLabel>
                   <Textarea
                     value={comment}
                     onChange={setComment}
-                    accessibilityLabel="Your response"
+                    accessibilityLabel={tr('performance.screens.your_response', 'Your response')}
                   />
                 </Field>
               ) : null}
@@ -1328,10 +1463,13 @@ export function PerformanceReleased({
                   });
                 }}
               >
-                I’ve read this
+                {tr('performance.screens.ive_read_this', 'I’ve read this')}
               </Button>
               <Text variant="footnote" tone="muted">
-                Acknowledging is not agreeing.
+                {tr(
+                  'performance.screens.acknowledging_is_not_agreeing',
+                  'Acknowledging is not agreeing.',
+                )}
               </Text>
             </>
           ) : null}
@@ -1380,8 +1518,8 @@ export function PerformanceNominate({
   const [declined, setDeclined] = useState<readonly string[]>([]);
   return (
     <Screen
-      title="Nominations"
-      back={{ label: 'Reviews', onPress: navigation.goBack }}
+      title={tr('performance.screens.nominations', 'Nominations')}
+      back={{ label: tr('performance.screens.reviews', 'Reviews'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="the nomination"
@@ -1392,7 +1530,13 @@ export function PerformanceNominate({
         if (approving)
           return (
             <>
-              <Text>{`${data.nomination.subject}’s peers for ${data.cycle}. Untick anyone who should not review them.`}</Text>
+              <Text>
+                {tr(
+                  'performance.screens.s_peers_for_untick_anyone_who',
+                  '{{subject}}’s peers for {{cycle}}. Untick anyone who should not review them.',
+                  { subject: data.nomination.subject, cycle: data.cycle },
+                )}
+              </Text>
               <Problem text={write.problem} />
               <List>
                 {data.nomination.nominees.map((n) => (
@@ -1437,7 +1581,7 @@ export function PerformanceNominate({
                   );
                 }}
               >
-                Approve
+                {tr('performance.screens.approve', 'Approve')}
               </Button>
             </>
           );
@@ -1446,13 +1590,24 @@ export function PerformanceNominate({
         );
         return (
           <>
-            <Text>{`Pick ${String(data.bounds.min)} to ${String(data.bounds.max)} peers to review ${data.nomination.subject}. ${data.approver} approves them.`}</Text>
+            <Text>
+              {tr(
+                'performance.screens.pick_to_peers_to_review_approves',
+                'Pick {{String}} to {{String2}} peers to review {{subject}}. {{approver}} approves them.',
+                {
+                  String: String(data.bounds.min),
+                  String2: String(data.bounds.max),
+                  subject: data.nomination.subject,
+                  approver: data.approver,
+                },
+              )}
+            </Text>
             <SearchField
               value={q}
               onValueChange={setQ}
               onSearch={setSearch}
-              label="Search people"
-              placeholder="Search everyone"
+              label={tr('performance.screens.search_people', 'Search people')}
+              placeholder={tr('performance.screens.search_everyone', 'Search everyone')}
             />
             <Problem text={write.problem} />
             <List>
@@ -1489,7 +1644,9 @@ export function PerformanceNominate({
                 );
               }}
             >
-              {`Send ${String(chosen.length)} for approval`}
+              {tr('performance.screens.send_for_approval', 'Send {{String}} for approval', {
+                String: String(chosen.length),
+              })}
             </Button>
           </>
         );
@@ -1536,8 +1693,11 @@ export function PerformanceFeedback({
   const write = useWrite(reload);
   return (
     <Screen
-      title="Feedback"
-      back={{ label: 'Performance', onPress: navigation.goBack }}
+      title={tr('performance.screens.feedback', 'Feedback')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
       load={load}
       reload={reload}
       what="feedback"
@@ -1552,39 +1712,55 @@ export function PerformanceFeedback({
                   navigation.navigate('PerformanceGive', {});
                 }}
               >
-                Give feedback
+                {tr('performance.screens.give_feedback', 'Give feedback')}
               </Button>
               <Button
                 onPress={() => {
                   navigation.navigate('PerformanceRequest');
                 }}
               >
-                Request
+                {tr('performance.screens.request', 'Request')}
               </Button>
             </View>
           ) : (
-            <Alert tone="info">Feedback is off at this company.</Alert>
+            <Alert tone="info">
+              {tr(
+                'performance.screens.feedback_is_off_at_this_company',
+                'Feedback is off at this company.',
+              )}
+            </Alert>
           )}
           <SegmentedControl
             fullWidth
-            accessibilityLabel="Feedback"
+            accessibilityLabel={tr('performance.screens.feedback', 'Feedback')}
             value={tab}
             onValueChange={(v) => {
               setTab(v === 'sent' ? 'sent' : v === 'requests' ? 'requests' : 'received');
             }}
           >
-            <SegmentedControlItem value="received">Received</SegmentedControlItem>
-            <SegmentedControlItem value="sent">Sent</SegmentedControlItem>
-            <SegmentedControlItem value="requests">Requests</SegmentedControlItem>
+            <SegmentedControlItem value="received">
+              {tr('performance.screens.received', 'Received')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="sent">
+              {tr('performance.screens.sent', 'Sent')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="requests">
+              {tr('performance.screens.requests', 'Requests')}
+            </SegmentedControlItem>
           </SegmentedControl>
           <Problem text={write.problem} />
           {tab === 'received' ? (
             data.received.length === 0 ? (
-              <Text tone="muted">Feedback you receive shows here.</Text>
+              <Text tone="muted">
+                {tr(
+                  'performance.screens.feedback_you_receive_shows_here',
+                  'Feedback you receive shows here.',
+                )}
+              </Text>
             ) : (
               data.received.map((f) => (
                 <View key={f.id} className="gap-1">
-                  <Text variant="headline">{`${f.from ?? 'Someone at the company'} · ${day(f.at)}`}</Text>
+                  <Text variant="headline">{`${f.from ?? tr('performance.screens.someone_at_the_company', 'Someone at the company')} · ${day(f.at)}`}</Text>
                   <Text>{plain(f.body)}</Text>
                 </View>
               ))
@@ -1593,7 +1769,12 @@ export function PerformanceFeedback({
           {tab === 'sent'
             ? data.sent.map((f) => (
                 <View key={f.id} className="gap-1">
-                  <Text variant="headline">{`To ${f.to} · ${day(f.at)}`}</Text>
+                  <Text variant="headline">
+                    {tr('performance.screens.to', 'To {{to}} · {{day}}', {
+                      to: f.to,
+                      day: day(f.at),
+                    })}
+                  </Text>
                   <Text tone={f.undone ? 'muted' : undefined}>{plain(f.body)}</Text>
                   {!f.undone && f.undoUntil !== null && Date.parse(f.undoUntil) > Date.now() ? (
                     <Button
@@ -1602,7 +1783,7 @@ export function PerformanceFeedback({
                         write.run('UndoPerformanceFeedback', { id: f.id });
                       }}
                     >
-                      Delete
+                      {tr('performance.screens.delete', 'Delete')}
                     </Button>
                   ) : null}
                 </View>
@@ -1610,14 +1791,19 @@ export function PerformanceFeedback({
             : null}
           {tab === 'requests' ? (
             data.open.length === 0 ? (
-              <Text tone="muted">Nobody is waiting on you.</Text>
+              <Text tone="muted">
+                {tr('performance.screens.nobody_is_waiting_on_you', 'Nobody is waiting on you.')}
+              </Text>
             ) : (
               <List>
                 {data.open.map((r) => (
                   <ListItem
                     key={r.id}
                     chevron
-                    description={r.question ?? `About ${r.about}`}
+                    description={
+                      r.question ??
+                      tr('performance.screens.about', 'About {{about}}', { about: r.about })
+                    }
                     trailing={
                       <Button
                         size="sm"
@@ -1625,7 +1811,7 @@ export function PerformanceFeedback({
                           write.run('DeclinePerformanceRequest', { id: r.id });
                         }}
                       >
-                        Decline
+                        {tr('performance.screens.decline', 'Decline')}
                       </Button>
                     }
                     onPress={() => {
@@ -1636,7 +1822,10 @@ export function PerformanceFeedback({
                       });
                     }}
                   >
-                    {`${r.from} asks about ${r.about}`}
+                    {tr('performance.screens.asks_about', '{{from}} asks about {{about}}', {
+                      from: r.from,
+                      about: r.about,
+                    })}
                   </ListItem>
                 ))}
               </List>
@@ -1665,7 +1854,7 @@ function PickPerson({
         value={q}
         onValueChange={setQ}
         label={label}
-        placeholder="Type a name"
+        placeholder={tr('performance.screens.type_a_name', 'Type a name')}
         onSearch={(v) => {
           void ask<{ rows: readonly Pick[] }>(
             signed,
@@ -1719,45 +1908,69 @@ export function PerformanceGive({
   const names = settings.status === 'ready' ? settings.data.settings.names : 'writer';
   const first = to?.name.split(' ')[0] ?? 'them';
   return (
-    <Page title="Give feedback" back={{ label: 'Feedback', onPress: navigation.goBack }}>
+    <Page
+      title={tr('performance.screens.give_feedback', 'Give feedback')}
+      back={{ label: tr('performance.screens.feedback', 'Feedback'), onPress: navigation.goBack }}
+    >
       {to === null ? (
         <PickPerson
-          label="Who is it for?"
+          label={tr('performance.screens.who_is_it_for', 'Who is it for?')}
           onPick={(p) => {
             setTo({ id: p.personId, name: p.name });
           }}
         />
       ) : (
         <>
-          <Text variant="headline">{`To ${to.name}`}</Text>
+          <Text variant="headline">
+            {tr('performance.screens.to_2', 'To {{name}}', { name: to.name })}
+          </Text>
           <SegmentedControl
             fullWidth
-            accessibilityLabel="Kind"
+            accessibilityLabel={tr('performance.screens.kind', 'Kind')}
             value={praise ? 'praise' : 'feedback'}
             onValueChange={(v) => {
               setPraise(v === 'praise');
             }}
           >
-            <SegmentedControlItem value="feedback">Feedback</SegmentedControlItem>
-            <SegmentedControlItem value="praise">Praise</SegmentedControlItem>
+            <SegmentedControlItem value="feedback">
+              {tr('performance.screens.feedback', 'Feedback')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="praise">
+              {tr('performance.screens.praise', 'Praise')}
+            </SegmentedControlItem>
           </SegmentedControl>
-          <Textarea accessibilityLabel="Your feedback" value={body} onChange={setBody} />
+          <Textarea
+            accessibilityLabel={tr('performance.screens.your_feedback', 'Your feedback')}
+            value={body}
+            onChange={setBody}
+          />
           {praise ? (
-            <Text tone="muted">Praise is shown with your name.</Text>
+            <Text tone="muted">
+              {tr(
+                'performance.screens.praise_is_shown_with_your_name',
+                'Praise is shown with your name.',
+              )}
+            </Text>
           ) : (
             <>
               {names === 'writer' ? (
                 <Switch checked={showName} onCheckedChange={setShowName}>
-                  Show my name
+                  {tr('performance.screens.show_my_name', 'Show my name')}
                 </Switch>
               ) : null}
               <RadioGroup
-                accessibilityLabel="Who sees it"
+                accessibilityLabel={tr('performance.screens.who_sees_it', 'Who sees it')}
                 value={audience}
                 onValueChange={setAudience}
               >
-                <RadioCard value="recipient_manager">{`${first} and their manager`}</RadioCard>
-                <RadioCard value="manager_only">{`Only ${first}’s manager`}</RadioCard>
+                <RadioCard value="recipient_manager">
+                  {tr('performance.screens.and_their_manager', '{{first}} and their manager', {
+                    first,
+                  })}
+                </RadioCard>
+                <RadioCard value="manager_only">
+                  {tr('performance.screens.only_s_manager', 'Only {{first}}’s manager', { first })}
+                </RadioCard>
               </RadioGroup>
             </>
           )}
@@ -1789,7 +2002,7 @@ export function PerformanceGive({
               });
             }}
           >
-            Send
+            {tr('performance.screens.send', 'Send')}
           </Button>
         </>
       )}
@@ -1806,18 +2019,31 @@ export function PerformanceRequest({
   const [question, setQuestion] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   return (
-    <Page title="Request feedback" back={{ label: 'Feedback', onPress: navigation.goBack }}>
+    <Page
+      title={tr('performance.screens.request_feedback', 'Request feedback')}
+      back={{ label: tr('performance.screens.feedback', 'Feedback'), onPress: navigation.goBack }}
+    >
       <PickPerson
-        label="Who to ask"
+        label={tr('performance.screens.who_to_ask', 'Who to ask')}
         onPick={(p) => {
           if (!people.some((x) => x.personId === p.personId))
             setPeople([...people, p].slice(0, 10));
         }}
       />
-      {people.length === 0 ? null : <Text>{`Asking ${people.map((p) => p.name).join(', ')}`}</Text>}
+      {people.length === 0 ? null : (
+        <Text>
+          {tr('performance.screens.asking', 'Asking {{join}}', {
+            join: people.map((p) => p.name).join(', '),
+          })}
+        </Text>
+      )}
       <Field>
-        <FieldLabel>Your question</FieldLabel>
-        <Textarea accessibilityLabel="Your question" value={question} onChange={setQuestion} />
+        <FieldLabel>{tr('performance.screens.your_question', 'Your question')}</FieldLabel>
+        <Textarea
+          accessibilityLabel={tr('performance.screens.your_question', 'Your question')}
+          value={question}
+          onChange={setQuestion}
+        />
       </Field>
       <Problem text={problem} />
       <Button
@@ -1844,7 +2070,7 @@ export function PerformanceRequest({
           });
         }}
       >
-        Send requests
+        {tr('performance.screens.send_requests', 'Send requests')}
       </Button>
     </Page>
   );
@@ -1852,12 +2078,12 @@ export function PerformanceRequest({
 
 /* --------------------------------------------------------------- goals -- */
 
-const CONFIDENCE: Readonly<Record<string, readonly [string, Tone]>> = {
-  on_track: ['On track', 'success'],
-  at_risk: ['At risk', 'warning'],
-  off_track: ['Off track', 'danger'],
-  done: ['Done', 'accent'],
-};
+const CONFIDENCE = (): Readonly<Record<string, readonly [string, Tone]>> => ({
+  on_track: [tr('performance.screens.on_track', 'On track'), 'success'],
+  at_risk: [tr('performance.screens.at_risk', 'At risk'), 'warning'],
+  off_track: [tr('performance.screens.off_track', 'Off track'), 'danger'],
+  done: [tr('performance.screens.done_2', 'Done'), 'accent'],
+});
 
 interface Goals {
   readonly rows: readonly {
@@ -1883,8 +2109,11 @@ export function PerformanceGoals({
   );
   return (
     <Screen
-      title="Goals"
-      back={{ label: 'Performance', onPress: navigation.goBack }}
+      title={tr('performance.screens.goals', 'Goals')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
       load={load}
       reload={reload}
       what="goals"
@@ -1893,24 +2122,37 @@ export function PerformanceGoals({
         <>
           <SegmentedControl
             fullWidth
-            accessibilityLabel="Whose"
+            accessibilityLabel={tr('performance.screens.whose', 'Whose')}
             value={scope}
             onValueChange={(v) => {
               setScope(v === 'team' ? 'team' : 'mine');
             }}
           >
-            <SegmentedControlItem value="mine">Mine</SegmentedControlItem>
-            <SegmentedControlItem value="team">My team</SegmentedControlItem>
+            <SegmentedControlItem value="mine">
+              {tr('performance.screens.mine', 'Mine')}
+            </SegmentedControlItem>
+            <SegmentedControlItem value="team">
+              {tr('performance.screens.my_team', 'My team')}
+            </SegmentedControlItem>
           </SegmentedControl>
           {data.due.length === 0 ? null : (
-            <Alert tone="info">{`Check-in due: ${data.due.map((g) => g.title).join(', ')}`}</Alert>
+            <Alert tone="info">
+              {tr('performance.screens.check_in_due', 'Check-in due: {{join}}', {
+                join: data.due.map((g) => g.title).join(', '),
+              })}
+            </Alert>
           )}
           {data.rows.length === 0 ? (
-            <Text tone="muted">No goals for this period.</Text>
+            <Text tone="muted">
+              {tr('performance.screens.no_goals_for_this_period', 'No goals for this period.')}
+            </Text>
           ) : (
             <List>
               {data.rows.map((g) => {
-                const [label, tone] = CONFIDENCE[g.confidence] ?? ['On track', 'success'];
+                const [label, tone] = CONFIDENCE()[g.confidence] ?? [
+                  tr('performance.screens.on_track', 'On track'),
+                  'success',
+                ];
                 return (
                   <ListItem
                     key={g.id}
@@ -1974,14 +2216,19 @@ export function PerformanceGoal({
   return (
     <Screen
       title={route.params.title}
-      back={{ label: 'Goals', onPress: navigation.goBack }}
+      back={{ label: tr('performance.screens.goals', 'Goals'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="the goal"
     >
       {(data) => (
         <>
-          <Progress label={`${String(data.goal.progress)}% done`} value={data.goal.progress} />
+          <Progress
+            label={tr('performance.screens.done', '{{String}}% done', {
+              String: String(data.goal.progress),
+            })}
+            value={data.goal.progress}
+          />
           {data.goal.keyResults.map((k) => (
             <View key={k.id} className="gap-1">
               <Text variant="headline">{k.title}</Text>
@@ -1993,11 +2240,19 @@ export function PerformanceGoal({
                       setValues({ ...values, [k.id]: on ? 1 : 0 });
                     }}
                   >
-                    Done
+                    {tr('performance.screens.done_2', 'Done')}
                   </Switch>
                 ) : (
                   <NumberField
-                    label={`Now, from ${String(k.start)} to ${String(k.target)}${k.unit === null ? '' : ` ${k.unit}`}`}
+                    label={tr(
+                      'performance.screens.now_from_to',
+                      'Now, from {{String}} to {{String2}}{{value}}',
+                      {
+                        String: String(k.start),
+                        String2: String(k.target),
+                        value: k.unit === null ? '' : ` ${k.unit}`,
+                      },
+                    )}
                     value={values[k.id] ?? k.current}
                     onChange={(v) => {
                       if (v !== null) setValues({ ...values, [k.id]: v });
@@ -2006,7 +2261,10 @@ export function PerformanceGoal({
                 )
               ) : (
                 <Progress
-                  label={`${String(k.current)} of ${String(k.target)}`}
+                  label={tr('performance.screens.of_2', '{{String}} of {{String2}}', {
+                    String: String(k.current),
+                    String2: String(k.target),
+                  })}
                   value={k.progress}
                 />
               )}
@@ -2017,17 +2275,26 @@ export function PerformanceGoal({
             <>
               <SegmentedControl
                 fullWidth
-                accessibilityLabel="Confidence"
+                accessibilityLabel={tr('performance.screens.confidence', 'Confidence')}
                 value={confidence}
                 onValueChange={setConfidence}
               >
-                <SegmentedControlItem value="on_track">On track</SegmentedControlItem>
-                <SegmentedControlItem value="at_risk">At risk</SegmentedControlItem>
-                <SegmentedControlItem value="off_track">Off track</SegmentedControlItem>
+                <SegmentedControlItem value="on_track">
+                  {tr('performance.screens.on_track', 'On track')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="at_risk">
+                  {tr('performance.screens.at_risk', 'At risk')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="off_track">
+                  {tr('performance.screens.off_track', 'Off track')}
+                </SegmentedControlItem>
               </SegmentedControl>
               <Textarea
-                accessibilityLabel="Note"
-                placeholder="What changed (optional)"
+                accessibilityLabel={tr('performance.screens.note', 'Note')}
+                placeholder={tr(
+                  'performance.screens.what_changed_optional',
+                  'What changed (optional)',
+                )}
                 value={note}
                 onChange={setNote}
               />
@@ -2053,16 +2320,16 @@ export function PerformanceGoal({
                   );
                 }}
               >
-                Check in
+                {tr('performance.screens.check_in', 'Check in')}
               </Button>
             </>
           ) : null}
           {data.may.edit ? (
             <>
-              <Heading title="Who can see it" />
+              <Heading title={tr('performance.screens.who_can_see_it', 'Who can see it')} />
               <SegmentedControl
                 fullWidth
-                accessibilityLabel="Who can see it"
+                accessibilityLabel={tr('performance.screens.who_can_see_it', 'Who can see it')}
                 value={data.goal.visibility}
                 onValueChange={(visibility) => {
                   write.run('SetPerformanceGoalVisibility', {
@@ -2071,17 +2338,25 @@ export function PerformanceGoal({
                   });
                 }}
               >
-                <SegmentedControlItem value="owner">Managers</SegmentedControlItem>
-                <SegmentedControlItem value="team">Team</SegmentedControlItem>
-                <SegmentedControlItem value="everyone">Everyone</SegmentedControlItem>
+                <SegmentedControlItem value="owner">
+                  {tr('performance.screens.managers', 'Managers')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="team">
+                  {tr('performance.screens.team', 'Team')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="everyone">
+                  {tr('performance.screens.everyone', 'Everyone')}
+                </SegmentedControlItem>
               </SegmentedControl>
             </>
           ) : null}
-          {data.checkIns.length === 0 ? null : <Heading title="Check-ins" />}
+          {data.checkIns.length === 0 ? null : (
+            <Heading title={tr('performance.screens.check_ins', 'Check-ins')} />
+          )}
           {data.checkIns.slice(0, 6).map((c) => (
             <Text
               key={c.at}
-            >{`${day(c.at)} · ${c.by} · ${(CONFIDENCE[c.confidence] ?? ['On track'])[0]}${c.note === null ? '' : `: ${c.note}`}`}</Text>
+            >{`${day(c.at)} · ${c.by} · ${(CONFIDENCE()[c.confidence] ?? ['On track'])[0]}${c.note === null ? '' : `: ${c.note}`}`}</Text>
           ))}
         </>
       )}
@@ -2104,12 +2379,12 @@ interface Learning {
   }[];
 }
 
-const LEARNING: Readonly<Record<string, readonly [string, Tone]>> = {
-  not_started: ['Assigned', 'neutral'],
-  in_progress: ['In progress', 'warning'],
-  done: ['Completed', 'success'],
-  going: ['Going', 'info'],
-};
+const LEARNING = (): Readonly<Record<string, readonly [string, Tone]>> => ({
+  not_started: [tr('performance.screens.assigned', 'Assigned'), 'neutral'],
+  in_progress: [tr('performance.screens.in_progress', 'In progress'), 'warning'],
+  done: [tr('performance.screens.completed', 'Completed'), 'success'],
+  going: [tr('performance.screens.going', 'Going'), 'info'],
+});
 
 /** PFM7: what is assigned to me, and the door code of a session. */
 export function PerformanceLearning({
@@ -2125,8 +2400,11 @@ export function PerformanceLearning({
   const [scanned, setScanned] = useState<string | null>(null);
   return (
     <Screen
-      title="Learning"
-      back={{ label: 'Performance', onPress: navigation.goBack }}
+      title={tr('performance.screens.learning', 'Learning')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
       load={load}
       reload={reload}
       what="your learning"
@@ -2134,11 +2412,13 @@ export function PerformanceLearning({
       {(data) => (
         <>
           {data.assigned.length === 0 ? (
-            <Text tone="muted">Nothing assigned to you.</Text>
+            <Text tone="muted">
+              {tr('performance.screens.nothing_assigned_to_you', 'Nothing assigned to you.')}
+            </Text>
           ) : (
             <List>
               {data.assigned.map((a) => {
-                const [label, tone] = LEARNING[a.state] ?? [a.state, 'neutral'];
+                const [label, tone] = LEARNING()[a.state] ?? [a.state, 'neutral'];
                 return (
                   <ListItem
                     key={a.id}
@@ -2159,18 +2439,27 @@ export function PerformanceLearning({
               })}
             </List>
           )}
-          <Heading title="At a session" />
+          <Heading title={tr('performance.screens.at_a_session', 'At a session')} />
           <Button
             variant="primary"
             onPress={() => {
               navigation.navigate('PerformanceScan');
             }}
           >
-            Scan the code at the door
+            {tr('performance.screens.scan_the_code_at_the_door', 'Scan the code at the door')}
           </Button>
           <Field>
-            <FieldLabel>Or type the code shown there</FieldLabel>
-            <Input value={code} onChange={setCode} accessibilityLabel="Session code" />
+            <FieldLabel>
+              {tr(
+                'performance.screens.or_type_the_code_shown_there',
+                'Or type the code shown there',
+              )}
+            </FieldLabel>
+            <Input
+              value={code}
+              onChange={setCode}
+              accessibilityLabel={tr('performance.screens.session_code', 'Session code')}
+            />
           </Field>
           <Problem text={write.problem} />
           {scanned === null ? null : <Alert tone="success">{scanned}</Alert>}
@@ -2178,12 +2467,17 @@ export function PerformanceLearning({
             disabled={code.trim().length < 4 || write.busy}
             onPress={() => {
               write.run('ScanPerformanceSession', { input: { code: code.trim() } }, () => {
-                setScanned('You are marked as attending.');
+                setScanned(
+                  tr(
+                    'performance.screens.you_are_marked_as_attending',
+                    'You are marked as attending.',
+                  ),
+                );
                 setCode('');
               });
             }}
           >
-            I’m here
+            {tr('performance.screens.im_here', 'I’m here')}
           </Button>
         </>
       )}
@@ -2216,19 +2510,29 @@ export function PerformanceScan({
     if (write.problem !== null) reading.current = false;
   }, [write.problem]);
   return (
-    <Page title="Scan the code" back={{ label: 'Learning', onPress: navigation.goBack }}>
+    <Page
+      title={tr('performance.screens.scan_the_code', 'Scan the code')}
+      back={{ label: tr('performance.screens.learning', 'Learning'), onPress: navigation.goBack }}
+    >
       {permission === null ? (
-        <Loading label="Opening the camera" />
+        <Loading label={tr('performance.screens.opening_the_camera', 'Opening the camera')} />
       ) : done ? (
         <>
-          <Alert tone="success">You are marked as attending.</Alert>
+          <Alert tone="success">
+            {tr('performance.screens.you_are_marked_as_attending', 'You are marked as attending.')}
+          </Alert>
           <Button variant="primary" onPress={navigation.goBack}>
-            Done
+            {tr('performance.screens.done_2', 'Done')}
           </Button>
         </>
       ) : !permission.granted ? (
         <>
-          <Text>Kithena reads the session’s code with the camera. Nothing it sees is kept.</Text>
+          <Text>
+            {tr(
+              'performance.screens.kithena_reads_the_sessions_code_with',
+              'Kithena reads the session’s code with the camera. Nothing it sees is kept.',
+            )}
+          </Text>
           <Button
             variant="primary"
             onPress={() => {
@@ -2236,7 +2540,12 @@ export function PerformanceScan({
               else void Linking.openSettings();
             }}
           >
-            {permission.canAskAgain ? 'Allow the camera' : 'Turn the camera on in Settings'}
+            {permission.canAskAgain
+              ? tr('performance.screens.allow_the_camera', 'Allow the camera')
+              : tr(
+                  'performance.screens.turn_the_camera_on_in_settings',
+                  'Turn the camera on in Settings',
+                )}
           </Button>
         </>
       ) : (
@@ -2249,7 +2558,12 @@ export function PerformanceScan({
               onBarcodeScanned={write.busy ? undefined : onScan}
             />
           </View>
-          <Text tone="muted">Point the camera at the code shown at the door.</Text>
+          <Text tone="muted">
+            {tr(
+              'performance.screens.point_the_camera_at_the_code',
+              'Point the camera at the code shown at the door.',
+            )}
+          </Text>
           <Problem text={write.problem} />
         </>
       )}
@@ -2290,7 +2604,7 @@ export function PerformanceItem({
   return (
     <Screen
       title={route.params.title}
-      back={{ label: 'Learning', onPress: navigation.goBack }}
+      back={{ label: tr('performance.screens.learning', 'Learning'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="the item"
@@ -2329,7 +2643,7 @@ export function PerformanceItem({
                 {a === null ? null : (
                   <SegmentedControl
                     fullWidth
-                    accessibilityLabel="Going"
+                    accessibilityLabel={tr('performance.screens.going', 'Going')}
                     value={mine}
                     onValueChange={(v) => {
                       write.run('RespondPerformanceSession', {
@@ -2339,9 +2653,15 @@ export function PerformanceItem({
                       });
                     }}
                   >
-                    <SegmentedControlItem value="accepted">Going</SegmentedControlItem>
-                    <SegmentedControlItem value="tentative">Maybe</SegmentedControlItem>
-                    <SegmentedControlItem value="declined">No</SegmentedControlItem>
+                    <SegmentedControlItem value="accepted">
+                      {tr('performance.screens.going', 'Going')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="tentative">
+                      {tr('performance.screens.maybe', 'Maybe')}
+                    </SegmentedControlItem>
+                    <SegmentedControlItem value="declined">
+                      {tr('performance.screens.no', 'No')}
+                    </SegmentedControlItem>
                   </SegmentedControl>
                 )}
               </View>
@@ -2356,13 +2676,21 @@ export function PerformanceItem({
                   write.run('AcknowledgePerformanceLearning', { id: a.id });
                 }}
               >
-                I confirm
+                {tr('performance.screens.i_confirm', 'I confirm')}
               </Button>
             </>
           ) : (
-            <Alert tone="success">{`Confirmed ${day(a.acknowledgedAt)}`}</Alert>
+            <Alert tone="success">
+              {tr('performance.screens.confirmed', 'Confirmed {{day}}', {
+                day: day(a.acknowledgedAt),
+              })}
+            </Alert>
           )}
-          {item.quiz === null ? null : <Text tone="muted">The quiz is taken on the web.</Text>}
+          {item.quiz === null ? null : (
+            <Text tone="muted">
+              {tr('performance.screens.the_quiz_is_taken_on_the', 'The quiz is taken on the web.')}
+            </Text>
+          )}
         </>
       )}
     </Screen>
@@ -2392,22 +2720,31 @@ export function PerformanceTeam({
   );
   return (
     <Screen
-      title="My team’s cycles"
-      back={{ label: 'Performance', onPress: navigation.goBack }}
+      title={tr('performance.screens.my_teams_cycles', 'My team’s cycles')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
       load={load}
       reload={reload}
       what="cycles"
     >
       {(data) =>
         data.rows.length === 0 ? (
-          <Text tone="muted">No cycle is running.</Text>
+          <Text tone="muted">
+            {tr('performance.screens.no_cycle_is_running', 'No cycle is running.')}
+          </Text>
         ) : (
           <List>
             {data.rows.map((c) => (
               <ListItem
                 key={c.id}
                 chevron
-                description={`${c.who} · ${String(c.progress)}% submitted`}
+                description={tr(
+                  'performance.screens.submitted',
+                  '{{who}} · {{String}}% submitted',
+                  { who: c.who, String: String(c.progress) },
+                )}
                 onPress={() => {
                   navigation.navigate('PerformanceCycle', { id: c.id, name: c.name });
                 }}
@@ -2476,7 +2813,7 @@ export function PerformanceCycle({
   return (
     <Screen
       title={route.params.name}
-      back={{ label: 'Cycles', onPress: navigation.goBack }}
+      back={{ label: tr('performance.screens.cycles', 'Cycles'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="the cycle"
@@ -2484,17 +2821,28 @@ export function PerformanceCycle({
       {(data) => (
         <>
           {data.overdue === 0 ? null : (
-            <Alert tone="warning">{`${String(data.overdue)} overdue`}</Alert>
+            <Alert tone="warning">
+              {tr('performance.screens.overdue', '{{String}} overdue', {
+                String: String(data.overdue),
+              })}
+            </Alert>
           )}
           <SearchField
             value={words}
             onValueChange={setWords}
             onSearch={filterInWords}
-            label="Filter in words"
-            placeholder="Whose self review is overdue"
+            label={tr('performance.screens.filter_in_words', 'Filter in words')}
+            placeholder={tr(
+              'performance.screens.whose_self_review_is_overdue',
+              'Whose self review is overdue',
+            )}
           />
           <Problem text={problem} />
-          {asking ? <Text tone="muted">Working out who…</Text> : null}
+          {asking ? (
+            <Text tone="muted">
+              {tr('performance.screens.working_out_who', 'Working out who…')}
+            </Text>
+          ) : null}
           {said.length === 0 ? null : (
             <View className="flex-row flex-wrap items-center gap-2">
               <Text tone="muted">{said.join(' · ')}</Text>
@@ -2507,7 +2855,7 @@ export function PerformanceCycle({
                   setWords('');
                 }}
               >
-                Show everyone
+                {tr('performance.screens.show_everyone', 'Show everyone')}
               </Button>
             </View>
           )}
@@ -2516,12 +2864,21 @@ export function PerformanceCycle({
               <ListItem
                 key={r.personId}
                 chevron={r.managerReviewId !== null}
-                description={`Self: ${(STATE[r.self] ?? [r.self])[0]} · Manager: ${(STATE[r.managerReview] ?? [r.managerReview])[0]}`}
+                description={tr(
+                  'performance.screens.self_manager',
+                  'Self: {{value}} · Manager: {{value2}}',
+                  {
+                    value: (STATE()[r.self] ?? [r.self])[0],
+                    value2: (STATE()[r.managerReview] ?? [r.managerReview])[0],
+                  },
+                )}
                 onPress={() => {
                   if (r.managerReviewId !== null)
                     navigation.navigate('PerformanceWrite', {
                       id: r.managerReviewId,
-                      title: `${r.name}’s review`,
+                      title: tr('performance.screens.s_review', '{{name}}’s review', {
+                        name: r.name,
+                      }),
                     });
                 }}
               >
@@ -2557,8 +2914,11 @@ export function PerformanceUnlocks({
   const [note, setNote] = useState('');
   return (
     <Screen
-      title="Unlock requests"
-      back={{ label: 'Performance', onPress: navigation.goBack }}
+      title={tr('performance.screens.unlock_requests', 'Unlock requests')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
       load={load}
       reload={reload}
       what="unlock requests"
@@ -2567,7 +2927,9 @@ export function PerformanceUnlocks({
         <>
           <Problem text={write.problem} />
           {data.rows.filter((r) => r.decided === null).length === 0 ? (
-            <Text tone="muted">Nothing to decide.</Text>
+            <Text tone="muted">
+              {tr('performance.screens.nothing_to_decide', 'Nothing to decide.')}
+            </Text>
           ) : null}
           {data.rows
             .filter((r) => r.decided === null)
@@ -2586,14 +2948,14 @@ export function PerformanceUnlocks({
                       });
                     }}
                   >
-                    Unlock
+                    {tr('performance.screens.unlock', 'Unlock')}
                   </Button>
                   <Button
                     onPress={() => {
                       setDeclining(r.reviewId);
                     }}
                   >
-                    Decline
+                    {tr('performance.screens.decline', 'Decline')}
                   </Button>
                 </View>
               </View>
@@ -2607,12 +2969,17 @@ export function PerformanceUnlocks({
             >
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Decline the request?</DialogTitle>
+                  <DialogTitle>
+                    {tr('performance.screens.decline_the_request', 'Decline the request?')}
+                  </DialogTitle>
                 </DialogHeader>
                 <DialogBody>
                   <Textarea
-                    accessibilityLabel="Why"
-                    placeholder="Why, for the writer"
+                    accessibilityLabel={tr('performance.screens.why', 'Why')}
+                    placeholder={tr(
+                      'performance.screens.why_for_the_writer',
+                      'Why, for the writer',
+                    )}
                     value={note}
                     onChange={setNote}
                   />
@@ -2623,7 +2990,7 @@ export function PerformanceUnlocks({
                       setDeclining(null);
                     }}
                   >
-                    Keep it
+                    {tr('performance.screens.keep_it', 'Keep it')}
                   </Button>
                   <Button
                     variant="danger"
@@ -2637,7 +3004,7 @@ export function PerformanceUnlocks({
                       setNote('');
                     }}
                   >
-                    Decline
+                    {tr('performance.screens.decline', 'Decline')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -2670,10 +3037,22 @@ export function PerformanceAsk({ navigation }: PeopleScreen<'PerformanceAsk'>): 
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <Page title="Ask Kithena" back={{ label: 'Performance', onPress: navigation.goBack }}>
+    <Page
+      title={tr('performance.screens.ask_kithena', 'Ask Kithena')}
+      back={{
+        label: tr('performance.screens.performance', 'Performance'),
+        onPress: navigation.goBack,
+      }}
+    >
       <Textarea
-        accessibilityLabel="What should Kithena do?"
-        placeholder="Remind my team about their self reviews"
+        accessibilityLabel={tr(
+          'performance.screens.what_should_kithena_do',
+          'What should Kithena do?',
+        )}
+        placeholder={tr(
+          'performance.screens.remind_my_team_about_their_self',
+          'Remind my team about their self reviews',
+        )}
         value={text}
         onChange={setText}
       />
@@ -2695,7 +3074,7 @@ export function PerformanceAsk({ navigation }: PeopleScreen<'PerformanceAsk'>): 
           });
         }}
       >
-        Ask
+        {tr('performance.screens.ask', 'Ask')}
       </Button>
       <Problem text={problem} />
       {plan === null ? null : (
@@ -2723,14 +3102,21 @@ export function PerformanceAsk({ navigation }: PeopleScreen<'PerformanceAsk'>): 
                   setBusy(false);
                   if (r.ok) {
                     setDone(
-                      `Done: ${String(plan.steps.length)} step${plan.steps.length === 1 ? '' : 's'}, as you.`,
+                      tr(
+                        'performance.screens.done_step_as_you',
+                        {
+                          one: 'Done: {{count}} step, as you.',
+                          other: 'Done: {{count}} steps, as you.',
+                        },
+                        { count: plan.steps.length },
+                      ),
                     );
                     setPlan(null);
                   } else setProblem(r.message);
                 });
               }}
             >
-              Do it
+              {tr('performance.screens.do_it', 'Do it')}
             </Button>
           )}
         </>
@@ -2749,17 +3135,17 @@ interface Tools {
   }[];
 }
 
-const SOURCE: Readonly<Record<string, string>> = {
-  slack: 'Slack',
-  teams: 'Microsoft Teams',
-  gchat: 'Google Chat',
-  meet: 'Google Meet',
-  github: 'GitHub',
-  gitlab: 'GitLab',
-  linear: 'Linear',
-  jira: 'Jira',
-  confluence: 'Confluence',
-};
+const SOURCE = (): Readonly<Record<string, string>> => ({
+  slack: tr('performance.screens.slack', 'Slack'),
+  teams: tr('performance.screens.microsoft_teams', 'Microsoft Teams'),
+  gchat: tr('performance.screens.google_chat', 'Google Chat'),
+  meet: tr('performance.screens.google_meet', 'Google Meet'),
+  github: tr('performance.screens.github', 'GitHub'),
+  gitlab: tr('performance.screens.gitlab', 'GitLab'),
+  linear: tr('performance.screens.linear', 'Linear'),
+  jira: tr('performance.screens.jira', 'Jira'),
+  confluence: tr('performance.screens.confluence', 'Confluence'),
+});
 
 /** PFS3: the tools I let Kithena read of my own work, each on or off. */
 export function PerformanceTools({
@@ -2769,8 +3155,8 @@ export function PerformanceTools({
   const write = useWrite(reload);
   return (
     <Screen
-      title="My connected tools"
-      back={{ label: 'Settings', onPress: navigation.goBack }}
+      title={tr('performance.screens.my_connected_tools', 'My connected tools')}
+      back={{ label: tr('performance.screens.settings', 'Settings'), onPress: navigation.goBack }}
       load={load}
       reload={reload}
       what="your tools"
@@ -2778,8 +3164,10 @@ export function PerformanceTools({
       {(data) => (
         <>
           <Text tone="muted">
-            What Kithena may read of your own work, for reviews about you and by you. Off stops it
-            at once.
+            {tr(
+              'performance.screens.what_kithena_may_read_of_your',
+              'What Kithena may read of your own work, for reviews about you and by you. Off stops it at once.',
+            )}
           </Text>
           <Problem text={write.problem} />
           {data.sources.map((s) => (
@@ -2792,16 +3180,21 @@ export function PerformanceTools({
               }
               description={
                 s.available === false
-                  ? 'Not available yet'
+                  ? tr('performance.screens.not_available_yet', 'Not available yet')
                   : (s.account ?? null) === null
-                    ? 'Link it on the web: Settings › Performance › My connected tools'
-                    : `Linked as ${s.account ?? ''}`
+                    ? tr(
+                        'performance.screens.link_it_on_the_web_settings',
+                        'Link it on the web: Settings › Performance › My connected tools',
+                      )
+                    : tr('performance.screens.linked_as', 'Linked as {{value}}', {
+                        value: s.account ?? '',
+                      })
               }
               onCheckedChange={(on) => {
                 write.run('SetPerformanceGrant', { source: s.source, input: { on } });
               }}
             >
-              {SOURCE[s.source] ?? s.source}
+              {SOURCE()[s.source] ?? s.source}
             </Switch>
           ))}
         </>

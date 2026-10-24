@@ -37,6 +37,7 @@ import { readInbox } from './api';
 import { contactShaped, valuesFrom, type PickedContact } from './contact-fill';
 import { d, FieldInput, openIn, str, type Field_, type Nav } from './item';
 import { ago, days, dueOf, firstName, iconOf, type Item } from './model';
+import { t } from '../i18n';
 
 /**
  * A task with its button on the card (design v3 I1, I5, I10, H1): most are
@@ -68,7 +69,11 @@ export function useInboxWrite(): {
     setBusy(null);
     void readInbox(signed);
     if (!answer.ok) {
-      toast({ title: 'That did not work', description: answer.message, tone: 'danger' });
+      toast({
+        title: t('inbox.task-card.that_did_not_work', 'That did not work'),
+        description: answer.message,
+        tone: 'danger',
+      });
       return false;
     }
     toast({ title: done, tone: 'success' });
@@ -109,10 +114,18 @@ export function approvalHint(item: Item): string | null {
   const left = str(detail['balanceAfter']);
   const clash =
     others.length === 0
-      ? 'No clash.'
+      ? t('inbox.task-card.no_clash', 'No clash.')
       : others.length === 1
-        ? `No clash. ${firstName(others[0])} is the only other person out.`
-        : `No clash, with ${String(others.length)} others out that week.`;
+        ? t(
+            'inbox.task-card.no_clash_is_the_only_other',
+            'No clash. {{firstName}} is the only other person out.',
+            { firstName: firstName(others[0]) },
+          )
+        : t(
+            'inbox.task-card.no_clash_with_others_out_that',
+            'No clash, with {{String}} others out that week.',
+            { String: String(others.length) },
+          );
   return [clash, left === null ? null : `${who} has ${days(left)} left.`]
     .filter((x) => x !== null)
     .join(' ');
@@ -172,18 +185,21 @@ export function TaskCard({
           setOpen('sign');
         });
       else if (what === 'acknowledge')
-        actions = action('I’ve read it', () => {
+        actions = action(t('inbox.task-card.ive_read_it', 'I’ve read it'), () => {
           void write(
             'people',
             'ActOnDocument',
-            { id: str(detail['documentId']), action: 'acknowledge' },
+            {
+              id: str(detail['documentId']),
+              action: 'acknowledge',
+            },
             'Acknowledged',
           );
         });
       break;
     }
     case 'people.review':
-      actions = action('Open in People', () => {
+      actions = action(t('inbox.task-card.open_in_people', 'Open in People'), () => {
         navigation.navigate('People');
       });
       break;
@@ -192,14 +208,19 @@ export function TaskCard({
         <>
           {item.team?.mine === true
             ? null
-            : action(item.team?.takenBy == null ? 'Take it' : 'Take over', () => {
-                void write(
-                  'people',
-                  'TakeInboxTask',
-                  { itemId: item.id, note: null },
-                  'It’s yours',
-                );
-              })}
+            : action(
+                item.team?.takenBy == null
+                  ? t('inbox.task-card.take_it', 'Take it')
+                  : t('inbox.task-card.take_over', 'Take over'),
+                () => {
+                  void write(
+                    'people',
+                    'TakeInboxTask',
+                    { itemId: item.id, note: null },
+                    t('inbox.task-card.its_yours', 'It’s yours'),
+                  );
+                },
+              )}
           {action(
             'Fix',
             () => {
@@ -219,7 +240,9 @@ export function TaskCard({
           'timeoff',
           'DecideTimeOffRequest',
           { requestId, input: { decision, reason: null } },
-          decision === 'approve' ? `Approved ${who}’s time off` : `Declined ${who}’s time off`,
+          decision === 'approve'
+            ? t('inbox.task-card.approved_s_time_off', 'Approved {{who}}’s time off', { who })
+            : t('inbox.task-card.declined_s_time_off', 'Declined {{who}}’s time off', { who }),
         );
       };
       actions = (
@@ -231,7 +254,11 @@ export function TaskCard({
             : null}
           <Button
             size="sm"
-            accessibilityLabel={`Decline ${who}’s time off`}
+            accessibilityLabel={t(
+              'inbox.task-card.decline_s_time_off',
+              'Decline {{who}}’s time off',
+              { who },
+            )}
             loading={busy === 'DecideTimeOffRequest'}
             startIcon={<Icon icon={X} size={16} />}
             onPress={() => {
@@ -245,7 +272,7 @@ export function TaskCard({
               decide('approve');
             }}
           >
-            Approve
+            {t('inbox.task-card.approve', 'Approve')}
           </Button>
         </>
       );
@@ -292,10 +319,12 @@ export function TaskCard({
                 due: (
                   <Badge size="sm" tone={item.team.takenBy === null ? 'warning' : 'info'}>
                     {item.team.takenBy === null
-                      ? 'Nobody has it'
+                      ? t('inbox.task-card.nobody_has_it', 'Nobody has it')
                       : item.team.mine
-                        ? 'You have it'
-                        : `${item.team.takenBy.name ?? 'Somebody'} has it`}
+                        ? t('inbox.task-card.you_have_it', 'You have it')
+                        : t('inbox.task-card.has_it', '{{value}} has it', {
+                            value: item.team.takenBy.name ?? 'Somebody',
+                          })}
                   </Badge>
                 ),
               }
@@ -308,7 +337,7 @@ export function TaskCard({
             })}
         actions={actions}
         onPress={show}
-        accessibilityLabel={`${item.title}: open`}
+        accessibilityLabel={t('inbox.task-card.open', '{{title}}: open', { title: item.title })}
       />
       {open === 'details' ? (
         <DetailsDialog
@@ -444,7 +473,7 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
       foot={
         <>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('inbox.task-card.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -456,13 +485,13 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
                 'people',
                 'CompleteAsk',
                 { id: str(detail['askId']), values: JSON.stringify(values) },
-                'Added to your record',
+                t('inbox.task-card.added_to_your_record', 'Added to your record'),
               ).then((done) => {
                 if (done) onClose();
               });
             }}
           >
-            Add to my record
+            {t('inbox.task-card.add_to_my_record', 'Add to my record')}
           </Button>
         </>
       }
@@ -473,7 +502,10 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
             listitem={false}
             className="bg-transparent"
             leading={<Avatar name={suggested.name} size={36} />}
-            description="From your phone’s contacts"
+            description={t(
+              'inbox.task-card.from_your_phones_contacts',
+              'From your phone’s contacts',
+            )}
             trailing={
               <Button
                 size="sm"
@@ -482,11 +514,11 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
                   pour(suggested);
                 }}
               >
-                Use
+                {t('inbox.task-card.use', 'Use')}
               </Button>
             }
           >
-            {`Use ${suggested.name}?`}
+            {t('inbox.task-card.use_2', 'Use {{name}}?', { name: suggested.name })}
           </ListItem>
         </Card>
       ) : (
@@ -501,7 +533,7 @@ function DetailsDialog({ item, onClose }: { item: Item; onClose: () => void }) {
               .catch(() => undefined);
           }}
         >
-          Choose from your contacts
+          {t('inbox.task-card.choose_from_your_contacts', 'Choose from your contacts')}
         </Button>
       )}
       {fields.map((f) => (
@@ -557,7 +589,7 @@ export function CorrectDialog({
       foot={
         <>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('inbox.task-card.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -570,13 +602,13 @@ export function CorrectDialog({
                 'people',
                 'SaveOwnSection',
                 { changed: formInputs({ [field.key]: value.trim() }) },
-                `Sent to ${to}`,
+                t('inbox.task-card.sent_to', 'Sent to {{to}}', { to }),
               ).then((done) => {
                 if (done) onClose();
               });
             }}
           >
-            {`Send to ${to}`}
+            {t('inbox.task-card.send_to', 'Send to {{to}}', { to })}
           </Button>
         </>
       }
@@ -590,11 +622,23 @@ export function CorrectDialog({
             <Input value={value} onChange={type} autoCapitalize="characters" />
           </FieldControl>
           {suggestion !== null ? (
-            <FieldError>{`For ${suggestion.slice(0, -1)} the letter should be ${suggestion.at(-1) ?? ''}.`}</FieldError>
+            <FieldError>
+              {t(
+                'inbox.task-card.for_the_letter_should_be',
+                'For {{slice}} the letter should be {{value}}.',
+                { slice: suggestion.slice(0, -1), value: suggestion.at(-1) ?? '' },
+              )}
+            </FieldError>
           ) : check !== null ? (
             <FieldError>{check}</FieldError>
           ) : (
-            <FieldDescription>{`${to} still checks it against your document.`}</FieldDescription>
+            <FieldDescription>
+              {t(
+                'inbox.task-card.still_checks_it_against_your_document',
+                '{{to}} still checks it against your document.',
+                { to },
+              )}
+            </FieldDescription>
           )}
         </Field>
       )}
@@ -607,7 +651,7 @@ export function CorrectDialog({
             type(suggestion);
           }}
         >
-          {`Use ${suggestion}`}
+          {t('inbox.task-card.use_3', 'Use {{suggestion}}', { suggestion })}
         </Button>
       )}
       {field === undefined ? null : (
@@ -634,7 +678,11 @@ function SignTaskDialog({ item, onClose }: { item: Item; onClose: () => void }) 
   const openFile = (): void => {
     void ask<string>(signed, 'PeopleDocumentFile', { id: documentId }).then(async (a) => {
       if (!a.ok) {
-        toast({ title: 'That did not open', description: a.message, tone: 'danger' });
+        toast({
+          title: t('inbox.task-card.that_did_not_open', 'That did not open'),
+          description: a.message,
+          tone: 'danger',
+        });
         return;
       }
       const file = JSON.parse(a.data) as { name: string; mediaType: string; data: string };
@@ -644,12 +692,16 @@ function SignTaskDialog({ item, onClose }: { item: Item; onClose: () => void }) 
   return (
     <Shell
       title={item.title}
-      description={item.from?.name == null ? null : `From ${item.from.name}`}
+      description={
+        item.from?.name == null
+          ? null
+          : t('inbox.task-card.from', 'From {{name}}', { name: item.from.name })
+      }
       onClose={onClose}
       foot={
         <>
           <Button className="flex-1" onPress={onClose}>
-            Not now
+            {t('inbox.task-card.not_now', 'Not now')}
           </Button>
           <Button
             className="flex-1"
@@ -662,7 +714,11 @@ function SignTaskDialog({ item, onClose }: { item: Item; onClose: () => void }) 
                 'people',
                 'ActOnDocument',
                 counter
-                  ? { id: documentId, action: 'countersign', name: name.trim() }
+                  ? {
+                      id: documentId,
+                      action: 'countersign',
+                      name: name.trim(),
+                    }
                   : {
                       id: documentId,
                       action: 'sign',
@@ -676,7 +732,9 @@ function SignTaskDialog({ item, onClose }: { item: Item; onClose: () => void }) 
               });
             }}
           >
-            {counter ? 'Countersign' : 'Sign'}
+            {counter
+              ? t('inbox.task-card.countersign_2', 'Countersign')
+              : t('inbox.task-card.sign_2', 'Sign')}
           </Button>
         </>
       }
@@ -684,26 +742,28 @@ function SignTaskDialog({ item, onClose }: { item: Item; onClose: () => void }) 
       <List>
         <ListItem
           icon={FileText}
-          description="Read it before you sign"
+          description={t('inbox.task-card.read_it_before_you_sign', 'Read it before you sign')}
           trailing={
             <Button size="sm" variant="ghost" onPress={openFile}>
-              Open
+              {t('inbox.task-card.open_2', 'Open')}
             </Button>
           }
         >
-          {str(detail['name']) ?? 'Document'}
+          {str(detail['name']) ?? t('inbox.task-card.document', 'Document')}
         </ListItem>
       </List>
       {changes.length === 0 ? null : (
         <View className="gap-1.5">
-          <Text weight="semibold">What it changes</Text>
+          <Text weight="semibold">{t('inbox.task-card.what_it_changes', 'What it changes')}</Text>
           {changes.map((c) => (
             <Text key={c} variant="subhead" tone="muted">{`· ${c}`}</Text>
           ))}
         </View>
       )}
       <Field>
-        <FieldLabel>Type your full name to sign</FieldLabel>
+        <FieldLabel>
+          {t('inbox.task-card.type_your_full_name_to_sign', 'Type your full name to sign')}
+        </FieldLabel>
         <FieldControl>
           <Input value={name} onChange={setName} autoComplete="name" />
         </FieldControl>

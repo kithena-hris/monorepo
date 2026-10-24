@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn.ts';
 import { Avatar } from '../avatar/avatar.tsx';
 import { Button } from '../button/button.tsx';
 import { Icon } from '../icon/icon.tsx';
+import { t } from '../../lib/i18n';
 
 /**
  * Direct messages about a request or a person, as the web's: your messages on
@@ -85,7 +86,7 @@ export function ChatHeader({
         <Button
           variant="ghost"
           size="xs"
-          accessibilityLabel="Minimise"
+          accessibilityLabel={t('components.chat.chat.minimise', 'Minimise')}
           startIcon={<Icon icon={Minus} />}
           onPress={onMinimise}
         />
@@ -94,7 +95,7 @@ export function ChatHeader({
         <Button
           variant="ghost"
           size="xs"
-          accessibilityLabel="Close"
+          accessibilityLabel={t('components.chat.chat.close', 'Close')}
           startIcon={<Icon icon={X} />}
           onPress={onClose}
         />
@@ -204,7 +205,9 @@ export function ChatMessage({
         {onRetry ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Send again: ${children}`}
+            accessibilityLabel={t('components.chat.chat.send_again', 'Send again: {{children}}', {
+              children,
+            })}
             onPress={onRetry}
           >
             {bubble}
@@ -288,9 +291,9 @@ export type ChatComposerProps = {
 /** Where a reply is written: a pill that grows with the text, and Send beside it. */
 export function ChatComposer({
   onSend,
-  accessibilityLabel = 'Message',
-  placeholder = 'Message',
-  sendLabel = 'Send',
+  accessibilityLabel = t('components.chat.chat.message', 'Message'),
+  placeholder = t('components.chat.chat.message', 'Message'),
+  sendLabel = t('components.chat.chat.send', 'Send'),
   defaultValue = '',
   busy = false,
   disabled = false,
@@ -325,7 +328,7 @@ export function ChatComposer({
         startIcon={<Icon icon={ArrowUp} />}
         disabled={!ready}
         loading={busy}
-        loadingLabel="Waiting for the reply"
+        loadingLabel={t('components.chat.chat.waiting_for_the_reply', 'Waiting for the reply')}
         onPress={send}
       />
     </View>

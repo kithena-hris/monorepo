@@ -159,6 +159,78 @@
     "text": "Try again",
     "context": "Onboarding: new joiners’ tasks and checklists. load.tsx, Loaded: the action of <Button>."
   },
+  "nav./onboarding/analytics.description": {
+    "text": "Plans on track, late tasks and probation outcomes",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/analytics): one sentence under its name in a menu or on a card."
+  },
+  "nav./onboarding/analytics.group": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/analytics): the heading of the group it is listed under."
+  },
+  "nav./onboarding/analytics.label": {
+    "text": "Analytics",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/analytics): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./onboarding/analytics.summary": {
+    "text": "Analytics",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/analytics): a short line under its name on a phone’s row."
+  },
+  "nav./onboarding/home.description": {
+    "text": "Who is arriving, and how far along each plan is",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): one sentence under its name in a menu or on a card."
+  },
+  "nav./onboarding/home.group": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): the heading of the group it is listed under."
+  },
+  "nav./onboarding/home.label": {
+    "text": "Home",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./onboarding/home.summary": {
+    "text": "Plans in flight",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/home): a short line under its name on a phone’s row."
+  },
+  "nav./onboarding/tasks.description": {
+    "text": "Your onboarding tasks as a manager, a buddy, IT or HR",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): one sentence under its name in a menu or on a card."
+  },
+  "nav./onboarding/tasks.group": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): the heading of the group it is listed under."
+  },
+  "nav./onboarding/tasks.label": {
+    "text": "My tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./onboarding/tasks.summary": {
+    "text": "My tasks",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/tasks): a short line under its name on a phone’s row."
+  },
+  "nav./onboarding/templates.description": {
+    "text": "What a plan is made of, and when each task falls due",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/templates): one sentence under its name in a menu or on a card."
+  },
+  "nav./onboarding/templates.group": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/templates): the heading of the group it is listed under."
+  },
+  "nav./onboarding/templates.label": {
+    "text": "Templates",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/templates): its name in the sidebar, the breadcrumb and the menus."
+  },
+  "nav./onboarding/templates.summary": {
+    "text": "Templates",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a section of the area (/onboarding/templates): a short line under its name on a phone’s row."
+  },
+  "nav./settings/onboarding/general.description": {
+    "text": "Who does HR’s and IT’s tasks, holidays, and the country of a People hire.",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a page of the area’s settings (/settings/onboarding/general): one sentence under its name in a menu or on a card."
+  },
+  "nav./settings/onboarding/general.label": {
+    "text": "Onboarding",
+    "context": "Onboarding: new joiners’ tasks and checklists. Navigation, a page of the area’s settings (/settings/onboarding/general): its name in the sidebar, the breadcrumb and the menus."
+  },
   "plan.at_day_30_60_and_90": {
     "text": "At day 30, 60 and 90, for the new hire and the manager",
     "context": "Onboarding: new joiners’ tasks and checklists. plan.tsx, PlanBody: text inside <CardDescription>."

@@ -2,6 +2,7 @@ import { useToast } from '@reach/ui-native';
 import { useCallback, useState } from 'react';
 
 import { ask, useSigned } from './api';
+import { t } from '../i18n';
 
 /**
  * A write, from a button: asked of People, its refusal said in a toast in
@@ -29,7 +30,11 @@ export function useAct(area: 'people' | 'timeoff' = 'people'): {
       const answer = await ask<T>(signed, operation, variables, area);
       setBusy(null);
       if (!answer.ok) {
-        toast({ title: 'That did not work', description: answer.message, tone: 'danger' });
+        toast({
+          title: t('people.act.that_did_not_work', 'That did not work'),
+          description: answer.message,
+          tone: 'danger',
+        });
         return null;
       }
       const said = typeof done === 'function' ? done(answer.data) : done;

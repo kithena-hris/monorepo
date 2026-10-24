@@ -110,6 +110,7 @@ import { STATUS_TONE } from './people-tab';
 import type { PeopleScreen } from './routes';
 import { useRoles } from './roles';
 import { AskDialog, Documents, SendDocumentDialog } from '../inbox/profile-asks';
+import { t } from '../i18n';
 
 interface Pending {
   readonly id: string;
@@ -162,16 +163,16 @@ interface ProfileData {
 }
 
 /** The web's words for a status (`statusLabel`). */
-const STATUS: Record<string, string> = {
-  provisional: 'Provisional',
-  pre_hire: 'Starting soon',
-  active: 'Active',
-  on_leave: 'On leave',
-  notice: 'On notice',
-  terminated: 'Left',
-  discarded: 'Discarded',
-  merged: 'Merged into another record',
-};
+const STATUS = (): Record<string, string> => ({
+  provisional: t('people.profile.provisional', 'Provisional'),
+  pre_hire: t('people.profile.starting_soon', 'Starting soon'),
+  active: t('people.profile.active', 'Active'),
+  on_leave: t('people.profile.on_leave', 'On leave'),
+  notice: t('people.profile.on_notice', 'On notice'),
+  terminated: t('people.profile.left', 'Left'),
+  discarded: t('people.profile.discarded', 'Discarded'),
+  merged: t('people.profile.merged_into_another_record', 'Merged into another record'),
+});
 
 /** Each move's glyph in the menu. */
 const MOVE_ICON: Record<MoveKind, LucideIcon> = {
@@ -217,7 +218,15 @@ function PendingNote({
       <Stack gap={2}>
         <DisplayValue field={field} value={valueOf(pending.value)} />
         <Text variant="subhead">
-          {`From ${day(pending.effectiveFrom)}, asked by ${pending.requestedBy}. Waits until ${day(pending.expiresAt)}.`}
+          {t(
+            'people.profile.from_asked_by_waits_until',
+            'From {{day}}, asked by {{requestedBy}}. Waits until {{day2}}.',
+            {
+              day: day(pending.effectiveFrom),
+              requestedBy: pending.requestedBy,
+              day2: day(pending.expiresAt),
+            },
+          )}
         </Text>
         <Inline gap={2}>
           {pending.mine ? (
@@ -230,7 +239,7 @@ function PendingNote({
                 });
               }}
             >
-              Withdraw
+              {t('people.profile.withdraw', 'Withdraw')}
             </Button>
           ) : null}
           {pending.canSelfApprove === true ? (
@@ -240,12 +249,12 @@ function PendingNote({
               loading={busy === 'DecidePendingChange'}
               onPress={() => void decide(true, true)}
             >
-              Approve it yourself
+              {t('people.profile.approve_it_yourself', 'Approve it yourself')}
             </Button>
           ) : pending.canDecide ? (
             <>
               <Button size="sm" onPress={() => void decide(false)}>
-                Reject
+                {t('people.profile.reject', 'Reject')}
               </Button>
               <Button
                 size="sm"
@@ -253,7 +262,7 @@ function PendingNote({
                 loading={busy === 'DecidePendingChange'}
                 onPress={() => void decide(true)}
               >
-                Approve
+                {t('people.profile.approve', 'Approve')}
               </Button>
             </>
           ) : null}
@@ -401,7 +410,8 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     </Page>
   );
 
-  if (load.status === 'loading') return frame(<Loading label="Loading the record" />);
+  if (load.status === 'loading')
+    return frame(<Loading label={t('people.profile.loading_the_record', 'Loading the record')} />);
   if (load.status === 'error') return frame(<Failed message={load.message} onRetry={reload} />);
 
   const data = load.data;
@@ -438,7 +448,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     <Button
       size="sm"
       startIcon={<Icon icon={Settings} />}
-      accessibilityLabel="Settings"
+      accessibilityLabel={t('people.profile.settings', 'Settings')}
       onPress={() => {
         navigation.navigate('Settings');
       }}
@@ -446,15 +456,19 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
   ) : (
     <DropdownMenu>
       <DropdownMenuTrigger>
-        <Button size="sm" startIcon={<Icon icon={Ellipsis} />} accessibilityLabel="Actions" />
+        <Button
+          size="sm"
+          startIcon={<Icon icon={Ellipsis} />}
+          accessibilityLabel={t('people.profile.actions', 'Actions')}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        label={`Actions for ${data.person.name}`}
+        label={t('people.profile.actions_for', 'Actions for {{name}}', { name: data.person.name })}
         align="end"
         className="w-[300px]"
       >
         {moves.length === 0 && data.placement === null && roleSection === undefined ? null : (
-          <DropdownMenuLabel>Employment</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('people.profile.employment', 'Employment')}</DropdownMenuLabel>
         )}
         {roleSection === undefined ? null : (
           <DropdownMenuItem
@@ -463,7 +477,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               edit(roleSection);
             }}
           >
-            Change role or team
+            {t('people.profile.change_role_or_team', 'Change role or team')}
           </DropdownMenuItem>
         )}
         {paySection === undefined ? null : (
@@ -473,7 +487,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               edit(paySection);
             }}
           >
-            Change pay
+            {t('people.profile.change_pay', 'Change pay')}
           </DropdownMenuItem>
         )}
         {data.placement === null ? null : (
@@ -483,7 +497,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'place' });
             }}
           >
-            Change placement
+            {t('people.profile.change_placement', 'Change placement')}
           </DropdownMenuItem>
         )}
         {moves
@@ -500,7 +514,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             </DropdownMenuItem>
           ))}
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Record</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('people.profile.record', 'Record')}</DropdownMenuLabel>
         {askable.length === 0 ? null : (
           <DropdownMenuItem
             icon={Send}
@@ -508,7 +522,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'ask' });
             }}
           >
-            {`Ask ${firstName} for details`}
+            {t('people.profile.ask_for_details', 'Ask {{firstName}} for details', { firstName })}
           </DropdownMenuItem>
         )}
         {roles.hr ? (
@@ -518,7 +532,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'send' });
             }}
           >
-            Send a document
+            {t('people.profile.send_a_document', 'Send a document')}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem
@@ -527,7 +541,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             setOpen({ kind: 'history' });
           }}
         >
-          History
+          {t('people.profile.history', 'History')}
         </DropdownMenuItem>
         <DropdownMenuItem
           icon={FileDown}
@@ -535,7 +549,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             setOpen({ kind: 'pdf' });
           }}
         >
-          Download record
+          {t('people.profile.download_record', 'Download record')}
         </DropdownMenuItem>
         {data.person.canViewAs === true ? (
           <DropdownMenuItem
@@ -544,7 +558,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'view' });
             }}
           >
-            {`View as ${firstName}`}
+            {t('people.profile.view_as', 'View as {{firstName}}', { firstName })}
           </DropdownMenuItem>
         ) : null}
         {moves.some(isDestructive) ? <DropdownMenuSeparator /> : null}
@@ -557,7 +571,9 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'move', move: kind });
             }}
           >
-            {kind === 'terminate' ? 'End employment' : MOVE_LABEL[kind]}
+            {kind === 'terminate'
+              ? t('people.profile.end_employment', 'End employment')
+              : MOVE_LABEL[kind]}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -573,7 +589,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
   const facts: { label: string; value: ReactNode; onPress?: () => void }[] = [];
   if (!own && manager !== undefined)
     facts.push({
-      label: 'Manager',
+      label: t('people.profile.manager', 'Manager'),
       value: (
         <View className="flex-row items-center gap-2">
           <Avatar name={manager.name} size={24} decorative />
@@ -593,11 +609,14 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
     });
   if (!own && started !== undefined && !isEmpty(values[started.key]))
     facts.push({
-      label: 'Started',
+      label: t('people.profile.started', 'Started'),
       value: <DisplayValue field={started} value={values[started.key]} />,
     });
   if (!own && zone !== null)
-    facts.push({ label: 'Local time', value: `${clock(zone)} · ${city ?? ''}` });
+    facts.push({
+      label: t('people.profile.local_time', 'Local time'),
+      value: `${clock(zone)} · ${city ?? ''}`,
+    });
 
   // Your own: what HR still needs, each with its button (P13).
   const mine = own && needs.status === 'ready' ? needs.data : null;
@@ -667,7 +686,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Your documents</DialogTitle>
+              <DialogTitle>{t('people.profile.your_documents', 'Your documents')}</DialogTitle>
             </DialogHeader>
             <DialogBody>
               <Documents personId={personId} />
@@ -688,9 +707,14 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       ) : null}
       {open?.kind === 'pdf' ? (
         <ReasonDialog
-          title={`${data.person.name}’s record as a PDF`}
-          description="Only what you can see. The link works once and expires."
-          action="Download PDF"
+          title={t('people.profile.s_record_as_a_pdf', '{{name}}’s record as a PDF', {
+            name: data.person.name,
+          })}
+          description={t(
+            'people.profile.only_what_you_can_see_the',
+            'Only what you can see. The link works once and expires.',
+          )}
+          action={t('people.profile.download_pdf', 'Download PDF')}
           busy={busy === 'RequestExport'}
           onClose={close}
           onSubmit={(reason) => {
@@ -708,9 +732,15 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
       ) : null}
       {open?.kind === 'view' && personId !== null ? (
         <ReasonDialog
-          title={`View Kithena as ${firstName}`}
-          description={`Everything as ${firstName} sees it, read-only, for thirty minutes. ${firstName} is told.`}
-          action={`View as ${firstName}`}
+          title={t('people.profile.view_kithena_as', 'View Kithena as {{firstName}}', {
+            firstName,
+          })}
+          description={t(
+            'people.profile.everything_as_sees_it_read_only',
+            'Everything as {{firstName}} sees it, read-only, for thirty minutes. {{firstName}} is told.',
+            { firstName },
+          )}
+          action={t('people.profile.view_as', 'View as {{firstName}}', { firstName })}
           busy={viewing}
           onClose={close}
           onSubmit={(reason) => {
@@ -718,7 +748,12 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             void signed.viewAs(personId, reason).then((refused) => {
               setViewing(false);
               if (refused === null) close();
-              else toast({ title: 'That did not work', description: refused, tone: 'danger' });
+              else
+                toast({
+                  title: t('people.profile.that_did_not_work', 'That did not work'),
+                  description: refused,
+                  tone: 'danger',
+                });
             });
           }}
         />
@@ -738,28 +773,33 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <Button size="xs" variant="ghost" startIcon={<Icon icon={Camera} />}>
-                    {data.person.avatarUrl === null ? 'Add a photo' : 'Change photo'}
+                    {data.person.avatarUrl === null
+                      ? t('people.profile.add_a_photo', 'Add a photo')
+                      : t('people.profile.change_photo', 'Change photo')}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent label="Photo">
+                <DropdownMenuContent label={t('people.profile.photo', 'Photo')}>
                   <DropdownMenuItem
                     icon={ImageIcon}
                     onSelect={() => {
                       void changePhoto(signed, personId).then((up) => {
                         if (up === null) return;
                         if (up.ok) {
-                          toast({ title: 'Photo saved', tone: 'success' });
+                          toast({
+                            title: t('people.profile.photo_saved', 'Photo saved'),
+                            tone: 'success',
+                          });
                           reload();
                         } else
                           toast({
-                            title: 'That did not work',
+                            title: t('people.profile.that_did_not_work', 'That did not work'),
                             description: up.message,
                             tone: 'danger',
                           });
                       });
                     }}
                   >
-                    Choose a photo
+                    {t('people.profile.choose_a_photo', 'Choose a photo')}
                   </DropdownMenuItem>
                   {data.person.avatarUrl === null ? null : (
                     <DropdownMenuItem
@@ -770,14 +810,14 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                           if (refused === null) reload();
                           else
                             toast({
-                              title: 'That did not work',
+                              title: t('people.profile.that_did_not_work', 'That did not work'),
                               description: refused,
                               tone: 'danger',
                             });
                         });
                       }}
                     >
-                      Remove photo
+                      {t('people.profile.remove_photo', 'Remove photo')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -790,14 +830,20 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         badges={
           <>
             {own && percent !== null ? (
-              <Badge size="sm" tone="accent">{`${String(percent)}% complete`}</Badge>
+              <Badge size="sm" tone="accent">
+                {t('people.profile.complete', '{{String}}% complete', { String: String(percent) })}
+              </Badge>
             ) : status === null ? null : (
-              <Badge size="sm" dot tone={STATUS_TONE[STATUS[status] ?? ''] ?? 'neutral'}>
-                {STATUS[status] ?? status}
+              <Badge size="sm" dot tone={STATUS_TONE[STATUS()[status] ?? ''] ?? 'neutral'}>
+                {STATUS()[status] ?? status}
               </Badge>
             )}
             {own || data.person.missing === null || data.person.missing === 0 ? null : (
-              <Badge size="sm" tone="warning">{`${String(data.person.missing)} missing`}</Badge>
+              <Badge size="sm" tone="warning">
+                {t('people.profile.missing', '{{String}} missing', {
+                  String: String(data.person.missing),
+                })}
+              </Badge>
             )}
           </>
         }
@@ -807,7 +853,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               {sections.find(editable) === undefined ? null : (
                 <QuickAction
                   icon={Pencil}
-                  label="Edit"
+                  label={t('people.profile.edit', 'Edit')}
                   onPress={() => {
                     const first = sections.find(editable);
                     if (first !== undefined) edit(first.key);
@@ -817,7 +863,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               {tabs?.timeOff === true ? (
                 <QuickAction
                   icon={CalendarDays}
-                  label="Time off"
+                  label={t('people.profile.time_off', 'Time off')}
                   onPress={() => {
                     tabs.open('timeoff');
                   }}
@@ -825,14 +871,14 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               ) : null}
               <QuickAction
                 icon={FileText}
-                label="Documents"
+                label={t('people.profile.documents', 'Documents')}
                 onPress={() => {
                   setOpen({ kind: 'docs' });
                 }}
               />
               <QuickAction
                 icon={Settings}
-                label="Settings"
+                label={t('people.profile.settings', 'Settings')}
                 onPress={() => {
                   navigation.navigate('Settings');
                 }}
@@ -842,7 +888,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
             <>
               <QuickAction
                 icon={MessageCircle}
-                label="Message"
+                label={t('people.profile.message', 'Message')}
                 disabled={phone === null}
                 onPress={() => {
                   if (phone !== null) void Linking.openURL(`sms:${phone}`);
@@ -850,7 +896,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               />
               <QuickAction
                 icon={Phone}
-                label="Call"
+                label={t('people.profile.call', 'Call')}
                 disabled={phone === null}
                 onPress={() => {
                   if (phone !== null) void Linking.openURL(`tel:${phone}`);
@@ -858,7 +904,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               />
               <QuickAction
                 icon={Mail}
-                label="Email"
+                label={t('people.profile.email', 'Email')}
                 disabled={email === null}
                 onPress={() => {
                   if (email !== null) void Linking.openURL(`mailto:${email}`);
@@ -866,7 +912,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               />
               <QuickAction
                 icon={Network}
-                label="Org chart"
+                label={t('people.profile.org_chart', 'Org chart')}
                 onPress={() => {
                   navigation.navigate('People', { view: 'org' });
                 }}
@@ -910,7 +956,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'summary' });
             }}
           >
-            {`Summarise ${firstName}`}
+            {t('people.profile.summarise', 'Summarise {{firstName}}', { firstName })}
           </Chip>
           <Chip
             icon={Sparkles}
@@ -918,7 +964,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
               setOpen({ kind: 'history' });
             }}
           >
-            What changed this year
+            {t('people.profile.what_changed_this_year', 'What changed this year')}
           </Chip>
         </ScrollView>
       )}
@@ -934,12 +980,24 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         <Card padded={false} className="overflow-hidden">
           <View className="flex-row items-center gap-3 px-4 pb-1 pt-4">
             {percent === null ? null : (
-              <CircularProgress value={percent} size={44} label={`${String(percent)}% complete`} />
+              <CircularProgress
+                value={percent}
+                size={44}
+                label={t('people.profile.complete', '{{String}}% complete', {
+                  String: String(percent),
+                })}
+              />
             )}
             <View className="flex-1">
-              <Text variant="headline">{`${String(corrections.length + yours.length)} ${corrections.length + yours.length === 1 ? 'thing' : 'things'} HR needs`}</Text>
+              <Text variant="headline">
+                {t(
+                  'people.profile.hr_needs',
+                  { one: '{{count}} thing HR needs', other: '{{count}} things HR needs' },
+                  { count: corrections.length + yours.length },
+                )}
+              </Text>
               <Text variant="subhead" tone="muted">
-                Each saves on its own.
+                {t('people.profile.each_saves_on_its_own', 'Each saves on its own.')}
               </Text>
             </View>
           </View>
@@ -958,11 +1016,11 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                     edit(c.sectionKey);
                   }}
                 >
-                  Fix
+                  {t('people.profile.fix', 'Fix')}
                 </Button>
               }
             >
-              {`Correct your ${c.label}`}
+              {t('people.profile.correct_your', 'Correct your {{label}}', { label: c.label })}
             </ListItem>
           ))}
           {yours.map((m) => (
@@ -977,11 +1035,13 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                     edit(m.sectionKey);
                   }}
                 >
-                  Add
+                  {t('people.profile.add', 'Add')}
                 </Button>
               }
             >
-              {`Add your ${m.label.toLowerCase()}`}
+              {t('people.profile.add_your', 'Add your {{toLowerCase}}', {
+                toLowerCase: m.label.toLowerCase(),
+              })}
             </ListItem>
           ))}
         </Card>
@@ -999,7 +1059,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                   edit(section.key);
                 }}
               >
-                Edit
+                {t('people.profile.edit', 'Edit')}
               </Button>
             ) : null}
           </View>
@@ -1019,7 +1079,7 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                   ? {
                       badge: (
                         <Badge size="sm" tone="warning" icon={Lock}>
-                          Sensitive
+                          {t('people.profile.sensitive', 'Sensitive')}
                         </Badge>
                       ),
                     }
@@ -1033,17 +1093,18 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                       void openFile(signed, value).then((refused) => {
                         if (refused !== null)
                           toast({
-                            title: 'That did not work',
+                            title: t('people.profile.that_did_not_work', 'That did not work'),
                             description: refused,
                             tone: 'danger',
                           });
                       });
                     }}
                   >
-                    {data.files?.find((f) => f.id === value)?.name ?? 'Open the file'}
+                    {data.files?.find((f) => f.id === value)?.name ??
+                      t('people.profile.open_the_file', 'Open the file')}
                   </Button>
                 ) : empty ? (
-                  'Not added yet'
+                  t('people.profile.not_added_yet', 'Not added yet')
                 ) : revealed[field.key] !== undefined ? (
                   <Text weight="semibold" className="font-mono text-[17px]">
                     {revealed[field.key]}
@@ -1063,8 +1124,8 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                           variant="ghost"
                           accessibilityLabel={
                             revealed[field.key] === undefined
-                              ? `Show ${field.label}`
-                              : `Hide ${field.label}`
+                              ? t('people.profile.show', 'Show {{label}}', { label: field.label })
+                              : t('people.profile.hide', 'Hide {{label}}', { label: field.label })
                           }
                           startIcon={
                             <Icon icon={revealed[field.key] === undefined ? Eye : EyeOff} />
@@ -1100,11 +1161,15 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
                             void act<{ asked: number }>(
                               'RequestDetails',
                               { personId, keys: [field.key] },
-                              `Asked ${firstName} for ${field.label.toLowerCase()}`,
+                              t(
+                                'people.profile.asked_for',
+                                'Asked {{firstName}} for {{toLowerCase}}',
+                                { firstName, toLowerCase: field.label.toLowerCase() },
+                              ),
                             );
                           }}
                         >
-                          Ask
+                          {t('people.profile.ask', 'Ask')}
                         </Button>
                       ),
                     }
@@ -1130,13 +1195,16 @@ export function Profile({ navigation, route }: PeopleScreen<'Profile'>): React.J
         <ListItem
           listitem={false}
           icon={HistoryIcon}
-          description="Every change, with the value before it"
+          description={t(
+            'people.profile.every_change_with_the_value_before',
+            'Every change, with the value before it',
+          )}
           chevron
           onPress={() => {
             setOpen({ kind: 'history' });
           }}
         >
-          History
+          {t('people.profile.history', 'History')}
         </ListItem>
       </Card>
 
@@ -1177,14 +1245,17 @@ function SummaryDialog({
         </DialogHeader>
         <DialogBody>
           {load.status === 'loading' ? (
-            <Loading label="Asking" />
+            <Loading label={t('people.profile.asking', 'Asking')} />
           ) : load.status === 'error' ? (
             <Text tone="muted">{load.message}</Text>
           ) : (
             <Text>
               {load.data.answered
                 ? load.data.text
-                : 'There is nothing to summarise that you may see yet.'}
+                : t(
+                    'people.profile.there_is_nothing_to_summarise_that',
+                    'There is nothing to summarise that you may see yet.',
+                  )}
             </Text>
           )}
         </DialogBody>

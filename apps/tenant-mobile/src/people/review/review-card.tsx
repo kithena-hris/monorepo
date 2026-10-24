@@ -52,6 +52,7 @@ import {
   type ReviewKind,
   type Row,
 } from './model';
+import { t as tr } from '../../i18n';
 
 type Nav = Pick<NativeStackNavigationProp<PeopleRoutes>, 'navigate' | 'addListener'>;
 
@@ -61,7 +62,10 @@ function kinds(rows: readonly Row[]): string {
   for (const r of rows) counts.set(r.kind, (counts.get(r.kind) ?? 0) + 1);
   const words: Record<string, [string, string]> = {
     changes: ['change', 'changes'],
-    ids: ['ID check', 'ID checks'],
+    ids: [
+      tr('people.review.review-card.id_check', 'ID check'),
+      tr('people.review.review-card.id_checks', 'ID checks'),
+    ],
     duplicates: ['duplicate', 'duplicates'],
     access: ['full-values request', 'full-values requests'],
     exports: ['export', 'exports'],
@@ -139,7 +143,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
     <View className="flex-row gap-1.5">
       <Button
         size="sm"
-        accessibilityLabel={`Reject ${who}`}
+        accessibilityLabel={tr('people.review.review-card.reject', 'Reject {{who}}', { who })}
         loading={busy !== null}
         startIcon={<Icon icon={X} size={16} />}
         onPress={onNo}
@@ -147,7 +151,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
       <Button
         size="sm"
         variant="primary"
-        accessibilityLabel={`Approve ${who}`}
+        accessibilityLabel={tr('people.review.review-card.approve', 'Approve {{who}}', { who })}
         startIcon={<Icon icon={Check} size={16} tone="on-accent" />}
         onPress={onYes}
       />
@@ -166,7 +170,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
               setDeciding(item);
             }}
           >
-            Review
+            {tr('people.review.review-card.review', 'Review')}
           </Button>
         );
       return yesNo(
@@ -187,7 +191,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
             page(row);
           }}
         >
-          Check
+          {tr('people.review.review-card.check', 'Check')}
         </Button>
       );
     if (row.kind === 'duplicates')
@@ -198,7 +202,7 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
             page(row);
           }}
         >
-          Compare
+          {tr('people.review.review-card.compare', 'Compare')}
         </Button>
       );
     if (row.kind === 'access')
@@ -226,7 +230,9 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
   return (
     <Card padded={false} className="overflow-hidden">
       <ListItem icon={ListChecks} iconTone={5} description={kinds(rows)} wrap listitem={false}>
-        {`${String(rows.length)} waiting for you`}
+        {tr('people.review.review-card.waiting_for_you', '{{String}} waiting for you', {
+          String: String(rows.length),
+        })}
       </ListItem>
       {all ? (
         <View className="px-4 pb-2">
@@ -240,10 +246,14 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
               }
               setKind(next as ReviewKind | 'all');
             }}
-            accessibilityLabel="Kinds"
+            accessibilityLabel={tr('people.review.review-card.kinds', 'Kinds')}
             scroll
           >
-            <ChipGroupItem value="all">{`All ${String(rows.length)}`}</ChipGroupItem>
+            <ChipGroupItem value="all">
+              {tr('people.review.review-card.all', 'All {{String}}', {
+                String: String(rows.length),
+              })}
+            </ChipGroupItem>
             {chips.map((k) => {
               const n = rows.filter((r) => r.kind === k).length;
               return (
@@ -305,7 +315,11 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
               setKind('all');
             }}
           >
-            {all ? 'Show fewer' : `Show all ${String(rows.length)}`}
+            {all
+              ? tr('people.review.review-card.show_fewer', 'Show fewer')
+              : tr('people.review.review-card.show_all', 'Show all {{String}}', {
+                  String: String(rows.length),
+                })}
           </Button>
         ) : null}
         {all ? (
@@ -316,7 +330,10 @@ export function ReviewCard({ navigation }: { navigation: Nav }): React.JSX.Eleme
               navigation.navigate('Review');
             }}
           >
-            Flagged, asked and decided
+            {tr(
+              'people.review.review-card.flagged_asked_and_decided',
+              'Flagged, asked and decided',
+            )}
           </Button>
         ) : null}
       </View>
@@ -402,7 +419,15 @@ export function ChangeDialog({
             <View className="flex-1 gap-1">
               <DialogTitle>{`${item.name}’s ${item.label.toLowerCase()}`}</DialogTitle>
               <DialogDescription>
-                {`Asked by ${item.requestedBy} · from ${day.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`))} · ${daysLeft(item.expiresAt, Date.now()).toLowerCase()}`}
+                {tr(
+                  'people.review.review-card.asked_by_from',
+                  'Asked by {{requestedBy}} · from {{format}} · {{toLowerCase}}',
+                  {
+                    requestedBy: item.requestedBy,
+                    format: day.format(Date.parse(`${item.effectiveFrom}T00:00:00Z`)),
+                    toLowerCase: daysLeft(item.expiresAt, Date.now()).toLowerCase(),
+                  },
+                )}
               </DialogDescription>
             </View>
           </View>
@@ -413,7 +438,7 @@ export function ChangeDialog({
               <View className="flex-row items-center gap-3">
                 <View className="flex-1 gap-1.5">
                   <Text variant="footnote" tone="subtle">
-                    Now
+                    {tr('people.review.review-card.now', 'Now')}
                   </Text>
                   <DisplayValue
                     field={field}
@@ -424,7 +449,7 @@ export function ChangeDialog({
                 <Icon icon={ArrowRight} size={18} tone="subtle" />
                 <View className="flex-1 gap-1.5">
                   <Text variant="footnote" tone="subtle">
-                    Asked for
+                    {tr('people.review.review-card.asked_for', 'Asked for')}
                   </Text>
                   <DisplayValue
                     field={field}
@@ -435,7 +460,13 @@ export function ChangeDialog({
               </View>
             </Card>
           ) : (
-            <Text tone="muted">{`You can’t view this field. It takes effect from ${longDate(item.effectiveFrom)}.`}</Text>
+            <Text tone="muted">
+              {tr(
+                'people.review.review-card.you_cant_view_this_field_it',
+                'You can’t view this field. It takes effect from {{longDate}}.',
+                { longDate: longDate(item.effectiveFrom) },
+              )}
+            </Text>
           )}
           {(item.flags ?? []).map((f) => (
             <ListItem
@@ -457,7 +488,9 @@ export function ChangeDialog({
               wrap
               className="bg-transparent px-0"
             >
-              {`${by === 'the requester' ? 'Their' : `${by}’s`} note`}
+              {tr('people.review.review-card.note', '{{value}} note', {
+                value: by === 'the requester' ? 'Their' : `${by}’s`,
+              })}
             </ListItem>
           )}
           {item.canAsk === true ? (
@@ -467,22 +500,32 @@ export function ChangeDialog({
                 setAsking(true);
               }}
             >
-              {`Ask ${by} a question`}
+              {tr('people.review.review-card.ask_a_question', 'Ask {{by}} a question', { by })}
             </Button>
           ) : null}
           {flagged ? (
             <Field invalid={needsNote}>
-              <FieldLabel>Note</FieldLabel>
+              <FieldLabel>{tr('people.review.review-card.note_2', 'Note')}</FieldLabel>
               <Input
                 value={note}
                 onChange={(t) => {
                   setNote(t);
                   if (t.trim() !== '') setNeedsNote(false);
                 }}
-                placeholder="Required to approve something flagged"
+                placeholder={tr(
+                  'people.review.review-card.required_to_approve_something_flagged',
+                  'Required to approve something flagged',
+                )}
                 size="sm"
               />
-              {needsNote ? <FieldError>Add a note to approve something flagged.</FieldError> : null}
+              {needsNote ? (
+                <FieldError>
+                  {tr(
+                    'people.review.review-card.add_a_note_to_approve_something',
+                    'Add a note to approve something flagged.',
+                  )}
+                </FieldError>
+              ) : null}
             </Field>
           ) : null}
         </DialogBody>
@@ -494,7 +537,7 @@ export function ChangeDialog({
               decide(false);
             }}
           >
-            Reject
+            {tr('people.review.review-card.reject_2', 'Reject')}
           </Button>
           <Button
             className="flex-1"
@@ -504,7 +547,7 @@ export function ChangeDialog({
               decide(true);
             }}
           >
-            Approve
+            {tr('people.review.review-card.approve_2', 'Approve')}
           </Button>
         </DialogFooter>
       </DialogContent>

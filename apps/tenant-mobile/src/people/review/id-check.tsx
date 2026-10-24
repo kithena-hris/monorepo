@@ -29,6 +29,7 @@ import { useAct } from '../act';
 import { useRead } from '../api';
 import type { PeopleScreen } from '../routes';
 import type { IdItem, IdState } from './model';
+import { t } from '../../i18n';
 
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -57,20 +58,38 @@ function Decide({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{`${accept ? 'Accept' : 'Send back'} ${item.name}’s ${item.label}`}</DialogTitle>
+          <DialogTitle>{`${accept ? 'Accept' : t('people.review.id-check.send_back', 'Send back')} ${item.name}’s ${item.label}`}</DialogTitle>
           <DialogDescription>
             {accept
               ? item.held === true
-                ? 'Final: this value will not be flagged again, and the change can now be approved.'
-                : 'Final: this value will not be flagged again, whatever a later check says.'
+                ? t(
+                    'people.review.id-check.final_this_value_will_not_be',
+                    'Final: this value will not be flagged again, and the change can now be approved.',
+                  )
+                : t(
+                    'people.review.id-check.final_this_value_will_not_be_2',
+                    'Final: this value will not be flagged again, whatever a later check says.',
+                  )
               : item.held === true
-                ? `The change is declined, and ${item.name} is asked to correct it. They see your reason on their record and by email.`
-                : `${item.name} is asked to correct it, and their record shows it needs attention.`}
+                ? t(
+                    'people.review.id-check.the_change_is_declined_and_is',
+                    'The change is declined, and {{name}} is asked to correct it. They see your reason on their record and by email.',
+                    { name: item.name },
+                  )
+                : t(
+                    'people.review.id-check.is_asked_to_correct_it_and',
+                    '{{name}} is asked to correct it, and their record shows it needs attention.',
+                    { name: item.name },
+                  )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Field required={!accept} invalid={!accept && unexplained}>
-            <FieldLabel>{accept ? 'Note' : 'What is wrong'}</FieldLabel>
+            <FieldLabel>
+              {accept
+                ? t('people.review.id-check.note', 'Note')
+                : t('people.review.id-check.what_is_wrong', 'What is wrong')}
+            </FieldLabel>
             <Textarea
               value={note}
               onChange={(text) => {
@@ -82,16 +101,25 @@ function Decide({
             <FieldDescription>
               {accept
                 ? 'Optional; kept with the decision.'
-                : `${item.name} sees it on their record, so they know what to correct.`}
+                : t(
+                    'people.review.id-check.sees_it_on_their_record_so',
+                    '{{name}} sees it on their record, so they know what to correct.',
+                    { name: item.name },
+                  )}
             </FieldDescription>
             {!accept && unexplained ? (
-              <FieldError>Say what is wrong, so they know what to correct.</FieldError>
+              <FieldError>
+                {t(
+                  'people.review.id-check.say_what_is_wrong_so_they',
+                  'Say what is wrong, so they know what to correct.',
+                )}
+              </FieldError>
             ) : null}
           </Field>
         </DialogBody>
         <DialogFooter>
           <Button className="flex-1" onPress={onClose}>
-            Cancel
+            {t('people.review.id-check.cancel', 'Cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -110,7 +138,7 @@ function Decide({
                   decision: accept ? 'accept' : 'send_back',
                   ...(note.trim() === '' ? {} : { note: note.trim() }),
                 },
-                accept ? 'Accepted' : 'Sent back',
+                accept ? 'Accepted' : t('people.review.id-check.sent_back', 'Sent back'),
               ).then((done) => {
                 if (done === null) return;
                 onClose();
@@ -118,7 +146,9 @@ function Decide({
               });
             }}
           >
-            {accept ? 'Accept' : 'Send back'}
+            {accept
+              ? t('people.review.id-check.accept', 'Accept')
+              : t('people.review.id-check.send_back', 'Send back')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -137,12 +167,15 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
   const { act, busy } = useAct();
   const [shown, setShown] = useState<string | null>(null);
   const [deciding, setDeciding] = useState<boolean | null>(null);
-  const back = { label: 'All items', onPress: navigation.goBack };
+  const back = {
+    label: t('people.review.id-check.all_items', 'All items'),
+    onPress: navigation.goBack,
+  };
 
   if (load.status === 'loading')
     return (
       <Page back={back}>
-        <Loading label="Loading the ID check" />
+        <Loading label={t('people.review.id-check.loading_the_id_check', 'Loading the ID check')} />
       </Page>
     );
   if (load.status === 'error')
@@ -155,8 +188,11 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
   if (item === undefined) {
     return (
       <Page back={back}>
-        <Alert tone="info" title="Already reviewed">
-          This identifier is no longer waiting.
+        <Alert tone="info" title={t('people.review.id-check.already_reviewed', 'Already reviewed')}>
+          {t(
+            'people.review.id-check.this_identifier_is_no_longer_waiting',
+            'This identifier is no longer waiting.',
+          )}
         </Alert>
       </Page>
     );
@@ -175,7 +211,7 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
               setDeciding(false);
             }}
           >
-            {`Ask ${first}`}
+            {t('people.review.id-check.ask', 'Ask {{first}}', { first })}
           </Button>
           <Button
             className="flex-1"
@@ -185,7 +221,7 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
               setDeciding(true);
             }}
           >
-            Mark as correct
+            {t('people.review.id-check.mark_as_correct', 'Mark as correct')}
           </Button>
         </>
       }
@@ -195,19 +231,22 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
         <Stack gap={1} className="flex-1">
           <Text variant="title3">{`${item.name} · ${item.label}`}</Text>
           <Text variant="footnote" tone="muted">
-            {`Entered ${item.enteredBy === null ? '' : `by ${item.enteredBy} `}on ${day(item.enteredAt)}`}
+            {t('people.review.id-check.entered_on', 'Entered {{value}}on {{day}}', {
+              value: item.enteredBy === null ? '' : `by ${item.enteredBy} `,
+              day: day(item.enteredAt),
+            })}
           </Text>
         </Stack>
         {item.held === true ? (
           <Badge size="sm" tone="warning">
-            Waiting for approval
+            {t('people.review.id-check.waiting_for_approval', 'Waiting for approval')}
           </Badge>
         ) : null}
       </Inline>
       <Card>
         <Stack gap={2}>
           <Text variant="footnote" tone="muted">
-            What they entered
+            {t('people.review.id-check.what_they_entered', 'What they entered')}
           </Text>
           <Inline gap={2} justify="between" wrap={false}>
             <Text weight="medium" className="font-mono tracking-widest">
@@ -230,7 +269,9 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
                 );
               }}
             >
-              {shown === null ? 'Reveal' : 'Hide'}
+              {shown === null
+                ? t('people.review.id-check.reveal', 'Reveal')
+                : t('people.review.id-check.hide', 'Hide')}
             </Button>
           </Inline>
         </Stack>
@@ -238,13 +279,15 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
       <Card>
         <Stack gap={2}>
           <Text variant="footnote" tone="muted">
-            What the checks found
+            {t('people.review.id-check.what_the_checks_found', 'What the checks found')}
           </Text>
           {item.findings.map((f) => (
             <Stack key={f.code} gap={1}>
               <Inline>
                 <Badge size="sm" tone={f.level === 'mismatch' ? 'danger' : 'warning'}>
-                  {f.level === 'mismatch' ? 'Does not compute' : 'Could not verify'}
+                  {f.level === 'mismatch'
+                    ? t('people.review.id-check.does_not_compute', 'Does not compute')
+                    : t('people.review.id-check.could_not_verify', 'Could not verify')}
                 </Badge>
               </Inline>
               <Text>{f.message}</Text>
@@ -253,7 +296,10 @@ export function ReviewId({ navigation, route }: PeopleScreen<'ReviewId'>): React
         </Stack>
       </Card>
       <Text variant="footnote" tone="muted">
-        Revealing the value is logged. Whatever you decide is final.
+        {t(
+          'people.review.id-check.revealing_the_value_is_logged_whatever',
+          'Revealing the value is logged. Whatever you decide is final.',
+        )}
       </Text>
       {deciding === null ? null : (
         <Decide
