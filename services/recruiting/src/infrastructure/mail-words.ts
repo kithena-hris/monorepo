@@ -4,6 +4,7 @@ import { wordsIn, type Catalogue } from '@kithena/domain-kit';
 import ca from '../locales/ca.json' with { type: 'json' };
 import de from '../locales/de.json' with { type: 'json' };
 import enGB from '../locales/en-GB.json' with { type: 'json' };
+import enUS from '../locales/en-US.json' with { type: 'json' };
 import es from '../locales/es.json' with { type: 'json' };
 import fr from '../locales/fr.json' with { type: 'json' };
 import hi from '../locales/hi.json' with { type: 'json' };
@@ -16,7 +17,8 @@ import ta from '../locales/ta.json' with { type: 'json' };
 import type { MailWords } from '../application/ports.js';
 
 /** Recruiting's email words in every language, translated from the English in the code. */
-const CATALOGUES: Readonly<Record<Exclude<Language, 'en-US'>, Catalogue>> = {
+const CATALOGUES: Readonly<Record<Language, Catalogue>> = {
+  'en-US': enUS,
   'en-GB': enGB,
   de,
   fr,
@@ -37,7 +39,7 @@ function wordsFor(code: string): MailWords {
   const language = isLanguage(code) ? code : 'en-US';
   let words = held.get(language);
   if (words === undefined) {
-    words = { language, t: wordsIn(language, language === 'en-US' ? {} : CATALOGUES[language]) };
+    words = { language, t: wordsIn(language, CATALOGUES[language]) };
     held.set(language, words);
   }
   return words;

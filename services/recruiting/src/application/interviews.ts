@@ -880,7 +880,7 @@ export async function offerAvailability(
           .join('\n'),
       },
     ),
-    t('email.interviews.availability', 'availability:{{id}}', { id: ask.id }),
+    `availability:${ask.id}`,
   );
   return ok(ask);
 }

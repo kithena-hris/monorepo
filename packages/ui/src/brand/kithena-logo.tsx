@@ -1,7 +1,6 @@
 import type { JSX, SVGProps } from 'react';
 
 import { cn } from '../lib/cn';
-import { t } from '../lib/i18n';
 
 /**
  * The Kithena mark.
@@ -168,10 +167,7 @@ export function KithenaWordmark({ title, className, ...props }: KithenaWordmarkP
       <text
         x="0"
         y="24"
-        fontFamily={t(
-          'brand.kithena-logo.intervariable_inter_ui_sans_serif_system_ui',
-          'InterVariable, Inter, ui-sans-serif, system-ui, sans-serif',
-        )}
+        fontFamily="InterVariable, Inter, ui-sans-serif, system-ui, sans-serif"
         fontSize="26"
         fontWeight="600"
         letterSpacing="-0.9"

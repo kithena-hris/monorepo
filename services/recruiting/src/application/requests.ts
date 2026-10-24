@@ -267,7 +267,7 @@ export async function answerAsk(
         '{{name}} chose {{fmt}} (UTC) for the {{label}} for {{value}}.{{value2}}\n\nThe invitations are out. See it in Recruiting:\n{{value3}}',
         {
           name: loaded.candidate.name,
-          fmt: fmt(input.time, t('email.requests.utc_2', 'UTC')),
+          fmt: fmt(input.time, 'UTC', (await mailWords(ctx)).language),
           label: ask.label.toLowerCase(),
           value: await jobTitle(ctx, loaded),
           value2:
@@ -277,7 +277,7 @@ export async function answerAsk(
           value3: await candidateLink(ctx, loaded),
         },
       ),
-      t('email.requests.ask_booked', 'ask-booked:{{id}}', { id: ask.id }),
+      `ask-booked:${ask.id}`,
     );
     return ok(done);
   }
@@ -347,7 +347,7 @@ export async function answerAsk(
         value4: await candidateLink(ctx, loaded),
       },
     ),
-    t('email.requests.ask_answered', 'ask-answered:{{id}}', { id: ask.id }),
+    `ask-answered:${ask.id}`,
   );
   return ok(done);
 }
@@ -421,12 +421,12 @@ export async function requestChange(
         name: loaded.candidate.name,
         value: await jobTitle(ctx, loaded),
         title: interview.title.toLowerCase(),
-        fmt: fmt(interview.startsAt, t('email.requests.utc_3', 'UTC')),
+        fmt: fmt(interview.startsAt, 'UTC', (await mailWords(ctx)).language),
         why,
         value2: await candidateLink(ctx, loaded),
       },
     ),
-    t('email.requests.change', 'change:{{id}}', { id: ask.id }),
+    `change:${ask.id}`,
   );
   return ok(ask);
 }

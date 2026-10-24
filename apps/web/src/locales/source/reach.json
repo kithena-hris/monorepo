@@ -1,12 +1,4 @@
 {
-  "brand.kithena-logo.intervariable_inter_ui_sans_serif_system_ui": {
-    "text": "InterVariable, Inter, ui-sans-serif, system-ui, sans-serif",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). brand/kithena-logo.tsx, KithenaWordmark: the fontFamily of <text>."
-  },
-  "brand.reach-logo.apple_system_blinkmacsystemfont_sf_pro_display_segoe": {
-    "text": "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif",
-    "context": "shared interface components (buttons, tables, pickers, dialogs). brand/reach-logo.tsx, ReachWordmark: the fontFamily of <text>."
-  },
   "components.access-matrix.access-matrix.because_everyone_can_see_it": {
     "text": "because everyone can see it",
     "context": "shared interface components (buttons, tables, pickers, dialogs). components/access-matrix/access-matrix.tsx, AccessMatrix: text built in code."

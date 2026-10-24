@@ -4,6 +4,7 @@ import { wordsIn, type Catalogue } from '@kithena/domain-kit';
 import ca from '../../locales/ca.json' with { type: 'json' };
 import de from '../../locales/de.json' with { type: 'json' };
 import enGB from '../../locales/en-GB.json' with { type: 'json' };
+import enUS from '../../locales/en-US.json' with { type: 'json' };
 import es from '../../locales/es.json' with { type: 'json' };
 import fr from '../../locales/fr.json' with { type: 'json' };
 import hi from '../../locales/hi.json' with { type: 'json' };
@@ -17,7 +18,8 @@ import { ENGLISH, type Language } from '../domain/invitation.js';
 import type { CompanyLanguage } from '../application/company-language.js';
 
 /** Every language's words for messaging's own emails, translated from the English in the code. */
-const CATALOGUES: Readonly<Record<Exclude<Code, 'en-US'>, Catalogue>> = {
+const CATALOGUES: Readonly<Record<Code, Catalogue>> = {
+  'en-US': enUS,
   'en-GB': enGB,
   de,
   fr,
@@ -36,7 +38,7 @@ const words = new Map<string, Language>();
 
 /** A language's words, made once. */
 export function languageOf(code: string): Language {
-  if (!isLanguage(code) || code === 'en-US') return ENGLISH;
+  if (!isLanguage(code)) return ENGLISH;
   let held = words.get(code);
   if (held === undefined) {
     held = { language: code, t: wordsIn(code, CATALOGUES[code]) };

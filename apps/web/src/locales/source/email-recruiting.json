@@ -175,10 +175,6 @@
     "text": "{{title}}: {{value}} at {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"title\" value. Filled in: {{title}}, {{value}}, {{companyName}}."
   },
-  "email.interviews.availability": {
-    "text": "availability:{{id}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{id}}."
-  },
   "email.interviews.can_do_utc_choose_one_in": {
     "text": "{{name}} ({{value}}) can do:\n{{map}}\n(UTC)\n\nChoose one in your Inbox, or ask for more times; the invitation goes out with the meeting link and the agenda.",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{name}}, {{value}}, {{map}}."
@@ -387,14 +383,6 @@
     "text": "Appointment requested: {{title}} with {{companyName}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{title}}, {{companyName}}."
   },
-  "email.requests.ask_answered": {
-    "text": "ask-answered:{{id}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{id}}."
-  },
-  "email.requests.ask_booked": {
-    "text": "ask-booked:{{id}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{id}}."
-  },
   "email.requests.asks_for_a_different_time_for": {
     "text": "{{name}} ({{value}}) asks for a different time for the {{title}} on {{fmt}} (UTC):\n\n{{why}}\n\nPropose new times or cancel it in Recruiting:\n{{value2}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{value}}, {{title}}, {{fmt}}, {{why}}, {{value2}}."
@@ -406,10 +394,6 @@
   "email.requests.booked_utc": {
     "text": "{{name}} booked: {{label}}, {{fmt}} UTC",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{name}}, {{label}}, {{fmt}}."
-  },
-  "email.requests.change": {
-    "text": "change:{{id}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: text built in code. Filled in: {{id}}."
   },
   "email.requests.choose_a_time": {
     "text": "Choose a time",
@@ -478,14 +462,6 @@
   "email.requests.times_offered": {
     "text": "Times offered · {{zone}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"title\" value. Filled in: {{zone}}."
-  },
-  "email.requests.utc_2": {
-    "text": "UTC",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"fmt\" value."
-  },
-  "email.requests.utc_3": {
-    "text": "UTC",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/requests.ts: a \"fmt\" value."
   },
   "email.sourced.subject": {
     "text": "{{company}} added you as a possible candidate",

@@ -1,7 +1,6 @@
 import type { JSX, SVGProps } from 'react';
 
 import { cn } from '../lib/cn';
-import { t } from '../lib/i18n';
 
 /**
  * The Reach mark.
@@ -175,10 +174,7 @@ export function ReachWordmark({ title, className, ...props }: ReachWordmarkProps
       <text
         x="0"
         y="24"
-        fontFamily={t(
-          'brand.reach-logo.apple_system_blinkmacsystemfont_sf_pro_display_segoe',
-          "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif",
-        )}
+        fontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif"
         fontSize="26"
         fontWeight="700"
         textLength="78"
