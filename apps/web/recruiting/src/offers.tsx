@@ -38,8 +38,10 @@ import {
   Textarea,
   icons,
   DatePicker,
+  FileUploader,
+  type UploadItem,
 } from '@reach/ui';
-import { useState, type JSX } from 'react';
+import { useState, useTransition, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { Refusal, StateBadge, To, day, money, useAct, words } from './shared';
@@ -1597,6 +1599,46 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
   const act = useAct(props);
   const [fileId, setFileId] = useState('');
   const [signedOn, setSignedOn] = useState('');
+  const [own, setOwn] = useState<readonly UploadItem[]>([]);
+  const [attaching, attach] = useTransition();
+  const [attachError, setAttachError] = useState<string | null>(null);
+  /** HR's own PDF: put where Documents asks, then filed and sent to sign as the drawn one would be. */
+  const sendOwn = (offerId: string, file: File): void => {
+    setAttachError(null);
+    setOwn([{ id: file.name, file, status: 'uploading', progress: null }]);
+    attach(async () => {
+      const fail = (message: string): void => {
+        setAttachError(message);
+        setOwn([{ id: file.name, file, status: 'error', error: message }]);
+      };
+      const started = await act.call('StartContractUpload', {
+        name: file.name,
+        mediaType: file.type,
+        size: file.size,
+      });
+      if (!started.ok) return fail(started.message);
+      const put = started.data as {
+        uploadId: string;
+        url: string;
+        headers: Record<string, string>;
+      };
+      const sent = await fetch(put.url, { method: 'PUT', headers: put.headers, body: file }).catch(
+        () => null,
+      );
+      if (sent?.ok !== true)
+        return fail(
+          tr('offers.documents_did_not_take_it', 'Documents did not take the file. Try again.'),
+        );
+      const done = await act.call('SendOwnContract', {
+        offerId,
+        upload: { uploadId: put.uploadId, name: file.name },
+      });
+      if (!done.ok) return fail(done.message);
+      setOwn([{ id: file.name, file, status: 'done' }]);
+      const id = (done.data as { id?: string } | null)?.id;
+      if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
+    });
+  };
   return (
     <Loaded load={props.load} what={tr('offers.the_contract', 'the contract')}>
       {(data) => {
@@ -1657,7 +1699,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                                     'Wet ink: printed, signed by hand by both, scan uploaded',
                                   )
                                 : k.route === 'documents'
-                                  ? 'Through Documents'
+                                  ? tr('offers.through_documents', 'Through Documents')
                                   : tr(
                                       'offers.signed_contract_uploaded',
                                       'Signed contract uploaded',
@@ -1697,6 +1739,40 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                         >
                           {tr('offers.send_to_sign', 'Send to sign')}
                         </Button>
+                      </div>
+                    ) : null}
+                    {k !== null && k.route === 'documents' && k.state === 'generated' ? (
+                      <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
+                        <div>
+                          <h3 className="font-semibold">
+                            {tr('offers.or_attach_your_own', 'Or attach your own contract')}
+                          </h3>
+                          <p className="text-sm text-fg-muted">
+                            {tr(
+                              'offers.your_own_pdf_is_sent',
+                              'A PDF your company wrote: it is sent to {{name}} to sign in the same order, and signing it hires them the same way. Each signature goes beside a signature line the PDF already has.',
+                              { name: data.candidate.name },
+                            )}
+                          </p>
+                        </div>
+                        {attachError === null ? null : (
+                          <Alert tone="danger" title={tr('offers.not_sent', 'Not sent')}>
+                            {attachError}
+                          </Alert>
+                        )}
+                        <FileUploader
+                          label={tr('offers.the_contract_pdf', 'The contract, as a PDF')}
+                          accept={['application/pdf']}
+                          maxFiles={1}
+                          maxSize={20 * 1024 * 1024}
+                          value={own}
+                          onChange={setOwn}
+                          disabled={attaching}
+                          onAccepted={(files) => {
+                            const file = files[0];
+                            if (file !== undefined) sendOwn(data.offer.id, file);
+                          }}
+                        />
                       </div>
                     ) : null}
                     {k !== null && k.route === 'documents' && k.state === 'out_for_signature' ? (
