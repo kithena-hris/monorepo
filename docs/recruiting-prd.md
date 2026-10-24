@@ -1030,7 +1030,26 @@ requires (ES remote work agreement; GB written statement; DE Nachweis; IN
 appointment letter). The terms are validated again on the start date (§19.3);
 a pack version that changed in between shows the difference.
 
+**The contract stage (added 2026-10-24).** An accepted offer moves its
+application to a `contract` stage, between `offer` and `hired`; a pipeline
+from before gains it on its first acceptance. The hiring team is emailed to
+prepare the contract. From the candidate's profile, Kithena drafts it: the
+statutory particulars of the employing entity's country (GB ERA 1996 s. 1, DE
+§ 2 NachwG, ES art. 8.5 ET, US at-will and state wage notices, IN standing
+orders), each with its value from the accepted offer or left `[[TO CONFIRM]]`
+where Kithena holds nothing (a registered address, a pay day), and a model,
+which never sees a name, writes the contract around them. HR checks every
+fact beside the law that asks for it, edits the text, previews it as it will
+be filed, confirms they checked it, and sends it; a draft still asking for a
+fact cannot be sent. With the writer off the contract is drawn from the terms.
+
 ### 21.2 Signing
+
+Every signer initials each page before the last and signs and dates the last
+(Documents' `initialEachPage`). The signature the candidate signs with travels
+on `documents.envelope.completed` to Recruiting, on `recruiting.candidate.hired`
+to People, and becomes the signature on their record, so the first document
+they sign as an employee is signed with it.
 
 **With Documents** (the shell composes, §28): Documents files the contract as
 a document about the candidate, creates an envelope (the candidate first, then
@@ -1065,7 +1084,11 @@ pack's notice rules); an open condition on the start date blocks the start and
 tells HR.
 
 `recruiting.candidate.hired` is published when the contract is signed (with
-the conditions' states); `recruiting.prehire.conditions_met` when all are met;
+the conditions' states); the hiring team is then told to invite the hire to
+the company's Kithena, now or on a day they choose, from the candidate's
+profile (People PRD §8.2 step 8: the sign-up page arrives with their details
+filled in, and signing up makes them `onboarding`);
+`recruiting.prehire.conditions_met` when all are met;
 `recruiting.prehire.cancelled` if the hire falls through before the start
 (reneged, no-show, failed condition), with a reason.
 
