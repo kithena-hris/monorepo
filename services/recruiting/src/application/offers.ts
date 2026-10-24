@@ -565,7 +565,7 @@ async function tellSigned(
     t('email.contract.you_signed', 'Signed: welcome to {{company}}', vars),
     t(
       'email.contract.you_signed_body',
-      'Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}. A copy is on your page.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.',
+      'Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.',
       vars,
     ),
     {
