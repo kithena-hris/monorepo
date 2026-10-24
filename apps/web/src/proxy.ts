@@ -164,5 +164,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 export const config = {
   // Static assets carry no tenant data and are served from the same build for
   // everyone, so paying a lookup for each is cost without a decision.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/internal).*)'],
+  // `api/hooks`: a provider's push (Google Meet's), on the bare host, which proves itself.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/internal|api/hooks).*)'],
 };

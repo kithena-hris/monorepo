@@ -96,14 +96,61 @@ const end = (e: CalendarEvent) =>
   new Date(Date.parse(e.startsAt) + e.minutes * 60_000).toISOString();
 
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+/** Reading a Meet space, to hear when its call ends: asked for apart, so a Workspace without it keeps its calendar. */
+const MEET_SCOPE = 'https://www.googleapis.com/auth/meetings.space.readonly';
+const MEET_SPACES = 'https://meet.googleapis.com/v2/spaces';
+const WORKSPACE_EVENTS = 'https://workspaceevents.googleapis.com/v1/subscriptions';
+
+/**
+ * Hear when a Meet call ends (Google Workspace Events): the space behind the
+ * link, then a subscription to its `conference.ended`, published to Kithena's
+ * Pub/Sub topic until `ttlSeconds` from now. Already subscribed is the same
+ * answer.
+ */
+async function watchMeet(
+  token: string,
+  videoUrl: string,
+  topic: string,
+  ttlSeconds: number,
+): Promise<Result<{ space: string }>> {
+  const code = /^https:\/\/meet\.google\.com\/([a-z]+-[a-z]+-[a-z]+)/u.exec(videoUrl)?.[1];
+  if (code === undefined) return err(failure('NOT_MEET', 'Not a Meet link'));
+  const space = await send(`${MEET_SPACES}/${code}`, { token });
+  const name = space.body['name'];
+  if (space.status !== 200 || typeof name !== 'string') return unavailable('google', space.status);
+  const watched = await send(WORKSPACE_EVENTS, {
+    token,
+    json: {
+      targetResource: `//meet.googleapis.com/${name}`,
+      eventTypes: ['google.workspace.meet.conference.v2.ended'],
+      notificationEndpoint: { pubsubTopic: topic },
+      payloadOptions: { includeResource: false },
+      ttl: `${String(Math.max(3600, Math.round(ttlSeconds)))}s`,
+    },
+  });
+  if (watched.status !== 200 && watched.status !== 409)
+    return unavailable('google', watched.status);
+  return ok({ space: name });
+}
 const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
 const GOOGLE_EVENTS = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
 /** Google Calendar under an access token, however it was got: by OAuth or by delegation. */
-function googleSession(token: string, grant: string): CalendarSession {
+function googleSession(
+  token: string,
+  grant: string,
+  /** A token that reads Meet spaces; the calendar's own when it was granted both. */
+  meetToken: () => Promise<string | null> = () => Promise.resolve(token),
+): CalendarSession {
   const kind = 'google';
   return {
     grant,
+    async watchMeeting(videoUrl, topic, ttlSeconds) {
+      const meet = await meetToken();
+      if (meet === null)
+        return err(failure('NOT_ALLOWED', 'This Workspace has not allowed reading Meet spaces'));
+      return watchMeet(meet, videoUrl, topic, ttlSeconds);
+    },
     async busy(from, to) {
       // The events themselves, not free/busy: `calendar.events` reads them, so a
       // Workspace that delegated that scope for Time Off needs nothing more.
@@ -184,7 +231,7 @@ export function googleCalendar(client: Client): CalendarProvider {
         client_id: client.clientId,
         redirect_uri: client.redirectUri,
         response_type: 'code',
-        scope: GOOGLE_SCOPES,
+        scope: `${GOOGLE_SCOPES} ${MEET_SCOPE}`,
         // A refresh token, every time: without `consent` a second grant comes back without one.
         access_type: 'offline',
         prompt: 'consent',
@@ -218,15 +265,16 @@ export function workspaceGoogle(
   const b64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
   // ponytail: one process's cache, an hour each, as Time Off's.
   const held = new Map<string, { token: string; until: number }>();
-  return async (email) => {
-    const kept = held.get(email);
-    if (kept !== undefined && kept.until > Date.now() + 60_000)
-      return googleSession(kept.token, '');
+  /** The member's token for one scope; null where the Workspace has not allowed it. */
+  const tokenFor = async (email: string, scope: string): Promise<string | null> => {
+    const key = `${scope} ${email}`;
+    const kept = held.get(key);
+    if (kept !== undefined && kept.until > Date.now() + 60_000) return kept.token;
     const iat = Math.floor(Date.now() / 1000);
     const unsigned = `${b64url({ alg: 'RS256', typ: 'JWT' })}.${b64url({
       iss: account.client_email,
       sub: email,
-      scope: GOOGLE_SCOPES,
+      scope,
       aud: GOOGLE_TOKEN,
       iat,
       exp: iat + 3600,
@@ -243,11 +291,16 @@ export function workspaceGoogle(
     const token = answer.body['access_token'];
     const lasts = answer.body['expires_in'];
     if (answer.status !== 200 || typeof token !== 'string') return null;
-    held.set(email, {
+    held.set(key, {
       token,
       until: Date.now() + (typeof lasts === 'number' ? lasts : 3600) * 1000,
     });
-    return googleSession(token, '');
+    return token;
+  };
+  return async (email) => {
+    const token = await tokenFor(email, GOOGLE_SCOPES);
+    if (token === null) return null;
+    return googleSession(token, '', () => tokenFor(email, MEET_SCOPE));
   };
 }
 

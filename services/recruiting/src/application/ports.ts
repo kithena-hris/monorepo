@@ -819,6 +819,12 @@ export interface CalendarSession {
   busy(from: string, to: string): Promise<Result<readonly (readonly [string, string])[]>>;
   create(event: CalendarEvent): Promise<Result<{ eventId: string; videoUrl: string | null }>>;
   cancel(eventId: string): Promise<Result<void>>;
+  /** Google: hear when the Meet call behind this link ends, on Kithena's Pub/Sub topic. */
+  watchMeeting?(
+    videoUrl: string,
+    topic: string,
+    ttlSeconds: number,
+  ): Promise<Result<{ space: string }>>;
 }
 
 /** A member's video account for one session: a meeting made and ended. */
@@ -1105,7 +1111,24 @@ export interface IncomingUpload {
  */
 export interface InterviewEnds {
   at(tenantId: string, interviewId: string, endsAt: string): Promise<void>;
+  /** A timer at `at` to start hearing the Meet call (`MeetEvents`); dropped with the rest. */
+  watch(tenantId: string, interviewId: string, at: string): Promise<void>;
   drop(tenantId: string, interviewId: string): Promise<void>;
+}
+
+/**
+ * Meet calls heard as they end (Google Workspace Events through Pub/Sub):
+ * the topic a subscription publishes to, and which interview each watched
+ * space is, kept beside the timers in Valkey for as long as it is watched.
+ */
+export interface MeetEvents {
+  readonly topic: string;
+  remember(
+    space: string,
+    interview: { tenantId: string; interviewId: string },
+    ttlSeconds: number,
+  ): Promise<void>;
+  recall(space: string): Promise<{ tenantId: string; interviewId: string } | null>;
 }
 
 export interface Deps {
@@ -1136,6 +1159,8 @@ export interface Deps {
   readonly chat?: Chat;
   /** Absent without Valkey: an interview is then completed by hand, or at the next start. */
   readonly interviewEnds?: InterviewEnds;
+  /** Absent without a topic: a Meet interview completes at its booked end, as any other. */
+  readonly meetEvents?: MeetEvents;
   /** The boards a job may be published to beyond Kithena's own pages; Google and the feed by default. */
   readonly boards?: readonly JobBoard[];
   /** No provider is chosen yet: absent, the screens say so. A fake adapter each for tests and local runs. */

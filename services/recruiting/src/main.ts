@@ -5,6 +5,7 @@ import manifest from '../module.manifest.js';
 import {
   completeAtItsEnd,
   completeInterviews,
+  listenAtItsStart,
   daily,
   rejectKnockouts,
   sendDueMessages,
@@ -38,9 +39,10 @@ if (storage !== null) {
   // the ones that ended while nothing was running are caught once.
   const valkey = process.env['VALKEY_URL'];
   if (valkey) {
-    const worker = interviewEndWorker(valkey, (tenantId, interviewId) =>
-      completeAtItsEnd(storage.deps, tenantId, interviewId),
-    );
+    const worker = interviewEndWorker(valkey, {
+      ended: (tenantId, interviewId) => completeAtItsEnd(storage.deps, tenantId, interviewId),
+      watch: (tenantId, interviewId) => listenAtItsStart(storage.deps, tenantId, interviewId),
+    });
     onShutdown('recruiting interview ends', () => worker.close());
   }
   completeInterviews(storage.deps).catch((error: unknown) => {

@@ -2095,6 +2095,9 @@ importers:
       graphql-yoga:
         specifier: ^5.24.4
         version: 5.24.4(graphql@16.14.2)
+      ioredis:
+        specifier: ^6.0.0
+        version: 6.0.0
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4

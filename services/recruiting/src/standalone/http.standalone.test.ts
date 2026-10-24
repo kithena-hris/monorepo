@@ -271,7 +271,11 @@ describe('Kithena Jobs’ reads', () => {
 
 describe('what the composition hands the server', () => {
   it('keeps the timer at each interview’s end, so its scorecards are asked for', () => {
-    const ends = { at: () => Promise.resolve(), drop: () => Promise.resolve() };
+    const ends = {
+      at: () => Promise.resolve(),
+      watch: () => Promise.resolve(),
+      drop: () => Promise.resolve(),
+    };
     const { deps } = recruitingServer(
       {
         uow: memoryUnitOfWork(),

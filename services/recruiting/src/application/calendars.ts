@@ -221,6 +221,26 @@ export async function putOnCalendar(
   return null;
 }
 
+/**
+ * Start hearing the Meet call of an interview on its organiser's Google
+ * calendar: the space it is, subscribed to on Kithena's topic for `ttlSeconds`.
+ * Null where it cannot be (not Meet, no calendar, a Workspace that has not
+ * allowed reading Meet spaces); the booked end then stands.
+ */
+export async function watchMeetCall(
+  ctx: Ctx,
+  interview: InterviewRecord,
+  topic: string,
+  ttlSeconds: number,
+): Promise<{ readonly space: string } | null> {
+  if (interview.videoUrl === null) return null;
+  const placed = (await ctx.tx.settings.get(`calendar-event:${interview.id}`)) as Placed | null;
+  if (placed === null) return null;
+  const session = await sessionOf(ctx, placed.personId, 'calendar');
+  const watched = await session?.watchMeeting?.(interview.videoUrl, topic, ttlSeconds);
+  return watched?.ok === true ? watched.value : null;
+}
+
 /** Takes a cancelled or moved interview off the calendar, and ends its Zoom meeting. */
 export async function takeOffCalendar(ctx: Ctx, interviewId: string): Promise<void> {
   const key = `calendar-event:${interviewId}`;

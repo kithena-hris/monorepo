@@ -294,6 +294,12 @@ services:
       RECRUITING_JOBS_READER_URL: postgres://svc_jobs_reader:${JOBS_READER_DB_PASSWORD:?JOBS_READER_DB_PASSWORD is set by deploy.sh}@postgres:5432/kithena
       # A timer at each interview's end (BullMQ): its scorecards are asked for the moment it is over.
       VALKEY_URL: redis://valkey:6379
+      # Meet calls heard as they end (docs/environments.md, "Meet calls"): Google
+      # Workspace Events publish to this topic in the `kithena` project, and its
+      # push subscription posts to the shell, signed for this audience and account.
+      MEET_EVENTS_TOPIC: projects/kithena/topics/recruiting-meet-events
+      MEET_PUSH_AUDIENCE: https://app.kithena.com/api/hooks/google-meet
+      MEET_PUSH_ACCOUNT: meet-events-push@kithena.iam.gserviceaccount.com
     stop_grace_period: 30s
     healthcheck:
       test:

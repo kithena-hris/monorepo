@@ -93,6 +93,18 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
   // A timer at each interview's end, which asks for its scorecards the moment it is over.
   const valkey = env['VALKEY_URL'];
   const interviewEnds = valkey ? valkeyInterviewEnds(valkey) : undefined;
+  // Meet calls heard as they end: the topic Workspace Events publishes to, and
+  // who Pub/Sub's push tokens must name (docs/environments.md, "Meet calls").
+  const meetTopic = env['MEET_EVENTS_TOPIC'];
+  const meetAudience = env['MEET_PUSH_AUDIENCE'];
+  const meetAccount = env['MEET_PUSH_ACCOUNT'];
+  const meet =
+    interviewEnds !== undefined && meetTopic && meetAudience && meetAccount
+      ? {
+          meetEvents: interviewEnds.meet(meetTopic),
+          meetPush: { audience: meetAudience, account: meetAccount },
+        }
+      : {};
   const { listener, deps } = recruitingServer(
     {
       uow,
@@ -113,6 +125,7 @@ export function composeRecruiting(env: NodeJS.ProcessEnv = process.env): Promise
       ...(workspaceCalendar === undefined ? {} : { workspaceCalendar }),
       ...(chat === undefined ? {} : { chat }),
       ...(interviewEnds === undefined ? {} : { interviewEnds }),
+      ...meet,
       ...(indeed === undefined ? {} : { boards: [...ownBoards(jobsOrigin), indeed] }),
       ...(fakes
         ? { assessmentProvider: fakeAssessments(), backgroundChecks: fakeBackgroundChecks() }
