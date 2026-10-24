@@ -3,6 +3,7 @@ import { err, failure, ok, type Result } from '@kithena/domain-kit';
 
 import { toAddress } from '../domain/address.js';
 import { linkIsOnTenantApp, renderNotice, type Notice } from '../domain/notice.js';
+import { inEnglish, type CompanyLanguage } from './company-language.js';
 import type { DeliveryLog } from './delivery-log.js';
 import type { EmailTransport } from './email-transport.js';
 import type { SendRefusal } from './send-invitation.js';
@@ -43,6 +44,8 @@ export interface SendNoticeDeps {
   /** `https://{slug}.app.kithena.com`: the only shape of origin a notice may link to. */
   readonly tenantAppBase: string;
   readonly onRefusal?: (reason: SendRefusal, detail: Record<string, string>) => void;
+  /** The company's language, which every email is written in. US English when absent. */
+  readonly language?: CompanyLanguage;
 }
 
 export function sendNotice(deps: SendNoticeDeps): SendNotice {
@@ -56,7 +59,8 @@ export function sendNotice(deps: SendNoticeDeps): SendNotice {
     if (!recipient.ok) return refuse('address');
     if (!linkIsOnTenantApp(request.url, deps.tenantAppBase)) return refuse('untrusted_link');
 
-    const message = renderNotice(request.notice, request.url, request.companyName);
+    const words = await (deps.language ?? inEnglish)(request.tenantId);
+    const message = renderNotice(request.notice, request.url, request.companyName, words);
     if (!message.ok) return refuse('unrenderable');
 
     const kind = request.notice.kind;

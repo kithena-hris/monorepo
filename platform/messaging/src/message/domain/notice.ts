@@ -1,4 +1,4 @@
-import { err, ok, type Result } from '@kithena/domain-kit';
+import { err, ok, wordsIn, type Result, type Words } from '@kithena/domain-kit';
 
 import { escapeHtml, safeHref } from './markup.js';
 import { dark, light, scale } from './palette.js';
@@ -134,47 +134,99 @@ export const INBOX_UPDATE_TOPICS = [
 ] as const;
 export type InboxUpdateTopic = (typeof INBOX_UPDATE_TOPICS)[number];
 
-const TASK_WORDS: Readonly<Record<InboxTaskTopic, readonly [subject: string, lede: string]>> = {
-  details: [
-    'you were asked for some details',
-    'Somebody asked you to add a few details to your record.',
+/** Each task topic's subject and opening sentence, whole, so each language words them as a pair. */
+const TASK_WORDS: Readonly<
+  Record<InboxTaskTopic, (t: Words, company: string) => readonly [subject: string, lede: string]>
+> = {
+  details: (t, company) => [
+    t('notice.task.details.subject', '{{company}}: you were asked for some details', { company }),
+    t('notice.task.details.lede', 'Somebody asked you to add a few details to your record.'),
   ],
-  correction: [
-    'a detail needs correcting',
-    'A detail you gave needs correcting before it can be accepted.',
+  correction: (t, company) => [
+    t('notice.task.correction.subject', '{{company}}: a detail needs correcting', { company }),
+    t(
+      'notice.task.correction.lede',
+      'A detail you gave needs correcting before it can be accepted.',
+    ),
   ],
-  document_sign: ['a document to sign', 'A document is waiting for your signature.'],
-  document_acknowledge: [
-    'a document to read',
-    'A document is waiting for you to read and acknowledge it.',
+  document_sign: (t, company) => [
+    t('notice.task.document_sign.subject', '{{company}}: a document to sign', { company }),
+    t('notice.task.document_sign.lede', 'A document is waiting for your signature.'),
   ],
-  document_countersign: [
-    'a document to countersign',
-    'A document you sent was signed and waits for your countersignature.',
+  document_acknowledge: (t, company) => [
+    t('notice.task.document_acknowledge.subject', '{{company}}: a document to read', { company }),
+    t(
+      'notice.task.document_acknowledge.lede',
+      'A document is waiting for you to read and acknowledge it.',
+    ),
   ],
-  time_off_approval: [
-    'a time-off request to decide',
-    'Somebody asked for time off, and it waits for your decision.',
+  document_countersign: (t, company) => [
+    t('notice.task.document_countersign.subject', '{{company}}: a document to countersign', {
+      company,
+    }),
+    t(
+      'notice.task.document_countersign.lede',
+      'A document you sent was signed and waits for your countersignature.',
+    ),
   ],
-  team_task: [
-    'a task for your team',
-    'Something needs one of you; whoever takes it tells the others.',
+  time_off_approval: (t, company) => [
+    t('notice.task.time_off_approval.subject', '{{company}}: a time-off request to decide', {
+      company,
+    }),
+    t(
+      'notice.task.time_off_approval.lede',
+      'Somebody asked for time off, and it waits for your decision.',
+    ),
+  ],
+  team_task: (t, company) => [
+    t('notice.task.team_task.subject', '{{company}}: a task for your team', { company }),
+    t(
+      'notice.task.team_task.lede',
+      'Something needs one of you; whoever takes it tells the others.',
+    ),
   ],
 };
 
-const UPDATE_WORDS: Readonly<Record<InboxUpdateTopic, readonly [subject: string, lede: string]>> = {
-  decided: ['something you asked for was decided', 'A request of yours was decided.'],
-  answered: ['somebody answered your request', 'Somebody you asked has answered.'],
-  document_shared: [
-    'a document was shared with you',
-    'A document was shared with you, and kept with your record.',
+/** Each update topic's subject and opening sentence. */
+const UPDATE_WORDS: Readonly<
+  Record<InboxUpdateTopic, (t: Words, company: string) => readonly [subject: string, lede: string]>
+> = {
+  decided: (t, company) => [
+    t('notice.update.decided.subject', '{{company}}: something you asked for was decided', {
+      company,
+    }),
+    t('notice.update.decided.lede', 'A request of yours was decided.'),
   ],
-  document_returned: [
-    'a document you sent came back',
-    'A document you sent was signed, acknowledged or sent back.',
+  answered: (t, company) => [
+    t('notice.update.answered.subject', '{{company}}: somebody answered your request', { company }),
+    t('notice.update.answered.lede', 'Somebody you asked has answered.'),
   ],
-  team_news: ['news about your team', 'Somebody joins or leaves your team.'],
-  calendar: ['a calendar was updated', 'A calendar or a balance of yours changed.'],
+  document_shared: (t, company) => [
+    t('notice.update.document_shared.subject', '{{company}}: a document was shared with you', {
+      company,
+    }),
+    t(
+      'notice.update.document_shared.lede',
+      'A document was shared with you, and kept with your record.',
+    ),
+  ],
+  document_returned: (t, company) => [
+    t('notice.update.document_returned.subject', '{{company}}: a document you sent came back', {
+      company,
+    }),
+    t(
+      'notice.update.document_returned.lede',
+      'A document you sent was signed, acknowledged or sent back.',
+    ),
+  ],
+  team_news: (t, company) => [
+    t('notice.update.team_news.subject', '{{company}}: news about your team', { company }),
+    t('notice.update.team_news.lede', 'Somebody joins or leaves your team.'),
+  ],
+  calendar: (t, company) => [
+    t('notice.update.calendar.subject', '{{company}}: a calendar was updated', { company }),
+    t('notice.update.calendar.lede', 'A calendar or a balance of yours changed.'),
+  ],
 };
 
 /** A nudge's heading fits a subject line; its sentence or two fit a phone's screen. */
@@ -236,207 +288,508 @@ export function linkIsOnTenantApp(url: string, base: string): boolean {
 }
 
 /**
- * Each kind's copy for a company, or null when its input cannot be said
- * honestly. Called once with the name as typed (subject, text) and once
- * escaped (HTML).
+ * Each kind's copy for a company, in the company's language (`t`), or null
+ * when its input cannot be said honestly. Plain text: the HTML escapes it.
  */
 const COPY: {
   readonly [K in NoticeKind]: (
     notice: Extract<Notice, { kind: K }>,
     company: string,
+    t: Words,
   ) => Copy | null;
 } = {
-  profile_reminder: ({ missing }, company) => {
+  profile_reminder: ({ missing }, company, t) => {
     if (!Number.isInteger(missing) || missing < 1 || missing > MAX_COUNT) return null;
-    const details = missing === 1 ? 'one detail' : `${String(missing)} details`;
     return {
-      subject: `${company}: a few details are missing from your profile`,
-      heading: 'Your profile needs a few details',
-      lede: `${company} has asked everyone to fill in ${details} that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.`,
-      action: 'Open your profile',
-      footer: `Sent by Kithena on behalf of ${company}. You will get at most one of these a week, and none once your profile is complete.`,
+      subject: t(
+        'notice.profile_reminder.subject',
+        '{{company}}: a few details are missing from your profile',
+        { company },
+      ),
+      heading: t('notice.profile_reminder.heading', 'Your profile needs a few details'),
+      lede: t(
+        'notice.profile_reminder.lede',
+        {
+          one: '{{company}} has asked everyone to fill in one detail that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.',
+          other:
+            '{{company}} has asked everyone to fill in {{count}} details that only you can provide. It takes a minute, and you can see exactly what is missing once you open your profile.',
+        },
+        { company, count: missing },
+      ),
+      action: t('notice.profile_reminder.action', 'Open your profile'),
+      footer: t(
+        'notice.profile_reminder.footer',
+        'Sent by Kithena on behalf of {{company}}. You will get at most one of these a week, and none once your profile is complete.',
+        { company },
+      ),
     };
   },
-  approval_requested: (_notice, company) => ({
-    subject: `${company}: a change is waiting for your approval`,
-    heading: 'A change needs your approval',
-    lede: `Somebody changed a detail in ${company}'s People that needs a second person to approve it before it takes effect. It waits for up to seven days; after that it lapses and is not applied.`,
-    action: 'Review changes',
-    footer: `Sent by Kithena on behalf of ${company} because you approve changes in People.`,
+  approval_requested: (_notice, company, t) => ({
+    subject: t(
+      'notice.approval_requested.subject',
+      '{{company}}: a change is waiting for your approval',
+      { company },
+    ),
+    heading: t('notice.approval_requested.heading', 'A change needs your approval'),
+    lede: t(
+      'notice.approval_requested.lede',
+      'Somebody changed a detail in {{company}}’s People that needs a second person to approve it before it takes effect. It waits for up to seven days; after that it lapses and is not applied.',
+      { company },
+    ),
+    action: t('notice.approval_requested.action', 'Review changes'),
+    footer: t(
+      'notice.approval_requested.footer',
+      'Sent by Kithena on behalf of {{company}} because you approve changes in People.',
+      { company },
+    ),
   }),
-  approval_decided: ({ decision }, company) => {
+  approval_decided: ({ decision }, company, t) => {
     if (!APPROVAL_DECISIONS.includes(decision)) return null;
-    const approved = decision === 'approved';
-    return {
-      subject: `${company}: your change was ${approved ? 'approved' : 'not approved'}`,
-      heading: approved ? 'Your change was approved' : 'Your change was not approved',
-      lede: approved
-        ? `A change you made in ${company}'s People was approved, and takes effect from the date you gave.`
-        : `A change you made in ${company}'s People was not approved, so it was not applied. Open People to see what is recorded and, if it is still needed, make it again.`,
-      action: 'Open People',
-      footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
-    };
+    const footer = t(
+      'notice.approval_decided.footer',
+      'Sent by Kithena on behalf of {{company}} because you made a change that needed approval.',
+      { company },
+    );
+    const action = t('notice.approval_decided.action', 'Open People');
+    return decision === 'approved'
+      ? {
+          subject: t(
+            'notice.approval_decided.approved.subject',
+            '{{company}}: your change was approved',
+            {
+              company,
+            },
+          ),
+          heading: t('notice.approval_decided.approved.heading', 'Your change was approved'),
+          lede: t(
+            'notice.approval_decided.approved.lede',
+            'A change you made in {{company}}’s People was approved, and takes effect from the date you gave.',
+            { company },
+          ),
+          action,
+          footer,
+        }
+      : {
+          subject: t(
+            'notice.approval_decided.rejected.subject',
+            '{{company}}: your change was not approved',
+            { company },
+          ),
+          heading: t('notice.approval_decided.rejected.heading', 'Your change was not approved'),
+          lede: t(
+            'notice.approval_decided.rejected.lede',
+            'A change you made in {{company}}’s People was not approved, so it was not applied. Open People to see what is recorded and, if it is still needed, make it again.',
+            { company },
+          ),
+          action,
+          footer,
+        };
   },
-  correction_requested: (_notice, company) => ({
-    subject: `${company}: HR asked you to correct a detail`,
-    heading: 'A detail needs correcting',
-    lede: `HR at ${company} checked a detail you gave in People and could not accept it as it is, so it was not saved. Open your profile to see what they found and correct it.`,
-    action: 'Open your profile',
-    footer: `Sent by Kithena on behalf of ${company} because a detail in your People profile needs your correction.`,
+  correction_requested: (_notice, company, t) => ({
+    subject: t(
+      'notice.correction_requested.subject',
+      '{{company}}: HR asked you to correct a detail',
+      { company },
+    ),
+    heading: t('notice.correction_requested.heading', 'A detail needs correcting'),
+    lede: t(
+      'notice.correction_requested.lede',
+      'HR at {{company}} checked a detail you gave in People and could not accept it as it is, so it was not saved. Open your profile to see what they found and correct it.',
+      { company },
+    ),
+    action: t('notice.correction_requested.action', 'Open your profile'),
+    footer: t(
+      'notice.correction_requested.footer',
+      'Sent by Kithena on behalf of {{company}} because a detail in your People profile needs your correction.',
+      { company },
+    ),
   }),
-  approval_expired: (_notice, company) => ({
-    subject: `${company}: your change expired without a decision`,
-    heading: 'Your change expired',
-    lede: `Nobody decided a change you made in ${company}'s People within seven days, so it was not applied. If it is still needed, make it again.`,
-    action: 'Open People',
-    footer: `Sent by Kithena on behalf of ${company} because you made a change that needed approval.`,
+  approval_expired: (_notice, company, t) => ({
+    subject: t(
+      'notice.approval_expired.subject',
+      '{{company}}: your change expired without a decision',
+      { company },
+    ),
+    heading: t('notice.approval_expired.heading', 'Your change expired'),
+    lede: t(
+      'notice.approval_expired.lede',
+      'Nobody decided a change you made in {{company}}’s People within seven days, so it was not applied. If it is still needed, make it again.',
+      { company },
+    ),
+    action: t('notice.approval_expired.action', 'Open People'),
+    footer: t(
+      'notice.approval_expired.footer',
+      'Sent by Kithena on behalf of {{company}} because you made a change that needed approval.',
+      { company },
+    ),
   }),
-  webhook_disabled: ({ host }, company) => {
+  webhook_disabled: ({ host }, company, t) => {
     if (!HOST.test(host)) return null;
     return {
-      subject: `${company}: a People webhook was turned off`,
-      heading: 'We stopped sending to one of your webhooks',
-      lede: `Nothing sent to ${host} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.`,
-      action: 'Open People',
-      footer: `Sent by Kithena because this address is the alert contact for a webhook endpoint in ${company}'s People.`,
+      subject: t(
+        'notice.webhook_disabled.subject',
+        '{{company}}: a People webhook was turned off',
+        {
+          company,
+        },
+      ),
+      heading: t('notice.webhook_disabled.heading', 'We stopped sending to one of your webhooks'),
+      lede: t(
+        'notice.webhook_disabled.lede',
+        'Nothing sent to {{host}} has succeeded for 24 hours, so Kithena turned that endpoint off. Events raised while it is off are not sent to it. Once the receiver is fixed, turn the endpoint back on and replay the delivery that failed.',
+        { host },
+      ),
+      action: t('notice.webhook_disabled.action', 'Open People'),
+      footer: t(
+        'notice.webhook_disabled.footer',
+        'Sent by Kithena because this address is the alert contact for a webhook endpoint in {{company}}’s People.',
+        { company },
+      ),
     };
   },
-  export_shared: (_notice, company) => ({
-    subject: `${company}: a People export was sent to you`,
-    heading: 'A People export was sent to you',
-    lede: `Somebody at ${company} sent you an export from People. It opens only for you, once you are signed in, and only for seven days; after that it is deleted.`,
-    action: 'Open the export',
-    footer: `Sent by Kithena on behalf of ${company} because an export was sent to you. Forwarding this email gives nobody else the file.`,
+  export_shared: (_notice, company, t) => ({
+    subject: t('notice.export_shared.subject', '{{company}}: a People export was sent to you', {
+      company,
+    }),
+    heading: t('notice.export_shared.heading', 'A People export was sent to you'),
+    lede: t(
+      'notice.export_shared.lede',
+      'Somebody at {{company}} sent you an export from People. It opens only for you, once you are signed in, and only for seven days; after that it is deleted.',
+      { company },
+    ),
+    action: t('notice.export_shared.action', 'Open the export'),
+    footer: t(
+      'notice.export_shared.footer',
+      'Sent by Kithena on behalf of {{company}} because an export was sent to you. Forwarding this email gives nobody else the file.',
+      { company },
+    ),
   }),
-  export_share_requested: (_notice, company) => ({
-    subject: `${company}: an export is waiting for your approval`,
-    heading: 'An export needs your approval',
-    lede: `Somebody at ${company} wants to send an export from People to a colleague who could not see all of it themselves. Nothing is sent unless a People administrator approves it within seven days.`,
-    action: 'Review the export',
-    footer: `Sent by Kithena on behalf of ${company} because you are a People administrator.`,
+  export_share_requested: (_notice, company, t) => ({
+    subject: t(
+      'notice.export_share_requested.subject',
+      '{{company}}: an export is waiting for your approval',
+      { company },
+    ),
+    heading: t('notice.export_share_requested.heading', 'An export needs your approval'),
+    lede: t(
+      'notice.export_share_requested.lede',
+      'Somebody at {{company}} wants to send an export from People to a colleague who could not see all of it themselves. Nothing is sent unless a People administrator approves it within seven days.',
+      { company },
+    ),
+    action: t('notice.export_share_requested.action', 'Review the export'),
+    footer: t(
+      'notice.export_share_requested.footer',
+      'Sent by Kithena on behalf of {{company}} because you are a People administrator.',
+      { company },
+    ),
   }),
-  // Bounded and escaped in `renderNotice`, before either call reaches here.
-  inbox_task: ({ topic }, company) => {
-    const words = TASK_WORDS[topic];
+  inbox_task: ({ topic }, company, t) => {
+    const [subject, opening] = TASK_WORDS[topic](t, company);
     return {
-      subject: `${company}: ${words[0]}`,
-      heading: 'Something needs you',
-      lede: `${words[1]} It is in your Inbox at ${company}, with everything you need to do it.`,
-      action: 'Open your Inbox',
-      footer: `Sent by Kithena on behalf of ${company}. Choose which tasks reach you by email in Settings, Notifications.`,
+      subject,
+      heading: t('notice.inbox_task.heading', 'Something needs you'),
+      lede: t(
+        'notice.inbox_task.lede',
+        '{{opening}} It is in your Inbox at {{company}}, with everything you need to do it.',
+        { opening, company },
+      ),
+      action: t('notice.inbox_task.action', 'Open your Inbox'),
+      footer: t(
+        'notice.inbox_task.footer',
+        'Sent by Kithena on behalf of {{company}}. Choose which tasks reach you by email in Settings, Notifications.',
+        { company },
+      ),
     };
   },
-  inbox_update: ({ topic }, company) => {
-    const words = UPDATE_WORDS[topic];
+  inbox_update: ({ topic }, company, t) => {
+    const [subject, opening] = UPDATE_WORDS[topic](t, company);
     return {
-      subject: `${company}: ${words[0]}`,
-      heading: 'An update for you',
-      lede: `${words[1]} Nothing is owed; it is in your Inbox at ${company}.`,
-      action: 'Open your Inbox',
-      footer: `Sent by Kithena on behalf of ${company}. Updates can come in a daily digest instead, in Settings, Notifications.`,
+      subject,
+      heading: t('notice.inbox_update.heading', 'An update for you'),
+      lede: t(
+        'notice.inbox_update.lede',
+        '{{opening}} Nothing is owed; it is in your Inbox at {{company}}.',
+        { opening, company },
+      ),
+      action: t('notice.inbox_update.action', 'Open your Inbox'),
+      footer: t(
+        'notice.inbox_update.footer',
+        'Sent by Kithena on behalf of {{company}}. Updates can come in a daily digest instead, in Settings, Notifications.',
+        { company },
+      ),
     };
   },
-  inbox_digest: ({ count }, company) => {
+  inbox_digest: ({ count }, company, t) => {
     if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) return null;
-    const n = count === 1 ? 'one update' : `${String(count)} updates`;
     return {
-      subject: `${company}: ${n} in your Inbox`,
-      heading: `${n.charAt(0).toUpperCase()}${n.slice(1)} since yesterday`,
-      lede: `Your daily digest: ${n} you have not opened yet, in your Inbox at ${company}. Nothing in an update is owed.`,
-      action: 'Open your Inbox',
-      footer: `Sent by Kithena on behalf of ${company}, once a day. Change when, or turn it off, in Settings, Notifications.`,
+      subject: t(
+        'notice.inbox_digest.subject',
+        {
+          one: '{{company}}: one update in your Inbox',
+          other: '{{company}}: {{count}} updates in your Inbox',
+        },
+        { company, count },
+      ),
+      heading: t(
+        'notice.inbox_digest.heading',
+        { one: 'One update since yesterday', other: '{{count}} updates since yesterday' },
+        { count },
+      ),
+      lede: t(
+        'notice.inbox_digest.lede',
+        {
+          one: 'Your daily digest: one update you have not opened yet, in your Inbox at {{company}}. Nothing in an update is owed.',
+          other:
+            'Your daily digest: {{count}} updates you have not opened yet, in your Inbox at {{company}}. Nothing in an update is owed.',
+        },
+        { company, count },
+      ),
+      action: t('notice.inbox_digest.action', 'Open your Inbox'),
+      footer: t(
+        'notice.inbox_digest.footer',
+        'Sent by Kithena on behalf of {{company}}, once a day. Change when, or turn it off, in Settings, Notifications.',
+        { company },
+      ),
     };
   },
-  rest_nudge: ({ heading, lede }, company) => ({
-    subject: `${company}: ${heading}`,
+  rest_nudge: ({ heading, lede }, company, t) => ({
+    subject: t('notice.rest_nudge.subject', '{{company}}: {{heading}}', { company, heading }),
     heading,
     lede,
-    action: 'Open Time off',
-    footer: `Sent by Kithena on behalf of ${company}, because HR suggested you take a break. Only you see these numbers.`,
+    action: t('notice.rest_nudge.action', 'Open Time Off'),
+    footer: t(
+      'notice.rest_nudge.footer',
+      'Sent by Kithena on behalf of {{company}}, because HR suggested you take a break. Only you see these numbers.',
+      { company },
+    ),
   }),
-  signature_requested: (_notice, company) => ({
-    subject: `${company} sent you a document to sign`,
-    heading: 'A document to sign',
-    lede: `${company} asked you to sign a document with Kithena. It opens ready to sign: press Start, sign where it asks, and Finish. We email you a code at Finish to confirm it is you.`,
-    action: 'Review and sign',
-    footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
+  signature_requested: (_notice, company, t) => ({
+    subject: t('notice.signature_requested.subject', '{{company}} sent you a document to sign', {
+      company,
+    }),
+    heading: t('notice.signature_requested.heading', 'A document to sign'),
+    lede: t(
+      'notice.signature_requested.lede',
+      '{{company}} asked you to sign a document with Kithena. It opens ready to sign: press Start, sign where it asks, and Finish. We email you a code at Finish to confirm it is you.',
+      { company },
+    ),
+    action: t('notice.signature_requested.action', 'Review and sign'),
+    footer: t(
+      'notice.signature_requested.footer',
+      'Sent by Kithena on behalf of {{company}}. If you were not expecting this, you can ignore it.',
+      { company },
+    ),
   }),
-  signature_reminder: (_notice, company) => ({
-    subject: `Reminder: ${company} is waiting for your signature`,
-    heading: 'Your signature is next',
-    lede: `A document from ${company} is waiting for you to sign. Any signatures before yours are already on it. This link replaces any earlier one we sent you.`,
-    action: 'Review and sign',
-    footer: `Sent by Kithena on behalf of ${company}. If you were not expecting this, you can ignore it.`,
+  signature_reminder: (_notice, company, t) => ({
+    subject: t(
+      'notice.signature_reminder.subject',
+      'Reminder: {{company}} is waiting for your signature',
+      { company },
+    ),
+    heading: t('notice.signature_reminder.heading', 'Your signature is next'),
+    lede: t(
+      'notice.signature_reminder.lede',
+      'A document from {{company}} is waiting for you to sign. Any signatures before yours are already on it. This link replaces any earlier one we sent you.',
+      { company },
+    ),
+    action: t('notice.signature_reminder.action', 'Review and sign'),
+    footer: t(
+      'notice.signature_reminder.footer',
+      'Sent by Kithena on behalf of {{company}}. If you were not expecting this, you can ignore it.',
+      { company },
+    ),
   }),
-  document_signed: (_notice, company) => ({
-    subject: `${company}: you signed a document`,
-    heading: 'Your signature is in',
-    lede: `Thank you for signing with ${company}. A copy as signed so far is attached. Anyone still to sign is asked in turn, and you get the finished copy once everyone has signed.`,
-    action: 'Open the document',
-    footer: `Sent by Kithena on behalf of ${company}, because you signed a document.`,
+  document_signed: (_notice, company, t) => ({
+    subject: t('notice.document_signed.subject', '{{company}}: you signed a document', { company }),
+    heading: t('notice.document_signed.heading', 'Your signature is in'),
+    lede: t(
+      'notice.document_signed.lede',
+      'Thank you for signing with {{company}}. A copy as signed so far is attached. Anyone still to sign is asked in turn, and you get the finished copy once everyone has signed.',
+      { company },
+    ),
+    action: t('notice.document_signed.action', 'Open the document'),
+    footer: t(
+      'notice.document_signed.footer',
+      'Sent by Kithena on behalf of {{company}}, because you signed a document.',
+      { company },
+    ),
   }),
-  document_completed: (_notice, company) => ({
-    subject: `${company}: everyone has signed`,
-    heading: 'Signed by everyone',
-    lede: `Every signature is in. The signed document is attached, with a certificate of completion as its last page saying who signed, how and when.`,
-    action: 'Open the document',
-    footer: `Sent by Kithena on behalf of ${company}, because you signed this document.`,
+  document_completed: (_notice, company, t) => ({
+    subject: t('notice.document_completed.subject', '{{company}}: everyone has signed', {
+      company,
+    }),
+    heading: t('notice.document_completed.heading', 'Signed by everyone'),
+    lede: t(
+      'notice.document_completed.lede',
+      'Every signature is in. The signed document is attached, with a certificate of completion as its last page saying who signed, how and when.',
+    ),
+    action: t('notice.document_completed.action', 'Open the document'),
+    footer: t(
+      'notice.document_completed.footer',
+      'Sent by Kithena on behalf of {{company}}, because you signed this document.',
+      { company },
+    ),
   }),
-  signing_code: ({ code }, company) => {
+  signing_code: ({ code }, company, t) => {
     if (!/^\d{6}$/u.test(code)) return null;
     return {
-      subject: `Your code to sign for ${company}: ${code}`,
-      heading: `Your code is ${code}`,
-      lede: `Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.`,
-      action: 'Back to the document',
-      footer: `Sent by Kithena on behalf of ${company}.`,
+      subject: t('notice.signing_code.subject', 'Your code to sign for {{company}}: {{code}}', {
+        company,
+        code,
+      }),
+      heading: t('notice.signing_code.heading', 'Your code is {{code}}', { code }),
+      lede: t(
+        'notice.signing_code.lede',
+        'Enter it on the signing page to show it is you. It works for ten minutes. If you did not ask for it, somebody may have your link; nothing can be signed without the code.',
+      ),
+      action: t('notice.signing_code.action', 'Back to the document'),
+      footer: t('notice.signing_code.footer', 'Sent by Kithena on behalf of {{company}}.', {
+        company,
+      }),
     };
   },
-  summary_shared: (_notice, company) => ({
-    subject: `${company}: a People summary was shared with you`,
-    heading: 'A People summary for you',
-    lede: `Somebody at ${company} sent you a summary of what changed in People, written for what you are allowed to see. It is shown only once you are signed in, and it opens for seven days.`,
-    action: 'Open the summary',
-    footer: `Sent by Kithena on behalf of ${company}, because somebody in HR shared a People summary with you.`,
+  summary_shared: (_notice, company, t) => ({
+    subject: t(
+      'notice.summary_shared.subject',
+      '{{company}}: a People summary was shared with you',
+      { company },
+    ),
+    heading: t('notice.summary_shared.heading', 'A People summary for you'),
+    lede: t(
+      'notice.summary_shared.lede',
+      'Somebody at {{company}} sent you a summary of what changed in People, written for what you are allowed to see. It is shown only once you are signed in, and it opens for seven days.',
+      { company },
+    ),
+    action: t('notice.summary_shared.action', 'Open the summary'),
+    footer: t(
+      'notice.summary_shared.footer',
+      'Sent by Kithena on behalf of {{company}}, because somebody in HR shared a People summary with you.',
+      { company },
+    ),
   }),
-  scheduled_report: ({ cadence, format }, company) => {
+  scheduled_report: ({ cadence, format }, company, t) => {
     if (!REPORT_CADENCES.includes(cadence) || !REPORT_FORMATS.includes(format)) return null;
-    const footer = `Sent by Kithena on behalf of ${company}, because you are a recipient of a scheduled People report. Whoever manages People at ${company} can stop it.`;
+    const footer = t(
+      'notice.scheduled_report.footer',
+      'Sent by Kithena on behalf of {{company}}, because you are a recipient of a scheduled People report. Whoever manages People at {{company}} can stop it.',
+      { company },
+    );
     if (format === 'summary') {
       return {
-        subject: `${company}: your ${cadence} People summary`,
-        heading: `Your ${cadence} People summary`,
-        lede: `The numbers ${company} scheduled for you are up to date: headcount, movement and how complete the records are. They are shown only once you are signed in, and only what you are allowed to see.`,
-        action: 'Open the summary',
+        subject: REPORT_WORDS.summarySubject[cadence](t, company),
+        heading: REPORT_WORDS.summaryHeading[cadence](t),
+        lede: t(
+          'notice.scheduled_report.summary.lede',
+          'The numbers {{company}} scheduled for you are up to date: headcount, movement and how complete the records are. They are shown only once you are signed in, and only what you are allowed to see.',
+          { company },
+        ),
+        action: t('notice.scheduled_report.summary.action', 'Open the summary'),
         footer,
       };
     }
-    const file = format === 'xlsx' ? 'Excel' : 'PDF';
     return {
-      subject: `${company}: your ${cadence} People report is ready`,
-      heading: 'Your People report is ready',
-      lede: `The ${cadence} ${file} report ${company} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.`,
-      action: 'Download the report',
+      subject: REPORT_WORDS.fileSubject[cadence](t, company),
+      heading: t('notice.scheduled_report.file.heading', 'Your People report is ready'),
+      lede: REPORT_WORDS.fileLede[cadence](t, company, format === 'xlsx' ? 'Excel' : 'PDF'),
+      action: t('notice.scheduled_report.file.action', 'Download the report'),
       footer,
     };
   },
 };
 
+/**
+ * A scheduled report's words per cadence, whole: "daily", "weekly" and
+ * "monthly" agree with what they describe in most languages, so none is a
+ * word slotted into a sentence.
+ */
+const REPORT_WORDS = {
+  summarySubject: {
+    daily: (t: Words, company: string) =>
+      t('notice.scheduled_report.daily.summary.subject', '{{company}}: your daily People summary', {
+        company,
+      }),
+    weekly: (t: Words, company: string) =>
+      t(
+        'notice.scheduled_report.weekly.summary.subject',
+        '{{company}}: your weekly People summary',
+        { company },
+      ),
+    monthly: (t: Words, company: string) =>
+      t(
+        'notice.scheduled_report.monthly.summary.subject',
+        '{{company}}: your monthly People summary',
+        { company },
+      ),
+  },
+  summaryHeading: {
+    daily: (t: Words) =>
+      t('notice.scheduled_report.daily.summary.heading', 'Your daily People summary'),
+    weekly: (t: Words) =>
+      t('notice.scheduled_report.weekly.summary.heading', 'Your weekly People summary'),
+    monthly: (t: Words) =>
+      t('notice.scheduled_report.monthly.summary.heading', 'Your monthly People summary'),
+  },
+  fileSubject: {
+    daily: (t: Words, company: string) =>
+      t(
+        'notice.scheduled_report.daily.file.subject',
+        '{{company}}: your daily People report is ready',
+        { company },
+      ),
+    weekly: (t: Words, company: string) =>
+      t(
+        'notice.scheduled_report.weekly.file.subject',
+        '{{company}}: your weekly People report is ready',
+        { company },
+      ),
+    monthly: (t: Words, company: string) =>
+      t(
+        'notice.scheduled_report.monthly.file.subject',
+        '{{company}}: your monthly People report is ready',
+        { company },
+      ),
+  },
+  fileLede: {
+    daily: (t: Words, company: string, file: string) =>
+      t(
+        'notice.scheduled_report.daily.file.lede',
+        'The daily {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.',
+        { company, file },
+      ),
+    weekly: (t: Words, company: string, file: string) =>
+      t(
+        'notice.scheduled_report.weekly.file.lede',
+        'The weekly {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.',
+        { company, file },
+      ),
+    monthly: (t: Words, company: string, file: string) =>
+      t(
+        'notice.scheduled_report.monthly.file.lede',
+        'The monthly {{file}} report {{company}} scheduled for you has been prepared, with only what you are allowed to see. Sign in to download it within 24 hours; after that it is deleted, and the next one comes as scheduled.',
+        { company, file },
+      ),
+  },
+} as const;
+
 /** Every notice kind, read off the copy that must have one for each. */
 export const NOTICE_KINDS = Object.keys(COPY) as readonly NoticeKind[];
+
+/** US English, the words in the code: what a notice says when no language is given. */
+const ENGLISH = wordsIn('en-US', {});
 
 export function renderNotice(
   notice: Notice,
   url: string,
   companyName: string,
+  /** The company's language, and its words for it: every email is in the company's language. */
+  words: { readonly language: string; readonly t: Words } = { language: 'en-US', t: ENGLISH },
 ): Result<RenderedMessage> {
   const company = companyName.trim();
   if (company.length === 0 || company.length > MAX_COMPANY_NAME) return err(Unrenderable);
 
   // A nudge's words are the module's: one line of heading, bounded, and
-  // escaped for the HTML exactly as the company's name is.
-  let words = notice;
-  let escaped = notice;
+  // escaped for the HTML with everything else.
+  let input = notice;
   if (notice.kind === 'rest_nudge') {
     const heading = notice.heading.trim();
     const lede = notice.lede.trim();
@@ -444,21 +797,28 @@ export function renderNotice(
       return err(Unrenderable);
     }
     if (lede.length === 0 || lede.length > NUDGE_LEDE_MAX) return err(Unrenderable);
-    words = { kind: 'rest_nudge', heading, lede };
-    escaped = { kind: 'rest_nudge', heading: escapeHtml(heading), lede: escapeHtml(lede) };
+    input = { kind: 'rest_nudge', heading, lede };
   }
 
   // The mapped type pairs each kind with its input; TypeScript cannot follow
   // that through an index, so the call is widened by hand.
-  const copyFor = COPY[notice.kind] as (n: Notice, company: string) => Copy | null;
-  const plain = copyFor(words, company);
-  const marked = copyFor(escaped, escapeHtml(company));
+  const copyFor = COPY[notice.kind] as (n: Notice, company: string, t: Words) => Copy | null;
+  const plain = copyFor(input, company, words.t);
   const href = safeHref(url);
-  if (plain === null || marked === null || href === null) return err(Unrenderable);
+  if (plain === null || href === null) return err(Unrenderable);
+  // Escaped whole, once: the company's name, a nudge's words and the
+  // translation itself are all text to the HTML.
+  const marked: Copy = {
+    subject: escapeHtml(plain.subject),
+    heading: escapeHtml(plain.heading),
+    lede: escapeHtml(plain.lede),
+    action: escapeHtml(plain.action),
+    footer: escapeHtml(plain.footer),
+  };
 
   return ok({
     subject: plain.subject,
-    html: html(marked, href, escapeHtml(url)),
+    html: html(marked, href, escapeHtml(url), words),
     text: [plain.heading, '', plain.lede, '', `${plain.action}:`, url, '', plain.footer, ''].join(
       '\n',
     ),
@@ -472,11 +832,16 @@ export function renderNotice(
  * styles, a VML button — for the reasons `invitation.ts` gives at length. The
  * accent is always Kithena's: a notice carries no company theme.
  */
-function html(copy: Copy, href: string, plainUrl: string): string {
+function html(
+  copy: Copy,
+  href: string,
+  plainUrl: string,
+  words: { readonly language: string; readonly t: Words },
+): string {
   const pad = scale.cardPadding;
   const accent = light['accent-solid'];
   return `<!doctype html>
-<html lang="en" style="margin:0;padding:0;">
+<html lang="${escapeHtml(words.language)}" style="margin:0;padding:0;">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -537,7 +902,7 @@ function html(copy: Copy, href: string, plainUrl: string): string {
                   </tr>
                   <tr>
                     <td class="k-pad k-muted" style="padding:22px ${pad} ${pad} ${pad};font-size:${scale.small.size};line-height:${scale.small.lineHeight};color:${light['fg-muted']};">
-                      <p style="margin:0;">Button not working? Paste this into your browser:<br /><a href="${href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${plainUrl}</a></p>
+                      <p style="margin:0;">${escapeHtml(words.t('notice.button_not_working', 'Button not working? Paste this into your browser:'))}<br /><a href="${href}" class="k-muted" style="color:${light['fg-muted']};word-break:break-all;text-decoration:underline;">${plainUrl}</a></p>
                     </td>
                   </tr>
                 </table>

@@ -7,6 +7,7 @@ import {
   renderCorrespondence,
   type CorrespondenceParts,
 } from '../domain/correspondence.js';
+import { inEnglish, type CompanyLanguage } from './company-language.js';
 import type { DeliveryLog } from './delivery-log.js';
 import type { EmailTransport } from './email-transport.js';
 import type { SendRefusal } from './send-invitation.js';
@@ -43,6 +44,8 @@ export function sendCorrespondence(deps: {
   readonly transport: EmailTransport;
   readonly deliveries: DeliveryLog;
   readonly onRefusal?: (reason: SendRefusal, detail: Record<string, string>) => void;
+  /** The company's language, for the frame around the module's words. US English when absent. */
+  readonly language?: CompanyLanguage;
 }): SendCorrespondence {
   const refuse = (reason: SendRefusal, detail: Record<string, string> = {}): Result<never> => {
     deps.onRefusal?.(reason, detail);
@@ -58,6 +61,7 @@ export function sendCorrespondence(deps: {
       request.text,
       request.companyName,
       request.parts ?? {},
+      await (deps.language ?? inEnglish)(request.tenantId),
     );
     if (!message.ok) return refuse('unrenderable');
     const digest = createHash('sha256')
