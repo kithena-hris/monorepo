@@ -713,7 +713,7 @@ describe('FieldRegistry', () => {
       <FieldRegistry {...props({ load: { status: 'ready', data: shareable }, onAssistant })} />,
     );
     await user.click(
-      screen.getByRole('button', { name: /^Employee number: assistant not shared/ }),
+      screen.getByRole('button', { name: /^Employee number: not shared with the assistant/ }),
     );
     await user.click(screen.getByRole('menuitemradio', { name: 'Shared' }));
     expect(onAssistant).toHaveBeenCalledWith('employee_number', true);
