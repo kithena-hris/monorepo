@@ -56,6 +56,8 @@ describe('a hire from Recruiting', () => {
     const subject = (id: string) =>
       world.uow.run(TENANT, async (tx) => (await tx.documents.get(id as never))?.subjectPersonId);
     expect(await subject('d-contract')).toBe(PERSON);
+    // The event again, as a replay reads it: nothing left to file.
+    expect(await documentsConsumer(world.uow)(hired('yuki@example.com'))).toBe('unchanged');
     // A document another module did not send for a hire stays as it was.
     expect(await subject('d-other')).toBeNull();
   });

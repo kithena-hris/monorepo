@@ -34,7 +34,9 @@ async function startConsumers(
   }
   const handle = documentsConsumer(uow);
   const consumers = await Promise.all([
-    consume(new Kafka(kafka), 'documents', PersonHired.topic, handle),
+    // `-2`: People's topic again from the start, so a hire made before Documents filed
+    // their signed contract about them has it filed now. Every handler is idempotent.
+    consume(new Kafka(kafka), 'documents-2', PersonHired.topic, handle),
     consume(new Kafka(kafka), 'documents-identity', TenantAdministratorNamed.topic, handle),
   ]);
   return {
