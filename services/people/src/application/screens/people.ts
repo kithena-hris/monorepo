@@ -2397,6 +2397,8 @@ export interface OrgChartView {
     readonly status: string | null;
     readonly team: string | null;
     readonly location: string | null;
+    /** Not started yet: their first day, so the chart can show who is coming. Null otherwise. */
+    readonly startsOn: string | null;
   }[];
   /** More people than `ORG_CHART_MAX`: the chart is not everybody. */
   readonly truncated: boolean;
@@ -2471,6 +2473,8 @@ export async function orgChartView(
               : null,
           team: cell(p, 'department'),
           location: cell(p, 'location_id'),
+          // Only whoever may see them is listed: HR, their manager and themselves.
+          startsOn: p.startsOn ?? null,
         };
       }),
       truncated: listed.value.items.length > ORG_CHART_MAX,

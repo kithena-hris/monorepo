@@ -1535,6 +1535,7 @@
   "org-chart.org-chart.org_chart": "Оргструктура",
   "org-chart.org-chart.profile": "Профиль",
   "org-chart.org-chart.reports": "Подчинённые",
+  "org-chart.org-chart.starts": "Начинает {{date}}",
   "org-chart.org-chart.team": "Команда",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "Оргструктура строится по руководителю каждого, как только люди будут добавлены.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "первые страницы справочника",

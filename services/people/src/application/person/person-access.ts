@@ -178,6 +178,8 @@ export interface PersonView {
   readonly id: string;
   /** HR's, and the person's own (`statusVisibleTo`); absent for anybody else. */
   readonly status?: string;
+  /** Not started yet: their first day. Absent for everybody already working. */
+  readonly startsOn?: string;
   readonly schemaVersion: number | null;
   /** Only what this viewer may read. A withheld key is absent, never null. */
   readonly attributes: Readonly<Record<string, unknown>>;
@@ -1217,6 +1219,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
     return {
       id: person.snapshot.id,
       ...(statusVisibleTo(relations) ? { status: person.snapshot.status } : {}),
+      // Somebody not started is read only by those who may (`mayRead`): their first day with them.
+      ...(NOT_STARTED.has(person.snapshot.status) && person.snapshot.hireDate !== null
+        ? { startsOn: person.snapshot.hireDate }
+        : {}),
       schemaVersion: person.schemaVersion,
       attributes: readable(definitions, Object.fromEntries(values), relations),
     };

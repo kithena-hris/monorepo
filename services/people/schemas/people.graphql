@@ -1580,6 +1580,8 @@ type OrgChartPerson {
   managerId: ID
   managerName: String
   name: String
+  """Not started yet: their first day. Null for everybody working."""
+  startsOn: String
   """HR’s, in words."""
   status: String
   team: String

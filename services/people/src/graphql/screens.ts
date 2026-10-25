@@ -1089,6 +1089,10 @@ export function defineScreens(builder: Builder, viaRest: ViaRest): void {
         status: t.exposeString('status', { nullable: true, description: 'HR’s, in words.' }),
         team: t.exposeString('team', { nullable: true }),
         location: t.exposeString('location', { nullable: true }),
+        startsOn: t.exposeString('startsOn', {
+          nullable: true,
+          description: 'Not started yet: their first day. Null for everybody working.',
+        }),
       }),
     });
   const OrgChartRef = builder.objectRef<OrgChartView>('PeopleOrgChart').implement({

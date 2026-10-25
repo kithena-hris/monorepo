@@ -1457,6 +1457,7 @@
   "org-chart.org-chart.org_chart": "Organigrama",
   "org-chart.org-chart.profile": "Perfil",
   "org-chart.org-chart.reports": "Colaboradores",
+  "org-chart.org-chart.starts": "Empieza el {{date}}",
   "org-chart.org-chart.team": "Equipo",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "El organigrama se crea a partir del responsable de cada persona en cuanto se añaden personas.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "las primeras páginas del directorio",

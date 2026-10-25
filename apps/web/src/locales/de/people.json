@@ -1367,6 +1367,7 @@
   "org-chart.org-chart.org_chart": "Organigramm",
   "org-chart.org-chart.profile": "Profil",
   "org-chart.org-chart.reports": "Unterstellte",
+  "org-chart.org-chart.starts": "Beginnt am {{date}}",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "Das Organigramm entsteht aus der Führungskraft jeder Person, sobald Personen hinzugefügt sind.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "die ersten Seiten des Verzeichnisses",
   "org-chart.org-chart.the_org_chart": "das Organigramm",

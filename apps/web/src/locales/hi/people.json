@@ -1381,6 +1381,7 @@
   "org-chart.org-chart.org_chart": "संगठन चार्ट",
   "org-chart.org-chart.profile": "प्रोफ़ाइल",
   "org-chart.org-chart.reports": "रिपोर्ट",
+  "org-chart.org-chart.starts": "{{date}} को शुरू",
   "org-chart.org-chart.team": "टीम",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "लोगों के जुड़ने के बाद चार्ट हर व्यक्ति के मैनेजर से अपने आप बनता है।",
   "org-chart.org-chart.the_first_pages_of_the_directory": "डायरेक्टरी के पहले पेज",
