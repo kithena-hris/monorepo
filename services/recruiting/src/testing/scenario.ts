@@ -18,12 +18,16 @@ import { apply, requestCode } from '../application/intake.js';
 import { scheduleKnockout } from '../application/knockout-schedule.js';
 import { rejectDueKnockouts } from '../application/knockouts.js';
 import {
+  archiveJob,
+  archivedAt,
   createJob,
+  deleteJob,
   publishTo,
   saveAd,
   saveJobDetails,
   setPlan,
   moveJobState,
+  unarchiveJob,
 } from '../application/jobs.js';
 import { moveApplication } from '../application/moves.js';
 import {
@@ -109,7 +113,7 @@ import { draftAd, draftEmail, suggestQuestions, translateAd } from '../applicati
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
 import { jobTerms, saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
-import { poolsScreen, recruitingInbox } from '../application/screens.js';
+import { jobsScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -1587,6 +1591,38 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(check.ok ? 'started' : check.error.code).toBe(
     place.country === 'ES' || place.country === 'DE' ? 'CHECK_NOT_ALLOWED' : 'started',
   );
+
+  // The jobs list: a job someone applied to is archived, never deleted; an empty draft is deleted.
+  await as('ada', async (ctx) => {
+    const refused = await deleteJob(ctx, jobId);
+    expect(refused.ok ? null : refused.error.code).toBe('HAS_APPLICATIONS');
+    value(await archiveJob(ctx, jobId));
+    const listed = (await jobsScreen(ctx)) as {
+      jobs: { id: string; archivedAt: string | null; may: { delete: boolean } }[];
+    };
+    expect(listed.jobs.find((j) => j.id === jobId)).toMatchObject({ may: { delete: false } });
+    expect(listed.jobs.find((j) => j.id === jobId)?.archivedAt).not.toBeNull();
+    value(await unarchiveJob(ctx, jobId));
+    expect(await archivedAt(ctx, jobId)).toBeNull();
+    const draftId = randomUUID();
+    value(
+      await createJob(ctx, {
+        id: draftId,
+        title: 'A draft nobody applied to',
+        internalTitle: 'Draft',
+        requisitionIds: [requisitionId],
+        entityId,
+        locationIds: [locationId],
+        department: 'Design',
+        workMode: 'onsite',
+        openings: 1,
+        languages: ['en'],
+        hiringManagerId: people.marco,
+      }),
+    );
+    expect(value(await deleteJob(ctx, draftId)).id).toBe(draftId);
+    expect(await ctx.tx.jobs.get(draftId)).toBeNull();
+  });
 }
 
 /** The in-memory harness. */

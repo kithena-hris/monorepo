@@ -509,7 +509,7 @@
   },
   "candidate.activity": {
     "text": "Activity",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.add_a_note": {
     "text": "Add a note",
@@ -525,27 +525,31 @@
   },
   "candidate.add_to_a_talent_pool": {
     "text": "Add to a talent pool…",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the placeholder of <SelectValue>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+  },
+  "candidate.add_to_a_talent_pool_title": {
+    "text": "Add to a talent pool",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>."
   },
   "candidate.added_from_the_profile": {
     "text": "Added from the profile",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the onClick of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the onClick of <Button>."
   },
   "candidate.adjustments": {
     "text": "Adjustments",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
   },
-  "candidate.answers": {
-    "text": "Answers",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+  "candidate.application": {
+    "text": "Application",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the aria-label of <SelectTrigger>."
   },
-  "candidate.applications": {
-    "text": "Applications",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the aria-label of <aside>."
+  "candidate.applied_on": {
+    "text": "applied {{day}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text built in code. Filled in: {{day}}."
   },
   "candidate.ask_for_information": {
     "text": "Ask for information…",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
   "candidate.ask_for_the_reference": {
     "text": "Ask for the reference",
@@ -553,19 +557,23 @@
   },
   "candidate.ask_the_candidate_for_something": {
     "text": "Ask the candidate for something",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogTitle>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>."
   },
   "candidate.ask_to_join": {
     "text": "Ask to join",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
   "candidate.backend_berlin_silver_medallists": {
     "text": "Backend, Berlin · silver medallists",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the placeholder of <Input>."
   },
+  "candidate.book_one_or_send_a_link": {
+    "text": "Book one, or send a link for the candidate to give their times.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the description of <EmptyState>."
+  },
   "candidate.cancel": {
     "text": "Cancel",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
   "candidate.candidates": {
     "text": "Candidates",
@@ -577,7 +585,7 @@
   },
   "candidate.choose_a_pool": {
     "text": "Choose a pool",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: text inside <CardTitle>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the placeholder of <SelectValue>."
   },
   "candidate.choose_an_open_job": {
     "text": "Choose an open job",
@@ -585,11 +593,19 @@
   },
   "candidate.consent": {
     "text": "Consent",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
+  },
+  "candidate.consent_until": {
+    "text": "{{purpose}} until {{day}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>. Filled in: {{purpose}}, {{day}}."
   },
   "candidate.corrected": {
     "text": "Corrected: {{value}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <TimelineItem>. Filled in: {{value}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <TimelineItem>. Filled in: {{value}}."
+  },
+  "candidate.create_offer": {
+    "text": "Create offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
   "candidate.criterion": {
     "text": "Criterion",
@@ -601,7 +617,11 @@
   },
   "candidate.debrief": {
     "text": "Debrief",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+  },
+  "candidate.details": {
+    "text": "Details",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.draft": {
     "text": "Draft",
@@ -611,13 +631,13 @@
     "text": "Draft it for me",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <FieldLabel>."
   },
-  "candidate.email": {
-    "text": "Email",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the actions of <Button>."
-  },
   "candidate.emails_to_and_from_the_candidate": {
     "text": "Emails to and from the candidate land here; replies arrive on the thread.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the description of <EmptyState>."
+  },
+  "candidate.emails_with_the_candidate_replies_arrive": {
+    "text": "Emails with the candidate; replies arrive here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the description of <Section>."
   },
   "candidate.everyone_who_applied_was_referred_submitted": {
     "text": "Everyone who applied, was referred, submitted or sourced. Search reads CV text.",
@@ -629,15 +649,15 @@
   },
   "candidate.files": {
     "text": "Files",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
   },
   "candidate.from_to_now": {
     "text": "{{value}} – now · “{{passage}}”",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ReadCv: text inside <span>. Filled in: {{value}}, {{passage}}."
   },
-  "candidate.interviews": {
-    "text": "Interviews",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+  "candidate.interviews_and_scorecards": {
+    "text": "Interviews and scorecards",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.invite_to_a_second_interview_next": {
     "text": "Invite to a second interview next week",
@@ -645,7 +665,7 @@
   },
   "candidate.it_lands_on_their_page": {
     "text": "It lands on {{name}}’s page and in their inbox the moment you send it; the answer comes back here.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogDescription>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogDescription>. Filled in: {{name}}."
   },
   "candidate.job": {
     "text": "Job",
@@ -653,15 +673,7 @@
   },
   "candidate.knockout_to_review": {
     "text": "Knockout to review",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Badge>."
-  },
-  "candidate.links": {
-    "text": "Links",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
-  },
-  "candidate.location": {
-    "text": "Location",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Badge>."
   },
   "candidate.make_an_offer": {
     "text": "Make an offer",
@@ -671,6 +683,10 @@
     "text": "Write the terms, pay and benefits for {{name}}: they are checked against the band and approved before {{name}} sees them.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <p>. Filled in: {{name}}."
   },
+  "candidate.match": {
+    "text": "{{round}}% match",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Badge>. Filled in: {{round}}."
+  },
   "candidate.match_a_label_not_a_decision": {
     "text": "{{model}} · {{at}} · {{band}} match. A label, not a decision.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <CardDescription>. Filled in: {{model}}, {{at}}, {{band}}."
@@ -679,41 +695,49 @@
     "text": "Message",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <FieldLabel>."
   },
-  "candidate.messages": {
-    "text": "Messages{{value}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <TabsTrigger>. Filled in: {{value}}."
+  "candidate.messages_title": {
+    "text": "Messages",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.met": {
     "text": "Met",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"met\" value."
   },
+  "candidate.minutes": {
+    "text": "{{minutes}} min",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>. Filled in: {{minutes}}."
+  },
   "candidate.more_detail_optional": {
     "text": "More detail (optional)",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <FieldLabel>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
+  },
+  "candidate.more_for": {
+    "text": "More for {{name}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the label of <MoreMenu>. Filled in: {{name}}."
   },
   "candidate.move_and_send": {
     "text": "Move and send",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
   "candidate.move_to": {
     "text": "Move to {{name}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value. Filled in: {{name}}."
   },
   "candidate.move_to_2": {
     "text": "Move to {{value}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogTitle>. Filled in: {{value}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>. Filled in: {{value}}."
   },
   "candidate.move_without_an_email": {
     "text": "Move without an email",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
   "candidate.moved": {
     "text": "Moved",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the title of <TimelineItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <TimelineItem>."
   },
   "candidate.moves_on_tell_them_in_the": {
     "text": "{{name}} moves on. Tell them, in the company’s words or your own.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogDescription>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogDescription>. Filled in: {{name}}."
   },
   "candidate.must_have": {
     "text": "Must-have",
@@ -731,17 +755,21 @@
     "text": "New pool’s name",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the aria-label of <Input>."
   },
+  "candidate.next_candidate": {
+    "text": "Next candidate (J)",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the aria-label of <Button>."
+  },
   "candidate.no": {
     "text": "No",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <SegmentedControlItem>."
   },
   "candidate.no_answers_you_can_see": {
     "text": "No answers you can see",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the title of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <EmptyState>."
   },
   "candidate.no_application_you_can_see": {
     "text": "No application you can see",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the title of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <EmptyState>."
   },
   "candidate.no_consent": {
     "text": "No consent",
@@ -749,15 +777,15 @@
   },
   "candidate.no_interviews_yet": {
     "text": "No interviews yet",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the title of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <EmptyState>."
   },
   "candidate.no_messages_yet": {
     "text": "No messages yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the title of <EmptyState>."
   },
-  "candidate.no_offer_yet": {
-    "text": "No offer yet",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the title of <EmptyState>."
+  "candidate.no_recommendation": {
+    "text": "No recommendation",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Recommendation: text inside <Badge>."
   },
   "candidate.no_referees_named": {
     "text": "No referees named",
@@ -773,7 +801,7 @@
   },
   "candidate.none_asked": {
     "text": "None asked",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
   },
   "candidate.not_evidenced": {
     "text": "Not evidenced",
@@ -791,9 +819,9 @@
     "text": "Notes",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Notes: text inside <CardTitle>."
   },
-  "candidate.of_scorecards": {
-    "text": "{{length}} of {{length2}} scorecards",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>. Filled in: {{length}}, {{length2}}."
+  "candidate.notes_and_details": {
+    "text": "Notes and details",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the aria-label of <aside>."
   },
   "candidate.offer_summary": {
     "text": "{{pay}} · starts {{start}}",
@@ -801,7 +829,7 @@
   },
   "candidate.offer_v": {
     "text": "Offer v{{version}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <To>. Filled in: {{version}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <To>. Filled in: {{version}}."
   },
   "candidate.offer_version_state": {
     "text": "Offer, version {{version}}",
@@ -809,7 +837,23 @@
   },
   "candidate.offers": {
     "text": "Offers",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
+  },
+  "candidate.on_the_panel": {
+    "text": "On the panel",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>."
+  },
+  "candidate.open_as_a_page": {
+    "text": "Open as a page",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+  },
+  "candidate.open_offer": {
+    "text": "Open offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
+  },
+  "candidate.open_the_contract": {
+    "text": "Open the contract",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
   "candidate.open_the_offer": {
     "text": "Open the offer",
@@ -823,10 +867,6 @@
     "text": "Partly met",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"partly_met\" value."
   },
-  "candidate.phone": {
-    "text": "Phone",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the items of <KeyValues>."
-  },
   "candidate.pick_a_pool_to_see_who": {
     "text": "Pick a pool to see who is in it",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the title of <EmptyState>."
@@ -837,7 +877,7 @@
   },
   "candidate.pre_hire": {
     "text": "Pre-hire",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>."
   },
   "candidate.prepare_the_contract": {
     "text": "Prepare the contract",
@@ -851,17 +891,13 @@
     "text": "Prepare the contract",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ContractCard: text inside <p>."
   },
+  "candidate.previous_candidate": {
+    "text": "Previous candidate (K)",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the aria-label of <Button>."
+  },
   "candidate.private_to_the_hiring_team_interviewers": {
     "text": "Private to the hiring team; interviewers see them only after their scorecard",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Notes: text inside <CardDescription>."
-  },
-  "candidate.process": {
-    "text": "Process{{value}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <TabsTrigger>. Filled in: {{value}}."
-  },
-  "candidate.profile": {
-    "text": "Profile",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <TabsTrigger>."
   },
   "candidate.put_forward": {
     "text": "Put forward…",
@@ -874,6 +910,10 @@
   "candidate.put_forward_3": {
     "text": "Put forward",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: text inside <Button>."
+  },
+  "candidate.questionnaire": {
+    "text": "Questionnaire",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.read_again": {
     "text": "Read again",
@@ -901,23 +941,31 @@
   },
   "candidate.references": {
     "text": "References",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
   "candidate.reject": {
     "text": "Reject…",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
-  "candidate.rejected": {
-    "text": "Rejected {{at}}: {{reasonKey}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <p>. Filled in: {{at}}, {{reasonKey}}."
+  "candidate.rejected_on": {
+    "text": "Rejected {{at}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Alert>. Filled in: {{at}}."
   },
   "candidate.schedule": {
     "text": "Schedule",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the action of <Button>."
+  },
+  "candidate.schedule_interview": {
+    "text": "Schedule interview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
   "candidate.schedule_invitation": {
     "text": "Schedule",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
+  },
+  "candidate.scorecard_owed": {
+    "text": "Scorecard owed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>."
   },
   "candidate.search": {
     "text": "Search",
@@ -955,21 +1003,25 @@
     "text": "Some dates are out of order or after today; they are shown as written.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ReadCv: text inside <Alert>."
   },
-  "candidate.source": {
-    "text": "Source: {{source}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>. Filled in: {{source}}."
+  "candidate.stages_of": {
+    "text": "Stages of {{title}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the label of <Stepper>. Filled in: {{title}}."
   },
   "candidate.starts": {
     "text": "{{baseMinor}} · starts {{startDate}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <span>. Filled in: {{baseMinor}}, {{startDate}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>. Filled in: {{baseMinor}}, {{startDate}}."
   },
   "candidate.subject": {
     "text": "Subject",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <FieldLabel>."
   },
+  "candidate.tags": {
+    "text": "Tags",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
+  },
   "candidate.talent_pool": {
     "text": "Talent pool",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the aria-label of <SelectTrigger>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
   },
   "candidate.talent_pools": {
     "text": "talent pools",
@@ -979,9 +1031,17 @@
     "text": "Talent pools",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the title of <PageHeader>."
   },
+  "candidate.talent_pools_label": {
+    "text": "Talent pools",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
+  },
+  "candidate.technical_interview": {
+    "text": "Technical interview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the placeholder of <Input>."
+  },
   "candidate.tell_them_what_to_expect": {
     "text": "Tell them what to expect",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogTitle>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>."
   },
   "candidate.text": {
     "text": "{{value}}, {{value2}}",
@@ -1013,7 +1073,7 @@
   },
   "candidate.undone": {
     "text": "Undone",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <TimelineItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <TimelineItem>."
   },
   "candidate.until": {
     "text": "Until {{consentUntil}}",
@@ -1022,6 +1082,10 @@
   "candidate.verdict": {
     "text": "Verdict",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <TableHead>."
+  },
+  "candidate.via": {
+    "text": "via {{source}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text built in code. Filled in: {{source}}."
   },
   "candidate.was_the_verdict_on_right": {
     "text": "Was the verdict on {{criterion}} right?",
@@ -1033,23 +1097,31 @@
   },
   "candidate.what_happens_at_s_current_stage": {
     "text": "What happens at {{name}}’s current stage, from the job’s own plan. Change anything before it goes.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <DialogDescription>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogDescription>. Filled in: {{name}}."
   },
   "candidate.what_it_read": {
     "text": "What it read",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <TableHead>."
   },
+  "candidate.what_they_answered_when_they_applied": {
+    "text": "What they answered when they applied.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the description of <Section>."
+  },
   "candidate.what_to_expect": {
     "text": "What to expect…",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
   "candidate.what_you_need": {
     "text": "What you need",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <FieldLabel>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
   },
-  "candidate.with_the_candidate": {
-    "text": "With the candidate",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: text inside <h3>."
+  "candidate.which_interview": {
+    "text": "Which interview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
+  },
+  "candidate.without_consent_they_are_asked_first": {
+    "text": "Without their consent on file, {{name}} is asked by email first.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogDescription>. Filled in: {{name}}."
   },
   "candidate.yes": {
     "text": "Yes",
@@ -1057,7 +1129,7 @@
   },
   "candidate.your_notice_period_a_portfolio_link": {
     "text": "Your notice period, a portfolio link, two references…",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidate: the placeholder of <Input>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the placeholder of <Input>."
   },
   "composer.application_not_taken_forward": {
     "text": "Application not taken forward",
@@ -1219,21 +1291,45 @@
     "text": "A job opens from an approved requisition.",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the description of <EmptyState>."
   },
+  "home.active_and_new": {
+    "text": "{{active}} active · {{fresh}} new",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>. Filled in: {{active}}, {{fresh}}."
+  },
   "home.active_candidates": {
     "text": "Active candidates",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <Stat>."
+  },
+  "home.all": {
+    "text": "All",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"all\" value."
   },
   "home.approvals_scorecards_and_todays_interviews_land": {
     "text": "Approvals, scorecards and today’s interviews land here.",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Tasks: the description of <EmptyState>."
   },
+  "home.archived": {
+    "text": "Archived",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"archived\" value."
+  },
   "home.candidates": {
     "text": "{{active}} candidates",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>. Filled in: {{active}}."
   },
-  "home.every_job_you_hire_for_published": {
-    "text": "Every job you hire for. Published is each target’s state, not the job’s.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the description of <PageHeader>."
+  "home.candidates_header": {
+    "text": "Candidates",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
+  },
+  "home.careers_page": {
+    "text": "Careers page",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TARGET_LABEL: a \"careers_page\" value."
+  },
+  "home.closed": {
+    "text": "Closed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"closed\" value."
+  },
+  "home.drafts": {
+    "text": "Drafts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"drafts\" value."
   },
   "home.from_the_inbox_for_recruiting": {
     "text": "From the Inbox, for Recruiting",
@@ -1243,9 +1339,17 @@
     "text": "Hello, {{value}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the title of <PageHeader>. Filled in: {{value}}."
   },
+  "home.hiring_manager": {
+    "text": "Hiring manager",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
+  },
   "home.in_all": {
     "text": "{{length}} in all",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{length}}."
+  },
+  "home.internal_board": {
+    "text": "Internal board",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TARGET_LABEL: a \"internal_board\" value."
   },
   "home.interviews_today": {
     "text": "Interviews today",
@@ -1258,6 +1362,22 @@
   "home.jobs": {
     "text": "Jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the title of <PageHeader>."
+  },
+  "home.jobs_lower": {
+    "text": "jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the what of <Loaded>."
+  },
+  "home.kithena_jobs": {
+    "text": "Kithena Jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TARGET_LABEL: a \"kithena_jobs\" value."
+  },
+  "home.live_on": {
+    "text": "Live on",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
+  },
+  "home.more": {
+    "text": "More",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <MoreMenu>."
   },
   "home.my_jobs": {
     "text": "My jobs",
@@ -1283,9 +1403,37 @@
     "text": "{{fresh}} new this week",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <Stat>. Filled in: {{fresh}}."
   },
+  "home.no_closed_jobs": {
+    "text": "No closed jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, EMPTY_TITLE: a \"closed\" value."
+  },
+  "home.no_drafts": {
+    "text": "No drafts",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, EMPTY_TITLE: a \"drafts\" value."
+  },
+  "home.no_job_matches": {
+    "text": "No job matches “{{q}}”",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the title of <EmptyState>. Filled in: {{q}}."
+  },
   "home.no_jobs_yet": {
     "text": "No jobs yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, JobsTable: the title of <EmptyState>."
+  },
+  "home.no_open_jobs": {
+    "text": "No open jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, EMPTY_TITLE: a \"open\" value."
+  },
+  "home.no_team_or_place_yet": {
+    "text": "No team or place yet",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>."
+  },
+  "home.not_published": {
+    "text": "Not published",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: text inside <span>."
+  },
+  "home.nothing_archived": {
+    "text": "Nothing archived",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, EMPTY_TITLE: a \"archived\" value."
   },
   "home.nothing_waiting_for_you": {
     "text": "Nothing waiting for you",
@@ -1303,6 +1451,10 @@
     "text": "Open jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <Stat>."
   },
+  "home.open_tab": {
+    "text": "Open",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, SHOWING_LABEL: a \"open\" value."
+  },
   "home.pipeline": {
     "text": "Pipeline",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
@@ -1315,13 +1467,25 @@
     "text": "Scorecards owed",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the label of <Stat>."
   },
+  "home.search_jobs": {
+    "text": "Search jobs",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the label of <Search>."
+  },
+  "home.share_link": {
+    "text": "Share link",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, TARGET_LABEL: a \"share_link\" value."
+  },
+  "home.show": {
+    "text": "Show",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the aria-label of <SegmentedControl>."
+  },
+  "home.showing": {
+    "text": "{{label}} {{count}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: text inside <SegmentedControlItem>. Filled in: {{label}}, {{count}}."
+  },
   "home.state": {
     "text": "State",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx: a \"header\" value."
-  },
-  "home.tasks_first_then_your_jobs_everything": {
-    "text": "Tasks first, then your jobs. Everything here also lands in the Inbox.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Home: the description of <PageHeader>."
   },
   "home.text": {
     "text": "{{name}} {{count}}",
@@ -1330,6 +1494,10 @@
   "home.text_2": {
     "text": "{{name}}: {{count}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, MiniPipeline: the title of <span>. Filled in: {{name}}, {{count}}."
+  },
+  "home.title_team_place_or_manager": {
+    "text": "Title, team, place or manager",
+    "context": "Recruiting: jobs, candidates, interviews, offers. home.tsx, Jobs: the placeholder of <Search>."
   },
   "interviews.a_google_meet_link": {
     "text": "a Google Meet link",
@@ -1627,6 +1795,10 @@
     "text": "{{minutes}} min · {{count}} to assess",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the description of <RadioCard>. Filled in: {{minutes}}, {{count}}. Plural: the words for any other {{count}}."
   },
+  "interviews.more_for_the_interview": {
+    "text": "More for the interview",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, KitBody: the label of <MoreMenu>."
+  },
   "interviews.my_interviews": {
     "text": "My interviews",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Interviews: the title of <PageHeader>."
@@ -1657,7 +1829,7 @@
   },
   "interviews.no_show": {
     "text": "No-show",
-    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, KitBody: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, KitBody: the items of <MoreMenu>."
   },
   "interviews.none_of_the_times_work": {
     "text": "None of the times work.",
@@ -1718,6 +1890,10 @@
   "interviews.only_the_jobs_recruiter_or_hiring": {
     "text": "Only the job’s recruiter or hiring manager records the decision.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, DebriefBody: text inside <p>."
+  },
+  "interviews.open_the_candidate": {
+    "text": "Open the candidate",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, KitBody: the items of <MoreMenu>."
   },
   "interviews.other_interviewers_scorecards": {
     "text": "Other interviewers’ scorecards.",
@@ -2002,6 +2178,58 @@
   "interviews.zoom": {
     "text": "Zoom",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: text built in code."
+  },
+  "job-actions.archive": {
+    "text": "Archive…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx: a \"label\" value."
+  },
+  "job-actions.archive_empty": {
+    "text": "The job closes and its ads come down. Every record is kept; bring it back from Archived at any time.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <AlertDialogDescription>."
+  },
+  "job-actions.archive_job": {
+    "text": "Archive job",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <Button>."
+  },
+  "job-actions.archive_title": {
+    "text": "Archive {{title}}?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <AlertDialogTitle>. Filled in: {{title}}."
+  },
+  "job-actions.archive_with_candidates": {
+    "text": "The job closes and its ads come down. {{count}} candidates stay where they are, and every record is kept; bring it back from Archived at any time.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <AlertDialogDescription>. Filled in: {{count}}."
+  },
+  "job-actions.bring_back": {
+    "text": "Bring back to the list",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx: a \"label\" value."
+  },
+  "job-actions.cancel": {
+    "text": "Cancel",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <Button>."
+  },
+  "job-actions.delete": {
+    "text": "Delete…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx: a \"label\" value."
+  },
+  "job-actions.delete_body": {
+    "text": "Nobody has applied, so nothing else goes with it. This cannot be undone.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <AlertDialogDescription>."
+  },
+  "job-actions.delete_job": {
+    "text": "Delete job",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <Button>."
+  },
+  "job-actions.delete_title": {
+    "text": "Delete {{title}}?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx, JobConfirm: text inside <AlertDialogTitle>. Filled in: {{title}}."
+  },
+  "job-actions.edit_job": {
+    "text": "Edit job",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx: a \"label\" value."
+  },
+  "job-actions.job_dashboard": {
+    "text": "Job dashboard",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-actions.tsx: a \"label\" value."
   },
   "job-terms.a_fixed_salary": {
     "text": "A fixed salary",
@@ -3193,7 +3421,7 @@
   },
   "job.guided_setup": {
     "text": "Guided setup",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the items of <MoreMenu>."
   },
   "job.h": {
     "text": "{{value}} h",
@@ -3383,6 +3611,10 @@
     "text": "Mon",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, WEEKDAY: text built in code."
   },
+  "job.more_for_the_job": {
+    "text": "More for {{title}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the label of <MoreMenu>. Filled in: {{title}}."
+  },
   "job.move_to_must_have": {
     "text": "Move “{{text}}” to must have",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, Criteria: the aria-label of <Button>. Filled in: {{text}}."
@@ -3507,6 +3739,10 @@
     "text": "Open in a new tab",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, Publishing: text inside <a>."
   },
+  "job.open_the_board": {
+    "text": "Open the board",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the items of <MoreMenu>."
+  },
   "job.open_the_job_to_publish_it": {
     "text": "Open the job to publish it",
     "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, Publishing: the title of <Alert>."
@@ -3585,7 +3821,7 @@
   },
   "job.put_on_hold": {
     "text": "Put on hold",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job.tsx, JobSetup: the items of <MoreMenu>."
   },
   "job.questionnaire": {
     "text": "Questionnaire",
@@ -4539,6 +4775,10 @@
     "text": "Mobility clause",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Composer: text inside <label>."
   },
+  "offers.more_for_the_offer": {
+    "text": "More for the offer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the label of <MoreMenu>."
+  },
   "offers.must_be_before_the_start_date": {
     "text": "Must be before the start date.",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <FieldDescription>."
@@ -4654,6 +4894,10 @@
   "offers.onboarding_starts_the_plan": {
     "text": "Onboarding starts the plan",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <li>."
+  },
+  "offers.open_the_candidate": {
+    "text": "Open the candidate",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the items of <MoreMenu>."
   },
   "offers.open_the_candidate_and_make_the": {
     "text": "Open the candidate and make the offer from their application.",
@@ -5097,7 +5341,7 @@
   },
   "offers.withdraw": {
     "text": "Withdraw",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the items of <MoreMenu>."
   },
   "offers.work_location": {
     "text": "Work location",
@@ -5137,7 +5381,7 @@
   },
   "pipeline.active_candidates": {
     "text": "{{length}} active candidates",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the description of <PageHeader>. Filled in: {{length}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the meta of <span>. Filled in: {{length}}."
   },
   "pipeline.ai_match": {
     "text": "AI match",
@@ -5155,9 +5399,13 @@
     "text": "Applied",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx: a \"header\" value."
   },
+  "pipeline.archived": {
+    "text": "Archived",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the meta of <Badge>."
+  },
   "pipeline.board": {
     "text": "Board",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <SegmentedControlItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SegmentedControlItem>."
   },
   "pipeline.cancel": {
     "text": "Cancel",
@@ -5189,7 +5437,7 @@
   },
   "pipeline.from_your_talent_pools": {
     "text": "From your talent pools",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <CardTitle>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the title of <Alert>."
   },
   "pipeline.good_matches": {
     "text": "Good matches",
@@ -5197,7 +5445,7 @@
   },
   "pipeline.ideal_candidate": {
     "text": "Ideal candidate",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <Badge>."
   },
   "pipeline.ideal_candidates": {
     "text": "Ideal candidates",
@@ -5210,14 +5458,6 @@
   "pipeline.interview": {
     "text": "Interview",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <FieldLabel>."
-  },
-  "pipeline.job_dashboard": {
-    "text": "Job dashboard",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <Button>."
-  },
-  "pipeline.job_setup": {
-    "text": "Job setup",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <Button>."
   },
   "pipeline.knockout_to_review": {
     "text": "Knockout to review",
@@ -5238,6 +5478,10 @@
   "pipeline.match_strongest_first": {
     "text": "Match, strongest first",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SelectItem>."
+  },
+  "pipeline.more_for_the_job": {
+    "text": "More for {{title}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the label of <MoreMenu>. Filled in: {{title}}."
   },
   "pipeline.move": {
     "text": "Move",
@@ -5277,23 +5521,27 @@
   },
   "pipeline.nobody_in_the_pools_yet": {
     "text": "Nobody in the pools yet",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the title of <EmptyState>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <Alert>."
   },
   "pipeline.not_read_yet": {
     "text": "Not read yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SelectItem>."
   },
+  "pipeline.of": {
+    "text": "{{at}} of {{count}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the overlay of <Spotlight>. Filled in: {{at}}, {{count}}."
+  },
   "pipeline.on_kithena_jobs": {
     "text": "On Kithena Jobs",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <a>."
   },
+  "pipeline.open": {
+    "text": "Open",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the cardActions of <Kanban>."
+  },
   "pipeline.open_and_publish": {
     "text": "Open and publish",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <Button>."
-  },
-  "pipeline.people_who_agreed_to_be_kept": {
-    "text": "People who agreed to be kept, read against this job’s criteria. A label, not a decision: invite the ones you choose.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <CardDescription>."
   },
   "pipeline.pipeline": {
     "text": "{{title}} pipeline",
@@ -5313,11 +5561,11 @@
   },
   "pipeline.read_everyone_with_ai": {
     "text": "Read everyone with AI",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the items of <MoreMenu>."
   },
   "pipeline.rediscover_from_pools": {
     "text": "Rediscover from pools",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the items of <MoreMenu>."
   },
   "pipeline.reject": {
     "text": "Reject…",
@@ -5326,6 +5574,14 @@
   "pipeline.reject_2": {
     "text": "Reject",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <Button>."
+  },
+  "pipeline.scorecards_owed_one": {
+    "text": "{{count}} scorecard owed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "pipeline.scorecards_owed_other": {
+    "text": "{{count}} scorecards owed",
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>. Filled in: {{count}}. Plural: the words for any other {{count}}."
   },
   "pipeline.search_by_name": {
     "text": "Search by name",
@@ -5357,7 +5613,7 @@
   },
   "pipeline.table": {
     "text": "Table",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the actions of <SegmentedControlItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SegmentedControlItem>."
   },
   "pipeline.technical_interview": {
     "text": "Technical interview",
@@ -5365,7 +5621,7 @@
   },
   "pipeline.text": {
     "text": "{{title}} {{startsAt}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <div>. Filled in: {{title}}, {{startsAt}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>. Filled in: {{title}}, {{startsAt}}."
   },
   "pipeline.the_pipeline": {
     "text": "the pipeline",
@@ -5485,7 +5741,7 @@
   },
   "requisitions.cancel_requisition": {
     "text": "Cancel requisition",
-    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the items of <MoreMenu>."
   },
   "requisitions.changed_after_approval": {
     "text": "Changed after approval",
@@ -5514,6 +5770,10 @@
   "requisitions.justification": {
     "text": "Justification",
     "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: text inside <FieldLabel>."
+  },
+  "requisitions.more_for_the_requisition": {
+    "text": "More for the requisition",
+    "context": "Recruiting: jobs, candidates, interviews, offers. requisitions.tsx, Editor: the label of <MoreMenu>."
   },
   "requisitions.new_requisition": {
     "text": "New requisition",

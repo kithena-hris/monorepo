@@ -50,7 +50,7 @@ import { useEffect, useState, useTransition, type JSX } from 'react';
 import { formatList } from '@reach/ui/intl';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, To, day, money, range, useAct, words } from './shared';
+import { MoreMenu, Refusal, StateBadge, To, day, money, range, useAct, words } from './shared';
 import type {
   OfferData,
   OfferStartData,
@@ -1448,17 +1448,37 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
                       {tr('offers.contract', 'Contract')}
                     </Button>
                   ) : null}
-                  {s === 'draft' || s === 'pending_approval' || s === 'approved' || s === 'sent' ? (
-                    <Button
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        act.run('WithdrawOffer', { offerId: data.offer.id });
-                      }}
-                    >
-                      {tr('offers.withdraw', 'Withdraw')}
-                    </Button>
-                  ) : null}
+                  <MoreMenu
+                    label={tr('offers.more_for_the_offer', 'More for the offer')}
+                    items={[
+                      {
+                        id: 'candidate',
+                        label: tr('offers.open_the_candidate', 'Open the candidate'),
+                        icon: <icons.person aria-hidden />,
+                        group: 'go',
+                        onSelect: () =>
+                          props.onNavigate?.(
+                            `/recruiting/candidates/${data.candidate.id}?application=${data.offer.applicationId}`,
+                          ),
+                      },
+                      {
+                        id: 'withdraw',
+                        label: tr('offers.withdraw', 'Withdraw'),
+                        icon: <icons.undo aria-hidden />,
+                        destructive: true,
+                        group: 'state',
+                        hidden: !(
+                          s === 'draft' ||
+                          s === 'pending_approval' ||
+                          s === 'approved' ||
+                          s === 'sent'
+                        ),
+                        onSelect: () => {
+                          act.run('WithdrawOffer', { offerId: data.offer.id });
+                        },
+                      },
+                    ]}
+                  />
                 </>
               }
             />

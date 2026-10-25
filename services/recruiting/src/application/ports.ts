@@ -250,6 +250,8 @@ export interface JobStore {
   setCriteria(jobId: string, criteria: readonly Criterion[]): Promise<void>;
   plan(jobId: string): Promise<readonly PlannedInterview[]>;
   setPlan(jobId: string, plan: readonly PlannedInterview[]): Promise<void>;
+  /** The job and everything that is only its own: team, stages, form, ads, targets, criteria, plan. */
+  remove(jobId: string): Promise<void>;
 }
 
 export interface PipelineTemplate {

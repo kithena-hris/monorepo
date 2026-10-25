@@ -84,6 +84,9 @@ import {
 import {
   createJob,
   moveJobState,
+  archiveJob,
+  unarchiveJob,
+  deleteJob,
   publishTo,
   saveAd,
   saveForm,
@@ -141,6 +144,7 @@ import {
   candidateScreen,
   candidatesScreen,
   home,
+  jobsScreen,
   interviewsScreen,
   jobScreen,
   newJobScreen,
@@ -413,6 +417,13 @@ const Terms = z.object({
 
 export const ROUTES: readonly Route[] = [
   /* ------------------------------------------------------------ screens -- */
+  route({
+    name: 'recruitingJobs',
+    method: 'GET',
+    path: `${V1}/jobs`,
+    summary: 'The jobs list: every job I am on, archived ones included',
+    run: async (ctx) => ok(await jobsScreen(ctx)),
+  }),
   route({
     name: 'recruitingHome',
     method: 'GET',
@@ -914,6 +925,30 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ jobId: Id }),
     body: z.object({ to: z.enum(['open', 'on_hold', 'closed']) }),
     run: (ctx, { params, body }) => moveJobState(ctx, params.jobId, body.to),
+  }),
+  route({
+    name: 'archiveJob',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/archive`,
+    summary: 'Archive a job: it closes and leaves the list; its candidates and records stay',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => archiveJob(ctx, params.jobId),
+  }),
+  route({
+    name: 'unarchiveJob',
+    method: 'POST',
+    path: `${V1}/jobs/{jobId}/unarchive`,
+    summary: 'Bring an archived job back to the list, still closed',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => unarchiveJob(ctx, params.jobId),
+  }),
+  route({
+    name: 'deleteJob',
+    method: 'DELETE',
+    path: `${V1}/jobs/{jobId}`,
+    summary: 'Delete a job nobody has applied to; one with applications is archived instead',
+    params: z.object({ jobId: Id }),
+    run: (ctx, { params }) => deleteJob(ctx, params.jobId),
   }),
   route({
     name: 'publishJob',

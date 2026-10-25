@@ -1,4 +1,17 @@
-import { Alert, Badge, dateFormat, numberFormat, SearchField } from '@reach/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  dateFormat,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  icons,
+  numberFormat,
+  SearchField,
+} from '@reach/ui';
 import { useState, useTransition, type JSX, type MouseEvent, type ReactNode } from 'react';
 
 import type { Category, Done, ScreenProps } from './types';
@@ -80,6 +93,68 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
       });
     },
   };
+}
+
+/** One command in a page's overflow menu: hidden when the viewer may not, a separator before `group` changes. */
+export interface MoreItem {
+  readonly id: string;
+  readonly label: string;
+  readonly icon?: ReactNode;
+  readonly destructive?: boolean;
+  readonly disabled?: boolean;
+  readonly hidden?: boolean;
+  readonly group?: string;
+  readonly onSelect: () => void;
+}
+
+/**
+ * A header's secondary commands, behind one "More" button: a page keeps one
+ * primary action in view and everything else one press away, so its header
+ * stays a title and a decision.
+ */
+export function MoreMenu({
+  label,
+  items,
+}: {
+  readonly label: string;
+  readonly items: readonly MoreItem[];
+}): JSX.Element | null {
+  const shown = items.filter((i) => i.hidden !== true);
+  if (shown.length === 0) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" aria-label={label} startIcon={<icons.more aria-hidden />} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        {shown.map((item, i) => (
+          <MoreRow key={item.id} item={item} before={shown[i - 1]} />
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function MoreRow({
+  item,
+  before,
+}: {
+  readonly item: MoreItem;
+  readonly before: MoreItem | undefined;
+}): JSX.Element {
+  return (
+    <>
+      {before !== undefined && before.group !== item.group ? <DropdownMenuSeparator /> : null}
+      <DropdownMenuItem
+        destructive={item.destructive ?? false}
+        disabled={item.disabled ?? false}
+        onSelect={item.onSelect}
+      >
+        {item.icon}
+        {item.label}
+      </DropdownMenuItem>
+    </>
+  );
 }
 
 export function Refusal({ error }: { readonly error: string | null }): JSX.Element | null {
@@ -223,7 +298,7 @@ export function Search({
       value={value}
       onValueChange={setValue}
       onSearch={onSearch}
-      {...(className === undefined ? {} : { className })}
+      {...(className === undefined ? {} : { containerClassName: className })}
     />
   );
 }

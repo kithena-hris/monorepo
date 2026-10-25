@@ -77,6 +77,28 @@ export interface JobCounts {
   }[];
 }
 
+/** The jobs list (`jobsScreen` in Recruiting): every job the viewer is on, archived ones too. */
+export interface JobsData {
+  readonly requisitionsOn: boolean;
+  readonly admin: boolean;
+  readonly jobs: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly state: string;
+    readonly department: string | null;
+    readonly location: string | null;
+    readonly openings: number;
+    readonly hired: number;
+    readonly counts: JobCounts;
+    readonly live: readonly string[];
+    readonly archivedAt: string | null;
+    readonly hiringManager: { readonly personId: string; readonly name: string | null } | null;
+    readonly createdAt: string;
+    readonly openedAt: string | null;
+    readonly may: { readonly edit: boolean; readonly archive: boolean; readonly delete: boolean };
+  }[];
+}
+
 export interface HomeData {
   readonly viewer: {
     readonly personId: string | null;
@@ -415,6 +437,8 @@ export interface Card {
   readonly match?: { readonly scoreBp: number; readonly band: 'strong' | 'good' | 'weak' } | null;
   readonly unread: number;
   readonly nextInterview: { readonly title: string; readonly startsAt: string } | null;
+  /** Scorecards in, of those owed by the interviews already held. */
+  readonly scorecards?: { readonly submitted: number; readonly expected: number };
   readonly lastMoveId: string | null;
 }
 
@@ -426,9 +450,15 @@ export interface PipelineData {
     /** Live on Kithena Jobs, and where it is there. */
     readonly onKithenaJobs: boolean;
     readonly publicUrl: string;
+    readonly archivedAt?: string | null;
+    readonly department?: string | null;
+    readonly openings?: number;
+    readonly hired?: number;
   };
   readonly stages: readonly Stage[];
   readonly cards: readonly Card[];
+  /** The application open over the board (`?candidate=…&application=…`), read beside it. */
+  readonly spotlight?: CandidateData | null;
   readonly may: readonly string[];
   readonly rejectionReasons: readonly string[];
   readonly templates: readonly {
@@ -493,6 +523,8 @@ export interface CandidateData {
     readonly purpose: string;
   }[];
   readonly allPools: readonly { readonly id: string; readonly name: string }[];
+  /** Interviewers and note authors by name, so the page shows people, not ids. */
+  readonly names?: Readonly<Record<string, string>>;
   readonly applications: readonly {
     readonly applicationId: string;
     readonly job: { readonly id: string; readonly title: string };

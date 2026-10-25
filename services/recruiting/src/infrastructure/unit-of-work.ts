@@ -1553,6 +1553,21 @@ function approvalsIn(tx: PostgresJsDatabase, T: string): Tx['approvals'] {
 
 function jobsIn(tx: PostgresJsDatabase, T: string): Tx['jobs'] {
   return {
+    remove: async (id) => {
+      for (const table of [
+        sql`recruiting.job_requisition`,
+        sql`recruiting.job_team`,
+        sql`recruiting.job_ad`,
+        sql`recruiting.job_target`,
+        sql`recruiting.job_criterion`,
+        sql`recruiting.stage`,
+        sql`recruiting.form`,
+        sql`recruiting.interview_plan`,
+        sql`recruiting.agency_job`,
+      ])
+        await tx.execute(sql`DELETE FROM ${table} WHERE job_id = ${id}`);
+      await tx.execute(sql`DELETE FROM recruiting.job WHERE id = ${id}`);
+    },
     get: async (id) =>
       body<JobRecord>(await one(tx, sql`SELECT body FROM recruiting.job WHERE id = ${id}`)),
     bySlug: async (slug) =>

@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation DeleteJob($jobId: String!, $key: String!) {\n    deleteJob(jobId: $jobId, idempotencyKey: $key)\n  }"}

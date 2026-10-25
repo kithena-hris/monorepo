@@ -3,11 +3,6 @@ import {
   Avatar,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   DataTable,
   type DataColumn,
   Dialog,
@@ -17,12 +12,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyState,
   Field,
   FieldControl,
   FieldLabel,
   Input,
   Kanban,
+  ModalPage,
+  ModalPageContent,
   PageHeader,
   SegmentedControl,
   SegmentedControlItem,
@@ -33,11 +29,24 @@ import {
   SelectValue,
   icons,
 } from '@reach/ui';
-import { useEffect, useMemo, useState, type JSX } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { RejectDialog, type Rejecting } from './reject-dialog';
-import { CATEGORY_TONE, Refusal, Search, To, day, useAct, when, words } from './shared';
+import { Spotlight } from './candidate';
+import { JobConfirm, jobCommands, type Confirming } from './job-actions';
+import {
+  CATEGORY_TONE,
+  MoreMenu,
+  Refusal,
+  Search,
+  StateBadge,
+  To,
+  day,
+  useAct,
+  when,
+  words,
+} from './shared';
 import type { Card as CardData, PipelineData, ScreenProps } from './types';
 import { t } from './i18n';
 
@@ -58,30 +67,44 @@ interface Rediscovered {
 
 function CandidateCard({
   card,
-  onNavigate,
+  href,
+  onOpen,
 }: {
   readonly card: CardData;
-  readonly onNavigate?: ((to: string) => void) | undefined;
+  readonly href: string;
+  readonly onOpen: () => void;
 }): JSX.Element {
   // The ideal candidate (PRD §22.4, a strong match on every must): the board's border says it, this names it.
   const ideal = card.match?.band === 'strong';
+  const owed =
+    card.scorecards === undefined ? 0 : card.scorecards.expected - card.scorecards.submitted;
   return (
-    <div className="flex flex-col gap-2">
-      {ideal ? (
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-success-fg">
-          <icons.starred aria-hidden className="size-3.5 fill-current" />
-          {t('pipeline.ideal_candidate', 'Ideal candidate')}
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <Avatar name={card.name} size="md" />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <a
+            href={href}
+            onClick={(e) => {
+              e.preventDefault();
+              onOpen();
+            }}
+            className="font-semibold text-fg hover:underline [overflow-wrap:anywhere]"
+          >
+            {card.name}
+          </a>
+          <span
+            className={
+              card.daysInStage > 4
+                ? 'text-xs text-[var(--reach-warning-text)] tabular-nums'
+                : 'text-xs text-fg-muted tabular-nums'
+            }
+          >
+            {t('pipeline.d_in_stage', '{{daysInStage}} d in stage', {
+              daysInStage: String(card.daysInStage),
+            })}
+          </span>
         </span>
-      ) : null}
-      <div className="flex items-center gap-2">
-        <Avatar name={card.name} size="sm" />
-        <To
-          href={`/recruiting/candidates/${card.candidateId}`}
-          onNavigate={onNavigate}
-          className="min-w-0 flex-1 font-semibold text-fg hover:underline [overflow-wrap:anywhere]"
-        >
-          {card.name}
-        </To>
         {card.unread > 0 ? (
           <Badge
             size="sm"
@@ -92,57 +115,86 @@ function CandidateCard({
           </Badge>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {card.flagged ? (
-          <Badge size="sm" tone="warning">
-            {t('pipeline.knockout_to_review', 'Knockout to review')}
-          </Badge>
-        ) : null}
-        {card.duplicate ? (
-          <Badge size="sm" tone="info">
-            {t('pipeline.possible_duplicate', 'Possible duplicate')}
-          </Badge>
-        ) : null}
-        {card.match == null ? null : (
-          <Badge
-            size="sm"
-            tone={
-              card.match.band === 'strong'
-                ? 'success'
-                : card.match.band === 'good'
-                  ? 'accent'
-                  : 'neutral'
-            }
-            variant="soft"
-            aria-label={t('pipeline.ai_match_percent', 'AI match {{round}} percent, {{band}}', {
-              round: String(Math.round(card.match.scoreBp / 100)),
-              band: card.match.band,
-            })}
-          >
-            {t('pipeline.match', '{{round}}% match', {
-              round: String(Math.round(card.match.scoreBp / 100)),
-            })}
-          </Badge>
-        )}
-        <span
-          className={card.daysInStage > 4 ? 'text-[var(--reach-warning-text)]' : 'text-fg-muted'}
-        >
-          {t('pipeline.d_in_stage', '{{daysInStage}} d in stage', {
-            daysInStage: String(card.daysInStage),
-          })}
-        </span>
-      </div>
-      {card.nextInterview === null ? null : (
-        <div className="flex items-center gap-1.5 border-t border-[var(--reach-line)] pt-2 text-sm text-fg-muted">
-          <icons.meeting aria-hidden className="size-3.5" />
-          {t('pipeline.text', '{{title}} {{startsAt}}', {
-            title: card.nextInterview.title,
-            startsAt: when(card.nextInterview.startsAt),
-          })}
+      {ideal || card.match != null || card.flagged || card.duplicate ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ideal ? (
+            <Badge size="sm" tone="success" variant="soft">
+              <icons.starred aria-hidden className="size-3 fill-current" />
+              {t('pipeline.ideal_candidate', 'Ideal candidate')}
+            </Badge>
+          ) : card.match == null ? null : (
+            <Badge
+              size="sm"
+              tone={card.match.band === 'good' ? 'accent' : 'neutral'}
+              variant="soft"
+              aria-label={t('pipeline.ai_match_percent', 'AI match {{round}} percent, {{band}}', {
+                round: String(Math.round(card.match.scoreBp / 100)),
+                band: card.match.band,
+              })}
+            >
+              {t('pipeline.match', '{{round}}% match', {
+                round: String(Math.round(card.match.scoreBp / 100)),
+              })}
+            </Badge>
+          )}
+          {card.flagged ? (
+            <Badge size="sm" tone="warning">
+              {t('pipeline.knockout_to_review', 'Knockout to review')}
+            </Badge>
+          ) : null}
+          {card.duplicate ? (
+            <Badge size="sm" tone="info">
+              {t('pipeline.possible_duplicate', 'Possible duplicate')}
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
+      {card.nextInterview === null && owed <= 0 ? null : (
+        <div className="flex flex-col gap-1 border-t border-border pt-2 text-xs text-fg-muted">
+          {card.nextInterview === null ? null : (
+            <span className="flex items-center gap-1.5">
+              <icons.meeting aria-hidden className="size-3.5" />
+              {t('pipeline.text', '{{title}} {{startsAt}}', {
+                title: card.nextInterview.title,
+                startsAt: when(card.nextInterview.startsAt),
+              })}
+            </span>
+          )}
+          {owed <= 0 ? null : (
+            <span className="flex items-center gap-1.5 text-[var(--reach-warning-text)]">
+              <icons.assessment aria-hidden className="size-3.5" />
+              {t(
+                'pipeline.scorecards_owed',
+                { one: '{{count}} scorecard owed', other: '{{count}} scorecards owed' },
+                { count: owed },
+              )}
+            </span>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+/** The board's height: from its top to the window's bottom, so each column scrolls on its own. */
+function useFillHeight(): {
+  readonly ref: (node: HTMLDivElement | null) => void;
+  readonly height: number | null;
+} {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (node === null) return undefined;
+    const measure = (): void => {
+      setHeight(Math.max(420, window.innerHeight - node.getBoundingClientRect().top - 16));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+    };
+  }, [node]);
+  return { ref: setNode, height };
 }
 
 /** The ten seconds after a move, as a bar the move can be undone from. */
@@ -257,11 +309,13 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   } | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [moveTo, setMoveTo] = useState('');
+  const [confirming, setConfirming] = useState<Confirming>(null);
   const [assessed, setAssessed] = useState<{
     assessed: number;
     skipped: number;
     failed: readonly string[];
   } | null>(null);
+  const fill = useFillHeight();
   // Held while the stages and the navigation hold, so a selection redraws only its rows.
   const stages = props.load.status === 'ready' ? props.load.data.stages : NO_STAGES;
   const { onNavigate } = props;
@@ -286,13 +340,26 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 (c) =>
                   c.outcome === 'active' && c.stageId === first.id && c.match?.band === 'strong',
               );
+        const shown = data.stages.filter((s) => s.category !== 'hired');
         const byStage = Object.fromEntries(
-          data.stages.map((s) => [
+          shown.map((s) => [
             s.id,
             active.filter((c) => c.stageId === s.id).map((c) => ({ ...c, id: c.applicationId })),
           ]),
         );
+        // The board's order, column by column: what J and K walk in the spotlight.
+        const order = shown.flatMap((s) => byStage[s.id] ?? []);
         const canMove = data.may.includes('pipeline.move');
+        const mayEdit = data.may.includes('job.edit');
+        const spotHref = (c: CardData): string =>
+          `/recruiting/jobs/${data.job.id}?candidate=${c.candidateId}&application=${c.applicationId}`;
+        const open = (c: CardData): void => {
+          props.onFilter?.({ candidate: c.candidateId, application: c.applicationId });
+        };
+        const openId = props.search?.['application'];
+        const at = order.findIndex((c) => c.applicationId === openId);
+        const previous = at > 0 ? order[at - 1] : undefined;
+        const following = at >= 0 ? order[at + 1] : undefined;
         const move = (card: CardData, to: string, type?: string): void => {
           const stage = data.stages.find((s) => s.id === to);
           if (stage === undefined) return;
@@ -315,31 +382,44 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 moveId: moved.moveId,
               });
               if (moved.opensOffer)
-                props.onNavigate?.(`/recruiting/candidates/${card.candidateId}?tab=process`);
+                props.onNavigate?.(`/recruiting/offers/new?application=${card.applicationId}`);
             },
           );
+        };
+        const job = {
+          id: data.job.id,
+          title: data.job.title,
+          active: active.length,
+          archived: (data.job.archivedAt ?? null) !== null,
+          may: { edit: mayEdit, archive: mayEdit, delete: mayEdit && data.cards.length === 0 },
+        };
+        const publish = (): void => {
+          const live = (): void => {
+            act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
+          };
+          if (data.job.state === 'open') live();
+          else act.run('MoveJob', { jobId: data.job.id, input: { to: 'open' } }, live);
         };
         return (
           <div className="flex flex-col gap-3">
             <PageHeader
               title={data.job.title}
-              description={t('pipeline.active_candidates', '{{length}} active candidates', {
-                length: String(active.length),
-              })}
+              meta={
+                <span className="flex items-center gap-2">
+                  {job.archived ? (
+                    <Badge tone="neutral">{t('pipeline.archived', 'Archived')}</Badge>
+                  ) : (
+                    <StateBadge state={data.job.state} />
+                  )}
+                  <span className="text-sm text-fg-muted tabular-nums">
+                    {t('pipeline.active_candidates', '{{length}} active candidates', {
+                      length: String(active.length),
+                    })}
+                  </span>
+                </span>
+              }
               actions={
                 <>
-                  <SegmentedControl
-                    value={view}
-                    onValueChange={(v) => props.onFilter?.({ view: v === 'board' ? null : v })}
-                    aria-label={t('pipeline.view', 'View')}
-                  >
-                    <SegmentedControlItem value="board">
-                      {t('pipeline.board', 'Board')}
-                    </SegmentedControlItem>
-                    <SegmentedControlItem value="table">
-                      {t('pipeline.table', 'Table')}
-                    </SegmentedControlItem>
-                  </SegmentedControl>
                   {/* R7, from the board: open the job if it is a draft, then put it on Kithena Jobs. */}
                   {data.job.onKithenaJobs ? (
                     <Button
@@ -351,69 +431,54 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                         {t('pipeline.on_kithena_jobs', 'On Kithena Jobs')}
                       </a>
                     </Button>
-                  ) : data.may.includes('job.edit') ? (
+                  ) : mayEdit && !job.archived ? (
                     <Button
+                      variant="primary"
                       startIcon={<icons.send aria-hidden />}
                       loading={act.pending}
-                      onClick={() => {
-                        const publish = (): void => {
-                          act.run('PublishJob', { jobId: data.job.id, target: 'kithena_jobs' });
-                        };
-                        if (data.job.state === 'open') publish();
-                        else
-                          act.run(
-                            'MoveJob',
-                            { jobId: data.job.id, input: { to: 'open' } },
-                            publish,
-                          );
-                      }}
+                      onClick={publish}
                     >
                       {data.job.state === 'open'
                         ? t('pipeline.publish_on_kithena_jobs', 'Publish on Kithena Jobs')
                         : t('pipeline.open_and_publish', 'Open and publish')}
                     </Button>
                   ) : null}
-                  <Button
-                    variant="secondary"
-                    startIcon={<icons.settings aria-hidden />}
-                    onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}/setup`)}
-                  >
-                    {t('pipeline.job_setup', 'Job setup')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    startIcon={<icons.analytics aria-hidden />}
-                    onClick={() => props.onNavigate?.(`/recruiting/analytics?job=${data.job.id}`)}
-                  >
-                    {t('pipeline.job_dashboard', 'Job dashboard')}
-                  </Button>
-                  {data.may.includes('job.edit') ? (
-                    <>
-                      <Button
-                        variant="secondary"
-                        startIcon={<icons.assistant aria-hidden />}
-                        loading={act.pending}
-                        onClick={() => {
+                  <MoreMenu
+                    label={t('pipeline.more_for_the_job', 'More for {{title}}', {
+                      title: data.job.title,
+                    })}
+                    items={[
+                      ...jobCommands(job, {
+                        onNavigate: props.onNavigate,
+                        onConfirm: setConfirming,
+                        act,
+                      }),
+                      {
+                        id: 'assess',
+                        label: t('pipeline.read_everyone_with_ai', 'Read everyone with AI'),
+                        icon: <icons.assistant aria-hidden />,
+                        hidden: !mayEdit,
+                        group: 'ai',
+                        onSelect: () => {
                           act.run('AssessJob', { jobId: data.job.id }, (done) => {
                             setAssessed(done as typeof assessed);
                           });
-                        }}
-                      >
-                        {t('pipeline.read_everyone_with_ai', 'Read everyone with AI')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        loading={act.pending}
-                        onClick={() => {
-                          act.run('Rediscover', { jobId: data.job.id }, (found) => {
-                            setFound(found as readonly Rediscovered[]);
+                        },
+                      },
+                      {
+                        id: 'rediscover',
+                        label: t('pipeline.rediscover_from_pools', 'Rediscover from pools'),
+                        icon: <icons.people aria-hidden />,
+                        hidden: !mayEdit,
+                        group: 'ai',
+                        onSelect: () => {
+                          act.run('Rediscover', { jobId: data.job.id }, (got) => {
+                            setFound(got as readonly Rediscovered[]);
                           });
-                        }}
-                      >
-                        {t('pipeline.rediscover_from_pools', 'Rediscover from pools')}
-                      </Button>
-                    </>
-                  ) : null}
+                        },
+                      },
+                    ]}
+                  />
                 </>
               }
             />
@@ -441,51 +506,42 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               </Alert>
             )}
             {found === null ? null : (
-              <Card>
-                <CardHeader>
-                  <CardTitle level={2}>
-                    {t('pipeline.from_your_talent_pools', 'From your talent pools')}
-                  </CardTitle>
-                  <CardDescription>
-                    {t(
-                      'pipeline.people_who_agreed_to_be_kept',
-                      'People who agreed to be kept, read against this job’s criteria. A label, not a decision: invite the ones you choose.',
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {found.length === 0 ? (
-                    <EmptyState
-                      icon={<icons.people aria-hidden />}
-                      title={t('pipeline.nobody_in_the_pools_yet', 'Nobody in the pools yet')}
-                    />
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {found.map((r) => (
-                        <li key={r.candidateId} className="flex items-center gap-2">
-                          <To
-                            href={`/recruiting/candidates/${r.candidateId}`}
-                            onNavigate={props.onNavigate}
-                          >
-                            {r.name}
-                          </To>
-                          <Badge size="sm" tone="neutral">
-                            {t('pipeline.match_2', '{{band}} match', { band: words(r.band) })}
-                          </Badge>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
+              <Alert
+                tone="info"
+                title={t('pipeline.from_your_talent_pools', 'From your talent pools')}
+                onDismiss={() => {
+                  setFound(null);
+                }}
+              >
+                {found.length === 0 ? (
+                  t('pipeline.nobody_in_the_pools_yet', 'Nobody in the pools yet')
+                ) : (
+                  <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    {found.map((r) => (
+                      <li key={r.candidateId} className="flex items-center gap-2">
+                        <To
+                          href={`/recruiting/candidates/${r.candidateId}`}
+                          onNavigate={props.onNavigate}
+                        >
+                          {r.name}
+                        </To>
+                        <Badge size="sm" tone="neutral">
+                          {t('pipeline.match_2', '{{band}} match', { band: words(r.band) })}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Alert>
             )}
+            {/* The toolbar: find, order, filter, and the view; nothing here is a header button. */}
             <div className="flex flex-wrap items-center gap-2">
               <Search
                 label={t('pipeline.search_candidates', 'Search candidates')}
                 placeholder={t('pipeline.search_by_name', 'Search by name')}
                 initial={props.search?.['q'] ?? ''}
                 onSearch={(q) => props.onFilter?.({ q: q === '' ? null : q })}
-                className="w-64"
+                className="w-60"
               />
               <Select
                 value={props.search?.['sort'] ?? 'newest'}
@@ -529,6 +585,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   variant="secondary"
                   size="sm"
                   loading={act.pending}
+                  startIcon={<icons.starred aria-hidden />}
                   onClick={() => {
                     act.run('BulkApplications', {
                       input: {
@@ -545,28 +602,55 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   })}
                 </Button>
               ) : null}
+              <span className="flex-1" />
+              <SegmentedControl
+                value={view}
+                onValueChange={(v) => props.onFilter?.({ view: v === 'board' ? null : v })}
+                aria-label={t('pipeline.view', 'View')}
+              >
+                <SegmentedControlItem value="board">
+                  {t('pipeline.board', 'Board')}
+                </SegmentedControlItem>
+                <SegmentedControlItem value="table">
+                  {t('pipeline.table', 'Table')}
+                </SegmentedControlItem>
+              </SegmentedControl>
             </div>
             <Refusal error={act.error} />
             {view === 'board' ? (
-              <>
+              <div
+                ref={fill.ref}
+                className="flex min-h-[26rem] flex-col"
+                // Measured on the client: from the board's top to the window's bottom. Until then a
+                // fair guess, so the first paint already scrolls inside its columns.
+                style={{ height: fill.height ?? 'calc(100dvh - 16rem)' }}
+              >
                 <h2 className="sr-only">
                   {t('pipeline.candidates_by_stage', 'Candidates by stage')}
                 </h2>
                 <Kanban
                   label={t('pipeline.pipeline', '{{title}} pipeline', { title: data.job.title })}
-                  columnWidth="300px"
-                  columns={data.stages
-                    .filter((s) => s.category !== 'hired')
-                    .map((s) => ({
-                      id: s.id,
-                      title: s.name,
-                      tone: CATEGORY_TONE[s.category],
-                      locked:
-                        !canMove || s.category === 'works_council' || s.category === 'contract',
-                    }))}
+                  columnWidth="296px"
+                  className="min-h-0 flex-1"
+                  dragActivator={canMove ? { mode: 'card' } : { mode: 'none' }}
+                  columns={shown.map((s) => ({
+                    id: s.id,
+                    title: s.name,
+                    tone: CATEGORY_TONE[s.category],
+                    locked: !canMove || s.category === 'works_council' || s.category === 'contract',
+                  }))}
                   items={byStage}
                   describeItem={(c) => c.name}
-                  renderCard={(c) => <CandidateCard card={c} onNavigate={props.onNavigate} />}
+                  renderCard={(c) => (
+                    <CandidateCard
+                      card={c}
+                      href={spotHref(c)}
+                      onOpen={() => {
+                        open(c);
+                      }}
+                    />
+                  )}
+                  onCardOpen={open}
                   cardTone={(c) => (c.match?.band === 'strong' ? 'success' : null)}
                   onMove={(m) => {
                     const card = active.find((c) => c.applicationId === m.itemId);
@@ -574,8 +658,20 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   }}
                   cardActions={[
                     {
+                      id: 'open',
+                      label: t('pipeline.open', 'Open'),
+                      icon: <icons.person aria-hidden />,
+                      run: (cards: readonly (CardData & { id: string })[]) => {
+                        const c = cards[0];
+                        if (c !== undefined) open(c);
+                      },
+                    },
+                    {
                       id: 'reject',
                       label: t('pipeline.reject', 'Reject…'),
+                      icon: <icons.reject aria-hidden />,
+                      destructive: true,
+                      hidden: () => !canMove,
                       run: (cards: readonly (CardData & { id: string })[]) => {
                         setRejecting({
                           ids: cards.map((c) => c.applicationId),
@@ -585,7 +681,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                     },
                   ]}
                 />
-              </>
+              </div>
             ) : (
               <>
                 {selected.size === 0 ? null : (
@@ -655,12 +751,14 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   onSelectedChange={(ids) => {
                     setSelected(new Set(ids));
                   }}
+                  onRowClick={open}
+                  activeRowId={openId ?? null}
                   empty={t('pipeline.nobody_at_this_stage', 'Nobody at this stage')}
                   columns={columns}
                 />
               </>
             )}
-            <div className="pointer-events-none fixed inset-x-0 bottom-6 flex justify-center">
+            <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center">
               <div className="pointer-events-auto w-96 max-w-full">
                 <UndoBar
                   undo={undo}
@@ -677,6 +775,53 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 />
               </div>
             </div>
+            {/* The spotlight: the application over the board, its own address, J and K to walk the board. */}
+            <ModalPage
+              open={data.spotlight != null && openId !== undefined}
+              onOpenChange={(isOpen) => {
+                if (!isOpen) props.onFilter?.({ candidate: null, application: null });
+              }}
+            >
+              {data.spotlight == null ? null : (
+                <ModalPageContent size="inset">
+                  <Spotlight
+                    data={data.spotlight}
+                    actions={props}
+                    applicationId={openId}
+                    onApplication={(id) => props.onFilter?.({ application: id })}
+                    overlay={{
+                      onPrevious:
+                        previous === undefined
+                          ? null
+                          : () => {
+                              open(previous);
+                            },
+                      onNext:
+                        following === undefined
+                          ? null
+                          : () => {
+                              open(following);
+                            },
+                      position:
+                        at < 0
+                          ? null
+                          : t('pipeline.of', '{{at}} of {{count}}', {
+                              at: String(at + 1),
+                              count: String(order.length),
+                            }),
+                    }}
+                  />
+                </ModalPageContent>
+              )}
+            </ModalPage>
+            <JobConfirm
+              confirming={confirming}
+              onClose={() => {
+                setConfirming(null);
+              }}
+              act={act}
+              onDeleted={() => props.onNavigate?.('/recruiting/jobs')}
+            />
             <RejectDialog
               options={{
                 jobTitle: data.job.title,
@@ -692,8 +837,8 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             />
             <Dialog
               open={asking !== null}
-              onOpenChange={(open) => {
-                if (!open) setAsking(null);
+              onOpenChange={(isOpen) => {
+                if (!isOpen) setAsking(null);
               }}
             >
               <DialogContent>

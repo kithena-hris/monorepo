@@ -351,6 +351,58 @@ export async function moveJobState(
   return ok(job);
 }
 
+const archiveKey = (jobId: string): string => `job-archived:${jobId}`;
+
+/** When the job was archived, or null: archived jobs leave the list, their records stay. */
+export async function archivedAt(ctx: Ctx, jobId: string): Promise<string | null> {
+  const held = (await ctx.tx.settings.get(archiveKey(jobId))) as { at: string } | null;
+  return held?.at ?? null;
+}
+
+/**
+ * Archive a job: it closes (its ads come down, it takes no applications) and
+ * leaves the jobs list; its candidates, interviews and offers stay, for
+ * retention and audit. Brought back with `unarchiveJob`, still closed.
+ */
+export async function archiveJob(ctx: Ctx, jobId: string): Promise<Result<JobRecord>> {
+  const held = await editable(ctx, jobId);
+  if (!held.ok) return held;
+  let job = held.value;
+  if (job.state !== 'closed' && job.state !== 'filled') {
+    const closed = await moveJobState(ctx, jobId, 'closed');
+    if (!closed.ok) return closed;
+    job = closed.value;
+  }
+  await ctx.tx.settings.set(archiveKey(jobId), { at: ctx.at, by: ctx.caller.personId });
+  await refreshProjection(ctx, job);
+  return ok(job);
+}
+
+export async function unarchiveJob(ctx: Ctx, jobId: string): Promise<Result<JobRecord>> {
+  const held = await editable(ctx, jobId);
+  if (!held.ok) return held;
+  await ctx.tx.settings.set(archiveKey(jobId), null);
+  return ok(held.value);
+}
+
+/**
+ * Delete a job nobody has applied to, typically a draft. A job with an
+ * application, rejected or not, is archived instead: its records are kept.
+ */
+export async function deleteJob(ctx: Ctx, jobId: string): Promise<Result<{ id: string }>> {
+  const held = await editable(ctx, jobId);
+  if (!held.ok) return held;
+  if ((await ctx.tx.applications.forJob(jobId)).length > 0)
+    return err(
+      failure('HAS_APPLICATIONS', 'Someone has applied to this job, so it is archived, not deleted'),
+    );
+  await takeDown(ctx, held.value);
+  await ctx.tx.public.removeListing(jobId);
+  await ctx.tx.settings.set(archiveKey(jobId), null);
+  await ctx.tx.jobs.remove(jobId);
+  return ok({ id: jobId });
+}
+
 /** The URL a target lists the job at. */
 async function urlFor(ctx: Ctx, job: JobRecord, target: PublicationTarget): Promise<string | null> {
   const company = (await generalSettings(ctx)).companySlug;
