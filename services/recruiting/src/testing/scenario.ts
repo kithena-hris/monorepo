@@ -1537,6 +1537,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const candidate = await candidateByToken(ctx, token);
     expect(candidate?.email).toBe('yuki@example.com');
     const read = value(await offerForCandidate(ctx, candidate?.id ?? '', offer.id));
+    // The candidate reads the contract by its name in the country's pack, with the law that applies.
+    expect(read.setting.contract?.contract).toEqual(expect.any(String));
+    expect(read.setting.contract?.terms?.contractType).toEqual(expect.any(String));
+    expect(read.setting.contract?.rules.length).toBeGreaterThan(0);
     expect(
       value(await candidateAccepts(ctx, candidate?.id ?? '', offer.id, read.hash, '203.0.113.9'))
         .state,

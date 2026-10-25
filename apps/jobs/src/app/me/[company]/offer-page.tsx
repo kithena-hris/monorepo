@@ -30,7 +30,7 @@ import {
   Textarea,
   icons,
 } from '@reach/ui';
-import { formatList, locale } from '@reach/ui/intl';
+import { locale } from '@reach/ui/intl';
 import { useEffect, useState, useTransition, type JSX } from 'react';
 
 import { publicApi } from '../../../lib/browser-api';
@@ -76,6 +76,16 @@ interface OfferRead {
   readonly hash: string;
   readonly setting?: {
     readonly job: { readonly title: string };
+    /** The contract by the employer's country: its name, the relationship and the paid leave the law gives. */
+    readonly contract?: {
+      readonly contract: string | null;
+      readonly relationship: string | null;
+      readonly leave: {
+        readonly days: number;
+        readonly unit: 'working_days' | 'calendar_days';
+        readonly source: string;
+      };
+    } | null;
     readonly company: { readonly name: string; readonly logoUrl: string | null };
     readonly benefits: readonly {
       readonly id: string;
@@ -89,6 +99,15 @@ const money = (minor: number, currency: string): string =>
   new Intl.NumberFormat(locale(), { style: 'currency', currency, maximumFractionDigits: 0 }).format(
     minor / 100,
   );
+
+/** "24 Dec 2026", for a tile, where the long form wraps onto three lines. */
+const shortDay = (iso: string): string =>
+  new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString(locale(), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 
 const day = (iso: string): string =>
   new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString(locale(), {
@@ -211,6 +230,8 @@ export function OfferPage({
   const v = read?.offer.versions.at(-1);
   const state = read?.offer.state;
   const setting = read?.setting;
+  // The contract by its name in the employer's country ("Autónomo"), not a generic kind.
+  const contract = setting?.contract?.contract ?? contractOf(v?.terms.contractType);
   const act = (path: string, body: unknown): void => {
     start(async () => {
       const done = await publicApi(company, `/me/offers/${offerId}${path}`, {
@@ -338,7 +359,7 @@ export function OfferPage({
             ) : null
           }
         />
-        <ModalPageBody>
+        <ModalPageBody className="px-4 pt-6 pb-16 @2xl:px-8">
           {error === null ? null : (
             <Alert
               tone="danger"
@@ -369,11 +390,11 @@ export function OfferPage({
                   />
                   <Stat
                     label={tr('app.me.[company].offer-page.start', 'You start')}
-                    value={day(v.startDate)}
+                    value={shortDay(v.startDate)}
                   />
                   <Stat
                     label={tr('app.me.[company].offer-page.contract', 'Contract')}
-                    value={contractOf(v.terms.contractType)}
+                    value={contract}
                   />
                 </section>
                 {state === 'declined' ? (
@@ -433,9 +454,6 @@ export function OfferPage({
                       <CardTitle level={2}>
                         {tr('app.me.[company].offer-page.benefits', 'Benefits')}
                       </CardTitle>
-                      <CardDescription>
-                        {formatList(setting.benefits.map((b) => b.name))}
-                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <IconList>
@@ -463,8 +481,16 @@ export function OfferPage({
                       items={[
                         {
                           label: tr('app.me.[company].offer-page.contract', 'Contract'),
-                          value: contractOf(v.terms.contractType),
+                          value: contract,
                         },
+                        ...(setting?.contract?.relationship == null
+                          ? []
+                          : [
+                              {
+                                label: tr('app.me.[company].offer-page.relationship', 'As'),
+                                value: setting.contract.relationship,
+                              },
+                            ]),
                         ...(v.terms.contractEnd == null
                           ? []
                           : [
@@ -498,6 +524,31 @@ export function OfferPage({
                           label: tr('app.me.[company].offer-page.notice', 'Your notice'),
                           value: lengthOf(v.terms.noticeEmployee),
                         },
+                        ...(setting?.contract == null || setting.contract.leave.days === 0
+                          ? []
+                          : [
+                              {
+                                label: tr('app.me.[company].offer-page.leave', 'Paid leave'),
+                                value:
+                                  setting.contract.leave.unit === 'working_days'
+                                    ? tr(
+                                        'app.me.[company].offer-page.leave_working',
+                                        'At least {{days}} working days a year ({{source}})',
+                                        {
+                                          days: setting.contract.leave.days,
+                                          source: setting.contract.leave.source,
+                                        },
+                                      )
+                                    : tr(
+                                        'app.me.[company].offer-page.leave_calendar',
+                                        'At least {{days}} calendar days a year ({{source}})',
+                                        {
+                                          days: setting.contract.leave.days,
+                                          source: setting.contract.leave.source,
+                                        },
+                                      ),
+                              },
+                            ]),
                         {
                           label: tr('app.me.[company].offer-page.start', 'You start'),
                           value: day(v.startDate),

@@ -120,7 +120,7 @@ export function Stat({
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-2">
         <p
           className={cn(
-            'font-display leading-[1.05] font-bold tracking-[-0.03em] tabular-nums text-fg',
+            'font-display leading-[1.15] font-bold tracking-[-0.03em] tabular-nums text-fg',
             // Sized by the tile, not by a step. A figure like "€9,834,500" in a
             // two-across phone grid is wider than a fixed 24px can hold, and a
             // number that runs out of its card is worse than a smaller one. At

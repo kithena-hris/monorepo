@@ -17098,7 +17098,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -33823,7 +33827,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -50548,7 +50556,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -67273,7 +67285,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -84374,7 +84390,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -101475,7 +101495,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -118200,7 +118224,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -135301,7 +135329,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -152026,7 +152058,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -169503,7 +169539,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -186604,7 +186644,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -204081,7 +204125,11 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -220806,6 +220854,10 @@
     "email-recruiting:email.offer.approve_action": "bfe9afc37fa8",
     "email-recruiting:email.offer.approve_body": "bb276a856706",
     "email-recruiting:email.offer.approve_heading": "9d129bd7df1b",
-    "email-recruiting:email.offer.approve_subject": "3537c6668be7"
+    "email-recruiting:email.offer.approve_subject": "3537c6668be7",
+    "jobs:app.me.[company].offer-page.leave": "813fdde98ed4",
+    "jobs:app.me.[company].offer-page.leave_calendar": "7efe70199bfe",
+    "jobs:app.me.[company].offer-page.leave_working": "8b968c8b6704",
+    "jobs:app.me.[company].offer-page.relationship": "ed6b96ed67f6"
   }
 }

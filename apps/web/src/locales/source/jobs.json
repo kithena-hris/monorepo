@@ -667,6 +667,18 @@
     "text": "Internship",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx: text built in code."
   },
+  "app.me.[company].offer-page.leave": {
+    "text": "Paid leave",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: the items of <KeyValues>."
+  },
+  "app.me.[company].offer-page.leave_calendar": {
+    "text": "At least {{days}} calendar days a year ({{source}})",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: the items of <KeyValues>. Filled in: {{days}}, {{source}}."
+  },
+  "app.me.[company].offer-page.leave_working": {
+    "text": "At least {{days}} working days a year ({{source}})",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: the items of <KeyValues>. Filled in: {{days}}, {{source}}."
+  },
   "app.me.[company].offer-page.loading_the_offer": {
     "text": "Loading the offer",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: the label of <Spinner>."
@@ -730,6 +742,10 @@
   "app.me.[company].offer-page.reason_read": {
     "text": "The recruiter reads this, and may come back with new terms.",
     "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: text inside <FieldDescription>."
+  },
+  "app.me.[company].offer-page.relationship": {
+    "text": "As",
+    "context": "Kithena Jobs, the public job site where candidates find a company’s jobs and apply: the reader is a job seeker, not an employee. app/me/[company]/offer-page.tsx, OfferPage: the items of <KeyValues>."
   },
   "app.me.[company].offer-page.relocation": {
     "text": "Relocation",

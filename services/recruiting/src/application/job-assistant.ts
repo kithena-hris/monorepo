@@ -124,11 +124,13 @@ export async function planSearch(
     : err(failure('AI_UNAVAILABLE', 'Try the filters instead'));
 }
 
-const OFFER: PromptSpec<z.infer<typeof Answer>> = {
+const OfferAnswer = z.object({ answer: z.string().max(2400), fromSources: z.boolean() });
+
+const OFFER: PromptSpec<z.infer<typeof OfferAnswer>> = {
   feature: 'assistant',
-  version: 'offer-assistant@1',
-  instruction: `You answer a candidate's question about the job offer they were sent, only from "offer" (its terms, pay, benefits, start and expiry dates), "role" and "company". Return a JSON object {"answer":"","fromSources":true|false}. Explain a term in plain words when asked. If the offer does not say, answer that you do not know and set fromSources to false. Never negotiate, never promise or suggest a change to the terms, never advise accepting or declining, never ask for personal details. Answer in the language of the question, in at most four sentences.`,
-  answer: Answer,
+  version: 'offer-assistant@2',
+  instruction: `You answer a candidate's question about the job offer they were sent, only from what is given: "offer" (its terms as chosen, pay, benefits, start and expiry dates), "contract" (the contract by the law of the employer's country: its name, the relationship, every term resolved for the start date, the minimum paid leave, and each rule of that country that applies, with the law it comes from), "role" and "company". Return a JSON object {"answer":"","fromSources":true|false}. Explain the contract, the offer and the employment rules fully and in plain words: what the contract type means, what the relationship means for them, probation, notice, hours, leave, pay and the payments a year, a fixed term's end, clauses, and what each rule requires, naming the law it comes from. If what is given does not say, answer that you do not know and set fromSources to false. Never negotiate, never promise or suggest a change to the terms, never advise accepting or declining, never give legal advice beyond explaining what is given, never ask for personal details. Answer in the language of the question, in at most eight sentences.`,
+  answer: OfferAnswer,
 };
 
 /**
@@ -157,6 +159,7 @@ export async function askAboutOffer(
       expiresOn: version.expiresOn,
       state: read.value.offer.state,
     },
+    contract: read.value.setting.contract,
     role: read.value.setting.job.title,
     company: read.value.setting.company.name,
   });
