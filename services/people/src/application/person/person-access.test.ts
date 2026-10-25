@@ -97,6 +97,13 @@ describe('a hire who has not started', () => {
     expect(refused.ok ? null : refused.error.code).toBe('NOT_FOUND');
     const many = await people.readMany(tx, { ...asking(colleague), personIds: [ADA, MARCO] });
     expect(many.ok && [...many.value.keys()]).toEqual([MARCO]);
+    const ids = async (v: Viewer) => {
+      const page = await people.list(tx, { ...asking(v), limit: 10 });
+      return page.ok ? page.value.items.map((p) => p.id) : null;
+    };
+    expect(await ids(colleague)).toEqual([MARCO]);
+    expect(await ids(marco)).toContain(ADA);
+    expect(await ids(hr)).toContain(ADA);
   });
 });
 

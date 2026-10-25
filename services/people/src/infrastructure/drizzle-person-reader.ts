@@ -18,7 +18,6 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { CORE_COLUMNS } from '../application/person/core.js';
 import { reportingLine } from '../application/person/reporting-line.js';
 import {
-  HR_ONLY,
   LEAVERS,
   type GapsIn,
   type PersonReader,
@@ -155,7 +154,7 @@ function matching(
   return and(
     eq(person.tenantId, tenantId),
     reportsTo === undefined ? undefined : eq(person.managerId, reportsTo),
-    leavers ? undefined : notInArray(person.status, [...HR_ONLY]),
+    leavers ? undefined : notInArray(person.status, [...LEAVERS]),
     filter === undefined ? undefined : sql`${person.custom} @> ${filter}::jsonb`,
     // The same narrowing for the filter, through `person_tenant_directory_idx`
     // (20260926120000_people_custom_filter.sql); the `@>` above still decides.
@@ -599,6 +598,21 @@ export function drizzlePersonReader(): PersonReader {
       return rows[0]?.id ?? null;
     },
   };
+}
+
+/** Pre-hires, earliest start first: who HR still has to set up (the Inbox). */
+export async function preHires(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  limit: number,
+): Promise<readonly string[]> {
+  const rows = await tx
+    .select({ id: person.id })
+    .from(person)
+    .where(and(eq(person.tenantId, tenantId), eq(person.status, 'pre_hire')))
+    .orderBy(asc(person.hireDate), asc(person.id))
+    .limit(limit);
+  return rows.map((r) => r.id);
 }
 
 /** Pre-hires whose start date is on or before a day, earliest start first. */

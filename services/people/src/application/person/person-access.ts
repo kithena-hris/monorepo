@@ -930,9 +930,10 @@ export interface IntegrationWriter {
 }
 type IntegrationAsking = Asking & { readonly [AS_INTEGRATION]?: IntegrationWriter };
 /**
- * A hire who has not started is HR's (HR_ONLY): their record opens to HR,
- * to themselves and to their manager, who prepares for the first day; to a
- * system or an integration, which read as themselves; and to nobody else.
+ * A hire who has not started is HR's: their record opens, and they are
+ * listed, to HR, to themselves and to their manager, who prepares for the
+ * first day; to a system or an integration, which read as themselves; and to
+ * nobody else.
  */
 const mayRead = (
   asking: Asking,
@@ -2730,7 +2731,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = related.get(row.snapshot.id);
-        if (relations === undefined) continue;
+        if (relations === undefined || !mayRead(asking, row, relations)) continue;
         items.push(
           await view(
             tx,
@@ -2769,8 +2770,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.gapsIn,
         asking.refine,
       );
-      // Statuses are HR's; outside HR everybody listed counts as active.
-      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all, notStarted: 0 });
+      // Statuses are HR's; outside HR everybody listed counts as active, and
+      // nobody who has not started is listed (`mayRead`).
+      const listed = Math.max(0, counted.all - counted.notStarted);
+      return ok(everyone.isHr ? counted : { all: listed, active: listed, notStarted: 0 });
     },
 
     update: (tx, asking) => update(tx, asking),

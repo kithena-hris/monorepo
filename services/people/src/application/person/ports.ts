@@ -145,8 +145,8 @@ export interface PersonReader {
    * in one of these keys: the completeness grid's pages (PEO-122), which
    * name the keys it shows so no page comes up short.
    *
-   * `leavers` false leaves out anybody in an `HR_ONLY` state, gone or not
-   * started: what a list is to a viewer who may not read status (§6.3).
+   * `leavers` false leaves out anybody in a `LEAVERS` state: what a list is
+   * to a viewer who may not read status (§6.3).
    *
    * `gapsIn` `any` matches a gap anybody fills, the employee's too: the
    * directory's "has missing information" (HR's alone, as `gaps` is).
@@ -298,13 +298,6 @@ export interface Uniques {
 
 /** Whoever has left, or was never a person: listed to HR alone (§6.3). */
 export const LEAVERS = ['terminated', 'discarded', 'merged'] as const;
-
-/**
- * Listed to HR alone: whoever has left, and whoever has not started. A hire
- * is HR's until their first day: nobody else finds them in a list, and their
- * record opens only to HR, themselves and their manager (`mayRead`).
- */
-export const HR_ONLY = [...LEAVERS, 'pre_hire', 'onboarding'] as const;
 
 export interface Asking {
   readonly tenantId: string;
