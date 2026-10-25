@@ -714,6 +714,18 @@ function Messages({
               author={
                 m.direction === 'out' ? tr('candidate.the_team', 'The team') : data.candidate.name
               }
+              // A face on both sides: the team's emails on the right, the candidate's replies on the left.
+              avatar={
+                <Avatar
+                  name={
+                    m.direction === 'out'
+                      ? tr('candidate.the_team', 'The team')
+                      : data.candidate.name
+                  }
+                  size="sm"
+                  className="size-7 text-[0.625rem]"
+                />
+              }
               unsent={m.direction === 'out' && m.sentAt === null}
               meta={
                 m.direction === 'out'

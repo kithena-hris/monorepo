@@ -59,7 +59,12 @@ import {
 } from '../domain/requisition/requisition.js';
 import { addDays, addMonths } from '../domain/dates.js';
 import { packFor } from '../domain/terms/packs.js';
-import { validateTerms, type EntityFacts, type TermsAnswers } from '../domain/terms/pack.js';
+import {
+  validateTerms,
+  type EntityFacts,
+  type MinimumLeave,
+  type TermsAnswers,
+} from '../domain/terms/pack.js';
 import { termsOf, weeklyMinutesOf } from './job-terms.js';
 import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
@@ -767,8 +772,29 @@ async function tellSigned(
 }
 
 /** What an offer is read beside: the role, the company, and the benefits it names, in words. */
+/** The offer's contract as the law of the employer's country reads it (PRD §19). */
+export interface OfferLaw {
+  readonly country: string;
+  readonly region: string | null;
+  readonly contractType: string | null;
+  /** The contract's name in the country pack: "Autónomo", "Unbefristet". */
+  readonly contract: string | null;
+  readonly relationship: string | null;
+  /** Every term resolved for the start date; null while one of them is not lawful. */
+  readonly terms: ResolvedTerms | null;
+  /** The paid leave the law gives at least, and where it says so. */
+  readonly leave: MinimumLeave;
+  /** Each rule of the country that applies to these terms, with its source. */
+  readonly rules: readonly {
+    readonly step: string;
+    readonly text: string;
+    readonly source: string;
+  }[];
+}
+
 export interface OfferSetting {
   readonly job: { readonly title: string };
+  readonly contract: OfferLaw | null;
   readonly company: { readonly name: string; readonly logoUrl: string | null };
   readonly benefits: readonly {
     readonly id: string;
@@ -816,10 +842,33 @@ export async function offerForCandidate(
     hash: versionHash(latest(offer)),
     setting: {
       job: { title: job?.title ?? '' },
+      contract: job === null ? null : await offerLaw(ctx, offer, job),
       company: { name: settings.companyName, logoUrl: settings.logoUrl },
       benefits,
     },
   });
+}
+
+/** The offer's contract by the country pack: its name, the resolved terms, the leave and every rule that applies. */
+async function offerLaw(ctx: Ctx, offer: Offer, job: JobRecord): Promise<OfferLaw | null> {
+  const entity = await entityFor(ctx, job);
+  if (entity === null) return null;
+  const pack = packFor(entity.country);
+  const version = latest(offer);
+  const answers: TermsAnswers = { ...version.terms, contractStart: version.startDate };
+  const resolved = await resolvedTermsOf(ctx, offer, job, version.startDate);
+  return {
+    country: entity.country,
+    region: answers.region ?? null,
+    contractType: answers.contractType ?? null,
+    contract:
+      pack.contractTypes(answers, entity).find((t) => t.key === answers.contractType)?.label ??
+      null,
+    relationship: pack.relationships().find((r) => r.key === answers.relationship)?.label ?? null,
+    terms: resolved.ok ? resolved.value : null,
+    leave: pack.minimumLeave(answers, 5),
+    rules: pack.rules(answers, entity),
+  };
 }
 
 /* ------------------------------------------------------------- contract -- */

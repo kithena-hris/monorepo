@@ -84,7 +84,12 @@ export interface ChatMessageProps extends ComponentPropsWithoutRef<'div'> {
    * `from="self"` it defaults to "You".
    */
   readonly author?: string;
-  /** Beside an `other` message: an avatar or a mark. Without one, the author's initials. */
+  /**
+   * Beside an `other` message: an avatar or a mark. Without one, the author's
+   * initials. Given on a `self` message too, it is drawn on that side: a thread
+   * the reader is not part of, such as a team's emails with a candidate, reads
+   * better with a face on both sides.
+   */
   readonly avatar?: ReactNode;
   /** Photo for the default avatar. */
   readonly avatarSrc?: string;
@@ -134,7 +139,8 @@ export function ChatMessage({
       )}
       {...props}
     >
-      {self ? null : continued || (avatar === undefined && author === undefined) ? (
+      {self && avatar === undefined ? null : continued ||
+        (avatar === undefined && author === undefined) ? (
         <span aria-hidden className="w-7 shrink-0" />
       ) : (
         <span aria-hidden className="flex w-7 shrink-0 justify-center">
