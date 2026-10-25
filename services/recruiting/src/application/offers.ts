@@ -775,13 +775,26 @@ async function tellSigned(
     t('email.contract.team_signed', '{{name}} signed: invite them to {{company}}', vars),
     t(
       'email.contract.team_signed_body',
-      '{{name}} signed the contract for {{job}} and is hired, starting {{start}}.\n\nNext: send their account invitation, now or on a date you choose, from their profile. They confirm the details already on file and add what is missing, and become an employee in onboarding.\n\n{{link}}',
-      {
-        ...vars,
-        link: await appLink(ctx, `/recruiting/candidates/${candidate.id}?application=${app.id}`),
-      },
+      '{{name}} signed the contract for {{job}} and is hired, starting {{start}}.\n\nNext: send their account invitation, now or on a date you choose, from Before the first day on their profile or from the Set up task in your Inbox. They confirm the details already on file and add what is missing, and become an employee in onboarding.',
+      vars,
     ),
     `contract-signed:${app.id}`,
+    {
+      heading: t('email.contract.team_signed_heading', 'Hired: invite them to sign up'),
+      facts: [
+        { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+        { label: t('email.offer.role', 'Role'), value: job.title },
+        { label: t('email.contract.start', 'Start'), value: startDate },
+      ],
+      action: {
+        label: t('email.contract.invite_action', 'Invite {{first}}', vars),
+        // Straight to the invitation, on the profile's first-day section.
+        href: await appLink(
+          ctx,
+          `/recruiting/candidates/${candidate.id}?application=${app.id}#first-day`,
+        ),
+      },
+    },
   );
 }
 

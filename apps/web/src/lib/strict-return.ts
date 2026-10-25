@@ -22,6 +22,26 @@ export function strictReturn(request: Request): Response | null {
   const url = new URL(request.url);
   if (url.searchParams.has('again')) return Response.redirect(new URL('/login', url), 303);
   url.searchParams.set('again', '1');
+  return loadAgain(url);
+}
+
+/**
+ * Any page opened from another site without the session cookie: an email's
+ * button pressed in a webmail, a link in a chat. The Strict cookie stayed
+ * behind, so the page is loaded again from here and it goes with it; a person
+ * signed in in another tab lands on the page, not on sign-in. That second
+ * load begins on this site (`sec-fetch-site: same-origin`), so somebody really
+ * signed out then goes to sign in, and nothing loops. Null for anything else.
+ */
+export function fromAnotherSite(request: Request): Response | null {
+  if (request.method !== 'GET') return null;
+  if (request.headers.get('sec-fetch-mode') !== 'navigate') return null;
+  if (request.headers.get('sec-fetch-site') !== 'cross-site') return null;
+  return loadAgain(new URL(request.url));
+}
+
+/** The same address, loaded again by a page from this site. */
+function loadAgain(url: URL): Response {
   const to = `${url.pathname}${url.search}`.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
   return new Response(
     `<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta http-equiv="refresh" content="0;url=${to}"><title>Kithena</title>`,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SESSION_COOKIE } from './session-cookie';
-import { strictReturn } from './strict-return';
+import { fromAnotherSite, strictReturn } from './strict-return';
 
 const at = 'https://acme.app.kithena.com/performance/tools/github/done?code=c1&state=s.x';
 
@@ -23,5 +23,25 @@ describe('strictReturn', () => {
     const answer = strictReturn(new Request(`${at}&again=1`));
     expect(answer?.status).toBe(303);
     expect(answer?.headers.get('location')).toBe('https://acme.app.kithena.com/login');
+  });
+});
+
+describe('a link followed from another site, as an email’s button in a webmail', () => {
+  const link = 'https://acme.app.kithena.com/recruiting/candidates/c1?application=a1';
+  const from = (site: string, method = 'GET') =>
+    new Request(link, {
+      method,
+      headers: { 'sec-fetch-site': site, 'sec-fetch-mode': 'navigate' },
+    });
+
+  it('is loaded again from this site, so a Strict session cookie goes with it', async () => {
+    const answer = fromAnotherSite(from('cross-site'));
+    expect(await answer?.text()).toContain('url=/recruiting/candidates/c1?application=a1"');
+  });
+
+  it('goes to sign in as before once it arrives from here, or when it is not a page', () => {
+    expect(fromAnotherSite(from('same-origin'))).toBeNull();
+    expect(fromAnotherSite(from('none'))).toBeNull();
+    expect(fromAnotherSite(from('cross-site', 'POST'))).toBeNull();
   });
 });
