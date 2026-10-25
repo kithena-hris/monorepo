@@ -5,5 +5,6 @@
   "inbox.inbox.documents": "Documenten",
   "inbox.inbox.read_and_acknowledge": "{{value}} lezen en bevestigen",
   "inbox.inbox.sign": "{{value}} ondertekenen",
+  "inbox.inbox.signed_your_turn": "{{names}} heeft getekend. U bent aan de beurt.",
   "inbox.inbox.someone": "Iemand"
 }

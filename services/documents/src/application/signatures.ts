@@ -323,6 +323,15 @@ async function signIn(
         envelopeId: env.id,
         signerId,
         personId: signer?.personId ?? null,
+        subjectRef: env.subjectRef ?? null,
+        // Members whose turn this signature brought: the module that asked can tell them who signed.
+        turn: next.value.signers.flatMap((s) =>
+          s.personId !== null &&
+          s.status === 'sent' &&
+          env.signers.find((x) => x.id === s.id)?.status === 'waiting'
+            ? [s.personId]
+            : [],
+        ),
       },
     ),
   ]);
@@ -621,11 +630,13 @@ export async function sealEnvelope(
           signatures:
             env.subjectRef === null || env.subjectRef === undefined
               ? []
-              : env.signers.flatMap((s) =>
-                  s.signature === null
+              : env.signers.flatMap((s) => {
+                  const mark = s.signature === null ? '' : JSON.stringify(s.signature);
+                  // A mark past what the event carries is left out, never the event: the hire still lands.
+                  return mark === '' || mark.length > 50_000
                     ? []
-                    : [{ email: s.email, personId: s.personId, mark: JSON.stringify(s.signature) }],
-                ),
+                    : [{ email: s.email, personId: s.personId, mark }];
+                }),
         },
       ),
     ]);

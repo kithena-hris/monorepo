@@ -436,6 +436,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Réserver et envoyer l’invitation",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Réservé : {{first}}, {{day}} à {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Candidat",
+  "components.inbox.detail-recruiting.create_the_contract": "Créer le contrat",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} a l’invitation avec le lien de la réunion",
   "components.inbox.detail-recruiting.interview": "Entretien",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Aucun ne convient : demander d’autres créneaux",

@@ -1,6 +1,7 @@
 import type * as z from 'zod';
 import {
   EnvelopeCompleted,
+  EnvelopeSigned,
   LaunchCountry,
   LegalEntityCreated,
   LegalEntityUpdated,
@@ -29,8 +30,8 @@ import {
 } from '@kithena/contracts';
 import { logger } from '@kithena/telemetry';
 
-import { contextOf } from '../../application/context.js';
-import { contractSignedByEnvelope } from '../../application/offers.js';
+import { contextOf, deliver, type Outgoing } from '../../application/context.js';
+import { candidateSignedContract, contractSignedByEnvelope } from '../../application/offers.js';
 import type { Deps, Member, Tx, UnitOfWork } from '../../application/ports.js';
 import { statutoryBenefits } from '../../domain/benefits/benefits.js';
 
@@ -412,13 +413,20 @@ export function recruitingConsumer(
         if (!event) return 'rejected';
         const ref = event.payload.subjectRef;
         if (deps === null || ref === null || !ref.startsWith('recruiting:offer:')) return 'ignored';
-        return uow.run(event.tenantId, async (tx) => {
-          const ctx = await contextOf(deps, tx, {
-            tenantId: event.tenantId,
-            accountId: 'system',
-            personId: null,
-            correlationId: event.correlationId,
-          });
+        // The emails a hire sends go once the transaction has committed, as a request's do.
+        const mail: Outgoing[] = [];
+        const outcome = await uow.run(event.tenantId, async (tx) => {
+          const ctx = await contextOf(
+            deps,
+            tx,
+            {
+              tenantId: event.tenantId,
+              accountId: 'system',
+              personId: null,
+              correlationId: event.correlationId,
+            },
+            mail,
+          );
           const signed = await contractSignedByEnvelope(
             ctx,
             ref,
@@ -433,6 +441,36 @@ export function recruitingConsumer(
           );
           return 'rejected';
         });
+        if (outcome === 'applied') await deliver(deps, event.tenantId, mail);
+        return outcome;
+      }
+      /*
+       * The candidate signed a contract Recruiting sent: whoever signs next
+       * for the company is told it is their turn (`candidateSignedContract`).
+       */
+      case EnvelopeSigned.name: {
+        const event = parse(EnvelopeSigned, raw);
+        if (!event) return 'rejected';
+        const ref = event.payload.subjectRef;
+        if (deps === null || ref === null || !ref.startsWith('recruiting:offer:')) return 'ignored';
+        if (event.payload.personId !== null || event.payload.turn.length === 0) return 'ignored';
+        const mail: Outgoing[] = [];
+        await uow.run(event.tenantId, async (tx) => {
+          const ctx = await contextOf(
+            deps,
+            tx,
+            {
+              tenantId: event.tenantId,
+              accountId: 'system',
+              personId: null,
+              correlationId: event.correlationId,
+            },
+            mail,
+          );
+          await candidateSignedContract(ctx, ref, event.payload.envelopeId, event.payload.turn);
+        });
+        await deliver(deps, event.tenantId, mail);
+        return 'applied';
       }
       default:
         return 'ignored';

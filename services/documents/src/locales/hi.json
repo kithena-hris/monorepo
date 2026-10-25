@@ -6,5 +6,6 @@
   "inbox.inbox.documents": "दस्तावेज़",
   "inbox.inbox.read_and_acknowledge": "{{value}} पढ़ें और पुष्टि करें",
   "inbox.inbox.sign": "{{value}} पर हस्ताक्षर करें",
+  "inbox.inbox.signed_your_turn": "{{names}} ने हस्ताक्षर कर दिए। अब हस्ताक्षर करने की आपकी बारी है।",
   "inbox.inbox.someone": "कोई"
 }

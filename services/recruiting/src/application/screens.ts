@@ -853,7 +853,7 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         'Create the contract for {{title}} and send it to sign.',
         { title: job?.title ?? t('inbox.screens.the_role', 'the role') },
       ),
-      at: offer.acceptance.at,
+      at: offer.acceptance.at as Instant,
       due: null,
       dueVerb: 'due',
       link: contractPage(offer.id),

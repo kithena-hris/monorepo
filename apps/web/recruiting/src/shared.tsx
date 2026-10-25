@@ -63,7 +63,11 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
   readonly run: (
     name: string,
     variables: Readonly<Record<string, unknown>>,
-    after?: (data: unknown) => void,
+    /**
+     * Landed. `'left'` when it navigated away: the page left is then not
+     * refreshed, since a refresh racing the navigation stays on the old page.
+     */
+    after?: (data: unknown) => unknown,
     /** Refused: what was shown ahead of the answer is taken back. */
     refused?: () => void,
   ) => void;
@@ -91,8 +95,7 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
           refused?.();
           return;
         }
-        after?.(done.data);
-        props.onRefresh?.();
+        if (after?.(done.data) !== 'left') props.onRefresh?.();
       });
     },
   };

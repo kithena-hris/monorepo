@@ -10,7 +10,7 @@ import type {
 
 import { may, worksCouncilMay } from '../domain/access/access.js';
 import { hire as hireApplication, toContract } from '../domain/pipeline/application.js';
-import { withContractStage } from '../domain/pipeline/pipeline.js';
+import { withContractStage, withHiredStage } from '../domain/pipeline/pipeline.js';
 import {
   isEligible,
   offerBenefits,
@@ -972,10 +972,65 @@ export async function contractSignedByEnvelope(
 ): Promise<Result<true>> {
   const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
   if (contract === null) return ok(true);
+  // Signed before, with the hire refused then: the application still waits, so hire it now.
+  if (contract.state === 'signed' && contract.subjectRef === subjectRef) {
+    const offer = await ctx.tx.offers.get(contract.offerId);
+    const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+    if (app?.outcome !== 'active') return ok(true);
+    return hireFromContract(ctx, contract, signatures);
+  }
   const signed = signedByEnvelope(contract, subjectRef, on);
   if (!signed.ok) return signed;
+  // Hired first: a refused hire leaves the contract out for signature, so the event is applied again.
+  const hired = await hireFromContract(ctx, signed.value, signatures);
+  if (!hired.ok) return hired;
   await ctx.tx.contracts.save({ ...signed.value, fileId: contract.fileId });
-  return hireFromContract(ctx, signed.value, signatures);
+  return hired;
+}
+
+/**
+ * The candidate signed the contract in Documents and the company's turn came:
+ * whoever signs for it hears who signed, with a button to the envelope. The
+ * Inbox task is Documents' own ("Sign …"), so nobody holds two.
+ */
+export async function candidateSignedContract(
+  ctx: Ctx,
+  subjectRef: string,
+  envelopeId: string,
+  turn: readonly string[],
+): Promise<Result<true>> {
+  const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
+  if (contract?.state !== 'out_for_signature' || turn.length === 0) return ok(true);
+  const offer = await ctx.tx.offers.get(contract.offerId);
+  const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  if (candidate === null || job === null) return ok(true);
+  const { t } = await mailWords(ctx);
+  const vars = { name: candidate.name, job: job.title };
+  const href = await appUrl(ctx, `/documents/envelopes/${envelopeId}`);
+  await tellMembers(
+    ctx,
+    turn,
+    t('email.contract.your_turn_subject', '{{name}} signed the contract: your turn', vars),
+    t(
+      'email.contract.your_turn_body',
+      '{{name}} signed the contract for {{job}}. It is your turn to sign for the company. Once you sign, they are hired.',
+      vars,
+    ),
+    `contract-turn:${envelopeId}`,
+    {
+      heading: t('email.contract.your_turn_heading', 'Your turn to sign'),
+      facts: [
+        { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+        { label: t('email.offer.role', 'Role'), value: job.title },
+      ],
+      ...(href === null
+        ? {}
+        : { action: { label: t('email.contract.sign_action', 'Sign the contract'), href } }),
+    },
+  );
+  return ok(true);
 }
 
 /** A signed copy uploaded by HR: wet ink, or no Documents (PRD §21.2). */
@@ -1053,7 +1108,10 @@ async function placeHire(
   app: ApplicationRecord,
   job: JobRecord,
 ): Promise<Result<true>> {
-  const stages = await ctx.tx.jobs.stages(job.id);
+  // A pipeline without a hired stage gains one, as one without a contract stage does.
+  const before = await ctx.tx.jobs.stages(job.id);
+  const stages = withHiredStage(before, ctx.deps.newId);
+  if (stages.length !== before.length) await ctx.tx.jobs.setStages(job.id, stages);
   const hired = hireApplication(app, stages, 'system', ctx.at, ctx.deps.newId());
   if (!hired.ok) return hired;
   await ctx.tx.applications.save(

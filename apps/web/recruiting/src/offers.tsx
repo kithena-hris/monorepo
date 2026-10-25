@@ -242,6 +242,7 @@ function NewOfferBody({
     // Making it twice edits the same draft, so a second mount is harmless.
     act.run('ComposeOffer', { applicationId: application, input: data.input }, (offer) => {
       onNavigate?.(`/recruiting/offers/${(offer as { id: string }).id}`);
+      return 'left';
     });
   }, [act, application, data.input, onNavigate]);
   return act.error === null ? (
@@ -1512,7 +1513,10 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
               offerId: data.offer.id,
               input: { decision, comment: comment === '' ? null : comment },
             },
-            () => props.onNavigate?.('/recruiting/offers'),
+            () => {
+              props.onNavigate?.('/recruiting/offers');
+              return 'left';
+            },
           );
         };
         return (
@@ -1947,7 +1951,9 @@ function ContractDraft({
                     act.run('SendContract', { offerId, title, body }, (made) => {
                       keep(offerId, null);
                       const id = (made as { id?: string } | null)?.id;
-                      if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
+                      if (id === undefined) return undefined;
+                      props.onNavigate?.(`/documents/d/${id}`);
+                      return 'left';
                     });
                   }}
                 >
@@ -2022,7 +2028,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
       }
       setOwn([{ id: file.name, file, status: 'done' }]);
       const id = (done.data as { id?: string } | null)?.id;
-      if (id !== undefined) props.onNavigate?.(`/documents/${id}`);
+      if (id !== undefined) props.onNavigate?.(`/documents/d/${id}`);
     });
   };
   return (

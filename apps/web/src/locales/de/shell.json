@@ -428,6 +428,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Buchen und Einladung senden",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Gebucht: {{first}}, {{day}} um {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Kandidat",
+  "components.inbox.detail-recruiting.create_the_contract": "Vertrag erstellen",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} hat die Einladung mit dem Meeting-Link",
   "components.inbox.detail-recruiting.interview": "Gespräch",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Keine passt: nach weiteren Zeiten fragen",

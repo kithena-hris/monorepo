@@ -202,6 +202,10 @@ export const EnvelopeSigned = defineEvent(
     envelopeId: id(),
     signerId: id(),
     personId: PersonId.nullable(),
+    /** What another module sent it for, as `envelope.completed` carries it. */
+    subjectRef: z.string().max(160).nullable().default(null).register(policy, asInternal()),
+    /** The members whose turn to sign came with this signature. */
+    turn: z.array(PersonId).max(10).default([]).register(policy, asIdentity()),
   }),
 );
 

@@ -423,6 +423,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Boeken en uitnodiging versturen",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Ingepland: {{first}}, {{day}} om {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Kandidaat",
+  "components.inbox.detail-recruiting.create_the_contract": "Contract opstellen",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} heeft de uitnodiging met de vergaderlink",
   "components.inbox.detail-recruiting.interview": "Gesprek",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Geen past: vraag om meer tijden",

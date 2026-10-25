@@ -102,6 +102,15 @@ export function withContractStage(stages: readonly Stage[], newId: () => string)
   return at === -1 ? [...stages] : [...stages.slice(0, at), contract, ...stages.slice(at)];
 }
 
+/** A pipeline with a hired stage, added at its end when it has none: a signed contract always has somewhere to go. */
+export function withHiredStage(stages: readonly Stage[], newId: () => string): Stage[] {
+  if (stages.some((s) => s.category === 'hired')) return [...stages];
+  return [
+    ...stages,
+    { id: newId(), name: 'Hired', candidateName: 'Hired', category: 'hired', automations: [] },
+  ];
+}
+
 /** The template every company starts with. */
 export function defaultPipeline(newId: () => string): Stage[] {
   const stage = (

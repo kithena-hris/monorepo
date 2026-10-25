@@ -6,5 +6,6 @@
   "inbox.inbox.documents": "ஆவணங்கள்",
   "inbox.inbox.read_and_acknowledge": "{{value}} ஐப் படித்து உறுதிப்படுத்தவும்",
   "inbox.inbox.sign": "{{value}} இல் கையொப்பமிடவும்",
+  "inbox.inbox.signed_your_turn": "{{names}} கையொப்பமிட்டார். கையொப்பமிட உங்கள் முறை.",
   "inbox.inbox.someone": "யாரோ"
 }

@@ -84,7 +84,20 @@ export async function documentsInbox(
           title: t('inbox.inbox.sign', 'Sign {{value}}', {
             value: (doc?.title ?? t('inbox.inbox.a_document', 'a document')).slice(0, 200),
           }),
-          summary: env.message === '' ? null : env.message.slice(0, 400),
+          summary: (() => {
+            // Who signed before this person: their turn came because of them.
+            const signed = env.signers.filter((x) => x.status === 'signed').map((x) => x.name);
+            const turn =
+              signed.length === 0
+                ? null
+                : t('inbox.inbox.signed_your_turn', '{{names}} signed. Your turn to sign.', {
+                    names: signed.join(', '),
+                  });
+            return [turn, env.message === '' ? null : env.message]
+              .filter((x) => x !== null)
+              .join(' ')
+              .slice(0, 400) || null;
+          })(),
           from:
             sender === undefined ? null : { name: sender.displayName, personId: sender.personId },
           at: env.createdAt,
