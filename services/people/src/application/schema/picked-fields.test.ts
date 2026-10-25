@@ -91,7 +91,9 @@ describe('departments and managers picked, never typed', () => {
     expect(c.now().attribute('org_unit_id')?.dataType).toBe('org_unit_ref');
     expect(c.now().attribute('department')?.deprecatedAt).not.toBeNull();
     expect(c.now().attribute('manager_employee_number')?.deprecatedAt).not.toBeNull();
-    expect(c.saved.toSorted()).toEqual(['department', 'manager_employee_number', 'org_unit_id']);
+    // People's signature field too, for a company that had none.
+    expect(c.saved.toSorted()).toEqual(['department', 'manager_employee_number', 'org_unit_id',
+      'signature']);
     // Again: nothing left to do, nothing published.
     expect(await c.run()).toEqual(ok({ version: null }));
   });
