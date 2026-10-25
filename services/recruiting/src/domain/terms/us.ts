@@ -411,6 +411,8 @@ export const unitedStates: TermsPack = {
   contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: () => [],
   asksPreviousEmployment: () => false,
+  // FLSA: overtime and the salary floor depend on it.
+  asks: (answers) => (answers.relationship === 'employee' ? ['exempt'] : []),
   agreementRequired: () => false,
   limits,
   paymentsPerYear: () => [12],

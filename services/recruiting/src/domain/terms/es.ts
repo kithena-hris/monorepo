@@ -257,6 +257,8 @@ export const spain: TermsPack = {
   contractTypes: (answers) => withNotes(types(answers), NOTE),
   fixedTermReasons: (answers) => CAUSES[answers.contractType ?? ''] ?? [],
   asksPreviousEmployment: (answers) => answers.relationship === 'employee',
+  // art. 14 ET: the probation's limit depends on it.
+  asks: (answers) => (answers.contractType === 'autonomo' ? [] : ['roleGroup']),
   agreementRequired: () => true,
   limits,
   paymentsPerYear: () => [14, 12],

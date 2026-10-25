@@ -674,6 +674,7 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
               hasWorksCouncil: entity.worksCouncil,
             }),
             asksPreviousEmployment: pack.asksPreviousEmployment(answers),
+            asks: pack.asks?.(answers) ?? [],
             paymentsPerYear: pack.paymentsPerYear(answers),
           },
     approval:

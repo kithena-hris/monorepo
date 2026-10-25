@@ -856,6 +856,10 @@ export interface TermsAnswers {
   readonly nonCompeteMonths?: number | null;
   readonly nonCompeteCompensationPercent?: number | null;
   readonly mobilityClause?: boolean;
+  /** ES probation: a qualified technician or not (art. 14 ET). */
+  readonly roleGroup?: 'qualified' | 'other' | null;
+  /** US: exempt from overtime under the FLSA. */
+  readonly exempt?: boolean | null;
 }
 
 export interface OfferVersion {
@@ -960,6 +964,8 @@ export interface OfferData {
       readonly source: string;
     }[];
     readonly asksPreviousEmployment: boolean;
+    /** The country's own questions: ES whether a qualified technician, US whether exempt. */
+    readonly asks: readonly ('roleGroup' | 'exempt')[];
     readonly paymentsPerYear: readonly number[];
   } | null;
   readonly approval: {

@@ -1099,6 +1099,21 @@ function OfferEditor({
               </FieldControl>
             </Field>
           ) : null}
+          {c?.asks.includes('exempt') === true ? (
+            <Field>
+              <FieldLabel>{tr('offers.exempt_q', 'Exempt from overtime?')}</FieldLabel>
+              <SegmentedControl
+                aria-label={tr('offers.exempt', 'Exempt from overtime')}
+                value={draft.terms.exempt == null ? '' : draft.terms.exempt ? 'yes' : 'no'}
+                onValueChange={(k) => {
+                  if (k !== '') setTerms({ exempt: k === 'yes' });
+                }}
+              >
+                <SegmentedControlItem value="no">{tr('offers.no', 'No')}</SegmentedControlItem>
+                <SegmentedControlItem value="yes">{tr('offers.yes', 'Yes')}</SegmentedControlItem>
+              </SegmentedControl>
+            </Field>
+          ) : null}
           <Issues issues={issues('pay')} />
         </Group>
 
@@ -1338,6 +1353,25 @@ function OfferEditor({
             'Filled with the law’s defaults; the checks say when a change goes past what it allows.',
           )}
         >
+          {c?.asks.includes('roleGroup') === true ? (
+            <Field>
+              <FieldLabel>
+                {tr('offers.qualified_technician_q', 'Is the role for a qualified technician?')}
+              </FieldLabel>
+              <SegmentedControl
+                aria-label={tr('offers.qualified_technician', 'Qualified technician')}
+                value={draft.terms.roleGroup ?? ''}
+                onValueChange={(k) => {
+                  if (k === 'qualified' || k === 'other') setTerms({ roleGroup: k });
+                }}
+              >
+                <SegmentedControlItem value="other">{tr('offers.no', 'No')}</SegmentedControlItem>
+                <SegmentedControlItem value="qualified">
+                  {tr('offers.yes', 'Yes')}
+                </SegmentedControlItem>
+              </SegmentedControl>
+            </Field>
+          ) : null}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <Switch
@@ -1796,7 +1830,10 @@ function ReviseChat({
               setBefore(null);
               setTurns((all) => [
                 ...all,
-                { from: 'other', text: tr('offers.revise_undone', 'Taken back: the text is as it was.') },
+                {
+                  from: 'other',
+                  text: tr('offers.revise_undone', 'Taken back: the text is as it was.'),
+                },
               ]);
             }}
           >
