@@ -293,14 +293,15 @@ export async function saveJobTerms(
 
   // Where: the entity, a place of it in its country, and how the work is done.
   if (patch.entityId !== undefined && patch.entityId !== before.entityId)
+    // What depended on the old entity is asked again, unless this save gives it anew.
     terms = {
       ...terms,
       locationId: patch.locationId ?? null,
-      relationship: null,
-      contractType: null,
-      fixedTermReason: null,
-      vacationDays: null,
-      benefitIds: [],
+      relationship: patch.relationship ?? null,
+      contractType: patch.contractType ?? null,
+      fixedTermReason: patch.fixedTermReason ?? null,
+      vacationDays: patch.vacationDays ?? null,
+      benefitIds: patch.benefitIds ?? [],
     };
   let options = await termsOptions(ctx, terms);
   if (terms.entityId !== null && !options.entities.some((e) => e.id === terms.entityId))
