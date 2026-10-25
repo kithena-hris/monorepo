@@ -452,11 +452,28 @@ describe('the org chart', () => {
       status: null,
       team: null,
       location: null,
+      startsOn: null,
     });
     expect(people.find((p) => p.id === GRACE)).toMatchObject({
       managerId: null,
       managerName: null,
     });
+  });
+
+  it('shows who is starting, with their first day, to HR and their manager alone', async () => {
+    const w = world();
+    const MIA = '00000000-0000-4000-8000-0000000000d7';
+    w.store.seed(MIA, { ...person('Mia', 'Wong', ADA), status: 'pre_hire' });
+    const row = w.store.rows.get(MIA);
+    if (row) row.snapshot = { ...row.snapshot, hireDate: '2099-01-04' };
+    const mia = async (asking: ReturnType<ReturnType<typeof world>['as']>) =>
+      (await chart(w, asking)).people.find((p) => p.id === MIA);
+    expect(await mia(w.as(HR_ACCOUNT, 'hr'))).toMatchObject({
+      status: 'Starting soon',
+      startsOn: '2099-01-04',
+    });
+    expect(await mia(w.as(ADA_ACCOUNT))).toMatchObject({ managerId: ADA, startsOn: '2099-01-04' });
+    expect(await mia(w.as(TIM_ACCOUNT))).toBeUndefined();
   });
 
   it('draws what the directory shows, and for HR the status and the leavers', async () => {

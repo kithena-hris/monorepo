@@ -5627,6 +5627,10 @@
     "text": "Reports",
     "context": "People: employee records, org chart, HR settings. org-chart/org-chart.tsx, Body: the items of <KeyValues>."
   },
+  "org-chart.org-chart.starts": {
+    "text": "Starts {{date}}",
+    "context": "People: employee records, org chart, HR settings. org-chart/org-chart.tsx: a \"status\" value. Filled in: {{date}}."
+  },
   "org-chart.org-chart.team": {
     "text": "Team",
     "context": "People: employee records, org chart, HR settings. org-chart/org-chart.tsx, Body: the items of <KeyValues>."

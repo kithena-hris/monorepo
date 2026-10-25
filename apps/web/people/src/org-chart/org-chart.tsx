@@ -19,6 +19,7 @@ import { ViewSwitch, type DirectoryView } from '../directory/directory';
 import { useHeld } from '../held';
 import { Loaded, type Loadable } from '../load';
 import { t } from '../i18n';
+import { longDate } from '../record/display';
 
 /**
  * The Directory's org chart view (V3, MV4; W6, W7, M11), at
@@ -46,6 +47,8 @@ export interface OrgPerson {
   readonly status: string | null;
   readonly team: string | null;
   readonly location: string | null;
+  /** Not started yet: their first day. Absent or null for everybody working. */
+  readonly startsOn?: string | null;
 }
 
 export interface OrgChartState {
@@ -77,6 +80,19 @@ const TONE: Readonly<Record<string, 'info' | 'warning' | 'neutral'>> = {
   'On notice': 'warning',
   'Starting soon': 'info',
 };
+
+/** Somebody starting stands out where they will sit: an accent edge and their first day. */
+function badgeOf(p: OrgPerson): Pick<OrgNode, 'tone' | 'status' | 'statusTone'> {
+  const startsOn = p.startsOn ?? null;
+  if (startsOn !== null)
+    return {
+      tone: 'accent',
+      status: t('org-chart.org-chart.starts', 'Starts {{date}}', { date: longDate(startsOn) }),
+      statusTone: 'accent',
+    };
+  const tone = p.status === null ? undefined : TONE[p.status];
+  return p.status === null || tone === undefined ? {} : { status: p.status, statusTone: tone };
+}
 
 export function OrgChartScreen({ load, ...props }: OrgChartScreenProps): JSX.Element {
   return (
@@ -115,9 +131,7 @@ function Body({
         ...(p.team === null ? {} : { meta: p.team }),
         ...(p.managerId === null || !present.has(p.managerId) ? {} : { parentId: p.managerId }),
         ...(p.avatarUrl === null ? {} : { avatarUrl: p.avatarUrl }),
-        ...(p.status === null || TONE[p.status] === undefined
-          ? {}
-          : { status: p.status, statusTone: TONE[p.status] }),
+        ...badgeOf(p),
       })),
     };
   }, [state.people]);

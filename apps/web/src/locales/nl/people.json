@@ -1369,6 +1369,7 @@
   "org-chart.org-chart.org_chart": "Organogram",
   "org-chart.org-chart.profile": "Profiel",
   "org-chart.org-chart.reports": "Medewerkers",
+  "org-chart.org-chart.starts": "Begint op {{date}}",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "Het organogram ontstaat vanzelf uit ieders leidinggevende zodra er mensen zijn toegevoegd.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "de eerste pagina’s van de personeelsgids",
   "org-chart.org-chart.the_org_chart": "het organogram",

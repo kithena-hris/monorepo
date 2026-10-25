@@ -1458,6 +1458,7 @@
   "org-chart.org-chart.org_chart": "Organograma",
   "org-chart.org-chart.profile": "Perfil",
   "org-chart.org-chart.reports": "Subordinados",
+  "org-chart.org-chart.starts": "Começa a {{date}}",
   "org-chart.org-chart.team": "Equipa",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "O organograma constrói-se a partir da chefia de cada pessoa assim que houver pessoas adicionadas.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "as primeiras páginas do diretório",

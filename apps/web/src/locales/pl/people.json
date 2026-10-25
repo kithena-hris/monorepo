@@ -1528,6 +1528,7 @@
   "org-chart.org-chart.org_chart": "Schemat organizacyjny",
   "org-chart.org-chart.profile": "Profil",
   "org-chart.org-chart.reports": "Podwładni",
+  "org-chart.org-chart.starts": "Zaczyna {{date}}",
   "org-chart.org-chart.team": "Zespół",
   "org-chart.org-chart.the_chart_draws_itself_from_each": "Schemat tworzy się sam na podstawie przełożonego każdej osoby, gdy zostaną dodane osoby.",
   "org-chart.org-chart.the_first_pages_of_the_directory": "pierwsze strony katalogu",

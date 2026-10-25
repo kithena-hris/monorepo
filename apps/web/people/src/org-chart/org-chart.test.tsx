@@ -44,6 +44,21 @@ describe('the org chart', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('shows somebody starting where they will sit, with their first day', async () => {
+    const starting = { ...person('y', 'Yuki Sato', 'm'), status: 'Starting soon', startsOn: '2026-12-01' };
+    const { container } = render(
+      <OrgChartScreen
+        load={{ status: 'ready', data: { people: [...people, starting], truncated: false } }}
+        onOpen={vi.fn()}
+      />,
+      { wrapper: TooltipProvider },
+    );
+    const card = screen.getByRole('treeitem', { name: /Yuki Sato/ });
+    expect(within(card).getByText(/^Starts /u)).toBeInTheDocument();
+    expect(within(card).queryByText('Starting soon')).toBeNull();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('is the Directory with Org chart chosen, its search and direction on the canvas (V3)', async () => {
     const user = fast();
     const onViewChange = vi.fn();
