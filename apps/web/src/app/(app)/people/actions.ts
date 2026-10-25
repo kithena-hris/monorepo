@@ -1062,11 +1062,9 @@ interface Invitation {
 }
 
 export async function personInvitation(email: string): Promise<Invitation | null> {
-  const found = await people<{ readonly personInvitation: Invitation | null }>(
-    'PersonInvitation',
-    { email },
-  );
-  return found.ok ? (found.data.personInvitation ?? null) : null;
+  // `people` answers the one root field itself.
+  const found = await people<Invitation | null>('PersonInvitation', { email });
+  return found.ok ? (found.data ?? null) : null;
 }
 
 /** The invitation sent now (null) or kept for a day on their calendar: HR's. */
@@ -1074,12 +1072,12 @@ export async function invitePerson(
   personId: string,
   sendOn: string | null,
 ): Promise<{ ok: true; invitation: Invitation } | { ok: false; message: string }> {
-  const sent = await people<{ readonly invitePerson: Invitation }>('InvitePerson', {
+  const sent = await people<Invitation>('InvitePerson', {
     personId,
     sendOn,
   });
   return sent.ok
-    ? { ok: true, invitation: sent.data.invitePerson }
+    ? { ok: true, invitation: sent.data }
     : { ok: false, message: sent.message };
 }
 
