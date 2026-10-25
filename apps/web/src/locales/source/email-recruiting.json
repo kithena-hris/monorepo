@@ -279,6 +279,10 @@
     "text": "Interview",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
   },
+  "email.interviews.join_at": {
+    "text": "Join the meeting: {{link}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{link}}."
+  },
   "email.interviews.join_the_meeting": {
     "text": "Join the meeting",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"label\" value."
@@ -385,7 +389,7 @@
   },
   "email.interviews.where": {
     "text": "Where: {{where}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: a \"description\" value. Filled in: {{where}}."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/interviews.ts: text built in code. Filled in: {{where}}."
   },
   "email.interviews.where_2": {
     "text": "Where",

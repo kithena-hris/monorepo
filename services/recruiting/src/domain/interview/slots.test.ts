@@ -95,4 +95,26 @@ describe('free slots (PRD §16.4)', () => {
     expect(text).toContain('DTSTART:20261019T130000Z\r\nDTEND:20261019T134500Z');
     expect(text).toContain('SUMMARY:Interview\\; Kithena');
   });
+
+  it('carries the meeting link and everyone taking part', () => {
+    const text = ics({
+      uid: 'i1@kithena',
+      start: '2026-10-19T13:00:00.000Z',
+      minutes: 45,
+      title: 'Interview',
+      description: 'Agenda',
+      location: 'https://meet.google.com/abc-defg-hij',
+      url: 'https://meet.google.com/abc-defg-hij',
+      organizerEmail: 'jobs@acme.example',
+      stamp: '2026-10-15T10:00:00.000Z',
+      attendees: [
+        { email: 'yuki@example.com', name: 'Yuki Tanaka' },
+        { email: 'marco@acme.example', name: 'Marco Rossi' },
+      ],
+    });
+    expect(text).toContain('URL:https://meet.google.com/abc-defg-hij');
+    expect(text).toContain('LOCATION:https://meet.google.com/abc-defg-hij');
+    expect(text).toContain('CN="Yuki Tanaka"');
+    expect(text).toContain(':mailto:marco@acme.example');
+  });
 });

@@ -69,6 +69,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "வணக்கம் {{name}},\n\nஇந்த நேர்காணல் ரத்துசெய்யப்பட்டது.",
   "email.interviews.in_place_of_the_ones_before": ", முந்தையவற்றுக்குப் பதிலாக",
   "email.interviews.interview": "நேர்காணல்",
+  "email.interviews.join_at": "கூட்டத்தில் சேரவும்: {{link}}",
   "email.interviews.join_the_meeting": "மீட்டிங்கில் சேரவும்",
   "email.interviews.length": "நீளம்",
   "email.interviews.length_2": "நீளம்",

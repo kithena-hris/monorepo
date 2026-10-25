@@ -67,6 +67,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\nDit gesprek is geannuleerd.",
   "email.interviews.in_place_of_the_ones_before": ", in plaats van de vorige",
   "email.interviews.interview": "Gesprek",
+  "email.interviews.join_at": "Neem deel aan de vergadering: {{link}}",
   "email.interviews.join_the_meeting": "Deelnemen aan de vergadering",
   "email.interviews.length": "Duur",
   "email.interviews.length_2": "Duur",

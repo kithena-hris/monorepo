@@ -141,13 +141,11 @@ describe('pipelines (PRD §12.1)', () => {
 });
 
 describe('moving an application (PRD §12.2)', () => {
-  it('asks for the interview type entering an interview stage, and opens the offer entering offer', () => {
-    expect(
+  it('enters an interview stage as it is, the step’s interviews planned already, and opens the offer entering offer', () => {
+    const entered = value(
       moveTo(fresh(), stages, interview.id, 'ada', '2026-10-02T09:00:00Z', 'm1'),
-    ).toMatchObject({
-      ok: false,
-      error: { code: 'NEEDS_INTERVIEW_TYPE' },
-    });
+    );
+    expect(entered).toMatchObject({ opensOffer: false, category: 'interview' });
     const moved = value(moveTo(fresh(), stages, offer.id, 'ada', '2026-10-02T09:00:00Z', 'm1'));
     expect(moved).toMatchObject({ opensOffer: true, category: 'offer' });
   });

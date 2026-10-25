@@ -70,6 +70,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Bonjour {{name}},\n\nCet entretien est annulé.",
   "email.interviews.in_place_of_the_ones_before": ", à la place des précédents",
   "email.interviews.interview": "Entretien",
+  "email.interviews.join_at": "Rejoindre la réunion : {{link}}",
   "email.interviews.join_the_meeting": "Rejoindre la réunion",
   "email.interviews.length": "Durée",
   "email.interviews.length_2": "Durée",

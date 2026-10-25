@@ -408,6 +408,51 @@ async function teamLink(ctx: Ctx, path: string): Promise<string | null> {
   return appUrl(ctx, path);
 }
 
+/** The interview's meeting link, when it is one a calendar can open. */
+const meetingLink = (interview: InterviewRecord): string | null =>
+  interview.videoUrl?.startsWith('https://') === true ? interview.videoUrl : null;
+
+/** The invitation's description: how to join, where, and what it is about. */
+function describe(
+  t: Awaited<ReturnType<typeof mailWords>>['t'],
+  where: string | null,
+  link: string | null,
+  agenda: Agenda | null,
+): string {
+  return [
+    link === null ? null : t('email.interviews.join_at', 'Join the meeting: {{link}}', { link }),
+    where === null || where === link
+      ? null
+      : t('email.interviews.where', 'Where: {{where}}', { where }),
+    agenda?.text ?? null,
+  ]
+    .filter((line): line is string => line !== null && line !== '')
+    .join('\n\n');
+}
+
+/** Everyone taking part, as the invitation names them: the candidate, then the panel. */
+async function participants(
+  ctx: Ctx,
+  interview: InterviewRecord,
+  candidate: { readonly email: string; readonly name: string } | null,
+): Promise<{ email: string; name: string }[]> {
+  const out = candidate === null ? [] : [{ email: candidate.email, name: candidate.name }];
+  for (const id of new Set(interview.interviewerIds)) {
+    const member = await ctx.tx.members.get(id as never);
+    if (member?.workEmail) out.push({ email: member.workEmail, name: member.displayName });
+  }
+  return out;
+}
+
+/** The list with this one in it, once: whoever booked it is invited whether on the panel or not. */
+const withFirst = (
+  everyone: readonly { email: string; name: string }[],
+  one: { email: string; name: string },
+): { email: string; name: string }[] => [
+  ...everyone,
+  ...(everyone.some((a) => a.email.toLowerCase() === one.email.toLowerCase()) ? [] : [one]),
+];
+
 /**
  * Everyone on the panel hears too, by email, with what the candidate is
  * sent: when, where, the meeting link and what it is about, and the
@@ -428,6 +473,9 @@ async function inviteTeam(
   const where = interview.videoUrl ?? interview.place;
   const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
   const onCalendar = (await ctx.tx.settings.get(`calendar-event:${interview.id}`)) !== null;
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  const link = meetingLink(interview);
+  const everyone = await participants(ctx, interview, candidate);
   const title = t('email.interviews.team_title', '{{title}} with {{name}}', {
     title: interview.title,
     name: candidateName,
@@ -439,20 +487,21 @@ async function inviteTeam(
       start: interview.startsAt,
       minutes: interview.minutes,
       title,
-      description: agenda?.text ?? '',
+      description: describe(t, where, link, agenda),
       location: where,
+      url: link,
       organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
       stamp: ctx.at,
       cancelled,
       sequence: sequenceAt(ctx.at),
-      attendee,
+      attendees: withFirst(everyone, attendee),
     });
   const when = `${new Intl.DateTimeFormat(language, {
     dateStyle: 'full',
     timeStyle: 'short',
     timeZone: 'UTC',
   }).format(new Date(interview.startsAt))} (UTC)`;
-  const video = interview.videoUrl?.startsWith('https://') === true ? interview.videoUrl : null;
+  const video = link;
   const page = await teamLink(ctx, `/recruiting/interviews/${interview.id}`);
   const subject = cancelled
     ? t('email.interviews.team_cancelled', 'Cancelled: {{title}}', { title })
@@ -538,6 +587,8 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
   const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
   if (candidate === null) return;
   const where = interview.videoUrl ?? interview.place;
+  const link = meetingLink(interview);
+  const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
   const invitation = ics({
     uid: `${interview.id}@kithena`,
     start: interview.startsAt,
@@ -547,13 +598,14 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
       value: job?.title ?? '',
       companyName: settings.companyName,
     }),
-    description: where === null ? '' : t('email.interviews.where', 'Where: {{where}}', { where }),
+    description: describe(t, where, link, agenda),
     location: where,
+    url: link,
     organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
     stamp: ctx.at,
     cancelled,
     sequence: sequenceAt(ctx.at),
-    attendee: { email: candidate.email, name: candidate.name },
+    attendees: await participants(ctx, interview, candidate),
   });
   const attachments = [inviteFile(invitation)];
   const when = new Intl.DateTimeFormat((await mailWords(ctx)).language, {
@@ -593,14 +645,13 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
         company: settings.companyName,
         link: await portalLink(ctx, candidate.id),
       };
-  const agenda = (await ctx.tx.settings.get(`agenda:${interview.id}`)) as Agenda | null;
   const filled = {
     ...values,
     interview: `${interview.title}, ${when} (${candidate.timeZone ?? 'UTC'})`,
     where: where ?? 'To be confirmed',
   };
   const zone = candidate.timeZone ?? 'UTC';
-  const video = interview.videoUrl?.startsWith('https://') === true ? interview.videoUrl : null;
+  const video = link;
   const page = values['link'] ?? '';
   await sendNow(
     ctx,

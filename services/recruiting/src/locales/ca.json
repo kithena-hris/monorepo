@@ -70,6 +70,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Hola, {{name}}:\n\nAquesta entrevista queda cancel·lada.",
   "email.interviews.in_place_of_the_ones_before": ", en lloc dels anteriors",
   "email.interviews.interview": "Entrevista",
+  "email.interviews.join_at": "Uneix-te a la reunió: {{link}}",
   "email.interviews.join_the_meeting": "Unir-se a la reunió",
   "email.interviews.length": "Durada",
   "email.interviews.length_2": "Durada",

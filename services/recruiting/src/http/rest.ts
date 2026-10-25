@@ -1037,18 +1037,11 @@ export const ROUTES: readonly Route[] = [
     params: z.object({ applicationId: Id }),
     body: z.object({
       to: Id,
-      interviewType: text(40).optional(),
       /** The composer's words to the candidate, sent at once; none moves quietly. */
       message: ComposedEmail.nullable().default(null),
     }),
     run: async (ctx, { params, body }) => {
-      const moved = await moveAndEmail(
-        ctx,
-        params.applicationId,
-        body.to,
-        body.interviewType === undefined ? {} : { interviewType: body.interviewType },
-        body.message,
-      );
+      const moved = await moveAndEmail(ctx, params.applicationId, body.to, {}, body.message);
       if (!moved.ok) return moved;
       const { offerId } = await stageWork(ctx, params.applicationId);
       await interviewOnEntry(ctx, params.applicationId, body.to);
@@ -1670,9 +1663,13 @@ export const ROUTES: readonly Route[] = [
     name: 'reviseContract',
     method: 'POST',
     path: `${V1}/offers/{offerId}/contract/revise`,
-    summary: 'R22: the contract being edited, changed as asked in words, the names masked from the model',
+    summary:
+      'R22: the contract being edited, changed as asked in words, the names masked from the model',
     params: z.object({ offerId: Id }),
-    body: z.object({ body: z.string().min(1).max(60_000), instruction: z.string().min(1).max(2000) }),
+    body: z.object({
+      body: z.string().min(1).max(60_000),
+      instruction: z.string().min(1).max(2000),
+    }),
     run: (ctx, { params, body }) =>
       reviseContract(ctx, params.offerId, body.body, body.instruction),
   }),

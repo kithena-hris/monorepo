@@ -67,6 +67,7 @@
   "email.interviews.hello_thank_you_has_the_times": "Hallo {{first}},\n\nvielen Dank. {{companyName}} hat Ihre {{length}} Termine{{value}} und bestätigt einen davon per E-Mail, mit dem Meeting-Link und worum es geht.\n\nPläne geändert? Bis dahin können Sie Ihre Termine ändern.",
   "email.interviews.hello_this_interview_is_cancelled": "Hallo {{name}},\n\ndieses Gespräch ist abgesagt.",
   "email.interviews.in_place_of_the_ones_before": ", anstelle der bisherigen",
+  "email.interviews.join_at": "An der Besprechung teilnehmen: {{link}}",
   "email.interviews.join_the_meeting": "Am Meeting teilnehmen",
   "email.interviews.length": "Dauer",
   "email.interviews.length_2": "Dauer",
