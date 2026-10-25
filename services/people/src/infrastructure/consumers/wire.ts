@@ -115,9 +115,8 @@ export async function startConsumers(
 
   return {
     async stop() {
-      await consumer.disconnect();
-      await signatures.disconnect();
-      await recruiting.disconnect();
+      // Together: each leaves its group in turn otherwise, and three outlast the shutdown deadline.
+      await Promise.all([consumer, recruiting, signatures].map((c) => c.disconnect()));
       await approvals?.close();
       await client.end();
     },
