@@ -535,6 +535,10 @@
     "text": "Adjustments",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
   },
+  "candidate.an_interviewer": {
+    "text": "An interviewer",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: text inside <List>."
+  },
   "candidate.application": {
     "text": "Application",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the aria-label of <SelectTrigger>."
@@ -565,7 +569,7 @@
   },
   "candidate.cancel": {
     "text": "Cancel",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <Button>."
   },
   "candidate.candidates": {
     "text": "Candidates",
@@ -582,6 +586,10 @@
   "candidate.choose_an_open_job": {
     "text": "Choose an open job",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the placeholder of <SelectValue>."
+  },
+  "candidate.company_automatically": {
+    "text": "{{company}}, sent automatically",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the sender of <Email>. Filled in: {{company}}."
   },
   "candidate.consent": {
     "text": "Consent",
@@ -619,6 +627,10 @@
     "text": "Draft it for me",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <FieldLabel>."
   },
+  "candidate.emails_between": {
+    "text": "Emails between {{company}} and {{name}}: theirs on the left, the team’s on the right. Their replies arrive here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the description of <Section>. Filled in: {{company}}, {{name}}."
+  },
   "candidate.emails_to_and_from_the_candidate": {
     "text": "Emails to and from the candidate land here; replies arrive on the thread.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the description of <EmptyState>."
@@ -626,10 +638,6 @@
   "candidate.emails_with": {
     "text": "Emails with {{name}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the label of <ChatLog>. Filled in: {{name}}."
-  },
-  "candidate.emails_with_the_candidate_replies_arrive": {
-    "text": "Emails with the candidate; replies arrive here.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the description of <Section>."
   },
   "candidate.every_stage_and_what_happened_there": {
     "text": "Every stage they reached, newest first, and what happened while they were there.",
@@ -855,6 +863,10 @@
     "text": "Partly met",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"partly_met\" value."
   },
+  "candidate.person_at_company": {
+    "text": "{{person}}, {{company}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the sender of <Email>. Filled in: {{person}}, {{company}}."
+  },
   "candidate.pick_a_pool_to_see_who": {
     "text": "Pick a pool to see who is in it",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the title of <EmptyState>."
@@ -903,6 +915,10 @@
     "text": "Questionnaire",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
+  "candidate.rated_and_submitted": {
+    "text": "Rated {{average}} of 5 across {{count}} · submitted {{at}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: the description of <ListItem>. Filled in: {{average}}, {{count}}, {{at}}."
+  },
   "candidate.read_again": {
     "text": "Read again",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Evidence: text inside <Button>."
@@ -925,7 +941,7 @@
   },
   "candidate.received": {
     "text": "Received {{createdAt}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the meta of <ChatMessage>. Filled in: {{createdAt}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: the meta of <ChatMessage>. Filled in: {{createdAt}}."
   },
   "candidate.references": {
     "text": "References",
@@ -955,6 +971,10 @@
     "text": "Scorecard owed",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>."
   },
+  "candidate.scorecards_in": {
+    "text": "Scorecards in",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: the aria-label of <List>."
+  },
   "candidate.search": {
     "text": "Search",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, SearchBox: text inside <Button>."
@@ -977,11 +997,19 @@
   },
   "candidate.sends": {
     "text": "Sends {{sendAt}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the meta of <ChatMessage>. Filled in: {{sendAt}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: the meta of <ChatMessage>. Filled in: {{sendAt}}."
   },
   "candidate.sent": {
     "text": "Sent {{sentAt}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the meta of <ChatMessage>. Filled in: {{sentAt}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: the meta of <ChatMessage>. Filled in: {{sentAt}}."
+  },
+  "candidate.show_less": {
+    "text": "Show less",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: text inside <Button>."
+  },
+  "candidate.show_the_whole_email": {
+    "text": "Show the whole email",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: text inside <Button>."
   },
   "candidate.shown": {
     "text": "{{length}} shown",
@@ -998,6 +1026,10 @@
   "candidate.subject": {
     "text": "Subject",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <FieldLabel>."
+  },
+  "candidate.submitted_on": {
+    "text": "Submitted {{at}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: the description of <ListItem>. Filled in: {{at}}."
   },
   "candidate.tags": {
     "text": "Tags",
@@ -1051,9 +1083,9 @@
     "text": "The candidate says",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ReadCv: the title of <Alert>."
   },
-  "candidate.the_team": {
-    "text": "The team",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the author of <ChatMessage>."
+  "candidate.the_company": {
+    "text": "The company",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the face of <Email>."
   },
   "candidate.they_enter_the_jobs_first_stage": {
     "text": "They enter the job’s first stage and get an email with the ad and their own page.",
@@ -1110,6 +1142,10 @@
   "candidate.without_consent_they_are_asked_first": {
     "text": "Without their consent on file, {{name}} is asked by email first.",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogDescription>. Filled in: {{name}}."
+  },
+  "candidate.write_an_email": {
+    "text": "Write an email",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <Button>."
   },
   "candidate.yes": {
     "text": "Yes",

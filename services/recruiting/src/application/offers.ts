@@ -778,8 +778,10 @@ export interface OfferLaw {
   readonly country: string;
   readonly region: string | null;
   readonly contractType: string | null;
-  /** The contract's name in the country pack: "Autónomo", "Unbefristet". */
+  /** The contract's name in its country, as the contract says it: "Autónomo", "Unbefristet". */
   readonly contract: string | null;
+  /** What it means for the person, in a line, from the country pack: shown under the name. */
+  readonly about: string | null;
   readonly relationship: string | null;
   /** Every term resolved for the start date; null while one of them is not lawful. */
   readonly terms: ResolvedTerms | null;
@@ -850,6 +852,13 @@ export async function offerForCandidate(
   });
 }
 
+/**
+ * A pack's name for a contract, without the English gloss it carries for the
+ * recruiter: "Autónomo (self-employed)" is "Autónomo" to the person signing,
+ * and what it means is said under it.
+ */
+const ownName = (label: string): string => label.replace(/\s*\([^)]*\)\s*$/u, '');
+
 /** The offer's contract by the country pack: its name, the resolved terms, the leave and every rule that applies. */
 async function offerLaw(ctx: Ctx, offer: Offer, job: JobRecord): Promise<OfferLaw | null> {
   const entity = await entityFor(ctx, job);
@@ -858,14 +867,15 @@ async function offerLaw(ctx: Ctx, offer: Offer, job: JobRecord): Promise<OfferLa
   const version = latest(offer);
   const answers: TermsAnswers = { ...version.terms, contractStart: version.startDate };
   const resolved = await resolvedTermsOf(ctx, offer, job, version.startDate);
+  const type = pack.contractTypes(answers, entity).find((t) => t.key === answers.contractType);
+  const relationship = pack.relationships().find((r) => r.key === answers.relationship);
   return {
     country: entity.country,
     region: answers.region ?? null,
     contractType: answers.contractType ?? null,
-    contract:
-      pack.contractTypes(answers, entity).find((t) => t.key === answers.contractType)?.label ??
-      null,
-    relationship: pack.relationships().find((r) => r.key === answers.relationship)?.label ?? null,
+    contract: type === undefined ? null : ownName(type.label),
+    about: type?.note || relationship?.note || null,
+    relationship: relationship === undefined ? null : ownName(relationship.label),
     terms: resolved.ok ? resolved.value : null,
     leave: pack.minimumLeave(answers, 5),
     rules: pack.rules(answers, entity),

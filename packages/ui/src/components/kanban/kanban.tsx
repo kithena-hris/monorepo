@@ -8,10 +8,13 @@ import {
   PointerSensor,
   closestCorners,
   defaultDropAnimationSideEffects,
+  pointerWithin,
+  rectIntersection,
   useDroppable,
   useSensor,
   useSensors,
   type Announcements,
+  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -418,6 +421,20 @@ function makeDropAnimation({
   };
 }
 
+/**
+ * Where a dragged card lands: the column, or the card, the pointer is over.
+ * Corners alone asked for the card to be nearly inside a column before it
+ * counted, so a drop at a column's edge went back where it came from. When
+ * the pointer is over nothing (the keyboard has no pointer), the most
+ * overlapped target wins, then the nearest.
+ */
+const whereItLands: CollisionDetection = (args) => {
+  const under = pointerWithin(args);
+  if (under.length > 0) return under;
+  const overlapping = rectIntersection(args);
+  return overlapping.length > 0 ? overlapping : closestCorners(args);
+};
+
 /** Move an item between columns, purely. Used for the in-drag preview. */
 function moveWithin<T extends { id: string }>(
   board: Record<string, T[]>,
@@ -752,7 +769,7 @@ export function Kanban<T extends { id: string }>({
     <DndContext
       id={dndId}
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={whereItLands}
       accessibility={{ announcements, screenReaderInstructions: instructions() }}
       // Droppables are re-measured continuously. Without this a column that
       // grew or shrank because of the preview keeps its stale rectangle, and

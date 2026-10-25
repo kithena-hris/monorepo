@@ -468,24 +468,30 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
   const profile = applications.some((a) => a.may.includes('candidate.profile')) || ctx.viewer.admin;
   // Notes stay hidden from an interviewer until their scorecard is in (PRD §12.5, §16.6).
   const notes = profile ? await ctx.tx.notes.of(candidateId) : [];
+  const messages = profile ? await ctx.tx.messages.thread(candidateId) : [];
+  const settings = await generalSettings(ctx);
   return ok({
     candidate: profile ? candidate : { id: candidate.id, name: candidate.name },
     files: (await ctx.tx.files.of(candidateId)).map(({ blobKey: _key, ...f }) => f),
     notes,
-    messages: profile ? await ctx.tx.messages.thread(candidateId) : [],
+    messages,
+    // Who the team's emails come from, as the candidate sees them: the company, by its name.
+    company: settings.companyName,
     consents: profile ? await ctx.tx.consents.of(candidateId) : [],
     pools: profile ? await ctx.tx.pools.of(candidateId) : [],
     // For the profile's own actions: a rejection's reasons and emails, and every pool to add to.
-    rejectionReasons: (await generalSettings(ctx)).rejectionReasons,
+    rejectionReasons: settings.rejectionReasons,
     templates: (await ctx.tx.templates.list())
       .filter((t) => t.kind === 'email')
       .map((t) => ({ id: t.id, name: t.name, purpose: t.purpose })),
     allPools: profile ? (await ctx.tx.pools.list()).map((p) => ({ id: p.id, name: p.name })) : [],
     applications,
-    // The people the page names: every interviewer and every note's author, by their name.
+    // The people the page names: every interviewer, scorer, note author and email sender, by name.
     names: await namesFor(ctx, [
       ...applications.flatMap((a) => a.interviews.flatMap((i) => i.interviewerIds)),
+      ...applications.flatMap((a) => a.scorecards.map((c) => c.interviewerId)),
       ...notes.map((n) => n.authorId),
+      ...messages.flatMap((m) => (m.fromPerson === null ? [] : [m.fromPerson])),
     ]),
   });
 }

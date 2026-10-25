@@ -79,6 +79,8 @@ interface OfferRead {
     /** The contract by the employer's country: its name, the relationship and the paid leave the law gives. */
     readonly contract?: {
       readonly contract: string | null;
+      /** What the contract means, in a line, shown under its name. */
+      readonly about?: string | null;
       readonly relationship: string | null;
       readonly leave: {
         readonly days: number;
@@ -481,9 +483,22 @@ export function OfferPage({
                       items={[
                         {
                           label: tr('app.me.[company].offer-page.contract', 'Contract'),
-                          value: contract,
+                          // The contract by its own name, and under it what it means for them.
+                          value:
+                            setting?.contract?.about == null ? (
+                              contract
+                            ) : (
+                              <span className="flex flex-col gap-1">
+                                <span>{contract}</span>
+                                <span className="text-sm text-pretty text-fg-muted">
+                                  {setting.contract.about}
+                                </span>
+                              </span>
+                            ),
                         },
-                        ...(setting?.contract?.relationship == null
+                        // The relationship, unless the contract's name already says it.
+                        ...(setting?.contract?.relationship == null ||
+                        setting.contract.relationship === contract
                           ? []
                           : [
                               {

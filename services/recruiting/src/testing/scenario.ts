@@ -1562,6 +1562,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const read = value(await offerForCandidate(ctx, candidate?.id ?? '', offer.id));
     // The candidate reads the contract by its name in the country's pack, with the law that applies.
     expect(read.setting.contract?.contract).toEqual(expect.any(String));
+    // Its own name, without the English gloss, and what it means said under it.
+    expect(read.setting.contract?.contract).not.toContain('(');
+    expect(read.setting.contract?.about).toEqual(expect.any(String));
     expect(read.setting.contract?.terms?.contractType).toEqual(expect.any(String));
     expect(read.setting.contract?.rules.length).toBeGreaterThan(0);
     expect(

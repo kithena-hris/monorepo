@@ -577,6 +577,84 @@ describe('R11, a candidate', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('says who sent each email, and shows every scorecard that is in', async () => {
+    const app = candidate.applications[0];
+    const busy: CandidateData = {
+      ...candidate,
+      company: 'Acme',
+      names: { p1: 'Ada Park', p2: 'Ben Ode' },
+      messages: [
+        {
+          id: 'm1',
+          direction: 'out',
+          fromPerson: null,
+          subject: 'We have your application',
+          body: 'Thank you.',
+          sendAt: '2026-10-20T09:00:00Z',
+          sentAt: '2026-10-20T09:00:00Z',
+          createdAt: '2026-10-20T09:00:00Z',
+        },
+        {
+          id: 'm2',
+          direction: 'out',
+          fromPerson: 'p1',
+          subject: 'An interview',
+          body: 'Pick a time.',
+          sendAt: '2026-10-21T09:00:00Z',
+          sentAt: '2026-10-21T09:00:00Z',
+          createdAt: '2026-10-21T09:00:00Z',
+        },
+        {
+          id: 'm3',
+          direction: 'in',
+          subject: 'Re: An interview',
+          body: 'Tuesday works.',
+          sendAt: '2026-10-21T10:00:00Z',
+          sentAt: null,
+          createdAt: '2026-10-21T10:00:00Z',
+        },
+      ],
+      applications:
+        app === undefined
+          ? []
+          : [
+              {
+                ...app,
+                may: ['pipeline.move', 'candidate.message', 'scorecards.all'],
+                interviews: [
+                  {
+                    id: 'i1',
+                    title: 'Technical interview',
+                    startsAt: '2026-10-22T09:00:00Z',
+                    minutes: 45,
+                    state: 'completed',
+                    interviewerIds: ['p1'],
+                  },
+                ],
+                scorecards: [
+                  {
+                    interviewId: 'i1',
+                    interviewerId: 'p2',
+                    recommendation: 'strong_yes',
+                    submittedAt: '2026-10-22T11:00:00Z',
+                    ratings: { craft: 4, collaboration: 5 },
+                  },
+                ],
+              },
+            ],
+    };
+    const { container } = render(<screens.Candidate load={ready(busy)} params={{ id: 'c1' }} />);
+    expect(screen.getByText('Acme, sent automatically')).toBeTruthy();
+    expect(screen.getByText('Ada Park, Acme')).toBeTruthy();
+    expect(screen.getAllByText('Yuki Sato').length).toBeGreaterThan(0);
+    // Ben scored though he was not on the panel; Ada was, and still owes hers.
+    expect(screen.getByText('Ben Ode')).toBeTruthy();
+    expect(screen.getByText('Strong yes')).toBeTruthy();
+    expect(screen.getByText(/Rated 4.5 of 5 across 2/u)).toBeTruthy();
+    expect(screen.getByText('Scorecard owed')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('opens over the board, with the board still behind it', () => {
     render(
       <screens.Pipeline
