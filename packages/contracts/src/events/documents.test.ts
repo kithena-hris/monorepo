@@ -44,3 +44,31 @@ describe('no Documents payload can hold what a document says', () => {
     expect(names.every((name) => name.startsWith('documents.'))).toBe(true);
   });
 });
+
+describe('what Documents publishes as an envelope is signed', () => {
+  it('names the signer by the envelope’s own id, and an outside signer is no user', () => {
+    const parsed = documentsEvents
+      .find((e) => e.name === 'documents.envelope.signed')
+      ?.schema.safeParse({
+        eventId: '01890000-0000-7000-8000-000000000001',
+        eventName: 'documents.envelope.signed',
+        eventVersion: 1,
+        tenantId: '00000000-0000-4000-8000-0000000000a1',
+        occurredAt: '2026-10-25T22:20:00.000Z',
+        recordedAt: '2026-10-25T22:20:00.000Z',
+        effectiveFrom: '2026-10-25',
+        aggregate: { type: 'Envelope', id: 'e1', version: 0 },
+        actor: { kind: 'system', process: 'documents.signer' },
+        correlationId: '00000000-0000-4000-8000-0000000000c1',
+        causationId: null,
+        payload: {
+          envelopeId: '00000000-0000-4000-8000-0000000000e1',
+          signerId: 's1',
+          personId: null,
+          subjectRef: 'recruiting:offer:00000000-0000-4000-8000-0000000000f1:1',
+          turn: [],
+        },
+      });
+    expect(parsed?.success).toBe(true);
+  });
+});

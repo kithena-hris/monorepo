@@ -63,7 +63,6 @@ import {
 } from '../application/interviews.js';
 import {
   EMAIL_PURPOSES,
-  moveAndEmail,
   previewEmail,
   rejectAndEmail,
   seedEmailTemplates,
@@ -104,7 +103,6 @@ import {
   agreeToPool,
   bulk,
   correctMove,
-  moveApplication,
   sendMessage,
   undoMove,
   withdrawApplication,
@@ -127,6 +125,7 @@ import {
   uploadSignedContract,
   withdrawTheOffer,
   worksCouncilDecides,
+  moveOrHire,
 } from '../application/offers.js';
 import { draftContract, reviseContract } from '../application/contract-draft.js';
 import {
@@ -1041,7 +1040,7 @@ export const ROUTES: readonly Route[] = [
       message: ComposedEmail.nullable().default(null),
     }),
     run: async (ctx, { params, body }) => {
-      const moved = await moveAndEmail(ctx, params.applicationId, body.to, {}, body.message);
+      const moved = await moveOrHire(ctx, params.applicationId, body.to, body.message);
       if (!moved.ok) return moved;
       const { offerId } = await stageWork(ctx, params.applicationId);
       await interviewOnEntry(ctx, params.applicationId, body.to);
@@ -1140,7 +1139,7 @@ export const ROUTES: readonly Route[] = [
       ok(
         await bulk(ctx, body.ids, async (id) => {
           if (body.action === 'move') {
-            const moved = await moveApplication(ctx, id, body.to);
+            const moved = await moveOrHire(ctx, id, body.to, null);
             if (!moved.ok) return moved;
             await stageWork(ctx, id);
             await interviewOnEntry(ctx, id, body.to);

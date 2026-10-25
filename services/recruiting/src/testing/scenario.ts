@@ -29,6 +29,7 @@ import {
   moveJobState,
   unarchiveJob,
 } from '../application/jobs.js';
+import { withHiredStage } from '../domain/pipeline/pipeline.js';
 import { moveApplication } from '../application/moves.js';
 import { stageWork } from '../application/stage-work.js';
 import {
@@ -53,6 +54,7 @@ import {
   sendTheOffer,
   submitOfferForApproval,
   uploadSignedContract,
+  moveOrHire,
 } from '../application/offers.js';
 import { candidateByToken, candidatePage } from '../application/privacy.js';
 import {
@@ -1586,6 +1588,17 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(read.setting.contract?.terms?.contractType).toEqual(expect.any(String));
     expect(read.setting.contract?.rules.length).toBeGreaterThan(0);
   });
+  // Hired by hand on the board needs an accepted offer, whose terms the hire carries.
+  await as('ada', async (ctx) => {
+    const stages = await ctx.tx.jobs.stages(
+      (await ctx.tx.applications.get(applied.applicationId))?.jobId ?? '',
+    );
+    const hiredStage = withHiredStage(stages, () => 'hired-stage');
+    if (hiredStage.length !== stages.length) await ctx.tx.jobs.setStages(jobId, hiredStage);
+    const to = hiredStage.find((s) => s.category === 'hired')?.id ?? '';
+    const early = await moveOrHire(ctx, applied.applicationId, to, null);
+    expect(early.ok ? null : early.error.code).toBe('HIRE_NEEDS_ACCEPTED_OFFER');
+  });
   // Accepted with the company's host known, as identity announces it: the team's email opens the contract there.
   await uow.run(tenantId, (tx) =>
     tx.settings.set('host', { slug: 'acme-host', asOf: '2026-01-01T00:00:00.000Z' }),
@@ -1652,7 +1665,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(app?.outcome).toBe('active');
     expect(stages.find((s) => s.id === app?.history.at(-1)?.to)?.category).toBe('contract');
   });
-  await as('ada', async (ctx) => {
+  await asMailing('ada', async (ctx) => {
     const contract = await ctx.tx.contracts.forOffer(offer.id);
     expect(contract?.route).toBe('upload');
     const candidate = await ctx.tx.candidates.byEmail('yuki@example.com');
@@ -1661,6 +1674,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const app = await ctx.tx.applications.get(applied.applicationId);
     expect(app?.outcome).toBe('hired');
   });
+  // The candidate hears they are hired, and that the sign-up link comes next.
+  expect(toYuki()?.subject).toContain('You are hired');
   expect(await toCreate()).toEqual([]);
   // Whatever the country's pack made a condition (a right-to-work check, say) is checked and met.
   await as('ada', async (ctx) => {

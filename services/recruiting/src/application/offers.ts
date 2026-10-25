@@ -70,7 +70,7 @@ import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
 import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
-import { emailFor, emailValues } from './emails.js';
+import { emailFor, emailValues, moveAndEmail, type ComposedEmail } from './emails.js';
 import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
 import { appUrl, inboxTask, tellMembers } from './notify.js';
 import { contractNote } from './pack-notes.js';
@@ -755,14 +755,14 @@ async function tellSigned(
     ctx,
     candidate,
     app.id,
-    t('email.contract.you_signed', 'Signed: welcome to {{company}}', vars),
+    t('email.contract.you_are_hired', 'You are hired: {{job}} at {{company}}', vars),
     t(
-      'email.contract.you_signed_body',
-      'Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.',
+      'email.contract.you_are_hired_body',
+      'Hello {{first}},\n\nYou are hired as {{job}} at {{company}}, starting on {{start}}.\n\nYou will soon receive a link to sign up to {{company}}’s Kithena and start your onboarding. Most of your details are filled in already; you confirm them and add what is still missing.',
       vars,
     ),
     {
-      heading: t('email.contract.signed_heading', 'Contract signed'),
+      heading: t('email.contract.hired_heading', 'You are hired'),
       facts: [
         { label: t('email.offer.role', 'Role'), value: job.title },
         { label: t('email.contract.start', 'Start'), value: startDate },
@@ -981,12 +981,12 @@ export async function contractSignedByEnvelope(
     const offer = await ctx.tx.offers.get(contract.offerId);
     const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
     if (app?.outcome !== 'active') return ok(true);
-    return hireFromContract(ctx, contract, signatures);
+    return hireFromOffer(ctx, contract.offerId, signatures);
   }
   const signed = signedByEnvelope(contract, subjectRef, on);
   if (!signed.ok) return signed;
   // Hired first: a refused hire leaves the contract out for signature, so the event is applied again.
-  const hired = await hireFromContract(ctx, signed.value, signatures);
+  const hired = await hireFromOffer(ctx, signed.value.offerId, signatures);
   if (!hired.ok) return hired;
   await ctx.tx.contracts.save({ ...signed.value, fileId: contract.fileId });
   return hired;
@@ -1060,7 +1060,39 @@ export async function uploadSignedContract(
   );
   if (!signed.ok) return signed;
   await ctx.tx.contracts.save({ ...signed.value, fileId });
-  return hireFromContract(ctx, signed.value);
+  return hireFromOffer(ctx, signed.value.offerId);
+}
+
+/**
+ * R10 on the board or the profile: a move, or, into the hired stage, the
+ * hire itself. Hired by hand is hired in full, as by a signed contract: the
+ * pre-hire, `recruiting.candidate.hired` for People, the candidate's email
+ * and the team's. It needs an accepted offer, whose terms the hire carries.
+ */
+export async function moveOrHire(
+  ctx: Ctx,
+  applicationId: string,
+  to: string,
+  message: ComposedEmail | null,
+): Promise<Result<{ moveId: string; opensOffer: boolean }>> {
+  const loaded = await loadApplication(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  if (loaded.value.stages.find((s) => s.id === to)?.category !== 'hired')
+    return moveAndEmail(ctx, applicationId, to, {}, message);
+  if (!may(ctx.viewer, loaded.value.facts, 'pipeline.move')) return err(forbidden());
+  if (loaded.value.app.outcome !== 'active')
+    return err(failure('NOT_ACTIVE', `This application is ${loaded.value.app.outcome}`));
+  const accepted = (await ctx.tx.offers.forApplication(applicationId)).find(
+    (o) => o.state === 'accepted',
+  );
+  if (accepted === undefined)
+    return err(
+      failure('HIRE_NEEDS_ACCEPTED_OFFER', 'A candidate is hired once they accept an offer'),
+    );
+  const hired = await hireFromOffer(ctx, accepted.id);
+  if (!hired.ok) return hired;
+  const after = await ctx.tx.applications.get(applicationId);
+  return ok({ moveId: after?.history.at(-1)?.id ?? '', opensOffer: false });
 }
 
 /**
@@ -1158,18 +1190,20 @@ async function placeHire(
  * §21.3, §21.4), and moves to the hired stage, counted against the job. The
  * hiring team is told to invite them to the company's Kithena next.
  */
-async function hireFromContract(
+async function hireFromOffer(
   ctx: Ctx,
-  contract: Contract,
+  offerId: string,
   /** Who signed the envelope with what: the candidate's becomes the signature on their record. */
   signatures: readonly { readonly email: string | null; readonly mark: string }[] = [],
 ): Promise<Result<true>> {
-  const offer = await ctx.tx.offers.get(contract.offerId);
+  const offer = await ctx.tx.offers.get(offerId);
   const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
   const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
   const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
   if (offer === null || app === null || job === null || candidate === null)
     return err(notFound('offer'));
+  // Hired by hand before the contract came back signed: they are hired once, not twice.
+  if (app.outcome === 'hired' && (await ctx.tx.prehires.get(app.id)) !== null) return ok(true);
   if (app.outcome === 'active') {
     const placed = await placeHire(ctx, offer, app, job);
     if (!placed.ok) return placed;
