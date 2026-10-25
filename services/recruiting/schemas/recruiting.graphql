@@ -244,6 +244,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """R19: the open offer, or a new draft filled from the job"""
+  prepareOffer(applicationId: String!, idempotencyKey: String!): JSON
   """§ 99 BetrVG: present the hire"""
   presentToWorksCouncil(applicationId: String!, idempotencyKey: String!): JSON
   """

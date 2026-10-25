@@ -386,12 +386,8 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 moveId: moved.moveId,
               });
               // Arriving at the offer stage drafted the offer from the job: open it, filled in.
-              if (moved.opensOffer)
-                props.onNavigate?.(
-                  moved.offerId == null
-                    ? `/recruiting/offers/new?application=${card.applicationId}`
-                    : `/recruiting/offers/${moved.offerId}`,
-                );
+              if (moved.opensOffer && moved.offerId != null)
+                props.onFilter?.({ offer: moved.offerId });
             },
           );
         };
@@ -795,6 +791,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 <ModalPageContent size="inset">
                   <Spotlight
                     data={data.spotlight}
+                    offerOpen={data.openOffer}
                     actions={props}
                     applicationId={openId}
                     onApplication={(id) => props.onFilter?.({ application: id })}

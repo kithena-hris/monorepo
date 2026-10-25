@@ -4573,7 +4573,7 @@
   },
   "offers.base_pay": {
     "text": "Base pay",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <NumberField>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <MoneyField>."
   },
   "offers.benefits": {
     "text": "Benefits",
@@ -4597,7 +4597,7 @@
   },
   "offers.changing_makes_a_new_version": {
     "text": "{{title}} · Changing anything makes version {{next}}, which is approved and sent again.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the description of <PageHeader>. Filled in: {{title}}, {{next}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: a \"description\" value. Filled in: {{title}}, {{next}}."
   },
   "offers.check_these_figures": {
     "text": "Check these figures",
@@ -4610,10 +4610,6 @@
   "offers.checks": {
     "text": "Checks",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <CardTitle>."
-  },
-  "offers.checks_and_totals": {
-    "text": "Checks and totals",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the aria-label of <aside>."
   },
   "offers.checks_need_the_country": {
     "text": "Checks need the country.",
@@ -4653,7 +4649,7 @@
   },
   "offers.contract": {
     "text": "Contract",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
   },
   "offers.contract_2": {
     "text": "Contract: {{name}}",
@@ -4759,8 +4755,8 @@
     "text": "Ends on",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
-  "offers.equity_units": {
-    "text": "Equity, units",
+  "offers.equity": {
+    "text": "Equity",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <NumberField>."
   },
   "offers.every_check_passes": {
@@ -4911,8 +4907,8 @@
     "text": "This offer has no version yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the title of <EmptyState>."
   },
-  "offers.non_compete_months": {
-    "text": "Non-compete, months",
+  "offers.non_compete": {
+    "text": "Non-compete",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <NumberField>."
   },
   "offers.none": {
@@ -4965,7 +4961,7 @@
   },
   "offers.offer_for": {
     "text": "Offer for {{name}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the title of <PageHeader>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: a \"title\" value. Filled in: {{name}}."
   },
   "offers.offer_v_accepted_version_hash": {
     "text": "{{title}} · offer v{{version}} accepted {{at}} · version hash {{slice}}…",
@@ -5197,7 +5193,7 @@
   },
   "offers.relocation": {
     "text": "Relocation",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <NumberField>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <MoneyField>."
   },
   "offers.remote": {
     "text": "Remote",
@@ -5221,7 +5217,7 @@
   },
   "offers.send_for_approval": {
     "text": "Send for approval",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
   },
   "offers.send_to_sign": {
     "text": "Send to sign",
@@ -5229,11 +5225,11 @@
   },
   "offers.send_to_the_candidate": {
     "text": "Send to the candidate",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the actions of <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <Button>."
   },
   "offers.sign_on_bonus": {
     "text": "Sign-on bonus",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <NumberField>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <MoneyField>."
   },
   "offers.signed": {
     "text": "Signed",
@@ -5359,9 +5355,25 @@
     "text": "Total rewards",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: text inside <CardTitle>."
   },
-  "offers.unit": {
-    "text": "{{label}}, unit",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Length: the aria-label of <SelectTrigger>. Filled in: {{label}}."
+  "offers.unit_days": {
+    "text": "days",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, UNIT: a \"days\" value."
+  },
+  "offers.unit_hours": {
+    "text": "hours",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the suffix of <NumberField>."
+  },
+  "offers.unit_months": {
+    "text": "months",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, UNIT: a \"months\" value."
+  },
+  "offers.unit_units": {
+    "text": "units",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the suffix of <NumberField>."
+  },
+  "offers.unit_weeks": {
+    "text": "weeks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, UNIT: a \"weeks\" value."
   },
   "offers.upload_the_scan_to_documents_or": {
     "text": "Upload the scan to Documents or the candidate’s files, then record it here.",

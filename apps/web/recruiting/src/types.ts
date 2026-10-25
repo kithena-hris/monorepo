@@ -459,6 +459,8 @@ export interface PipelineData {
   readonly cards: readonly Card[];
   /** The application open over the board (`?candidate=…&application=…`), read beside it. */
   readonly spotlight?: CandidateData | null;
+  /** The offer open over the board (`?offer=`). */
+  readonly openOffer?: OfferData | null;
   readonly may: readonly string[];
   readonly rejectionReasons: readonly string[];
   readonly templates: readonly {
@@ -525,6 +527,8 @@ export interface CandidateData {
   readonly allPools: readonly { readonly id: string; readonly name: string }[];
   /** Interviewers and note authors by name, so the page shows people, not ids. */
   readonly names?: Readonly<Record<string, string>>;
+  /** The offer open over the page (`?offer=`). */
+  readonly openOffer?: OfferData | null;
   readonly applications: readonly {
     readonly applicationId: string;
     readonly job: { readonly id: string; readonly title: string };
@@ -960,6 +964,8 @@ export interface OfferData {
 }
 
 export interface OffersData {
+  /** The offer open over the list (`?offer=`). */
+  readonly openOffer?: OfferData | null;
   readonly rows: readonly {
     readonly id: string;
     readonly state: string;

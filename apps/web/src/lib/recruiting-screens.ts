@@ -26,6 +26,16 @@ async function read(
 const or = (value: string | undefined): string | null =>
   value === undefined || value === '' ? null : value;
 
+/** A page with an offer open over it (`?offer=`): read with the page, so the modal arrives with it. */
+async function withOffer(load: ScreenLoad, offerId: string | undefined): Promise<ScreenLoad> {
+  if (load.status !== 'ready' || offerId === undefined || offerId === '') return load;
+  const offer = await read('RecruitingOffer', { offerId });
+  return {
+    ...load,
+    data: { ...(load.data as object), openOffer: offer.status === 'ready' ? offer.data : null },
+  };
+}
+
 /** When each interviewer works, from Time Off: their own week or the company's, in their zone. */
 async function workingWeeks(
   personIds: readonly string[],
@@ -133,20 +143,23 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
           ? Promise.resolve(null)
           : read('RecruitingCandidate', { candidateId: s['candidate'] }),
       ]);
-      return board.status !== 'ready'
-        ? board
-        : {
-            status: 'ready',
-            data: {
-              ...(board.data as object),
-              spotlight: spotlight?.status === 'ready' ? spotlight.data : null,
+      return withOffer(
+        board.status !== 'ready'
+          ? board
+          : {
+              status: 'ready',
+              data: {
+                ...(board.data as object),
+                spotlight: spotlight?.status === 'ready' ? spotlight.data : null,
+              },
             },
-          };
+        s['offer'],
+      );
     }
     case 'Candidates':
       return read('RecruitingCandidates', { q: or(s['q']), tag: or(s['tag']) });
     case 'Candidate':
-      return read('RecruitingCandidate', { candidateId: id });
+      return withOffer(await read('RecruitingCandidate', { candidateId: id }), s['offer']);
     case 'Pools':
       return read('RecruitingPools', { poolId: or(query.params['id']) });
     case 'Interviews':
@@ -180,7 +193,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
         : read('RecruitingSlots', { ...variables, weeks: JSON.stringify(weeks) });
     }
     case 'Offers':
-      return read('RecruitingOffers');
+      return withOffer(await read('RecruitingOffers'), s['offer']);
     case 'Offer':
       if (id !== 'new') return read('RecruitingOffer', { offerId: id });
       return s['application'] === undefined

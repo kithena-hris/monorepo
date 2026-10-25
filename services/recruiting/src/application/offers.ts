@@ -277,7 +277,7 @@ export async function offerStart(
     previouslyEmployed: false,
     contractStart: startDate,
     weeklyMinutes,
-    benefitIds: held.benefitIds,
+    benefitIds: job.benefitIds,
     nonCompeteMonths: null,
     mobilityClause: false,
   };
@@ -307,7 +307,8 @@ export async function offerStart(
     input: {
       terms,
       pay,
-      benefitIds: held.benefitIds,
+      // The job's own list, which its ad shows: the terms setting can lag behind an edit of the ad.
+      benefitIds: job.benefitIds,
       startDate,
       expiresOn,
       letterTemplateId: null,
@@ -524,18 +525,26 @@ export async function withdrawOpenOffers(ctx: Ctx, applicationId: string): Promi
 }
 
 /**
- * Arriving at the offer stage: the open offer, or a new draft filled from the
- * job (`offerStart`), so the recruiter opens an offer rather than a form to
- * make one. Null when the mover may not write offers, or the job cannot fill one.
+ * The application's open offer, or a new draft filled from the job
+ * (`offerStart`): "Prepare offer" opens an offer rather than a form to make one.
  */
-export async function draftOnArrival(ctx: Ctx, applicationId: string): Promise<string | null> {
+export async function prepareOffer(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<Result<{ readonly id: string }>> {
   const open = (await ctx.tx.offers.forApplication(applicationId)).find(
     (o) => o.state !== 'withdrawn' && o.state !== 'expired',
   );
-  if (open !== undefined) return open.id;
+  if (open !== undefined) return ok({ id: open.id });
   const started = await offerStart(ctx, applicationId);
-  if (!started.ok) return null;
+  if (!started.ok) return started;
   const drafted = await composeOffer(ctx, applicationId, started.value.input);
+  return drafted.ok ? ok({ id: drafted.value.id }) : drafted;
+}
+
+/** Arriving at the offer stage drafts one; null when the mover may not write offers, or the job cannot fill one. */
+export async function draftOnArrival(ctx: Ctx, applicationId: string): Promise<string | null> {
+  const drafted = await prepareOffer(ctx, applicationId);
   return drafted.ok ? drafted.value.id : null;
 }
 

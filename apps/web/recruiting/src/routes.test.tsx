@@ -1222,6 +1222,34 @@ describe('R19, the offer', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('opens from the offers list over the list, and the list stays behind it', () => {
+    const row = {
+      id: 'o1',
+      state: 'draft',
+      candidate: 'Yuki Sato',
+      job: 'Senior Backend Engineer (m/w/d)',
+      startDate: '2026-12-01',
+      expiresOn: '2026-11-04',
+      baseMinor: 6_750_000,
+      currency: 'EUR',
+      needsMe: false,
+    };
+    const filters: unknown[] = [];
+    const { rerender } = render(
+      <screens.Offers
+        load={ready({ rows: [row] }) as never}
+        onFilter={(patch) => {
+          filters.push(patch);
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText('€67,500'));
+    expect(filters).toEqual([{ offer: 'o1' }]);
+    rerender(<screens.Offers load={ready({ rows: [row], openOffer: offer }) as never} />);
+    expect(screen.getByRole('dialog', { name: 'Offer for Yuki Sato' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Offers', hidden: true })).toBeTruthy();
+  });
+
   it('saves a change by itself', async () => {
     const calls: { name: string; variables: unknown }[] = [];
     render(
