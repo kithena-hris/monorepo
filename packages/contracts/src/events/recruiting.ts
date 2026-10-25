@@ -7,7 +7,6 @@ import { CalendarDate, Instant, LegalEntityId, Money } from '../primitives.js';
 import {
   ApplicationId,
   ApplicationSource,
-  BenefitId,
   CandidateContact,
   CandidateId,
   ConditionKind,
@@ -193,7 +192,8 @@ export const CandidateHired = defineEvent(
     }),
     benefits: z.array(
       z.object({
-        benefitId: BenefitId,
+        /** The catalogue's id: a library one (`lib:…`), a statutory one (`statutory:…`) or a company's. */
+        benefitId: z.string().min(1).max(160).register(policy, asPublic()),
         statutory: z.boolean().register(policy, asPublic()),
       }),
     ),

@@ -108,3 +108,17 @@ describe('ResolvedTerms maps onto People’s employment terms fields', () => {
     expect(ResolvedTerms.safeParse({ ...terms, fte: '0.8' }).success).toBe(true);
   });
 });
+
+describe('the benefits a hire carries', () => {
+  it('names each by the catalogue’s own id: a library one, a statutory one, a company one', () => {
+    const hired = recruitingEvents.find((e) => e.name === 'recruiting.candidate.hired');
+    const payload = hired?.payload as z.ZodObject;
+    const benefits = payload.shape['benefits'] as z.ZodArray<z.ZodType>;
+    for (const benefitId of [
+      'lib:7c9bfd50-5e1a-4c1b-9f3a-2b7c8d9e0f12:pension',
+      'statutory:es:paid_leave',
+      '0190a000-0000-7000-8000-0000000000b1',
+    ])
+      expect(benefits.element.safeParse({ benefitId, statutory: false }).success).toBe(true);
+  });
+});

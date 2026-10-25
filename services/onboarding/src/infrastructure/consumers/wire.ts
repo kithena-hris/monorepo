@@ -40,7 +40,9 @@ async function startConsumers(
   const handle = onboardingConsumer(deps);
   const consumers = await Promise.all([
     consume(new Kafka(kafka), 'onboarding', PersonHired.topic, handle),
-    consume(new Kafka(kafka), 'onboarding-recruiting', CandidateHired.topic, handle),
+    // `-2`: Recruiting's hires again from the start; they were skipped while the
+    // contract refused a benefit by its catalogue id (`lib:…`).
+    consume(new Kafka(kafka), 'onboarding-recruiting-2', CandidateHired.topic, handle),
     consume(new Kafka(kafka), 'onboarding-identity', TenantAdministratorNamed.topic, handle),
     consume(new Kafka(kafka), 'onboarding-performance', ReviewReleased.topic, handle),
   ]);

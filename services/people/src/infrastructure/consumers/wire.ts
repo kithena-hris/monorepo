@@ -97,12 +97,12 @@ export async function startConsumers(
   // first deployed is an account People should still know about.
   // `SchemaPublished.topic` is People's own topic, so the person events the
   // OpenFGA tuples are written from (PEO-092) arrive here too.
-  // Recruiting's topic too: a hire it made becomes a `pre_hire` here (PRD §21.4).
-  await consume(
-    consumer,
-    [AccountProvisioned.topic, SchemaPublished.topic, CandidateHired.topic],
-    handle,
-  );
+  await consume(consumer, [AccountProvisioned.topic, SchemaPublished.topic], handle);
+  // Recruiting's topic, under a group of its own: a hire it made becomes a `pre_hire`
+  // here (PRD §21.4). `-2`: read from the start again, for the hires skipped while the
+  // contract refused a benefit by its catalogue id (`lib:…`); nothing was cancelled then.
+  const recruiting = broker.consumer({ groupId: 'people-recruiting-2' });
+  await consume(recruiting, [CandidateHired.topic], handle);
   // Recruiting's hires once more, for the signature alone: hires made before
   // the company had a signature field get the contract's (`hireSignatures`).
   const signatures = broker.consumer({ groupId: 'people-hire-signatures' });
@@ -117,6 +117,7 @@ export async function startConsumers(
     async stop() {
       await consumer.disconnect();
       await signatures.disconnect();
+      await recruiting.disconnect();
       await approvals?.close();
       await client.end();
     },
