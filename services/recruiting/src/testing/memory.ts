@@ -233,8 +233,8 @@ function txOf(state: TenantState, publicState: PublicState): Tx {
         teams.del(id);
         stages.del(id);
         forms.del(id);
-        for (const key of [...bag(state, 'ads').keys()]) if (key.startsWith(`${id}:`)) ads.del(key);
-        for (const key of [...bag(state, 'targets').keys()])
+        for (const key of bag(state, 'ads').keys()) if (key.startsWith(`${id}:`)) ads.del(key);
+        for (const key of bag(state, 'targets').keys())
           if (key.startsWith(`${id}:`)) bag(state, 'targets').delete(key);
       },
       get: (id) => jobs.get(id),
