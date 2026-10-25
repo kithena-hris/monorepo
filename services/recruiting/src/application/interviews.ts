@@ -405,10 +405,7 @@ export async function bookInterview(
 
 /** Where the team opens a page: the tenant app when its address is known, else nothing to link. */
 async function teamLink(ctx: Ctx, path: string): Promise<string | null> {
-  const base = ctx.deps.chat?.appBase;
-  return base === undefined
-    ? null
-    : `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return appUrl(ctx, path);
 }
 
 /**

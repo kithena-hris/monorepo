@@ -63,13 +63,25 @@ export async function tellMembers(
 }
 
 /**
+ * The label the company's own app is served on (`<slug>.app…`), as identity
+ * announced it (`identity.tenant.provisioned`, `amended`). Not the careers
+ * page's slug, which the company chooses and may differ: a link built from
+ * that one opened somebody else's host, or none. The careers slug only until
+ * identity's word has arrived.
+ */
+export async function hostSlug(ctx: Ctx): Promise<string> {
+  const host = (await ctx.tx.settings.get('host')) as { slug?: string } | null;
+  return host?.slug ?? (await generalSettings(ctx)).companySlug;
+}
+
+/**
  * A page of the tenant app as a link an email can carry: on the company's
  * own host when it is known, else null (an email's button is never a path).
  */
 export async function appUrl(ctx: Ctx, path: string): Promise<string | null> {
   const base = ctx.deps.chat?.appBase;
   if (base === undefined) return null;
-  return `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return `${base.replace('{slug}', await hostSlug(ctx))}${path}`;
 }
 
 /** An Inbox task, as the Inbox addresses it: the email's button opens the task itself. */

@@ -223,3 +223,37 @@ describe('People’s legal entities, locations and org units', () => {
     ).toBe('ignored');
   });
 });
+
+describe('the company’s host, from identity', () => {
+  const tenant = (name: string, slug: string, occurredAt: string) => ({
+    eventId: '01890000-0000-7000-8000-000000000001',
+    eventName: name,
+    eventVersion: 1,
+    tenantId,
+    occurredAt,
+    recordedAt: occurredAt,
+    effectiveFrom: occurredAt.slice(0, 10),
+    aggregate: { type: 'Tenant', id: tenantId, version: 1 },
+    actor: { kind: 'system', process: 'identity' },
+    correlationId: randomUUID(),
+    causationId: null,
+    payload:
+      name === 'identity.tenant.provisioned'
+        ? { slug, displayName: 'Acme', country: 'ES', timeZone: 'Europe/Madrid' }
+        : { slug, displayName: 'Acme' },
+  });
+
+  it('keeps the newest slug, whatever order they arrive in', async () => {
+    const uow = memoryUnitOfWork();
+    const handle = recruitingConsumer(uow);
+    expect(
+      await handle(tenant('identity.tenant.amended', 'acme-two', '2026-10-02T00:00:00.000Z')),
+    ).toBe('applied');
+    expect(
+      await handle(tenant('identity.tenant.provisioned', 'acme', '2026-10-01T00:00:00.000Z')),
+    ).toBe('unchanged');
+    expect(await uow.run(tenantId, (tx) => tx.settings.get('host'))).toMatchObject({
+      slug: 'acme-two',
+    });
+  });
+});

@@ -670,41 +670,55 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
       ],
     },
   );
-  const link = await appLink(
-    ctx,
-    accepted
-      ? `/recruiting/candidates/${candidate.id}?application=${app.id}`
-      : `/recruiting/offers/${offer.id}`,
-  );
+  if (accepted) {
+    // One email, one button: the contract, which the Inbox task opens too.
+    const href = await appUrl(ctx, contractPage(offer.id));
+    const entity =
+      (job.entityId === null ? null : await ctx.tx.entities.get(job.entityId))?.name ??
+      settings.companyName;
+    await tellMembers(
+      ctx,
+      await hiringTeam(ctx, job.id),
+      t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars),
+      t(
+        'email.offer.team_accepted_next',
+        '{{name}} accepted version {{version}} of the offer and is in the contract stage now. Create the contract next: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.',
+        { ...vars, entity },
+      ),
+      `offer-${offer.state}:${offer.id}:${String(version)}`,
+      {
+        heading: t('email.offer.team_accepted_heading', 'Offer accepted'),
+        facts: [
+          { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+          { label: t('email.offer.role', 'Role'), value: job.title },
+          { label: t('email.offer.version', 'Version'), value: String(version) },
+        ],
+        ...(href === null
+          ? {}
+          : { action: { label: t('email.offer.create_contract', 'Create the contract'), href } }),
+      },
+    );
+    return;
+  }
+  const link = await appLink(ctx, `/recruiting/offers/${offer.id}`);
   await tellMembers(
     ctx,
     await hiringTeam(ctx, job.id),
-    accepted
-      ? t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars)
-      : t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
-    accepted
-      ? t(
-          'email.offer.team_accepted_contract',
-          '{{name}} accepted version {{version}} and is in the contract stage now.\n\nNext: prepare the contract. Open their profile and the contract card: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.\n\n{{link}}',
-          {
-            ...vars,
-            entity:
-              (job.entityId === null ? null : await ctx.tx.entities.get(job.entityId))?.name ??
-              settings.companyName,
-            link,
-          },
-        )
-      : t(
-          'email.offer.team_declined_body',
-          '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
-          { ...vars, link },
-        ),
+    t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
+    t(
+      'email.offer.team_declined_body',
+      '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
+      { ...vars, link },
+    ),
     `offer-${offer.state}:${offer.id}:${String(version)}`,
   );
 }
 
+/** Where the contract of an accepted offer is drawn, checked and sent to sign. */
+export const contractPage = (offerId: string): string => `/recruiting/offers/${offerId}/contract`;
+
 /** The job's recruiters and hiring manager, who hear each step of a hire. */
-async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
+export async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
   return (await ctx.tx.jobs.team(jobId))
     .filter((m) => m.role === 'recruiter' || m.role === 'hiring_manager')
     .map((m) => m.personId);
@@ -712,9 +726,7 @@ async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
 
 /** A page of the tenant app, on the company's own host when the chat apps know it. */
 async function appLink(ctx: Ctx, path: string): Promise<string> {
-  const base = ctx.deps.chat?.appBase;
-  if (base === undefined) return path;
-  return `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return (await appUrl(ctx, path)) ?? path;
 }
 
 /**

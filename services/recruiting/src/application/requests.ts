@@ -8,7 +8,7 @@ import { portalLink } from './intake.js';
 import { bookInterview, byDay, keepAgenda } from './interviews.js';
 import { loadApplication, sendNow, type Loaded } from './moves.js';
 import type { ApplicationRecord } from './ports.js';
-import { tellMembers } from './notify.js';
+import { appUrl, tellMembers } from './notify.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -48,10 +48,7 @@ const jobTitle = async (ctx: Ctx, loaded: Loaded): Promise<string> =>
 /** Where the team opens it: the tenant app when its address is known (as the chat app's links), else the path. */
 async function candidateLink(ctx: Ctx, loaded: Loaded): Promise<string> {
   const path = `/recruiting/candidates/${loaded.candidate.id}?application=${loaded.app.id}&tab=process`;
-  const base = ctx.deps.chat?.appBase;
-  return base === undefined
-    ? path
-    : `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return (await appUrl(ctx, path)) ?? path;
 }
 
 /** R16: offer the candidate one or several fixed times; they pick one or ask for others. */

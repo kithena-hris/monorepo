@@ -35,7 +35,9 @@ async function startConsumers(
   const handle = recruitingConsumer(deps.uow, deps);
   const consumers = await Promise.all([
     consume(new Kafka(kafka), 'recruiting', PersonHired.topic, handle),
-    consume(new Kafka(kafka), 'recruiting-identity', TenantAdministratorNamed.topic, handle),
+    // `-2`: read identity's topic again from the start, for the company's host
+    // (`identity.tenant.provisioned`), which Recruiting ignored before.
+    consume(new Kafka(kafka), 'recruiting-identity-2', TenantAdministratorNamed.topic, handle),
     consume(new Kafka(kafka), 'recruiting-documents', EnvelopeCompleted.topic, handle),
   ]);
   return {

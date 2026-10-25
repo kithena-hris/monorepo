@@ -19,7 +19,9 @@ import {
   PersonTerminated,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantAmended,
   TenantEntitlementsChanged,
+  TenantProvisioned,
   type CalendarDate,
   type EventDefinition,
   type EventEnvelope,
@@ -360,6 +362,26 @@ export function recruitingConsumer(
             parentId: p.parentId,
             source: 'people',
           });
+          return 'applied';
+        });
+      }
+      /*
+       * The label the company's app is served on, for the links Recruiting's
+       * emails carry (`hostSlug`). The newest wins, as entitlements do.
+       */
+      case TenantProvisioned.name:
+      case TenantAmended.name: {
+        const event =
+          name === TenantProvisioned.name
+            ? parse(TenantProvisioned, raw)
+            : parse(TenantAmended, raw);
+        if (!event) return 'rejected';
+        return uow.run(event.tenantId, async (tx) => {
+          const kept = (await tx.settings.get('host')) as { asOf: string } | null;
+          if (kept !== null && Date.parse(kept.asOf) >= Date.parse(event.occurredAt)) {
+            return 'unchanged';
+          }
+          await tx.settings.set('host', { slug: event.payload.slug, asOf: event.occurredAt });
           return 'applied';
         });
       }

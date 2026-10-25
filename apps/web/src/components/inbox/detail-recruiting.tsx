@@ -12,8 +12,8 @@ import { t as tr } from '../../lib/t';
  * Recruiting's items in the Inbox. One is acted on here: the times a
  * candidate gave through a scheduling link (`recruiting.choose-time`), one of
  * which is booked with the where and agenda chosen when the link was sent;
- * or none, and the candidate is asked for others. Everything else opens in
- * Recruiting.
+ * or none, and the candidate is asked for others. An accepted offer's task
+ * opens its contract. Everything else opens in Recruiting.
  */
 
 const DAY = (zone: string) =>
@@ -166,6 +166,21 @@ function ChooseTime({ item, act, zone }: BodyProps): JSX.Element {
 export function RecruitingBody(props: BodyProps): JSX.Element {
   if (props.item.kind === 'recruiting.choose-time' && props.item.lane === 'task')
     return <ChooseTime {...props} />;
+  if (props.item.kind === 'recruiting.create-contract')
+    return (
+      <div className="flex flex-col gap-5">
+        {props.item.summary === null ? null : (
+          <p className="text-base text-fg-muted">{props.item.summary}</p>
+        )}
+        <Actions>
+          <Button asChild variant="primary">
+            <a href={props.item.link}>
+              {tr('components.inbox.detail-recruiting.create_the_contract', 'Create the contract')}
+            </a>
+          </Button>
+        </Actions>
+      </div>
+    );
   return (
     <Actions>
       <Button asChild>

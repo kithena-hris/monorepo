@@ -1567,11 +1567,36 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(read.setting.contract?.about).toEqual(expect.any(String));
     expect(read.setting.contract?.terms?.contractType).toEqual(expect.any(String));
     expect(read.setting.contract?.rules.length).toBeGreaterThan(0);
+  });
+  // Accepted with the company's host known, as identity announces it: the team's email opens the contract there.
+  await uow.run(tenantId, (tx) =>
+    tx.settings.set('host', { slug: 'acme-host', asOf: '2026-01-01T00:00:00.000Z' }),
+  );
+  const chatting: Deps = {
+    ...deps,
+    chat: { token: 't', appBase: 'https://{slug}.app.example', send: () => Promise.resolve() },
+  };
+  await uow.run(tenantId, async (tx) => {
+    const ctx = await contextOf(chatting, tx, callerOf('public'), mailed);
+    const candidate = await candidateByToken(ctx, token);
+    const read = value(await offerForCandidate(ctx, candidate?.id ?? '', offer.id));
     expect(
       value(await candidateAccepts(ctx, candidate?.id ?? '', offer.id, read.hash, '203.0.113.9'))
         .state,
     ).toBe('accepted');
   });
+  const toTeam = mailed.findLast((m) => m.subject.includes('accepted the offer'));
+  expect(toTeam?.parts?.action?.href).toBe(
+    `https://acme-host.app.example/recruiting/offers/${offer.id}/contract`,
+  );
+  // And a task in the Inbox, with the same way to the contract, until the contract is out.
+  const toCreate = async () =>
+    (await as('marco', (ctx) => recruitingInbox(ctx))).items.filter(
+      (i) => i.kind === 'recruiting.create-contract',
+    );
+  const task = (await toCreate())[0];
+  expect(task?.link).toBe(`/recruiting/offers/${offer.id}/contract`);
+  expect(InboxItem.safeParse(task).success).toBe(true);
   // Accepted is the contract stage: the contract is prepared and signed there, and the signature hires.
   await as('ada', async (ctx) => {
     const app = await ctx.tx.applications.get(applied.applicationId);
@@ -1588,6 +1613,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const app = await ctx.tx.applications.get(applied.applicationId);
     expect(app?.outcome).toBe('hired');
   });
+  expect(await toCreate()).toEqual([]);
   // Whatever the country's pack made a condition (a right-to-work check, say) is checked and met.
   await as('ada', async (ctx) => {
     for (const c of (await ctx.tx.prehires.get(applied.applicationId))?.conditions ?? [])
