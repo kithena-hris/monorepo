@@ -447,6 +447,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Reservar e enviar o convite",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Marcado: {{first}}, {{day}} às {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Candidato",
+  "components.inbox.detail-recruiting.create_the_contract": "Criar o contrato",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} tem o convite com a ligação da reunião",
   "components.inbox.detail-recruiting.interview": "Entrevista",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Nenhum serve: pedir mais horários",

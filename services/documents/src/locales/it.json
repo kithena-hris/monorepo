@@ -6,5 +6,6 @@
   "inbox.inbox.documents": "Documenti",
   "inbox.inbox.read_and_acknowledge": "Leggi e conferma {{value}}",
   "inbox.inbox.sign": "Firma {{value}}",
+  "inbox.inbox.signed_your_turn": "{{names}} ha firmato. Tocca a te firmare.",
   "inbox.inbox.someone": "Qualcuno"
 }

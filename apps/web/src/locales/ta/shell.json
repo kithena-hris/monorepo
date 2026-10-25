@@ -433,6 +433,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "முன்பதிவு செய்து அழைப்பை அனுப்பவும்",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "முன்பதிவானது: {{first}}, {{day}} அன்று {{hour}} மணிக்கு",
   "components.inbox.detail-recruiting.candidate": "விண்ணப்பதாரர்",
+  "components.inbox.detail-recruiting.create_the_contract": "ஒப்பந்தத்தை உருவாக்குங்கள்",
   "components.inbox.detail-recruiting.first_has_the_invitation": "சந்திப்பு இணைப்புடன் கூடிய அழைப்பு {{first}} இடம் உள்ளது",
   "components.inbox.detail-recruiting.interview": "நேர்காணல்",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "எதுவும் பொருந்தவில்லை: மேலும் நேரங்களைக் கேட்கவும்",

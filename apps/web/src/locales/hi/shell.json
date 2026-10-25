@@ -434,6 +434,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "बुक करें और न्योता भेजें",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "बुक हुआ: {{first}}, {{day}} को {{hour}} बजे",
   "components.inbox.detail-recruiting.candidate": "उम्मीदवार",
+  "components.inbox.detail-recruiting.create_the_contract": "अनुबंध बनाएं",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} के पास मीटिंग लिंक वाला न्योता है",
   "components.inbox.detail-recruiting.interview": "इंटरव्यू",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "कोई काम नहीं करता: और समय माँगें",

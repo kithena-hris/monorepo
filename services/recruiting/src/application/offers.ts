@@ -10,7 +10,7 @@ import type {
 
 import { may, worksCouncilMay } from '../domain/access/access.js';
 import { hire as hireApplication, toContract } from '../domain/pipeline/application.js';
-import { withContractStage } from '../domain/pipeline/pipeline.js';
+import { withContractStage, withHiredStage } from '../domain/pipeline/pipeline.js';
 import {
   isEligible,
   offerBenefits,
@@ -670,41 +670,55 @@ async function tellReaction(ctx: Ctx, offer: Offer, app: ApplicationRecord): Pro
       ],
     },
   );
-  const link = await appLink(
-    ctx,
-    accepted
-      ? `/recruiting/candidates/${candidate.id}?application=${app.id}`
-      : `/recruiting/offers/${offer.id}`,
-  );
+  if (accepted) {
+    // One email, one button: the contract, which the Inbox task opens too.
+    const href = await appUrl(ctx, contractPage(offer.id));
+    const entity =
+      (job.entityId === null ? null : await ctx.tx.entities.get(job.entityId))?.name ??
+      settings.companyName;
+    await tellMembers(
+      ctx,
+      await hiringTeam(ctx, job.id),
+      t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars),
+      t(
+        'email.offer.team_accepted_next',
+        '{{name}} accepted version {{version}} of the offer and is in the contract stage now. Create the contract next: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.',
+        { ...vars, entity },
+      ),
+      `offer-${offer.state}:${offer.id}:${String(version)}`,
+      {
+        heading: t('email.offer.team_accepted_heading', 'Offer accepted'),
+        facts: [
+          { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+          { label: t('email.offer.role', 'Role'), value: job.title },
+          { label: t('email.offer.version', 'Version'), value: String(version) },
+        ],
+        ...(href === null
+          ? {}
+          : { action: { label: t('email.offer.create_contract', 'Create the contract'), href } }),
+      },
+    );
+    return;
+  }
+  const link = await appLink(ctx, `/recruiting/offers/${offer.id}`);
   await tellMembers(
     ctx,
     await hiringTeam(ctx, job.id),
-    accepted
-      ? t('email.offer.team_accepted', '{{name}} accepted the offer for {{job}}', vars)
-      : t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
-    accepted
-      ? t(
-          'email.offer.team_accepted_contract',
-          '{{name}} accepted version {{version}} and is in the contract stage now.\n\nNext: prepare the contract. Open their profile and the contract card: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.\n\n{{link}}',
-          {
-            ...vars,
-            entity:
-              (job.entityId === null ? null : await ctx.tx.entities.get(job.entityId))?.name ??
-              settings.companyName,
-            link,
-          },
-        )
-      : t(
-          'email.offer.team_declined_body',
-          '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
-          { ...vars, link },
-        ),
+    t('email.offer.team_declined', '{{name}} declined the offer for {{job}}', vars),
+    t(
+      'email.offer.team_declined_body',
+      '{{name}} declined version {{version}}.\n\nTheir reason: “{{reason}}”\n\nChange the terms and send a new version from the offer.\n\n{{link}}',
+      { ...vars, link },
+    ),
     `offer-${offer.state}:${offer.id}:${String(version)}`,
   );
 }
 
+/** Where the contract of an accepted offer is drawn, checked and sent to sign. */
+export const contractPage = (offerId: string): string => `/recruiting/offers/${offerId}/contract`;
+
 /** The job's recruiters and hiring manager, who hear each step of a hire. */
-async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
+export async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
   return (await ctx.tx.jobs.team(jobId))
     .filter((m) => m.role === 'recruiter' || m.role === 'hiring_manager')
     .map((m) => m.personId);
@@ -712,9 +726,7 @@ async function hiringTeam(ctx: Ctx, jobId: string): Promise<string[]> {
 
 /** A page of the tenant app, on the company's own host when the chat apps know it. */
 async function appLink(ctx: Ctx, path: string): Promise<string> {
-  const base = ctx.deps.chat?.appBase;
-  if (base === undefined) return path;
-  return `${base.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return (await appUrl(ctx, path)) ?? path;
 }
 
 /**
@@ -960,10 +972,65 @@ export async function contractSignedByEnvelope(
 ): Promise<Result<true>> {
   const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
   if (contract === null) return ok(true);
+  // Signed before, with the hire refused then: the application still waits, so hire it now.
+  if (contract.state === 'signed' && contract.subjectRef === subjectRef) {
+    const offer = await ctx.tx.offers.get(contract.offerId);
+    const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+    if (app?.outcome !== 'active') return ok(true);
+    return hireFromContract(ctx, contract, signatures);
+  }
   const signed = signedByEnvelope(contract, subjectRef, on);
   if (!signed.ok) return signed;
+  // Hired first: a refused hire leaves the contract out for signature, so the event is applied again.
+  const hired = await hireFromContract(ctx, signed.value, signatures);
+  if (!hired.ok) return hired;
   await ctx.tx.contracts.save({ ...signed.value, fileId: contract.fileId });
-  return hireFromContract(ctx, signed.value, signatures);
+  return hired;
+}
+
+/**
+ * The candidate signed the contract in Documents and the company's turn came:
+ * whoever signs for it hears who signed, with a button to the envelope. The
+ * Inbox task is Documents' own ("Sign …"), so nobody holds two.
+ */
+export async function candidateSignedContract(
+  ctx: Ctx,
+  subjectRef: string,
+  envelopeId: string,
+  turn: readonly string[],
+): Promise<Result<true>> {
+  const contract = await ctx.tx.contracts.bySubjectRef(subjectRef);
+  if (contract?.state !== 'out_for_signature' || turn.length === 0) return ok(true);
+  const offer = await ctx.tx.offers.get(contract.offerId);
+  const app = offer === null ? null : await ctx.tx.applications.get(offer.applicationId);
+  const candidate = app === null ? null : await ctx.tx.candidates.get(app.candidateId);
+  const job = app === null ? null : await ctx.tx.jobs.get(app.jobId);
+  if (candidate === null || job === null) return ok(true);
+  const { t } = await mailWords(ctx);
+  const vars = { name: candidate.name, job: job.title };
+  const href = await appUrl(ctx, `/documents/envelopes/${envelopeId}`);
+  await tellMembers(
+    ctx,
+    turn,
+    t('email.contract.your_turn_subject', '{{name}} signed the contract: your turn', vars),
+    t(
+      'email.contract.your_turn_body',
+      '{{name}} signed the contract for {{job}}. It is your turn to sign for the company. Once you sign, they are hired.',
+      vars,
+    ),
+    `contract-turn:${envelopeId}`,
+    {
+      heading: t('email.contract.your_turn_heading', 'Your turn to sign'),
+      facts: [
+        { label: t('email.offer.candidate', 'Candidate'), value: candidate.name },
+        { label: t('email.offer.role', 'Role'), value: job.title },
+      ],
+      ...(href === null
+        ? {}
+        : { action: { label: t('email.contract.sign_action', 'Sign the contract'), href } }),
+    },
+  );
+  return ok(true);
 }
 
 /** A signed copy uploaded by HR: wet ink, or no Documents (PRD §21.2). */
@@ -1041,7 +1108,10 @@ async function placeHire(
   app: ApplicationRecord,
   job: JobRecord,
 ): Promise<Result<true>> {
-  const stages = await ctx.tx.jobs.stages(job.id);
+  // A pipeline without a hired stage gains one, as one without a contract stage does.
+  const before = await ctx.tx.jobs.stages(job.id);
+  const stages = withHiredStage(before, ctx.deps.newId);
+  if (stages.length !== before.length) await ctx.tx.jobs.setStages(job.id, stages);
   const hired = hireApplication(app, stages, 'system', ctx.at, ctx.deps.newId());
   if (!hired.ok) return hired;
   await ctx.tx.applications.save(

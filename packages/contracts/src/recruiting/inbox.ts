@@ -28,6 +28,8 @@ export const RECRUITING_INBOX_KINDS = {
   worksCouncil: 'recruiting.works-council',
   /** A candidate gave times through a scheduling link: choose one, or ask for more. */
   chooseTime: 'recruiting.choose-time',
+  /** A candidate accepted: create the contract and send it to sign. */
+  createContract: 'recruiting.create-contract',
 } as const;
 
 export const RecruitingApprovalDetail = z.object({

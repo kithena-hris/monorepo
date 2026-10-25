@@ -4,5 +4,6 @@
   "inbox.inbox.asked_to_open": "{{displayName}} demande à ouvrir {{value}}",
   "inbox.inbox.read_and_acknowledge": "Lire et confirmer {{value}}",
   "inbox.inbox.sign": "Signer {{value}}",
+  "inbox.inbox.signed_your_turn": "{{names}} a signé. À vous de signer.",
   "inbox.inbox.someone": "Quelqu’un"
 }

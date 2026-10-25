@@ -465,6 +465,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Забронировать и отправить приглашение",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Забронировано: {{first}}, {{day}} в {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Кандидат",
+  "components.inbox.detail-recruiting.create_the_contract": "Создать договор",
   "components.inbox.detail-recruiting.first_has_the_invitation": "У {{first}} есть приглашение со ссылкой на встречу",
   "components.inbox.detail-recruiting.interview": "Собеседование",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Ничего не подходит: запросить другие варианты",

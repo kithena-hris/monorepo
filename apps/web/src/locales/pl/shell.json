@@ -460,6 +460,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Zarezerwuj i wyślij zaproszenie",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Zarezerwowano: {{first}}, {{day}} o {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Kandydat",
+  "components.inbox.detail-recruiting.create_the_contract": "Utwórz umowę",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} ma zaproszenie z linkiem do spotkania",
   "components.inbox.detail-recruiting.interview": "Rozmowa",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Żaden nie pasuje: poproś o inne terminy",

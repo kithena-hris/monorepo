@@ -20,6 +20,7 @@ import {
   sendAt,
   validatePipeline,
   withContractStage,
+  withHiredStage,
   withWorksCouncil,
   type Stage,
 } from './pipeline.js';
@@ -100,6 +101,13 @@ describe('pipelines (PRD §12.1)', () => {
     });
     expect(withContractStage(stages, () => 'never')).toEqual(stages);
     expect(validatePipeline(added).ok).toBe(true);
+  });
+
+  it('gives a pipeline without a hired stage one at its end, so a signed contract can hire', () => {
+    const before = stages.filter((s) => s.category !== 'hired');
+    const added = withHiredStage(before, () => 'h');
+    expect(added.at(-1)).toMatchObject({ id: 'h', name: 'Hired', category: 'hired' });
+    expect(withHiredStage(stages, () => 'never')).toEqual(stages);
   });
 
   it('tells a knockout the next working day at 09:00 in the candidate’s zone, never the same day', () => {

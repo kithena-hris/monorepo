@@ -1857,8 +1857,9 @@ function DebriefBody({
               loading={act.pending}
               onClick={() => {
                 act.run('DecideApplication', { applicationId, input: { decision, reason } }, () => {
-                  if (decision === 'offer')
-                    props.onNavigate?.(`/recruiting/offers/new?application=${applicationId}`);
+                  if (decision !== 'offer') return undefined;
+                  props.onNavigate?.(`/recruiting/offers/new?application=${applicationId}`);
+                  return 'left';
                 });
               }}
             >

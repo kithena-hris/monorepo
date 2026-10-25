@@ -254,8 +254,10 @@ function Editor({
   const save = (after?: () => void): void => {
     const { approval: _a, hiringManager: _h, ...input } = value();
     act.run('SaveRequisition', { requisitionId: r.id, input }, () => {
-      if (isNew) props.onNavigate?.(`/recruiting/requisitions/${r.id}`);
       after?.();
+      if (!isNew) return undefined;
+      props.onNavigate?.(`/recruiting/requisitions/${r.id}`);
+      return 'left';
     });
   };
   return (

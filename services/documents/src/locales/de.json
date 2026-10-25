@@ -6,5 +6,6 @@
   "inbox.inbox.documents": "Dokumente",
   "inbox.inbox.read_and_acknowledge": "{{value}} lesen und bestätigen",
   "inbox.inbox.sign": "{{value}} unterschreiben",
+  "inbox.inbox.signed_your_turn": "{{names}} hat unterschrieben. Sie sind an der Reihe.",
   "inbox.inbox.someone": "Jemand"
 }

@@ -443,6 +443,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Reservar i enviar la invitació",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Reservat: {{first}}, el {{day}} a les {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Candidat",
+  "components.inbox.detail-recruiting.create_the_contract": "Crea el contracte",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} té la invitació amb l’enllaç de la reunió",
   "components.inbox.detail-recruiting.interview": "Entrevista",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Cap va bé: demanar més horaris",

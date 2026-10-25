@@ -1767,6 +1767,10 @@
     "text": "Candidate",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the items of <KeyValues>."
   },
+  "components.inbox.detail-recruiting.create_the_contract": {
+    "text": "Create the contract",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, RecruitingBody: text inside <a>."
+  },
   "components.inbox.detail-recruiting.first_has_the_invitation": {
     "text": "{{first}} has the invitation with the meeting link",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-recruiting.tsx, ChooseTime: the onClick of <Button>. Filled in: {{first}}."

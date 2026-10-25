@@ -5,6 +5,7 @@ import { approvalState } from '../domain/requisition/requisition.js';
 import type { Ctx } from './context.js';
 import { editable } from './jobs.js';
 import type { ChatMessage, InterviewRecord } from './ports.js';
+import { appUrl } from './notify.js';
 import { generalSettings } from './setup.js';
 
 /**
@@ -36,9 +37,7 @@ export interface Press {
 }
 
 async function link(ctx: Ctx, path: string): Promise<string | null> {
-  const chat = ctx.deps.chat;
-  if (chat === undefined) return null;
-  return `${chat.appBase.replace('{slug}', (await generalSettings(ctx)).companySlug)}${path}`;
+  return appUrl(ctx, path);
 }
 
 async function tell(ctx: Ctx, message: ChatMessage): Promise<void> {

@@ -21,7 +21,7 @@ import { archivedAt, internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
-import { checkOffer } from './offers.js';
+import { checkOffer, contractPage, hiringTeam } from './offers.js';
 import { generalSettings } from './setup.js';
 import { builtInEmails } from './emails.js';
 import { jobChannel } from './chat.js';
@@ -827,6 +827,36 @@ export async function recruitingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         .slice(0, 10) as InboxItem['due'],
       dueVerb: 'due',
       link: `/recruiting/interviews/${i.id}`,
+      openIn: t('inbox.screens.recruiting', 'Recruiting'),
+    });
+  }
+  // An offer accepted: its contract to create and send, for the job's recruiters and hiring manager, until it is out.
+  for (const offer of await ctx.tx.offers.list()) {
+    if (offer.state !== 'accepted' || offer.acceptance === null) continue;
+    const contract = await ctx.tx.contracts.forOffer(offer.id);
+    if (contract !== null && contract.state !== 'generated') continue;
+    const app = await ctx.tx.applications.get(offer.applicationId);
+    if (app?.outcome !== 'active' || !(await hiringTeam(ctx, app.jobId)).includes(person)) continue;
+    const candidate = await ctx.tx.candidates.get(app.candidateId);
+    const job = await ctx.tx.jobs.get(app.jobId);
+    const name = candidate?.name ?? t('inbox.screens.a_candidate', 'a candidate');
+    items.push({
+      ...base,
+      id: `recruiting:create-contract:${offer.id}`,
+      lane: 'task',
+      kind: RECRUITING_INBOX_KINDS.createContract,
+      module: 'recruiting',
+      icon: 'document',
+      title: t('inbox.screens.accepted_the_offer', '{{name}} accepted the offer', { name }),
+      summary: t(
+        'inbox.screens.create_the_contract_for',
+        'Create the contract for {{title}} and send it to sign.',
+        { title: job?.title ?? t('inbox.screens.the_role', 'the role') },
+      ),
+      at: offer.acceptance.at as Instant,
+      due: null,
+      dueVerb: 'due',
+      link: contractPage(offer.id),
       openIn: t('inbox.screens.recruiting', 'Recruiting'),
     });
   }

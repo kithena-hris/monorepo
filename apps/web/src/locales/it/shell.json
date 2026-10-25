@@ -438,6 +438,7 @@
   "components.inbox.detail-recruiting.book_and_send_the_invitation": "Prenota e invia l’invito",
   "components.inbox.detail-recruiting.booked_first_day_at_hour": "Prenotato: {{first}}, {{day}} alle {{hour}}",
   "components.inbox.detail-recruiting.candidate": "Candidato",
+  "components.inbox.detail-recruiting.create_the_contract": "Crea il contratto",
   "components.inbox.detail-recruiting.first_has_the_invitation": "{{first}} ha l’invito con il link della riunione",
   "components.inbox.detail-recruiting.interview": "Colloquio",
   "components.inbox.detail-recruiting.none_works_ask_for_more_times": "Nessuno va bene: chiedi altri orari",

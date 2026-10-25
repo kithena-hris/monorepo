@@ -135,6 +135,10 @@
     "text": "What to expect next: {{stage}} with {{company}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
   },
+  "email.contract.sign_action": {
+    "text": "Sign the contract",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
   "email.contract.signed_heading": {
     "text": "Contract signed",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
@@ -157,6 +161,18 @@
   },
   "email.contract.you_signed_body": {
     "text": "Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.contract.your_turn_body": {
+    "text": "{{name}} signed the contract for {{job}}. It is your turn to sign for the company. Once you sign, they are hired.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.contract.your_turn_heading": {
+    "text": "Your turn to sign",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.contract.your_turn_subject": {
+    "text": "{{name}} signed the contract: your turn",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
   "email.emails.see_your_application": {
@@ -415,6 +431,14 @@
     "text": "Approve an offer: {{name}}, {{job}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
+  "email.offer.candidate": {
+    "text": "Candidate",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.offer.create_contract": {
+    "text": "Create the contract",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
   "email.offer.declined_heading": {
     "text": "Offer declined",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
@@ -431,9 +455,13 @@
     "text": "{{name}} accepted the offer for {{job}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
-  "email.offer.team_accepted_contract": {
-    "text": "{{name}} accepted version {{version}} and is in the contract stage now.\n\nNext: prepare the contract. Open their profile and the contract card: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.\n\n{{link}}",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{entity}}, {{link}}."
+  "email.offer.team_accepted_heading": {
+    "text": "Offer accepted",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.offer.team_accepted_next": {
+    "text": "{{name}} accepted version {{version}} of the offer and is in the contract stage now. Create the contract next: Kithena drafts it from the accepted terms and the law of {{entity}}, you check every fact, and send it to sign.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{entity}}."
   },
   "email.offer.team_declined": {
     "text": "{{name}} declined the offer for {{job}}",
@@ -625,7 +653,11 @@
   },
   "inbox.screens.a_candidate": {
     "text": "a candidate",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"name\" value."
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: text built in code."
+  },
+  "inbox.screens.accepted_the_offer": {
+    "text": "{{name}} accepted the offer",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"title\" value. Filled in: {{name}}."
   },
   "inbox.screens.approve_an_offer": {
     "text": "Approve an offer",
@@ -638,6 +670,10 @@
   "inbox.screens.choose_a_time": {
     "text": "Choose a time: {{name}}, {{value}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"title\" value. Filled in: {{name}}, {{value}}."
+  },
+  "inbox.screens.create_the_contract_for": {
+    "text": "Create the contract for {{title}} and send it to sign.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"summary\" value. Filled in: {{title}}."
   },
   "inbox.screens.recruiting": {
     "text": "Recruiting",

@@ -27,6 +27,10 @@
     "text": "Sign {{value}}",
     "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"title\" value. Filled in: {{value}}."
   },
+  "inbox.inbox.signed_your_turn": {
+    "text": "{{names}} signed. Your turn to sign.",
+    "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"summary\" value. Filled in: {{names}}."
+  },
   "inbox.inbox.someone": {
     "text": "Someone",
     "context": "Documents’ own words for the person reading: their Inbox tasks (a document to sign, read or upload). application/inbox.ts: a \"displayName\" value."

@@ -49,6 +49,8 @@ export default ModuleManifest.parse({
     'people.person.profile_updated',
     'people.person.status_changed',
     'people.person.identity_linked',
+    'identity.tenant.provisioned',
+    'identity.tenant.amended',
     'identity.tenant.administrator_named',
     'identity.tenant.administrator_removed',
     'identity.tenant.entitlements_changed',
