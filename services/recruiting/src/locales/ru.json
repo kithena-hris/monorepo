@@ -71,6 +71,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Здравствуйте, {{name}}!\n\nЭто собеседование отменено.",
   "email.interviews.in_place_of_the_ones_before": ", вместо прежних",
   "email.interviews.interview": "Собеседование",
+  "email.interviews.join_at": "Подключиться к встрече: {{link}}",
   "email.interviews.join_the_meeting": "Присоединиться к встрече",
   "email.interviews.length": "Длительность",
   "email.interviews.length_2": "Длительность",

@@ -70,6 +70,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Dzień dobry, {{name}},\n\nta rozmowa została odwołana.",
   "email.interviews.in_place_of_the_ones_before": ", w miejsce poprzednich",
   "email.interviews.interview": "Rozmowa",
+  "email.interviews.join_at": "Dołącz do spotkania: {{link}}",
   "email.interviews.join_the_meeting": "Dołącz do spotkania",
   "email.interviews.length": "Czas trwania",
   "email.interviews.length_2": "Czas trwania",

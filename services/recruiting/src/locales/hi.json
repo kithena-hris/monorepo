@@ -69,6 +69,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "नमस्ते {{name}},\n\nयह इंटरव्यू रद्द कर दिया गया है।",
   "email.interviews.in_place_of_the_ones_before": ", पहले वालों की जगह",
   "email.interviews.interview": "इंटरव्यू",
+  "email.interviews.join_at": "मीटिंग में शामिल हों: {{link}}",
   "email.interviews.join_the_meeting": "मीटिंग में शामिल हों",
   "email.interviews.length": "अवधि",
   "email.interviews.length_2": "अवधि",

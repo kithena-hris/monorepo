@@ -1219,9 +1219,7 @@ function Scorecards({
       {cards.map((c) => {
         const ratings = Object.entries(c.ratings);
         const average =
-          ratings.length === 0
-            ? null
-            : ratings.reduce((a, [, b]) => a + b, 0) / ratings.length;
+          ratings.length === 0 ? null : ratings.reduce((a, [, b]) => a + b, 0) / ratings.length;
         const name = names[c.interviewerId] ?? tr('candidate.an_interviewer', 'An interviewer');
         const notes = c.notes ?? null;
         return (
@@ -1390,10 +1388,7 @@ export function Spotlight({
   const [askDetail, setAskDetail] = useState('');
   const [telling, setTelling] = useState(false);
   const [tellMessage, setTellMessage] = useState<ComposedEmail | null>(null);
-  const [moving, setMoving] = useState<{ to: string; name: string; interview: boolean } | null>(
-    null,
-  );
-  const [interviewType, setInterviewType] = useState('');
+  const [moving, setMoving] = useState<{ to: string; name: string } | null>(null);
   const [moveEmailing, setMoveEmailing] = useState(true);
   const [moveMessage, setMoveMessage] = useState<ComposedEmail | null>(null);
   const [pooling, setPooling] = useState(false);
@@ -1476,8 +1471,7 @@ export function Spotlight({
     const target = chosen.stages.find((s) => s.id === to);
     if (target === undefined || to === chosen.stageId) return;
     setMoveMessage(null);
-    setInterviewType('');
-    setMoving({ to, name: target.name, interview: target.category === 'interview' });
+    setMoving({ to, name: target.name });
   };
   // Stages a person may move to from here: not the ones the process reaches on its own.
   const movable = (category: Category): boolean =>
@@ -2027,20 +2021,6 @@ export function Spotlight({
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-4">
-            {moving?.interview === true ? (
-              <Field required>
-                <FieldLabel>{tr('candidate.which_interview', 'Which interview')}</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={interviewType}
-                    onChange={(e) => {
-                      setInterviewType(e.target.value);
-                    }}
-                    placeholder={tr('candidate.technical_interview', 'Technical interview')}
-                  />
-                </FieldControl>
-              </Field>
-            ) : null}
             <EmailComposer
               applicationId={chosen.applicationId}
               purpose="selection"
@@ -2064,11 +2044,10 @@ export function Spotlight({
             <Button
               loading={act.pending}
               disabled={
-                (moving?.interview === true && interviewType.trim() === '') ||
-                (moveEmailing &&
-                  (moveMessage === null ||
-                    moveMessage.subject.trim() === '' ||
-                    moveMessage.body.trim() === ''))
+                moveEmailing &&
+                (moveMessage === null ||
+                  moveMessage.subject.trim() === '' ||
+                  moveMessage.body.trim() === '')
               }
               onClick={() => {
                 if (moving === null) return;
@@ -2078,7 +2057,6 @@ export function Spotlight({
                     applicationId: chosen.applicationId,
                     input: {
                       to: moving.to,
-                      ...(moving.interview ? { interviewType: interviewType.trim() } : {}),
                       message: moveEmailing ? moveMessage : null,
                     },
                   },

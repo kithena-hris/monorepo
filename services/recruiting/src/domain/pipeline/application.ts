@@ -85,8 +85,6 @@ export function receive(input: {
 
 /** What a move needs to ask, and what it opens (PRD §12.2). */
 export interface MoveNeeds {
-  /** Entering an interview stage asks which interview. */
-  readonly interviewType?: string;
   /** For a DE job with a works council: § 99 consent given or deemed. */
   readonly worksCouncilCleared?: boolean;
   /** Entering the contract stage: the candidate accepted an offer. */
@@ -132,9 +130,6 @@ export function moveTo(
         'A candidate reaches the contract stage by accepting an offer',
       ),
     );
-  }
-  if (target.category === 'interview' && needs.interviewType === undefined) {
-    return err(failure('NEEDS_INTERVIEW_TYPE', 'Say which interview this is'));
   }
   const council = stages.some((s) => s.category === 'works_council');
   if (target.category === 'offer' && council && needs.worksCouncilCleared !== true) {

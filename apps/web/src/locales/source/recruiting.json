@@ -1119,10 +1119,6 @@
     "text": "Talent pools",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
   },
-  "candidate.technical_interview": {
-    "text": "Technical interview",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the placeholder of <Input>."
-  },
   "candidate.tell_them_what_to_expect": {
     "text": "Tell them what to expect",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <DialogTitle>."
@@ -1201,10 +1197,6 @@
   },
   "candidate.what_you_need": {
     "text": "What you need",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
-  },
-  "candidate.which_interview": {
-    "text": "Which interview",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <FieldLabel>."
   },
   "candidate.without_consent_they_are_asked_first": {
@@ -5675,10 +5667,6 @@
     "text": "Board",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SegmentedControlItem>."
   },
-  "pipeline.cancel": {
-    "text": "Cancel",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <Button>."
-  },
   "pipeline.candidate": {
     "text": "Candidate",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx: a \"header\" value."
@@ -5723,10 +5711,6 @@
     "text": "In stage",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx: a \"header\" value."
   },
-  "pipeline.interview": {
-    "text": "Interview",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <FieldLabel>."
-  },
   "pipeline.knockout_to_review": {
     "text": "Knockout to review",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <Badge>."
@@ -5766,10 +5750,6 @@
   "pipeline.moved_to": {
     "text": "{{name}} moved to {{stage}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, UndoBar: text inside <span>. Filled in: {{name}}, {{stage}}."
-  },
-  "pipeline.moves_to_an_interview_stage": {
-    "text": "{{name}} moves to an interview stage.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <DialogDescription>. Filled in: {{name}}."
   },
   "pipeline.name": {
     "text": "Name",
@@ -5883,10 +5863,6 @@
     "text": "Table",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SegmentedControlItem>."
   },
-  "pipeline.technical_interview": {
-    "text": "Technical interview",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: the placeholder of <Input>."
-  },
   "pipeline.text": {
     "text": "{{title}} {{startsAt}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, CandidateCard: text inside <span>. Filled in: {{title}}, {{startsAt}}."
@@ -5910,10 +5886,6 @@
   "pipeline.weak_matches": {
     "text": "Weak matches",
     "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <SelectItem>."
-  },
-  "pipeline.which_interview": {
-    "text": "Which interview?",
-    "context": "Recruiting: jobs, candidates, interviews, offers. pipeline.tsx, Pipeline: text inside <DialogTitle>."
   },
   "reject-dialog.add_to_a_talent_pool": {
     "text": "Add to a talent pool",

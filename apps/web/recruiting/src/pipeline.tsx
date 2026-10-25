@@ -6,17 +6,6 @@ import {
   Card,
   DataTable,
   type DataColumn,
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Field,
-  FieldControl,
-  FieldLabel,
-  Input,
   Kanban,
   ModalPage,
   ModalPageContent,
@@ -300,8 +289,6 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
   const act = useAct(props);
   const [rejecting, setRejecting] = useState<Rejecting | null>(null);
   const [found, setFound] = useState<readonly Rediscovered[] | null>(null);
-  const [asking, setAsking] = useState<{ card: CardData; to: string } | null>(null);
-  const [interviewType, setInterviewType] = useState('');
   const [undo, setUndo] = useState<{
     name: string;
     stage: string;
@@ -385,19 +372,16 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
         const at = order.findIndex((c) => c.applicationId === openId);
         const previous = at > 0 ? order[at - 1] : undefined;
         const following = at >= 0 ? order[at + 1] : undefined;
-        const move = (card: CardData, to: string, type?: string): void => {
+        // The step's interviews are planned with the job, so entering it asks nothing.
+        const move = (card: CardData, to: string): void => {
           const stage = data.stages.find((s) => s.id === to);
           if (stage === undefined) return;
-          if (stage.category === 'interview' && type === undefined) {
-            setAsking({ card, to });
-            return;
-          }
           setPlaced((held) => ({ ...held, [card.applicationId]: to }));
           act.run(
             'MoveApplication',
             {
               applicationId: card.applicationId,
-              input: { to, ...(type === undefined ? {} : { interviewType: type }) },
+              input: { to },
             },
             (answer) => {
               const moved = answer as {
@@ -872,61 +856,6 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               }}
               props={props}
             />
-            <Dialog
-              open={asking !== null}
-              onOpenChange={(isOpen) => {
-                if (!isOpen) setAsking(null);
-              }}
-            >
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t('pipeline.which_interview', 'Which interview?')}</DialogTitle>
-                  <DialogDescription>
-                    {asking === null
-                      ? ''
-                      : t(
-                          'pipeline.moves_to_an_interview_stage',
-                          '{{name}} moves to an interview stage.',
-                          { name: asking.card.name },
-                        )}
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogBody>
-                  <Field required>
-                    <FieldLabel>{t('pipeline.interview', 'Interview')}</FieldLabel>
-                    <FieldControl>
-                      <Input
-                        value={interviewType}
-                        onChange={(e) => {
-                          setInterviewType(e.target.value);
-                        }}
-                        placeholder={t('pipeline.technical_interview', 'Technical interview')}
-                      />
-                    </FieldControl>
-                  </Field>
-                </DialogBody>
-                <DialogFooter>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setAsking(null);
-                    }}
-                  >
-                    {t('pipeline.cancel', 'Cancel')}
-                  </Button>
-                  <Button
-                    disabled={interviewType.trim() === ''}
-                    onClick={() => {
-                      if (asking !== null) move(asking.card, asking.to, interviewType.trim());
-                      setAsking(null);
-                      setInterviewType('');
-                    }}
-                  >
-                    {t('pipeline.move', 'Move')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         );
       }}

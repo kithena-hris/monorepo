@@ -732,11 +732,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const interviewStage = stages.find((s) => s.category === 'interview')?.id ?? '';
   const offerStage = stages.find((s) => s.category === 'offer')?.id ?? '';
   await as('ada', async (ctx) => {
-    value(
-      await moveApplication(ctx, applied.applicationId, interviewStage, {
-        interviewType: 'portfolio',
-      }),
-    );
+    value(await moveApplication(ctx, applied.applicationId, interviewStage));
     const slots = value(
       await slotsFor(
         ctx,
@@ -1491,11 +1487,7 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     // and coming back is a new offer, never the old one reopened.
     const opened = (await stageWork(ctx, applied.applicationId)).offerId;
     expect(opened).not.toBeNull();
-    value(
-      await moveApplication(ctx, applied.applicationId, interviewStage, {
-        interviewType: 'portfolio',
-      }),
-    );
+    value(await moveApplication(ctx, applied.applicationId, interviewStage));
     expect((await stageWork(ctx, applied.applicationId)).offerId).toBeNull();
     expect((await ctx.tx.offers.get(opened ?? ''))?.state).toBe('withdrawn');
     value(await moveApplication(ctx, applied.applicationId, offerStage));
@@ -1712,7 +1704,10 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   );
   const at = '2026-12-01T00:00:00.000Z';
   expect(
-    await recruitingConsumer(uow, deps)({
+    await recruitingConsumer(
+      uow,
+      deps,
+    )({
       eventId: '01890000-0000-7000-8000-0000000000f1',
       eventName: 'people.person.status_changed',
       eventVersion: 1,

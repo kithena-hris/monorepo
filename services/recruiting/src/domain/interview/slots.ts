@@ -122,12 +122,14 @@ export function ics(input: {
   readonly title: string;
   readonly description: string;
   readonly location: string | null;
+  /** The meeting link, where a calendar offers Join. */
+  readonly url?: string | null;
   readonly organizerEmail: string;
   readonly stamp: string;
   readonly cancelled?: boolean;
   readonly sequence?: number;
-  /** Whom it is sent to: named, so a mail client offers it as their invitation (Gmail's card). */
-  readonly attendee?: { readonly email: string; readonly name: string };
+  /** Everyone taking part, named: the one it is sent to among them, so a mail client offers it as theirs. */
+  readonly attendees?: readonly { readonly email: string; readonly name: string }[];
 }): string {
   const end = new Date(Date.parse(input.start) + input.minutes * 60_000).toISOString();
   return [
@@ -144,12 +146,12 @@ export function ics(input: {
     `SUMMARY:${icsText(input.title)}`,
     `DESCRIPTION:${icsText(input.description)}`,
     ...(input.location === null ? [] : [`LOCATION:${icsText(input.location)}`]),
+    ...(input.url == null ? [] : [`URL:${input.url}`]),
     `ORGANIZER:mailto:${input.organizerEmail}`,
-    ...(input.attendee === undefined
-      ? []
-      : [
-          `ATTENDEE;CN="${input.attendee.name.replace(/["\r\n]/gu, '')}";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${input.attendee.email}`,
-        ]),
+    ...(input.attendees ?? []).map(
+      (a) =>
+        `ATTENDEE;CN="${a.name.replace(/["\r\n]/gu, '')}";ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${a.email}`,
+    ),
     `STATUS:${input.cancelled === true ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
     'END:VCALENDAR',

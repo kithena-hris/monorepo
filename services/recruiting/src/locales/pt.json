@@ -69,6 +69,7 @@
   "email.interviews.hello_this_interview_is_cancelled": "Olá {{name}},\n\nEsta entrevista foi cancelada.",
   "email.interviews.in_place_of_the_ones_before": ", em vez dos anteriores",
   "email.interviews.interview": "Entrevista",
+  "email.interviews.join_at": "Entrar na reunião: {{link}}",
   "email.interviews.join_the_meeting": "Entrar na reunião",
   "email.interviews.length": "Duração",
   "email.interviews.length_2": "Duração",
