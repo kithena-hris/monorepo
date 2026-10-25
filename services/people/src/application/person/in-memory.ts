@@ -13,7 +13,7 @@ import type { Attribute, Section } from '../../domain/schema/draft.js';
 import type { PersonFields, PersonRepository } from '../person-repository.js';
 import { CORE_COLUMNS } from './core.js';
 import type { PersonAccessDeps } from './person-access.js';
-import { LEAVERS, type PersonRecord, type PersonSearch, type Refine } from './ports.js';
+import { HR_ONLY, type PersonRecord, type PersonSearch, type Refine } from './ports.js';
 import type { IdentifierReviews } from './identifier-review.js';
 import type { IdentifierReview } from '../../domain/person/identifier-review.js';
 import { lastFour } from '../../domain/person/last-four.js';
@@ -194,7 +194,7 @@ export function inMemoryPeople(
     // Of the directory's refinements, only the assistant's join: conditions are the database's.
     refine?: Refine,
   ): boolean => {
-    if (!leavers && (LEAVERS as readonly string[]).includes(r.snapshot.status)) return false;
+    if (!leavers && (HR_ONLY as readonly string[]).includes(r.snapshot.status)) return false;
     if (refine?.personIds !== undefined && !refine.personIds.includes(r.snapshot.id)) return false;
     // `manager_id` is a typed column; the rest are `custom`, as the reader's.
     if (

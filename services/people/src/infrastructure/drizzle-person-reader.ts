@@ -18,6 +18,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { CORE_COLUMNS } from '../application/person/core.js';
 import { reportingLine } from '../application/person/reporting-line.js';
 import {
+  HR_ONLY,
   LEAVERS,
   type GapsIn,
   type PersonReader,
@@ -154,7 +155,7 @@ function matching(
   return and(
     eq(person.tenantId, tenantId),
     reportsTo === undefined ? undefined : eq(person.managerId, reportsTo),
-    leavers ? undefined : notInArray(person.status, [...LEAVERS]),
+    leavers ? undefined : notInArray(person.status, [...HR_ONLY]),
     filter === undefined ? undefined : sql`${person.custom} @> ${filter}::jsonb`,
     // The same narrowing for the filter, through `person_tenant_directory_idx`
     // (20260926120000_people_custom_filter.sql); the `@>` above still decides.
