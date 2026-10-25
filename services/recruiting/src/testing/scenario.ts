@@ -1488,6 +1488,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     const started = value(await offerStart(ctx, applied.applicationId));
     const ad = (await ctx.tx.jobs.get(jobId))?.salary ?? null;
     expect(started.advertised).toEqual(ad);
+    // Its benefits are the job's, as its ad shows them.
+    expect(started.input.benefitIds).toEqual((await ctx.tx.jobs.get(jobId))?.benefitIds);
     expect(started.input.pay.baseMinor).toBe(
       Math.round(((ad?.minMinor ?? 0) + (ad?.maxMinor ?? 0)) / 2),
     );

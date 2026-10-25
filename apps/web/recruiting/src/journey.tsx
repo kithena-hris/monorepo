@@ -26,17 +26,18 @@ const STAGE_ICON: Readonly<Record<Category, IconName>> = {
   hired: 'hire',
 };
 
-const STAGE_TONE: Readonly<Record<Category, 'neutral' | 'info' | 'accent' | 'warning' | 'success'>> =
-  {
-    applied: 'neutral',
-    screening: 'info',
-    interview: 'accent',
-    assessment: 'accent',
-    works_council: 'warning',
-    offer: 'success',
-    contract: 'success',
-    hired: 'success',
-  };
+const STAGE_TONE: Readonly<
+  Record<Category, 'neutral' | 'info' | 'accent' | 'warning' | 'success'>
+> = {
+  applied: 'neutral',
+  screening: 'info',
+  interview: 'accent',
+  assessment: 'accent',
+  works_council: 'warning',
+  offer: 'success',
+  contract: 'success',
+  hired: 'success',
+};
 
 interface Moment {
   readonly key: string;
@@ -61,7 +62,10 @@ function askText(a: Application['asks'][number]): string {
   if (a.kind === 'slots')
     return tr(
       'journey.times_offered',
-      { one: 'A time offered for the {{label}}', other: '{{count}} times offered for the {{label}}' },
+      {
+        one: 'A time offered for the {{label}}',
+        other: '{{count}} times offered for the {{label}}',
+      },
       { count: a.times.length, label },
     );
   if (a.kind === 'availability')
@@ -78,7 +82,8 @@ function askText(a: Application['asks'][number]): string {
 }
 
 function askDetail(a: Application['asks'][number]): string | null {
-  if (a.answer?.time != null) return tr('journey.chose', 'Chose {{time}}', { time: when(a.answer.time) });
+  if (a.answer?.time != null)
+    return tr('journey.chose', 'Chose {{time}}', { time: when(a.answer.time) });
   if (a.answer?.text != null) return a.answer.text;
   if (a.state === 'open') return tr('journey.waiting_on_the_candidate', 'Waiting on the candidate');
   if (a.closedBecause === 'replaced') return tr('journey.replaced', 'Replaced by new times');
@@ -137,7 +142,9 @@ function moments(data: CandidateData, app: Application, now: number): Moment[] {
       key: `o:${o.id}`,
       at: madeAt(o.id) ?? app.history.at(-1)?.at ?? '',
       icon: 'agreement',
-      text: tr('journey.offer_version', 'Offer, version {{version}}', { version: String(o.version) }),
+      text: tr('journey.offer_version', 'Offer, version {{version}}', {
+        version: String(o.version),
+      }),
       detail: tr('journey.offer_detail', '{{base}} · starts {{start}}', {
         base: money(o.baseMinor, o.currency),
         start: day(o.startDate),

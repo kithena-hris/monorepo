@@ -114,6 +114,7 @@ import {
   candidateAccepts,
   candidateDeclines,
   composeOffer,
+  prepareOffer,
   offerStart,
   contractSent,
   decideOffer,
@@ -1599,6 +1600,14 @@ export const ROUTES: readonly Route[] = [
       outsideBandReason: text(1000).nullable(),
     }),
     run: (ctx, { params, body }) => composeOffer(ctx, params.applicationId, body as never),
+  }),
+  route({
+    name: 'prepareOffer',
+    method: 'POST',
+    path: `${V1}/applications/{applicationId}/offer/draft`,
+    summary: 'R19: the open offer, or a new draft filled from the job',
+    params: z.object({ applicationId: Id }),
+    run: (ctx, { params }) => prepareOffer(ctx, params.applicationId),
   }),
   route({
     name: 'submitOffer',

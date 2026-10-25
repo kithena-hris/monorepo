@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
   Checkbox,
+  CurrencyField,
   DatePicker,
   EmptyState,
   Field,
@@ -121,15 +122,27 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
                   </TableHeader>
                   <TableBody>
                     {data.rows.map((r) => (
-                      <TableRow key={r.id}>
+                      <TableRow
+                        key={r.id}
+                        // The whole row opens the offer over the list; an approver's opens their decision.
+                        className="cursor-pointer"
+                        onClick={(event) => {
+                          if ((event.target as HTMLElement).closest('a') !== null) return;
+                          if (r.needsMe) props.onNavigate?.(`/recruiting/offers/${r.id}/approve`);
+                          else props.onFilter?.({ offer: r.id });
+                        }}
+                      >
                         <TableCell>
                           <To
                             href={
                               r.needsMe
                                 ? `/recruiting/offers/${r.id}/approve`
-                                : `/recruiting/offers/${r.id}`
+                                : `/recruiting/offers?offer=${r.id}`
                             }
-                            onNavigate={props.onNavigate}
+                            onNavigate={(to) => {
+                              if (r.needsMe) props.onNavigate?.(to);
+                              else props.onFilter?.({ offer: r.id });
+                            }}
                           >
                             {r.candidate}
                           </To>
@@ -155,6 +168,11 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
               )}
             </CardContent>
           </Card>
+          <OfferModal
+            offer={data.openOffer}
+            props={props}
+            onClose={() => props.onFilter?.({ offer: null })}
+          />
         </div>
       )}
     </Loaded>
@@ -398,6 +416,13 @@ const STEP_LABEL: Readonly<Record<string, string>> = {
   },
 };
 
+const UNIT: Readonly<Record<TermLength['unit'], () => string>> = {
+  days: () => tr('offers.unit_days', 'days'),
+  weeks: () => tr('offers.unit_weeks', 'weeks'),
+  months: () => tr('offers.unit_months', 'months'),
+};
+
+/** A length, in the unit the country's law gives it in, shown inside the field. */
 function Length({
   label,
   value,
@@ -409,36 +434,43 @@ function Length({
 }): JSX.Element {
   const v = value ?? { count: 0, unit: 'months' as const };
   return (
-    <div className="flex items-end gap-2">
-      <NumberField
-        label={label}
-        value={v.count}
-        min={0}
-        onChange={(n) => {
-          onChange({ ...v, count: n ?? 0 });
-        }}
-      />
-      <Select
-        value={v.unit}
-        onValueChange={(u) => {
-          onChange({ ...v, unit: u as TermLength['unit'] });
-        }}
-      >
-        <SelectTrigger
-          aria-label={tr('offers.unit', '{{label}}, unit', { label })}
-          className="w-32"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {(['days', 'weeks', 'months'] as const).map((u) => (
-            <SelectItem key={u} value={u}>
-              {words(u)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <NumberField
+      label={label}
+      value={v.count}
+      min={0}
+      suffix={UNIT[v.unit]()}
+      onChange={(n) => {
+        onChange({ ...v, count: n ?? 0 });
+      }}
+    />
+  );
+}
+
+/** An amount of money: typed in major units, kept in minor ones, the currency inside the field. */
+function MoneyField({
+  label,
+  currency,
+  minor,
+  onChange,
+}: {
+  readonly label: string;
+  readonly currency: string;
+  readonly minor: number;
+  readonly onChange: (minor: number) => void;
+}): JSX.Element {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <FieldControl>
+        <CurrencyField
+          currency={currency}
+          value={String(minor)}
+          onValueChange={(next) => {
+            onChange(Number(next) || 0);
+          }}
+        />
+      </FieldControl>
+    </Field>
   );
 }
 
@@ -534,9 +566,6 @@ const withStart = (d: Draft, start: string): Draft => ({
       ? d.terms
       : { ...d.terms, contractEnd: shifted(d.terms.contractEnd, d.startDate, start) },
 });
-
-const major = (amount: number): number => amount / 100;
-const minor = (n: number | null): number => Math.round((n ?? 0) * 100);
 
 type Saving = 'saved' | 'waiting' | 'saving' | 'failed';
 
@@ -642,7 +671,7 @@ function Group({
         <CardTitle level={2}>{title}</CardTitle>
         {description === undefined ? null : <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className="grid gap-x-6 gap-y-5 md:grid-cols-2">{children}</CardContent>
+      <CardContent className="flex flex-col gap-5">{children}</CardContent>
     </Card>
   );
 }
@@ -651,7 +680,7 @@ function Group({
 function Issues({ issues }: { readonly issues: readonly TermsIssue[] }): JSX.Element | null {
   if (issues.length === 0) return null;
   return (
-    <div className="flex flex-col gap-2 md:col-span-2">
+    <div className="flex flex-col gap-2">
       {issues.map((i) => (
         <Alert
           key={`${i.step}:${i.code}`}
@@ -679,18 +708,53 @@ export function Offer(props: ScreenProps<OfferData>): JSX.Element {
   );
 }
 
+/**
+ * The offer over the page it was opened from: the offers list, the board or a
+ * candidate. Its address is the page's with `?offer=`; closing it goes back.
+ */
+export function OfferModal({
+  offer,
+  props,
+  onClose,
+}: {
+  readonly offer: OfferData | null | undefined;
+  readonly props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh' | 'onNavigate'>;
+  readonly onClose: () => void;
+}): JSX.Element {
+  return (
+    <ModalPage
+      open={offer != null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {offer == null ? null : (
+        <ModalPageContent size="column">
+          <OfferEditor
+            key={offer.offer.id}
+            data={offer}
+            props={props as ScreenProps<OfferData>}
+            onClose={onClose}
+          />
+        </ModalPageContent>
+      )}
+    </ModalPage>
+  );
+}
+
 function OfferEditor({
   data,
   props,
+  onClose,
 }: {
   readonly data: OfferData;
   readonly props: ScreenProps<OfferData>;
+  /** Drawn in a modal over the page it was opened from, which this closes back to. */
+  readonly onClose?: () => void;
 }): JSX.Element {
   const act = useAct(props);
   const v = data.offer.versions.at(-1);
-  const [draft, setDraft] = useState<Draft | null>(
-    v === undefined ? null : draftOf(v, data.meta),
-  );
+  const [draft, setDraft] = useState<Draft | null>(v === undefined ? null : draftOf(v, data.meta));
   const { onRefresh } = props;
   const applicationId = data.offer.applicationId;
   const autosave = useAutosave<Draft>(
@@ -750,98 +814,97 @@ function OfferEditor({
   }));
   const rules = c?.rules ?? [];
 
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={tr('offers.offer_for', 'Offer for {{name}}', { name })}
-        meta={
-          <span className="flex flex-wrap items-center gap-3">
-            <StateBadge
-              state={s}
-              label={tr('offers.version', 'Version {{value}} · {{s}}', {
-                value: String(v.version),
-                s: words(s),
-              })}
-            />
-            {editable ? <SaveNote state={autosave.state} /> : null}
-          </span>
-        }
-        description={
-          s === 'approved' || s === 'sent'
-            ? tr(
-                'offers.changing_makes_a_new_version',
-                '{{title}} · Changing anything makes version {{next}}, which is approved and sent again.',
-                { title: data.job.title, next: String(v.version + 1) },
-              )
-            : data.job.title
-        }
-        actions={
-          <>
-            {s === 'draft' ? (
-              <Button
-                variant="primary"
-                loading={act.pending}
-                onClick={() => {
-                  afterSave('SubmitOffer');
-                }}
-              >
-                {tr('offers.send_for_approval', 'Send for approval')}
-              </Button>
-            ) : null}
-            {s === 'approved' ? (
-              <Button
-                variant="primary"
-                loading={act.pending}
-                startIcon={<icons.send aria-hidden />}
-                onClick={() => {
-                  afterSave('SendOffer');
-                }}
-              >
-                {tr('offers.send_to_the_candidate', 'Send to the candidate')}
-              </Button>
-            ) : null}
-            {s === 'accepted' ? (
-              <Button
-                variant="primary"
-                onClick={() => props.onNavigate?.(`/recruiting/offers/${data.offer.id}/contract`)}
-              >
-                {tr('offers.contract', 'Contract')}
-              </Button>
-            ) : null}
-            <MoreMenu
-              label={tr('offers.more_for_the_offer', 'More for the offer')}
-              items={[
-                {
-                  id: 'candidate',
-                  label: tr('offers.open_the_candidate', 'Open the candidate'),
-                  icon: <icons.person aria-hidden />,
-                  group: 'go',
-                  onSelect: () =>
-                    props.onNavigate?.(
-                      `/recruiting/candidates/${data.candidate.id}?application=${applicationId}`,
-                    ),
-                },
-                {
-                  id: 'withdraw',
-                  label: tr('offers.withdraw', 'Withdraw'),
-                  icon: <icons.undo aria-hidden />,
-                  destructive: true,
-                  group: 'state',
-                  hidden: !(
-                    s === 'draft' ||
-                    s === 'pending_approval' ||
-                    s === 'approved' ||
-                    s === 'sent'
-                  ),
-                  onSelect: () => {
-                    act.run('WithdrawOffer', { offerId: data.offer.id });
-                  },
-                },
-              ]}
-            />
-          </>
-        }
-      />
+  const head = {
+    title: tr('offers.offer_for', 'Offer for {{name}}', { name }),
+    meta: (
+      <span className="flex flex-wrap items-center gap-3">
+        <StateBadge
+          state={s}
+          label={tr('offers.version', 'Version {{value}} · {{s}}', {
+            value: String(v.version),
+            s: words(s),
+          })}
+        />
+        {editable ? <SaveNote state={autosave.state} /> : null}
+      </span>
+    ),
+    description:
+      s === 'approved' || s === 'sent'
+        ? tr(
+            'offers.changing_makes_a_new_version',
+            '{{title}} · Changing anything makes version {{next}}, which is approved and sent again.',
+            { title: data.job.title, next: String(v.version + 1) },
+          )
+        : data.job.title,
+    actions: (
+      <>
+        {s === 'draft' ? (
+          <Button
+            variant="primary"
+            loading={act.pending}
+            onClick={() => {
+              afterSave('SubmitOffer');
+            }}
+          >
+            {tr('offers.send_for_approval', 'Send for approval')}
+          </Button>
+        ) : null}
+        {s === 'approved' ? (
+          <Button
+            variant="primary"
+            loading={act.pending}
+            startIcon={<icons.send aria-hidden />}
+            onClick={() => {
+              afterSave('SendOffer');
+            }}
+          >
+            {tr('offers.send_to_the_candidate', 'Send to the candidate')}
+          </Button>
+        ) : null}
+        {s === 'accepted' ? (
+          <Button
+            variant="primary"
+            onClick={() => props.onNavigate?.(`/recruiting/offers/${data.offer.id}/contract`)}
+          >
+            {tr('offers.contract', 'Contract')}
+          </Button>
+        ) : null}
+        <MoreMenu
+          label={tr('offers.more_for_the_offer', 'More for the offer')}
+          items={[
+            {
+              id: 'candidate',
+              label: tr('offers.open_the_candidate', 'Open the candidate'),
+              icon: <icons.person aria-hidden />,
+              group: 'go',
+              onSelect: () =>
+                props.onNavigate?.(
+                  `/recruiting/candidates/${data.candidate.id}?application=${applicationId}`,
+                ),
+            },
+            {
+              id: 'withdraw',
+              label: tr('offers.withdraw', 'Withdraw'),
+              icon: <icons.undo aria-hidden />,
+              destructive: true,
+              group: 'state',
+              hidden: !(
+                s === 'draft' ||
+                s === 'pending_approval' ||
+                s === 'approved' ||
+                s === 'sent'
+              ),
+              onSelect: () => {
+                act.run('WithdrawOffer', { offerId: data.offer.id });
+              },
+            },
+          ]}
+        />
+      </>
+    ),
+  };
+  const body = (
+    <>
       <Refusal error={autosave.error ?? act.error} />
       {s === 'declined' ? (
         <Alert
@@ -891,591 +954,591 @@ function OfferEditor({
         </Alert>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        {/* Read-only once it waits on an approver or is settled: the fieldset turns every control off at once. */}
-        <fieldset disabled={!editable} className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0">
-          <legend className="sr-only">
-            {tr('offers.the_offer_to', 'The offer to {{name}}', { name })}
-          </legend>
+      <Checks data={data} />
+      {/* Read-only once it waits on an approver or is settled: the fieldset turns every control off at once. */}
+      <fieldset disabled={!editable} className="m-0 flex min-w-0 flex-col gap-6 border-0 p-0">
+        <legend className="sr-only">
+          {tr('offers.the_offer_to', 'The offer to {{name}}', { name })}
+        </legend>
 
-          <Group
-            title={tr('offers.pay', 'Pay')}
-            description={
-              ad === null
-                ? tr('offers.the_job_ad_gave_no_pay', 'The job ad gave no pay.')
-                : tr('offers.the_job_ad_gave', 'The job ad gave {{range}}.', {
-                    range: range(ad.minMinor, ad.maxMinor, ad.currency),
-                  })
-            }
-          >
-            <NumberField
-              label={tr('offers.base_pay', 'Base pay')}
-              value={major(draft.pay.baseMinor)}
-              min={0}
-              suffix={currency}
-              onChange={(n) => {
-                setPay({ baseMinor: minor(n) }, true);
+        <Group
+          title={tr('offers.pay', 'Pay')}
+          description={
+            ad === null
+              ? tr('offers.the_job_ad_gave_no_pay', 'The job ad gave no pay.')
+              : tr('offers.the_job_ad_gave', 'The job ad gave {{range}}.', {
+                  range: range(ad.minMinor, ad.maxMinor, ad.currency),
+                })
+          }
+        >
+          <MoneyField
+            label={tr('offers.base_pay', 'Base pay')}
+            currency={currency}
+            minor={draft.pay.baseMinor}
+            onChange={(n) => {
+              setPay({ baseMinor: n }, true);
+            }}
+          />
+          <Field>
+            <FieldLabel>{tr('offers.paid_per', 'Paid per')}</FieldLabel>
+            <SegmentedControl
+              aria-label={tr('offers.paid_per', 'Paid per')}
+              value={draft.pay.frequency}
+              onValueChange={(f) => {
+                if (f !== '') setPay({ frequency: f as Draft['pay']['frequency'] });
               }}
-            />
-            <Field>
-              <FieldLabel>{tr('offers.paid_per', 'Paid per')}</FieldLabel>
-              <SegmentedControl
-                aria-label={tr('offers.paid_per', 'Paid per')}
-                value={draft.pay.frequency}
-                onValueChange={(f) => {
-                  if (f !== '') setPay({ frequency: f as Draft['pay']['frequency'] });
-                }}
-              >
-                <SegmentedControlItem value="year">{tr('offers.year', 'Year')}</SegmentedControlItem>
-                <SegmentedControlItem value="month">
-                  {tr('offers.month', 'Month')}
-                </SegmentedControlItem>
-                <SegmentedControlItem value="hour">{tr('offers.hour', 'Hour')}</SegmentedControlItem>
-              </SegmentedControl>
-            </Field>
+            >
+              <SegmentedControlItem value="year">{tr('offers.year', 'Year')}</SegmentedControlItem>
+              <SegmentedControlItem value="month">
+                {tr('offers.month', 'Month')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="hour">{tr('offers.hour', 'Hour')}</SegmentedControlItem>
+            </SegmentedControl>
+          </Field>
+          <Pick
+            label={tr('offers.currency', 'Currency')}
+            value={currency}
+            choices={currencies.map((k) => ({ key: k, label: k }))}
+            onChange={(k) => {
+              setPay({ currency: k });
+            }}
+          />
+          {c !== null && c.paymentsPerYear.length > 1 ? (
             <Pick
-              label={tr('offers.currency', 'Currency')}
-              value={currency}
-              choices={currencies.map((k) => ({ key: k, label: k }))}
+              label={tr('offers.payments_a_year', 'Payments a year')}
+              value={String(draft.terms.paymentsPerYear ?? c.paymentsPerYear[0])}
+              choices={c.paymentsPerYear.map((n) => ({ key: String(n), label: String(n) }))}
               onChange={(k) => {
-                setPay({ currency: k });
+                setTerms({ paymentsPerYear: Number(k) });
               }}
             />
-            {c !== null && c.paymentsPerYear.length > 1 ? (
-              <Pick
-                label={tr('offers.payments_a_year', 'Payments a year')}
-                value={String(draft.terms.paymentsPerYear ?? c.paymentsPerYear[0])}
-                choices={c.paymentsPerYear.map((n) => ({ key: String(n), label: String(n) }))}
-                onChange={(k) => {
-                  setTerms({ paymentsPerYear: Number(k) });
-                }}
-              />
-            ) : null}
-            <NumberField
-              label={tr('offers.variable_at_target', 'Variable at target')}
-              value={major(draft.pay.variableTargetMinor)}
-              min={0}
-              suffix={currency}
-              onChange={(n) => {
-                setPay({ variableTargetMinor: minor(n) }, true);
-              }}
-            />
-            <NumberField
-              label={tr('offers.sign_on_bonus', 'Sign-on bonus')}
-              value={major(draft.pay.signOnMinor)}
-              min={0}
-              suffix={currency}
-              onChange={(n) => {
-                setPay({ signOnMinor: minor(n) }, true);
-              }}
-            />
-            <NumberField
-              label={tr('offers.relocation', 'Relocation')}
-              value={major(draft.pay.relocationMinor)}
-              min={0}
-              suffix={currency}
-              onChange={(n) => {
-                setPay({ relocationMinor: minor(n) }, true);
-              }}
-            />
-            <NumberField
-              label={tr('offers.equity_units', 'Equity, units')}
-              value={draft.pay.equity?.units ?? 0}
-              min={0}
-              onChange={(n) => {
-                setPay(
-                  {
-                    equity:
-                      (n ?? 0) === 0
-                        ? null
-                        : {
-                            description:
-                              draft.pay.equity?.description ?? tr('offers.options', 'Options'),
-                            units: n ?? 0,
-                          },
-                  },
-                  true,
-                );
-              }}
-            />
-            {data.bands.length === 0 ? null : (
-              <Pick
-                label={tr('offers.grade', 'Grade')}
-                value={draft.grade ?? 'none'}
-                choices={[
-                  { key: 'none', label: tr('offers.no_grade', 'No grade') },
-                  ...[...new Set(data.bands.map((b) => b.grade))].map((g) => ({
-                    key: g,
-                    label: g,
-                  })),
-                ]}
-                onChange={(g) => {
-                  change({ ...draft, grade: g === 'none' ? null : g });
-                }}
-              />
-            )}
-            {outside || (draft.outsideBandReason ?? '') !== '' ? (
-              <Field className="md:col-span-2">
-                <FieldLabel>{tr('offers.why_outside_the_band', 'Why outside the band')}</FieldLabel>
-                <FieldControl>
-                  <Textarea
-                    autoResize
-                    value={draft.outsideBandReason ?? ''}
-                    onChange={(e) => {
-                      change(
-                        {
-                          ...draft,
-                          outsideBandReason: e.target.value === '' ? null : e.target.value,
+          ) : null}
+          <MoneyField
+            label={tr('offers.variable_at_target', 'Variable at target')}
+            currency={currency}
+            minor={draft.pay.variableTargetMinor}
+            onChange={(n) => {
+              setPay({ variableTargetMinor: n }, true);
+            }}
+          />
+          <MoneyField
+            label={tr('offers.sign_on_bonus', 'Sign-on bonus')}
+            currency={currency}
+            minor={draft.pay.signOnMinor}
+            onChange={(n) => {
+              setPay({ signOnMinor: n }, true);
+            }}
+          />
+          <MoneyField
+            label={tr('offers.relocation', 'Relocation')}
+            currency={currency}
+            minor={draft.pay.relocationMinor}
+            onChange={(n) => {
+              setPay({ relocationMinor: n }, true);
+            }}
+          />
+          <NumberField
+            label={tr('offers.equity', 'Equity')}
+            value={draft.pay.equity?.units ?? 0}
+            min={0}
+            suffix={tr('offers.unit_units', 'units')}
+            onChange={(n) => {
+              setPay(
+                {
+                  equity:
+                    (n ?? 0) === 0
+                      ? null
+                      : {
+                          description:
+                            draft.pay.equity?.description ?? tr('offers.options', 'Options'),
+                          units: n ?? 0,
                         },
-                        true,
-                      );
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            ) : null}
-            <Issues issues={issues('pay')} />
-          </Group>
-
-          <Group
-            title={tr('offers.dates', 'Dates')}
-            description={tr(
-              'offers.when_they_start_and_how_long',
-              'When they start, and how long the offer stays open.',
-            )}
-          >
-            <Field required>
-              <FieldLabel>{tr('offers.start_date', 'Start date')}</FieldLabel>
+                },
+                true,
+              );
+            }}
+          />
+          {data.bands.length === 0 ? null : (
+            <Pick
+              label={tr('offers.grade', 'Grade')}
+              value={draft.grade ?? 'none'}
+              choices={[
+                { key: 'none', label: tr('offers.no_grade', 'No grade') },
+                ...[...new Set(data.bands.map((b) => b.grade))].map((g) => ({
+                  key: g,
+                  label: g,
+                })),
+              ]}
+              onChange={(g) => {
+                change({ ...draft, grade: g === 'none' ? null : g });
+              }}
+            />
+          )}
+          {outside || (draft.outsideBandReason ?? '') !== '' ? (
+            <Field>
+              <FieldLabel>{tr('offers.why_outside_the_band', 'Why outside the band')}</FieldLabel>
               <FieldControl>
-                <DatePicker
-                  label={tr('offers.start_date', 'Start date')}
-                  value={draft.startDate === '' ? null : draft.startDate}
-                  onChange={(d) => {
-                    if (d !== null) change(withStart(draft, d));
+                <Textarea
+                  autoResize
+                  value={draft.outsideBandReason ?? ''}
+                  onChange={(e) => {
+                    change(
+                      {
+                        ...draft,
+                        outsideBandReason: e.target.value === '' ? null : e.target.value,
+                      },
+                      true,
+                    );
                   }}
                 />
               </FieldControl>
             </Field>
-            <Field required>
-              <FieldLabel>{tr('offers.offer_expires', 'Offer expires')}</FieldLabel>
+          ) : null}
+          <Issues issues={issues('pay')} />
+        </Group>
+
+        <Group
+          title={tr('offers.dates', 'Dates')}
+          description={tr(
+            'offers.when_they_start_and_how_long',
+            'When they start, and how long the offer stays open.',
+          )}
+        >
+          <Field required>
+            <FieldLabel>{tr('offers.start_date', 'Start date')}</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label={tr('offers.start_date', 'Start date')}
+                value={draft.startDate === '' ? null : draft.startDate}
+                onChange={(d) => {
+                  if (d !== null) change(withStart(draft, d));
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field required>
+            <FieldLabel>{tr('offers.offer_expires', 'Offer expires')}</FieldLabel>
+            <FieldControl>
+              <DatePicker
+                label={tr('offers.offer_expires', 'Offer expires')}
+                value={draft.expiresOn === '' ? null : draft.expiresOn}
+                onChange={(d) => {
+                  if (d !== null) change({ ...draft, expiresOn: d });
+                }}
+              />
+            </FieldControl>
+          </Field>
+          {shown('duration') ? (
+            <Field>
+              <FieldLabel>{tr('offers.ends_on', 'Ends on')}</FieldLabel>
               <FieldControl>
                 <DatePicker
-                  label={tr('offers.offer_expires', 'Offer expires')}
-                  value={draft.expiresOn === '' ? null : draft.expiresOn}
+                  label={tr('offers.ends_on', 'Ends on')}
+                  value={draft.terms.contractEnd ?? null}
                   onChange={(d) => {
-                    if (d !== null) change({ ...draft, expiresOn: d });
+                    setTerms({ contractEnd: d });
                   }}
                 />
               </FieldControl>
+              <FieldDescription>
+                {tr('offers.leave_empty_for_no_end', 'Leave empty for no end.')}
+              </FieldDescription>
             </Field>
-            {shown('duration') ? (
-              <Field>
-                <FieldLabel>{tr('offers.ends_on', 'Ends on')}</FieldLabel>
-                <FieldControl>
-                  <DatePicker
-                    label={tr('offers.ends_on', 'Ends on')}
-                    value={draft.terms.contractEnd ?? null}
-                    onChange={(d) => {
-                      setTerms({ contractEnd: d });
-                    }}
-                  />
-                </FieldControl>
-                <FieldDescription>
-                  {tr('offers.leave_empty_for_no_end', 'Leave empty for no end.')}
-                </FieldDescription>
-              </Field>
-            ) : null}
-            <Issues issues={issues('duration')} />
-          </Group>
+          ) : null}
+          <Issues issues={issues('duration')} />
+        </Group>
 
-          <Group
-            title={tr('offers.contract', 'Contract')}
-            {...(c === null
-              ? {}
-              : {
-                  description: c.reviewed
-                    ? tr(
-                        'offers.hired_through_pack',
-                        'Hired through the job’s legal entity, in {{country}}; {{country}} pack {{version}}.',
-                        { country: c.country, version: c.version },
-                      )
-                    : tr(
-                        'offers.hired_through_pack_awaiting',
-                        'Hired through the job’s legal entity, in {{country}}; {{country}} pack {{version}}, awaiting a country reviewer.',
-                        { country: c.country, version: c.version },
-                      ),
-                })}
-          >
-            {c === null ? (
-              <Alert
-                tone="warning"
-                title={tr('offers.no_country_pack_yet', 'No country pack yet')}
-                className="md:col-span-2"
-              >
-                {tr(
-                  'offers.choose_the_jobs_legal_entity_its',
-                  'Choose the job’s legal entity; its country decides what the composer offers.',
-                )}
-              </Alert>
-            ) : (
-              <>
-                <Pick
-                  label={tr('offers.relationship', 'Relationship')}
-                  value={draft.terms.relationship}
-                  choices={c.relationships}
-                  onChange={(k) => {
-                    setTerms({ relationship: k as NonNullable<TermsAnswers['relationship']> });
-                  }}
-                />
-                <Pick
-                  label={tr('offers.contract_type', 'Contract type')}
-                  value={draft.terms.contractType}
-                  choices={c.contractTypes}
-                  onChange={(k) => {
-                    setTerms({ contractType: k });
-                  }}
-                />
-                {shown('fixed_term_reason') ? (
-                  <Pick
-                    label={tr('offers.fixed_term_reason', 'Fixed-term reason')}
-                    value={draft.terms.fixedTermReason}
-                    choices={c.reasons}
-                    onChange={(k) => {
-                      setTerms({ fixedTermReason: k });
-                    }}
-                  />
-                ) : null}
-                {c.asksPreviousEmployment ? (
-                  <Field>
-                    <FieldLabel>
-                      {tr('offers.worked_here_before_q', 'Worked for this employer before?')}
-                    </FieldLabel>
-                    <SegmentedControl
-                      aria-label={tr('offers.worked_here_before', 'Worked here before')}
-                      value={draft.terms.previouslyEmployed === true ? 'yes' : 'no'}
-                      onValueChange={(k) => {
-                        if (k !== '') setTerms({ previouslyEmployed: k === 'yes' });
-                      }}
-                    >
-                      <SegmentedControlItem value="no">{tr('offers.no', 'No')}</SegmentedControlItem>
-                      <SegmentedControlItem value="yes">
-                        {tr('offers.yes', 'Yes')}
-                      </SegmentedControlItem>
-                    </SegmentedControl>
-                  </Field>
-                ) : null}
-                {shown('agreement') ? (
-                  <>
-                    <Field>
-                      <FieldLabel>
-                        {tr('offers.collective_agreement', 'Collective agreement')}
-                      </FieldLabel>
-                      <FieldControl>
-                        <Input
-                          value={draft.terms.agreement?.key ?? ''}
-                          placeholder="metal_nrw"
-                          onChange={(e) => {
-                            // A key, not a name: what is typed becomes one as it is typed.
-                            const key = e.target.value
-                              .toLowerCase()
-                              .normalize('NFD')
-                              .replaceAll(/[\u0300-\u036f]/gu, '')
-                              .replaceAll(/[^a-z0-9_]+/gu, '_')
-                              .replace(/^[^a-z]+/u, '');
-                            setTerms(
-                              {
-                                agreement:
-                                  key === ''
-                                    ? null
-                                    : { key, group: draft.terms.agreement?.group ?? null },
-                              },
-                              true,
-                            );
-                          }}
-                        />
-                      </FieldControl>
-                      <FieldDescription>
-                        {tr(
-                          'offers.agreement_key_hint',
-                          'Its key, as the country pack knows it: lowercase, with underscores.',
-                        )}
-                      </FieldDescription>
-                    </Field>
-                    <Field>
-                      <FieldLabel>{tr('offers.group', 'Group')}</FieldLabel>
-                      <FieldControl>
-                        <Input
-                          value={draft.terms.agreement?.group ?? ''}
-                          disabled={draft.terms.agreement == null}
-                          onChange={(e) => {
-                            setTerms(
-                              {
-                                agreement: {
-                                  key: draft.terms.agreement?.key ?? '',
-                                  group: e.target.value === '' ? null : e.target.value,
-                                },
-                              },
-                              true,
-                            );
-                          }}
-                        />
-                      </FieldControl>
-                    </Field>
-                  </>
-                ) : null}
-                <Issues
-                  issues={issues(
-                    'entity',
-                    'relationship',
-                    'contract_type',
-                    'fixed_term_reason',
-                    'agreement',
-                  )}
-                />
-              </>
-            )}
-          </Group>
-
-          <Group
-            title={tr('offers.time_and_place', 'Time and place')}
-            description={tr('offers.how_much_and_where_they_work', 'How much they work, and where.')}
-          >
-            {c !== null && c.regions.length > 0 ? (
-              <Pick
-                label={tr('offers.region', 'Region')}
-                value={draft.terms.region}
-                choices={c.regions}
-                onChange={(k) => {
-                  setTerms({ region: k });
-                }}
-              />
-            ) : null}
-            <NumberField
-              label={tr('offers.hours_a_week', 'Hours a week')}
-              value={hours}
-              min={1}
-              max={60}
-              step={0.5}
-              onChange={(n) => {
-                change(
-                  withPay(draft, draft.pay, n === null ? undefined : Math.round(n * 60)),
-                  true,
-                );
-              }}
-            />
-            <Field className="md:col-span-2">
-              <FieldLabel>{tr('offers.work_mode', 'Work mode')}</FieldLabel>
-              <SegmentedControl
-                aria-label={tr('offers.work_mode', 'Work mode')}
-                value={draft.terms.workMode ?? ''}
-                onValueChange={(k) => {
-                  if (k !== '') setTerms({ workMode: k as NonNullable<TermsAnswers['workMode']> });
-                }}
-              >
-                <SegmentedControlItem value="onsite">
-                  {tr('offers.on_site', 'On site')}
-                </SegmentedControlItem>
-                <SegmentedControlItem value="hybrid">
-                  {tr('offers.hybrid', 'Hybrid')}
-                </SegmentedControlItem>
-                <SegmentedControlItem value="remote">
-                  {tr('offers.remote', 'Remote')}
-                </SegmentedControlItem>
-              </SegmentedControl>
-            </Field>
-            {draft.terms.workMode === 'hybrid' ? (
-              <NumberField
-                label={tr('offers.days_on_site_a_week', 'Days on site a week')}
-                value={draft.terms.hybridDaysOnsite ?? null}
-                min={1}
-                max={5}
-                onChange={(n) => {
-                  setTerms({ hybridDaysOnsite: n }, true);
-                }}
-              />
-            ) : null}
-            {draft.terms.workMode === 'remote' ? (
-              <Field>
-                <FieldLabel>
-                  {tr('offers.working_from_country_code', 'Working from (country code)')}
-                </FieldLabel>
-                <FieldControl>
-                  <Input
-                    maxLength={2}
-                    value={draft.terms.remoteCountry ?? ''}
-                    onChange={(e) => {
-                      setTerms(
-                        {
-                          remoteCountry:
-                            e.target.value === '' ? null : e.target.value.toUpperCase(),
-                        },
-                        true,
-                      );
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-            ) : null}
-            <Issues issues={issues('location', 'hours', 'work_mode')} />
-          </Group>
-
-          <Group
-            title={tr('offers.probation_and_notice', 'Probation and notice')}
-            description={tr(
-              'offers.the_law_sets_the_limits',
-              'Filled with the law’s defaults; the checks say when a change goes past what it allows.',
-            )}
-          >
-            <div className="flex flex-col gap-3 md:col-span-2">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="no-probation"
-                  checked={draft.terms.probation === null}
-                  onCheckedChange={(on) => {
-                    setTerms({ probation: on ? null : { count: 6, unit: 'months' } });
-                  }}
-                />
-                <label htmlFor="no-probation">{tr('offers.no_probation', 'No probation')}</label>
-              </div>
-              {draft.terms.probation === null ? null : (
-                <Length
-                  label={tr('offers.probation', 'Probation')}
-                  value={draft.terms.probation}
-                  onChange={(x) => {
-                    setTerms({ probation: x }, true);
-                  }}
-                />
+        <Group
+          title={tr('offers.contract', 'Contract')}
+          {...(c === null
+            ? {}
+            : {
+                description: c.reviewed
+                  ? tr(
+                      'offers.hired_through_pack',
+                      'Hired through the job’s legal entity, in {{country}}; {{country}} pack {{version}}.',
+                      { country: c.country, version: c.version },
+                    )
+                  : tr(
+                      'offers.hired_through_pack_awaiting',
+                      'Hired through the job’s legal entity, in {{country}}; {{country}} pack {{version}}, awaiting a country reviewer.',
+                      { country: c.country, version: c.version },
+                    ),
+              })}
+        >
+          {c === null ? (
+            <Alert tone="warning" title={tr('offers.no_country_pack_yet', 'No country pack yet')}>
+              {tr(
+                'offers.choose_the_jobs_legal_entity_its',
+                'Choose the job’s legal entity; its country decides what the composer offers.',
               )}
-            </div>
-            <Length
-              label={tr('offers.notice_from_the_employee', 'Notice from the employee')}
-              value={draft.terms.noticeEmployee}
-              onChange={(x) => {
-                setTerms({ noticeEmployee: x }, true);
-              }}
-            />
-            <Length
-              label={tr('offers.notice_from_the_employer', 'Notice from the employer')}
-              value={draft.terms.noticeEmployer}
-              onChange={(x) => {
-                setTerms({ noticeEmployer: x }, true);
-              }}
-            />
-            <Issues issues={issues('probation', 'notice')} />
-          </Group>
-
-          {shown('clauses') ? (
-            <Group title={tr('offers.clauses', 'Clauses')}>
-              <NumberField
-                label={tr('offers.non_compete_months', 'Non-compete, months')}
-                value={draft.terms.nonCompeteMonths ?? 0}
-                min={0}
-                max={36}
-                onChange={(n) => {
-                  setTerms({ nonCompeteMonths: n === 0 ? null : n }, true);
+            </Alert>
+          ) : (
+            <>
+              <Pick
+                label={tr('offers.relationship', 'Relationship')}
+                value={draft.terms.relationship}
+                choices={c.relationships}
+                onChange={(k) => {
+                  setTerms({ relationship: k as NonNullable<TermsAnswers['relationship']> });
                 }}
               />
-              {(draft.terms.nonCompeteMonths ?? 0) > 0 ? (
-                <NumberField
-                  label={tr(
-                    'offers.compensation_during_it_of_last_pay',
-                    'Compensation during it, % of last pay',
-                  )}
-                  value={draft.terms.nonCompeteCompensationPercent ?? null}
-                  min={0}
-                  max={100}
-                  onChange={(n) => {
-                    setTerms({ nonCompeteCompensationPercent: n }, true);
+              <Pick
+                label={tr('offers.contract_type', 'Contract type')}
+                value={draft.terms.contractType}
+                choices={c.contractTypes}
+                onChange={(k) => {
+                  setTerms({ contractType: k });
+                }}
+              />
+              {shown('fixed_term_reason') ? (
+                <Pick
+                  label={tr('offers.fixed_term_reason', 'Fixed-term reason')}
+                  value={draft.terms.fixedTermReason}
+                  choices={c.reasons}
+                  onChange={(k) => {
+                    setTerms({ fixedTermReason: k });
                   }}
                 />
               ) : null}
-              <div className="flex items-center gap-3 md:col-span-2">
-                <Switch
-                  id="mobility"
-                  checked={draft.terms.mobilityClause === true}
-                  onCheckedChange={(on) => {
-                    setTerms({ mobilityClause: on });
+              {c.asksPreviousEmployment ? (
+                <Field>
+                  <FieldLabel>
+                    {tr('offers.worked_here_before_q', 'Worked for this employer before?')}
+                  </FieldLabel>
+                  <SegmentedControl
+                    aria-label={tr('offers.worked_here_before', 'Worked here before')}
+                    value={draft.terms.previouslyEmployed === true ? 'yes' : 'no'}
+                    onValueChange={(k) => {
+                      if (k !== '') setTerms({ previouslyEmployed: k === 'yes' });
+                    }}
+                  >
+                    <SegmentedControlItem value="no">{tr('offers.no', 'No')}</SegmentedControlItem>
+                    <SegmentedControlItem value="yes">
+                      {tr('offers.yes', 'Yes')}
+                    </SegmentedControlItem>
+                  </SegmentedControl>
+                </Field>
+              ) : null}
+              {shown('agreement') ? (
+                <>
+                  <Field>
+                    <FieldLabel>
+                      {tr('offers.collective_agreement', 'Collective agreement')}
+                    </FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={draft.terms.agreement?.key ?? ''}
+                        placeholder="metal_nrw"
+                        onChange={(e) => {
+                          // A key, not a name: what is typed becomes one as it is typed.
+                          const key = e.target.value
+                            .toLowerCase()
+                            .normalize('NFD')
+                            .replaceAll(/[\u0300-\u036f]/gu, '')
+                            .replaceAll(/[^a-z0-9_]+/gu, '_')
+                            .replace(/^[^a-z]+/u, '');
+                          setTerms(
+                            {
+                              agreement:
+                                key === ''
+                                  ? null
+                                  : { key, group: draft.terms.agreement?.group ?? null },
+                            },
+                            true,
+                          );
+                        }}
+                      />
+                    </FieldControl>
+                    <FieldDescription>
+                      {tr(
+                        'offers.agreement_key_hint',
+                        'Its key, as the country pack knows it: lowercase, with underscores.',
+                      )}
+                    </FieldDescription>
+                  </Field>
+                  <Field>
+                    <FieldLabel>{tr('offers.group', 'Group')}</FieldLabel>
+                    <FieldControl>
+                      <Input
+                        value={draft.terms.agreement?.group ?? ''}
+                        disabled={draft.terms.agreement == null}
+                        onChange={(e) => {
+                          setTerms(
+                            {
+                              agreement: {
+                                key: draft.terms.agreement?.key ?? '',
+                                group: e.target.value === '' ? null : e.target.value,
+                              },
+                            },
+                            true,
+                          );
+                        }}
+                      />
+                    </FieldControl>
+                  </Field>
+                </>
+              ) : null}
+              <Issues
+                issues={issues(
+                  'entity',
+                  'relationship',
+                  'contract_type',
+                  'fixed_term_reason',
+                  'agreement',
+                )}
+              />
+            </>
+          )}
+        </Group>
+
+        <Group
+          title={tr('offers.time_and_place', 'Time and place')}
+          description={tr('offers.how_much_and_where_they_work', 'How much they work, and where.')}
+        >
+          {c !== null && c.regions.length > 0 ? (
+            <Pick
+              label={tr('offers.region', 'Region')}
+              value={draft.terms.region}
+              choices={c.regions}
+              onChange={(k) => {
+                setTerms({ region: k });
+              }}
+            />
+          ) : null}
+          <NumberField
+            label={tr('offers.hours_a_week', 'Hours a week')}
+            value={hours}
+            min={1}
+            max={60}
+            step={0.5}
+            suffix={tr('offers.unit_hours', 'hours')}
+            onChange={(n) => {
+              change(withPay(draft, draft.pay, n === null ? undefined : Math.round(n * 60)), true);
+            }}
+          />
+          <Field>
+            <FieldLabel>{tr('offers.work_mode', 'Work mode')}</FieldLabel>
+            <SegmentedControl
+              aria-label={tr('offers.work_mode', 'Work mode')}
+              value={draft.terms.workMode ?? ''}
+              onValueChange={(k) => {
+                if (k !== '') setTerms({ workMode: k as NonNullable<TermsAnswers['workMode']> });
+              }}
+            >
+              <SegmentedControlItem value="onsite">
+                {tr('offers.on_site', 'On site')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="hybrid">
+                {tr('offers.hybrid', 'Hybrid')}
+              </SegmentedControlItem>
+              <SegmentedControlItem value="remote">
+                {tr('offers.remote', 'Remote')}
+              </SegmentedControlItem>
+            </SegmentedControl>
+          </Field>
+          {draft.terms.workMode === 'hybrid' ? (
+            <NumberField
+              label={tr('offers.days_on_site_a_week', 'Days on site a week')}
+              value={draft.terms.hybridDaysOnsite ?? null}
+              min={1}
+              max={5}
+              suffix={tr('offers.unit_days', 'days')}
+              onChange={(n) => {
+                setTerms({ hybridDaysOnsite: n }, true);
+              }}
+            />
+          ) : null}
+          {draft.terms.workMode === 'remote' ? (
+            <Field>
+              <FieldLabel>
+                {tr('offers.working_from_country_code', 'Working from (country code)')}
+              </FieldLabel>
+              <FieldControl>
+                <Input
+                  maxLength={2}
+                  value={draft.terms.remoteCountry ?? ''}
+                  onChange={(e) => {
+                    setTerms(
+                      {
+                        remoteCountry: e.target.value === '' ? null : e.target.value.toUpperCase(),
+                      },
+                      true,
+                    );
                   }}
                 />
-                <label htmlFor="mobility">{tr('offers.mobility_clause', 'Mobility clause')}</label>
-              </div>
-              <Issues issues={issues('clauses')} />
-            </Group>
+              </FieldControl>
+            </Field>
           ) : null}
+          <Issues issues={issues('location', 'hours', 'work_mode')} />
+        </Group>
 
-          <Card>
-            <CardHeader>
-              <CardTitle level={2}>{tr('offers.benefits', 'Benefits')}</CardTitle>
-              <CardDescription>
-                {tr(
-                  'offers.from_the_job_ad_change_or_add',
-                  'Those the job ad gave are chosen; change them, or write in one the catalogue does not have.',
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <BenefitPicker
-                benefits={catalogue}
-                categories={data.categories ?? []}
-                chosen={draft.benefitIds}
-                disabled={!editable}
-                onChange={(ids) => {
-                  change({ ...draft, benefitIds: ids });
-                }}
-              />
-              <TagsInput
-                label={tr('offers.also_in_this_offer', 'Also in this offer')}
-                hint={tr(
-                  'offers.also_in_this_offer_hint',
-                  'A benefit for this offer alone, in a few words. Press Enter to add it.',
-                )}
-                placeholder={tr('offers.a_team_retreat', 'A team retreat in spring')}
-                delimiters={[]}
-                max={30}
-                disabled={!editable}
-                value={draft.extraBenefits}
-                onChange={(list) => {
-                  change({ ...draft, extraBenefits: list });
-                }}
-              />
-              <Issues issues={issues('benefits')} />
-            </CardContent>
-          </Card>
-        </fieldset>
-
-        <aside
-          className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-4"
-          aria-label={tr('offers.checks_and_totals', 'Checks and totals')}
-        >
-          <Checks data={data} />
-          {rules.length === 0 ? null : (
-            <Card>
-              <Accordion type="single" collapsible>
-                <AccordionItem value="rules">
-                  <AccordionTrigger className="px-5">
-                    {tr('offers.rules_that_applied_n', 'Rules that applied ({{count}})', {
-                      count: String(rules.length),
-                    })}
-                  </AccordionTrigger>
-                  <AccordionContent className="px-5">
-                    <ul className="flex flex-col gap-3">
-                      {rules.map((r) => (
-                        <li key={`${r.step}:${r.text}`} className="flex flex-col gap-0.5">
-                          <span className="text-sm">{r.text}</span>
-                          <span className="font-mono text-xs text-fg-muted">
-                            {STEP_LABEL[r.step] ?? words(r.step)} · {r.source}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </Card>
+        <Group
+          title={tr('offers.probation_and_notice', 'Probation and notice')}
+          description={tr(
+            'offers.the_law_sets_the_limits',
+            'Filled with the law’s defaults; the checks say when a change goes past what it allows.',
           )}
-        </aside>
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="no-probation"
+                checked={draft.terms.probation === null}
+                onCheckedChange={(on) => {
+                  setTerms({ probation: on ? null : { count: 6, unit: 'months' } });
+                }}
+              />
+              <label htmlFor="no-probation">{tr('offers.no_probation', 'No probation')}</label>
+            </div>
+            {draft.terms.probation === null ? null : (
+              <Length
+                label={tr('offers.probation', 'Probation')}
+                value={draft.terms.probation}
+                onChange={(x) => {
+                  setTerms({ probation: x }, true);
+                }}
+              />
+            )}
+          </div>
+          <Length
+            label={tr('offers.notice_from_the_employee', 'Notice from the employee')}
+            value={draft.terms.noticeEmployee}
+            onChange={(x) => {
+              setTerms({ noticeEmployee: x }, true);
+            }}
+          />
+          <Length
+            label={tr('offers.notice_from_the_employer', 'Notice from the employer')}
+            value={draft.terms.noticeEmployer}
+            onChange={(x) => {
+              setTerms({ noticeEmployer: x }, true);
+            }}
+          />
+          <Issues issues={issues('probation', 'notice')} />
+        </Group>
+
+        {shown('clauses') ? (
+          <Group title={tr('offers.clauses', 'Clauses')}>
+            <NumberField
+              label={tr('offers.non_compete', 'Non-compete')}
+              value={draft.terms.nonCompeteMonths ?? 0}
+              min={0}
+              max={36}
+              suffix={tr('offers.unit_months', 'months')}
+              onChange={(n) => {
+                setTerms({ nonCompeteMonths: n === 0 ? null : n }, true);
+              }}
+            />
+            {(draft.terms.nonCompeteMonths ?? 0) > 0 ? (
+              <NumberField
+                label={tr(
+                  'offers.compensation_during_it_of_last_pay',
+                  'Compensation during it, % of last pay',
+                )}
+                value={draft.terms.nonCompeteCompensationPercent ?? null}
+                min={0}
+                max={100}
+                suffix="%"
+                onChange={(n) => {
+                  setTerms({ nonCompeteCompensationPercent: n }, true);
+                }}
+              />
+            ) : null}
+            <div className="flex items-center gap-3">
+              <Switch
+                id="mobility"
+                checked={draft.terms.mobilityClause === true}
+                onCheckedChange={(on) => {
+                  setTerms({ mobilityClause: on });
+                }}
+              />
+              <label htmlFor="mobility">{tr('offers.mobility_clause', 'Mobility clause')}</label>
+            </div>
+            <Issues issues={issues('clauses')} />
+          </Group>
+        ) : null}
+
+        <Card>
+          <CardHeader>
+            <CardTitle level={2}>{tr('offers.benefits', 'Benefits')}</CardTitle>
+            <CardDescription>
+              {tr(
+                'offers.from_the_job_ad_change_or_add',
+                'Those the job ad gave are chosen; change them, or write in one the catalogue does not have.',
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <BenefitPicker
+              benefits={catalogue}
+              categories={data.categories ?? []}
+              chosen={draft.benefitIds}
+              disabled={!editable}
+              onChange={(ids) => {
+                change({ ...draft, benefitIds: ids });
+              }}
+            />
+            <TagsInput
+              label={tr('offers.also_in_this_offer', 'Also in this offer')}
+              hint={tr(
+                'offers.also_in_this_offer_hint',
+                'A benefit for this offer alone, in a few words. Press Enter to add it.',
+              )}
+              placeholder={tr('offers.a_team_retreat', 'A team retreat in spring')}
+              delimiters={[]}
+              max={30}
+              disabled={!editable}
+              value={draft.extraBenefits}
+              onChange={(list) => {
+                change({ ...draft, extraBenefits: list });
+              }}
+            />
+            <Issues issues={issues('benefits')} />
+          </CardContent>
+        </Card>
+      </fieldset>
+      {rules.length === 0 ? null : (
+        <Card>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="rules">
+              <AccordionTrigger className="px-5">
+                {tr('offers.rules_that_applied_n', 'Rules that applied ({{count}})', {
+                  count: String(rules.length),
+                })}
+              </AccordionTrigger>
+              <AccordionContent className="px-5">
+                <ul className="flex flex-col gap-3">
+                  {rules.map((r) => (
+                    <li key={`${r.step}:${r.text}`} className="flex flex-col gap-0.5">
+                      <span className="text-sm">{r.text}</span>
+                      <span className="font-mono text-xs text-fg-muted">
+                        {STEP_LABEL[r.step] ?? words(r.step)} · {r.source}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </Card>
+      )}
+    </>
+  );
+  if (onClose === undefined)
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <PageHeader {...head} />
+        {body}
       </div>
-    </div>
+    );
+  return (
+    <>
+      <ModalPageHeader {...head} />
+      <ModalPageBody className="px-4 py-5 @2xl:px-8 @2xl:py-7">
+        <div className="flex flex-col gap-6">{body}</div>
+      </ModalPageBody>
+    </>
   );
 }
 
@@ -2189,7 +2252,7 @@ export function Contract(props: ScreenProps<OfferData>): JSX.Element {
                           )}
                         </FieldDescription>
                       </Field>
-                      <div className="flex justify-end md:col-span-2">
+                      <div className="flex justify-end">
                         <Button
                           disabled={fileId === '' || signedOn === ''}
                           loading={act.pending}

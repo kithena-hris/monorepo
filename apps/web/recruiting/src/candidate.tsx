@@ -68,8 +68,16 @@ import {
 import { EmailComposer, type ComposedEmail } from './composer';
 import { AskList } from './interviews';
 import { Journey } from './journey';
+import { OfferModal } from './offers';
 import { RejectDialog, type Rejecting } from './reject-dialog';
-import type { Category, CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
+import type {
+  Category,
+  CandidateData,
+  CandidatesData,
+  OfferData,
+  PoolsData,
+  ScreenProps,
+} from './types';
 import { t as tr } from './i18n';
 
 /**
@@ -910,7 +918,7 @@ function Notes({
  */
 
 type Application = CandidateData['applications'][number];
-type Actions = Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh' | 'onNavigate'>;
+type Actions = Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh' | 'onNavigate' | 'onFilter'>;
 
 /** A section of the spotlight: a card with its heading, a line under it and, at most, one action. */
 function Section({
@@ -975,11 +983,14 @@ export function Spotlight({
   applicationId,
   onApplication,
   overlay,
+  offerOpen,
 }: {
   readonly data: CandidateData;
   readonly actions: Actions;
   readonly applicationId: string | undefined;
   readonly onApplication: (id: string) => void;
+  /** The offer open over the board (`?offer=`); a page's own arrives in its data. */
+  readonly offerOpen?: OfferData | null | undefined;
   readonly overlay?: {
     readonly onPrevious: (() => void) | null;
     readonly onNext: (() => void) | null;
@@ -1063,12 +1074,18 @@ export function Spotlight({
   const schedule = (): void => {
     go(`/recruiting/applications/${chosen.applicationId}/schedule`);
   };
+  // The offer opens over this page, which stays where it was; one not made yet is drafted from the job first.
+  const showOffer = (id: string): void => {
+    actions.onFilter?.({ offer: id });
+  };
   const openOffer = (): void => {
-    go(
-      offer === undefined
-        ? `/recruiting/offers/new?application=${chosen.applicationId}`
-        : `/recruiting/offers/${offer.id}`,
-    );
+    if (offer !== undefined) {
+      showOffer(offer.id);
+      return;
+    }
+    act.run('PrepareOffer', { applicationId: chosen.applicationId }, (drafted) => {
+      showOffer((drafted as { id: string }).id);
+    });
   };
   const askMove = (to: string): void => {
     const target = chosen.stages.find((s) => s.id === to);
@@ -1651,14 +1668,13 @@ export function Spotlight({
                   },
                   (answer) => {
                     setMoving(null);
-                    const moved = answer as { opensOffer?: boolean; offerId?: string | null } | null;
-                    // Arriving at the offer stage drafted the offer from the job: open it, filled in.
-                    if (moved?.opensOffer === true)
-                      go(
-                        moved.offerId == null
-                          ? `/recruiting/offers/new?application=${chosen.applicationId}`
-                          : `/recruiting/offers/${moved.offerId}`,
-                      );
+                    const moved = answer as {
+                      opensOffer?: boolean;
+                      offerId?: string | null;
+                    } | null;
+                    // Arriving at the offer stage drafted the offer from the job: open it, filled in, over this page.
+                    if (moved?.opensOffer === true && moved.offerId != null)
+                      showOffer(moved.offerId);
                   },
                 );
               }}
@@ -1877,6 +1893,11 @@ export function Spotlight({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <OfferModal
+        offer={offerOpen ?? data.openOffer}
+        props={actions}
+        onClose={() => actions.onFilter?.({ offer: null })}
+      />
       <RejectDialog
         options={{
           jobTitle: chosen.job.title,
