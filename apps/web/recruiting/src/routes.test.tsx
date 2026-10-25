@@ -709,9 +709,20 @@ describe('R11, a candidate', () => {
                     interviewerId: 'p2',
                     recommendation: 'strong_yes',
                     submittedAt: '2026-10-22T11:00:00Z',
-                    ratings: { craft: 4, collaboration: 5 },
+                    ratings: { craft: 4, collaboration: 3 },
+                    notes: 'Clear on trade-offs.',
                   },
                 ],
+                results: {
+                  submitted: 1,
+                  expected: 1,
+                  recommendations: { strong_yes: 1, yes: 0, no: 0, strong_no: 0 },
+                  rows: [
+                    { competency: 'Craft', average: '4.00' },
+                    { competency: 'Collaboration', average: '3.00' },
+                  ],
+                  competencies: { craft: 'Craft', collaboration: 'Collaboration' },
+                },
               },
             ],
     };
@@ -721,8 +732,16 @@ describe('R11, a candidate', () => {
     expect(screen.getAllByText('Yuki Sato').length).toBeGreaterThan(0);
     // Ben scored though he was not on the panel; Ada was, and still owes hers.
     expect(screen.getByText('Ben Ode')).toBeTruthy();
-    expect(screen.getByText('Strong yes')).toBeTruthy();
-    expect(screen.getByText(/Rated 4.5 of 5 across 2/u)).toBeTruthy();
+    expect(screen.getAllByText('Strong yes').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Rated 3.5 of 4 across 2/u)).toBeTruthy();
+    // How each competency was rated, the notes, and the panel's results with the way to the debrief.
+    expect(screen.getByText('Craft 4 of 4')).toBeTruthy();
+    expect(screen.getByText('Clear on trade-offs.')).toBeTruthy();
+    expect(screen.getByText('1 of 1 scorecards in')).toBeTruthy();
+    expect(screen.getByText('3.00 of 4')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open the debrief' }).getAttribute('href')).toBe(
+      '/recruiting/applications/a1/debrief',
+    );
     expect(screen.getByText('Scorecard owed')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
   });

@@ -1461,6 +1461,7 @@ export async function saveScorecard(
       draft,
       await competenciesOf(ctx, app.jobId, interview.planKey),
       ctx.at,
+      interview.startsAt,
     );
     if (!submitted.ok) return submitted;
     card = submitted.value;

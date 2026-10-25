@@ -12,7 +12,8 @@ import { packFor } from '../domain/terms/packs.js';
 import { composerSteps, type TermsAnswers } from '../domain/terms/pack.js';
 import { TERMS_STEPS } from '@kithena/contracts';
 import { approvalState } from '../domain/requisition/requisition.js';
-import { visibleScorecards } from '../domain/interview/interview.js';
+import { debrief, visibleScorecards } from '../domain/interview/interview.js';
+import { competenciesOf } from './interviews.js';
 import { referralOutcome } from '../domain/referral/referral.js';
 import { asksOf, openAvailability } from './asks.js';
 import { jobTerms } from './job-terms.js';
@@ -423,6 +424,30 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
     const interviews = await ctx.tx.interviews.forApplication(app.id);
     const cards = await ctx.tx.interviews.forApplicationScorecards(app.id);
     const team = may(ctx.viewer, facts, 'scorecards.all');
+    // What the panel concluded, for the hiring team: the debrief's own figures, the
+    // notes beside each card, and what each competency is called.
+    const competencies = new Map<string, string>();
+    if (team)
+      for (const i of interviews)
+        for (const c of await competenciesOf(ctx, app.jobId, i.planKey))
+          competencies.set(c.key, c.name);
+    const notes = team
+      ? new Map(
+          (await ctx.tx.interviews.scorecardNotes(app.id)).map((n) => [
+            `${n.interviewId}:${n.interviewerId}`,
+            n.notes,
+          ]),
+        )
+      : new Map<string, string>();
+    const panel = team
+      ? debrief(
+          [...competencies].map(([key, name]) => ({ key, name })),
+          cards,
+          interviews
+            .filter((i) => i.state === 'completed')
+            .reduce((n, i) => n + i.interviewerIds.length, 0),
+        )
+      : null;
     const approvers = (await ctx.tx.approvals.waitingOn(ctx.viewer.personId ?? '')).map(
       (a) => a.subject.id,
     );
@@ -445,8 +470,23 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
       interviews,
       asks: (await asksOf(ctx, app.id)).toReversed(),
       scorecards: team
-        ? cards.filter((c) => c.submittedAt !== null)
+        ? cards
+            .filter((c) => c.submittedAt !== null)
+            .map((c) => ({ ...c, notes: notes.get(`${c.interviewId}:${c.interviewerId}`) ?? null }))
         : visibleScorecards(cards, { kind: 'interviewer', personId: ctx.viewer.personId ?? '' }),
+      results:
+        panel === null
+          ? null
+          : {
+              submitted: panel.submitted,
+              expected: panel.expected,
+              recommendations: panel.recommendations,
+              rows: panel.rows.map((r) => ({
+                competency: competencies.get(r.competency) ?? r.competency,
+                average: r.average,
+              })),
+              competencies: Object.fromEntries(competencies),
+            },
       offers: offers.map((o) => ({
         id: o.id,
         state: o.state,
