@@ -316,6 +316,26 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
     failed: readonly string[];
   } | null>(null);
   const fill = useFillHeight();
+  /*
+   * A dropped card stays where it was dropped while the move is saved, rather
+   * than going back to its column until the board is read again: the drop is
+   * the answer the person sees. Undone if the move is refused; forgotten once
+   * the board says the same.
+   */
+  const [placed, setPlaced] = useState<Readonly<Record<string, string>>>({});
+  const unplace = (applicationId: string): void => {
+    setPlaced(({ [applicationId]: _gone, ...rest }) => rest);
+  };
+  useEffect(() => {
+    if (props.load.status !== 'ready') return;
+    const cards = props.load.data.cards;
+    setPlaced((held) => {
+      const still = Object.entries(held).filter(
+        ([id, to]) => cards.find((c) => c.applicationId === id)?.stageId !== to,
+      );
+      return still.length === Object.keys(held).length ? held : Object.fromEntries(still);
+    });
+  }, [props.load]);
   // Held while the stages and the navigation hold, so a selection redraws only its rows.
   const stages = props.load.status === 'ready' ? props.load.data.stages : NO_STAGES;
   const { onNavigate } = props;
@@ -325,7 +345,11 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
     <Loaded load={props.load} what={t('pipeline.the_pipeline', 'the pipeline')}>
       {(data) => {
         const band = props.search?.['band'] ?? '';
-        const active = data.cards.filter(
+        const cards = data.cards.map((c) => {
+          const to = placed[c.applicationId];
+          return to === undefined ? c : { ...c, stageId: to, daysInStage: 0 };
+        });
+        const active = cards.filter(
           (c) =>
             c.outcome === 'active' &&
             (band === '' || (band === 'none' ? c.match == null : c.match?.band === band)),
@@ -336,7 +360,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
         const strongAtStart =
           first === undefined || second === undefined
             ? []
-            : data.cards.filter(
+            : cards.filter(
                 (c) =>
                   c.outcome === 'active' && c.stageId === first.id && c.match?.band === 'strong',
               );
@@ -367,6 +391,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
             setAsking({ card, to });
             return;
           }
+          setPlaced((held) => ({ ...held, [card.applicationId]: to }));
           act.run(
             'MoveApplication',
             {
@@ -388,6 +413,9 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               // Arriving at the offer stage drafted the offer from the job: open it, filled in.
               if (moved.opensOffer && moved.offerId != null)
                 props.onFilter?.({ offer: moved.offerId });
+            },
+            () => {
+              unplace(card.applicationId);
             },
           );
         };
@@ -773,6 +801,8 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                       'UndoMove',
                       { applicationId: undo.applicationId, input: { moveId: undo.moveId } },
                       () => {
+                        // Back where it was: the card follows the board again, not the drop.
+                        unplace(undo.applicationId);
                         setUndo(null);
                       },
                     );
@@ -788,7 +818,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               }}
             >
               {data.spotlight == null ? null : (
-                <ModalPageContent size="inset">
+                <ModalPageContent size="full">
                   <Spotlight
                     data={data.spotlight}
                     offerOpen={data.openOffer}

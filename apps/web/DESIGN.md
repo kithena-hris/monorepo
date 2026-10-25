@@ -10,7 +10,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 
 ## Recruiting surfaces
 
-- **Spotlight** (`Spotlight` in `candidate.tsx`): one application, one surface, opened as a page from a link or over the board as a `ModalPage size="inset"`. Its order:
+- **Spotlight** (`Spotlight` in `candidate.tsx`): one application, one surface, opened as a page from a link or over the board as a full-screen `ModalPage` (its content centred, `max-w-7xl`), so an offer can open over it. Its order:
   - an identity strip: `Avatar 2xl`, then the job on a line of its own, "Via Kithena Jobs · Applied 24 Oct" under it, then contact links (the header already names the person);
   - the stage rail: a `Stepper` with `free`, `size="sm"`, inside a padded `Card`; pressing a stage moves the candidate there through the move dialog;
   - a work column: up-next cards, Interviews and scorecards, Questionnaire, Evidence, Pre-hire, References, Messages (a `ChatLog` thread that scrolls in its own box), Journey;
