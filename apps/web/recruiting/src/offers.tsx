@@ -1520,6 +1520,8 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
               props.onNavigate?.('/recruiting/offers');
               return 'left';
             },
+            undefined,
+            decision,
           );
         };
         return (
@@ -1587,8 +1589,8 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                 <div className="mt-3 flex justify-end gap-2">
                   <Button
                     variant="secondary"
-                    disabled={comment.trim() === ''}
-                    loading={act.pending}
+                    disabled={comment.trim() === '' || act.pending}
+                    loading={act.busy('rejected')}
                     onClick={() => {
                       decide('rejected');
                     }}
@@ -1596,7 +1598,8 @@ export function OfferApproval(props: ScreenProps<OfferData>): JSX.Element {
                     {tr('offers.reject', 'Reject')}
                   </Button>
                   <Button
-                    loading={act.pending}
+                    disabled={act.pending}
+                    loading={act.busy('approved')}
                     onClick={() => {
                       decide('approved');
                     }}
@@ -1819,6 +1822,7 @@ function ContractDraft({
   const [body, setBody] = useState('');
   const [checked, setChecked] = useState(false);
   const [preview, setPreview] = useState<Uint8Array | null>(null);
+  const [previewing, startPreviewing] = useTransition();
   const [drafting, startDrafting] = useTransition();
   const [draftError, setDraftError] = useState<string | null>(null);
   const draft = (fresh: boolean): void => {
@@ -2046,11 +2050,12 @@ function ContractDraft({
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="secondary"
-                  disabled={body.trim() === ''}
-                  loading={act.pending}
+                  disabled={body.trim() === '' || act.pending}
+                  loading={previewing}
                   startIcon={<icons.visible aria-hidden />}
                   onClick={() => {
-                    void act.call('PreviewContract', { offerId, title, body }).then((done) => {
+                    startPreviewing(async () => {
+                      const done = await act.call('PreviewContract', { offerId, title, body });
                       if (done.ok) {
                         const b64 = (done.data as { base64: string }).base64;
                         setPreview(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
@@ -2061,7 +2066,7 @@ function ContractDraft({
                   {tr('offers.preview', 'Preview')}
                 </Button>
                 <Button
-                  disabled={!ready}
+                  disabled={!ready || previewing}
                   loading={act.pending}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {

@@ -514,10 +514,16 @@ function KitBody({
   // Submitted only once the interview has begun; before it, the scorecard is a draft.
   const begun = Date.parse(i.startsAt) <= Date.now();
   const save = (submit: boolean) => {
-    act.run('SaveScorecard', {
-      interviewId: i.id,
-      input: { ratings, recommendation, notes: notes === '' ? null : notes, submit },
-    });
+    act.run(
+      'SaveScorecard',
+      {
+        interviewId: i.id,
+        input: { ratings, recommendation, notes: notes === '' ? null : notes, submit },
+      },
+      undefined,
+      undefined,
+      submit ? 'submit' : 'draft',
+    );
   };
   return (
     <div className="flex flex-col gap-4">
@@ -719,7 +725,8 @@ function KitBody({
                 )}
                 <Button
                   variant="secondary"
-                  loading={act.pending}
+                  disabled={act.pending}
+                  loading={act.busy('draft')}
                   onClick={() => {
                     save(false);
                   }}
@@ -727,8 +734,8 @@ function KitBody({
                   {tr('interviews.save_draft', 'Save draft')}
                 </Button>
                 <Button
-                  loading={act.pending}
-                  disabled={!begun}
+                  loading={act.busy('submit')}
+                  disabled={!begun || act.pending}
                   onClick={() => {
                     save(true);
                   }}
@@ -1206,8 +1213,8 @@ function ScheduleBody({
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
-                      disabled={fromAsk?.askId !== a.id || fromAsk.time === ''}
-                      loading={act.pending}
+                      disabled={fromAsk?.askId !== a.id || fromAsk.time === '' || act.pending}
+                      loading={act.busy('BookFromAsk')}
                       startIcon={<icons.send aria-hidden />}
                       onClick={() => {
                         if (fromAsk === null) return;
@@ -1226,7 +1233,8 @@ function ScheduleBody({
                     </Button>
                     <Button
                       variant="secondary"
-                      loading={act.pending}
+                      disabled={act.pending}
+                      loading={act.busy('RequestMoreTimes')}
                       onClick={() => {
                         act.run('RequestMoreTimes', {
                           applicationId,
@@ -1538,8 +1546,8 @@ function ScheduleBody({
               ) : null}
               {how === 'book' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null || !whereReady}
-                  loading={act.pending}
+                  disabled={picked.length === 0 || data.planKey === null || !whereReady || act.pending}
+                  loading={act.busy('ScheduleInterview')}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(
@@ -1556,8 +1564,8 @@ function ScheduleBody({
                 </Button>
               ) : how === 'offer' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null || !whereReady}
-                  loading={act.pending}
+                  disabled={picked.length === 0 || data.planKey === null || !whereReady || act.pending}
+                  loading={act.busy('ProposeSlots')}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(
@@ -1586,8 +1594,8 @@ function ScheduleBody({
                 </Button>
               ) : (
                 <Button
-                  disabled={data.planKey === null || !whereReady}
-                  loading={act.pending}
+                  disabled={data.planKey === null || !whereReady || act.pending}
+                  loading={act.busy('SelfScheduleLink')}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {
                     act.run(

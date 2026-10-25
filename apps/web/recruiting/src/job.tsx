@@ -1344,8 +1344,8 @@ function Ad({
           <div className="flex flex-wrap items-end gap-2">
             <Button
               variant="secondary"
-              loading={act.pending}
-              disabled={intake.trim() === ''}
+              loading={act.busy('DraftAd')}
+              disabled={intake.trim() === '' || act.pending}
               onClick={() => {
                 act.run('DraftAd', { jobId: data.job.id, input: { language, intake } }, take);
               }}
@@ -1373,8 +1373,8 @@ function Ad({
                 </Select>
                 <Button
                   variant="secondary"
-                  loading={act.pending}
-                  disabled={to === ''}
+                  loading={act.busy('TranslateAd')}
+                  disabled={to === '' || act.pending}
                   onClick={() => {
                     act.run(
                       'TranslateAd',
@@ -1393,8 +1393,8 @@ function Ad({
           </div>
           <div className="flex justify-end">
             <Button
-              loading={act.pending}
-              disabled={title.trim() === '' || (doc === null && ad === undefined)}
+              loading={act.busy('SaveJobAd')}
+              disabled={title.trim() === '' || (doc === null && ad === undefined) || act.pending}
               onClick={() => {
                 act.run('SaveJobAd', {
                   jobId: data.job.id,
@@ -1809,7 +1809,13 @@ function ChatChannel({
   const act = useAct(props);
   const [channel, setChannel] = useState(data.chat?.channel ?? '');
   const save = (value: string | null) => {
-    act.run('SetJobChatChannel', { jobId: data.job.id, input: { channel: value } });
+    act.run(
+      'SetJobChatChannel',
+      { jobId: data.job.id, input: { channel: value } },
+      undefined,
+      undefined,
+      value === null ? 'remove' : 'save',
+    );
   };
   return (
     <Card>
@@ -1846,8 +1852,8 @@ function ChatChannel({
         <div className="flex gap-2">
           <Button
             size="sm"
-            loading={act.pending}
-            disabled={channel === '' || channel === data.chat?.channel}
+            loading={act.busy('save')}
+            disabled={channel === '' || channel === data.chat?.channel || act.pending}
             onClick={() => {
               save(channel);
             }}
@@ -1858,7 +1864,8 @@ function ChatChannel({
             <Button
               size="sm"
               variant="secondary"
-              loading={act.pending}
+              disabled={act.pending}
+              loading={act.busy('remove')}
               onClick={() => {
                 setChannel('');
                 save(null);

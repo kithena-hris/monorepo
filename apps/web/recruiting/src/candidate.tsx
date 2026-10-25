@@ -517,6 +517,8 @@ function AccountCard({
         setAccount(made as HireAccount);
         setSendOn(null);
       },
+      undefined,
+      on === null ? 'now' : 'schedule',
     );
   };
   const said =
@@ -588,7 +590,8 @@ function AccountCard({
       {live ? (
         <div className="flex flex-wrap items-end gap-3">
           <Button
-            loading={act.pending}
+            disabled={act.pending}
+            loading={act.busy('now')}
             startIcon={<icons.email aria-hidden />}
             onClick={() => {
               invite(null);
@@ -609,8 +612,8 @@ function AccountCard({
               />
               <Button
                 variant="secondary"
-                disabled={sendOn === null}
-                loading={act.pending}
+                disabled={sendOn === null || act.pending}
+                loading={act.busy('schedule')}
                 onClick={() => {
                   invite(sendOn);
                 }}
@@ -650,11 +653,13 @@ function FirstDay({
   const [personId, setPersonId] = useState<string | null>(null);
   const prehire = application.prehire;
   const decide = (kind: string, state: 'met' | 'waived'): void => {
-    act.run('DecideCondition', {
-      applicationId: application.applicationId,
-      kind,
-      input: { state, note: null },
-    });
+    act.run(
+      'DecideCondition',
+      { applicationId: application.applicationId, kind, input: { state, note: null } },
+      undefined,
+      undefined,
+      `${kind}:${state}`,
+    );
   };
   const links = [
     personId === null
@@ -713,7 +718,8 @@ function FirstDay({
                       <Button
                         size="sm"
                         variant="secondary"
-                        loading={act.pending}
+                        disabled={act.pending}
+                        loading={act.busy(`${c.kind}:met`)}
                         onClick={() => {
                           decide(c.kind, 'met');
                         }}
@@ -723,7 +729,8 @@ function FirstDay({
                       <Button
                         size="sm"
                         variant="ghost"
-                        loading={act.pending}
+                        disabled={act.pending}
+                        loading={act.busy(`${c.kind}:waived`)}
                         onClick={() => {
                           decide(c.kind, 'waived');
                         }}

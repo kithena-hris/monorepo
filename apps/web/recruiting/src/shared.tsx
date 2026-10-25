@@ -57,7 +57,13 @@ export function To({
 
 /** One write: run it, show its refusal, refresh the page's data when it lands. */
 export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>): {
+  /** Something on the page is being written: every button that writes waits. */
   readonly pending: boolean;
+  /**
+   * The one write named `key` is running: the button that started it spins,
+   * and the buttons beside it only wait, never seem to have been pressed too.
+   */
+  readonly busy: (key: string) => boolean;
   readonly error: string | null;
   readonly clear: () => void;
   readonly run: (
@@ -70,24 +76,29 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
     after?: (data: unknown) => unknown,
     /** Refused: what was shown ahead of the answer is taken back. */
     refused?: () => void,
+    /** Which button started it, for `busy`; the write's name when absent. */
+    key?: string,
   ) => void;
   readonly call: (name: string, variables: Readonly<Record<string, unknown>>) => Promise<Done>;
 } {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
   const call = async (name: string, variables: Readonly<Record<string, unknown>>): Promise<Done> =>
     props.onAct === undefined
       ? { ok: false, message: t('shared.not_available_here', 'Not available here') }
       : props.onAct(name, variables);
   return {
     pending,
+    busy: (key) => pending && running === key,
     error,
     clear: () => {
       setError(null);
     },
     call,
-    run: (name, variables, after, refused) => {
+    run: (name, variables, after, refused, key) => {
       setError(null);
+      setRunning(key ?? name);
       start(async () => {
         const done = await call(name, variables);
         if (!done.ok) {

@@ -500,8 +500,8 @@ function Ask({
         <Button
           type="submit"
           variant="secondary"
-          loading={act.pending}
-          disabled={question.trim() === ''}
+          loading={act.busy('AskForChart')}
+          disabled={question.trim() === '' || act.pending}
         >
           {tr('analytics.ask', 'Ask')}
         </Button>
@@ -529,7 +529,8 @@ function Ask({
           (m?.by ?? []).map((k) => ({ key: k, label: words(k) })),
         )}
         <Button
-          loading={act.pending}
+          disabled={act.pending}
+          loading={act.busy('Chart')}
           onClick={() => {
             act.run(
               'Chart',

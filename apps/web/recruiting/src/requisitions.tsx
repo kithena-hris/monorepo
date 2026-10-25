@@ -251,14 +251,21 @@ function Editor({
             to: { amountMinor: Math.round(to * 100), currency },
           },
   });
-  const save = (after?: () => void): void => {
+  /** `key`: which button pressed it, so only that one spins (`busy`). */
+  const save = (after?: () => void, key = 'save'): void => {
     const { approval: _a, hiringManager: _h, ...input } = value();
-    act.run('SaveRequisition', { requisitionId: r.id, input }, () => {
-      after?.();
-      if (!isNew) return undefined;
-      props.onNavigate?.(`/recruiting/requisitions/${r.id}`);
-      return 'left';
-    });
+    act.run(
+      'SaveRequisition',
+      { requisitionId: r.id, input },
+      () => {
+        after?.();
+        if (!isNew) return undefined;
+        props.onNavigate?.(`/recruiting/requisitions/${r.id}`);
+        return 'left';
+      },
+      undefined,
+      key,
+    );
   };
   return (
     <div className="flex flex-col gap-4">
@@ -269,8 +276,8 @@ function Editor({
           <>
             <Button
               variant="secondary"
-              disabled={!editable}
-              loading={act.pending}
+              disabled={!editable || act.pending}
+              loading={act.busy('save')}
               onClick={() => {
                 save();
               }}
@@ -279,11 +286,18 @@ function Editor({
             </Button>
             {r.state === 'draft' && !isNew ? (
               <Button
-                loading={act.pending}
+                disabled={act.pending}
+                loading={act.busy('submit')}
                 onClick={() => {
                   save(() => {
-                    act.run('SubmitRequisition', { requisitionId: r.id });
-                  });
+                    act.run(
+                      'SubmitRequisition',
+                      { requisitionId: r.id },
+                      undefined,
+                      undefined,
+                      'submit',
+                    );
+                  }, 'submit');
                 }}
               >
                 {t('requisitions.send_for_approval', 'Send for approval')}
@@ -589,18 +603,23 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                   <div className="flex justify-end gap-2">
                     <Button
                       variant="secondary"
-                      loading={act.pending}
+                      disabled={act.pending}
+                      loading={act.busy('rejected')}
                       onClick={() => {
-                        act.run('DecideRequisition', {
-                          requisitionId: r.id,
-                          input: { decision: 'rejected', comment },
-                        });
+                        act.run(
+                          'DecideRequisition',
+                          { requisitionId: r.id, input: { decision: 'rejected', comment } },
+                          undefined,
+                          undefined,
+                          'rejected',
+                        );
                       }}
                     >
                       {t('requisitions.reject', 'Reject')}
                     </Button>
                     <Button
-                      loading={act.pending}
+                      disabled={act.pending}
+                      loading={act.busy('approved')}
                       onClick={() => {
                         act.run(
                           'DecideRequisition',
@@ -611,7 +630,12 @@ export function RequisitionApproval(props: ScreenProps<readonly Requisition[]>):
                               comment: comment === '' ? null : comment,
                             },
                           },
-                          () => props.onNavigate?.('/recruiting/requisitions'),
+                          () => {
+                            props.onNavigate?.('/recruiting/requisitions');
+                            return 'left';
+                          },
+                          undefined,
+                          'approved',
                         );
                       }}
                     >
