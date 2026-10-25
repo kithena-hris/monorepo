@@ -544,6 +544,28 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
   };
 }
 
+/**
+ * The signatures of hires People made before the company had a signature
+ * field, read from Recruiting's hires again under a group of its own: only
+ * an empty signature field is filled, nobody is created, so replaying a hire
+ * that was since cancelled brings nobody back (`HiresFromRecruiting.signed`).
+ */
+export function hireSignatures(
+  deps: Pick<ConsumerDeps, 'inTenant' | 'hires'>,
+): (raw: unknown) => Promise<Outcome> {
+  return async (raw) => {
+    const name: unknown =
+      typeof raw === 'object' && raw !== null ? Reflect.get(raw, 'eventName') : undefined;
+    if (name !== CandidateHired.name) return 'ignored';
+    const event = parse(CandidateHired, raw);
+    if (!event) return 'rejected';
+    const { hires } = deps;
+    if (!hires) return 'ignored';
+    const done = await deps.inTenant(event.tenantId, ({ tx }) => hires.signed(tx, event));
+    return done.outcome;
+  };
+}
+
 function parse<P extends z.ZodType>(
   definition: EventDefinition<string, P>,
   raw: unknown,

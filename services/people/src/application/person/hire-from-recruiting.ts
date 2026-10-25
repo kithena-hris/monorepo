@@ -29,8 +29,9 @@ import { SYSTEM_VIEWER } from './subject.js';
  *
  * Idempotent on the work email: somebody already on the books under it — a
  * second delivery, or an internal candidate who was an employee all along —
- * is left as they are and reported unchanged. The cancellation finds the
- * record by that same email, among pre-hires only.
+ * is left as they are and reported unchanged, but for an empty signature,
+ * which the contract's fills (`signed`). The cancellation finds the record by
+ * that same email, among pre-hires only.
  */
 
 export type Hired = EventEnvelope & { payload: z.infer<typeof CandidateHired.payload> };
@@ -41,6 +42,12 @@ export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
 export interface HiresFromRecruiting {
   hired(tx: PostgresJsDatabase, event: Hired): Promise<{ outcome: Outcome; code?: string }>;
   cancelled(tx: PostgresJsDatabase, event: Cancelled): Promise<{ outcome: Outcome; code?: string }>;
+  /**
+   * Only the signature: whoever is on the books under the work email gets the
+   * contract's in an empty signature field; nobody is created. What a replay
+   * of hires made before the company had a signature field goes through.
+   */
+  signed(tx: PostgresJsDatabase, event: Hired): Promise<{ outcome: Outcome; code?: string }>;
 }
 
 /** Everything the event says, by People's attribute keys. */
@@ -62,7 +69,7 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
 }
 
 export function hiresFromRecruiting(
-  access: Pick<PersonAccess, 'create' | 'list' | 'discard'>,
+  access: Pick<PersonAccess, 'create' | 'list' | 'discard' | 'update'>,
   schemas: Pick<SchemaVersions, 'current'>,
 ): HiresFromRecruiting {
   const asking = (event: EventEnvelope) => ({
@@ -90,13 +97,41 @@ export function hiresFromRecruiting(
     );
   };
 
+  const signed: HiresFromRecruiting['signed'] = async (tx, event) => {
+    const signature = event.payload.signature ?? null;
+    if (signature === null) return { outcome: 'ignored' };
+    const version = await schemas.current(tx, event.tenantId);
+    const field = version?.document.attributes.find(
+      (a) => a.deprecatedAt === null && a.dataType === 'signature',
+    );
+    if (field === undefined) return { outcome: 'ignored', code: 'NO_SIGNATURE_FIELD' };
+    const found = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
+    if (!found.ok) return { outcome: 'rejected', code: found.error.code };
+    const kept = found.value?.attributes[field.key];
+    if (found.value === null || (kept !== undefined && kept !== null && kept !== '')) {
+      return { outcome: 'unchanged' };
+    }
+    const updated = await access.update(tx, {
+      ...asking(event),
+      applySensitiveWithoutApproval: true,
+      personId: found.value.id,
+      changes: { [field.key]: signature },
+    });
+    return updated.ok ? { outcome: 'applied' } : { outcome: 'rejected', code: updated.error.code };
+  };
+
   return {
+    signed,
     async hired(tx, event) {
       const version = await schemas.current(tx, event.tenantId);
       if (version === null) return { outcome: 'ignored', code: 'NOT_PUBLISHED' };
       const already = await holder(tx, event, event.payload.candidate.email, ON_THE_BOOKS);
       if (!already.ok) return { outcome: 'rejected', code: already.error.code };
-      if (already.value !== null) return { outcome: 'unchanged' };
+      if (already.value !== null) {
+        // Already on the books: only an empty signature is the contract's to fill.
+        const filled = await signed(tx, event);
+        return filled.outcome === 'applied' ? filled : { outcome: 'unchanged' };
+      }
       const live = version.document.attributes.filter((a) => a.deprecatedAt === null);
       const defined = new Set<string>(live.map((a) => a.key));
       // The signature they signed the contract with, kept where the company keeps one.
