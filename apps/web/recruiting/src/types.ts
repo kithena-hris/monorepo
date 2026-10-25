@@ -591,7 +591,18 @@ export interface CandidateData {
       readonly recommendation: string | null;
       readonly submittedAt: string | null;
       readonly ratings: Readonly<Record<string, number>>;
+      /** The interviewer's notes, to the hiring team. */
+      readonly notes?: string | null;
     }[];
+    /** What the panel concluded, for the hiring team: the debrief's figures. */
+    readonly results?: {
+      readonly submitted: number;
+      readonly expected: number;
+      readonly recommendations: Readonly<Record<string, number>>;
+      readonly rows: readonly { readonly competency: string; readonly average: string | null }[];
+      /** Each competency's name, by key. */
+      readonly competencies: Readonly<Record<string, string>>;
+    } | null;
     readonly offers: readonly {
       readonly id: string;
       readonly state: string;

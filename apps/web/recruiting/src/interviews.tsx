@@ -511,6 +511,8 @@ function KitBody({
     (c) => c.interviewerId !== data.me && c.submittedAt !== null,
   );
   const i = data.interview;
+  // Submitted only once the interview has begun; before it, the scorecard is a draft.
+  const begun = Date.parse(i.startsAt) <= Date.now();
   const save = (submit: boolean) => {
     act.run('SaveScorecard', {
       interviewId: i.id,
@@ -706,7 +708,15 @@ function KitBody({
                 })}
               </Badge>
             ) : (
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {begun ? null : (
+                  <p className="me-auto text-sm text-fg-muted">
+                    {tr(
+                      'interviews.submit_once_begun',
+                      'You can submit it once the interview has begun. Until then, save it as a draft.',
+                    )}
+                  </p>
+                )}
                 <Button
                   variant="secondary"
                   loading={act.pending}
@@ -718,6 +728,7 @@ function KitBody({
                 </Button>
                 <Button
                   loading={act.pending}
+                  disabled={!begun}
                   onClick={() => {
                     save(true);
                   }}

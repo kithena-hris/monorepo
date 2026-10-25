@@ -48,17 +48,30 @@ describe('interviews and scorecards (PRD §16)', () => {
   });
 
   it('submits only a complete scorecard', () => {
-    expect(submitScorecard(card('adam', { systems: 3 }, null), competencies, 'now')).toMatchObject({
-      ok: false,
-      error: { code: 'RATINGS_MISSING' },
-    });
+    const after = '2026-10-15T10:00:00Z';
+    const starts = '2026-10-15T09:00:00Z';
+    expect(
+      submitScorecard(card('adam', { systems: 3 }, null), competencies, after, starts),
+    ).toMatchObject({ ok: false, error: { code: 'RATINGS_MISSING' } });
     expect(
       submitScorecard(
         { ...card('adam', { systems: 3, collab: 4 }, null), recommendation: 'yes' },
         competencies,
-        'now',
+        after,
+        starts,
       ).ok,
     ).toBe(true);
+  });
+
+  it('submits nothing before the interview has begun; a draft waits', () => {
+    expect(
+      submitScorecard(
+        { ...card('adam', { systems: 3, collab: 4 }, null), recommendation: 'yes' },
+        competencies,
+        '2026-10-15T08:59:00Z',
+        '2026-10-15T09:00:00Z',
+      ),
+    ).toMatchObject({ ok: false, error: { code: 'INTERVIEW_NOT_STARTED' } });
   });
 
   it('keeps others’ scorecards from an interviewer until theirs is in', () => {

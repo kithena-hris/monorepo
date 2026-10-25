@@ -559,6 +559,10 @@
     "text": "Ask to join",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <Button>."
   },
+  "candidate.average_of_four": {
+    "text": "{{average}} of 4",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, PanelResults: the items of <KeyValues>. Filled in: {{average}}."
+  },
   "candidate.backend_berlin_silver_medallists": {
     "text": "Backend, Berlin · silver medallists",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Pools: the placeholder of <Input>."
@@ -590,6 +594,10 @@
   "candidate.company_automatically": {
     "text": "{{company}}, sent automatically",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the sender of <Email>. Filled in: {{company}}."
+  },
+  "candidate.competency_rating": {
+    "text": "{{competency}} {{rating}} of 4",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: the supporting of <Badge>. Filled in: {{competency}}, {{rating}}."
   },
   "candidate.condition_met": {
     "text": "Met",
@@ -899,6 +907,10 @@
     "text": "Open the contract",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
+  "candidate.open_the_debrief": {
+    "text": "Open the debrief",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, PanelResults: text inside <To>."
+  },
   "candidate.open_the_offer": {
     "text": "Open the offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <Button>."
@@ -963,8 +975,8 @@
     "text": "Questionnaire",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Section>."
   },
-  "candidate.rated_and_submitted": {
-    "text": "Rated {{average}} of 5 across {{count}} · submitted {{at}}",
+  "candidate.rated_of_four": {
+    "text": "Rated {{average}} of 4 across {{count}} · submitted {{at}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Scorecards: the description of <ListItem>. Filled in: {{average}}, {{count}}, {{at}}."
   },
   "candidate.read_again": {
@@ -1002,6 +1014,14 @@
   "candidate.rejected_on": {
     "text": "Rejected {{at}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the title of <Alert>. Filled in: {{at}}."
+  },
+  "candidate.results_in": {
+    "text": "{{submitted}} scorecards in",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, PanelResults: text inside <h3>. Filled in: {{submitted}}."
+  },
+  "candidate.results_of": {
+    "text": "{{submitted}} of {{expected}} scorecards in",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, PanelResults: text inside <h3>. Filled in: {{submitted}}, {{expected}}."
   },
   "candidate.schedule": {
     "text": "Schedule",
@@ -2098,6 +2118,10 @@
   "interviews.strong_yes": {
     "text": "Strong yes",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ANCHORS: text built in code."
+  },
+  "interviews.submit_once_begun": {
+    "text": "You can submit it once the interview has begun. Until then, save it as a draft.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, KitBody: text inside <p>."
   },
   "interviews.submit_scorecard": {
     "text": "Submit scorecard",

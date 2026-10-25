@@ -17125,7 +17125,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -17215,7 +17214,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -33967,7 +33973,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -34057,7 +34062,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -50809,7 +50821,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -50899,7 +50910,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -67651,7 +67669,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -67741,7 +67758,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -84869,7 +84893,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -84959,7 +84982,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -102087,7 +102117,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -102177,7 +102206,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -118929,7 +118965,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -119019,7 +119054,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -136147,7 +136189,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -136237,7 +136278,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -152989,7 +153037,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -153079,7 +153126,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -170583,7 +170637,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -170673,7 +170726,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -187801,7 +187861,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -187891,7 +187950,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -205395,7 +205461,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -205485,7 +205550,14 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -222237,7 +222309,6 @@
     "recruiting:candidate.company_automatically": "24896878ef8b",
     "recruiting:candidate.emails_between": "aeb9f877a6e1",
     "recruiting:candidate.person_at_company": "4379724b5834",
-    "recruiting:candidate.rated_and_submitted": "49d7096bfe7e",
     "recruiting:candidate.scorecards_in": "4c606d8436b5",
     "recruiting:candidate.show_less": "94ea9b1d33a0",
     "recruiting:candidate.show_the_whole_email": "01e5be70faac",
@@ -222327,6 +222398,13 @@
     "email-recruiting:terms.note.us.fixed_term_contract": "a75fd07bdaf5",
     "email-recruiting:terms.note.us.intern": "2e4921e863f2",
     "email-recruiting:terms.note.us.temporary": "52f51dfbfbe2",
-    "people:org-chart.org-chart.starts": "e39e25927800"
+    "people:org-chart.org-chart.starts": "e39e25927800",
+    "recruiting:candidate.average_of_four": "16b035dfa0cd",
+    "recruiting:candidate.competency_rating": "95e2a78af15e",
+    "recruiting:candidate.open_the_debrief": "2a4e0baebcba",
+    "recruiting:candidate.rated_of_four": "6117e50a4223",
+    "recruiting:candidate.results_in": "a996b3bec6e3",
+    "recruiting:candidate.results_of": "16c77e7f41fc",
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
   }
 }

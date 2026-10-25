@@ -3,7 +3,7 @@
 type Loader = () => Promise<{ readonly default: Readonly<Record<string, string>> }>;
 
 /** Changes whenever a translation does, so a browser's stored copy is never stale. */
-export const VERSION = '84e7143c60c1';
+export const VERSION = 'a14cb30b8e6d';
 
 /** Each language's words, by namespace, loaded only when a page needs them. */
 export const CATALOGUE: Readonly<Record<string, Readonly<Record<string, Loader>>>> = {

@@ -62,14 +62,26 @@ export interface Scorecard {
   readonly submittedAt: string | null;
 }
 
-/** A scorecard is submitted only complete: every competency the interview owns, and a recommendation. */
+/**
+ * A scorecard is submitted only complete, every competency the interview
+ * owns and a recommendation, and only once the interview has begun: before
+ * it, it is a draft, saved as often as the interviewer likes.
+ */
 export function submitScorecard(
   card: Scorecard,
   owned: readonly Competency[],
   at: string,
+  startsAt: string,
 ): Result<Scorecard> {
   if (card.submittedAt !== null)
     return err(failure('ALREADY_SUBMITTED', 'This scorecard is already in'));
+  if (Date.parse(at) < Date.parse(startsAt))
+    return err(
+      failure(
+        'INTERVIEW_NOT_STARTED',
+        'Submit it once the interview has begun; until then it is saved as a draft',
+      ),
+    );
   const missing = owned.filter((c) => card.ratings[c.key] === undefined).map((c) => c.name);
   if (missing.length > 0)
     return err(failure('RATINGS_MISSING', `Rate ${missing.join(', ')} first`));

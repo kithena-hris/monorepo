@@ -1196,22 +1196,27 @@ function Section({
 }
 
 /** A recommendation in words and a tone: what a scorecard said, at a glance. */
-/** Scorecards that are in: who scored, their recommendation, their average rating and when. */
+/** Scorecards that are in: who scored, their recommendation, how they rated each competency, their notes and when. */
 function Scorecards({
   cards,
   names,
+  competencies,
 }: {
   readonly cards: CandidateData['applications'][number]['scorecards'];
   readonly names: Readonly<Record<string, string>>;
+  readonly competencies: Readonly<Record<string, string>>;
 }): JSX.Element | null {
   if (cards.length === 0) return null;
   return (
     <List aria-label={tr('candidate.scorecards_in', 'Scorecards in')}>
       {cards.map((c) => {
-        const ratings = Object.values(c.ratings);
+        const ratings = Object.entries(c.ratings);
         const average =
-          ratings.length === 0 ? null : ratings.reduce((a, b) => a + b, 0) / ratings.length;
+          ratings.length === 0
+            ? null
+            : ratings.reduce((a, [, b]) => a + b, 0) / ratings.length;
         const name = names[c.interviewerId] ?? tr('candidate.an_interviewer', 'An interviewer');
+        const notes = c.notes ?? null;
         return (
           <ListItem
             key={`${c.interviewId}:${c.interviewerId}`}
@@ -1222,14 +1227,35 @@ function Scorecards({
                     at: when(c.submittedAt ?? ''),
                   })
                 : tr(
-                    'candidate.rated_and_submitted',
-                    'Rated {{average}} of 5 across {{count}} · submitted {{at}}',
+                    'candidate.rated_of_four',
+                    'Rated {{average}} of 4 across {{count}} · submitted {{at}}',
                     {
                       average: average.toFixed(1),
                       count: String(ratings.length),
                       at: when(c.submittedAt ?? ''),
                     },
                   )
+            }
+            supporting={
+              ratings.length === 0 && notes === null ? undefined : (
+                <span className="flex flex-col gap-1">
+                  {ratings.length === 0 ? null : (
+                    <span className="flex flex-wrap gap-1.5">
+                      {ratings.map(([key, rating]) => (
+                        <Badge key={key} size="sm" variant="outline">
+                          {tr('candidate.competency_rating', '{{competency}} {{rating}} of 4', {
+                            competency: competencies[key] ?? words(key),
+                            rating: String(rating),
+                          })}
+                        </Badge>
+                      ))}
+                    </span>
+                  )}
+                  {notes === null ? null : (
+                    <span className="whitespace-pre-line text-sm text-fg">{notes}</span>
+                  )}
+                </span>
+              )
             }
             trailing={<Recommendation value={c.recommendation} />}
           >
@@ -1238,6 +1264,66 @@ function Scorecards({
         );
       })}
     </List>
+  );
+}
+
+const VERDICTS = ['strong_yes', 'yes', 'no', 'strong_no'] as const;
+
+/**
+ * What the panel concluded so far, for the hiring team: how many scorecards
+ * are in, how they recommend, and each competency's average, with the way to
+ * the debrief where it is decided.
+ */
+function PanelResults({
+  results,
+  applicationId,
+  onNavigate,
+}: {
+  readonly results: NonNullable<CandidateData['applications'][number]['results']>;
+  readonly applicationId: string;
+  readonly onNavigate: ((to: string) => void) | undefined;
+}): JSX.Element {
+  const rated = results.rows.filter((r) => r.average !== null);
+  return (
+    <div className="flex flex-col gap-3 rounded-control bg-surface-sunken p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">
+          {results.expected === 0
+            ? tr('candidate.results_in', '{{submitted}} scorecards in', {
+                submitted: String(results.submitted),
+              })
+            : tr('candidate.results_of', '{{submitted}} of {{expected}} scorecards in', {
+                submitted: String(results.submitted),
+                expected: String(results.expected),
+              })}
+        </h3>
+        <To
+          href={`/recruiting/applications/${applicationId}/debrief`}
+          onNavigate={onNavigate}
+          className="text-sm font-medium text-fg hover:underline"
+        >
+          {tr('candidate.open_the_debrief', 'Open the debrief')}
+        </To>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {VERDICTS.filter((v) => (results.recommendations[v] ?? 0) > 0).map((v) => (
+          <span key={v} className="flex items-center gap-1.5 text-sm">
+            <Recommendation value={v} />
+            <span className="tabular-nums">{String(results.recommendations[v] ?? 0)}</span>
+          </span>
+        ))}
+      </div>
+      {rated.length === 0 ? null : (
+        <KeyValues
+          items={rated.map((r) => ({
+            label: r.competency,
+            value: tr('candidate.average_of_four', '{{average}} of 4', {
+              average: r.average ?? '',
+            }),
+          }))}
+        />
+      )}
+    </div>
   );
 }
 
@@ -1691,6 +1777,13 @@ export function Spotlight({
             }
           >
             <div className="flex flex-col gap-4">
+              {(chosen.results?.submitted ?? 0) === 0 || chosen.results == null ? null : (
+                <PanelResults
+                  results={chosen.results}
+                  applicationId={chosen.applicationId}
+                  onNavigate={actions.onNavigate}
+                />
+              )}
               {/* What is still waiting, while the interviews are this stage's work; the rest is in the journey. */}
               {interviewing ? (
                 <AskList
@@ -1734,6 +1827,7 @@ export function Spotlight({
                         <Scorecards
                           cards={cards.filter((c) => c.submittedAt !== null)}
                           names={data.names ?? {}}
+                          competencies={chosen.results?.competencies ?? {}}
                         />
                         <ul className="flex flex-wrap gap-2">
                           {i.interviewerIds
@@ -1772,6 +1866,7 @@ export function Spotlight({
                     chosen.interviews.every((i) => i.id !== c.interviewId),
                 )}
                 names={data.names ?? {}}
+                competencies={chosen.results?.competencies ?? {}}
               />
             </div>
           </Section>
