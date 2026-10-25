@@ -1123,7 +1123,9 @@ function ScheduleBody({
   };
   const whereReady =
     panelReady &&
-    (where === 'meet' || (where === 'link' && video !== '') || (where === 'place' && place !== ''));
+    ((where === 'meet' && data.meet) ||
+      (where === 'link' && video !== '') ||
+      (where === 'place' && place !== ''));
   const offered = data.asks.filter((a) => a.kind === 'availability' && a.state === 'open');
   const unavailable = Object.fromEntries(data.holidays.map((h) => [h.date, h.name]));
   const draft = () => {
@@ -1546,7 +1548,9 @@ function ScheduleBody({
               ) : null}
               {how === 'book' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null || !whereReady || act.pending}
+                  disabled={
+                    picked.length === 0 || data.planKey === null || !whereReady || act.pending
+                  }
                   loading={act.busy('ScheduleInterview')}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {
@@ -1564,7 +1568,9 @@ function ScheduleBody({
                 </Button>
               ) : how === 'offer' ? (
                 <Button
-                  disabled={picked.length === 0 || data.planKey === null || !whereReady || act.pending}
+                  disabled={
+                    picked.length === 0 || data.planKey === null || !whereReady || act.pending
+                  }
                   loading={act.busy('ProposeSlots')}
                   startIcon={<icons.send aria-hidden />}
                   onClick={() => {

@@ -297,11 +297,23 @@ export async function keepAgenda(
     await ctx.tx.settings.set(agendaKey(jobId, planKey), agenda);
 }
 
-/** Whether booking will yield a video link: Workspace delegation, or one interviewer's own calendar or Zoom. */
+/**
+ * Whether booking will yield a video link: one interviewer's own calendar or
+ * Zoom, or their Workspace's where it has allowed Kithena for them. A
+ * service account alone is not enough: a Workspace that never delegated, or
+ * an address outside one, gets no Meet, and the screen then asks for a link.
+ * ponytail: a refused Workspace token is asked again on each screen; remember refusals if it shows.
+ */
 async function canMakeVideo(ctx: Ctx, interviewerIds: readonly string[]): Promise<boolean> {
-  if (ctx.deps.workspaceCalendar !== undefined) return true;
-  if ((ctx.deps.connections ?? []).length === 0) return false;
-  for (const id of interviewerIds) if ((await ctx.tx.connections.list(id)).length > 0) return true;
+  if ((ctx.deps.connections ?? []).length > 0)
+    for (const id of interviewerIds)
+      if ((await ctx.tx.connections.list(id)).length > 0) return true;
+  const workspace = ctx.deps.workspaceCalendar;
+  if (workspace === undefined) return false;
+  for (const id of interviewerIds) {
+    const email = (await ctx.tx.members.get(id as never))?.workEmail;
+    if (email && (await workspace(email)) !== null) return true;
+  }
   return false;
 }
 
