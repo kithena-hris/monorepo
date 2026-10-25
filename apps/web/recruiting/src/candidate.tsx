@@ -489,17 +489,22 @@ function AccountCard({
   name,
   email,
   props,
+  onPerson,
 }: {
   readonly name: string;
   readonly email: string;
   readonly props: ScreenProps<CandidateData>;
+  /** Their record in People, once it is there: what the links beside it open. */
+  readonly onPerson?: (personId: string) => void;
 }): JSX.Element | null {
   const act = useAct(props);
   const [account, setAccount] = useState<HireAccount | null | 'loading' | 'absent'>('loading');
   const [sendOn, setSendOn] = useState<string | null>(null);
   const load = (): void => {
     void act.call('HireAccount', { email }).then((done) => {
-      setAccount(done.ok ? ((done.data as HireAccount | null) ?? null) : 'absent');
+      const found = done.ok ? ((done.data as HireAccount | null) ?? null) : 'absent';
+      setAccount(found);
+      if (found !== 'absent' && found !== null) onPerson?.(found.personId);
     });
   };
   useEffect(load, [email]);
@@ -547,7 +552,7 @@ function AccountCard({
                 );
   const live = account !== 'loading' && account !== null && account.state !== 'signed_up';
   return (
-    <Card padded className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex min-w-0 items-center gap-3">
         <IconTile
           tone={account !== 'loading' && account?.state === 'signed_up' ? 'success' : 'accent'}
@@ -616,7 +621,142 @@ function AccountCard({
           )}
         </div>
       ) : null}
-    </Card>
+    </div>
+  );
+}
+
+/**
+ * Hired, until the first day (PRD §21.3): one place for what is left. Their
+ * account at the company and the invitation to sign up, now or on a day;
+ * each pre-hire condition, met or waived here; and where to ask for
+ * anything more: what the sign-up page asks (People's fields), a document
+ * (Documents), and their onboarding plan (Onboarding), each where the
+ * company has it.
+ */
+function FirstDay({
+  name,
+  email,
+  application,
+  planId,
+  props,
+}: {
+  readonly name: string;
+  readonly email: string | undefined;
+  readonly application: CandidateData['applications'][number];
+  readonly planId: string | null;
+  readonly props: ScreenProps<CandidateData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const [personId, setPersonId] = useState<string | null>(null);
+  const prehire = application.prehire;
+  const decide = (kind: string, state: 'met' | 'waived'): void => {
+    act.run('DecideCondition', {
+      applicationId: application.applicationId,
+      kind,
+      input: { state, note: null },
+    });
+  };
+  const links = [
+    personId === null
+      ? null
+      : { href: `/people/${personId}`, label: tr('candidate.first_day_profile', 'Their profile') },
+    personId === null
+      ? null
+      : {
+          href: `/documents/people/${personId}`,
+          label: tr('candidate.first_day_documents', 'Ask for a document'),
+        },
+    {
+      href: '/settings/people/fields',
+      label: tr('candidate.first_day_signup', 'What sign-up asks'),
+    },
+    planId === null
+      ? null
+      : {
+          href: `/onboarding/plans/${planId}`,
+          label: tr('candidate.first_day_plan', 'Onboarding plan'),
+        },
+  ].filter((l) => l !== null);
+  return (
+    <Section
+      id="first-day"
+      title={tr('candidate.first_day_title', 'Before the first day')}
+      description={
+        prehire === null
+          ? tr(
+              'candidate.first_day_hint',
+              'What is left before {{name}} starts, and where to ask them for anything more.',
+              { name },
+            )
+          : tr(
+              'candidate.first_day_hint_dated',
+              'What is left before {{name}} starts on {{date}}, and where to ask them for anything more.',
+              { name, date: day(prehire.startDate) },
+            )
+      }
+      action={prehire === null ? null : <StateBadge state={prehire.state} />}
+    >
+      <div className="flex flex-col gap-6">
+        {email === undefined ? null : (
+          <AccountCard name={name} email={email} props={props} onPerson={setPersonId} />
+        )}
+        {prehire === null || prehire.conditions.length === 0 ? null : (
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <h3 className="font-semibold">{tr('candidate.first_day_conditions', 'Conditions')}</h3>
+            <Refusal error={act.error} />
+            <ul className="flex flex-col gap-2">
+              {prehire.conditions.map((c) => (
+                <li key={c.kind} className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1">{words(c.kind)}</span>
+                  {c.state === 'open' ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        loading={act.pending}
+                        onClick={() => {
+                          decide(c.kind, 'met');
+                        }}
+                      >
+                        {tr('candidate.condition_met', 'Met')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={act.pending}
+                        onClick={() => {
+                          decide(c.kind, 'waived');
+                        }}
+                      >
+                        {tr('candidate.condition_waive', 'Waive')}
+                      </Button>
+                    </>
+                  ) : (
+                    <StateBadge state={c.state} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <h3 className="font-semibold">{tr('candidate.first_day_more', 'Ask for more')}</h3>
+          <p className="text-sm text-fg-muted">
+            {tr(
+              'candidate.first_day_more_hint',
+              'The sign-up page asks for the fields People collects at sign-up; anything else, ask for as a document or a task in their onboarding plan.',
+            )}
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            {links.map((l) => (
+              <To key={l.href} href={l.href} onNavigate={props.onNavigate}>
+                {l.label}
+              </To>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }
 
@@ -1522,8 +1662,14 @@ export function Spotlight({
               }}
             />
           ) : null}
-          {mayOffer && chosen.outcome === 'hired' && data.candidate.email !== undefined ? (
-            <AccountCard name={name} email={data.candidate.email} props={props} />
+          {mayOffer && chosen.outcome === 'hired' ? (
+            <FirstDay
+              name={name}
+              email={data.candidate.email}
+              application={chosen}
+              planId={data.plans?.[chosen.applicationId] ?? null}
+              props={props}
+            />
           ) : null}
           {mayOffer && active && stage?.category === 'offer' ? (
             <OfferCard name={name} offer={offer ?? null} onOpen={openOffer} />
@@ -1658,7 +1804,7 @@ export function Spotlight({
           {chosen.may.includes('candidate.profile') ? (
             <Evidence application={chosen} props={props} />
           ) : null}
-          {chosen.prehire === null ? null : (
+          {chosen.prehire === null || (mayOffer && chosen.outcome === 'hired') ? null : (
             <Section
               id="prehire"
               title={tr('candidate.pre_hire', 'Pre-hire')}

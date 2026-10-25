@@ -139,9 +139,11 @@ export function PdfPages({ src, label, overlay, onLoad, className }: PdfPagesPro
   return (
     <div className={cn('flex flex-col items-center gap-4', className)}>
       {pages.map((p) => (
+        // `shrink-0`: in a box of capped height (a signing page's reader) a page
+        // keeps its shape and the box scrolls, rather than every page squashed to fit.
         <div
           key={p.number}
-          className="relative w-full overflow-hidden rounded-sm bg-white text-[var(--reach-neutral-900)] shadow-sm ring-1 ring-border"
+          className="relative w-full shrink-0 overflow-hidden rounded-sm bg-white text-[var(--reach-neutral-900)] shadow-sm ring-1 ring-border"
           style={{ aspectRatio: `${String(p.width)} / ${String(p.height)}` }}
         >
           <PageCanvas

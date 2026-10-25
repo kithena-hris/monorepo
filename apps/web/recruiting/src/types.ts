@@ -519,6 +519,8 @@ export interface CandidateData {
   }[];
   /** The company, as the candidate knows the sender of the team's emails. */
   readonly company?: string;
+  /** Each hired application's onboarding plan, when Onboarding has one the reader may see. */
+  readonly plans?: Readonly<Record<string, string>>;
   readonly messages: readonly {
     readonly id: string;
     readonly direction: 'out' | 'in';

@@ -577,6 +577,78 @@ describe('R11, a candidate', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 
+  it('shows a hire what is left before the first day, and decides a condition', async () => {
+    const app = candidate.applications[0];
+    if (app === undefined) throw new Error('the fixture has an application');
+    const hired: CandidateData = {
+      ...candidate,
+      plans: { a1: 'p9' },
+      applications: [
+        {
+          ...app,
+          stageId: 's4',
+          reached: 'hired',
+          outcome: 'hired',
+          prehire: {
+            state: 'conditions_open',
+            startDate: '2026-12-01',
+            conditions: [
+              { kind: 'right_to_work', state: 'open' },
+              { kind: 'references', state: 'met' },
+            ],
+          },
+          may: ['pipeline.move', 'offer.edit'],
+        },
+      ],
+    };
+    const calls: { name: string; variables: unknown }[] = [];
+    const { container } = render(
+      <screens.Candidate
+        load={ready(hired)}
+        params={{ id: 'c1' }}
+        onAct={(name, variables) => {
+          calls.push({ name, variables });
+          return Promise.resolve(
+            name === 'HireAccount'
+              ? {
+                  ok: true,
+                  data: {
+                    personId: 'pe1',
+                    status: 'onboarding',
+                    state: 'not_invited',
+                    sendOn: null,
+                    sentAt: null,
+                  },
+                }
+              : { ok: true, data: null },
+          );
+        }}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: 'Before the first day' })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'Ask for a document' }).getAttribute('href')).toBe(
+        '/documents/people/pe1',
+      );
+    });
+    expect(screen.getByRole('link', { name: 'Onboarding plan' }).getAttribute('href')).toBe(
+      '/onboarding/plans/p9',
+    );
+    expect(screen.getByRole('button', { name: 'Schedule' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Met' }));
+    await waitFor(() => {
+      expect(calls.at(-1)).toEqual({
+        name: 'DecideCondition',
+        variables: {
+          applicationId: 'a1',
+          kind: 'right_to_work',
+          input: { state: 'met', note: null },
+        },
+      });
+    });
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
   it('says who sent each email, and shows every scorecard that is in', async () => {
     const app = candidate.applications[0];
     const busy: CandidateData = {

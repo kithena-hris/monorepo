@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { currentTenant } from './branding';
-import { recruiting, timeOff } from './people';
+import { onboarding, recruiting, timeOff } from './people';
 import type { ScreenLoad, ScreenQuery } from './people-screens';
 import type { OperationName } from './recruiting-operations';
 
@@ -34,6 +34,29 @@ async function withOffer(load: ScreenLoad, offerId: string | undefined): Promise
     ...load,
     data: { ...(load.data as object), openOffer: offer.status === 'ready' ? offer.data : null },
   };
+}
+
+/**
+ * A hired candidate's onboarding plan, from Onboarding when the company has
+ * it and the reader may see it: each hired application's plan id, so the
+ * profile links the plan. Nothing when it cannot be read.
+ */
+async function withPlans(load: ScreenLoad): Promise<ScreenLoad> {
+  if (load.status !== 'ready') return load;
+  const data = load.data as { applications?: { applicationId: string; outcome: string }[] } | null;
+  const hired = new Set(
+    (data?.applications ?? []).filter((a) => a.outcome === 'hired').map((a) => a.applicationId),
+  );
+  if (hired.size === 0) return load;
+  const board = await onboarding<{
+    rows: { id: string; source: string | null; externalId: string | null }[];
+  }>('OnboardingBoard', { state: null });
+  if (!board.ok) return load;
+  const plans: Record<string, string> = {};
+  for (const r of board.data.rows)
+    if (r.source === 'recruiting' && r.externalId !== null && hired.has(r.externalId))
+      plans[r.externalId] = r.id;
+  return { ...load, data: { ...(load.data as object), plans } };
 }
 
 /** When each interviewer works, from Time Off: their own week or the company's, in their zone. */
@@ -115,6 +138,12 @@ async function daysOff(from: string): Promise<{
   };
 }
 
+/** The candidate open over the board, with their onboarding plan when they are hired. */
+async function spotlightOf(load: ScreenLoad): Promise<unknown> {
+  const withPlan = await withPlans(load);
+  return withPlan.status === 'ready' ? withPlan.data : null;
+}
+
 export async function loadScreen(component: string, query: ScreenQuery): Promise<ScreenLoad> {
   const s = query.search;
   const id = query.params['id'] ?? '';
@@ -150,7 +179,7 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
               status: 'ready',
               data: {
                 ...(board.data as object),
-                spotlight: spotlight?.status === 'ready' ? spotlight.data : null,
+                spotlight: spotlight === null ? null : await spotlightOf(spotlight),
               },
             },
         s['offer'],
@@ -159,7 +188,10 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
     case 'Candidates':
       return read('RecruitingCandidates', { q: or(s['q']), tag: or(s['tag']) });
     case 'Candidate':
-      return withOffer(await read('RecruitingCandidate', { candidateId: id }), s['offer']);
+      return withOffer(
+        await withPlans(await read('RecruitingCandidate', { candidateId: id })),
+        s['offer'],
+      );
     case 'Pools':
       return read('RecruitingPools', { poolId: or(query.params['id']) });
     case 'Interviews':

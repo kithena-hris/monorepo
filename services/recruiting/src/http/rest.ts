@@ -128,7 +128,7 @@ import {
   withdrawTheOffer,
   worksCouncilDecides,
 } from '../application/offers.js';
-import { draftContract } from '../application/contract-draft.js';
+import { draftContract, reviseContract } from '../application/contract-draft.js';
 import {
   anonymise,
   candidateByToken,
@@ -1665,6 +1665,16 @@ export const ROUTES: readonly Route[] = [
       'R22: the contract drafted from the accepted offer and the statutory particulars of the entity’s country',
     params: z.object({ offerId: Id }),
     run: (ctx, { params }) => draftContract(ctx, params.offerId),
+  }),
+  route({
+    name: 'reviseContract',
+    method: 'POST',
+    path: `${V1}/offers/{offerId}/contract/revise`,
+    summary: 'R22: the contract being edited, changed as asked in words, the names masked from the model',
+    params: z.object({ offerId: Id }),
+    body: z.object({ body: z.string().min(1).max(60_000), instruction: z.string().min(1).max(2000) }),
+    run: (ctx, { params, body }) =>
+      reviseContract(ctx, params.offerId, body.body, body.instruction),
   }),
   route({
     name: 'contractSent',

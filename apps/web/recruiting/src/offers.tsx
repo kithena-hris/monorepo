@@ -11,6 +11,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ChatComposer,
+  ChatLog,
+  ChatMessage,
   Checkbox,
   CurrencyField,
   DatePicker,
@@ -1698,6 +1701,110 @@ const keep = (offerId: string, draft: { title: string; body: string } | null): v
  * will be filed, and sends it: the candidate signs first, then the company,
  * each initialling every page before the last.
  */
+/** One turn of the conversation that changes the contract. */
+interface Turn {
+  readonly from: 'self' | 'other';
+  readonly text: string;
+}
+
+/**
+ * The contract changed by asking: "make the probation clause plainer", "add
+ * a clause on working from home". The text as it stands goes with the ask,
+ * the parties' names masked from the model, and comes back whole; the last
+ * change can be taken back.
+ */
+function ReviseChat({
+  offerId,
+  body,
+  props,
+  onRevised,
+}: {
+  readonly offerId: string;
+  readonly body: string;
+  readonly props: ScreenProps<OfferData>;
+  readonly onRevised: (body: string) => void;
+}): JSX.Element {
+  const act = useAct(props);
+  const [turns, setTurns] = useState<readonly Turn[]>([]);
+  const [before, setBefore] = useState<string | null>(null);
+  const [asking, startAsking] = useTransition();
+  const ask = (instruction: string): void => {
+    setTurns((all) => [...all, { from: 'self', text: instruction }]);
+    startAsking(async () => {
+      const done = await act.call('ReviseContract', {
+        offerId,
+        input: { body, instruction },
+      });
+      if (!done.ok) {
+        setTurns((all) => [...all, { from: 'other', text: done.message }]);
+        return;
+      }
+      const revised = done.data as { reply: string; body: string };
+      setBefore(body);
+      onRevised(revised.body);
+      setTurns((all) => [...all, { from: 'other', text: revised.reply }]);
+    });
+  };
+  const ai = tr('offers.revise_ai', 'AI');
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <h3 className="font-semibold">{tr('offers.revise_title', 'Change it by asking')}</h3>
+        <p className="text-sm text-fg-muted">
+          {tr(
+            'offers.revise_hint',
+            'Ask for a change in words: the AI rewrites the contract and says what it changed. Names stay out of what it reads.',
+          )}
+        </p>
+      </div>
+      {turns.length === 0 ? null : (
+        <ChatLog label={tr('offers.revise_conversation', 'Changes asked')} className="max-h-[40vh]">
+          {turns.map((m, i) => (
+            <ChatMessage
+              // The conversation only grows; a turn's place is its identity.
+              key={i}
+              from={m.from}
+              author={m.from === 'self' ? tr('offers.revise_you', 'You') : ai}
+            >
+              {m.text}
+            </ChatMessage>
+          ))}
+          {asking ? <ChatMessage author={ai} pending /> : null}
+        </ChatLog>
+      )}
+      <ChatComposer
+        label={tr('offers.revise_label', 'What to change')}
+        placeholder={tr(
+          'offers.revise_placeholder',
+          'Make the probation clause plainer, or add a clause on working from home…',
+        )}
+        busy={asking}
+        disabled={body.trim() === ''}
+        onSend={ask}
+      />
+      {before === null || asking ? null : (
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            startIcon={<icons.undo aria-hidden />}
+            onClick={() => {
+              onRevised(before);
+              setBefore(null);
+              setTurns((all) => [
+                ...all,
+                { from: 'other', text: tr('offers.revise_undone', 'Taken back: the text is as it was.') },
+              ]);
+            }}
+          >
+            {tr('offers.revise_undo', 'Undo the last change')}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ContractDraft({
   data,
   props,
@@ -1857,6 +1964,16 @@ function ContractDraft({
               </Field>
             </div>
             <aside className="flex flex-col gap-4">
+              {drafted.ai ? (
+                <ReviseChat
+                  offerId={offerId}
+                  body={body}
+                  props={props}
+                  onRevised={(next) => {
+                    edit({ body: next });
+                  }}
+                />
+              ) : null}
               <div>
                 <h3 className="font-semibold">{tr('offers.facts_to_check', 'Facts to check')}</h3>
                 <p className="text-sm text-fg-muted">

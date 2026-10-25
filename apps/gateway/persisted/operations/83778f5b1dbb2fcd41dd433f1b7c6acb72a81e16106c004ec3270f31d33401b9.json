@@ -1,0 +1,1 @@
+{"version":1,"body":"mutation ReviseContract($offerId: String!, $input: JSON!, $key: String!) {\n    reviseContract(offerId: $offerId, input: $input, idempotencyKey: $key)\n  }"}
