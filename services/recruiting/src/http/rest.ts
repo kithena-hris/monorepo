@@ -72,6 +72,7 @@ import {
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
 import { LogoUpload, describeCompany, saveSettings, uploadLogo } from '../application/company.js';
 import { interviewOnEntry } from '../application/stage-interviews.js';
+import { stageWork } from '../application/stage-work.js';
 import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { myNotifications, setMyNotifications } from '../application/notify.js';
 import {
@@ -1042,8 +1043,10 @@ export const ROUTES: readonly Route[] = [
         body.interviewType === undefined ? {} : { interviewType: body.interviewType },
         body.message,
       );
-      if (moved.ok) await interviewOnEntry(ctx, params.applicationId, body.to);
-      return moved;
+      if (!moved.ok) return moved;
+      const { offerId } = await stageWork(ctx, params.applicationId);
+      await interviewOnEntry(ctx, params.applicationId, body.to);
+      return ok({ ...moved.value, offerId });
     },
   }),
   route({
@@ -1076,7 +1079,11 @@ export const ROUTES: readonly Route[] = [
     summary: 'Undo a move within ten seconds',
     params: z.object({ applicationId: Id }),
     body: z.object({ moveId: Id }),
-    run: (ctx, { params, body }) => undoMove(ctx, params.applicationId, body.moveId),
+    run: async (ctx, { params, body }) => {
+      const undone = await undoMove(ctx, params.applicationId, body.moveId);
+      if (undone.ok) await stageWork(ctx, params.applicationId);
+      return undone;
+    },
   }),
   route({
     name: 'correctMove',
@@ -1085,8 +1092,17 @@ export const ROUTES: readonly Route[] = [
     summary: 'Correct a move, with a reason',
     params: z.object({ applicationId: Id }),
     body: z.object({ moveId: Id, to: Id, reason: text(500).min(1) }),
-    run: (ctx, { params, body }) =>
-      correctMove(ctx, params.applicationId, body.moveId, body.to, body.reason),
+    run: async (ctx, { params, body }) => {
+      const corrected = await correctMove(
+        ctx,
+        params.applicationId,
+        body.moveId,
+        body.to,
+        body.reason,
+      );
+      if (corrected.ok) await stageWork(ctx, params.applicationId);
+      return corrected;
+    },
   }),
   route({
     name: 'rejectApplication',
@@ -1126,7 +1142,9 @@ export const ROUTES: readonly Route[] = [
         await bulk(ctx, body.ids, async (id) => {
           if (body.action === 'move') {
             const moved = await moveApplication(ctx, id, body.to);
-            if (moved.ok) await interviewOnEntry(ctx, id, body.to);
+            if (!moved.ok) return moved;
+            await stageWork(ctx, id);
+            await interviewOnEntry(ctx, id, body.to);
             return moved;
           }
           if (body.action === 'reject')
@@ -1573,6 +1591,7 @@ export const ROUTES: readonly Route[] = [
         equity: z.object({ description: text(300), units: z.int().nonnegative() }).nullable(),
       }),
       benefitIds: z.array(z.string().max(80)),
+      extraBenefits: z.array(text(120).min(1)).max(30).optional(),
       startDate: CalendarDate,
       expiresOn: CalendarDate,
       letterTemplateId: Id.nullable(),

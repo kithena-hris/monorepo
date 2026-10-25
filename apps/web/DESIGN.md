@@ -11,13 +11,18 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 ## Recruiting surfaces
 
 - **Spotlight** (`Spotlight` in `candidate.tsx`): one application, one surface, opened as a page from a link or over the board as a `ModalPage size="inset"`. Its order:
-  - an identity strip: `Avatar 2xl`, then job · source · applied, then contact links;
+  - an identity strip: `Avatar 2xl`, then the job on a line of its own, "Via Kithena Jobs · Applied 24 Oct" under it, then contact links (the header already names the person);
   - the stage rail: a `Stepper` with `free`, `size="sm"`, inside a padded `Card`; pressing a stage moves the candidate there through the move dialog;
-  - a work column: up-next cards, Interviews and scorecards, Questionnaire, Evidence, Offers, References, Messages, Activity;
+  - a work column: up-next cards, Interviews and scorecards, Questionnaire, Evidence, Pre-hire, References, Messages (a `ChatLog` thread that scrolls in its own box), Journey;
+  - the overlay's body is padded (`px-4 py-5`, `@2xl:px-8 @2xl:py-7`): `ModalPageBody` leaves page padding to its caller.
   - a sticky side column, `lg:` and `22rem` wide: Notes, Details, Read from the CV.
 
   Each section is a `Card` with a `CardHeader` and at most one action. Cards are never nested. J and K walk the board behind the overlay.
-- **Board** (`pipeline.tsx`): the `Kanban` fills from its top to the window's bottom (`useFillHeight`), so each column scrolls on its own. The whole card drags (`dragActivator: { mode: 'card' }`), and a press opens the spotlight (`onCardOpen`). A card reads:
+
+  A stage's work belongs to it. Before the offer stage, the spotlight books interviews and shows the time requests still open; from the offer stage on, those actions are gone and the interviews read as history. Leaving a stage closes its open time requests; going back before the offer stage withdraws the open offer; arriving at the offer stage drafts a new one from the job (`stage-work.ts` in the service). Coming back to a stage is a new visit with new work.
+- **Journey** (`journey.tsx`): Reach's `Timeline`, one item per visit to a stage, newest first, the current one pulsing with "Now". Inside each visit, what happened while the candidate was there: emails, time requests and their answers, interviews (upcoming ones marked), scorecards, offers. Offered times show under their day as badges, the chosen one in success.
+- **Offer** (`offers.tsx`): one page, no tabs and no steps. Cards for Pay, Dates, Contract, Time and place, Probation and notice, Clauses and Benefits, each filled from the job and the country pack; a sticky aside with the checks, the total and the rules that applied. There is no Save button: a press saves at once, typing saves once it pauses, and "Saved" sits beside the title. Benefits use the job's `BenefitPicker`, with a `TagsInput` for benefits written in for this offer alone.
+- **Board** (`pipeline.tsx`): the `Kanban` fills from its top to the window's bottom (`useFillHeight`), so each column scrolls on its own. A sideways swipe anywhere on the board scrolls the board (the column lists contain only vertical scrolling), the scrollbar sits under the columns rather than on their edge, and columns snap only under a finger. The whole card drags (`dragActivator: { mode: 'card' }`), and a press opens the spotlight (`onCardOpen`). A card reads:
   - name and days in stage;
   - one badge row: ideal, match, knockout, duplicate;
   - an optional footer line: the next interview, or the scorecards owed.

@@ -30,6 +30,7 @@ import {
   unarchiveJob,
 } from '../application/jobs.js';
 import { moveApplication } from '../application/moves.js';
+import { stageWork } from '../application/stage-work.js';
 import {
   bookFromAvailability,
   linkSlots,
@@ -113,7 +114,7 @@ import { draftAd, draftEmail, suggestQuestions, translateAd } from '../applicati
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
 import { jobTerms, saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
-import { jobsScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
+import { jobsScreen, offerScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -1468,6 +1469,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
 
   const offer = await as('ada', async (ctx) => {
     value(await moveApplication(ctx, applied.applicationId, offerStage));
+    // Arriving at the offer stage opens a draft filled from the job. Going back withdraws it,
+    // and coming back is a new offer, never the old one reopened.
+    const opened = (await stageWork(ctx, applied.applicationId)).offerId;
+    expect(opened).not.toBeNull();
+    value(
+      await moveApplication(ctx, applied.applicationId, interviewStage, {
+        interviewType: 'portfolio',
+      }),
+    );
+    expect((await stageWork(ctx, applied.applicationId)).offerId).toBeNull();
+    expect((await ctx.tx.offers.get(opened ?? ''))?.state).toBe('withdrawn');
+    value(await moveApplication(ctx, applied.applicationId, offerStage));
+    const reopened = (await stageWork(ctx, applied.applicationId)).offerId;
+    expect(reopened).not.toBeNull();
+    expect(reopened).not.toBe(opened);
     // A new offer comes filled from the job: its terms, the law's notice, the middle of the ad's range.
     const started = value(await offerStart(ctx, applied.applicationId));
     const ad = (await ctx.tx.jobs.get(jobId))?.salary ?? null;
@@ -1479,6 +1495,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(typeof started.input.terms.contractType).toBe('string');
     expect(started.input.terms.noticeEmployer).toBeDefined();
     expect(started.input.terms.annualPayMinor).toBe(started.input.pay.baseMinor);
+    // The prefilled draft opens as it was made.
+    const prefilled = value(await composeOffer(ctx, applied.applicationId, started.input));
+    expect(value(await offerScreen(ctx, prefilled.id))).toMatchObject({ offer: { id: prefilled.id } });
     const drafted = value(
       await composeOffer(ctx, applied.applicationId, {
         terms: place.terms,

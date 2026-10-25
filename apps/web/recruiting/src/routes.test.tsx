@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import manifest from '../public/routes.json';
@@ -1080,7 +1080,7 @@ describe('R4, the setup’s terms ahead of the server', () => {
 });
 
 describe('R19, a new offer', () => {
-  it('comes filled from the job, with the range its ad gave beside the pay', async () => {
+  it('is drafted from the job at once and opens filled in, with no form before it', async () => {
     const start = {
       input: {
         terms: { contractType: 'unbefristet', weeklyMinutes: 2400, annualPayMinor: 6_750_000 },
@@ -1109,18 +1109,139 @@ describe('R19, a new offer', () => {
       candidate: { name: 'Yuki Sato' },
       job: { title: 'Senior Backend Engineer (m/w/d)' },
     };
-    const { container } = render(
+    const calls: { name: string; variables: unknown }[] = [];
+    const went: string[] = [];
+    render(
       <screens.Offer
         load={ready(start) as never}
         params={{ id: 'new' }}
         search={{ application: 'a1' }}
+        onAct={(name, variables) => {
+          calls.push({ name, variables });
+          return Promise.resolve({ ok: true, data: { id: 'o1' } });
+        }}
+        onNavigate={(to) => {
+          went.push(to);
+        }}
       />,
     );
-    expect(screen.getByRole('heading', { level: 1, name: 'Offer: Yuki Sato' })).toBeTruthy();
-    expect(screen.getByText(/The job ad gave €60,000 – €75,000/u)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Create draft' }).hasAttribute('disabled')).toBe(
-      false,
+    await waitFor(() => {
+      expect(went).toEqual(['/recruiting/offers/o1']);
+    });
+    expect(calls).toEqual([
+      { name: 'ComposeOffer', variables: { applicationId: 'a1', input: start.input } },
+    ]);
+  });
+});
+
+describe('R19, the offer', () => {
+  const version = {
+    version: 1,
+    terms: {
+      relationship: 'employee' as const,
+      contractType: 'unbefristet',
+      weeklyMinutes: 2400,
+      annualPayMinor: 6_750_000,
+      probation: { count: 6, unit: 'months' as const },
+      noticeEmployee: { count: 4, unit: 'weeks' as const },
+      noticeEmployer: { count: 4, unit: 'weeks' as const },
+      workMode: 'hybrid' as const,
+      hybridDaysOnsite: 3,
+    },
+    pay: {
+      baseMinor: 6_750_000,
+      currency: 'EUR',
+      frequency: 'year' as const,
+      variableTargetMinor: 0,
+      signOnMinor: 0,
+      relocationMinor: 0,
+      equity: null,
+    },
+    benefitIds: ['b1'],
+    extraBenefits: ['A team retreat'],
+    startDate: '2026-12-01',
+    expiresOn: '2026-11-04',
+    letterTemplateId: null,
+    supersededAt: null,
+  };
+  const offer = {
+    offer: {
+      id: 'o1',
+      applicationId: 'a1',
+      state: 'draft',
+      versions: [version],
+      acceptance: null,
+      approvalReasons: [],
+    },
+    hash: 'h',
+    candidate: { id: 'c1', name: 'Yuki Sato', email: 'yuki@example.com' },
+    signatoryPersonId: null,
+    job: { id: 'j1', title: 'Senior Backend Engineer (m/w/d)' },
+    advertised: { minMinor: 6_000_000, maxMinor: 7_500_000, currency: 'EUR', period: 'year' },
+    meta: { grade: null, outsideBandReason: null },
+    checked: null,
+    composer: {
+      country: 'DE',
+      version: '2026.1',
+      reviewed: true,
+      steps: [],
+      regions: [],
+      relationships: [{ key: 'employee', label: 'Employee' }],
+      contractTypes: [{ key: 'unbefristet', label: 'Permanent' }],
+      reasons: [],
+      rules: [],
+      asksPreviousEmployment: false,
+      paymentsPerYear: [12],
+    },
+    approval: null,
+    contract: null,
+    prehire: null,
+    benefits: [
+      {
+        id: 'b1',
+        key: 'gym',
+        category: 'health',
+        statutory: false,
+        names: { en: 'Gym' },
+        description: null,
+      },
+    ],
+    categories: [{ key: 'health', name: 'Health', icon: 'health', custom: false }],
+    bands: [],
+  };
+
+  it('is one page, filled in, with no tabs and no save buttons', async () => {
+    const { container } = render(
+      <screens.Offer load={ready(offer) as never} params={{ id: 'o1' }} />,
     );
+    expect(screen.getByRole('heading', { level: 1, name: 'Offer for Yuki Sato' })).toBeTruthy();
+    expect(screen.getByText(/The job ad gave €60,000 – €75,000/u)).toBeTruthy();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Save/u })).toBeNull();
+    expect(screen.getByText('A team retreat')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('saves a change by itself', async () => {
+    const calls: { name: string; variables: unknown }[] = [];
+    render(
+      <screens.Offer
+        load={ready(offer) as never}
+        params={{ id: 'o1' }}
+        onAct={(name, variables) => {
+          calls.push({ name, variables });
+          return Promise.resolve({ ok: true, data: null });
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Month' }));
+    await waitFor(() => {
+      expect(calls.map((c) => c.name)).toEqual(['ComposeOffer']);
+    });
+    const sent = calls[0]?.variables as {
+      input: { pay: { frequency: string }; extraBenefits: string[] };
+    };
+    expect(sent.input.pay.frequency).toBe('month');
+    expect(sent.input.extraBenefits).toEqual(['A team retreat']);
   });
 });

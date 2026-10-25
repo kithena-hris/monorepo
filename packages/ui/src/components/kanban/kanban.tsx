@@ -829,13 +829,15 @@ export function Kanban<T extends { id: string }>({
           if (column && column.id !== inView) setInView(column.id);
         }}
         className={cn(
-          'flex min-h-0 gap-3 overflow-x-auto overscroll-x-contain pb-2',
+          // Room under the columns, so the scrollbar is not drawn on their edge.
+          'flex min-h-0 gap-3 overflow-x-auto overscroll-x-contain pb-4',
           // One column per screen under a finger, snapped, so a swipe moves
           // exactly one stage.
           'touch:[&>section]:w-full!',
           // Snap so a flick on a phone lands on a column rather than between
-          // two of them.
-          'snap-x snap-mandatory scroll-px-3',
+          // two of them. Only under a finger: a trackpad's momentum fought a
+          // mandatory snap at a desk, and the board jumped back as it slowed.
+          'touch:snap-x touch:snap-mandatory touch:scroll-px-3',
           // Smooth for the scrolls this component causes, the keyboard sensor
           // bringing a card into view, a column jumped to from a menu. It has
           // no effect on a finger flick, and `prefers-reduced-motion` turns it
@@ -1351,7 +1353,9 @@ function KanbanColumn<T extends { id: string }>({
           // container, so it clips anything drawn outside a child's box, and
           // a selected card's focus ring is drawn 3px outside its box. With no
           // top padding the first card in a column had its ring sheared off.
-          '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-1',
+          // Contained only up and down: a sideways swipe over the cards
+          // passes to the board, which scrolls from anywhere on it.
+          '-m-1 flex min-h-24 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain p-1',
           'scroll-smooth',
           // A locked column is not dimmed: its cards are still people to read,
           // and at 70% their secondary text fell below the contrast minimum.
