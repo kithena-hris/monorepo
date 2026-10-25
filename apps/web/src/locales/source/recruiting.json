@@ -4223,9 +4223,17 @@
     "text": "Base pay",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, PayTab: the label of <NumberField>."
   },
+  "offers.base_pay_hourly": {
+    "text": "Base pay (hourly)",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the label of <NumberField>."
+  },
+  "offers.base_pay_monthly": {
+    "text": "Base pay (monthly)",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the label of <NumberField>."
+  },
   "offers.base_pay_yearly": {
     "text": "Base pay (yearly)",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: the label of <NumberField>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the label of <NumberField>."
   },
   "offers.before_the_start": {
     "text": "Before the start",
@@ -4357,11 +4365,11 @@
   },
   "offers.create_draft": {
     "text": "Create draft",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: text inside <Button>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: text inside <Button>."
   },
   "offers.currency": {
     "text": "Currency",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: text inside <FieldLabel>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: text inside <FieldLabel>."
   },
   "offers.date_of_the_second_signature": {
     "text": "Date of the second signature",
@@ -4462,6 +4470,10 @@
   "offers.fill_in_before_sending": {
     "text": "Fill in before sending",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ContractDraft: the title of <Alert>."
+  },
+  "offers.filled_from_the_job": {
+    "text": "Filled from {{title}}: its terms, the pay its ad gave and its benefits. Keep or change them; the terms composer comes next.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the description of <PageHeader>. Filled in: {{title}}."
   },
   "offers.fixed_term_reason": {
     "text": "Fixed-term reason",
@@ -4621,11 +4633,11 @@
   },
   "offers.offer": {
     "text": "Offer: {{name}}",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the title of <PageHeader>. Filled in: {{name}}."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the title of <PageHeader>. Filled in: {{name}}."
   },
   "offers.offer_expires": {
     "text": "Offer expires",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: text inside <FieldLabel>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: text inside <FieldLabel>."
   },
   "offers.offer_v_accepted_version_hash": {
     "text": "{{title}} · offer v{{version}} accepted {{at}} · version hash {{slice}}…",
@@ -4941,15 +4953,11 @@
   },
   "offers.start_date": {
     "text": "Start date",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: text inside <FieldLabel>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: text inside <FieldLabel>."
   },
   "offers.start_from_an_application": {
     "text": "Start from an application",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: the title of <Alert>."
-  },
-  "offers.start_with_the_pay_and_the": {
-    "text": "Start with the pay and the dates; the terms composer comes next.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: the description of <PageHeader>."
   },
   "offers.starts_from_the_offers_dates_leave": {
     "text": "Starts {{startDate}}, from the offer’s dates. Leave empty for no end.",
@@ -4999,9 +5007,17 @@
     "text": "The hired webhook carries the hire to any HRIS",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Contract: text inside <li>."
   },
+  "offers.the_job_ad_gave": {
+    "text": "The job ad gave {{range}}.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the hint of <NumberField>. Filled in: {{range}}."
+  },
+  "offers.the_job_ad_gave_no_pay": {
+    "text": "The job ad gave no pay.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOfferBody: the hint of <NumberField>."
+  },
   "offers.the_offer": {
     "text": "the offer",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offer: the what of <Loaded>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, NewOffer: the what of <Loaded>."
   },
   "offers.their_reason": {
     "text": "Their reason: “{{reason}}”",

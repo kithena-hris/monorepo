@@ -50,9 +50,10 @@ import { useEffect, useState, useTransition, type JSX } from 'react';
 import { formatList } from '@reach/ui/intl';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, To, day, money, useAct, words } from './shared';
+import { Refusal, StateBadge, To, day, money, range, useAct, words } from './shared';
 import type {
   OfferData,
+  OfferStartData,
   OffersData,
   OfferVersion,
   ScreenProps,
@@ -146,9 +147,6 @@ export function Offers(props: ScreenProps<OffersData>): JSX.Element {
   );
 }
 
-const plusDays = (days: number) =>
-  new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
-
 /** The version's body as ComposeOffer takes it, with what changed laid over. */
 function input(
   v: OfferVersion,
@@ -169,24 +167,24 @@ function input(
   };
 }
 
+/** The yearly base the terms carry, from the pay as entered. */
+const yearly = (baseMinor: number, frequency: string, weeklyMinutes: number): number =>
+  frequency === 'year'
+    ? baseMinor
+    : frequency === 'month'
+      ? baseMinor * 12
+      : Math.ceil((baseMinor * weeklyMinutes * 52) / 60);
+
+/** A calendar date moved by the days between two others. */
+const shifted = (date: string, from: string, to: string): string =>
+  new Date(Date.parse(date) + (Date.parse(to) - Date.parse(from))).toISOString().slice(0, 10);
+
 function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
-  const act = useAct(props);
   const application = props.search?.['application'] ?? '';
-  const [base, setBase] = useState<number | null>(null);
-  const [currency, setCurrency] = useState<string>('EUR');
-  const [start, setStart] = useState(plusDays(60));
-  const [expires, setExpires] = useState(plusDays(10));
-  return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title={tr('offers.new_offer', 'New offer')}
-        description={tr(
-          'offers.start_with_the_pay_and_the',
-          'Start with the pay and the dates; the terms composer comes next.',
-        )}
-      />
-      <Refusal error={act.error} />
-      {application === '' ? (
+  if (application === '')
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title={tr('offers.new_offer', 'New offer')} />
         <Alert
           tone="warning"
           title={tr('offers.start_from_an_application', 'Start from an application')}
@@ -196,14 +194,69 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
             'Open the candidate and make the offer from their application.',
           )}
         </Alert>
-      ) : null}
+      </div>
+    );
+  return (
+    <Loaded
+      load={props.load as unknown as ScreenProps<OfferStartData>['load']}
+      what={tr('offers.the_offer', 'the offer')}
+    >
+      {(data) => <NewOfferBody data={data} application={application} props={props} />}
+    </Loaded>
+  );
+}
+
+/** R19's first page: everything filled from the job, to keep or change, then the composer. */
+function NewOfferBody({
+  data,
+  application,
+  props,
+}: {
+  readonly data: OfferStartData;
+  readonly application: string;
+  readonly props: ScreenProps<OfferData>;
+}): JSX.Element {
+  const act = useAct(props);
+  const first = data.input;
+  const [base, setBase] = useState<number | null>(first.pay.baseMinor / 100);
+  const [currency, setCurrency] = useState<string>(first.pay.currency);
+  const [start, setStart] = useState(first.startDate);
+  const [expires, setExpires] = useState(first.expiresOn);
+  const ad = data.advertised;
+  const currencies: readonly string[] = (CURRENCIES as readonly string[]).includes(currency)
+    ? CURRENCIES
+    : [currency, ...CURRENCIES];
+  return (
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={tr('offers.offer', 'Offer: {{name}}', { name: data.candidate.name })}
+        description={tr(
+          'offers.filled_from_the_job',
+          'Filled from {{title}}: its terms, the pay its ad gave and its benefits. Keep or change them; the terms composer comes next.',
+          { title: data.job.title },
+        )}
+      />
+      <Refusal error={act.error} />
       <Card padded>
         <div className="grid gap-4 md:grid-cols-2">
           <NumberField
-            label={tr('offers.base_pay_yearly', 'Base pay (yearly)')}
+            label={
+              first.pay.frequency === 'month'
+                ? tr('offers.base_pay_monthly', 'Base pay (monthly)')
+                : first.pay.frequency === 'hour'
+                  ? tr('offers.base_pay_hourly', 'Base pay (hourly)')
+                  : tr('offers.base_pay_yearly', 'Base pay (yearly)')
+            }
             value={base}
             min={0}
             onChange={setBase}
+            hint={
+              ad === null
+                ? tr('offers.the_job_ad_gave_no_pay', 'The job ad gave no pay.')
+                : tr('offers.the_job_ad_gave', 'The job ad gave {{range}}.', {
+                    range: range(ad.minMinor, ad.maxMinor, ad.currency),
+                  })
+            }
           />
           <Field>
             <FieldLabel>{tr('offers.currency', 'Currency')}</FieldLabel>
@@ -214,7 +267,7 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
                 </SelectTrigger>
               </FieldControl>
               <SelectContent>
-                {CURRENCIES.map((c) => (
+                {currencies.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
@@ -249,30 +302,34 @@ function NewOffer(props: ScreenProps<OfferData>): JSX.Element {
         </div>
         <div className="mt-4 flex justify-end">
           <Button
-            disabled={application === '' || base === null}
+            disabled={base === null || start === '' || expires === ''}
             loading={act.pending}
             onClick={() => {
+              const baseMinor = Math.round((base ?? 0) * 100);
+              const end = first.terms.contractEnd;
               act.run(
                 'ComposeOffer',
                 {
                   applicationId: application,
                   input: {
-                    terms: {},
-                    pay: {
-                      baseMinor: Math.round((base ?? 0) * 100),
-                      currency,
-                      frequency: 'year',
-                      variableTargetMinor: 0,
-                      signOnMinor: 0,
-                      relocationMinor: 0,
-                      equity: null,
+                    ...first,
+                    terms: {
+                      ...first.terms,
+                      contractStart: start,
+                      ...(end == null ? {} : { contractEnd: shifted(end, first.startDate, start) }),
+                      ...(first.terms.annualPayMinor === undefined
+                        ? {}
+                        : {
+                            annualPayMinor: yearly(
+                              baseMinor,
+                              first.pay.frequency,
+                              first.terms.weeklyMinutes ?? 0,
+                            ),
+                          }),
                     },
-                    benefitIds: [],
+                    pay: { ...first.pay, baseMinor, currency },
                     startDate: start,
                     expiresOn: expires,
-                    letterTemplateId: null,
-                    grade: null,
-                    outsideBandReason: null,
                   },
                 },
                 (offer) =>

@@ -746,6 +746,22 @@ export interface TermLength {
 }
 
 /** What the composer has been told so far; every field optional until its step. */
+/** R19: a new offer filled from the job (`offerStart` in Recruiting), and the range its ad gave. */
+export interface OfferStartData {
+  readonly input: Omit<OfferVersion, 'version' | 'supersededAt'> & {
+    readonly grade: string | null;
+    readonly outsideBandReason: string | null;
+  };
+  readonly advertised: {
+    readonly minMinor: number;
+    readonly maxMinor: number;
+    readonly currency: string;
+    readonly period: 'year' | 'month' | 'hour';
+  } | null;
+  readonly candidate: { readonly name: string };
+  readonly job: { readonly title: string };
+}
+
 export interface TermsAnswers {
   readonly region?: string | null;
   readonly relationship?: 'employee' | 'worker' | 'contractor';

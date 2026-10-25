@@ -1,0 +1,1 @@
+{"version":1,"body":"query RecruitingOfferStart($applicationId: String!) {\n    recruitingOfferStart(applicationId: $applicationId)\n  }"}

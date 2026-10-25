@@ -57,8 +57,15 @@ import {
   recordHire,
   resolveSteps,
 } from '../domain/requisition/requisition.js';
+import { addDays, addMonths } from '../domain/dates.js';
 import { packFor } from '../domain/terms/packs.js';
-import { validateTerms, type EntityFacts, type Validated } from '../domain/terms/pack.js';
+import {
+  validateTerms,
+  type EntityFacts,
+  type TermsAnswers,
+  type Validated,
+} from '../domain/terms/pack.js';
+import { termsOf, weeklyMinutesOf } from './job-terms.js';
 import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
 import { refreshProjection } from './jobs.js';
@@ -208,6 +215,108 @@ export async function editableOffer(
   const job = await ctx.tx.jobs.get(loaded.value.app.jobId);
   if (job === null) return err(notFound('job'));
   return ok({ ...loaded.value, job });
+}
+
+/**
+ * A new offer, filled from the job before anyone types (PRD §19.2): the terms
+ * set on the job, the law's defaults for what the job does not say (probation,
+ * notice, payments a year), the pay at the middle of the range the job ad
+ * gave, the job's benefits and the dates. The advertised range comes with it
+ * to show beside the pay. Every figure is a suggestion the recruiter keeps or
+ * changes; the composer still checks the result.
+ */
+export async function offerStart(
+  ctx: Ctx,
+  applicationId: string,
+): Promise<
+  Result<{
+    readonly input: VersionInput;
+    readonly advertised: {
+      readonly minMinor: number;
+      readonly maxMinor: number;
+      readonly currency: string;
+      readonly period: 'year' | 'month' | 'hour';
+    } | null;
+    readonly candidate: { readonly name: string };
+    readonly job: { readonly title: string };
+  }>
+> {
+  const loaded = await editableOffer(ctx, applicationId);
+  if (!loaded.ok) return loaded;
+  const { job, candidate } = loaded.value;
+  const held = await termsOf(ctx, job);
+  const entity = await entityFor(ctx, job);
+  const location =
+    held.locationId === null
+      ? null
+      : ((await ctx.tx.locations.list()).find((l) => l.id === held.locationId) ?? null);
+  const startDate = addDays(ctx.today, 60);
+  const expiresOn = addDays(ctx.today, 10);
+  const weeklyMinutes = weeklyMinutesOf(held) ?? entity?.fullTimeWeeklyMinutes ?? 40 * 60;
+  const salary = job.salary;
+  const pay = {
+    baseMinor: salary === null ? 0 : Math.round((salary.minMinor + salary.maxMinor) / 2),
+    currency: salary?.currency ?? entity?.currency ?? 'EUR',
+    frequency: salary?.period ?? 'year',
+    variableTargetMinor: 0,
+    signOnMinor: 0,
+    relocationMinor: 0,
+    equity: null,
+  } as const;
+  let terms: TermsAnswers = {
+    region: location?.region ?? null,
+    ...(held.relationship === null
+      ? {}
+      : { relationship: held.relationship as NonNullable<TermsAnswers['relationship']> }),
+    ...(held.contractType === null ? {} : { contractType: held.contractType }),
+    ...(held.fixedTermReason === null ? {} : { fixedTermReason: held.fixedTermReason }),
+    ...(held.workMode === null ? {} : { workMode: held.workMode }),
+    ...(held.workMode === 'hybrid' ? { hybridDaysOnsite: held.hybridDaysOnsite } : {}),
+    ...(held.workMode === 'remote' && entity !== null ? { remoteCountry: entity.country } : {}),
+    previouslyEmployed: false,
+    contractStart: startDate,
+    weeklyMinutes,
+    benefitIds: held.benefitIds,
+    nonCompeteMonths: null,
+    mobilityClause: false,
+  };
+  if (entity !== null) {
+    const pack = packFor(entity.country);
+    const type = pack
+      .contractTypes(terms, entity)
+      .find((c) => c.key === held.contractType && c.unavailable === undefined);
+    const limits = pack.limits(terms, entity, startDate);
+    const months =
+      type?.fixedTerm === true && limits.durationMonths !== null
+        ? Math.min(12, limits.durationMonths.max ?? 12)
+        : null;
+    terms = {
+      ...terms,
+      contractEnd: months === null ? null : addDays(addMonths(startDate, months), -1),
+      probation: limits.probation.allowed ? limits.probation.default : null,
+      noticeEmployee: limits.noticeEmployee,
+      noticeEmployer: limits.noticeEmployer,
+      annualPayMinor: yearlyBase(pay, weeklyMinutes),
+      ...(pack.paymentsPerYear(terms)[0] === undefined
+        ? {}
+        : { paymentsPerYear: pack.paymentsPerYear(terms)[0] }),
+    };
+  }
+  return ok({
+    input: {
+      terms,
+      pay,
+      benefitIds: held.benefitIds,
+      startDate,
+      expiresOn,
+      letterTemplateId: null,
+      grade: null,
+      outsideBandReason: null,
+    },
+    advertised: salary,
+    candidate: { name: candidate.name },
+    job: { title: job.title },
+  });
 }
 
 export async function composeOffer(
