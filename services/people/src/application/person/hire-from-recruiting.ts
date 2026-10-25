@@ -11,6 +11,7 @@ import type * as z from 'zod';
 import type { PersonAccess } from './person-access.js';
 import type { SchemaVersions } from './ports.js';
 import { SYSTEM_VIEWER } from './subject.js';
+import { valueSchemaFor } from './values.js';
 
 /**
  * A hire Recruiting made, as People's own record (Recruiting PRD §21.4,
@@ -25,7 +26,8 @@ import { SYSTEM_VIEWER } from './subject.js';
  * import come through, as the system with HR's relations: the record is
  * HR's, not an integration's mirror, so HR edits it as any other. A field
  * the schema does not define is left out rather than refused — a company
- * that never published `probation_end` still gets the person.
+ * that never published `probation_end` still gets the person — and so is a
+ * value the schema refuses (`left`), for HR to fill in on the record.
  *
  * Idempotent on the work email: somebody already on the books under it — a
  * second delivery, or an internal candidate who was an employee all along —
@@ -40,7 +42,11 @@ export type Cancelled = EventEnvelope & { payload: z.infer<typeof PrehireCancell
 export type Outcome = 'applied' | 'unchanged' | 'ignored' | 'rejected';
 
 export interface HiresFromRecruiting {
-  hired(tx: PostgresJsDatabase, event: Hired): Promise<{ outcome: Outcome; code?: string }>;
+  /** `left`: the fields whose values the schema refused, by key, for HR to fill in. */
+  hired(
+    tx: PostgresJsDatabase,
+    event: Hired,
+  ): Promise<{ outcome: Outcome; code?: string; left?: readonly string[] }>;
   cancelled(tx: PostgresJsDatabase, event: Cancelled): Promise<{ outcome: Outcome; code?: string }>;
   /**
    * Only the signature: whoever is on the books under the work email gets the
@@ -144,15 +150,26 @@ export function hiresFromRecruiting(
           ? {}
           : { [signatureField.key]: event.payload.signature }),
       };
+      // A value the schema refuses is left out and named, checked before anything is written.
+      const left = Object.entries(attributes).flatMap(([key, value]) => {
+        const definition = live.find((a) => a.key === key);
+        return definition !== undefined &&
+          value !== null &&
+          !valueSchemaFor(definition, event.payload.startDate).safeParse(value).success
+          ? [key]
+          : [];
+      });
       const created = await access.create(tx, {
         ...asking(event),
         applySensitiveWithoutApproval: true,
-        attributes,
+        attributes: Object.fromEntries(
+          Object.entries(attributes).filter(([k]) => !left.includes(k)),
+        ),
         hireDate: event.payload.startDate,
       });
-      return created.ok
-        ? { outcome: 'applied' }
-        : { outcome: 'rejected', code: created.error.code };
+      if (!created.ok)
+        return { outcome: 'rejected', code: created.error.code, left: created.error.path ?? [] };
+      return left.length === 0 ? { outcome: 'applied' } : { outcome: 'applied', left };
     },
     async cancelled(tx, event) {
       if (event.payload.email === null) return { outcome: 'ignored' };
