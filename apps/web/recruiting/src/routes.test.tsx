@@ -1379,6 +1379,31 @@ describe('R19, the offer', () => {
     bands: [],
   };
 
+  it('spins only the decision pressed: approving never seems to reject', async () => {
+    const waiting = {
+      ...offer,
+      approval: {
+        steps: [['p1']],
+        state: { outcome: 'pending', waitingOn: ['p1'], step: 1 },
+        mine: true,
+      },
+    };
+    render(
+      <screens.OfferApproval
+        load={ready(waiting) as never}
+        params={{ id: 'o1' }}
+        onAct={() => new Promise(() => undefined)}
+      />,
+    );
+    const approve = screen.getByRole('button', { name: 'Approve' });
+    const reject = screen.getByRole('button', { name: 'Reject' });
+    fireEvent.click(approve);
+    await waitFor(() => {
+      expect(approve.getAttribute('data-loading')).not.toBeNull();
+    });
+    expect(reject.getAttribute('data-loading')).toBeNull();
+  });
+
   it('is one page, filled in, with no tabs and no save buttons', async () => {
     const { container } = render(
       <screens.Offer load={ready(offer) as never} params={{ id: 'o1' }} />,
