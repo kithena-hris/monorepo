@@ -151,6 +151,30 @@ describe('a hire Recruiting made', () => {
     expect(JSON.parse(String(row?.fields.custom['my_signature']))).toEqual(mark);
   });
 
+  it('fills an empty signature of somebody already hired, and creates nobody', async () => {
+    const mark = { kind: 'typed', text: 'Yuki Tanaka', style: 'flowing' } as const;
+    const store = inMemoryPeople([
+      versionOf(1, [
+        define({ key: 'given_name' }),
+        define({ key: 'family_name' }),
+        email,
+        define({ key: 'my_signature', dataType: 'signature', typeConfig: { kind: 'signature' } }),
+      ]),
+    ]);
+    const access = personAccess({ ...store.deps, relations: withSupport(store.deps.relations) });
+    const hires = hiresFromRecruiting(access, store.deps.schemas);
+    const signed = { ...hired, payload: { ...hired.payload, signature: JSON.stringify(mark) } };
+    // Nobody under the email yet, as for a hire since cancelled: nothing is created.
+    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'unchanged' });
+    expect(store.rows.size).toBe(0);
+    // Hired before the company kept a signature: the replay fills it, once.
+    await hires.hired(tx, hired as never);
+    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'applied' });
+    const [row] = [...store.rows.values()];
+    expect(JSON.parse(String(row?.fields.custom['my_signature']))).toEqual(mark);
+    expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'unchanged' });
+  });
+
   it('is discarded when the hire falls through, found by its work email', async () => {
     const { store, hires } = setup();
     await hires.hired(tx, hired as never);

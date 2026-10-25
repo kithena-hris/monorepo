@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { Kafka } from 'kafkajs';
+import { Kafka, type Consumer } from 'kafkajs';
 import postgres from 'postgres';
 import { AccountProvisioned, CandidateHired, SchemaPublished } from '@kithena/contracts';
 import { kafkaConfigFrom } from '@kithena/db-kit';
@@ -17,7 +17,10 @@ import { drizzlePeopleFacts, drizzleSchemaRepository } from '../drizzle-schema-r
 import { openFgaFrom } from '../openfga.js';
 import { roleReportFrom } from '../role-report.js';
 import { signupReportFrom } from '../signup-report.js';
-import { hiresFromRecruiting } from '../../application/person/hire-from-recruiting.js';
+import {
+  hiresFromRecruiting,
+  type HiresFromRecruiting,
+} from '../../application/person/hire-from-recruiting.js';
 import { personAccess, type PersonAccess } from '../../application/person/person-access.js';
 import { enterAsSelf } from '../../application/person/self-entry.js';
 import { withSources, withSubjects, withSupport } from '../../application/person/subject.js';
@@ -42,7 +45,7 @@ import {
   drizzlePendingChangeStore,
   outboxPendingChanges,
 } from '../../application/person/pending-store.js';
-import { peopleConsumer } from './handle.js';
+import { hireSignatures, peopleConsumer } from './handle.js';
 import { drizzleProvisionalPeople } from './identity.js';
 
 /**
@@ -85,20 +88,49 @@ export async function startConsumers(
   const approvals = await pendingChanges(env, inTenant);
   const handle = consumerFrom(env, inTenant, approvals);
 
-  const consumer = new Kafka(kafka).consumer({
+  const broker = new Kafka(kafka);
+  const consumer = broker.consumer({
     groupId: 'people',
   });
-  await consumer.connect();
   // From the beginning, which only matters the first time the group exists:
   // every handler is idempotent, and an account provisioned before People was
   // first deployed is an account People should still know about.
   // `SchemaPublished.topic` is People's own topic, so the person events the
   // OpenFGA tuples are written from (PEO-092) arrive here too.
   // Recruiting's topic too: a hire it made becomes a `pre_hire` here (PRD §21.4).
-  await consumer.subscribe({
-    topics: [AccountProvisioned.topic, SchemaPublished.topic, CandidateHired.topic],
-    fromBeginning: true,
-  });
+  await consume(
+    consumer,
+    [AccountProvisioned.topic, SchemaPublished.topic, CandidateHired.topic],
+    handle,
+  );
+  // Recruiting's hires once more, for the signature alone: hires made before
+  // the company had a signature field get the contract's (`hireSignatures`).
+  const signatures = broker.consumer({ groupId: 'people-hire-signatures' });
+  const hires = hiresOf(env);
+  await consume(
+    signatures,
+    [CandidateHired.topic],
+    hireSignatures({ inTenant, ...(hires === undefined ? {} : { hires }) }),
+  );
+
+  return {
+    async stop() {
+      await consumer.disconnect();
+      await signatures.disconnect();
+      await approvals?.close();
+      await client.end();
+    },
+  };
+}
+
+/** Subscribe from the beginning and hand every JSON message to `handle`. */
+async function consume(
+  consumer: Consumer,
+  topics: string[],
+  handle: (envelope: unknown) => Promise<unknown>,
+): Promise<void> {
+  await consumer.connect();
+  await consumer.subscribe({ topics, fromBeginning: true });
   await consumer.run({
     eachMessage: async ({ message }) => {
       if (message.value === null) return;
@@ -112,14 +144,12 @@ export async function startConsumers(
       await handle(envelope);
     },
   });
+}
 
-  return {
-    async stop() {
-      await consumer.disconnect();
-      await approvals?.close();
-      await client.end();
-    },
-  };
+/** Recruiting's hires through the write path; absent without the keys it needs. */
+function hiresOf(env: NodeJS.ProcessEnv): HiresFromRecruiting | undefined {
+  const access = accessFrom(env);
+  return access === null ? undefined : hiresFromRecruiting(access, drizzleSchemaVersions());
 }
 
 /**
