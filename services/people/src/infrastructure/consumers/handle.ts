@@ -516,9 +516,13 @@ export function peopleConsumer(deps: ConsumerDeps): (raw: unknown) => Promise<Ou
           await rememberTenant(tx, event.tenantId);
           return hired ? hires.hired(tx, event as Hired) : hires.cancelled(tx, event as Cancelled);
         });
+        // The fields' keys only, never what they held: what HR fills in, or what refused the hire.
+        const left = 'left' in done ? done.left : undefined;
+        if (done.outcome === 'applied' && left !== undefined)
+          logger.warn({ eventId: event.eventId, left }, 'recruiting hire applied without');
         if (done.outcome === 'rejected' || done.outcome === 'ignored') {
           logger.warn(
-            { eventId: event.eventId, outcome: done.outcome, code: done.code },
+            { eventId: event.eventId, outcome: done.outcome, code: done.code, field: left },
             hired ? 'recruiting hire not applied' : 'recruiting cancellation not applied',
           );
         }

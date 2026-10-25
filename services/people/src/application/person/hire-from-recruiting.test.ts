@@ -175,6 +175,21 @@ describe('a hire Recruiting made', () => {
     expect(await hires.signed(tx, signed as never)).toEqual({ outcome: 'unchanged' });
   });
 
+  it('leaves out a value the schema refuses, for HR to fill in, rather than refusing the hire', async () => {
+    const { store, hires } = setup();
+    const odd = {
+      ...hired,
+      payload: { ...hired.payload, terms: { ...hired.payload.terms, probationEnd: 'soon' } },
+    };
+    expect(await hires.hired(tx, odd as never)).toEqual({
+      outcome: 'applied',
+      left: ['probation_end'],
+    });
+    const [row] = [...store.rows.values()];
+    expect(row?.snapshot.status).toBe('pre_hire');
+    expect(row?.fields.custom).not.toHaveProperty('probation_end');
+  });
+
   it('is discarded when the hire falls through, found by its work email', async () => {
     const { store, hires } = setup();
     await hires.hired(tx, hired as never);
