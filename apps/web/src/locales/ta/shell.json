@@ -367,6 +367,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "பதிலாக அது இருக்கும் இடத்தில் திறக்கவும்.",
   "components.inbox.detail-people.open_onboarding": "பணியில் சேர்த்தலைத் திறக்கவும்",
   "components.inbox.detail-people.open_review": "மதிப்பாய்வைத் திறக்கவும்",
+  "components.inbox.detail-people.open_the_record": "பதிவைத் திற",
   "components.inbox.detail-people.persons_note": "{{name}} இன் குறிப்பு",
   "components.inbox.detail-people.preview": "முன்னோட்டம்",
   "components.inbox.detail-people.question_one": "{{count}} கேள்வி",

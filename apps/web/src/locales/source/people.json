@@ -6219,6 +6219,58 @@
     "text": "{{first}} will see",
     "context": "People: employee records, org chart, HR settings. profile/inbox-asks.tsx, AskDialog: the aria-label of <List>. Filled in: {{first}}."
   },
+  "profile.invitation.not_sent": {
+    "text": "Check the record above, then invite {{name}} to sign up, now or on a day you choose. Until they do they are a pre-hire, seen only by HR.",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text built in code. Filled in: {{name}}."
+  },
+  "profile.invitation.not_sent_title": {
+    "text": "Not sent",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: the title of <Alert>."
+  },
+  "profile.invitation.or_on": {
+    "text": "Or send it on",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: the label of <DatePicker>."
+  },
+  "profile.invitation.schedule": {
+    "text": "Schedule",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Button>."
+  },
+  "profile.invitation.scheduled": {
+    "text": "It goes to {{name}} on {{date}}.",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text built in code. Filled in: {{name}}, {{date}}."
+  },
+  "profile.invitation.send_again": {
+    "text": "Send it again",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Button>."
+  },
+  "profile.invitation.send_now": {
+    "text": "Send the invitation now",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Button>."
+  },
+  "profile.invitation.sent": {
+    "text": "Sent on {{date}}. {{name}} confirms the details filled in from their contract, adds what is missing, and signs up.",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text built in code. Filled in: {{name}}, {{date}}."
+  },
+  "profile.invitation.starts": {
+    "text": "Starts {{date}}, from their contract.",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <CardDescription>. Filled in: {{date}}."
+  },
+  "profile.invitation.state_invited": {
+    "text": "Invited",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Badge>."
+  },
+  "profile.invitation.state_not_invited": {
+    "text": "Not invited",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Badge>."
+  },
+  "profile.invitation.state_scheduled": {
+    "text": "Scheduled",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <Badge>."
+  },
+  "profile.invitation.title": {
+    "text": "Invitation to sign up",
+    "context": "People: employee records, org chart, HR settings. profile/invitation.tsx, InvitationCard: text inside <CardTitle>."
+  },
   "profile.profile.a_pdf_of_what_you_can": {
     "text": "A PDF of what you can see. A reason is needed when it includes pay and bank details; it is kept with the export.",
     "context": "People: employee records, org chart, HR settings. profile/profile.tsx, RecordPdf: the description of <RecordDialog>."

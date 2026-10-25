@@ -98,6 +98,7 @@ import {
   type PlacementState,
 } from './employment';
 import { t } from '../i18n';
+import { InvitationCard, type InvitationActions } from './invitation';
 
 export interface ProfileSection extends RecordSection {
   /** Reading this section is audited, and the viewer is told so. */
@@ -173,6 +174,8 @@ export type ProfileOpen = string;
 
 export interface ProfileProps {
   readonly load: Loadable<ProfileState>;
+  /** A hire who has not started: their invitation to sign up, HR's to send or schedule. */
+  readonly invitation?: InvitationActions;
   readonly onSave: (sectionKey: string, changed: Values) => Promise<Outcome>;
   /** What our checks would warn about a national identifier, before it is saved (PEO-125). */
   readonly onCheck?: (sectionKey: string, changed: Values) => Promise<Checked>;
@@ -314,6 +317,7 @@ function Record({
   onEditingChange,
   open: heldOpen,
   onOpenChange,
+  invitation,
 }: Omit<ProfileProps, 'load' | 'searchPeople' | 'onUploadFile'> & {
   readonly state: ProfileState;
 }): JSX.Element {
@@ -664,6 +668,17 @@ function Record({
             </Button>
           </div>
         </div>
+        {invitation === undefined ||
+        (status !== 'pre_hire' && status !== 'onboarding') ||
+        typeof values['work_email'] !== 'string' ||
+        values['work_email'] === '' ? null : (
+          <InvitationCard
+            name={person.name}
+            email={values['work_email']}
+            startsOn={state.employment?.periods.at(-1)?.startedOn ?? null}
+            actions={invitation}
+          />
+        )}
         {moving === null || onMove === undefined || !state.calendar ? null : (
           <EmploymentMove
             kind={moving}

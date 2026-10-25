@@ -371,6 +371,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Ouvrez-le plutôt là où il se trouve.",
   "components.inbox.detail-people.open_onboarding": "Ouvrir l’intégration",
   "components.inbox.detail-people.open_review": "Ouvrir la revue",
+  "components.inbox.detail-people.open_the_record": "Ouvrir la fiche",
   "components.inbox.detail-people.persons_note": "Note de {{name}}",
   "components.inbox.detail-people.preview": "Aperçu",
   "components.inbox.detail-people.question_many": "{{count}} de questions",

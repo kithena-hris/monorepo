@@ -390,6 +390,32 @@ describe('People in the Inbox', () => {
     expect((documents.body as unknown as { id: string }[]).map((d) => d.id)).toEqual([kept, id]);
   });
 
+  it('asks HR to set up a pre-hire until their invitation goes, and hides them from everyone else', async () => {
+    const mia = '00000000-0000-4000-8000-0000000000d7';
+    await admin.execute(sql`
+      INSERT INTO people.person
+        (tenant_id, id, status, hire_date, identity_account_id, manager_id,
+         given_name, family_name, work_email, custom, schema_version)
+      VALUES (${ACME}::uuid, ${mia}::uuid, 'pre_hire', '2027-02-01', NULL, NULL,
+              'Mia', 'Wong', 'mia@acme.test', '{}'::jsonb, 1)`);
+    const id = `people:setup:${mia}`;
+    expect((await inbox(grace)).find((i) => i.id === id)).toMatchObject({
+      lane: 'task',
+      kind: 'people.setup',
+      title: 'Set up Mia Wong',
+      link: `/people/${mia}`,
+    });
+    expect((await inbox(tim)).some((i) => i.id === id)).toBe(false);
+    expect((await call('GET', `/v1/people/${mia}`, tim)).status).toBe(404);
+    // Scheduled: nothing left for HR to do but wait for the day.
+    await admin.execute(sql`
+      INSERT INTO people.account_invitation (tenant_id, person_id, send_on, sent_at, account_id)
+      VALUES (${ACME}::uuid, ${mia}::uuid, '2027-01-15', NULL, NULL)`);
+    expect((await inbox(grace)).some((i) => i.id === id)).toBe(false);
+    await admin.execute(sql`DELETE FROM people.account_invitation WHERE person_id = ${mia}::uuid`);
+    await admin.execute(sql`DELETE FROM people.person WHERE id = ${mia}::uuid`);
+  });
+
   it('makes a failing integration a task for every admin, until one takes it', async () => {
     const endpoint = '00000000-0000-4000-8000-0000000000e1';
     await admin.execute(sql`

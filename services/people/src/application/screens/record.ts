@@ -18,6 +18,7 @@ import type { FileStore } from './file-store.js';
 import type { AssistantPort } from '../assistant/assistant-port.js';
 import type { ChatDeps } from '../settings/chat-port.js';
 import type { ViewAsDeps, ViewedAs } from '../person/view-as.js';
+import type { InvitationStore } from '../person/invitations.js';
 import type { ImportNotice } from '../import/run-store.js';
 import type { AskDeps, DocumentDeps, InboxNotifier, TeamTaskStore } from '../inbox/ports.js';
 import type { InboxRules } from '../org/org.js';
@@ -49,6 +50,10 @@ export interface ScreenDeps {
   readonly documents?: DocumentDeps;
   /** Team tasks and who took them (`inbox/team.ts`). Absent, there are none. */
   readonly teamTasks?: TeamTaskStore;
+  /** A hire's invitation to sign up: HR's task until it is sent or scheduled. */
+  readonly invitations?: Pick<InvitationStore, 'get'>;
+  /** Who is a pre-hire, earliest start first. */
+  readonly preHires?: (tx: Tx, tenantId: string, limit: number) => Promise<readonly string[]>;
   /** Email for what reaches somebody's Inbox (INB-050). Absent, none is sent. */
   readonly inboxNotifier?: InboxNotifier;
   /** The company's Inbox rules (P2). Absent, the defaults. */

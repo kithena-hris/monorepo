@@ -379,6 +379,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Abra-o antes onde ele está.",
   "components.inbox.detail-people.open_onboarding": "Abrir o acolhimento",
   "components.inbox.detail-people.open_review": "Abrir revisão",
+  "components.inbox.detail-people.open_the_record": "Abrir o registo",
   "components.inbox.detail-people.persons_note": "Nota de {{name}}",
   "components.inbox.detail-people.preview": "Pré-visualização",
   "components.inbox.detail-people.question_many": "{{count}} de perguntas",

@@ -1210,6 +1210,46 @@ export async function peopleInbox(
       }
     }
 
+    /* ----------------------------------------------- hires to set up -- */
+    // A hire made from a signed contract is a pre-hire, filled in from it: HR's task
+    // until their invitation to sign up is sent or scheduled. The record opens to it.
+    const { invitations, preHires } = deps;
+    if (invitations !== undefined && preHires !== undefined && asking.viewer.roles.has('hr')) {
+      const ids = await preHires(tx, asking.tenantId, TEAM_PAGE);
+      const hires = await deps.service.access.readMany(tx, { ...asking, personIds: ids });
+      for (const p of hires.ok ? hires.value.values() : []) {
+        if ((await invitations.get(tx, asking.tenantId, p.id)) !== null) continue;
+        const name = nameOf(p.attributes) ?? t('inbox.inbox.someone', 'Someone');
+        const hired = text(p.attributes['hire_date'])?.slice(0, 10) ?? null;
+        items.push(
+          item({
+            id: `people:setup:${p.id}`,
+            lane: 'task',
+            kind: 'people.setup',
+            area: t('inbox.inbox.new_hires', 'New hires'),
+            icon: 'user-plus',
+            tone: 'accent',
+            title: t('inbox.inbox.set_up', 'Set up {{name}}', { name }),
+            summary:
+              hired === null
+                ? t(
+                    'inbox.inbox.set_up_hint',
+                    'Check the record filled in from their contract, add anything missing, and invite them to sign up.',
+                  )
+                : t(
+                    'inbox.inbox.set_up_hint_dated',
+                    'Starts {{date}}. Check the record filled in from their contract, add anything missing, and invite them to sign up.',
+                    { date: dayLabel(hired) },
+                  ),
+            from: { name, personId: p.id },
+            at: now,
+            due: hired,
+            link: `/people/${p.id}`,
+          }),
+        );
+      }
+    }
+
     // H1, Z3: an integration failing is a task for every People administrator; one takes it.
     const team = deps.teamTasks;
     if (team !== undefined && asking.viewer.roles.has('people_admin')) {

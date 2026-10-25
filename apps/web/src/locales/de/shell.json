@@ -362,6 +362,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Öffnen Sie es stattdessen dort, wo es liegt.",
   "components.inbox.detail-people.open_onboarding": "Onboarding öffnen",
   "components.inbox.detail-people.open_review": "Prüfung öffnen",
+  "components.inbox.detail-people.open_the_record": "Datensatz öffnen",
   "components.inbox.detail-people.persons_note": "Notiz von {{name}}",
   "components.inbox.detail-people.preview": "Vorschau",
   "components.inbox.detail-people.question_one": "{{count}} Frage",

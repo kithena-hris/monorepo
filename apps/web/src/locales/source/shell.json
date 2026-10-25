@@ -1495,6 +1495,10 @@
     "text": "Open Review",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Review: text inside <a>."
   },
+  "components.inbox.detail-people.open_the_record": {
+    "text": "Open their record",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, SetUp: text inside <a>."
+  },
   "components.inbox.detail-people.pdf": {
     "text": "PDF",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Document: the description of <ListItem>."

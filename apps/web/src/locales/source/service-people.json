@@ -235,6 +235,10 @@
     "text": "{{name}} left your team",
     "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
   },
+  "inbox.inbox.new_hires": {
+    "text": "New hires",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"area\" value."
+  },
   "inbox.inbox.nobody_decided_it_in_7_days": {
     "text": "Nobody decided it in 7 days",
     "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
@@ -314,6 +318,18 @@
   "inbox.inbox.sent_your_request_back": {
     "text": "{{personName}} sent your request back",
     "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{personName}}."
+  },
+  "inbox.inbox.set_up": {
+    "text": "Set up {{name}}",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"title\" value. Filled in: {{name}}."
+  },
+  "inbox.inbox.set_up_hint": {
+    "text": "Check the record filled in from their contract, add anything missing, and invite them to sign up.",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value."
+  },
+  "inbox.inbox.set_up_hint_dated": {
+    "text": "Starts {{date}}. Check the record filled in from their contract, add anything missing, and invite them to sign up.",
+    "context": "People’s own words for the person reading: their Inbox tasks and updates (a profile to finish, a change to approve, a colleague joining). application/inbox/inbox.ts: a \"summary\" value. Filled in: {{date}}."
   },
   "inbox.inbox.sign_document": {
     "text": "Sign {{name}}",

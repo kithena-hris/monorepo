@@ -395,6 +395,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Откройте лучше там, где оно находится.",
   "components.inbox.detail-people.open_onboarding": "Открыть онбординг",
   "components.inbox.detail-people.open_review": "Открыть проверку",
+  "components.inbox.detail-people.open_the_record": "Открыть запись",
   "components.inbox.detail-people.persons_note": "Заметка: {{name}}",
   "components.inbox.detail-people.preview": "Предпросмотр",
   "components.inbox.detail-people.question_few": "{{count}} вопроса",
