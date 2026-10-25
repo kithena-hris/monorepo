@@ -1353,8 +1353,12 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   const meetWith = async (allowed: (email: string) => boolean) => {
     const workspace = {
       ...deps,
-      workspaceCalendar: async (email: string) =>
-        allowed(email) ? ({ busy: async () => ({ ok: true, value: [] }) } as never) : null,
+      workspaceCalendar: (email: string) =>
+        Promise.resolve(
+          allowed(email)
+            ? ({ busy: () => Promise.resolve({ ok: true, value: [] }) } as never)
+            : null,
+        ),
     };
     const screen = await uow.run(tenantId, async (tx) =>
       scheduleScreen(
