@@ -52,7 +52,7 @@ export function DialogContent({
       <DialogPrimitive.Overlay
         data-material="scrim"
         className={cn(
-          'fixed inset-0 z-50 bg-overlay backdrop-blur-[2px]',
+          'fixed inset-0 z-50 bg-overlay backdrop-blur-(--reach-overlay-blur)',
           'data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
         )}
       />

@@ -259,16 +259,20 @@ function Stack({ children }: { readonly children: ReactNode }): JSX.Element {
 function Group({
   title,
   description,
+  action,
   children,
 }: {
   readonly title: string;
   readonly description?: string;
+  /** One action, on the title's line. */
+  readonly action?: ReactNode;
   readonly children: ReactNode;
 }): JSX.Element {
   return (
     <Card>
       <CardHeader>
         <CardTitle level={2}>{title}</CardTitle>
+        {action}
         {description === undefined ? null : <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">{children}</CardContent>
@@ -2494,10 +2498,134 @@ function PayBandEditor({
   );
 }
 
+type HeldAgreement = NonNullable<SettingsData['agreements']>[number];
+
+/** A collective agreement: its name, the country whose law it belongs to, and its professional groups. */
+function AgreementEditor({
+  held,
+  data,
+  act,
+  onClose,
+}: {
+  readonly held: HeldAgreement | null;
+  readonly data: SettingsData;
+  readonly act: Act;
+  readonly onClose: () => void;
+}): JSX.Element {
+  const countries = [...new Set(data.entities.map((e) => e.country))];
+  const [name, setName] = useState(held?.name ?? '');
+  const [country, setCountry] = useState(held?.country ?? countries[0] ?? '');
+  const [groups, setGroups] = useState<readonly string[]>(held?.groups ?? []);
+  const checks = useChecks({
+    name:
+      name.trim() === ''
+        ? tr(
+            'settings.name_the_agreement',
+            'Name the agreement, as its text does: Convenio de consultoría, TV-L.',
+          )
+        : null,
+    country: country === '' ? tr('settings.choose_its_country', 'Choose its country.') : null,
+  });
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {held === null
+              ? tr('settings.new_collective_agreement', 'New collective agreement')
+              : held.name}
+          </DialogTitle>
+          <DialogDescription>
+            {tr(
+              'settings.picked_on_a_job_and_an_offer',
+              'Picked on a job and on an offer, never typed there, so every contract names it the same way.',
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="flex flex-col gap-4">
+          <Refusal error={act.error} />
+          <Field required invalid={checks.invalid('name')}>
+            <FieldLabel>{tr('settings.name', 'Name')}</FieldLabel>
+            <FieldControl>
+              <Input
+                value={name}
+                placeholder="Convenio colectivo de consultoría"
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+              />
+            </FieldControl>
+            <FieldError>{checks.error('name')}</FieldError>
+          </Field>
+          {countries.length < 2 ? null : (
+            <Field required invalid={checks.invalid('country')}>
+              <FieldLabel>{tr('settings.country', 'Country')}</FieldLabel>
+              <Select value={country} onValueChange={setCountry}>
+                <FieldControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FieldControl>
+                <SelectContent>
+                  {countries.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError>{checks.error('country')}</FieldError>
+            </Field>
+          )}
+          <TagsInput
+            label={tr('settings.professional_groups', 'Professional groups')}
+            hint={tr(
+              'settings.professional_groups_hint',
+              'As the agreement names them: Grupo 1, Nivel B, E9. Press Enter after each.',
+            )}
+            delimiters={[]}
+            max={60}
+            value={groups}
+            onChange={setGroups}
+          />
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            {tr('settings.cancel', 'Cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            loading={act.pending}
+            onClick={() => {
+              if (!checks.pass()) return;
+              act.run(
+                'SaveAgreement',
+                { id: held?.id ?? newId(), input: { name: name.trim(), country, groups } },
+                onClose,
+              );
+            }}
+          >
+            {held === null
+              ? tr('settings.add_agreement', 'Add agreement')
+              : tr('settings.save', 'Save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const PayBands: Body = ({ data, props }) => {
   const act = useAct(props);
   const removal = useRemoval(act);
   const [band, setBand] = useState<Band | null | 'new'>(null);
+  const [agreement, setAgreement] = useState<HeldAgreement | null | 'new'>(null);
+  const agreements = data.agreements ?? [];
   const bands = data.payBands.toSorted(
     (a, b) => a.currency.localeCompare(b.currency) || a.minMinor - b.minMinor,
   );
@@ -2610,6 +2738,85 @@ const PayBands: Body = ({ data, props }) => {
           </Group>
         )}
       </Stack>
+      {data.entities.length === 0 ? null : (
+        <Stack>
+          <Group
+            title={tr('settings.collective_agreements', 'Collective agreements')}
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                startIcon={<icons.add aria-hidden />}
+                onClick={() => {
+                  setAgreement('new');
+                }}
+              >
+                {tr('settings.add_agreement', 'Add agreement')}
+              </Button>
+            }
+          >
+            <Things
+              empty={
+                agreements.length === 0
+                  ? tr(
+                      'settings.add_the_agreements_you_hire_under',
+                      'Add the collective agreements you hire under, with their groups. Spain asks for one in every contract.',
+                    )
+                  : null
+              }
+              icon={<icons.agreement aria-hidden />}
+            >
+              {agreements.map((a, i) => (
+                <Row
+                  key={a.id}
+                  index={i}
+                  title={a.name}
+                  icon={<icons.agreement aria-hidden />}
+                  onOpen={() => {
+                    setAgreement(a);
+                  }}
+                  description={
+                    a.groups.length === 0
+                      ? a.country
+                      : tr('settings.agreement_groups', '{{country}} · {{groups}}', {
+                          country: a.country,
+                          groups: a.groups.join(', '),
+                        })
+                  }
+                  actions={rowActions(
+                    tr('settings.agreement', 'agreement'),
+                    () => {
+                      setAgreement(a);
+                    },
+                    () => {
+                      removal.ask(
+                        a.name,
+                        tr(
+                          'settings.jobs_and_offers_keep_it',
+                          'Jobs and offers that name it keep it; it is no longer offered to pick.',
+                        ),
+                        () => {
+                          act.run('RemoveAgreement', { id: a.id });
+                        },
+                      );
+                    },
+                  )}
+                />
+              ))}
+            </Things>
+          </Group>
+        </Stack>
+      )}
+      {agreement === null ? null : (
+        <AgreementEditor
+          held={agreement === 'new' ? null : agreement}
+          data={data}
+          act={act}
+          onClose={() => {
+            setAgreement(null);
+          }}
+        />
+      )}
       {removal.dialog}
       {band === null ? null : (
         <PayBandEditor

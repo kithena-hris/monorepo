@@ -12,6 +12,7 @@ import type {
 } from '../domain/terms/pack.js';
 import type { CategoryInfo } from '../domain/benefits/benefits.js';
 import { write, type PromptSpec } from './ai.js';
+import { agreementsOf, type Agreement } from './agreements.js';
 import { catalogueOf, categoriesOf, keepChosen } from './catalogue.js';
 import type { Ctx } from './context.js';
 import { editable, refreshProjection } from './jobs.js';
@@ -53,6 +54,10 @@ export interface JobTerms {
   readonly setupStep: string | null;
   /** Chosen from the entity's catalogue; its statutory benefits are always in. */
   readonly benefitIds: readonly string[];
+  /** The region of the country whose law applies, from the pack's list; the workplace's when it names one. */
+  readonly region: string | null;
+  /** The collective agreement and professional group, from the company's list in Settings. */
+  readonly agreement: { readonly key: string; readonly group: string | null } | null;
 }
 
 export interface PayEstimateHeld {
@@ -113,6 +118,14 @@ export interface TermsOptions {
   readonly categories: readonly CategoryInfo[];
   /** The pack is awaiting a country reviewer (REC-150): said beside the choices. */
   readonly reviewed: boolean;
+  /** The country's regions, where its law differs by one; empty where it does not. */
+  readonly regions: readonly Choice[];
+  /** The region the terms are read under: the one chosen, else the workplace's when the pack knows it. */
+  readonly region: string | null;
+  /** The company's collective agreements in the entity's country, to pick from. */
+  readonly agreements: readonly Agreement[];
+  /** The country's law asks for one (Spain does). */
+  readonly agreementRequired: boolean;
 }
 
 const key = (jobId: string): string => `job-terms:${jobId}`;
@@ -135,6 +148,8 @@ const EMPTY: JobTerms = {
   payEstimate: null,
   setupStep: null,
   benefitIds: [],
+  region: null,
+  agreement: null,
 };
 
 export async function termsOf(ctx: Ctx, job: JobRecord): Promise<JobTerms> {
@@ -184,8 +199,9 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
   const pack = entity === null ? null : packFor(entity.country);
   const facts = entity === null ? null : factsOf(entity);
   const weekly = weeklyMinutesOf(terms);
+  const region = regionOf(pack?.regions ?? [], terms.region, location);
   const answers: TermsAnswers = {
-    region: location?.region ?? null,
+    region,
     ...(terms.relationship === null
       ? {}
       : { relationship: terms.relationship as NonNullable<TermsAnswers['relationship']> }),
@@ -253,7 +269,29 @@ export async function termsOptions(ctx: Ctx, terms: JobTerms): Promise<TermsOpti
     })),
     categories: await categoriesOf(ctx),
     reviewed: pack?.reviewed ?? true,
+    regions: pack?.regions ?? [],
+    region,
+    agreements: entity === null ? [] : await agreementsOf(ctx, entity.country),
+    agreementRequired: pack !== null && facts !== null && pack.agreementRequired(facts),
   };
+}
+
+/**
+ * The region the law is read under: the one chosen for the job, else the
+ * workplace's when it is one the pack knows (a workplace's region is written
+ * freely, "Catalonia" or "CT"), else none.
+ */
+export function regionOf(
+  regions: readonly Choice[],
+  chosen: string | null,
+  location: Pick<Location, 'region'> | null,
+): string | null {
+  if (chosen !== null) return chosen;
+  const named = location?.region?.trim().toLowerCase() ?? '';
+  return (
+    regions.find((r) => r.key.toLowerCase() === named || r.label.toLowerCase() === named)?.key ??
+    null
+  );
 }
 
 /** The job's terms and what each step may offer: the wizard's read. */
@@ -302,6 +340,8 @@ export async function saveJobTerms(
       fixedTermReason: patch.fixedTermReason ?? null,
       vacationDays: patch.vacationDays ?? null,
       benefitIds: patch.benefitIds ?? [],
+      region: patch.region ?? null,
+      agreement: patch.agreement ?? null,
     };
   let options = await termsOptions(ctx, terms);
   if (terms.entityId !== null && !options.entities.some((e) => e.id === terms.entityId))
@@ -310,6 +350,24 @@ export async function saveJobTerms(
     if (patch.locationId !== undefined)
       return refused('LOCATION', 'Choose a workplace of that entity, in its country');
     terms = { ...terms, locationId: null };
+  }
+  // The region and the agreement come from lists: the pack's, and the company's in Settings.
+  if (terms.region !== null && !options.regions.some((r) => r.key === terms.region)) {
+    if (patch.region !== undefined)
+      return refused('REGION', 'Choose one of the regions the country’s law names');
+    terms = { ...terms, region: null };
+  }
+  const agreement = terms.agreement;
+  if (agreement !== null) {
+    const known = options.agreements.find((a) => a.key === agreement.key);
+    if (
+      known === undefined ||
+      (agreement.group !== null && !known.groups.includes(agreement.group))
+    ) {
+      if (patch.agreement !== undefined)
+        return refused('AGREEMENT', 'Choose an agreement and a group from the company’s list');
+      terms = { ...terms, agreement: null };
+    }
   }
   if (terms.workMode !== 'hybrid')
     terms = { ...terms, hybridDaysOnsite: null, hybridOnsiteDays: null };

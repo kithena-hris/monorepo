@@ -65,7 +65,7 @@ import {
   type MinimumLeave,
   type TermsAnswers,
 } from '../domain/terms/pack.js';
-import { termsOf, weeklyMinutesOf } from './job-terms.js';
+import { regionOf, termsOf, weeklyMinutesOf } from './job-terms.js';
 import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
 import { refreshProjection } from './jobs.js';
@@ -266,7 +266,8 @@ export async function offerStart(
     equity: null,
   } as const;
   let terms: TermsAnswers = {
-    region: location?.region ?? null,
+    region: regionOf(entity === null ? [] : packFor(entity.country).regions, held.region, location),
+    ...(held.agreement === null ? {} : { agreement: held.agreement }),
     ...(held.relationship === null
       ? {}
       : { relationship: held.relationship as NonNullable<TermsAnswers['relationship']> }),

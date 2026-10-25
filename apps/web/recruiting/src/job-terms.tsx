@@ -43,7 +43,7 @@ import {
 import { BenefitPicker } from './benefits';
 import { usePicks } from './terms-view';
 import { Refusal, useAct } from './shared';
-import type { JobData, JobTerms, ScreenProps } from './types';
+import type { Agreement, JobData, JobTerms, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
 /**
@@ -236,6 +236,114 @@ export function EntityChoice({ data, props }: TermsProps): JSX.Element {
   );
 }
 
+const NONE = '__none';
+
+/**
+ * The collective agreement and its professional group, picked from the
+ * company's list in Settings, so the key a contract carries is always one the
+ * company wrote down. Shared by a job's terms and an offer.
+ */
+export function AgreementFields({
+  agreements,
+  value,
+  required,
+  disabled = false,
+  onChange,
+  onNavigate,
+}: {
+  readonly agreements: readonly Agreement[];
+  readonly value: { readonly key: string; readonly group: string | null } | null | undefined;
+  readonly required: boolean;
+  readonly disabled?: boolean;
+  readonly onChange: (next: { key: string; group: string | null } | null) => void;
+  readonly onNavigate?: ((to: string) => void) | undefined;
+}): JSX.Element {
+  if (agreements.length === 0)
+    return (
+      <Alert
+        tone={required ? 'warning' : 'info'}
+        title={tr('job-terms.no_collective_agreements_yet', 'No collective agreements yet')}
+        action={
+          onNavigate === undefined ? undefined : (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                onNavigate('/recruiting/settings/pay');
+              }}
+            >
+              {tr('job-terms.open_settings', 'Open Settings')}
+            </Button>
+          )
+        }
+      >
+        {required
+          ? tr(
+              'job-terms.the_law_here_asks_for_one',
+              'The law here asks for the agreement and the professional group. Add the ones you hire under in Settings, Pay bands, then pick one here.',
+            )
+          : tr(
+              'job-terms.add_the_ones_you_hire_under',
+              'If you hire under one, add it in Settings, Pay bands, then pick it here.',
+            )}
+      </Alert>
+    );
+  const chosen = agreements.find((a) => a.key === value?.key);
+  return (
+    <>
+      <Field required={required}>
+        <FieldLabel>{tr('job-terms.collective_agreement', 'Collective agreement')}</FieldLabel>
+        <Select
+          value={value?.key ?? NONE}
+          disabled={disabled}
+          onValueChange={(key) => {
+            onChange(key === NONE ? null : { key, group: null });
+          }}
+        >
+          <FieldControl>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+          </FieldControl>
+          <SelectContent>
+            {required ? null : <SelectItem value={NONE}>{tr('job-terms.none', 'None')}</SelectItem>}
+            {agreements.map((a) => (
+              <SelectItem key={a.id} value={a.key}>
+                {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      {chosen === undefined || chosen.groups.length === 0 ? null : (
+        <Field required={required}>
+          <FieldLabel>{tr('job-terms.professional_group', 'Professional group')}</FieldLabel>
+          <Select
+            value={value?.group ?? ''}
+            disabled={disabled}
+            onValueChange={(group) => {
+              onChange({ key: chosen.key, group });
+            }}
+          >
+            <FieldControl>
+              <SelectTrigger>
+                <SelectValue placeholder={tr('job-terms.choose_a_group', 'Choose a group')} />
+              </SelectTrigger>
+            </FieldControl>
+            <SelectContent>
+              {chosen.groups.map((g) => (
+                <SelectItem key={g} value={g}>
+                  {g}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
+    </>
+  );
+}
+
 export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
   const { error, save, terms } = useTerms(data, props);
   const { options } = data;
@@ -286,6 +394,38 @@ export function PlaceChoice({ data, props }: TermsProps): JSX.Element {
           </div>
         ))}
       </RadioGroup>
+      {/* Where the country's law differs by region, the region it is read under: picked, not typed. */}
+      {terms.locationId === null || (options.regions ?? []).length === 0 ? null : (
+        <Field required>
+          <FieldLabel>{tr('job-terms.region', 'Region')}</FieldLabel>
+          <FieldDescription>
+            {tr(
+              'job-terms.the_law_differs_by_region',
+              'The law in {{countryName}} differs by region. Taken from the workplace when it names one.',
+              { countryName: countryName(options.country) },
+            )}
+          </FieldDescription>
+          <Select
+            value={terms.region ?? options.region ?? ''}
+            onValueChange={(v) => {
+              save({ region: v });
+            }}
+          >
+            <FieldControl>
+              <SelectTrigger>
+                <SelectValue placeholder={tr('job-terms.choose_a_region', 'Choose a region')} />
+              </SelectTrigger>
+            </FieldControl>
+            <SelectContent>
+              {(options.regions ?? []).map((r) => (
+                <SelectItem key={r.key} value={r.key}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
     </>
   );
 }
@@ -571,6 +711,17 @@ export function ContractChoice({ data, props }: TermsProps): JSX.Element {
           </Select>
         </Field>
       ) : null}
+      {terms.contractType === null ? null : (
+        <AgreementFields
+          agreements={options.agreements ?? []}
+          value={terms.agreement}
+          required={options.agreementRequired === true}
+          onChange={(agreement) => {
+            save({ agreement });
+          }}
+          onNavigate={props.onNavigate}
+        />
+      )}
     </>
   );
 }

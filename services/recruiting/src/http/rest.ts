@@ -71,6 +71,7 @@ import {
 } from '../application/emails.js';
 import { removeCategory, restoreLibrary, saveCategory } from '../application/catalogue.js';
 import { LogoUpload, describeCompany, saveSettings, uploadLogo } from '../application/company.js';
+import { removeAgreement, saveAgreement } from '../application/agreements.js';
 import { interviewOnEntry } from '../application/stage-interviews.js';
 import { stageWork } from '../application/stage-work.js';
 import { saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
@@ -746,6 +747,10 @@ export const ROUTES: readonly Route[] = [
         setupStep: z.string().max(40).nullable(),
         // Text, not uuid: statutory and library benefits have stable ids of their own.
         benefitIds: z.array(z.string().max(80)).max(120),
+        /** A key of the pack's regions. */
+        region: z.string().max(10).nullable(),
+        /** A key and group from the company's collective agreements. */
+        agreement: z.object({ key: text(80).min(1), group: text(60).nullable() }).nullable(),
         /** Yearly, minor units, in the entity's currency. */
         pay: z
           .object({
@@ -1996,6 +2001,27 @@ export const ROUTES: readonly Route[] = [
     summary: 'Remove a company benefit; statutory ones stay',
     params: z.object({ id: z.string().max(80) }),
     run: (ctx, { params }) => removeBenefit(ctx, params.id),
+  }),
+  route({
+    name: 'saveAgreement',
+    method: 'PUT',
+    path: `${V1}/settings/agreements/{id}`,
+    summary: 'A collective agreement the company hires under, with its professional groups',
+    params: z.object({ id: Id }),
+    body: z.object({
+      name: text(120).min(1),
+      country: z.string().length(2),
+      groups: z.array(text(60)).max(60),
+    }),
+    run: (ctx, { params, body }) => saveAgreement(ctx, { ...body, id: params.id }),
+  }),
+  route({
+    name: 'removeAgreement',
+    method: 'DELETE',
+    path: `${V1}/settings/agreements/{id}`,
+    summary: 'Remove a collective agreement from the company’s list',
+    params: z.object({ id: Id }),
+    run: (ctx, { params }) => removeAgreement(ctx, params.id),
   }),
   route({
     name: 'removePayBand',

@@ -40,3 +40,6 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
 - Restrained: neutrals from the canvas and surfaces. The accent is reserved for the primary action, the current stage and progress.
 - Stage dots follow `CATEGORY_TONE`. Success marks only an ideal match or a live target.
 - Motion is Reach's own: the `ModalPage` slide-in, the `Kanban` lift and settle, and popovers on `popover-motion`. No screen adds keyframes.
+- Every overlay (dialog, alert, sheet, modal page, palette) blurs what is behind it by one Reach token, `--reach-overlay-blur`, so the modal is the only thing to read.
+- A card's description sits under its title, never beside it (Reach's `CardHeader`); an action stays on the title's line.
+- Choices that a contract carries are picked, never typed: the region from the country pack's list, the collective agreement and group from the company's list in Settings, Pay bands.

@@ -193,6 +193,12 @@
      * to 1.5px only makes it blurry.
      */
     --reach-focus-width: 0.125rem;
+    /*
+     * How far the page behind a modal is blurred: enough that nothing behind
+     * it reads, so the modal is the one thing on screen to read. Every
+     * overlay (dialog, alert, sheet, modal page, palette) uses this one value.
+     */
+    --reach-overlay-blur: 12px;
 
     /* ---------------------------------------------------------------- */
     /* Mobile                                                            */

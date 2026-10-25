@@ -61,6 +61,7 @@ import {
 import { formatList } from '@reach/ui/intl';
 
 import { BenefitPicker } from './benefits';
+import { AgreementFields } from './job-terms';
 import { Loaded } from './load';
 import { MoreMenu, Refusal, StateBadge, To, day, money, range, useAct, words } from './shared';
 import type {
@@ -1221,63 +1222,16 @@ function OfferEditor({
                 </Field>
               ) : null}
               {shown('agreement') ? (
-                <>
-                  <Field>
-                    <FieldLabel>
-                      {tr('offers.collective_agreement', 'Collective agreement')}
-                    </FieldLabel>
-                    <FieldControl>
-                      <Input
-                        value={draft.terms.agreement?.key ?? ''}
-                        placeholder="metal_nrw"
-                        onChange={(e) => {
-                          // A key, not a name: what is typed becomes one as it is typed.
-                          const key = e.target.value
-                            .toLowerCase()
-                            .normalize('NFD')
-                            .replaceAll(/[\u0300-\u036f]/gu, '')
-                            .replaceAll(/[^a-z0-9_]+/gu, '_')
-                            .replace(/^[^a-z]+/u, '');
-                          setTerms(
-                            {
-                              agreement:
-                                key === ''
-                                  ? null
-                                  : { key, group: draft.terms.agreement?.group ?? null },
-                            },
-                            true,
-                          );
-                        }}
-                      />
-                    </FieldControl>
-                    <FieldDescription>
-                      {tr(
-                        'offers.agreement_key_hint',
-                        'Its key, as the country pack knows it: lowercase, with underscores.',
-                      )}
-                    </FieldDescription>
-                  </Field>
-                  <Field>
-                    <FieldLabel>{tr('offers.group', 'Group')}</FieldLabel>
-                    <FieldControl>
-                      <Input
-                        value={draft.terms.agreement?.group ?? ''}
-                        disabled={draft.terms.agreement == null}
-                        onChange={(e) => {
-                          setTerms(
-                            {
-                              agreement: {
-                                key: draft.terms.agreement?.key ?? '',
-                                group: e.target.value === '' ? null : e.target.value,
-                              },
-                            },
-                            true,
-                          );
-                        }}
-                      />
-                    </FieldControl>
-                  </Field>
-                </>
+                <AgreementFields
+                  agreements={data.agreements ?? []}
+                  value={draft.terms.agreement}
+                  required
+                  disabled={!editable}
+                  onChange={(agreement) => {
+                    setTerms({ agreement });
+                  }}
+                  onNavigate={props.onNavigate}
+                />
               ) : null}
               <Issues
                 issues={issues(

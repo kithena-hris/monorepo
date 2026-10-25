@@ -108,7 +108,11 @@ export function CardHeader({ className, ...props }: ComponentPropsWithoutRef<'di
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-4 px-5 pt-5 pb-4 touch:px-4 touch:pt-4 touch:pb-3',
+        'flex flex-wrap items-start justify-between gap-x-4 px-5 pt-5 pb-4 touch:px-4 touch:pt-4 touch:pb-3',
+        // A description sits under the title on a line of its own, never beside
+        // it: beside, a long one pushed the title onto two lines. An action stays
+        // on the title's line.
+        '[&>[data-slot=card-description]]:order-last [&>[data-slot=card-description]]:basis-full',
         className,
       )}
       {...props}
@@ -139,7 +143,13 @@ export function CardDescription({
   className,
   ...props
 }: ComponentPropsWithoutRef<'p'>): JSX.Element {
-  return <p className={cn('mt-1 text-sm text-fg-muted', className)} {...props} />;
+  return (
+    <p
+      data-slot="card-description"
+      className={cn('mt-1 text-sm text-fg-muted', className)}
+      {...props}
+    />
+  );
 }
 
 /**

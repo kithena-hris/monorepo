@@ -2239,6 +2239,10 @@
     "text": "Add one under Settings, Company, Locations, then come back.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, PlaceChoice: text inside <Alert>."
   },
+  "job-terms.add_the_ones_you_hire_under": {
+    "text": "If you hire under one, add it in Settings, Pay bands, then pick it here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: text inside <Alert>."
+  },
   "job-terms.add_them_under_settings_recruiting_benefits": {
     "text": "Add them under Settings, Recruiting, Benefits.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, BenefitsChoice: the description of <EmptyState>."
@@ -2259,9 +2263,17 @@
     "text": "calendar days",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, LeaveChoice: text built in code."
   },
+  "job-terms.choose_a_group": {
+    "text": "Choose a group",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: the placeholder of <SelectValue>."
+  },
   "job-terms.choose_a_reason": {
     "text": "Choose a reason",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, ContractChoice: the placeholder of <SelectValue>."
+  },
+  "job-terms.choose_a_region": {
+    "text": "Choose a region",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, PlaceChoice: the placeholder of <SelectValue>."
   },
   "job-terms.choose_how_many_days_first": {
     "text": "Choose how many days first.",
@@ -2294,6 +2306,10 @@
   "job-terms.choose_the_workplace_first": {
     "text": "Choose the workplace first.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, ModeChoice: the what of <Waiting>."
+  },
+  "job-terms.collective_agreement": {
+    "text": "Collective agreement",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: text inside <FieldLabel>."
   },
   "job-terms.common_choices": {
     "text": "Common choices",
@@ -2431,6 +2447,10 @@
     "text": "No benefits in the catalogue",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, BenefitsChoice: the title of <EmptyState>."
   },
+  "job-terms.no_collective_agreements_yet": {
+    "text": "No collective agreements yet",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: the title of <Alert>."
+  },
   "job-terms.no_estimate_yet": {
     "text": "No estimate yet.",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, PayChoice: text inside <span>."
@@ -2445,7 +2465,7 @@
   },
   "job-terms.none": {
     "text": "None",
-    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: text inside <SelectItem>."
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: text inside <SelectItem>."
   },
   "job-terms.not_set": {
     "text": "Not set",
@@ -2471,6 +2491,10 @@
     "text": "Open-ended",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, ContractChoice: the badge of <Badge>."
   },
+  "job-terms.open_settings": {
+    "text": "Open Settings",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: the action of <Button>."
+  },
   "job-terms.over_the_legal_week": {
     "text": "Over the legal week",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, HoursChoice: the title of <Alert>."
@@ -2494,6 +2518,14 @@
   "job-terms.pays_in": {
     "text": "{{countryName}} · pays in {{currency}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, EntityChoice: the description of <RadioCard>. Filled in: {{countryName}}, {{currency}}."
+  },
+  "job-terms.professional_group": {
+    "text": "Professional group",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: text inside <FieldLabel>."
+  },
+  "job-terms.region": {
+    "text": "Region",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, PlaceChoice: text inside <FieldLabel>."
   },
   "job-terms.remote": {
     "text": "Remote",
@@ -2570,6 +2602,14 @@
   "job-terms.that_country": {
     "text": "that country",
     "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx: text built in code."
+  },
+  "job-terms.the_law_differs_by_region": {
+    "text": "The law in {{countryName}} differs by region. Taken from the workplace when it names one.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, PlaceChoice: text inside <FieldDescription>. Filled in: {{countryName}}."
+  },
+  "job-terms.the_law_here_asks_for_one": {
+    "text": "The law here asks for the agreement and the professional group. Add the ones you hire under in Settings, Pay bands, then pick one here.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. job-terms.tsx, AgreementFields: text inside <Alert>."
   },
   "job-terms.the_law_there_asks_for_the": {
     "text": "The law there asks for the reason in the contract.",
@@ -4531,10 +4571,6 @@
     "text": "Adds an approval step",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the title of <Alert>."
   },
-  "offers.agreement_key_hint": {
-    "text": "Its key, as the country pack knows it: lowercase, with underscores.",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldDescription>."
-  },
   "offers.also": {
     "text": "Also",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the items of <KeyValues>."
@@ -4798,10 +4834,6 @@
   "offers.grade": {
     "text": "Grade",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the label of <Pick>."
-  },
-  "offers.group": {
-    "text": "Group",
-    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
   "offers.hire_fell_through": {
     "text": "Hire fell through?",
@@ -6975,6 +7007,10 @@
     "text": "Add a reason, then Enter",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: the placeholder of <TagsInput>."
   },
+  "settings.add_agreement": {
+    "text": "Add agreement",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: text inside <Button>."
+  },
   "settings.add_an_office_a_site_or_a": {
     "text": "Add an office, a site or a city.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: the empty of <Things>."
@@ -7039,6 +7075,10 @@
     "text": "Add template",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, EmailsAndLetters: the actions of <Button>."
   },
+  "settings.add_the_agreements_you_hire_under": {
+    "text": "Add the collective agreements you hire under, with their groups. Spain asks for one in every contract.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBands: the empty of <Things>."
+  },
   "settings.add_the_company_that_employs_such_as": {
     "text": "Add the company that employs, such as Acme GmbH.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: the empty of <Things>."
@@ -7082,6 +7122,14 @@
   "settings.after_three_months": {
     "text": "After three months",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AFTER: text built in code."
+  },
+  "settings.agreement": {
+    "text": "agreement",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBands: the actions of <Row>."
+  },
+  "settings.agreement_groups": {
+    "text": "{{country}} · {{groups}}",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBands: the description of <Row>. Filled in: {{country}}, {{groups}}."
   },
   "settings.ai": {
     "text": "AI",
@@ -7203,6 +7251,10 @@
     "text": "Choose an entity",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBandEditor: the placeholder of <SelectValue>."
   },
+  "settings.choose_its_country": {
+    "text": "Choose its country.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: a \"country\" value."
+  },
   "settings.choose_who_pays_it": {
     "text": "Choose who pays it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBandEditor: a \"entity\" value."
@@ -7215,6 +7267,10 @@
     "text": "Clear, repeated evidence for.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, SCALE: text built in code."
   },
+  "settings.collective_agreements": {
+    "text": "Collective agreements",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBands: the title of <Group>."
+  },
   "settings.company_name": {
     "text": "Company name",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, CareersPage: text inside <FieldLabel>."
@@ -7226,6 +7282,10 @@
   "settings.competency": {
     "text": "Competency {{value}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, ScorecardEditor: text inside <FieldLabel>. Filled in: {{value}}."
+  },
+  "settings.country": {
+    "text": "Country",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: text inside <FieldLabel>."
   },
   "settings.currency": {
     "text": "Currency",
@@ -7443,6 +7503,10 @@
     "text": "Jobs and candidates follow these from now on.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: the message of <FormSaveBar>."
   },
+  "settings.jobs_and_offers_keep_it": {
+    "text": "Jobs and offers that name it keep it; it is no longer offered to pick.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBands: the actions of <Row>."
+  },
   "settings.jobs_in_it_keep_it_no_new": {
     "text": "Jobs in it keep it; no new job can choose it.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: text inside <Row>."
@@ -7539,6 +7603,10 @@
     "text": "Name, photo, age, gender, nationality and other personal details are always hidden.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Ai: the description of <Group>."
   },
+  "settings.name_the_agreement": {
+    "text": "Name the agreement, as its text does: Convenio de consultoría, TV-L.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: a \"name\" value."
+  },
   "settings.name_the_grade_such_as_senior": {
     "text": "Name the grade, such as Senior or E3.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PayBandEditor: a \"grade\" value."
@@ -7554,6 +7622,10 @@
   "settings.needs_the_partner_agreement": {
     "text": "Needs the partner agreement.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Integrations: text built in code."
+  },
+  "settings.new_collective_agreement": {
+    "text": "New collective agreement",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: text inside <DialogTitle>."
   },
   "settings.new_pay_band": {
     "text": "New pay band",
@@ -7703,6 +7775,10 @@
     "text": "pays in {{currency}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, Organisation: the description of <Row>. Filled in: {{currency}}."
   },
+  "settings.picked_on_a_job_and_an_offer": {
+    "text": "Picked on a job and on an offer, never typed there, so every contract names it the same way.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: text inside <DialogDescription>."
+  },
   "settings.pipelines": {
     "text": "Pipelines",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, PipelinesAndApprovals: the title of <Group>."
@@ -7718,6 +7794,14 @@
   "settings.press_enter_after_each_one": {
     "text": "Press Enter after each one.",
     "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, HiringRules: the hint of <TagsInput>."
+  },
+  "settings.professional_groups": {
+    "text": "Professional groups",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: the label of <TagsInput>."
+  },
+  "settings.professional_groups_hint": {
+    "text": "As the agreement names them: Grupo 1, Nivel B, E9. Press Enter after each.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. settings.tsx, AgreementEditor: the hint of <TagsInput>."
   },
   "settings.put_back_the_standard_benefits": {
     "text": "Put back the standard benefits",
