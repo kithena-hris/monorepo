@@ -4531,6 +4531,10 @@
     "text": "Adds an approval step",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the title of <Alert>."
   },
+  "offers.agreement_key_hint": {
+    "text": "Its key, as the country pack knows it: lowercase, with underscores.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldDescription>."
+  },
   "offers.also": {
     "text": "Also",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the items of <KeyValues>."

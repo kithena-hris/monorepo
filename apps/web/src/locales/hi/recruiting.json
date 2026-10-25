@@ -1104,6 +1104,7 @@
   "offers.accepted_hired": "{{name}} ने स्वीकार किया और नियुक्त हैं",
   "offers.added_up_by_kithena": "Kithena ने जोड़ा",
   "offers.adds_an_approval_step": "एक मंज़ूरी चरण जोड़ता है",
+  "offers.agreement_key_hint": "इसकी कुंजी, जैसी देश पैक जानता है: छोटे अक्षरों में, अंडरस्कोर के साथ।",
   "offers.also": "इसके अलावा",
   "offers.also_in_this_offer": "इस प्रस्ताव में यह भी",
   "offers.also_in_this_offer_hint": "केवल इस प्रस्ताव के लिए एक लाभ, कुछ शब्दों में। जोड़ने के लिए Enter दबाएँ।",

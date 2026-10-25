@@ -1173,22 +1173,33 @@ function OfferEditor({
                       <FieldControl>
                         <Input
                           value={draft.terms.agreement?.key ?? ''}
+                          placeholder="metal_nrw"
                           onChange={(e) => {
+                            // A key, not a name: what is typed becomes one as it is typed.
+                            const key = e.target.value
+                              .toLowerCase()
+                              .normalize('NFD')
+                              .replaceAll(/[\u0300-\u036f]/gu, '')
+                              .replaceAll(/[^a-z0-9_]+/gu, '_')
+                              .replace(/^[^a-z]+/u, '');
                             setTerms(
                               {
                                 agreement:
-                                  e.target.value === ''
+                                  key === ''
                                     ? null
-                                    : {
-                                        key: e.target.value,
-                                        group: draft.terms.agreement?.group ?? null,
-                                      },
+                                    : { key, group: draft.terms.agreement?.group ?? null },
                               },
                               true,
                             );
                           }}
                         />
                       </FieldControl>
+                      <FieldDescription>
+                        {tr(
+                          'offers.agreement_key_hint',
+                          'Its key, as the country pack knows it: lowercase, with underscores.',
+                        )}
+                      </FieldDescription>
                     </Field>
                     <Field>
                       <FieldLabel>{tr('offers.group', 'Group')}</FieldLabel>

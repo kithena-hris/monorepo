@@ -57,6 +57,12 @@ describe('Spain (PRD §19.5)', () => {
   it.each<[string, TermsAnswers, readonly string[]]>([
     ['a permanent contract under an agreement', spain, []],
     ['no collective agreement', { ...spain, agreement: null }, ['agreement_required']],
+    // Written as words, it cannot be a key: said as a finding, never thrown (an offer read failed on it).
+    [
+      'an agreement written as words',
+      { ...spain, agreement: { key: 'Convenio de consultoría', group: null } },
+      ['agreement_key'],
+    ],
     [
       'probation of 6 months for a role that is not qualified',
       { ...spain, roleGroup: 'other' },

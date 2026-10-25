@@ -1105,6 +1105,7 @@
   "offers.accepted_hired": "{{name}} ha aceptado y está contratado",
   "offers.added_up_by_kithena": "Sumado por Kithena",
   "offers.adds_an_approval_step": "Añade un paso de aprobación",
+  "offers.agreement_key_hint": "Su clave, tal como la conoce el paquete del país: en minúsculas, con guiones bajos.",
   "offers.also": "También",
   "offers.also_in_this_offer": "También en esta oferta",
   "offers.also_in_this_offer_hint": "Un beneficio solo para esta oferta, en pocas palabras. Pulsa Intro para añadirlo.",

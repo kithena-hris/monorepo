@@ -1063,6 +1063,7 @@
   "offers.accepted_hired": "{{name}} heeft geaccepteerd en is aangenomen",
   "offers.added_up_by_kithena": "Opgeteld door Kithena",
   "offers.adds_an_approval_step": "Voegt een goedkeuringsstap toe",
+  "offers.agreement_key_hint": "De sleutel zoals het landenpakket die kent: kleine letters, met underscores.",
   "offers.also": "Ook",
   "offers.also_in_this_offer": "Ook in dit aanbod",
   "offers.also_in_this_offer_hint": "Een voordeel alleen voor dit aanbod, in een paar woorden. Druk op Enter om het toe te voegen.",
