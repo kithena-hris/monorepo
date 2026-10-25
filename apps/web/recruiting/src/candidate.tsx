@@ -1967,7 +1967,9 @@ export function Spotlight({
           </span>
         }
       />
-      <ModalPageBody className="px-4 py-5 @2xl:px-8 @2xl:py-7">{body}</ModalPageBody>
+      <ModalPageBody className="px-4 py-5 @2xl:px-8 @2xl:py-7">
+        <div className="mx-auto w-full max-w-7xl">{body}</div>
+      </ModalPageBody>
       {primary === null && !mayMove ? null : (
         // The decision at the bottom, where a thumb is, and out of the bar's way at a desk too.
         <ModalPageFooter>{headerActions}</ModalPageFooter>

@@ -64,6 +64,8 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
     name: string,
     variables: Readonly<Record<string, unknown>>,
     after?: (data: unknown) => void,
+    /** Refused: what was shown ahead of the answer is taken back. */
+    refused?: () => void,
   ) => void;
   readonly call: (name: string, variables: Readonly<Record<string, unknown>>) => Promise<Done>;
 } {
@@ -80,12 +82,13 @@ export function useAct(props: Pick<ScreenProps<unknown>, 'onAct' | 'onRefresh'>)
       setError(null);
     },
     call,
-    run: (name, variables, after) => {
+    run: (name, variables, after, refused) => {
       setError(null);
       start(async () => {
         const done = await call(name, variables);
         if (!done.ok) {
           setError(done.message);
+          refused?.();
           return;
         }
         after?.(done.data);

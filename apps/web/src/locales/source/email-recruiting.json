@@ -399,6 +399,22 @@
     "text": "Offer accepted",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
   },
+  "email.offer.approve_action": {
+    "text": "Open the approval",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
+  },
+  "email.offer.approve_body": {
+    "text": "An offer to {{name}} for {{job}} waits for your approval. Open it to read the terms and their checks, then approve or reject it.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
+  "email.offer.approve_heading": {
+    "text": "An offer waits for you",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
+  "email.offer.approve_subject": {
+    "text": "Approve an offer: {{name}}, {{job}}",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
+  },
   "email.offer.declined_heading": {
     "text": "Offer declined",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."

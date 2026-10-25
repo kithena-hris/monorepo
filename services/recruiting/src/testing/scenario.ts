@@ -1499,7 +1499,9 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     expect(started.input.terms.annualPayMinor).toBe(started.input.pay.baseMinor);
     // The prefilled draft opens as it was made.
     const prefilled = value(await composeOffer(ctx, applied.applicationId, started.input));
-    expect(value(await offerScreen(ctx, prefilled.id))).toMatchObject({ offer: { id: prefilled.id } });
+    expect(value(await offerScreen(ctx, prefilled.id))).toMatchObject({
+      offer: { id: prefilled.id },
+    });
     const drafted = value(
       await composeOffer(ctx, applied.applicationId, {
         terms: place.terms,
@@ -1520,6 +1522,11 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         outsideBandReason: null,
       }),
     );
+    // The approver's page reads the resolved terms themselves, not wrapped with their warnings.
+    const read = value(await offerScreen(ctx, drafted.id)) as {
+      checked: { terms: { contractType?: unknown } | null } | null;
+    };
+    expect(typeof read.checked?.terms?.contractType).toBe('string');
     expect(value(await submitOfferForApproval(ctx, drafted.id)).state).toBe('approved');
     return value(await sendTheOffer(ctx, drafted.id));
   });

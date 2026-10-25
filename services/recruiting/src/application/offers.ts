@@ -59,12 +59,7 @@ import {
 } from '../domain/requisition/requisition.js';
 import { addDays, addMonths } from '../domain/dates.js';
 import { packFor } from '../domain/terms/packs.js';
-import {
-  validateTerms,
-  type EntityFacts,
-  type TermsAnswers,
-  type Validated,
-} from '../domain/terms/pack.js';
+import { validateTerms, type EntityFacts, type TermsAnswers } from '../domain/terms/pack.js';
 import { termsOf, weeklyMinutesOf } from './job-terms.js';
 import type { TermsIssue } from '@kithena/contracts';
 import { asPerson, event, forbidden, notFound, publish, type Ctx, mailWords } from './context.js';
@@ -72,7 +67,7 @@ import { refreshProjection } from './jobs.js';
 import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
 import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
-import { tellMembers } from './notify.js';
+import { appUrl, inboxTask, tellMembers } from './notify.js';
 import { generalSettings } from './setup.js';
 import type { ApplicationRecord, Candidate, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
@@ -107,7 +102,7 @@ async function entityFor(ctx: Ctx, job: JobRecord): Promise<EntityFacts | null> 
 }
 
 export interface Checked {
-  readonly terms: Validated | null;
+  readonly terms: ResolvedTerms | null;
   readonly termsIssues: readonly TermsIssue[];
   readonly checks: readonly OfferCheck[];
   readonly rewards: TotalRewards;
@@ -197,7 +192,8 @@ export async function checkOffer(
     input.pay.equity?.units ?? null,
   );
   return ok({
-    terms: terms.ok ? terms.value : null,
+    // The resolved terms themselves; their warnings are in `termsIssues`.
+    terms: terms.ok ? terms.value.terms : null,
     termsIssues: terms.ok ? terms.value.warnings : terms.error,
     checks,
     // What was written in has no value to add up; it is listed beside the benefits that do.
@@ -432,6 +428,32 @@ async function askOfferApprovers(ctx: Ctx, offerId: string, candidateId: string,
     offerId,
     `An offer to ${name} for ${title} waits for your approval.`,
     `/recruiting/offers/${offerId}/approve`,
+  );
+  // And by email, as every Inbox task is: its button opens the approver's task.
+  const approval = await ctx.tx.approvals.open('offer', offerId);
+  if (approval === null) return;
+  const state = approvalState(approval.steps, approval.decisions);
+  if (state.outcome !== 'pending') return;
+  const { t } = await mailWords(ctx);
+  const vars = { name, job: title };
+  const href = await appUrl(ctx, inboxTask(`recruiting:offer-approval:${approval.id}`));
+  await tellMembers(
+    ctx,
+    state.waitingOn,
+    t('email.offer.approve_subject', 'Approve an offer: {{name}}, {{job}}', vars),
+    t(
+      'email.offer.approve_body',
+      'An offer to {{name}} for {{job}} waits for your approval. Open it to read the terms and their checks, then approve or reject it.',
+      vars,
+    ),
+    `offer-approval:${approval.id}:${String(state.step)}`,
+    {
+      heading: t('email.offer.approve_heading', 'An offer waits for you'),
+      facts: [{ label: t('email.offer.role', 'Role'), value: title }],
+      ...(href === null
+        ? {}
+        : { action: { label: t('email.offer.approve_action', 'Open the approval'), href } }),
+    },
   );
 }
 
