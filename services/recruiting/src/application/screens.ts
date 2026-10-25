@@ -16,7 +16,7 @@ import { referralOutcome } from '../domain/referral/referral.js';
 import { asksOf, openAvailability } from './asks.js';
 import { jobTerms } from './job-terms.js';
 import { jobFacts, mailWords, notFound, recruiterOnly, type Ctx } from './context.js';
-import { internalBoard, myJobs } from './jobs.js';
+import { archivedAt, internalBoard, myJobs } from './jobs.js';
 import { previewTokenFor } from './intake.js';
 import { latestMatch, latestMatrix } from './matrix.js';
 import { loadApplication } from './moves.js';
@@ -125,6 +125,48 @@ export async function home(ctx: Ctx): Promise<unknown> {
           hired: j.hired,
           counts: await counts(ctx, j),
         })),
+    ),
+  };
+}
+
+/**
+ * The jobs list: every job the viewer is on, archived ones too (the screen
+ * hides them until asked), each with its pipeline counts, where it is live,
+ * its hiring manager and what the viewer may do to it.
+ */
+export async function jobsScreen(ctx: Ctx): Promise<unknown> {
+  const settings = await generalSettings(ctx);
+  const locations = await ctx.tx.locations.list();
+  const jobs = await myJobs(ctx);
+  return {
+    requisitionsOn: settings.requisitionsOn,
+    admin: ctx.viewer.admin,
+    jobs: await Promise.all(
+      jobs.map(async (j) => {
+        const facts = await jobFacts(ctx, j);
+        const edit = jobPermissions(ctx.viewer, facts).has('job.edit');
+        const hm = facts.team.find((m) => m.role === 'hiring_manager')?.personId ?? null;
+        const c = await counts(ctx, j);
+        const live = (await ctx.tx.jobs.targets(j.id))
+          .filter((x) => x.state === 'live')
+          .map((x) => x.target);
+        return {
+          id: j.id,
+          title: j.title === '' ? j.internalTitle : j.title,
+          state: j.state,
+          department: j.department,
+          location: locations.find((l) => l.id === j.locationIds[0])?.name ?? null,
+          openings: j.openings,
+          hired: j.hired,
+          counts: c,
+          live,
+          archivedAt: await archivedAt(ctx, j.id),
+          hiringManager: hm === null ? null : { personId: hm, name: await nameOf(ctx, hm) },
+          createdAt: j.createdAt,
+          openedAt: j.openedAt,
+          may: { edit, archive: edit, delete: edit && c.total === 0 },
+        };
+      }),
     ),
   };
 }
@@ -265,6 +307,15 @@ export async function pipelineScreen(
     const unread = (await ctx.tx.messages.thread(candidate.id)).filter(
       (m) => m.direction === 'in' && m.readAt === null,
     ).length;
+    // Scorecards owed once an interview is done, and how many are in: the card's one line on feedback.
+    let expected = 0;
+    let submitted = 0;
+    for (const i of interviews.filter((x) => x.state === 'completed')) {
+      expected += i.interviewerIds.length;
+      submitted += (await ctx.tx.interviews.scorecards(i.id)).filter(
+        (c) => c.submittedAt !== null,
+      ).length;
+    }
     cards.push({
       applicationId: app.id,
       candidateId: candidate.id,
@@ -280,6 +331,7 @@ export async function pipelineScreen(
       match: matrixOn ? await latestMatch(ctx, app.id) : null,
       unread,
       nextInterview: next === undefined ? null : { title: next.title, startsAt: next.startsAt },
+      scorecards: { submitted, expected },
       lastMoveId: app.history.at(-1)?.id ?? null,
     });
   }
@@ -305,6 +357,10 @@ export async function pipelineScreen(
       state: job.state,
       onKithenaJobs,
       publicUrl: `${ctx.deps.jobsOrigin}/${settings.companySlug}/${job.slug}`,
+      archivedAt: await archivedAt(ctx, job.id),
+      department: job.department,
+      openings: job.openings,
+      hired: job.hired,
     },
     stages,
     cards: sorted,
@@ -425,7 +481,18 @@ export async function candidateScreen(ctx: Ctx, candidateId: string): Promise<Re
       .map((t) => ({ id: t.id, name: t.name, purpose: t.purpose })),
     allPools: profile ? (await ctx.tx.pools.list()).map((p) => ({ id: p.id, name: p.name })) : [],
     applications,
+    // The people the page names: every interviewer and every note's author, by their name.
+    names: await namesFor(ctx, [
+      ...applications.flatMap((a) => a.interviews.flatMap((i) => i.interviewerIds)),
+      ...notes.map((n) => n.authorId),
+    ]),
   });
+}
+
+async function namesFor(ctx: Ctx, ids: readonly string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const id of new Set(ids)) out[id] = (await nameOf(ctx, id)) ?? id;
+  return out;
 }
 
 /** R13: pools and their members. */

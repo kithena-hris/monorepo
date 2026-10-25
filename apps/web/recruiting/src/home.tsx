@@ -1,5 +1,7 @@
 import {
   Avatar,
+  SegmentedControl,
+  SegmentedControlItem,
   Badge,
   Button,
   Card,
@@ -14,11 +16,12 @@ import {
   type DataColumn,
   icons,
 } from '@reach/ui';
-import { useMemo, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { StateBadge, To, day } from './shared';
-import type { HomeData, ScreenProps } from './types';
+import { JobConfirm, jobCommands, type Confirming, type JobRef } from './job-actions';
+import { MoreMenu, Refusal, Search, StateBadge, To, day, useAct, words } from './shared';
+import type { HomeData, JobsData, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
 /**
@@ -51,7 +54,7 @@ function MiniPipeline({
         <span
           key={s.stageId}
           title={tr('home.text_2', '{{name}}: {{count}}', { name: s.name, count: String(s.count) })}
-          className="w-3 rounded-sm bg-[var(--reach-chart-1)]"
+          className="w-2.5 rounded-sm bg-accent"
           style={{ height: `${String(Math.max(3, (s.count / max) * 24))}px`, opacity: 1 - i * 0.1 }}
         />
       ))}
@@ -238,33 +241,35 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
                       value: data.viewer.name.split(' ')[0] ?? '',
                     })
               }
-              description={tr(
-                'home.tasks_first_then_your_jobs_everything',
-                'Tasks first, then your jobs. Everything here also lands in the Inbox.',
-              )}
               actions={
                 <>
-                  {data.requisitionsOn ? (
-                    <Button
-                      variant="secondary"
-                      startIcon={<icons.add aria-hidden />}
-                      onClick={() => {
-                        props.onNavigate?.('/recruiting/requisitions/new');
-                      }}
-                    >
-                      {tr('home.new_requisition', 'New requisition')}
-                    </Button>
-                  ) : null}
-                  {!data.requisitionsOn || data.viewer.admin ? (
-                    <Button
-                      startIcon={<icons.add aria-hidden />}
-                      onClick={() => {
-                        props.onNavigate?.('/recruiting/jobs/new/setup');
-                      }}
-                    >
-                      {tr('home.new_job', 'New job')}
-                    </Button>
-                  ) : null}
+                  <Button
+                    variant="primary"
+                    startIcon={<icons.add aria-hidden />}
+                    onClick={() => {
+                      props.onNavigate?.(
+                        data.requisitionsOn
+                          ? '/recruiting/requisitions/new'
+                          : '/recruiting/jobs/new/setup',
+                      );
+                    }}
+                  >
+                    {data.requisitionsOn
+                      ? tr('home.new_requisition', 'New requisition')
+                      : tr('home.new_job', 'New job')}
+                  </Button>
+                  <MoreMenu
+                    label={tr('home.more', 'More')}
+                    items={[
+                      {
+                        id: 'job',
+                        label: tr('home.new_job', 'New job'),
+                        icon: <icons.add aria-hidden />,
+                        hidden: !data.requisitionsOn || !data.viewer.admin,
+                        onSelect: () => props.onNavigate?.('/recruiting/jobs/new/setup'),
+                      },
+                    ]}
+                  />
                 </>
               }
             />
@@ -321,36 +326,262 @@ export function Home(props: ScreenProps<HomeData>): JSX.Element {
   );
 }
 
-/** The jobs list: every job the viewer is on, with its state and pipeline. */
-export function Jobs(props: ScreenProps<HomeData>): JSX.Element {
+/** Which jobs the list shows: the state tab, in the address. */
+const SHOWING = ['open', 'drafts', 'closed', 'archived', 'all'] as const;
+type Showing = (typeof SHOWING)[number];
+type JobsRow = JobsData['jobs'][number];
+
+const shows = (j: JobsRow, showing: Showing): boolean =>
+  showing === 'all'
+    ? true
+    : showing === 'archived'
+      ? j.archivedAt !== null
+      : j.archivedAt === null &&
+        (showing === 'open'
+          ? j.state === 'open' || j.state === 'on_hold'
+          : showing === 'drafts'
+            ? j.state === 'draft'
+            : j.state === 'closed' || j.state === 'filled');
+
+const TARGET_LABEL: Readonly<Record<string, () => string>> = {
+  careers_page: () => tr('home.careers_page', 'Careers page'),
+  kithena_jobs: () => tr('home.kithena_jobs', 'Kithena Jobs'),
+  internal_board: () => tr('home.internal_board', 'Internal board'),
+  share_link: () => tr('home.share_link', 'Share link'),
+  indeed: () => 'Indeed',
+};
+
+/**
+ * The jobs list: every job the viewer is on, by state, searchable, each with
+ * its pipeline at a glance and where it is live. A row opens its board; its
+ * menu edits, archives or (nobody having applied) deletes it.
+ */
+export function Jobs(props: ScreenProps<JobsData>): JSX.Element {
+  const act = useAct(props);
+  const [confirming, setConfirming] = useState<Confirming>(null);
+  const showing: Showing = SHOWING.find((s) => s === props.search?.['show']) ?? 'open';
+  const q = (props.search?.['q'] ?? '').trim().toLowerCase();
+  const { onNavigate } = props;
+  const columns = useMemo(() => jobsColumns(onNavigate), [onNavigate]);
   return (
-    <Loaded load={props.load} what="jobs">
-      {(data) => (
-        <div className="flex flex-col gap-4">
-          <PageHeader
-            title={tr('home.jobs', 'Jobs')}
-            description={tr(
-              'home.every_job_you_hire_for_published',
-              'Every job you hire for. Published is each target’s state, not the job’s.',
-            )}
-            actions={
-              <Button
-                startIcon={<icons.add aria-hidden />}
-                onClick={() => {
-                  props.onNavigate?.('/recruiting/jobs/new/setup');
-                }}
+    <Loaded load={props.load} what={tr('home.jobs_lower', 'jobs')}>
+      {(data) => {
+        const counted = (s: Showing): number => data.jobs.filter((j) => shows(j, s)).length;
+        const rows = data.jobs.filter(
+          (j) =>
+            shows(j, showing) &&
+            (q === '' ||
+              [j.title, j.department ?? '', j.location ?? '', j.hiringManager?.name ?? '']
+                .join(' ')
+                .toLowerCase()
+                .includes(q)),
+        );
+        const newRequisition = data.requisitionsOn && !data.admin;
+        return (
+          <div className="flex flex-col gap-4">
+            <PageHeader
+              title={tr('home.jobs', 'Jobs')}
+              actions={
+                <Button
+                  variant="primary"
+                  startIcon={<icons.add aria-hidden />}
+                  onClick={() => {
+                    props.onNavigate?.(
+                      newRequisition
+                        ? '/recruiting/requisitions/new'
+                        : '/recruiting/jobs/new/setup',
+                    );
+                  }}
+                >
+                  {newRequisition
+                    ? tr('home.new_requisition', 'New requisition')
+                    : tr('home.new_job', 'New job')}
+                </Button>
+              }
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <SegmentedControl
+                aria-label={tr('home.show', 'Show')}
+                value={showing}
+                onValueChange={(v) => props.onFilter?.({ show: v === 'open' ? null : v })}
               >
-                {tr('home.new_job', 'New job')}
-              </Button>
-            }
-          />
-          <Card>
-            <CardContent>
-              <JobsTable data={data} props={props} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                {SHOWING.map((s) => (
+                  <SegmentedControlItem key={s} value={s}>
+                    {tr('home.showing', '{{label}} {{count}}', {
+                      label: SHOWING_LABEL[s](),
+                      count: String(counted(s)),
+                    })}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+              <Search
+                label={tr('home.search_jobs', 'Search jobs')}
+                placeholder={tr(
+                  'home.title_team_place_or_manager',
+                  'Title, team, place or manager',
+                )}
+                initial={props.search?.['q'] ?? ''}
+                onSearch={(v) => props.onFilter?.({ q: v === '' ? null : v })}
+                className="w-72 max-w-full"
+              />
+            </div>
+            <Refusal error={act.error} />
+            <Card>
+              <DataTable<JobsRow>
+                label={tr('home.jobs', 'Jobs')}
+                rows={rows}
+                rowId={(j) => j.id}
+                describeRow={(j) => j.title}
+                fill
+                columns={columns}
+                onRowClick={(j) => props.onNavigate?.(`/recruiting/jobs/${j.id}`)}
+                rowActions={(j) =>
+                  jobCommands(refOf(j), { onNavigate, onConfirm: setConfirming, act })
+                    .filter((c) => c.hidden !== true)
+                    .map((c) => ({
+                      id: c.id,
+                      label: c.label,
+                      ...(c.icon === undefined ? {} : { icon: c.icon }),
+                      ...(c.destructive === undefined ? {} : { destructive: c.destructive }),
+                      onSelect: c.onSelect,
+                    }))
+                }
+                empty={
+                  <EmptyState
+                    icon={<icons.work aria-hidden />}
+                    title={
+                      q === ''
+                        ? EMPTY_TITLE[showing]()
+                        : tr('home.no_job_matches', 'No job matches “{{q}}”', { q })
+                    }
+                  />
+                }
+              />
+            </Card>
+            <JobConfirm
+              confirming={confirming}
+              onClose={() => {
+                setConfirming(null);
+              }}
+              act={act}
+            />
+          </div>
+        );
+      }}
     </Loaded>
   );
+}
+
+const refOf = (j: JobsRow): JobRef => ({
+  id: j.id,
+  title: j.title,
+  active: j.counts.active,
+  archived: j.archivedAt !== null,
+  may: j.may,
+});
+
+const SHOWING_LABEL: Readonly<Record<Showing, () => string>> = {
+  open: () => tr('home.open_tab', 'Open'),
+  drafts: () => tr('home.drafts', 'Drafts'),
+  closed: () => tr('home.closed', 'Closed'),
+  archived: () => tr('home.archived', 'Archived'),
+  all: () => tr('home.all', 'All'),
+};
+
+const EMPTY_TITLE: Readonly<Record<Showing, () => string>> = {
+  open: () => tr('home.no_open_jobs', 'No open jobs'),
+  drafts: () => tr('home.no_drafts', 'No drafts'),
+  closed: () => tr('home.no_closed_jobs', 'No closed jobs'),
+  archived: () => tr('home.nothing_archived', 'Nothing archived'),
+  all: () => tr('home.no_jobs_yet', 'No jobs yet'),
+};
+
+/** The jobs list's columns: the job, its pipeline, where it is live, who manages it, its state. */
+function jobsColumns(
+  onNavigate: ScreenProps<JobsData>['onNavigate'],
+): readonly DataColumn<JobsRow>[] {
+  return [
+    {
+      id: 'job',
+      header: tr('home.job', 'Job'),
+      sortBy: (j) => j.title,
+      cell: (j) => (
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <To
+            href={`/recruiting/jobs/${j.id}`}
+            onNavigate={onNavigate}
+            className="font-semibold text-fg hover:underline [overflow-wrap:anywhere]"
+          >
+            {j.title}
+          </To>
+          <span className="text-sm text-fg-muted">
+            {[j.department, j.location].filter(Boolean).join(' · ') ||
+              tr('home.no_team_or_place_yet', 'No team or place yet')}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: 'pipeline',
+      header: tr('home.candidates_header', 'Candidates'),
+      sortBy: (j) => j.counts.active,
+      cell: (j) => (
+        <span className="flex items-center gap-3">
+          <MiniPipeline counts={j.counts} />
+          <span className="text-sm text-fg-muted tabular-nums">
+            {tr('home.active_and_new', '{{active}} active · {{fresh}} new', {
+              active: String(j.counts.active),
+              fresh: String(j.counts.newThisWeek),
+            })}
+          </span>
+        </span>
+      ),
+    },
+    {
+      id: 'live',
+      header: tr('home.live_on', 'Live on'),
+      hideOnCard: true,
+      cell: (j) =>
+        j.live.length === 0 ? (
+          <span className="text-sm text-fg-muted">{tr('home.not_published', 'Not published')}</span>
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {j.live.map((target) => (
+              <Badge key={target} size="sm" variant="soft" tone="success">
+                {TARGET_LABEL[target]?.() ?? words(target)}
+              </Badge>
+            ))}
+          </span>
+        ),
+    },
+    {
+      id: 'manager',
+      header: tr('home.hiring_manager', 'Hiring manager'),
+      hideOnCard: true,
+      sortBy: (j) => j.hiringManager?.name ?? '',
+      cell: (j) =>
+        j.hiringManager === null ? (
+          <span className="text-sm text-fg-muted">—</span>
+        ) : (
+          <span className="flex items-center gap-2">
+            <Avatar name={j.hiringManager.name ?? ''} size="sm" />
+            <span className="text-sm">{j.hiringManager.name}</span>
+          </span>
+        ),
+    },
+    {
+      id: 'state',
+      header: tr('home.state', 'State'),
+      cardTrailing: true,
+      sortBy: (j) => j.state,
+      cell: (j) =>
+        j.archivedAt === null ? (
+          <StateBadge state={j.state} />
+        ) : (
+          <Badge size="sm" tone="neutral">
+            {tr('home.archived', 'Archived')}
+          </Badge>
+        ),
+    },
+  ];
 }

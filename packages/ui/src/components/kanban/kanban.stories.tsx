@@ -783,6 +783,43 @@ export const WholeCardDraggable: Story = {
   },
 };
 
+export const OpensACard: Story = {
+  name: 'A press opens the card',
+  args: { dragActivator: { mode: 'card' } },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'With `onCardOpen`, a press that is not a drag opens the record the card stands for: a candidate, a ticket. A drag still starts after 6px, and a press on the card’s own controls (its menu, a link) stays theirs.',
+      },
+    },
+  },
+  render: function OpensStory(args) {
+    const [items, setItems] = useState(initialItems);
+    const [opened, setOpened] = useState<string | null>(null);
+    return (
+      <div className="flex h-[42rem] flex-col gap-3 bg-canvas p-4">
+        <p role="status" className="text-sm text-fg-muted">
+          {opened === null ? 'Press a card to open it.' : `Opened ${opened}.`}
+        </p>
+        <Kanban<Candidate>
+          {...args}
+          className="min-h-0 flex-1"
+          items={items}
+          describeItem={(candidate) => candidate.name}
+          renderCard={(candidate) => <CandidateCard candidate={candidate} />}
+          onCardOpen={(candidate) => {
+            setOpened(candidate.name);
+          }}
+          onMove={(move) => {
+            setItems((current) => applyMove(current, move));
+          }}
+        />
+      </div>
+    );
+  },
+};
+
 export const ScrollSpeed: Story = {
   name: 'Scroll speed and motion',
   parameters: {

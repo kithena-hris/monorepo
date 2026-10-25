@@ -33,7 +33,7 @@ import {
 import { useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, To, newId, range, useAct, words } from './shared';
+import { MoreMenu, Refusal, StateBadge, To, newId, range, useAct, words } from './shared';
 import type { Requisition, ScreenProps } from './types';
 import { t } from './i18n';
 
@@ -265,16 +265,6 @@ function Editor({
         meta={<StateBadge state={r.state} />}
         actions={
           <>
-            {r.state === 'draft' && !isNew ? (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  act.run('CancelRequisition', { requisitionId: r.id });
-                }}
-              >
-                {t('requisitions.cancel_requisition', 'Cancel requisition')}
-              </Button>
-            ) : null}
             <Button
               variant="secondary"
               disabled={!editable}
@@ -297,6 +287,21 @@ function Editor({
                 {t('requisitions.send_for_approval', 'Send for approval')}
               </Button>
             ) : null}
+            <MoreMenu
+              label={t('requisitions.more_for_the_requisition', 'More for the requisition')}
+              items={[
+                {
+                  id: 'cancel',
+                  label: t('requisitions.cancel_requisition', 'Cancel requisition'),
+                  icon: <icons.close aria-hidden />,
+                  destructive: true,
+                  hidden: r.state !== 'draft' || isNew,
+                  onSelect: () => {
+                    act.run('CancelRequisition', { requisitionId: r.id });
+                  },
+                },
+              ]}
+            />
           </>
         }
       />

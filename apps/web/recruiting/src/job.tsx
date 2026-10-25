@@ -65,7 +65,7 @@ import {
 import { use, useRef, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, day, newId, range, useAct, when, words } from './shared';
+import { MoreMenu, Refusal, StateBadge, day, newId, range, useAct, when, words } from './shared';
 import { BenefitList } from './benefits';
 import { SaveQueue, hoursOf, useAnswered, useCommit, type Commit } from './job-terms';
 import { JobWizard, NewJobWizard, isSetupPart } from './job-wizard';
@@ -2231,31 +2231,6 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
               }
               actions={
                 <>
-                  <Button
-                    variant="secondary"
-                    startIcon={<icons.people aria-hidden />}
-                    onClick={() => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`)}
-                  >
-                    {tr('job.pipeline', 'Pipeline')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    startIcon={<icons.settings aria-hidden />}
-                    onClick={() => props.onFilter?.({ setup: '1', step: null })}
-                  >
-                    {tr('job.guided_setup', 'Guided setup')}
-                  </Button>
-                  {data.job.state === 'open' ? (
-                    <Button
-                      variant="secondary"
-                      loading={act.pending}
-                      onClick={() => {
-                        act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
-                      }}
-                    >
-                      {tr('job.put_on_hold', 'Put on hold')}
-                    </Button>
-                  ) : null}
                   {live ? (
                     <Button
                       variant="secondary"
@@ -2303,6 +2278,37 @@ export function JobSetup(props: ScreenProps<JobData>): JSX.Element {
                       {tr('job.publish', 'Publish')}
                     </Button>
                   )}
+                  <MoreMenu
+                    label={tr('job.more_for_the_job', 'More for {{title}}', {
+                      title: data.job.title,
+                    })}
+                    items={[
+                      {
+                        id: 'pipeline',
+                        label: tr('job.open_the_board', 'Open the board'),
+                        icon: <icons.people aria-hidden />,
+                        group: 'go',
+                        onSelect: () => props.onNavigate?.(`/recruiting/jobs/${data.job.id}`),
+                      },
+                      {
+                        id: 'setup',
+                        label: tr('job.guided_setup', 'Guided setup'),
+                        icon: <icons.settings aria-hidden />,
+                        group: 'go',
+                        onSelect: () => props.onFilter?.({ setup: '1', step: null }),
+                      },
+                      {
+                        id: 'hold',
+                        label: tr('job.put_on_hold', 'Put on hold'),
+                        icon: <icons.pause aria-hidden />,
+                        hidden: data.job.state !== 'open',
+                        group: 'state',
+                        onSelect: () => {
+                          act.run('MoveJob', { jobId: data.job.id, input: { to: 'on_hold' } });
+                        },
+                      },
+                    ]}
+                  />
                 </>
               }
             />

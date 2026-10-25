@@ -72,6 +72,8 @@ export const OPERATIONS = {
   ),
   /** RM1 and the interviews list */
   RecruitingInterviews: query('RecruitingInterviews', 'recruitingInterviews'),
+  /** The jobs list, archived ones included */
+  RecruitingJobs: query('RecruitingJobs', 'recruitingJobs'),
   /** R19: a new offer, filled from the job */
   RecruitingOfferStart: query(
     'RecruitingOfferStart',
@@ -153,6 +155,9 @@ export const OPERATIONS = {
   /** The market pay for the job, estimated by a model, for a person to keep or change. */
   SuggestJobPay: write('SuggestJobPay', 'suggestJobPay', ...ID('jobId')),
   MoveJob: write('MoveJob', 'moveJob', ...ID('jobId')),
+  ArchiveJob: write('ArchiveJob', 'archiveJob', ...ID('jobId'), false),
+  UnarchiveJob: write('UnarchiveJob', 'unarchiveJob', ...ID('jobId'), false),
+  DeleteJob: write('DeleteJob', 'deleteJob', ...ID('jobId'), false),
   PublishJob: write('PublishJob', 'publishJob', ...two('jobId', 'target'), false),
   UnpublishJob: write('UnpublishJob', 'unpublishJob', ...ID('jobId'), false),
   AddCandidate: write('AddCandidate', 'addCandidate', ...ID('jobId')),

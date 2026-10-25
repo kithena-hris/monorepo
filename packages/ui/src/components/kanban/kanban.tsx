@@ -353,6 +353,13 @@ export interface KanbanProps<T extends { id: string }> {
    */
   columnActions?: readonly KanbanAction<KanbanColumnDef>[];
   selection?: KanbanSelection;
+  /**
+   * Opens a card: a press on it that is not a drag and not on one of its own
+   * controls (a link, a button, its menu). For a board whose card stands for a
+   * record with a page of its own. Keyboard users open it through a link in
+   * the card; this is the pointer's larger target, not a second way in.
+   */
+  onCardOpen?: (item: T) => void;
   className?: string;
 }
 
@@ -460,6 +467,7 @@ export function Kanban<T extends { id: string }>({
   bulkActions,
   columnActions,
   selection = { mode: 'none' },
+  onCardOpen,
   className,
 }: KanbanProps<T>): JSX.Element {
   /** The action waiting on its confirmation dialog, and what it will run on. */
@@ -858,6 +866,7 @@ export function Kanban<T extends { id: string }>({
             onToggleSelected={toggleSelected}
             onSelectColumn={setSelection}
             onRunAction={runAction}
+            onCardOpen={onCardOpen}
           />
         ))}
       </div>
@@ -1064,6 +1073,7 @@ interface KanbanColumnProps<T extends { id: string }> {
   onToggleSelected: (id: string) => void;
   onSelectColumn: (ids: readonly string[]) => void;
   onRunAction: <A extends { id: string }>(action: KanbanAction<A>, items: readonly A[]) => void;
+  onCardOpen: ((item: T) => void) | undefined;
 }
 
 /**
@@ -1108,6 +1118,7 @@ function KanbanColumn<T extends { id: string }>({
   onToggleSelected,
   onSelectColumn,
   onRunAction,
+  onCardOpen,
 }: KanbanColumnProps<T>): JSX.Element {
   // The column itself is a drop target, which is what makes an *empty* column
   // reachable, with only the cards as targets there is nothing to drop onto.
@@ -1368,6 +1379,7 @@ function KanbanColumn<T extends { id: string }>({
               selected={selectedIds.includes(item.id)}
               onToggleSelected={onToggleSelected}
               onRunAction={onRunAction}
+              onOpen={onCardOpen}
               tone={cardTone?.(item) ?? null}
             >
               {renderCard(item, { columnId: column.id, dragging: activeId === item.id })}
@@ -1416,6 +1428,7 @@ interface KanbanCardProps<T extends { id: string }> {
   selected: boolean;
   onToggleSelected: (id: string) => void;
   onRunAction: <A extends { id: string }>(action: KanbanAction<A>, items: readonly A[]) => void;
+  onOpen: ((item: T) => void) | undefined;
   tone: KanbanCardTone | null;
   children: ReactNode;
 }
@@ -1436,6 +1449,7 @@ function KanbanCard<T extends { id: string }>({
   selected,
   onToggleSelected,
   onRunAction,
+  onOpen,
   tone,
   children,
 }: KanbanCardProps<T>): JSX.Element {
@@ -1490,6 +1504,16 @@ function KanbanCard<T extends { id: string }>({
       // the card's own controls (axe: aria-allowed-role, nested-interactive).
       // The keyboard has its own activator below.
       {...(cardActivator ? listeners : {})}
+      // A press that was not a drag (dnd-kit takes 6px first) and not on the card's own controls.
+      onClick={
+        onOpen === undefined
+          ? undefined
+          : (event) => {
+              const target = event.target as Element;
+              if (target.closest('a, button, input, label, [role="menuitem"]') !== null) return;
+              onOpen(item);
+            }
+      }
       className={cn(
         'group relative rounded-md bg-surface shadow-sm',
         // Only shadow and opacity transition here. `transform` is dnd-kit's,
@@ -1505,6 +1529,7 @@ function KanbanCard<T extends { id: string }>({
           'bg-accent-subtle shadow-none outline-[1.5px] outline-accent -outline-offset-[1.5px] outline-dashed [&>*]:invisible',
 
         cardActivator && 'cursor-grab touch-none select-none active:cursor-grabbing',
+        onOpen !== undefined && !cardActivator && 'cursor-pointer',
       )}
       data-selected={selected || undefined}
     >

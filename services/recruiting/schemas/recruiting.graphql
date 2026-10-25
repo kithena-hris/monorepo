@@ -48,6 +48,10 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """
+  Archive a job: it closes and leaves the list; its candidates and records stay
+  """
+  archiveJob(idempotencyKey: String!, jobId: String!): JSON
   """R25: a question becomes a plan, validated and computed by the domain"""
   askForChart(
     idempotencyKey: String!
@@ -159,6 +163,10 @@ type Mutation {
   ): JSON
   """Delete a candidate on request (GDPR art. 17)"""
   deleteCandidate(candidateId: String!, idempotencyKey: String!): JSON
+  """
+  Delete a job nobody has applied to; one with applications is archived instead
+  """
+  deleteJob(idempotencyKey: String!, jobId: String!): JSON
   """
   S1: an “about” for the careers page, written by AI from the company’s website
   """
@@ -620,6 +628,8 @@ type Mutation {
     input: JSON!
     jobId: String!
   ): JSON
+  """Bring an archived job back to the list, still closed"""
+  unarchiveJob(idempotencyKey: String!, jobId: String!): JSON
   """Undo a move within ten seconds"""
   undoMove(
     applicationId: String!
@@ -681,6 +691,8 @@ type Query {
   recruitingInterviews: JSON
   """R4–R7, R14: a job’s setup"""
   recruitingJob(jobId: String!): JSON
+  """The jobs list: every job I am on, archived ones included"""
+  recruitingJobs: JSON
   """R15: an interview kit and my scorecard"""
   recruitingKit(interviewId: String!): JSON
   """Whether I am emailed when a candidate acts"""

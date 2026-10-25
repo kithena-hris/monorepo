@@ -10,6 +10,7 @@ import type {
   CandidateData,
   DebriefData,
   HomeData,
+  JobsData,
   JobData,
   KitData,
   OffersData,
@@ -152,8 +153,9 @@ const pipeline: PipelineData = {
 describe('R10, the pipeline', () => {
   it('lays candidates out by stage, with a knockout to review', async () => {
     const { container } = render(<screens.Pipeline load={ready(pipeline)} />);
+    // A card opens the application over the board, at an address of its own.
     expect(screen.getByRole('link', { name: 'Yuki Sato' }).getAttribute('href')).toBe(
-      '/recruiting/candidates/c1',
+      '/recruiting/jobs/j1?candidate=c1&application=a1',
     );
     expect(screen.getByText('Knockout to review')).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
@@ -568,8 +570,71 @@ describe('R11, a candidate', () => {
       <screens.Candidate load={ready(candidate)} params={{ id: 'c1' }} />,
     );
     expect(screen.getByRole('heading', { level: 1, name: 'Yuki Sato' })).toBeTruthy();
-    expect(screen.getByText('Senior Backend Engineer (m/w/d)')).toBeTruthy();
+    expect(screen.getByText(/Senior Backend Engineer \(m\/w\/d\)/u)).toBeTruthy();
+    // The rail is the stage control, and the header keeps one decision in view.
+    expect(screen.getByRole('navigation', { name: /Stages of/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reject…' })).toBeTruthy();
     expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('opens over the board, with the board still behind it', () => {
+    render(
+      <screens.Pipeline
+        load={ready({ ...pipeline, spotlight: candidate })}
+        search={{ candidate: 'c1', application: 'a1' }}
+      />,
+    );
+    expect(screen.getByRole('dialog', { name: 'Yuki Sato' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Next candidate (J)' })).toBeTruthy();
+  });
+});
+
+describe('the jobs list', () => {
+  const job = {
+    id: 'j1',
+    title: 'Senior Backend Engineer (m/w/d)',
+    state: 'open',
+    department: 'Engineering',
+    location: 'Berlin',
+    openings: 1,
+    hired: 0,
+    counts: { total: 3, active: 2, newThisWeek: 1, byStage: [] },
+    live: ['kithena_jobs'],
+    archivedAt: null,
+    hiringManager: { personId: 'p-ada', name: 'Ada Lovelace' },
+    createdAt: '2026-10-01T09:00:00Z',
+    openedAt: '2026-10-02T09:00:00Z',
+    may: { edit: true, archive: true, delete: false },
+  };
+  const jobs: JobsData = {
+    requisitionsOn: false,
+    admin: true,
+    jobs: [
+      job,
+      {
+        ...job,
+        id: 'j2',
+        title: 'Old draft',
+        state: 'draft',
+        live: [],
+        may: { ...job.may, delete: true },
+      },
+      { ...job, id: 'j3', title: 'Last year', state: 'closed', archivedAt: '2026-09-01T09:00:00Z' },
+    ],
+  };
+
+  it('shows open jobs first, each with where it is live, and hides the archived', async () => {
+    const { container } = render(<screens.Jobs load={ready(jobs)} />);
+    expect(screen.getByRole('link', { name: 'Senior Backend Engineer (m/w/d)' })).toBeTruthy();
+    expect(screen.queryByText('Last year')).toBeNull();
+    expect(screen.getByText('Kithena Jobs')).toBeTruthy();
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('keeps archived jobs one tab away', () => {
+    render(<screens.Jobs load={ready(jobs)} search={{ show: 'archived' }} />);
+    expect(screen.getByRole('link', { name: 'Last year' })).toBeTruthy();
+    expect(screen.queryByText('Old draft')).toBeNull();
   });
 });
 

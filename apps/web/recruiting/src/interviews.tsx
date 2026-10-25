@@ -37,7 +37,7 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { Refusal, StateBadge, To, day, useAct, when, words } from './shared';
+import { MoreMenu, Refusal, StateBadge, To, day, useAct, when, words } from './shared';
 import type {
   Ask,
   DebriefData,
@@ -530,15 +530,6 @@ function KitBody({
           i.state === 'scheduled' ? (
             <>
               <Button
-                variant="secondary"
-                loading={act.pending}
-                onClick={() => {
-                  act.run('SetInterviewState', { interviewId: i.id, input: { to: 'no_show' } });
-                }}
-              >
-                {tr('interviews.no_show', 'No-show')}
-              </Button>
-              <Button
                 loading={act.pending}
                 onClick={() => {
                   act.run('SetInterviewState', { interviewId: i.id, input: { to: 'completed' } });
@@ -546,6 +537,32 @@ function KitBody({
               >
                 {tr('interviews.mark_completed', 'Mark completed')}
               </Button>
+              <MoreMenu
+                label={tr('interviews.more_for_the_interview', 'More for the interview')}
+                items={[
+                  {
+                    id: 'candidate',
+                    label: tr('interviews.open_the_candidate', 'Open the candidate'),
+                    icon: <icons.person aria-hidden />,
+                    onSelect: () =>
+                      props.onNavigate?.(
+                        `/recruiting/candidates/${data.candidate.id}?application=${i.applicationId}`,
+                      ),
+                  },
+                  {
+                    id: 'no-show',
+                    label: tr('interviews.no_show', 'No-show'),
+                    icon: <icons.blocked aria-hidden />,
+                    group: 'state',
+                    onSelect: () => {
+                      act.run('SetInterviewState', {
+                        interviewId: i.id,
+                        input: { to: 'no_show' },
+                      });
+                    },
+                  },
+                ]}
+              />
             </>
           ) : null
         }

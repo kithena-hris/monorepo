@@ -110,22 +110,39 @@ export async function loadScreen(component: string, query: ScreenQuery): Promise
   const id = query.params['id'] ?? '';
   switch (component) {
     case 'Home':
-    case 'Jobs':
       return read('RecruitingHome');
+    case 'Jobs':
+      return read('RecruitingJobs');
     case 'Requisitions':
     case 'Requisition':
     case 'RequisitionApproval':
       return read('RecruitingRequisitions');
     case 'JobSetup':
       return id === 'new' ? read('RecruitingNewJob') : read('RecruitingJob', { jobId: id });
-    case 'Pipeline':
-      return read('RecruitingPipeline', {
-        jobId: id,
-        q: or(s['q']),
-        stage: or(s['stage']),
-        source: or(s['source']),
-        sort: or(s['sort']),
-      });
+    case 'Pipeline': {
+      // The application open over the board is read beside it, so the overlay arrives with the page.
+      const [board, spotlight] = await Promise.all([
+        read('RecruitingPipeline', {
+          jobId: id,
+          q: or(s['q']),
+          stage: or(s['stage']),
+          source: or(s['source']),
+          sort: or(s['sort']),
+        }),
+        s['candidate'] === undefined || s['candidate'] === ''
+          ? Promise.resolve(null)
+          : read('RecruitingCandidate', { candidateId: s['candidate'] }),
+      ]);
+      return board.status !== 'ready'
+        ? board
+        : {
+            status: 'ready',
+            data: {
+              ...(board.data as object),
+              spotlight: spotlight?.status === 'ready' ? spotlight.data : null,
+            },
+          };
+    }
     case 'Candidates':
       return read('RecruitingCandidates', { q: or(s['q']), tag: or(s['tag']) });
     case 'Candidate':
