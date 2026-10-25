@@ -117,6 +117,7 @@ import { setMyNotifications } from '../application/notify.js';
 import { saveAgreement } from '../application/agreements.js';
 import { jobsScreen, offerScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
 import { reviseContract } from '../application/contract-draft.js';
+import { recruitingConsumer } from '../infrastructure/consumers/handle.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -1689,6 +1690,46 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect((await h.jobs.search(JobSearch.parse({ company: 'acme' }))).rows).toEqual([]);
   const prehire = await uow.run(tenantId, (tx) => tx.prehires.get(applied.applicationId));
   expect(prehire?.state).toBe('conditions_met');
+  // People starts them on their first day: the pre-hire is over in Recruiting too.
+  const yukiPerson = randomUUID();
+  await uow.run(tenantId, (tx) =>
+    tx.members.upsert(
+      {
+        personId: yukiPerson as PersonId,
+        accountId: null,
+        displayName: 'Yuki Sato',
+        workEmail: 'yuki@example.com',
+        managerPersonId: null,
+        teamKey: null,
+        teamName: null,
+        locationKey: null,
+        legalEntityId: entityId,
+        status: 'active',
+      },
+      randomUUID(),
+      CalendarDate.parse('2026-10-20'),
+    ),
+  );
+  const at = '2026-12-01T00:00:00.000Z';
+  expect(
+    await recruitingConsumer(uow, deps)({
+      eventId: '01890000-0000-7000-8000-0000000000f1',
+      eventName: 'people.person.status_changed',
+      eventVersion: 1,
+      tenantId,
+      occurredAt: at,
+      recordedAt: at,
+      effectiveFrom: '2026-12-01',
+      aggregate: { type: 'Person', id: yukiPerson, version: 2 },
+      actor: { kind: 'system', process: 'people-lifecycle' },
+      correlationId: randomUUID(),
+      causationId: null,
+      payload: { personId: yukiPerson, previous: 'onboarding', next: 'active', reason: 'started' },
+    }),
+  ).toBe('applied');
+  expect((await uow.run(tenantId, (tx) => tx.prehires.get(applied.applicationId)))?.state).toBe(
+    'started',
+  );
 
   // §15.3, §17.2: providers through their ports. A check waits for the offer and the law.
   const providing = {

@@ -694,5 +694,133 @@
   "inbox.screens.times_offered_for_other": {
     "text": "{{count}} times offered for {{title}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/screens.ts: a \"summary\" value. Filled in: {{count}}, {{title}}. Plural: the words for any other {{count}}."
+  },
+  "terms.note.de.ausbildung": {
+    "text": "Vocational training under the BBiG: 24 to 42 months, a probation of 1 to 4 months, at least €724 a month in the first year for a start in 2026.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.befristet_mit_sachgrund": {
+    "text": "Fixed term for one of the objective reasons in § 14(1) TzBfG, of any length. Signed in writing before work starts, or it becomes open-ended.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.befristet_ohne_sachgrund": {
+    "text": "Fixed term without a reason: at most 2 years with up to 3 extensions (4 years in a company’s first 4), and never for someone employed here before.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.freier_mitarbeiter": {
+    "text": "A service contract, not employment: no leave, probation or Mindestlohn. Set hours, place and instructions would make it employment (§ 7 SGB IV).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.kurzfristig": {
+    "text": "Short-term work: at most 3 months or 70 working days in a calendar year, not the person’s main occupation. No social insurance contributions (§ 8(1) no. 2 SGB IV).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.minijob": {
+    "text": "Pay up to €603 a month in 2026 (§ 8(1a) SGB IV), with flat-rate employer contributions. Every employee right applies, leave included.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.praktikum_freiwillig": {
+    "text": "Voluntary internship. The Mindestlohn applies once it runs over 3 months (§ 22(1) no. 3 MiLoG); the terms are set out in writing (§ 2(1a) NachwG).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.praktikum_pflicht": {
+    "text": "Required by a study or training regulation. Not paid the Mindestlohn (§ 22(1) no. 1 MiLoG).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.unbefristet": {
+    "text": "Open-ended, full or part time by the hours you set. After six months in a company of more than ten, the Kündigungsschutzgesetz protects against dismissal.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.de.werkstudent": {
+    "text": "An enrolled student, up to 20 hours a week in term time. Only pension insurance is due (§ 5(3) SGB VI).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.autonomo": {
+    "text": "A service contract with a self-employed person, not employment: no SMI, holiday or dismissal rules apply.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.fijo_discontinuo": {
+    "text": "Open-ended, for work that comes in seasons or campaigns: the person is called back each time, in order (art. 16 ET).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.formativo_alternancia": {
+    "text": "Work alongside vocational or university study, 3 months to 2 years, at most 65% of the hours in the first year and 85% in the second (art. 11.2 ET).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.formativo_practica": {
+    "text": "A first job in the field within 3 years of the degree or qualification (5 with a disability), 6 to 12 months (art. 11.3 ET).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.indefinido": {
+    "text": "Open-ended, the rule since the 2021 labour reform. Full or part time by the hours you set.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.temporal_produccion": {
+    "text": "For an unforeseeable rise in work, up to 6 months (12 by sector agreement), or a foreseeable peak of at most 90 days a year (art. 15.2 ET). The cause goes in the contract.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.es.temporal_sustitucion": {
+    "text": "To cover someone whose job is kept for them, to complete reduced hours, or a vacancy during selection for at most 3 months (art. 15.3 ET).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.gb.apprenticeship": {
+    "text": "At least 8 months of training towards an approved standard, with off-the-job training paid. The apprentice rate applies under 19 or in the first year.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.gb.fixed_term": {
+    "text": "Ends on a date or an event, with no maximum length, on terms no worse than permanent staff. Four years of successive terms make it permanent unless justified (FTE Regulations 2002).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.gb.permanent": {
+    "text": "Open-ended. Unfair dismissal protection after the qualifying period: two years now, six months from January 2027 under the Employment Rights Act 2025.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.gb.self_employed": {
+    "text": "A contract for services: no minimum wage, holiday pay or PAYE. The off-payroll rules (IR35) may apply to a medium or large client.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.gb.zero_hours": {
+    "text": "No guaranteed hours: paid for the hours worked, with holiday pay and the National Living Wage. A clause forbidding other work is void (ERA 1996 s. 27A).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.in.apprentice": {
+    "text": "Training under a contract registered on the national apprenticeship portal, 6 to 36 months, with at least the prescribed monthly stipend (Apprentices Act 1961).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.in.consultant": {
+    "text": "A contract for services, not employment: no provident fund, state insurance or gratuity.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.in.fixed_term": {
+    "text": "For a set period, with the same hours, wages and benefits as permanent staff, and gratuity after one year (Code on Social Security 2020 s. 53).",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.in.permanent": {
+    "text": "Open-ended, under the state’s standing orders. Gratuity after five years of continuous service.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.at_will_full_time": {
+    "text": "Either side may end it at any time for any lawful reason; Montana requires good cause after the probationary period.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.at_will_part_time": {
+    "text": "At-will, with fewer hours. Health cover eligibility follows the company’s plans and the Affordable Care Act’s 30-hour line.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.contractor_1099": {
+    "text": "A service agreement, not employment: no minimum wage, overtime or withholding. The IRS and the states look at the facts, not the label.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.fixed_term_contract": {
+    "text": "A contract for a set term, which ends at-will status for its length: ending it early can mean paying out the rest.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.intern": {
+    "text": "Paid at least the minimum wage. An unpaid internship must pass the Department of Labor’s primary beneficiary test.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
+  },
+  "terms.note.us.temporary": {
+    "text": "At-will employment expected to end after a season or a project, still owed the minimum wage and overtime.",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/pack-notes.ts: text built in code."
   }
 }

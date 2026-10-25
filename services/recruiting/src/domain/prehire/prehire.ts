@@ -91,6 +91,17 @@ export function blockers(prehire: Prehire, today: CalendarDate): readonly Condit
   return prehire.conditions.filter((c) => !settled(c)).map((c) => c.kind);
 }
 
+/**
+ * Their first day came and People started them: the pre-hire is over. What
+ * is still open stays on the record as it is; People, not this, decides
+ * whether they start.
+ */
+export function startPrehire(prehire: Prehire): Result<Prehire> {
+  if (prehire.state === 'cancelled')
+    return err(failure('PREHIRE_STATE', 'This pre-hire is cancelled'));
+  return ok({ ...prehire, state: 'started' });
+}
+
 export function cancelPrehire(prehire: Prehire, reason: PrehireCancelReason): Result<Prehire> {
   if (prehire.state === 'cancelled' || prehire.state === 'started')
     return err(failure('PREHIRE_STATE', `This pre-hire is ${prehire.state}`));

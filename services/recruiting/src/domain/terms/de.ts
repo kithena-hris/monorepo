@@ -84,7 +84,7 @@ const WRITTEN_FORM = new Set([
 ]);
 
 /** What each contract means in Germany, in a line beside the choice. */
-const NOTE: Readonly<Record<string, string>> = {
+export const NOTE: Readonly<Record<string, string>> = {
   unbefristet:
     'Open-ended, full or part time by the hours you set. After six months in a company of more than ten, the Kündigungsschutzgesetz protects against dismissal.',
   befristet_mit_sachgrund:

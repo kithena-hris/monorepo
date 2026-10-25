@@ -34,6 +34,7 @@ import { contextOf, deliver, type Outgoing } from '../../application/context.js'
 import { candidateSignedContract, contractSignedByEnvelope } from '../../application/offers.js';
 import type { Deps, Member, Tx, UnitOfWork } from '../../application/ports.js';
 import { statutoryBenefits } from '../../domain/benefits/benefits.js';
+import { startPrehire } from '../../domain/prehire/prehire.js';
 
 /** The currency a launch country's entity pays in, until Recruiting is told otherwise. */
 const CURRENCY_OF: Readonly<Record<LaunchCountry, string>> = {
@@ -211,7 +212,26 @@ export function recruitingConsumer(
         if (!event) return 'rejected';
         const status = statusOf(event.payload.next);
         if (status === null) return 'ignored';
-        return change(event, event.payload.personId, (m) => ({ ...m, status }));
+        const changed = await change(event, event.payload.personId, (m) => ({ ...m, status }));
+        // Their first day: the pre-hire Recruiting opened for them is over.
+        if (event.payload.reason !== 'started') return changed;
+        const started = await uow.run(event.tenantId, async (tx) => {
+          const email = (await tx.members.get(event.payload.personId))?.workEmail ?? null;
+          const candidate = email === null ? null : await tx.candidates.byEmail(email);
+          if (candidate === null) return false;
+          let any = false;
+          for (const app of await tx.applications.forCandidate(candidate.id)) {
+            if (app.outcome !== 'hired') continue;
+            const prehire = await tx.prehires.get(app.id);
+            if (prehire === null || prehire.state === 'started') continue;
+            const next = startPrehire(prehire);
+            if (!next.ok) continue;
+            await tx.prehires.save(next.value);
+            any = true;
+          }
+          return any;
+        });
+        return started ? 'applied' : changed;
       }
       case PersonTerminated.name: {
         const event = parse(PersonTerminated, raw);

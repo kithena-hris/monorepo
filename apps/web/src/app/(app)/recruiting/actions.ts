@@ -285,9 +285,10 @@ async function previewContract(variables: Readonly<Record<string, unknown>>): Pr
 /** Where the hire stands with their account at the company, by the email they applied with. */
 async function hireAccount(variables: Readonly<Record<string, unknown>>): Promise<Done> {
   const email = typeof variables['email'] === 'string' ? variables['email'] : '';
-  const found = await people<{ readonly personInvitation: unknown }>('PersonInvitation', { email });
+  // `people` answers the one root field itself.
+  const found = await people<unknown>('PersonInvitation', { email });
   return found.ok
-    ? { ok: true, data: found.data.personInvitation }
+    ? { ok: true, data: found.data ?? null }
     : { ok: false, message: found.message, code: found.code };
 }
 
@@ -295,12 +296,12 @@ async function hireAccount(variables: Readonly<Record<string, unknown>>): Promis
 async function inviteHire(variables: Readonly<Record<string, unknown>>): Promise<Done> {
   const personId = typeof variables['personId'] === 'string' ? variables['personId'] : '';
   const sendOn = typeof variables['sendOn'] === 'string' ? variables['sendOn'] : null;
-  const invited = await people<{ readonly invitePerson: unknown }>('InvitePerson', {
+  const invited = await people<unknown>('InvitePerson', {
     personId,
     sendOn,
   });
   return invited.ok
-    ? { ok: true, data: invited.data.invitePerson }
+    ? { ok: true, data: invited.data }
     : { ok: false, message: invited.message, code: invited.code };
 }
 

@@ -50,7 +50,7 @@ const RELATIONSHIPS: readonly Choice[] = withNotes(
 );
 
 /** What each contract means in the United Kingdom, in a line beside the choice. */
-const NOTE: Readonly<Record<string, string>> = {
+export const NOTE: Readonly<Record<string, string>> = {
   permanent:
     'Open-ended. Unfair dismissal protection after the qualifying period: two years now, six months from January 2027 under the Employment Rights Act 2025.',
   fixed_term:

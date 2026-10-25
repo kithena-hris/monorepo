@@ -55,7 +55,8 @@ function chat(
       body: JSON.stringify({
         model,
         temperature: 0,
-        max_tokens: 4096,
+        // A whole contract comes back from a revision: room for one of forty clauses.
+        max_tokens: 8192,
         // With a search the answer is JSON in the text: the provider takes a tool or a format, not both.
         ...(search
           ? { tools: [{ type: 'browser_search' }], tool_choice: 'auto' }
@@ -65,8 +66,9 @@ function chat(
           { role: 'user', content: JSON.stringify(prompt.context) },
         ],
       }),
-      // A person is waiting on R10 or R11; a batch runs in the background.
-      signal: AbortSignal.timeout(search ? 45_000 : 20_000),
+      // A person is waiting on R10 or R11; a batch runs in the background. A long
+      // answer (a contract) takes longer to write than a short one, never longer than this.
+      signal: AbortSignal.timeout(45_000),
     });
     if (!response.ok) throw new Error(`the model answered ${String(response.status)}`);
     const body = (await response.json()) as { choices?: { message?: { content?: string } }[] };
