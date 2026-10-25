@@ -561,7 +561,7 @@ export function hireSignatures(
     if (!event) return 'rejected';
     const { hires } = deps;
     if (!hires) return 'ignored';
-    const done = await deps.inTenant(event.tenantId, ({ tx }) => hires.signed(tx, event as Hired));
+    const done = await deps.inTenant(event.tenantId, ({ tx }) => hires.signed(tx, event));
     return done.outcome;
   };
 }
