@@ -1066,7 +1066,7 @@ export async function personInvitation(email: string): Promise<Invitation | null
     'PersonInvitation',
     { email },
   );
-  return found.ok ? found.data.personInvitation : null;
+  return found.ok ? (found.data.personInvitation ?? null) : null;
 }
 
 /** The invitation sent now (null) or kept for a day on their calendar: HR's. */

@@ -56,9 +56,13 @@ export function InvitationCard({
   const [sending, startSending] = useTransition();
   useEffect(() => {
     let live = true;
-    void actions.read(email).then((found) => {
-      if (live) setInvitation(found);
-    });
+    void actions
+      .read(email)
+      .catch(() => null)
+      .then((found) => {
+        // Nothing to read is no invitation card, never a broken record.
+        if (live) setInvitation(found ?? null);
+      });
     return () => {
       live = false;
     };
