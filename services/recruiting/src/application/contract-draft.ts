@@ -79,9 +79,12 @@ export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<C
     job.locationIds[0] === undefined ? null : await ctx.tx.locations.get(job.locationIds[0]);
   const { language } = await mailWords(ctx);
   const chosen = new Set(version.benefitIds);
-  const benefits = (await everyCatalogue(ctx))
-    .filter((b) => chosen.has(b.id))
-    .map((b) => b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key);
+  const benefits = [
+    ...(await everyCatalogue(ctx))
+      .filter((b) => chosen.has(b.id))
+      .map((b) => b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key),
+    ...(version.extraBenefits ?? []),
+  ];
   const facts = (employer: string, employee: string): ContractFacts => ({
     employer: { name: employer, address: null },
     employee: { name: employee, address: null },

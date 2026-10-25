@@ -710,7 +710,7 @@ export interface Ask {
   readonly videoUrl: string | null;
   readonly agenda: { readonly html: string; readonly text: string } | null;
   /** Why it closed without an answer. */
-  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | null;
+  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | 'moved_on' | null;
   readonly label: string;
   readonly detail: string | null;
   readonly interviewId: string | null;
@@ -829,6 +829,8 @@ export interface OfferVersion {
     readonly equity: { readonly description: string; readonly units: number } | null;
   };
   readonly benefitIds: readonly string[];
+  /** Benefits written in for this offer alone. */
+  readonly extraBenefits?: readonly string[];
   readonly startDate: string;
   readonly expiresOn: string;
   readonly letterTemplateId: string | null;
@@ -868,6 +870,8 @@ export interface OfferData {
   readonly candidate: { readonly id: string; readonly name: string; readonly email: string };
   readonly signatoryPersonId: string | null;
   readonly job: { readonly id: string; readonly title: string };
+  /** The pay the job ad gave, shown beside the offer's. */
+  readonly advertised?: OfferStartData['advertised'];
   readonly meta: { readonly grade: string | null; readonly outsideBandReason: string | null };
   readonly checked: {
     readonly terms: {
@@ -943,7 +947,10 @@ export interface OfferData {
     readonly category: string;
     readonly statutory: boolean;
     readonly names: Readonly<Record<string, string>>;
+    readonly description?: string | null;
   }[];
+  /** The catalogue's categories, to group the benefits as the job does. */
+  readonly categories?: readonly BenefitCategory[];
   readonly bands: readonly {
     readonly grade: string;
     readonly minMinor: number;

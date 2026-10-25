@@ -21,6 +21,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ChatLog,
+  ChatMessage,
   Chip,
   ChipRow,
   EmptyState,
@@ -39,8 +41,6 @@ import {
   TableHeader,
   TableRow,
   Textarea,
-  Timeline,
-  TimelineItem,
   icons,
   IconTile,
   ModalPageBody,
@@ -61,11 +61,13 @@ import {
   money,
   useAct,
   when,
+  whereFrom,
   words,
   type MoreItem,
 } from './shared';
 import { EmailComposer, type ComposedEmail } from './composer';
 import { AskList } from './interviews';
+import { Journey } from './journey';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type { Category, CandidateData, CandidatesData, PoolsData, ScreenProps } from './types';
 import { t as tr } from './i18n';
@@ -691,27 +693,36 @@ function Messages({
           )}
         />
       ) : null}
-      <ol className="flex flex-col gap-3">
-        {data.messages.map((m) => (
-          <li key={m.id} className={m.direction === 'out' ? 'flex justify-end' : 'flex'}>
-            <div
-              className={`max-w-[70%] rounded-2xl p-3 ${m.direction === 'out' ? 'bg-[var(--reach-accent-soft)]' : 'bg-[var(--reach-surface)] shadow-sm'}`}
-            >
-              <div className="text-sm font-semibold">{m.subject}</div>
-              <p className="whitespace-pre-wrap">{m.body}</p>
-              <div className="text-xs text-fg-muted">
-                {m.direction === 'out'
+      {data.messages.length === 0 ? null : (
+        // A thread, as a mail app shows one: the newest at the bottom, in view; the rest a scroll up.
+        <ChatLog
+          label={tr('candidate.emails_with', 'Emails with {{name}}', { name: data.candidate.name })}
+          className="max-h-[28rem] pe-1"
+        >
+          {data.messages.map((m) => (
+            <ChatMessage
+              key={m.id}
+              from={m.direction === 'out' ? 'self' : 'other'}
+              author={
+                m.direction === 'out' ? tr('candidate.the_team', 'The team') : data.candidate.name
+              }
+              unsent={m.direction === 'out' && m.sentAt === null}
+              meta={
+                m.direction === 'out'
                   ? m.sentAt === null
                     ? tr('candidate.sends', 'Sends {{sendAt}}', { sendAt: when(m.sendAt) })
                     : tr('candidate.sent', 'Sent {{sentAt}}', { sentAt: when(m.sentAt) })
                   : tr('candidate.received', 'Received {{createdAt}}', {
                       createdAt: when(m.createdAt),
-                    })}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ol>
+                    })
+              }
+            >
+              <span className="block font-semibold">{m.subject}</span>
+              <span className="block whitespace-pre-wrap [overflow-wrap:anywhere]">{m.body}</span>
+            </ChatMessage>
+          ))}
+        </ChatLog>
+      )}
       {can ? (
         <Card padded>
           <div className="flex flex-col gap-3">
@@ -1038,10 +1049,14 @@ export function Spotlight({
   const active = chosen.outcome === 'active';
   const mayMove = active && chosen.may.includes('pipeline.move');
   const mayOffer = chosen.may.includes('offer.edit');
-  const maySchedule = active && chosen.may.includes('interview.schedule');
+  const maySchedule = chosen.may.includes('interview.schedule');
   const mayMessage = active && chosen.may.includes('candidate.message');
-  const offer = chosen.offers[0];
+  // The offer of this visit to the offer stage; a withdrawn or expired one is history.
+  const offer = chosen.offers.find((o) => o.state !== 'withdrawn' && o.state !== 'expired');
   const accepted = chosen.offers.find((o) => o.state === 'accepted');
+  // A step's work belongs to it: once past the interviews, booking and chasing times give way to the offer.
+  const offerAt = chosen.stages.findIndex((s) => s.category === 'offer');
+  const interviewing = active && (offerAt === -1 || at < offerAt);
   const go = (to: string): void => {
     actions.onNavigate?.(to);
   };
@@ -1086,7 +1101,7 @@ export function Spotlight({
         icon: <icons.agreement aria-hidden />,
         run: openOffer,
       };
-    if (stage?.category === 'interview' && maySchedule)
+    if (stage?.category === 'interview' && maySchedule && interviewing)
       return {
         label: tr('candidate.schedule_interview', 'Schedule interview'),
         icon: <icons.meeting aria-hidden />,
@@ -1108,19 +1123,8 @@ export function Spotlight({
       id: 'schedule',
       label: tr('candidate.schedule_interview', 'Schedule interview'),
       icon: <icons.meeting aria-hidden />,
-      hidden: !maySchedule || stage?.category === 'interview',
+      hidden: !maySchedule || !interviewing || stage?.category === 'interview',
       onSelect: schedule,
-      group: 'do',
-    },
-    {
-      id: 'offer',
-      label:
-        offer === undefined
-          ? tr('candidate.create_offer', 'Create offer')
-          : tr('candidate.open_offer', 'Open offer'),
-      icon: <icons.agreement aria-hidden />,
-      hidden: !mayOffer || stage?.category === 'offer' || !active,
-      onSelect: openOffer,
       group: 'do',
     },
     {
@@ -1204,13 +1208,13 @@ export function Spotlight({
   ) : (
     <StateBadge state={chosen.outcome} />
   );
-  const facts = [
-    chosen.job.title,
-    tr('candidate.via', 'via {{source}}', { source: words(chosen.source) }),
+  const origin =
     chosen.history[0] === undefined
-      ? null
-      : tr('candidate.applied_on', 'applied {{day}}', { day: day(chosen.history[0].at) }),
-  ].filter((f): f is string => f !== null);
+      ? tr('candidate.via', 'Via {{source}}', { source: whereFrom(chosen.source) })
+      : tr('candidate.via_applied', 'Via {{source}} · Applied {{day}}', {
+          source: whereFrom(chosen.source),
+          day: day(chosen.history[0].at),
+        });
   const steps = chosen.stages
     .filter((s) => s.category !== 'hired' || chosen.outcome === 'hired')
     .map((s) => ({
@@ -1227,13 +1231,15 @@ export function Spotlight({
     <div className="flex flex-col gap-5">
       <Refusal error={act.error} />
       {/* The identity strip: who, for what, how to reach them, and which of their applications this is. */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-start gap-x-5 gap-y-4">
         <Avatar name={name} size="2xl" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <p className="text-md font-semibold text-fg [overflow-wrap:anywhere]">
-            {facts.join(' · ')}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {/* The title above names the person; here the job, then where they came from and when. */}
+          <p className="text-lg font-semibold tracking-tight text-fg [overflow-wrap:anywhere]">
+            {chosen.job.title}
           </p>
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-fg-muted">
+          <p className="text-sm text-fg-muted">{origin}</p>
+          <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-fg-muted">
             {data.candidate.email === undefined ? null : (
               <li className="flex items-center gap-1.5">
                 <icons.email aria-hidden className="size-4" />
@@ -1350,17 +1356,14 @@ export function Spotlight({
           {mayOffer && chosen.outcome === 'hired' && data.candidate.email !== undefined ? (
             <AccountCard name={name} email={data.candidate.email} props={props} />
           ) : null}
-          {mayOffer &&
-          (stage?.category === 'offer' ||
-            stage?.category === 'hired' ||
-            chosen.offers.length > 0) ? (
+          {mayOffer && active && stage?.category === 'offer' ? (
             <OfferCard name={name} offer={offer ?? null} onOpen={openOffer} />
           ) : null}
           <Section
             id="interviews"
             title={tr('candidate.interviews_and_scorecards', 'Interviews and scorecards')}
             action={
-              maySchedule ? (
+              maySchedule && interviewing ? (
                 <Button
                   size="sm"
                   variant="secondary"
@@ -1373,9 +1376,14 @@ export function Spotlight({
             }
           >
             <div className="flex flex-col gap-4">
-              {chosen.asks.length === 0 ? null : (
-                <AskList asks={chosen.asks} applicationId={chosen.applicationId} act={act} />
-              )}
+              {/* What is still waiting, while the interviews are this stage's work; the rest is in the journey. */}
+              {interviewing ? (
+                <AskList
+                  asks={chosen.asks.filter((a) => a.state === 'open')}
+                  applicationId={chosen.applicationId}
+                  act={act}
+                />
+              ) : null}
               {chosen.interviews.length === 0 ? (
                 <EmptyState
                   icon={<icons.meeting aria-hidden />}
@@ -1469,39 +1477,19 @@ export function Spotlight({
           {chosen.may.includes('candidate.profile') ? (
             <Evidence application={chosen} props={props} />
           ) : null}
-          {chosen.offers.length === 0 && chosen.prehire === null ? null : (
-            <Section id="offers" title={tr('candidate.offers', 'Offers')}>
-              <div className="flex flex-col gap-3">
-                {chosen.offers.map((o) => (
-                  <div key={o.id} className="flex flex-wrap items-center gap-3">
-                    <To href={`/recruiting/offers/${o.id}`} onNavigate={actions.onNavigate}>
-                      {tr('candidate.offer_v', 'Offer v{{version}}', {
-                        version: String(o.version),
-                      })}
-                    </To>
-                    <StateBadge state={o.state} />
-                    <span className="text-sm text-fg-muted tabular-nums">
-                      {tr('candidate.starts', '{{baseMinor}} · starts {{startDate}}', {
-                        baseMinor: money(o.baseMinor, o.currency),
-                        startDate: day(o.startDate),
-                      })}
-                    </span>
-                  </div>
+          {chosen.prehire === null ? null : (
+            <Section
+              id="prehire"
+              title={tr('candidate.pre_hire', 'Pre-hire')}
+              action={<StateBadge state={chosen.prehire.state} />}
+            >
+              <ul className="flex flex-col gap-2">
+                {chosen.prehire.conditions.map((c) => (
+                  <li key={c.kind} className="flex items-center justify-between gap-3 text-sm">
+                    {words(c.kind)} <StateBadge state={c.state} />
+                  </li>
                 ))}
-                {chosen.prehire === null ? null : (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">{tr('candidate.pre_hire', 'Pre-hire')}</span>
-                      <StateBadge state={chosen.prehire.state} />
-                    </div>
-                    {chosen.prehire.conditions.map((c) => (
-                      <div key={c.kind} className="flex items-center gap-2 text-sm">
-                        {words(c.kind)} <StateBadge state={c.state} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              </ul>
             </Section>
           )}
           <Section id="references" title={tr('candidate.references', 'References')}>
@@ -1517,26 +1505,15 @@ export function Spotlight({
           >
             <Messages data={data} application={chosen} props={props} />
           </Section>
-          <Section id="activity" title={tr('candidate.activity', 'Activity')}>
-            <Timeline>
-              {chosen.history.map((m) => (
-                <TimelineItem
-                  key={m.id}
-                  title={
-                    chosen.stages.find((s) => s.id === m.to)?.name ?? tr('candidate.moved', 'Moved')
-                  }
-                  timestamp={when(m.at)}
-                >
-                  {m.supersedes === null
-                    ? null
-                    : m.reason === 'undone'
-                      ? tr('candidate.undone', 'Undone')
-                      : tr('candidate.corrected', 'Corrected: {{value}}', {
-                          value: m.reason ?? '',
-                        })}
-                </TimelineItem>
-              ))}
-            </Timeline>
+          <Section
+            id="journey"
+            title={tr('candidate.journey', 'Journey')}
+            description={tr(
+              'candidate.every_stage_and_what_happened_there',
+              'Every stage they reached, newest first, and what happened while they were there.',
+            )}
+          >
+            <Journey data={data} application={chosen} />
           </Section>
         </div>
         <aside
@@ -1674,8 +1651,14 @@ export function Spotlight({
                   },
                   (answer) => {
                     setMoving(null);
-                    if ((answer as { opensOffer?: boolean } | null)?.opensOffer === true)
-                      openOffer();
+                    const moved = answer as { opensOffer?: boolean; offerId?: string | null } | null;
+                    // Arriving at the offer stage drafted the offer from the job: open it, filled in.
+                    if (moved?.opensOffer === true)
+                      go(
+                        moved.offerId == null
+                          ? `/recruiting/offers/new?application=${chosen.applicationId}`
+                          : `/recruiting/offers/${moved.offerId}`,
+                      );
                   },
                 );
               }}
@@ -1963,7 +1946,7 @@ export function Spotlight({
           </span>
         }
       />
-      <ModalPageBody>{body}</ModalPageBody>
+      <ModalPageBody className="px-4 py-5 @2xl:px-8 @2xl:py-7">{body}</ModalPageBody>
       {primary === null && !mayMove ? null : (
         // The decision at the bottom, where a thumb is, and out of the bar's way at a desk too.
         <ModalPageFooter>{headerActions}</ModalPageFooter>

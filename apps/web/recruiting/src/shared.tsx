@@ -209,11 +209,38 @@ export function day(iso: string | null): string {
 /** "Thu 15 Oct, 15:00", in the reader's own zone. */
 export const when = (iso: string): string => WHEN.format(new Date(iso));
 
+const WEEKDAY = dateFormat({ weekday: 'short', day: 'numeric', month: 'short' });
+const CLOCK = dateFormat({ hour: '2-digit', minute: '2-digit' });
+
+/** Times under the day they fall on, in the reader's zone: "Mon 26 Oct" with 10:30, 11:00, in order. */
+export function byDay(
+  times: readonly string[],
+): { readonly day: string; readonly times: { readonly at: string; readonly clock: string }[] }[] {
+  const days = new Map<string, { at: string; clock: string }[]>();
+  for (const at of times.toSorted()) {
+    const date = new Date(at);
+    const key = WEEKDAY.format(date);
+    days.set(key, [...(days.get(key) ?? []), { at, clock: CLOCK.format(date) }]);
+  }
+  return [...days].map(([label, list]) => ({ day: label, times: list }));
+}
+
 /** "Senior Backend Engineer", "no_show" → "No show". */
 export const words = (key: string): string => {
   const spaced = key.replaceAll('_', ' ');
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
+
+const WHERE_FROM: Readonly<Record<string, () => string>> = {
+  careers_page: () => t('home.careers_page', 'Careers page'),
+  kithena_jobs: () => t('home.kithena_jobs', 'Kithena Jobs'),
+  internal_board: () => t('home.internal_board', 'Internal board'),
+  share_link: () => t('home.share_link', 'Share link'),
+  indeed: () => 'Indeed',
+};
+
+/** Where a job is live, or where an application came from, by its own name: "Kithena Jobs", not "Kithena jobs". */
+export const whereFrom = (key: string): string => WHERE_FROM[key]?.() ?? words(key);
 
 export const CATEGORY_TONE: Readonly<Record<Category, Tone>> = {
   applied: 'neutral',

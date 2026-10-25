@@ -37,7 +37,7 @@ import {
 import { useEffect, useRef, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
-import { MoreMenu, Refusal, StateBadge, To, day, useAct, when, words } from './shared';
+import { MoreMenu, Refusal, StateBadge, To, byDay, day, useAct, when, words } from './shared';
 import type {
   Ask,
   DebriefData,
@@ -800,7 +800,9 @@ function AskRow({
                 ? tr('interviews.replaced_by_new_times', 'Replaced by new times')
                 : ask.closedBecause === 'more_times'
                   ? tr('interviews.asked_for_more_times', 'Asked for more times')
-                  : tr('interviews.closed', 'Closed')}
+                  : ask.closedBecause === 'moved_on'
+                    ? tr('interviews.moved_on', 'Closed: moved on')
+                    : tr('interviews.closed', 'Closed')}
         </Badge>
         <span className="text-xs text-fg-muted">{when(ask.createdAt)}</span>
         {onClose !== undefined && ask.state !== 'closed' ? (
@@ -810,7 +812,26 @@ function AskRow({
         ) : null}
       </div>
       {ask.kind === 'slots' || ask.kind === 'availability' ? (
-        <span className="text-sm text-fg-muted">{ask.times.map(when).join(' · ')}</span>
+        // A day to a line and its times beside it, the chosen one marked, rather than one long run of dates.
+        <dl className="mt-1 grid grid-cols-[max-content_1fr] items-center gap-x-4 gap-y-1.5 text-sm">
+          {byDay(ask.times).map((d) => (
+            <div key={d.day} className="contents">
+              <dt className="text-fg-muted">{d.day}</dt>
+              <dd className="flex flex-wrap gap-1.5">
+                {d.times.map((x) => (
+                  <Badge
+                    key={x.at}
+                    size="sm"
+                    tone={ask.answer?.time === x.at ? 'success' : 'neutral'}
+                    className="tabular-nums"
+                  >
+                    {x.clock}
+                  </Badge>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
       {ask.agenda === null ? null : (
         <span className="text-sm text-fg-muted">

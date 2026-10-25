@@ -45,8 +45,8 @@ export interface Ask {
   readonly owners?: readonly string[];
   /** `availability`: the link it came through, by its hash, so a resubmission replaces it. */
   readonly linkHash?: string | null;
-  /** Why it closed without an answer: the candidate gave new times, or the team asked for more. */
-  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | null;
+  /** Why it closed without an answer: new times from the candidate, more asked by the team, or the candidate moved on to another stage. */
+  readonly closedBecause?: 'replaced' | 'more_times' | 'dealt_with' | 'moved_on' | null;
 }
 
 /**

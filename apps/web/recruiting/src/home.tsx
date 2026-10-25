@@ -20,7 +20,7 @@ import { useMemo, useState, type JSX } from 'react';
 
 import { Loaded } from './load';
 import { JobConfirm, jobCommands, type Confirming, type JobRef } from './job-actions';
-import { MoreMenu, Refusal, Search, StateBadge, To, day, useAct, words } from './shared';
+import { MoreMenu, Refusal, Search, StateBadge, To, day, useAct, whereFrom } from './shared';
 import type { HomeData, JobsData, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
@@ -343,14 +343,6 @@ const shows = (j: JobsRow, showing: Showing): boolean =>
             ? j.state === 'draft'
             : j.state === 'closed' || j.state === 'filled');
 
-const TARGET_LABEL: Readonly<Record<string, () => string>> = {
-  careers_page: () => tr('home.careers_page', 'Careers page'),
-  kithena_jobs: () => tr('home.kithena_jobs', 'Kithena Jobs'),
-  internal_board: () => tr('home.internal_board', 'Internal board'),
-  share_link: () => tr('home.share_link', 'Share link'),
-  indeed: () => 'Indeed',
-};
-
 /**
  * The jobs list: every job the viewer is on, by state, searchable, each with
  * its pipeline at a glance and where it is live. A row opens its board; its
@@ -548,7 +540,7 @@ function jobsColumns(
           <span className="flex flex-wrap gap-1">
             {j.live.map((target) => (
               <Badge key={target} size="sm" variant="soft" tone="success">
-                {TARGET_LABEL[target]?.() ?? words(target)}
+                {whereFrom(target)}
               </Badge>
             ))}
           </span>

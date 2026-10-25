@@ -580,6 +580,7 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
     /** Who signs for the company when the shell sends the contract (PRD §21.2): the reader, as a member. */
     signatoryPersonId: ctx.viewer.personId,
     job: { id: job.id, title: job.title },
+    advertised: job.salary,
     meta,
     checked: checked.ok ? checked.value : null,
     composer:
@@ -641,6 +642,7 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
     contract: await ctx.tx.contracts.forOffer(offerId),
     prehire: await ctx.tx.prehires.get(app.id),
     benefits: await catalogueOf(ctx, job.entityId),
+    categories: await categoriesOf(ctx),
     bands: await ctx.tx.payBands.list(),
   });
 }

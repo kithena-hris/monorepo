@@ -200,7 +200,8 @@ export async function checkOffer(
     terms: terms.ok ? terms.value : null,
     termsIssues: terms.ok ? terms.value.warnings : terms.error,
     checks,
-    rewards,
+    // What was written in has no value to add up; it is listed beside the benefits that do.
+    rewards: { ...rewards, descriptive: [...rewards.descriptive, ...(input.extraBenefits ?? [])] },
     packReviewed: pack.reviewed,
   });
 }
@@ -507,6 +508,37 @@ export async function withdrawTheOffer(ctx: Ctx, offerId: string): Promise<Resul
   return ok(withdrawn.value);
 }
 
+/**
+ * The candidate went back before the offer stage: every offer still open is
+ * withdrawn, as a press of Withdraw would, and arriving at the stage again
+ * starts a new one (`draftOnArrival`). Allowed by the move that caused it.
+ */
+export async function withdrawOpenOffers(ctx: Ctx, applicationId: string): Promise<void> {
+  for (const offer of await ctx.tx.offers.forApplication(applicationId)) {
+    if (offer.state === 'expired') continue;
+    const withdrawn = withdrawOffer(offer);
+    if (!withdrawn.ok) continue;
+    await ctx.tx.offers.save(withdrawn.value);
+    await publish(ctx, offerEvent(ctx, 'withdrawn', withdrawn.value));
+  }
+}
+
+/**
+ * Arriving at the offer stage: the open offer, or a new draft filled from the
+ * job (`offerStart`), so the recruiter opens an offer rather than a form to
+ * make one. Null when the mover may not write offers, or the job cannot fill one.
+ */
+export async function draftOnArrival(ctx: Ctx, applicationId: string): Promise<string | null> {
+  const open = (await ctx.tx.offers.forApplication(applicationId)).find(
+    (o) => o.state !== 'withdrawn' && o.state !== 'expired',
+  );
+  if (open !== undefined) return open.id;
+  const started = await offerStart(ctx, applicationId);
+  if (!started.ok) return null;
+  const drafted = await composeOffer(ctx, applicationId, started.value.input);
+  return drafted.ok ? drafted.value.id : null;
+}
+
 /** The candidate, on their page (J7): accept against the hash of the version they read. */
 export async function candidateAccepts(
   ctx: Ctx,
@@ -734,13 +766,20 @@ export async function offerForCandidate(
   const settings = await generalSettings(ctx);
   const chosen = new Set(latest(offer).benefitIds);
   const { language } = await mailWords(ctx);
-  const benefits = (await everyCatalogue(ctx))
-    .filter((b) => chosen.has(b.id))
-    .map((b) => ({
-      id: b.id,
-      name: b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key,
-      description: b.description ?? null,
-    }));
+  const benefits = [
+    ...(await everyCatalogue(ctx))
+      .filter((b) => chosen.has(b.id))
+      .map((b) => ({
+        id: b.id,
+        name: b.names[language] ?? b.names['en'] ?? Object.values(b.names)[0] ?? b.key,
+        description: b.description ?? null,
+      })),
+    ...(latest(offer).extraBenefits ?? []).map((name, i) => ({
+      id: `extra:${String(i)}`,
+      name,
+      description: null,
+    })),
+  ];
   return ok({
     offer,
     hash: versionHash(latest(offer)),

@@ -186,7 +186,7 @@ function useFillHeight(): {
   useLayoutEffect(() => {
     if (node === null) return undefined;
     const measure = (): void => {
-      setHeight(Math.max(420, window.innerHeight - node.getBoundingClientRect().top - 16));
+      setHeight(Math.max(420, window.innerHeight - node.getBoundingClientRect().top - 24));
     };
     measure();
     window.addEventListener('resize', measure);
@@ -374,15 +374,24 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
               input: { to, ...(type === undefined ? {} : { interviewType: type }) },
             },
             (answer) => {
-              const moved = answer as { moveId: string; opensOffer: boolean };
+              const moved = answer as {
+                moveId: string;
+                opensOffer: boolean;
+                offerId?: string | null;
+              };
               setUndo({
                 name: card.name,
                 stage: stage.name,
                 applicationId: card.applicationId,
                 moveId: moved.moveId,
               });
+              // Arriving at the offer stage drafted the offer from the job: open it, filled in.
               if (moved.opensOffer)
-                props.onNavigate?.(`/recruiting/offers/new?application=${card.applicationId}`);
+                props.onNavigate?.(
+                  moved.offerId == null
+                    ? `/recruiting/offers/new?application=${card.applicationId}`
+                    : `/recruiting/offers/${moved.offerId}`,
+                );
             },
           );
         };

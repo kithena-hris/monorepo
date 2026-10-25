@@ -14,7 +14,7 @@
  * - a heap ceiling, and a parent that kills it when it stops answering.
  *
  * Inside it, the build is evaluated in a `node:vm` context whose global has
- * nothing but the language: no `process`, no `require` beyond the three
+ * nothing but the language: no `process`, no `require` beyond the
  * modules the shell shares, no timers, no `fetch`. Evaluating it and each
  * render run under a CPU timeout, with the context's microtasks drained
  * inside that timeout. A `vm` context is not a security boundary on its own —
@@ -24,6 +24,8 @@
 import Module from 'node:module';
 import { Script, createContext, type Context } from 'node:vm';
 import * as Reach from '@reach/ui';
+import * as ReachIntl from '@reach/ui/intl';
+import * as ReachMotion from '@reach/ui/motion';
 import * as React from 'react';
 import { renderToString } from 'react-dom/server';
 import * as jsxRuntime from 'react/jsx-runtime';
@@ -34,6 +36,10 @@ const SHARED: Readonly<Record<string, unknown>> = {
   react: React,
   'react/jsx-runtime': jsxRuntime,
   '@reach/ui': Reach,
+  // The two pure entry points a remote may import beside the package itself,
+  // shared so a format follows the language this process speaks.
+  '@reach/ui/intl': ReachIntl,
+  '@reach/ui/motion': ReachMotion,
 };
 const LIMIT_MS = Number(process.argv[2] ?? '1000');
 /** A function prop, which a render never calls; `remote-render.ts` writes the marker. */

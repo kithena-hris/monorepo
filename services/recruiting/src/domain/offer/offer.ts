@@ -39,6 +39,8 @@ export interface OfferVersion {
   readonly terms: TermsAnswers;
   readonly pay: Pay;
   readonly benefitIds: readonly string[];
+  /** Benefits the recruiter wrote in for this offer alone, in their words; no catalogue entry, no value. */
+  readonly extraBenefits?: readonly string[];
   readonly startDate: CalendarDate;
   readonly expiresOn: CalendarDate;
   readonly letterTemplateId: string | null;
