@@ -38,8 +38,10 @@ async function startConsumers(
     // `-2`: read identity's topic again from the start, for the company's host
     // (`identity.tenant.provisioned`), which Recruiting ignored before.
     consume(new Kafka(kafka), 'recruiting-identity-2', TenantAdministratorNamed.topic, handle),
-    // `-2`: Documents' topic again from the start, so a signed contract whose hire was refused is hired now.
-    consume(new Kafka(kafka), 'recruiting-documents-2', EnvelopeCompleted.topic, handle),
+    // `-3`: Documents' topic again from the start. Its signing events were skipped as not
+    // matching their contract (a signer `s1`, an outside signer as a user), so a
+    // contract signed by everyone was never hired; read again, it is.
+    consume(new Kafka(kafka), 'recruiting-documents-3', EnvelopeCompleted.topic, handle),
   ]);
   return {
     stop: async () => {

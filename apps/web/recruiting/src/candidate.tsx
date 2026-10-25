@@ -74,7 +74,6 @@ import { Journey } from './journey';
 import { OfferModal } from './offers';
 import { RejectDialog, type Rejecting } from './reject-dialog';
 import type {
-  Category,
   CandidateData,
   CandidatesData,
   OfferData,
@@ -1473,9 +1472,6 @@ export function Spotlight({
     setMoveMessage(null);
     setMoving({ to, name: target.name });
   };
-  // Stages a person may move to from here: not the ones the process reaches on its own.
-  const movable = (category: Category): boolean =>
-    category !== 'hired' && category !== 'contract' && category !== 'works_council';
 
   /** The one button in view: what this stage asks for next. */
   const primary = ((): { label: string; icon: JSX.Element; run: () => void } | null => {
@@ -1503,7 +1499,7 @@ export function Spotlight({
         icon: <icons.meeting aria-hidden />,
         run: schedule,
       };
-    if (mayMove && next !== undefined && movable(next.category))
+    if (mayMove && next !== undefined)
       return {
         label: tr('candidate.move_to', 'Move to {{name}}', { name: next.name }),
         icon: <icons.next aria-hidden />,
@@ -1616,7 +1612,7 @@ export function Spotlight({
     .map((s) => ({
       id: s.id,
       label: s.name,
-      disabled: !mayMove || !movable(s.category) || s.id === chosen.stageId,
+      disabled: !mayMove || s.id === chosen.stageId,
     }));
   const current = Math.max(
     0,

@@ -352,11 +352,17 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 (c) =>
                   c.outcome === 'active' && c.stageId === first.id && c.match?.band === 'strong',
               );
-        const shown = data.stages.filter((s) => s.category !== 'hired');
+        // Every stage is a column, so anyone can be moved by hand; Hired holds the ones hired.
+        const shown = data.stages;
+        const onBoard = cards.filter(
+          (c) =>
+            (c.outcome === 'active' || c.outcome === 'hired') &&
+            (band === '' || (band === 'none' ? c.match == null : c.match?.band === band)),
+        );
         const byStage = Object.fromEntries(
           shown.map((s) => [
             s.id,
-            active.filter((c) => c.stageId === s.id).map((c) => ({ ...c, id: c.applicationId })),
+            onBoard.filter((c) => c.stageId === s.id).map((c) => ({ ...c, id: c.applicationId })),
           ]),
         );
         // The board's order, column by column: what J and K walk in the spotlight.
@@ -389,12 +395,14 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                 opensOffer: boolean;
                 offerId?: string | null;
               };
-              setUndo({
-                name: card.name,
-                stage: stage.name,
-                applicationId: card.applicationId,
-                moveId: moved.moveId,
-              });
+              // A hire is undone by cancelling the pre-hire, not by moving back.
+              if (stage.category !== 'hired')
+                setUndo({
+                  name: card.name,
+                  stage: stage.name,
+                  applicationId: card.applicationId,
+                  moveId: moved.moveId,
+                });
               // Arriving at the offer stage drafted the offer from the job: open it, filled in.
               if (moved.opensOffer && moved.offerId != null)
                 props.onFilter?.({ offer: moved.offerId });
@@ -671,7 +679,7 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                   onCardOpen={open}
                   cardTone={(c) => (c.match?.band === 'strong' ? 'success' : null)}
                   onMove={(m) => {
-                    const card = active.find((c) => c.applicationId === m.itemId);
+                    const card = onBoard.find((c) => c.applicationId === m.itemId);
                     if (card !== undefined && m.from !== m.to) move(card, m.to);
                   }}
                   cardActions={[
@@ -712,18 +720,11 @@ export function Pipeline(props: ScreenProps<PipelineData>): JSX.Element {
                         <SelectValue placeholder={t('pipeline.move_to_2', 'Move to…')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {data.stages
-                          .filter(
-                            (s) =>
-                              s.category !== 'hired' &&
-                              s.category !== 'contract' &&
-                              s.category !== 'interview',
-                          )
-                          .map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
+                        {data.stages.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button

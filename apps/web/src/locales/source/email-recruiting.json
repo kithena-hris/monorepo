@@ -135,13 +135,13 @@
     "text": "What to expect next: {{stage}} with {{company}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/emails.ts: a \"subject\" value."
   },
+  "email.contract.hired_heading": {
+    "text": "You are hired",
+    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
+  },
   "email.contract.sign_action": {
     "text": "Sign the contract",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"label\" value."
-  },
-  "email.contract.signed_heading": {
-    "text": "Contract signed",
-    "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: a \"heading\" value."
   },
   "email.contract.start": {
     "text": "Start",
@@ -155,12 +155,12 @@
     "text": "{{name}} signed the contract for {{job}} and is hired, starting {{start}}.\n\nNext: send their account invitation, now or on a date you choose, from their profile. They confirm the details already on file and add what is missing, and become an employee in onboarding.\n\n{{link}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code. Filled in: {{link}}."
   },
-  "email.contract.you_signed": {
-    "text": "Signed: welcome to {{company}}",
+  "email.contract.you_are_hired": {
+    "text": "You are hired: {{job}} at {{company}}",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
-  "email.contract.you_signed_body": {
-    "text": "Your contract for {{job}} is signed by you and by {{company}}, and you start on {{start}}.\n\nNext, {{company}} invites you to set up your account. The invitation has most of your details filled in already; you confirm them and add what is still missing.",
+  "email.contract.you_are_hired_body": {
+    "text": "Hello {{first}},\n\nYou are hired as {{job}} at {{company}}, starting on {{start}}.\n\nYou will soon receive a link to sign up to {{company}}’s Kithena and start your onboarding. Most of your details are filled in already; you confirm them and add what is still missing.",
     "context": "An email from a company’s hiring team to a candidate (or to the team about a candidate). Polite, plain and personal; a candidate may not know the company yet. application/offers.ts: text built in code."
   },
   "email.contract.your_turn_body": {

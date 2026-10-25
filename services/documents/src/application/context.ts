@@ -66,6 +66,22 @@ export async function contextOf(
   };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * A member acts as their account; an outside signer by link (`signer`) and
+ * the seal (`system`) have none, so Documents is the actor for them. Another
+ * module reads the envelope against the shared contract and would skip a
+ * user without an account id.
+ */
+const actorOf = (accountId: string) =>
+  UUID.test(accountId)
+    ? ({ kind: 'user', userId: accountId } as const)
+    : ({
+        kind: 'system',
+        process: `documents.${accountId === '' ? 'system' : accountId}`,
+      } as const);
+
 export function event(
   ctx: Ctx,
   name: string,
@@ -80,7 +96,7 @@ export function event(
     occurredAt: ctx.at,
     effectiveFrom: ctx.today,
     aggregate: { ...aggregate, version: 0 },
-    actor: { kind: 'user', userId: ctx.caller.accountId },
+    actor: actorOf(ctx.caller.accountId),
     correlationId: ctx.caller.correlationId,
     causationId: null,
     payload,
@@ -134,23 +150,28 @@ export async function record(
   });
   const keys = Array.isArray(detail['keys']) ? (detail['keys'] as unknown[]).map(String) : [];
   await ctx.tx.outbox.publish([
-    event(ctx, DocumentsActivityRecorded.name, { type: 'activity', id: ctx.deps.newId() }, {
-      area:
-        action === 'type_saved' || action === 'settings_changed'
-          ? 'settings'
-          : action.startsWith('access_')
-            ? 'access'
-            : 'records',
-      action: SAID[action] ?? 'Changed a document',
-      detail: keys.length === 0 ? null : `Fields: ${keys.join(', ')}.`.slice(0, 500),
-      subjectKind: documentId === null ? null : 'document',
-      subjectId: documentId,
-      subjectLabel: null,
-      reason: null,
-      outcome: 'done',
-      via: 'App',
-      ai: false,
-    }),
+    event(
+      ctx,
+      DocumentsActivityRecorded.name,
+      { type: 'activity', id: ctx.deps.newId() },
+      {
+        area:
+          action === 'type_saved' || action === 'settings_changed'
+            ? 'settings'
+            : action.startsWith('access_')
+              ? 'access'
+              : 'records',
+        action: SAID[action] ?? 'Changed a document',
+        detail: keys.length === 0 ? null : `Fields: ${keys.join(', ')}.`.slice(0, 500),
+        subjectKind: documentId === null ? null : 'document',
+        subjectId: documentId,
+        subjectLabel: null,
+        reason: null,
+        outcome: 'done',
+        via: 'App',
+        ai: false,
+      },
+    ),
   ]);
 }
 

@@ -31,6 +31,8 @@ import {
  */
 
 const id = () => z.uuid().register(policy, asPublic());
+/** A signer by the envelope's own numbering (`s1`, `s2`), not a person or an account. */
+const signerId = () => z.string().min(1).max(40).register(policy, asPublic());
 const accountId = () => z.uuid().register(policy, asPublic());
 const subject = () => PersonId.nullable();
 const typeKey = () => DocumentTypeKey.nullable();
@@ -200,7 +202,7 @@ export const EnvelopeSigned = defineEvent(
   1,
   z.object({
     envelopeId: id(),
-    signerId: id(),
+    signerId: signerId(),
     personId: PersonId.nullable(),
     /** What another module sent it for, as `envelope.completed` carries it. */
     subjectRef: z.string().max(160).nullable().default(null).register(policy, asInternal()),
@@ -214,7 +216,7 @@ export const EnvelopeDeclined = defineEvent(
   1,
   z.object({
     envelopeId: id(),
-    signerId: id(),
+    signerId: signerId(),
     reason: z.string().max(1000).register(policy, asFreeText()),
   }),
 );
