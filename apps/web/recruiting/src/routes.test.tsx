@@ -579,6 +579,7 @@ describe('R11, a candidate', () => {
 
   it('shows a hire what is left before the first day, and decides a condition', async () => {
     const app = candidate.applications[0];
+    if (app === undefined) throw new Error('the fixture has an application');
     const hired: CandidateData = {
       ...candidate,
       plans: { a1: 'p9' },
