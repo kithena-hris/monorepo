@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { AREAS, remoteBase, remotePath, type Area } from './lib/remotes';
 import { resolveTenant, type Tenant } from './lib/tenant';
 import { RETURN_COOKIE, RETURN_TO_COOKIE, SESSION_COOKIE } from './lib/session-cookie';
+import { fromAnotherSite } from './lib/strict-return';
 
 /**
  * Tenant resolution, before anything else runs.
@@ -106,7 +107,7 @@ function remoteFile(request: NextRequest, area: Area): NextResponse {
   return NextResponse.rewrite(to, { request: { headers } });
 }
 
-export async function proxy(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse | Response> {
   const files = Object.values(AREAS).find((a) =>
     request.nextUrl.pathname.startsWith(`${remotePath(a)}/`),
   );
@@ -152,6 +153,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
    * is.
    */
   if (!PUBLIC_PATH.test(request.nextUrl.pathname) && !request.cookies.has(SESSION_COOKIE)) {
+    // Opened from an email or a chat without the cookie: ask again from here first.
+    const again = fromAnotherSite(request);
+    if (again !== null) return again;
     // A view as somebody whose cookie expired with it (thirty minutes): put
     // the administrator's own session back rather than asking them to sign in.
     const to = request.cookies.has(RETURN_COOKIE) ? '/auth/view-as/end' : '/login';
