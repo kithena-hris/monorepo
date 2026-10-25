@@ -78,6 +78,24 @@ function parse<P extends z.ZodType>(
   return null;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/**
+ * Documents' event as Documents now names its actor. Until #557 an outside
+ * signer and the seal went out as a user with no account (`userId: 'signer'`);
+ * those events are still on the topic, and they are Documents' own acts.
+ */
+function fromDocuments(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null) return raw;
+  const actor: unknown = Reflect.get(raw, 'actor');
+  if (typeof actor !== 'object' || actor === null || Reflect.get(actor, 'kind') !== 'user')
+    return raw;
+  const userId: unknown = Reflect.get(actor, 'userId');
+  if (typeof userId === 'string' && UUID.test(userId)) return raw;
+  const process = typeof userId === 'string' && userId !== '' ? userId : 'system';
+  return { ...raw, actor: { kind: 'system', process: `documents.${process}` } };
+}
+
 const dateOf = (event: EventEnvelope): CalendarDate =>
   event.effectiveFrom ?? (event.occurredAt.slice(0, 10) as CalendarDate);
 
@@ -429,7 +447,7 @@ export function recruitingConsumer(
        * contract already signed, changes nothing.
        */
       case EnvelopeCompleted.name: {
-        const event = parse(EnvelopeCompleted, raw);
+        const event = parse(EnvelopeCompleted, fromDocuments(raw));
         if (!event) return 'rejected';
         const ref = event.payload.subjectRef;
         if (deps === null || ref === null || !ref.startsWith('recruiting:offer:')) return 'ignored';
@@ -469,7 +487,7 @@ export function recruitingConsumer(
        * for the company is told it is their turn (`candidateSignedContract`).
        */
       case EnvelopeSigned.name: {
-        const event = parse(EnvelopeSigned, raw);
+        const event = parse(EnvelopeSigned, fromDocuments(raw));
         if (!event) return 'rejected';
         const ref = event.payload.subjectRef;
         if (deps === null || ref === null || !ref.startsWith('recruiting:offer:')) return 'ignored';
