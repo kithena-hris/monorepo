@@ -1132,6 +1132,7 @@
   "offers.accepted_hired": "{{name}} принял(а) оффер и нанят(а)",
   "offers.added_up_by_kithena": "Сложено Kithena",
   "offers.adds_an_approval_step": "Добавляет шаг согласования",
+  "offers.agreement_key_hint": "Его ключ, как его знает пакет страны: строчными буквами, с подчёркиваниями.",
   "offers.also": "Также",
   "offers.also_in_this_offer": "Также в этом оффере",
   "offers.also_in_this_offer_hint": "Льгота только для этого оффера, в нескольких словах. Нажмите Enter, чтобы добавить.",

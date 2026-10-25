@@ -394,6 +394,14 @@ export function termsIssues(
       'Name the collective agreement and the professional group',
     );
   }
+  // Typed as words rather than its key, it would fail the contract's schema below; said here instead.
+  if (answers.agreement != null && !/^[a-z][a-z0-9_]*$/u.test(answers.agreement.key)) {
+    law(
+      'agreement',
+      'agreement_key',
+      'Give the collective agreement by its key: lowercase letters, digits and underscores, starting with a letter',
+    );
+  }
 
   const payments = answers.paymentsPerYear ?? 12;
   if (!pack.paymentsPerYear(answers).includes(payments)) {

@@ -1121,6 +1121,7 @@
   "offers.accepted_hired": "{{name}} przyjął ofertę i jest zatrudniony",
   "offers.added_up_by_kithena": "Zsumowane przez Kithenę",
   "offers.adds_an_approval_step": "Dodaje krok zatwierdzania",
+  "offers.agreement_key_hint": "Klucz, pod jakim zna go pakiet kraju: małymi literami, z podkreślnikami.",
   "offers.also": "Również",
   "offers.also_in_this_offer": "Także w tej ofercie",
   "offers.also_in_this_offer_hint": "Benefit tylko dla tej oferty, w kilku słowach. Naciśnij Enter, aby dodać.",

@@ -1087,6 +1087,7 @@
   "offers.accepted_hired": "{{name}} a accepté et est embauché",
   "offers.added_up_by_kithena": "Additionné par Kithena",
   "offers.adds_an_approval_step": "Ajoute une étape d’approbation",
+  "offers.agreement_key_hint": "Sa clé, telle que le pack pays la connaît : en minuscules, avec des tirets bas.",
   "offers.also": "Aussi",
   "offers.also_in_this_offer": "Aussi dans cette offre",
   "offers.also_in_this_offer_hint": "Un avantage pour cette seule offre, en quelques mots. Appuyez sur Entrée pour l’ajouter.",

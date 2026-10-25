@@ -1102,6 +1102,7 @@
   "offers.accepted_hired": "{{name}} ha acceptat i està contractat",
   "offers.added_up_by_kithena": "Sumat per Kithena",
   "offers.adds_an_approval_step": "Afegeix un pas d’aprovació",
+  "offers.agreement_key_hint": "La seva clau, tal com la coneix el paquet del país: en minúscules, amb guions baixos.",
   "offers.also": "També",
   "offers.also_in_this_offer": "També en aquesta oferta",
   "offers.also_in_this_offer_hint": "Un benefici només per a aquesta oferta, en poques paraules. Prem Retorn per afegir-lo.",
