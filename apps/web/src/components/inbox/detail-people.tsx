@@ -1438,6 +1438,22 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
 }
 
 /** Everything else People posts: the item, and where it lives. */
+/** A pre-hire to set up: their record, filled in from the contract, where the invitation is sent. */
+function SetUp({ item }: BodyProps): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3">
+      {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
+      <Actions>
+        <Button asChild variant="primary" startIcon={<icons.person aria-hidden />}>
+          <a href={item.link}>
+            {t('components.inbox.detail-people.open_the_record', 'Open their record')}
+          </a>
+        </Button>
+      </Actions>
+    </div>
+  );
+}
+
 function Plain({ item }: BodyProps): JSX.Element {
   return (
     <div className="flex flex-col gap-3">
@@ -1490,6 +1506,8 @@ export function PeopleBody(props: BodyProps): JSX.Element {
       return <Document {...props} />;
     case 'people.integration':
       return <Integration {...props} />;
+    case 'people.setup':
+      return <SetUp {...props} />;
     default:
       return <Plain {...props} />;
   }

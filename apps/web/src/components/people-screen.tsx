@@ -695,6 +695,15 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
                   const done = await inbox.askForDetails({ personIds: [id], ...input });
                   return done.ok ? { ok: true as const } : done;
                 },
+                // A hire who has not started: their invitation, sent now or on a day (HR's).
+                ...(shell.roles.hr
+                  ? {
+                      invitation: {
+                        read: actions.personInvitation,
+                        send: (sendOn: string | null) => actions.invitePerson(id, sendOn),
+                      },
+                    }
+                  : {}),
                 // A document to keep, acknowledge or sign (H3): HR's.
                 ...(shell.roles.hr
                   ? {

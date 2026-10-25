@@ -368,6 +368,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "इसके बजाय इसे वहीं खोलें जहाँ यह रहता है।",
   "components.inbox.detail-people.open_onboarding": "ऑनबोर्डिंग खोलें",
   "components.inbox.detail-people.open_review": "समीक्षा खोलें",
+  "components.inbox.detail-people.open_the_record": "रिकॉर्ड खोलें",
   "components.inbox.detail-people.persons_note": "{{name}} का नोट",
   "components.inbox.detail-people.preview": "पूर्वावलोकन",
   "components.inbox.detail-people.question_one": "{{count}} सवाल",

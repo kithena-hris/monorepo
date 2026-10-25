@@ -370,6 +370,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Aprilo invece dove si trova.",
   "components.inbox.detail-people.open_onboarding": "Apri l’onboarding",
   "components.inbox.detail-people.open_review": "Apri revisione",
+  "components.inbox.detail-people.open_the_record": "Apri la scheda",
   "components.inbox.detail-people.persons_note": "Nota di {{name}}",
   "components.inbox.detail-people.preview": "Anteprima",
   "components.inbox.detail-people.question_many": "{{count}} di domande",

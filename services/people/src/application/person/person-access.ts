@@ -36,6 +36,7 @@ import {
   hireRefusal,
   IDENTITY_FACT_KEYS,
   identityFactsOf,
+  NOT_STARTED,
   Person,
   type EventContext,
   type EmploymentPeriodRow,
@@ -928,6 +929,24 @@ export interface IntegrationWriter {
   readonly owned: ReadonlyMap<string, ExternalSource>;
 }
 type IntegrationAsking = Asking & { readonly [AS_INTEGRATION]?: IntegrationWriter };
+/**
+ * A hire who has not started is HR's: their record opens, and they are
+ * listed, to HR, to themselves and to their manager, who prepares for the
+ * first day; to a system or an integration, which read as themselves; and to
+ * nobody else.
+ */
+const mayRead = (
+  asking: Asking,
+  person: PersonRecord,
+  r: { readonly isHr: boolean; readonly isSelf: boolean; readonly isManager: boolean },
+): boolean =>
+  !NOT_STARTED.has(person.snapshot.status) ||
+  r.isHr ||
+  r.isSelf ||
+  r.isManager ||
+  systemOf(asking) !== undefined ||
+  integrationOf(asking) !== undefined;
+
 const integrationOf = (asking: Asking): IntegrationWriter | undefined =>
   (asking as IntegrationAsking)[AS_INTEGRATION];
 const NO_RELATIONS: ViewerRelations = {
@@ -2594,6 +2613,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const person = await deps.reader.record(tx, asking.tenantId, asking.personId);
       if (!person) return err(PersonNotFound());
       const relations = await relationsOf(tx, asking, asking.personId);
+      if (!mayRead(asking, person, relations)) return err(PersonNotFound());
       return ok(await view(tx, asking, person, version, relations, asking.asOf));
     },
 
@@ -2636,7 +2656,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       for (const person of records) {
         const id = person.snapshot.id;
         const relations = related.get(id);
-        if (relations === undefined) continue;
+        if (relations === undefined || !mayRead(asking, person, relations)) continue;
         out.set(
           id,
           await view(
@@ -2711,7 +2731,7 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
       const items: PersonView[] = [];
       for (const row of rows) {
         const relations = related.get(row.snapshot.id);
-        if (relations === undefined) continue;
+        if (relations === undefined || !mayRead(asking, row, relations)) continue;
         items.push(
           await view(
             tx,
@@ -2750,8 +2770,10 @@ export function personAccess(deps: PersonAccessDeps): PersonAccess {
         asking.gapsIn,
         asking.refine,
       );
-      // Statuses are HR's; outside HR everybody listed counts as active.
-      return ok(everyone.isHr ? counted : { all: counted.all, active: counted.all, notStarted: 0 });
+      // Statuses are HR's; outside HR everybody listed counts as active, and
+      // nobody who has not started is listed (`mayRead`).
+      const listed = Math.max(0, counted.all - counted.notStarted);
+      return ok(everyone.isHr ? counted : { all: listed, active: listed, notStarted: 0 });
     },
 
     update: (tx, asking) => update(tx, asking),

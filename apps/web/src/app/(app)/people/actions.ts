@@ -1054,6 +1054,35 @@ export async function remindWaiting(): Promise<
 }
 
 /** Ask somebody to fill in empty details of theirs: they are emailed, at most once a day. */
+/** Where a hire who has not started stands with their invitation to sign up, by work email. */
+interface Invitation {
+  readonly state: 'not_invited' | 'scheduled' | 'invited' | 'signed_up';
+  readonly sendOn: string | null;
+  readonly sentAt: string | null;
+}
+
+export async function personInvitation(email: string): Promise<Invitation | null> {
+  const found = await people<{ readonly personInvitation: Invitation | null }>(
+    'PersonInvitation',
+    { email },
+  );
+  return found.ok ? (found.data.personInvitation ?? null) : null;
+}
+
+/** The invitation sent now (null) or kept for a day on their calendar: HR's. */
+export async function invitePerson(
+  personId: string,
+  sendOn: string | null,
+): Promise<{ ok: true; invitation: Invitation } | { ok: false; message: string }> {
+  const sent = await people<{ readonly invitePerson: Invitation }>('InvitePerson', {
+    personId,
+    sendOn,
+  });
+  return sent.ok
+    ? { ok: true, invitation: sent.data.invitePerson }
+    : { ok: false, message: sent.message };
+}
+
 export async function requestDetails(personId: string, keys: readonly string[]): Promise<Outcome> {
   return outcome(people('RequestDetails', { personId, keys }));
 }

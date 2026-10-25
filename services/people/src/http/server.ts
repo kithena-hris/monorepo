@@ -63,6 +63,7 @@ import {
   drizzlePersonReader,
   drizzleRelations,
   drizzleSchemaVersions,
+  preHires,
 } from '../infrastructure/drizzle-person-reader.js';
 import { keysFrom, open, seal, staticKeyRing } from '../infrastructure/envelope.js';
 import type { Holding } from '../application/person/pending-changes.js';
@@ -799,6 +800,8 @@ function screenDeps(
     requests: detailRequests(calendars, service),
     asks: { store: drizzleDetailAsks(), newId: uuidv7 },
     teamTasks: drizzleTeamTasks(),
+    invitations: drizzleInvitationStore(),
+    preHires,
     ...inboxNotices(calendars, service),
     inboxRules: async (tx, tenantId) => (await calendars.settings(tx, tenantId)).inboxRules,
     documents: {

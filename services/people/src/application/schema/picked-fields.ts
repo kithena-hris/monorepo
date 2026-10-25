@@ -2,7 +2,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ok, type Result } from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
-import { DEPARTMENT_FIELD } from '../../country-packs/core.js';
+import { DEPARTMENT_FIELD, SIGNATURE_FIELD } from '../../country-packs/core.js';
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import type { FoldSectionsDeps } from './fold-sections.js';
 
@@ -18,6 +18,9 @@ import type { FoldSectionsDeps } from './fold-sections.js';
  *
  * The retired field is hidden from forms and the import, never deleted: its
  * values stay in history and in exports. Idempotent, so it runs every day.
+ *
+ * A company with no signature field gains People's own (`SIGNATURE_FIELD`) the
+ * same way, so a hire's contract signature always has somewhere to go.
  */
 
 export const PICKED_REASON = 'Departments and managers are picked, not typed';
@@ -37,9 +40,17 @@ function apply(
   draft: SchemaDraft,
   retire: boolean,
   deps: PickedFieldsDeps,
-): { readonly added: boolean; readonly retired: readonly string[] } {
-  const added =
-    draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok;
+): { readonly added: readonly string[]; readonly retired: readonly string[] } {
+  const added = [
+    draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok
+      ? DEPARTMENT_FIELD.key
+      : null,
+    draft.liveAttributes().some((a) => a.dataType === 'signature') ||
+    draft.attribute(SIGNATURE_FIELD.key) !== undefined ||
+    !draft.addAttribute(SIGNATURE_FIELD).ok
+      ? null
+      : SIGNATURE_FIELD.key,
+  ].filter((k) => k !== null);
   const retired = draft
     .liveAttributes()
     .filter(
@@ -73,7 +84,7 @@ export function pickedFields(deps: PickedFieldsDeps) {
 
     // The version first: a refusal returns before any draft row is written.
     let version: number | null = null;
-    if (changed.added || changed.retired.length > 0) {
+    if (changed.added.length > 0 || changed.retired.length > 0) {
       const published = await deps.publisher.publish(tx, {
         tenantId,
         actor: ACTOR,
@@ -88,7 +99,7 @@ export function pickedFields(deps: PickedFieldsDeps) {
     }
     const draft = SchemaDraft.rehydrate(stored.sections, stored.attributes);
     const drafted = apply(draft, retire, deps);
-    for (const key of [...(drafted.added ? [DEPARTMENT_FIELD.key] : []), ...drafted.retired]) {
+    for (const key of [...drafted.added, ...drafted.retired]) {
       const attribute = draft.attribute(key);
       if (attribute !== undefined) await deps.draft.saveAttribute(tx, tenantId, attribute);
     }

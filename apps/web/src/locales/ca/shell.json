@@ -375,6 +375,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Obre’l millor on és.",
   "components.inbox.detail-people.open_onboarding": "Obrir la incorporació",
   "components.inbox.detail-people.open_review": "Obrir revisió",
+  "components.inbox.detail-people.open_the_record": "Obre la fitxa",
   "components.inbox.detail-people.persons_note": "Nota de {{name}}",
   "components.inbox.detail-people.preview": "Previsualització",
   "components.inbox.detail-people.question_many": "{{count}} de preguntes",

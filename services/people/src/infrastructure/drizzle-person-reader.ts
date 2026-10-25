@@ -600,6 +600,21 @@ export function drizzlePersonReader(): PersonReader {
   };
 }
 
+/** Pre-hires, earliest start first: who HR still has to set up (the Inbox). */
+export async function preHires(
+  tx: PostgresJsDatabase,
+  tenantId: string,
+  limit: number,
+): Promise<readonly string[]> {
+  const rows = await tx
+    .select({ id: person.id })
+    .from(person)
+    .where(and(eq(person.tenantId, tenantId), eq(person.status, 'pre_hire')))
+    .orderBy(asc(person.hireDate), asc(person.id))
+    .limit(limit);
+  return rows.map((r) => r.id);
+}
+
 /** Pre-hires whose start date is on or before a day, earliest start first. */
 export function drizzleArrivals(): Arrivals {
   return {

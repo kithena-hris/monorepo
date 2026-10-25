@@ -85,6 +85,28 @@ const asking = (v: Viewer) => ({
 });
 const money = { amountMinor: 5_500_000, currency: 'EUR' };
 
+describe('a hire who has not started', () => {
+  it('opens to HR, to themselves and to their manager, and to nobody else', async () => {
+    const { people, store } = setup();
+    const row = store.rows.get(ADA);
+    if (row) row.snapshot = { ...row.snapshot, status: 'pre_hire', hireDate: '2026-12-01' };
+    const colleague = viewer('00000000-0000-4000-8000-0000000000ee');
+    for (const v of [hr, ada, marco])
+      expect((await people.read(tx, { ...asking(v), personId: ADA })).ok).toBe(true);
+    const refused = await people.read(tx, { ...asking(colleague), personId: ADA });
+    expect(refused.ok ? null : refused.error.code).toBe('NOT_FOUND');
+    const many = await people.readMany(tx, { ...asking(colleague), personIds: [ADA, MARCO] });
+    expect(many.ok && [...many.value.keys()]).toEqual([MARCO]);
+    const ids = async (v: Viewer) => {
+      const page = await people.list(tx, { ...asking(v), limit: 10 });
+      return page.ok ? page.value.items.map((p) => p.id) : null;
+    };
+    expect(await ids(colleague)).toEqual([MARCO]);
+    expect(await ids(marco)).toContain(ADA);
+    expect(await ids(hr)).toContain(ADA);
+  });
+});
+
 describe('a manager reading a report', () => {
   it('gets a result with no salary key at all — absent, not null', async () => {
     const { people } = setup();

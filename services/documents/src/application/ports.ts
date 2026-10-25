@@ -223,6 +223,8 @@ export interface EnvelopeStore {
   latestFor(documentIds: readonly DocumentId[]): Promise<ReadonlyMap<string, Envelope>>;
   /** Envelopes with a signer who is this person. */
   forPerson(personId: PersonId): Promise<readonly Envelope[]>;
+  /** Completed envelopes an outside signer with this email signed, newest first. */
+  signedByEmail(email: string): Promise<readonly Envelope[]>;
   /** The envelope and signer a link's token opens. */
   byToken(tokenHash: string): Promise<{ envelope: Envelope; signerId: string } | null>;
   open(): Promise<readonly Envelope[]>;

@@ -119,6 +119,25 @@ export const DEPARTMENT_FIELD: AttributeDefinitionInput = field({
   effectiveDated: true,
 });
 
+/**
+ * Somebody's signature, as they drew or typed it: the one a hire signed
+ * their contract with arrives here (`hiresFromRecruiting`), and the first
+ * document they sign in Kithena is signed with it. Theirs and HR's alone.
+ * Existing companies get it from `pickedFields`.
+ */
+export const SIGNATURE_FIELD: AttributeDefinitionInput = field({
+  key: 'signature',
+  sectionKey: 'personal',
+  label: 'Signature',
+  order: 3,
+  dataType: 'signature',
+  typeConfig: { kind: 'signature' },
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+  collectAt: 'onboarding',
+  classification: identity,
+});
+
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];
   readonly attributes: readonly AttributeDefinitionInput[];
@@ -231,5 +250,6 @@ export const CORE_PACK: {
       effectiveDated: true,
     }),
     DEPARTMENT_FIELD,
+    SIGNATURE_FIELD,
   ],
 };

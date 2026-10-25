@@ -358,6 +358,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Open het in plaats daarvan waar het staat.",
   "components.inbox.detail-people.open_onboarding": "Onboarding openen",
   "components.inbox.detail-people.open_review": "Controle openen",
+  "components.inbox.detail-people.open_the_record": "Dossier openen",
   "components.inbox.detail-people.persons_note": "Notitie van {{name}}",
   "components.inbox.detail-people.preview": "Voorbeeld",
   "components.inbox.detail-people.question_one": "{{count}} vraag",

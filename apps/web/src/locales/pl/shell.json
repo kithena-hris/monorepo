@@ -390,6 +390,7 @@
   "components.inbox.detail-people.open_it_where_it_lives_instead": "Otwórz to raczej tam, gdzie się znajduje.",
   "components.inbox.detail-people.open_onboarding": "Otwórz onboarding",
   "components.inbox.detail-people.open_review": "Otwórz weryfikację",
+  "components.inbox.detail-people.open_the_record": "Otwórz dane",
   "components.inbox.detail-people.persons_note": "Notatka: {{name}}",
   "components.inbox.detail-people.preview": "Podgląd",
   "components.inbox.detail-people.question_few": "{{count}} pytania",
