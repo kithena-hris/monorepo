@@ -91,10 +91,10 @@ function askDetail(a: Application['asks'][number]): string | null {
 function moments(data: CandidateData, app: Application, now: number): Moment[] {
   const names = data.names ?? {};
   return [
-    ...data.messages.map((m) => ({
+    ...data.messages.map((m): Moment => ({
       key: `m:${m.id}`,
       at: m.direction === 'out' ? (m.sentAt ?? m.sendAt) : m.createdAt,
-      icon: (m.direction === 'out' ? 'send' : 'email') as IconName,
+      icon: m.direction === 'out' ? 'send' : 'email',
       text: m.subject,
       detail:
         m.direction === 'in'
@@ -103,17 +103,17 @@ function moments(data: CandidateData, app: Application, now: number): Moment[] {
             ? tr('journey.sends', 'Sends {{at}}', { at: when(m.sendAt) })
             : tr('journey.email_sent', 'Email sent'),
     })),
-    ...app.asks.map((a) => ({
+    ...app.asks.map((a): Moment => ({
       key: `a:${a.id}`,
       at: a.createdAt,
-      icon: (a.kind === 'info' ? 'help' : 'calendar') as IconName,
+      icon: a.kind === 'info' ? 'help' : 'calendar',
       text: askText(a),
       detail: askDetail(a),
     })),
-    ...app.interviews.map((i) => ({
+    ...app.interviews.map((i): Moment => ({
       key: `i:${i.id}`,
       at: i.startsAt,
-      icon: 'meeting' as IconName,
+      icon: 'meeting',
       text: i.title,
       detail: tr('journey.interview_when', '{{when}} · {{minutes}} min', {
         when: when(i.startsAt),
@@ -124,19 +124,19 @@ function moments(data: CandidateData, app: Application, now: number): Moment[] {
     })),
     ...app.scorecards
       .filter((c) => c.submittedAt !== null)
-      .map((c) => ({
+      .map((c): Moment => ({
         key: `s:${c.interviewId}:${c.interviewerId}`,
         at: c.submittedAt ?? '',
-        icon: 'review' as IconName,
+        icon: 'review',
         text: tr('journey.scorecard_from', 'Scorecard from {{name}}', {
           name: names[c.interviewerId] ?? tr('journey.an_interviewer', 'an interviewer'),
         }),
         detail: c.recommendation === null ? null : words(c.recommendation),
       })),
-    ...app.offers.map((o) => ({
+    ...app.offers.map((o): Moment => ({
       key: `o:${o.id}`,
       at: madeAt(o.id) ?? app.history.at(-1)?.at ?? '',
-      icon: 'agreement' as IconName,
+      icon: 'agreement',
       text: tr('journey.offer_version', 'Offer, version {{version}}', { version: String(o.version) }),
       detail: tr('journey.offer_detail', '{{base}} · starts {{start}}', {
         base: money(o.baseMinor, o.currency),
