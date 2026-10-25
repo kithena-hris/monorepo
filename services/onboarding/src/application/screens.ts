@@ -26,9 +26,13 @@ export async function boardScreen(ctx: Ctx, state: string | undefined): Promise<
       )
       .map(async (p) => {
         const progressed = progress(p, ctx.today);
+        const hire = await ctx.tx.hires.get(p.hireId);
         return {
           id: p.id,
           name: p.name,
+          // Where the hire came from, so the screen it came from can link its plan.
+          source: hire?.source ?? null,
+          externalId: hire?.externalId ?? null,
           state: p.state,
           startDate: p.startDate,
           department: p.department,

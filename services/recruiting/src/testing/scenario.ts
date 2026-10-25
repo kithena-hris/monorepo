@@ -116,6 +116,7 @@ import { jobTerms, saveJobTerms, suggestPay, termsCatalogue } from '../applicati
 import { setMyNotifications } from '../application/notify.js';
 import { saveAgreement } from '../application/agreements.js';
 import { jobsScreen, offerScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
+import { reviseContract } from '../application/contract-draft.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
 import type { MemoryUnitOfWork } from './memory.js';
@@ -1589,6 +1590,36 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
   expect(toTeam?.parts?.action?.href).toBe(
     `https://acme-host.app.example/recruiting/offers/${offer.id}/contract`,
   );
+  // The contract changed by asking: the model reads it without a name, and the names come back.
+  let read: string | null = null;
+  const revising: Deps = {
+    ...deps,
+    model: {
+      name: 'fake',
+      complete: (_, prompt) => {
+        read = JSON.stringify(prompt.context);
+        return Promise.resolve(
+          JSON.stringify({
+            reply: 'Added a clause on working from home.',
+            body: `${String(prompt.context['contract'])}\n\n9. Remote work\n[[EMPLOYEE]] may work from home.\nSignature: ____`,
+          }),
+        );
+      },
+    },
+  };
+  const revised = await uow.run(tenantId, async (tx) =>
+    value(
+      await reviseContract(
+        await contextOf(revising, tx, callerOf('ada')),
+        offer.id,
+        '1. Parties\nAcme and Yuki Sato agree.',
+        'Add a clause on working from home',
+      ),
+    ),
+  );
+  expect(read).not.toContain('Yuki');
+  expect(revised.body).toContain('Yuki Sato may work from home.');
+  expect(revised.body).not.toContain('Signature');
   // And a task in the Inbox, with the same way to the contract, until the contract is out.
   const toCreate = async () =>
     (await as('marco', (ctx) => recruitingInbox(ctx))).items.filter(

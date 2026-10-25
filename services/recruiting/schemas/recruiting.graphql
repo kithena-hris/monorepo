@@ -351,6 +351,15 @@ type Mutation {
   requestReference(applicationId: String!, idempotencyKey: String!, referenceId: String!): JSON
   """S6: put back the standard benefits removed from the catalogue"""
   restoreBenefitLibrary(idempotencyKey: String!): JSON
+  """
+  R22: the contract being edited, changed as asked in words, the names masked from the model
+  """
+  reviseContract(
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+    offerId: String!
+  ): JSON
   """R9: an agency and the jobs it may submit to"""
   saveAgency(
     id: String!

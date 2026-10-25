@@ -12,6 +12,7 @@ import { latest } from '../domain/offer/offer.js';
 import { write, type PromptSpec } from './ai.js';
 import { everyCatalogue } from './catalogue.js';
 import { mailWords, notFound, type Ctx } from './context.js';
+import { generalSettings } from './setup.js';
 import { editableOffer, resolvedTermsOf } from './offers.js';
 
 /**
@@ -63,7 +64,8 @@ const EMPLOYEE = '[[EMPLOYEE]]';
 /** A line Documents would read as a place to sign (`signatureLines`), which the model must not write. */
 const SIGN_LINE = /^\s*(signature|signed|sign here|firma|unterschrift|assinatura)\b/iu;
 
-export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<ContractDraft>> {
+/** What a contract is drafted and revised from: the accepted offer's facts, with and without the names. */
+async function settingOf(ctx: Ctx, offerId: string) {
   const offer = await ctx.tx.offers.get(offerId);
   if (offer === null) return err(notFound('offer'));
   const loaded = await editableOffer(ctx, offer.applicationId);
@@ -102,13 +104,27 @@ export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<C
     overtimeExempt: typeof version.terms['exempt'] === 'boolean' ? version.terms['exempt'] : null,
   });
   const employer = entity?.name ?? job.title;
-  const particulars = particularsFor(facts(employer, candidate.name));
+  return ok({
+    candidate,
+    job,
+    terms: terms.value,
+    language,
+    employer,
+    particulars: particularsFor(facts(employer, candidate.name)),
+    masked: particularsFor(facts(EMPLOYER, EMPLOYEE)),
+  });
+}
+
+export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<ContractDraft>> {
+  const setting = await settingOf(ctx, offerId);
+  if (!setting.ok) return setting;
+  const { candidate, job, terms, language, employer, particulars } = setting.value;
   const drafted = await write(ctx, DRAFT, {
-    country: terms.value.country,
-    region: terms.value.region,
+    country: terms.country,
+    region: terms.region,
     language,
     role: job.title,
-    particulars: particularsFor(facts(EMPLOYER, EMPLOYEE)),
+    particulars: setting.value.masked,
   });
   if (!drafted.ok) {
     if (drafted.error.code === 'AI_OFF') return ok({ particulars, draft: null });
@@ -134,5 +150,71 @@ export async function draftContract(ctx: Ctx, offerId: string): Promise<Result<C
       toConfirm: toConfirm(body),
       figures: contractFigures(body, particulars),
     },
+  });
+}
+
+const Revised = z.object({
+  reply: z.string().min(1).max(600),
+  body: z.string().min(1).max(60_000),
+});
+
+const REVISE: PromptSpec<z.infer<typeof Revised>> = {
+  feature: 'writer',
+  version: 'contract-revise@1',
+  instruction: `You edit an employment contract for an employer in "country", in the language of "contract". Apply "instruction" to "contract" and return a JSON object {"reply":"","body":""}: "body" is the whole contract after the change, "reply" one or two sentences in the language of "instruction" saying what you changed, or why you did not. Change only what the instruction asks; keep every other clause word for word, and keep its numbering. Keep every figure, date and amount unless the instruction names the new one, and never change one that "particulars" gives: say so in "reply" instead. Keep [[EMPLOYER]], [[EMPLOYEE]] and every [[TO CONFIRM: …]] exactly as written, unless the instruction gives the value to confirm. Never write a signature block, a date line or any line that starts with "Signature" or "Signed".`,
+  answer: Revised,
+};
+
+export interface ContractRevision {
+  readonly reply: string;
+  readonly body: string;
+  readonly toConfirm: readonly string[];
+  readonly figures: readonly string[];
+}
+
+/**
+ * The contract, changed as somebody asked in words ("make the probation
+ * clause plainer"): the text they are editing, with the parties' names
+ * masked before the model reads it, as the draft is written.
+ */
+export async function reviseContract(
+  ctx: Ctx,
+  offerId: string,
+  body: string,
+  instruction: string,
+): Promise<Result<ContractRevision>> {
+  if (instruction.trim() === '' || body.trim() === '')
+    return err(failure('INVALID', 'Say what to change'));
+  const setting = await settingOf(ctx, offerId);
+  if (!setting.ok) return setting;
+  const { candidate, terms, employer, particulars } = setting.value;
+  const company = (await generalSettings(ctx)).companyName;
+  // Longest first, so a name inside another is not split.
+  const names = [
+    [candidate.name, EMPLOYEE],
+    [employer, EMPLOYER],
+    [company, EMPLOYER],
+  ]
+    .filter(([n]) => (n ?? '').trim().length > 1)
+    .toSorted((a, b) => (b[0] ?? '').length - (a[0] ?? '').length) as [string, string][];
+  const masked = names.reduce((text, [name, mark]) => text.replaceAll(name, mark), body);
+  const revised = await write(ctx, REVISE, {
+    country: terms.country,
+    particulars: setting.value.masked,
+    contract: masked,
+    instruction: instruction.slice(0, 2000),
+  });
+  if (!revised.ok) return revised;
+  const named = revised.value.body
+    .replaceAll(EMPLOYER, employer)
+    .replaceAll(EMPLOYEE, candidate.name)
+    .split('\n')
+    .filter((line) => !SIGN_LINE.test(line))
+    .join('\n');
+  return ok({
+    reply: revised.value.reply,
+    body: named,
+    toConfirm: toConfirm(named),
+    figures: contractFigures(named, particulars),
   });
 }

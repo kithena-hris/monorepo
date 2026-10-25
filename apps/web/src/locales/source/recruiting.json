@@ -591,6 +591,14 @@
     "text": "{{company}}, sent automatically",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: the sender of <Email>. Filled in: {{company}}."
   },
+  "candidate.condition_met": {
+    "text": "Met",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: text inside <Button>."
+  },
+  "candidate.condition_waive": {
+    "text": "Waive",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: text inside <Button>."
+  },
   "candidate.consent": {
     "text": "Consent",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
@@ -654,6 +662,46 @@
   "candidate.files": {
     "text": "Files",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: the items of <KeyValues>."
+  },
+  "candidate.first_day_conditions": {
+    "text": "Conditions",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: text inside <h3>."
+  },
+  "candidate.first_day_documents": {
+    "text": "Ask for a document",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: a \"label\" value."
+  },
+  "candidate.first_day_hint": {
+    "text": "What is left before {{name}} starts, and where to ask them for anything more.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: the description of <Section>. Filled in: {{name}}."
+  },
+  "candidate.first_day_hint_dated": {
+    "text": "What is left before {{name}} starts on {{date}}, and where to ask them for anything more.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: the description of <Section>. Filled in: {{name}}, {{date}}."
+  },
+  "candidate.first_day_more": {
+    "text": "Ask for more",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: text inside <h3>."
+  },
+  "candidate.first_day_more_hint": {
+    "text": "The sign-up page asks for the fields People collects at sign-up; anything else, ask for as a document or a task in their onboarding plan.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: text inside <p>."
+  },
+  "candidate.first_day_plan": {
+    "text": "Onboarding plan",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: a \"label\" value."
+  },
+  "candidate.first_day_profile": {
+    "text": "Their profile",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: a \"label\" value."
+  },
+  "candidate.first_day_signup": {
+    "text": "What sign-up asks",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: a \"label\" value."
+  },
+  "candidate.first_day_title": {
+    "text": "Before the first day",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, FirstDay: the title of <Section>."
   },
   "candidate.from_to_now": {
     "text": "{{value}} – now · “{{passage}}”",
@@ -5266,6 +5314,42 @@
   "offers.remote": {
     "text": "Remote",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <SegmentedControlItem>."
+  },
+  "offers.revise_ai": {
+    "text": "AI",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: text built in code."
+  },
+  "offers.revise_conversation": {
+    "text": "Changes asked",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: the label of <ChatLog>."
+  },
+  "offers.revise_hint": {
+    "text": "Ask for a change in words: the AI rewrites the contract and says what it changed. Names stay out of what it reads.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: text inside <p>."
+  },
+  "offers.revise_label": {
+    "text": "What to change",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: the label of <ChatComposer>."
+  },
+  "offers.revise_placeholder": {
+    "text": "Make the probation clause plainer, or add a clause on working from home…",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: the placeholder of <ChatComposer>."
+  },
+  "offers.revise_title": {
+    "text": "Change it by asking",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: text inside <h3>."
+  },
+  "offers.revise_undo": {
+    "text": "Undo the last change",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: text inside <Button>."
+  },
+  "offers.revise_undone": {
+    "text": "Taken back: the text is as it was.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: the onClick of <Button>."
+  },
+  "offers.revise_you": {
+    "text": "You",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, ReviseChat: the author of <ChatMessage>."
   },
   "offers.rules_that_applied_n": {
     "text": "Rules that applied ({{count}})",
