@@ -237,7 +237,7 @@ const RELATIONSHIPS: readonly Choice[] = withNotes(
 );
 
 /** What each contract means in the United States, in a line beside the choice. */
-const NOTE: Readonly<Record<string, string>> = {
+export const NOTE: Readonly<Record<string, string>> = {
   at_will_full_time:
     'Either side may end it at any time for any lawful reason; Montana requires good cause after the probationary period.',
   at_will_part_time:

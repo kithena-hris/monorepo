@@ -73,6 +73,7 @@ import { askApprovers } from './chat.js';
 import { emailFor, emailValues } from './emails.js';
 import { loadApplication, render, sendNow, worksCouncilCleared, type Loaded } from './moves.js';
 import { appUrl, inboxTask, tellMembers } from './notify.js';
+import { contractNote } from './pack-notes.js';
 import { generalSettings } from './setup.js';
 import type { ApplicationRecord, Candidate, JobRecord } from './ports.js';
 import { reportingOf } from './requisitions.js';
@@ -881,12 +882,15 @@ async function offerLaw(ctx: Ctx, offer: Offer, job: JobRecord): Promise<OfferLa
   const resolved = await resolvedTermsOf(ctx, offer, job, version.startDate);
   const type = pack.contractTypes(answers, entity).find((t) => t.key === answers.contractType);
   const relationship = pack.relationships().find((r) => r.key === answers.relationship);
+  // What the contract means, in the words the candidate's emails are written in.
+  const { t } = await mailWords(ctx);
+  const about = type === undefined ? null : contractNote(t, entity.country, type.key);
   return {
     country: entity.country,
     region: answers.region ?? null,
     contractType: answers.contractType ?? null,
     contract: type === undefined ? null : ownName(type.label),
-    about: type?.note || relationship?.note || null,
+    about: about ?? (type?.note || relationship?.note || null),
     relationship: relationship === undefined ? null : ownName(relationship.label),
     terms: resolved.ok ? resolved.value : null,
     leave: pack.minimumLeave(answers, 5),

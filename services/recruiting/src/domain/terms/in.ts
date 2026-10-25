@@ -61,7 +61,7 @@ const RELATIONSHIPS: readonly Choice[] = withNotes(
 );
 
 /** What each contract means in India, in a line beside the choice. */
-const NOTE: Readonly<Record<string, string>> = {
+export const NOTE: Readonly<Record<string, string>> = {
   permanent:
     'Open-ended, under the state’s standing orders. Gratuity after five years of continuous service.',
   fixed_term:

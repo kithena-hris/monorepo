@@ -63,7 +63,7 @@ const RELATIONSHIPS: readonly Choice[] = withNotes(
 );
 
 /** What each contract means in Spain, in a line beside the choice. */
-const NOTE: Readonly<Record<string, string>> = {
+export const NOTE: Readonly<Record<string, string>> = {
   indefinido:
     'Open-ended, the rule since the 2021 labour reform. Full or part time by the hours you set.',
   fijo_discontinuo:
