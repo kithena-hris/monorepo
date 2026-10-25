@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   Button,
+  Card,
   DataTable,
   type DataColumn,
   Dialog,
@@ -218,20 +219,20 @@ function UndoBar({
   }, [undo]);
   if (undo === null || left <= 0) return null;
   return (
-    <div
-      role="status"
-      className="flex items-center gap-3 rounded-2xl bg-[var(--reach-surface-raised)] p-3 shadow-lg"
-    >
-      <span className="flex-1">
-        {t('pipeline.moved_to', '{{name}} moved to {{stage}}', {
-          name: undo.name,
-          stage: undo.stage,
-        })}
-      </span>
-      <Button size="sm" variant="secondary" onClick={onUndo}>
-        {t('pipeline.undo_s', 'Undo · {{left}} s', { left: String(left) })}
-      </Button>
-    </div>
+    // A raised card, solid like every other surface: the bar floats over the board, never shows it through.
+    <Card padded role="status">
+      <div className="flex items-center gap-3">
+        <span className="flex-1">
+          {t('pipeline.moved_to', '{{name}} moved to {{stage}}', {
+            name: undo.name,
+            stage: undo.stage,
+          })}
+        </span>
+        <Button size="sm" variant="secondary" onClick={onUndo}>
+          {t('pipeline.undo_s', 'Undo · {{left}} s', { left: String(left) })}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

@@ -102,6 +102,16 @@ export interface ChatMessageProps extends ComponentPropsWithoutRef<'div'> {
   /** Still being written: three dots, and "Writing" said aloud. */
   readonly pending?: boolean;
   /**
+   * The author's name shown above the bubble, not only said aloud: for a
+   * thread with more than two people, or one the reader is not part of.
+   */
+  readonly named?: boolean;
+  /**
+   * Your side in the accent's wash rather than solid: for long messages, such
+   * as a team's emails, that read better dark on light.
+   */
+  readonly soft?: boolean;
+  /**
    * Not delivered yet, or failed to send. Your own bubble drops to the accent
    * wash rather than fading, so the text keeps its contrast; say which in `meta`.
    */
@@ -119,6 +129,8 @@ export function ChatMessage({
   avatarSrc,
   continued = false,
   pending = false,
+  named = false,
+  soft = false,
   unsent = false,
   meta,
   footer,
@@ -160,6 +172,11 @@ export function ChatMessage({
           self ? 'items-end' : 'items-start',
         )}
       >
+        {named && speaker !== undefined ? (
+          <span aria-hidden className="px-1.5 text-xs font-medium text-fg-muted">
+            {speaker}
+          </span>
+        ) : null}
         <div
           className={cn(
             'rounded-[1.25rem] px-3.5 py-2.5 text-[0.875rem] leading-snug text-pretty break-words whitespace-pre-line',
@@ -167,7 +184,11 @@ export function ChatMessage({
             // The tail: the corner nearest the speaker is tucked in.
             self ? 'rounded-ee-md' : 'rounded-es-md bg-surface-sunken text-fg',
             self &&
-              (unsent ? 'bg-accent-subtle text-accent-fg' : 'bg-accent-solid text-fg-on-accent'),
+              (unsent
+                ? 'bg-accent-subtle text-accent-fg'
+                : soft
+                  ? 'bg-accent-subtle text-fg'
+                  : 'bg-accent-solid text-fg-on-accent'),
           )}
         >
           {speaker ? <span className="sr-only">{speaker}: </span> : null}

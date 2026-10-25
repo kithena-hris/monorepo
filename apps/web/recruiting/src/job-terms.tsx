@@ -269,7 +269,7 @@ export function AgreementFields({
               size="sm"
               variant="secondary"
               onClick={() => {
-                onNavigate('/recruiting/settings/pay');
+                onNavigate('/settings/recruiting/pay');
               }}
             >
               {tr('job-terms.open_settings', 'Open Settings')}

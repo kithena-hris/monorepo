@@ -21,6 +21,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  ChatDivider,
   ChatLog,
   ChatMessage,
   Chip,
@@ -31,6 +32,8 @@ import {
   FieldLabel,
   Input,
   KeyValues,
+  List,
+  ListItem,
   PageHeader,
   SegmentedControl,
   SegmentedControlItem,
@@ -48,7 +51,7 @@ import {
   ModalPageHeader,
   Stepper,
 } from '@reach/ui';
-import { useEffect, useState, type JSX, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type JSX, type ReactNode } from 'react';
 
 import { Loaded } from './load';
 import {
@@ -675,6 +678,67 @@ function References({
   );
 }
 
+/**
+ * One email in the thread: who sent it above the bubble, the subject, and a
+ * long body folded to its first lines until asked for. The candidate's on the
+ * left, the team's on the right, each with a face.
+ */
+function Email({
+  message: m,
+  sender,
+  face,
+}: {
+  readonly message: CandidateData['messages'][number];
+  readonly sender: string;
+  /** Whose face it wears: the person who wrote it, or the company for one sent on its own. */
+  readonly face: string;
+}): JSX.Element {
+  const [whole, setWhole] = useState(false);
+  const long = m.body.length > 320 || m.body.split('\n').length > 6;
+  return (
+    <ChatMessage
+      from={m.direction === 'out' ? 'self' : 'other'}
+      author={sender}
+      named
+      soft
+      avatar={<Avatar name={face} size="sm" className="size-7 text-[0.625rem]" />}
+      unsent={m.direction === 'out' && m.sentAt === null}
+      meta={
+        m.direction === 'out'
+          ? m.sentAt === null
+            ? tr('candidate.sends', 'Sends {{sendAt}}', { sendAt: when(m.sendAt) })
+            : tr('candidate.sent', 'Sent {{sentAt}}', { sentAt: when(m.sentAt) })
+          : tr('candidate.received', 'Received {{createdAt}}', { createdAt: when(m.createdAt) })
+      }
+      {...(long
+        ? {
+            footer: (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-expanded={whole}
+                onClick={() => {
+                  setWhole(!whole);
+                }}
+              >
+                {whole
+                  ? tr('candidate.show_less', 'Show less')
+                  : tr('candidate.show_the_whole_email', 'Show the whole email')}
+              </Button>
+            ),
+          }
+        : {})}
+    >
+      <span className="block font-semibold">{m.subject}</span>
+      <span
+        className={`block whitespace-pre-wrap [overflow-wrap:anywhere] ${long && !whole ? 'line-clamp-5' : ''}`}
+      >
+        {m.body}
+      </span>
+    </ChatMessage>
+  );
+}
+
 function Messages({
   data,
   application,
@@ -688,6 +752,8 @@ function Messages({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [intent, setIntent] = useState('');
+  // The form opens when there is something to write, so the thread is what the section shows.
+  const [writing, setWriting] = useState(false);
   const can = application.may.includes('candidate.message');
   return (
     <div className="flex flex-col gap-4">
@@ -700,139 +766,168 @@ function Messages({
             'Emails to and from the candidate land here; replies arrive on the thread.',
           )}
         />
-      ) : null}
-      {data.messages.length === 0 ? null : (
+      ) : (
         // A thread, as a mail app shows one: the newest at the bottom, in view; the rest a scroll up.
         <ChatLog
           label={tr('candidate.emails_with', 'Emails with {{name}}', { name: data.candidate.name })}
-          className="max-h-[28rem] pe-1"
+          className="max-h-[32rem] pe-1"
         >
-          {data.messages.map((m) => (
-            <ChatMessage
-              key={m.id}
-              from={m.direction === 'out' ? 'self' : 'other'}
-              author={
-                m.direction === 'out' ? tr('candidate.the_team', 'The team') : data.candidate.name
-              }
-              // A face on both sides: the team's emails on the right, the candidate's replies on the left.
-              avatar={
-                <Avatar
-                  name={
-                    m.direction === 'out'
-                      ? tr('candidate.the_team', 'The team')
-                      : data.candidate.name
+          {data.messages.map((m, i) => {
+            const at = m.direction === 'out' ? (m.sentAt ?? m.sendAt) : m.createdAt;
+            const before = data.messages[i - 1];
+            const beforeAt =
+              before === undefined
+                ? null
+                : before.direction === 'out'
+                  ? (before.sentAt ?? before.sendAt)
+                  : before.createdAt;
+            return (
+              <Fragment key={m.id}>
+                {beforeAt !== null && day(beforeAt) === day(at) ? null : (
+                  <ChatDivider>{day(at)}</ChatDivider>
+                )}
+                <Email
+                  message={m}
+                  face={
+                    m.direction === 'in'
+                      ? data.candidate.name
+                      : m.fromPerson == null
+                        ? (data.company ?? tr('candidate.the_company', 'The company'))
+                        : (data.names?.[m.fromPerson] ??
+                          data.company ??
+                          tr('candidate.the_company', 'The company'))
                   }
-                  size="sm"
-                  className="size-7 text-[0.625rem]"
+                  sender={
+                    m.direction === 'in'
+                      ? data.candidate.name
+                      : m.fromPerson == null
+                        ? tr('candidate.company_automatically', '{{company}}, sent automatically', {
+                            company: data.company ?? tr('candidate.the_company', 'The company'),
+                          })
+                        : tr('candidate.person_at_company', '{{person}}, {{company}}', {
+                            person:
+                              data.names?.[m.fromPerson] ??
+                              data.company ??
+                              tr('candidate.the_company', 'The company'),
+                            company: data.company ?? tr('candidate.the_company', 'The company'),
+                          })
+                  }
                 />
-              }
-              unsent={m.direction === 'out' && m.sentAt === null}
-              meta={
-                m.direction === 'out'
-                  ? m.sentAt === null
-                    ? tr('candidate.sends', 'Sends {{sendAt}}', { sendAt: when(m.sendAt) })
-                    : tr('candidate.sent', 'Sent {{sentAt}}', { sentAt: when(m.sentAt) })
-                  : tr('candidate.received', 'Received {{createdAt}}', {
-                      createdAt: when(m.createdAt),
-                    })
-              }
-            >
-              <span className="block font-semibold">{m.subject}</span>
-              <span className="block whitespace-pre-wrap [overflow-wrap:anywhere]">{m.body}</span>
-            </ChatMessage>
-          ))}
+              </Fragment>
+            );
+          })}
         </ChatLog>
       )}
-      {can ? (
-        <Card padded>
-          <div className="flex flex-col gap-3">
-            <Refusal error={act.error} />
-            <div className="flex flex-wrap items-end gap-2">
-              <Field className="min-w-0 flex-1">
-                <FieldLabel>{tr('candidate.draft_it_for_me', 'Draft it for me')}</FieldLabel>
-                <FieldControl>
-                  <Input
-                    value={intent}
-                    placeholder={tr(
-                      'candidate.invite_to_a_second_interview_next',
-                      'Invite to a second interview next week',
-                    )}
-                    onChange={(e) => {
-                      setIntent(e.target.value);
-                    }}
-                  />
-                </FieldControl>
-              </Field>
-              <Button
-                variant="secondary"
-                loading={act.pending}
-                disabled={intent.trim() === ''}
-                onClick={() => {
-                  act.run(
-                    'DraftEmail',
-                    {
-                      applicationId: application.applicationId,
-                      input: { intent },
-                    },
-                    (d) => {
-                      const draft = d as { subject: string; body: string };
-                      setSubject(draft.subject);
-                      setBody(draft.body);
-                    },
-                  );
-                }}
-              >
-                {tr('candidate.draft', 'Draft')}
-              </Button>
-            </div>
-            <Field required>
-              <FieldLabel>{tr('candidate.subject', 'Subject')}</FieldLabel>
+      {!can ? null : writing ? (
+        <div className="flex flex-col gap-3 border-t border-border pt-4">
+          <Refusal error={act.error} />
+          <div className="flex flex-wrap items-end gap-2">
+            <Field className="min-w-0 flex-1">
+              <FieldLabel>{tr('candidate.draft_it_for_me', 'Draft it for me')}</FieldLabel>
               <FieldControl>
                 <Input
-                  value={subject}
+                  value={intent}
+                  placeholder={tr(
+                    'candidate.invite_to_a_second_interview_next',
+                    'Invite to a second interview next week',
+                  )}
                   onChange={(e) => {
-                    setSubject(e.target.value);
+                    setIntent(e.target.value);
                   }}
                 />
               </FieldControl>
             </Field>
-            <Field required>
-              <FieldLabel>{tr('candidate.message', 'Message')}</FieldLabel>
-              <FieldControl>
-                <Textarea
-                  rows={5}
-                  value={body}
-                  onChange={(e) => {
-                    setBody(e.target.value);
-                  }}
-                />
-              </FieldControl>
-            </Field>
-            <div className="flex justify-end">
-              <Button
-                startIcon={<icons.send aria-hidden />}
-                loading={act.pending}
-                disabled={subject.trim() === '' || body.trim() === ''}
-                onClick={() => {
-                  act.run(
-                    'SendMessage',
-                    {
-                      applicationId: application.applicationId,
-                      input: { subject, body, templateId: null },
-                    },
-                    () => {
-                      setSubject('');
-                      setBody('');
-                    },
-                  );
-                }}
-              >
-                {tr('candidate.send', 'Send')}
-              </Button>
-            </div>
+            <Button
+              variant="secondary"
+              loading={act.pending}
+              disabled={intent.trim() === ''}
+              onClick={() => {
+                act.run(
+                  'DraftEmail',
+                  {
+                    applicationId: application.applicationId,
+                    input: { intent },
+                  },
+                  (d) => {
+                    const draft = d as { subject: string; body: string };
+                    setSubject(draft.subject);
+                    setBody(draft.body);
+                  },
+                );
+              }}
+            >
+              {tr('candidate.draft', 'Draft')}
+            </Button>
           </div>
-        </Card>
-      ) : null}
+          <Field required>
+            <FieldLabel>{tr('candidate.subject', 'Subject')}</FieldLabel>
+            <FieldControl>
+              <Input
+                value={subject}
+                onChange={(e) => {
+                  setSubject(e.target.value);
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <Field required>
+            <FieldLabel>{tr('candidate.message', 'Message')}</FieldLabel>
+            <FieldControl>
+              <Textarea
+                rows={5}
+                value={body}
+                onChange={(e) => {
+                  setBody(e.target.value);
+                }}
+              />
+            </FieldControl>
+          </Field>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setWriting(false);
+              }}
+            >
+              {tr('candidate.cancel', 'Cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              startIcon={<icons.send aria-hidden />}
+              loading={act.pending}
+              disabled={subject.trim() === '' || body.trim() === ''}
+              onClick={() => {
+                act.run(
+                  'SendMessage',
+                  {
+                    applicationId: application.applicationId,
+                    input: { subject, body, templateId: null },
+                  },
+                  () => {
+                    setSubject('');
+                    setBody('');
+                    setWriting(false);
+                  },
+                );
+              }}
+            >
+              {tr('candidate.send', 'Send')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            startIcon={<icons.edit aria-hidden />}
+            onClick={() => {
+              setWriting(true);
+            }}
+          >
+            {tr('candidate.write_an_email', 'Write an email')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -961,6 +1056,51 @@ function Section({
 }
 
 /** A recommendation in words and a tone: what a scorecard said, at a glance. */
+/** Scorecards that are in: who scored, their recommendation, their average rating and when. */
+function Scorecards({
+  cards,
+  names,
+}: {
+  readonly cards: CandidateData['applications'][number]['scorecards'];
+  readonly names: Readonly<Record<string, string>>;
+}): JSX.Element | null {
+  if (cards.length === 0) return null;
+  return (
+    <List aria-label={tr('candidate.scorecards_in', 'Scorecards in')}>
+      {cards.map((c) => {
+        const ratings = Object.values(c.ratings);
+        const average =
+          ratings.length === 0 ? null : ratings.reduce((a, b) => a + b, 0) / ratings.length;
+        const name = names[c.interviewerId] ?? tr('candidate.an_interviewer', 'An interviewer');
+        return (
+          <ListItem
+            key={`${c.interviewId}:${c.interviewerId}`}
+            leading={<Avatar name={name} size="sm" />}
+            description={
+              average === null
+                ? tr('candidate.submitted_on', 'Submitted {{at}}', {
+                    at: when(c.submittedAt ?? ''),
+                  })
+                : tr(
+                    'candidate.rated_and_submitted',
+                    'Rated {{average}} of 5 across {{count}} · submitted {{at}}',
+                    {
+                      average: average.toFixed(1),
+                      count: String(ratings.length),
+                      at: when(c.submittedAt ?? ''),
+                    },
+                  )
+            }
+            trailing={<Recommendation value={c.recommendation} />}
+          >
+            {name}
+          </ListItem>
+        );
+      })}
+    </List>
+  );
+}
+
 function Recommendation({ value }: { readonly value: string | null }): JSX.Element {
   if (value === null)
     return (
@@ -1444,11 +1584,19 @@ export function Spotlight({
                           </span>
                           <StateBadge state={i.state} />
                         </div>
+                        {/* Every scorecard that is in, from the panel or not; then who still owes one. */}
+                        <Scorecards
+                          cards={cards.filter((c) => c.submittedAt !== null)}
+                          names={data.names ?? {}}
+                        />
                         <ul className="flex flex-wrap gap-2">
-                          {i.interviewerIds.map((person) => {
-                            const card = cards.find((c) => c.interviewerId === person);
-                            const done = card !== undefined && card.submittedAt !== null;
-                            return (
+                          {i.interviewerIds
+                            .filter((person) =>
+                              cards.every(
+                                (c) => c.interviewerId !== person || c.submittedAt === null,
+                              ),
+                            )
+                            .map((person) => (
                               <li
                                 key={person}
                                 className="flex items-center gap-2 rounded-control bg-surface-sunken py-1 ps-1 pe-2"
@@ -1457,24 +1605,28 @@ export function Spotlight({
                                 <span className="text-sm font-medium text-fg">
                                   {data.names?.[person] ?? ''}
                                 </span>
-                                {done ? (
-                                  <Recommendation value={card.recommendation} />
-                                ) : (
-                                  <span className="text-xs text-fg-muted">
-                                    {i.state === 'completed'
-                                      ? tr('candidate.scorecard_owed', 'Scorecard owed')
-                                      : tr('candidate.on_the_panel', 'On the panel')}
-                                  </span>
-                                )}
+                                <span className="text-xs text-fg-muted">
+                                  {i.state === 'completed'
+                                    ? tr('candidate.scorecard_owed', 'Scorecard owed')
+                                    : tr('candidate.on_the_panel', 'On the panel')}
+                                </span>
                               </li>
-                            );
-                          })}
+                            ))}
                         </ul>
                       </li>
                     );
                   })}
                 </ul>
               )}
+              {/* A scorecard for an interview no longer listed, a rebooked one, still counts. */}
+              <Scorecards
+                cards={chosen.scorecards.filter(
+                  (c) =>
+                    c.submittedAt !== null &&
+                    chosen.interviews.every((i) => i.id !== c.interviewId),
+                )}
+                names={data.names ?? {}}
+              />
             </div>
           </Section>
           <Section
@@ -1528,8 +1680,12 @@ export function Spotlight({
             id="messages"
             title={tr('candidate.messages_title', 'Messages')}
             description={tr(
-              'candidate.emails_with_the_candidate_replies_arrive',
-              'Emails with the candidate; replies arrive here.',
+              'candidate.emails_between',
+              'Emails between {{company}} and {{name}}: theirs on the left, the team’s on the right. Their replies arrive here.',
+              {
+                company: data.company ?? tr('candidate.the_company', 'The company'),
+                name: data.candidate.name,
+              },
             )}
           >
             <Messages data={data} application={chosen} props={props} />

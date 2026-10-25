@@ -517,9 +517,13 @@ export interface CandidateData {
     readonly createdAt: string;
     readonly applicationId: string | null;
   }[];
+  /** The company, as the candidate knows the sender of the team's emails. */
+  readonly company?: string;
   readonly messages: readonly {
     readonly id: string;
     readonly direction: 'out' | 'in';
+    /** Who on the team wrote it; null when Kithena sent it on the company's behalf. */
+    readonly fromPerson?: string | null;
     readonly subject: string;
     readonly body: string;
     readonly sendAt: string;
