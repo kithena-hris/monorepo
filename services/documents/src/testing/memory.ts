@@ -232,6 +232,12 @@ export function memoryWorld(): MemoryWorld {
         },
         forPerson: (p) =>
           [...s.envelopes.values()].filter((e) => e.signers.some((x) => x.personId === p)),
+        signedByEmail: (email) =>
+          [...s.envelopes.values()].filter(
+            (e) =>
+              e.status === 'completed' &&
+              e.signers.some((x) => x.email?.toLowerCase() === email.toLowerCase()),
+          ),
         byToken: (hash) => {
           for (const e of s.envelopes.values()) {
             const signer = e.signers.find((x) => x.tokenHash === hash);

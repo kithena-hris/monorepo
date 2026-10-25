@@ -604,6 +604,16 @@ function storesIn(tx: PostgresJsDatabase, tenantId: TenantId): Tx {
               AND s.person_id = ${p}::uuid) ORDER BY e.created_at DESC`,
           )
         ).map((r) => r['body'] as Envelope),
+      signedByEmail: async (email) =>
+        (
+          await rows(
+            tx,
+            sql`SELECT body FROM documents.envelope WHERE tenant_id = ${T} AND status = 'completed'
+              AND EXISTS (SELECT 1 FROM jsonb_array_elements(body->'signers') s
+                WHERE lower(s->>'email') = lower(${email}))
+              ORDER BY created_at DESC`,
+          )
+        ).map((r) => r['body'] as Envelope),
       async byToken(hash) {
         const [r] = await rows(
           tx,

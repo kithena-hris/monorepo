@@ -97,6 +97,16 @@ export function documentsConsumer(uow: UnitOfWork): (raw: unknown) => Promise<Ou
             event.eventId,
             dateOf(event),
           );
+          // A hire from Recruiting: the contract they signed as a candidate becomes a
+          // document about them, in their file and theirs to open once they sign up.
+          if (existing === null) {
+            for (const env of await tx.envelopes.signedByEmail(p.workEmail)) {
+              if (env.subjectRef?.startsWith('recruiting:offer:') !== true) continue;
+              const doc = await tx.documents.get(env.documentId);
+              if (doc === null || doc.subjectPersonId !== null) continue;
+              await tx.documents.save({ ...doc, subjectPersonId: p.personId });
+            }
+          }
           return wrote ? 'applied' : 'unchanged';
         });
       }
