@@ -302,6 +302,8 @@ type Mutation {
     """The REST body"""
     input: JSON!
   ): JSON
+  """Remove a collective agreement from the company’s list"""
+  removeAgreement(id: String!, idempotencyKey: String!): JSON
   """Remove a company benefit; statutory ones stay"""
   removeBenefit(id: String!, idempotencyKey: String!): JSON
   """S6: remove an empty benefit category of the company’s own"""
@@ -351,6 +353,15 @@ type Mutation {
   restoreBenefitLibrary(idempotencyKey: String!): JSON
   """R9: an agency and the jobs it may submit to"""
   saveAgency(
+    id: String!
+    idempotencyKey: String!
+    """The REST body"""
+    input: JSON!
+  ): JSON
+  """
+  A collective agreement the company hires under, with its professional groups
+  """
+  saveAgreement(
     id: String!
     idempotencyKey: String!
     """The REST body"""

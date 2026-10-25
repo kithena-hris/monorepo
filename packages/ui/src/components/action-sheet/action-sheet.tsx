@@ -140,7 +140,7 @@ export function ActionSheetContent({
     <DialogPrimitive.Portal container={container}>
       <DialogPrimitive.Overlay
         data-material="scrim"
-        className="fixed inset-0 z-50 bg-overlay data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out"
+        className="fixed inset-0 z-50 bg-overlay backdrop-blur-(--reach-overlay-blur) data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out"
       />
       <DialogPrimitive.Content
         // Radix warns about a dialog with no description unless told there is none.

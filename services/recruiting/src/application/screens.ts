@@ -1,4 +1,5 @@
 import { CATEGORY_ICONS } from '../domain/benefits/benefits.js';
+import { agreementsOf } from './agreements.js';
 import { catalogueOf, categoriesOf, everyCatalogue } from './catalogue.js';
 import { err, ok, type Result } from '@kithena/domain-kit';
 import type { InboxItem, Instant } from '@kithena/contracts';
@@ -643,6 +644,8 @@ export async function offerScreen(ctx: Ctx, offerId: string): Promise<Result<unk
     prehire: await ctx.tx.prehires.get(app.id),
     benefits: await catalogueOf(ctx, job.entityId),
     categories: await categoriesOf(ctx),
+    // The company's collective agreements in the entity's country, picked from on the offer.
+    agreements: entity === null ? [] : await agreementsOf(ctx, entity.country),
     bands: await ctx.tx.payBands.list(),
   });
 }
@@ -742,6 +745,7 @@ export async function settingsScreen(ctx: Ctx): Promise<unknown> {
     benefitCategories: await categoriesOf(ctx),
     categoryIcons: CATEGORY_ICONS,
     payBands: await ctx.tx.payBands.list(),
+    agreements: await agreementsOf(ctx),
     agencies: await ctx.tx.agencies.list(),
     careersDomain: await ctx.tx.public.careersDomain(),
     // Whether a company can have its own domain here at all (REC-136).

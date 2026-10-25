@@ -172,7 +172,10 @@ export function SpeedDial({
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal container={usePortalContainer()}>
         <div className="contents">
-          <div aria-hidden className="fixed inset-0 z-40 bg-overlay motion-safe:animate-fade-in" />
+          <div
+            aria-hidden
+            className="fixed inset-0 z-40 bg-overlay backdrop-blur-(--reach-overlay-blur) motion-safe:animate-fade-in"
+          />
           <PopoverPrimitive.Content
             side="top"
             align="end"

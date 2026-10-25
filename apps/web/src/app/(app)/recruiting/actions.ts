@@ -96,6 +96,8 @@ const WRITES = new Set<OperationName>([
   'SendOffer',
   'WithdrawOffer',
   'PrepareOffer',
+  'SaveAgreement',
+  'RemoveAgreement',
   'UploadSignedContract',
   'DecideCondition',
   'CancelPrehire',

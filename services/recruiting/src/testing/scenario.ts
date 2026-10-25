@@ -114,6 +114,7 @@ import { draftAd, draftEmail, suggestQuestions, translateAd } from '../applicati
 import { previewEmail, sendStageExpectations } from '../application/emails.js';
 import { jobTerms, saveJobTerms, suggestPay, termsCatalogue } from '../application/job-terms.js';
 import { setMyNotifications } from '../application/notify.js';
+import { saveAgreement } from '../application/agreements.js';
 import { jobsScreen, offerScreen, poolsScreen, recruitingInbox } from '../application/screens.js';
 import { receiveReply, replyAddress } from '../application/replies.js';
 import type { Listings, Blobs, Caller, Deps, UnitOfWork } from '../application/ports.js';
@@ -543,6 +544,8 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       await saveJobTerms(ctx, jobId, { entityId, locationId, workMode: 'onsite' }),
     );
     expect(where.options.relationships.map((r) => r.key)).toContain('employee');
+    // The region is the workplace's when the pack knows it.
+    if (where.options.regions.length > 0) expect(where.options.region).toBe(place.office.region);
     // Hybrid: days on site, set or of the person's choosing; never more set days than the week has.
     const hybrid = value(
       await saveJobTerms(ctx, jobId, {
@@ -662,6 +665,19 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
         contractType: lawful?.key ?? '',
       }),
     );
+    // An agreement is picked from the company's list in Settings, never typed on the job.
+    const agreed = value(
+      await saveAgreement(ctx, {
+        id: randomUUID(),
+        name: 'Convenio de consultoría',
+        country: place.country,
+        groups: ['Grupo 1', ' Grupo 1 '],
+      }),
+    );
+    expect(agreed).toMatchObject({ key: 'convenio_de_consultoria', groups: ['Grupo 1'] });
+    const madeUp = await saveJobTerms(ctx, jobId, { agreement: { key: 'made_up', group: null } });
+    expect(madeUp.ok ? null : madeUp.error.code).toBe('AGREEMENT');
+    value(await saveJobTerms(ctx, jobId, { agreement: { key: agreed.key, group: 'Grupo 1' } }));
   });
 
   // A knockout that rejects on its own: rejected, and told, the next working morning, not at once.
@@ -1494,6 +1510,13 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
       Math.round(((ad?.minMinor ?? 0) + (ad?.maxMinor ?? 0)) / 2),
     );
     expect(started.input.terms).toMatchObject({ workMode: 'onsite', weeklyMinutes: 5 * 7.5 * 60 });
+    // The region and the agreement the job carries go with it.
+    expect(started.input.terms.agreement).toEqual({
+      key: 'convenio_de_consultoria',
+      group: 'Grupo 1',
+    });
+    if (started.input.terms.region !== null)
+      expect(started.input.terms.region).toBe(place.office.region);
     expect(typeof started.input.terms.contractType).toBe('string');
     expect(started.input.terms.noticeEmployer).toBeDefined();
     expect(started.input.terms.annualPayMinor).toBe(started.input.pay.baseMinor);

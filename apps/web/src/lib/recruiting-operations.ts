@@ -259,6 +259,8 @@ export const OPERATIONS = {
   WithdrawOffer: write('WithdrawOffer', 'withdrawOffer', ...ID('offerId'), false),
   /** The open offer, or a new one drafted from the job. */
   PrepareOffer: write('PrepareOffer', 'prepareOffer', ...ID('applicationId'), false),
+  SaveAgreement: write('SaveAgreement', 'saveAgreement', ...ID('id')),
+  RemoveAgreement: write('RemoveAgreement', 'removeAgreement', ...ID('id'), false),
   UploadSignedContract: write('UploadSignedContract', 'uploadSignedContract', ...ID('offerId')),
   /** The contract drafted from the accepted offer and the law of the entity's country */
   DraftContract: write('DraftContract', 'draftContract', ...ID('offerId'), false),

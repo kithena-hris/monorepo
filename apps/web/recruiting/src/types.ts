@@ -332,6 +332,19 @@ export interface JobTerms {
   /** The setup's page last open. */
   readonly setupStep: string | null;
   readonly benefitIds: readonly string[];
+  /** A region from the country's list, where its law differs by region. */
+  readonly region?: string | null;
+  /** The collective agreement and group, from the company's list in Settings. */
+  readonly agreement?: { readonly key: string; readonly group: string | null } | null;
+}
+
+/** A collective agreement the company hires under, with its professional groups (Settings). */
+export interface Agreement {
+  readonly id: string;
+  readonly key: string;
+  readonly name: string;
+  readonly country: string;
+  readonly groups: readonly string[];
 }
 
 export interface TermsChoice {
@@ -385,6 +398,14 @@ export interface TermsOptions {
   /** Every category, built in and the company's own, with its icon. */
   readonly categories: readonly BenefitCategory[];
   readonly reviewed: boolean;
+  /** The country's regions, where its law differs by one. */
+  readonly regions?: readonly TermsChoice[];
+  /** The region the terms are read under: chosen, else the workplace's. */
+  readonly region?: string | null;
+  /** The company's collective agreements in the entity's country. */
+  readonly agreements?: readonly Agreement[];
+  /** The country's law asks for one. */
+  readonly agreementRequired?: boolean;
 }
 
 /** All of one country's terms the setup asks about, fetched once per country ahead of time. */
@@ -955,6 +976,8 @@ export interface OfferData {
   }[];
   /** The catalogue's categories, to group the benefits as the job does. */
   readonly categories?: readonly BenefitCategory[];
+  /** The company's collective agreements in the entity's country, to pick from. */
+  readonly agreements?: readonly Agreement[];
   readonly bands: readonly {
     readonly grade: string;
     readonly minMinor: number;
@@ -1236,6 +1259,8 @@ export interface SettingsData {
     readonly currency: string;
     readonly source: 'recruiting' | 'people';
   }[];
+  /** The collective agreements the company hires under, with their groups. */
+  readonly agreements?: readonly Agreement[];
   readonly agencies: readonly Agency[];
   /** The careers page on the company's own domain (REC-136). */
   readonly careersDomain: CareersDomain | null;
