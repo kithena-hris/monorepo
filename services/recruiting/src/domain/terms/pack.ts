@@ -135,6 +135,8 @@ export interface TermsPack {
   fixedTermReasons(answers: TermsAnswers): readonly Choice[];
   /** Whether the step asks "did they work here before?" */
   asksPreviousEmployment(answers: TermsAnswers): boolean;
+  /** The country's own questions the offer asks, as their answers' keys; none when absent. */
+  asks?(answers: TermsAnswers): readonly ('roleGroup' | 'exempt')[];
   agreementRequired(entity: EntityFacts): boolean;
   limits(answers: TermsAnswers, entity: EntityFacts, on: CalendarDate): Limits;
   paymentsPerYear(answers: TermsAnswers): readonly number[];

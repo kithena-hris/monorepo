@@ -17221,7 +17221,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34069,7 +34073,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -50917,7 +50925,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -67765,7 +67777,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -84989,7 +85005,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -102213,7 +102233,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -119061,7 +119085,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -136285,7 +136313,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -153133,7 +153165,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -170733,7 +170769,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -187957,7 +187997,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -205557,7 +205601,11 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -222405,6 +222453,10 @@
     "recruiting:candidate.rated_of_four": "6117e50a4223",
     "recruiting:candidate.results_in": "a996b3bec6e3",
     "recruiting:candidate.results_of": "16c77e7f41fc",
-    "recruiting:interviews.submit_once_begun": "32eeebf13a3b"
+    "recruiting:interviews.submit_once_begun": "32eeebf13a3b",
+    "recruiting:offers.exempt": "5f1c6963cdee",
+    "recruiting:offers.exempt_q": "53423471a3d9",
+    "recruiting:offers.qualified_technician": "bdb65b9a4771",
+    "recruiting:offers.qualified_technician_q": "1a975f9937bd"
   }
 }

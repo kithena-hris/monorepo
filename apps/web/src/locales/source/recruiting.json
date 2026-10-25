@@ -4907,6 +4907,14 @@
     "text": "Every check passes",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Checks: the title of <Alert>."
   },
+  "offers.exempt": {
+    "text": "Exempt from overtime",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the aria-label of <SegmentedControl>."
+  },
+  "offers.exempt_q": {
+    "text": "Exempt from overtime?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
+  },
   "offers.expires": {
     "text": "Expires",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, Offers: text inside <TableHead>."
@@ -5306,6 +5314,14 @@
   "offers.probation_and_notice": {
     "text": "Probation and notice",
     "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the title of <Group>."
+  },
+  "offers.qualified_technician": {
+    "text": "Qualified technician",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: the aria-label of <SegmentedControl>."
+  },
+  "offers.qualified_technician_q": {
+    "text": "Is the role for a qualified technician?",
+    "context": "Recruiting: jobs, candidates, interviews, offers. offers.tsx, OfferEditor: text inside <FieldLabel>."
   },
   "offers.read_and_confirm": {
     "text": "Read and confirm",

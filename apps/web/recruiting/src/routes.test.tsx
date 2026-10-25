@@ -1360,6 +1360,7 @@ describe('R19, the offer', () => {
       reasons: [],
       rules: [],
       asksPreviousEmployment: false,
+      asks: [],
       paymentsPerYear: [12],
     },
     approval: null,

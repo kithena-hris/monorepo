@@ -53,6 +53,16 @@ const spain: TermsAnswers = {
   paymentsPerYear: 14,
 };
 
+describe('the questions an offer asks for a country’s checks', () => {
+  it('asks Spain’s qualified technician and the US exemption, where their checks need them', () => {
+    expect(packFor('ES').asks?.(spain)).toEqual(['roleGroup']);
+    expect(packFor('ES').asks?.({ ...spain, contractType: 'autonomo' })).toEqual([]);
+    expect(packFor('US').asks?.({ relationship: 'employee' })).toEqual(['exempt']);
+    expect(packFor('US').asks?.({ relationship: 'contractor' })).toEqual([]);
+    expect(packFor('GB').asks?.({ relationship: 'employee' }) ?? []).toEqual([]);
+  });
+});
+
 describe('Spain (PRD §19.5)', () => {
   it.each<[string, TermsAnswers, readonly string[]]>([
     ['a permanent contract under an agreement', spain, []],
