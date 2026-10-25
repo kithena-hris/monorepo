@@ -418,6 +418,71 @@ function Scale({
   );
 }
 
+/**
+ * The meeting link when none was made for the interview (no calendar
+ * connected), or a new one: saving sends the candidate and the panel the
+ * invitation again with it.
+ */
+function MeetingLink({
+  current,
+  pending,
+  onSave,
+}: {
+  readonly current: string | null;
+  readonly pending: boolean;
+  readonly onSave: (videoUrl: string) => void;
+}): JSX.Element {
+  const [link, setLink] = useState(current ?? '');
+  const valid = /^https:\/\/\S+$/u.test(link.trim());
+  return (
+    <form
+      className="mt-4 flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valid) onSave(link.trim());
+      }}
+    >
+      <Field>
+        <FieldLabel>{tr('interviews.meeting_link', 'Meeting link')}</FieldLabel>
+        <FieldControl>
+          <Input
+            type="url"
+            inputMode="url"
+            placeholder="https://meet.google.com/…"
+            value={link}
+            onChange={(e) => {
+              setLink(e.target.value);
+            }}
+          />
+        </FieldControl>
+        <FieldDescription>
+          {current === null
+            ? tr(
+                'interviews.no_link_was_made_paste_one',
+                'No link was made for this interview. Paste one from Meet, Teams or Zoom; the candidate and the panel get the invitation again with it.',
+              )
+            : tr(
+                'interviews.change_the_link_invitation_again',
+                'Changing it sends the candidate and the panel the invitation again.',
+              )}
+        </FieldDescription>
+      </Field>
+      <div>
+        <Button
+          type="submit"
+          variant="secondary"
+          loading={pending}
+          disabled={!valid || link.trim() === current}
+        >
+          {current === null
+            ? tr('interviews.add_link_and_send', 'Add link and send')
+            : tr('interviews.update_link_and_send', 'Update link and send')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /** R15: what the interviewer opens, and the scorecard they fill as they go. */
 export function Kit(props: ScreenProps<KitData>): JSX.Element {
   return (
@@ -515,6 +580,16 @@ function KitBody({
                 </a>
               </div>
             )}
+            {data.schedules && i.state === 'scheduled' ? (
+              <MeetingLink
+                key={i.videoUrl ?? ''}
+                current={i.videoUrl}
+                pending={act.pending}
+                onSave={(videoUrl) => {
+                  act.run('SetInterviewLink', { interviewId: i.id, input: { videoUrl } });
+                }}
+              />
+            ) : null}
           </Card>
           <Card padded>
             <To href={`/recruiting/candidates/${data.candidate.id}`} onNavigate={props.onNavigate}>

@@ -35,6 +35,7 @@ import {
   scheduleInterview,
   scheduleScreen,
   selfScheduleLink,
+  setInterviewLink,
   setInterviewState,
   slotsFor,
 } from '../application/interviews.js';
@@ -922,6 +923,21 @@ export async function hireIn(h: Harness, place: Place): Promise<void> {
     'mailto:yuki@example.com',
   );
   expect(toYuki()?.text).not.toContain('BEGIN:VCALENDAR');
+  // No link was made for it: the team adds one, and the candidate's invitation comes again with it.
+  const linked = await asMailing('ada', async (ctx) =>
+    value(await setInterviewLink(ctx, bookedFromLink.id, 'https://meet.google.com/abc-defg-hij')),
+  );
+  expect(linked.videoUrl).toBe('https://meet.google.com/abc-defg-hij');
+  expect(toYuki()?.parts?.action?.href).toBe('https://meet.google.com/abc-defg-hij');
+  expect(
+    Buffer.from(
+      toYuki()?.attachments?.find((a) => a.filename === 'invite.ics')?.base64 ?? '',
+      'base64',
+    ).toString('utf8'),
+  ).toContain('LOCATION:https://meet.google.com/abc-defg-hij');
+  expect(
+    (await as('ada', (ctx) => setInterviewLink(ctx, bookedFromLink.id, 'not a link'))).ok,
+  ).toBe(false);
   expect(await choosing()).toEqual([]);
   // The interview already booked for this step was moved, not doubled.
   expect((await uow.run(tenantId, (tx) => tx.interviews.get(interviewId)))?.state).toBe(

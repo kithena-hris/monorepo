@@ -447,6 +447,7 @@ async function inviteTeam(
       organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
       stamp: ctx.at,
       cancelled,
+      sequence: sequenceAt(ctx.at),
       attendee,
     });
   const when = `${new Intl.DateTimeFormat(language, {
@@ -485,7 +486,7 @@ async function inviteTeam(
       to: email,
       subject,
       text,
-      dedupeKey: `interview:${interview.id}:${cancelled ? 'cancelled' : interview.startsAt}:${email}`,
+      dedupeKey: `interview:${interview.id}:${cancelled ? 'cancelled' : `${interview.startsAt}:${sha256(where ?? '').slice(0, 12)}`}:${email}`,
       // Already on their calendar when Kithena put it there; else the invitation to add.
       ...(onCalendar
         ? {}
@@ -554,6 +555,7 @@ async function invite(ctx: Ctx, interview: InterviewRecord, cancelled: boolean):
     organizerEmail: settings.replyAddress ?? 'no-reply@kithena.com',
     stamp: ctx.at,
     cancelled,
+    sequence: sequenceAt(ctx.at),
     attendee: { email: candidate.email, name: candidate.name },
   });
   const attachments = [inviteFile(invitation)];
@@ -1046,6 +1048,13 @@ export async function offerAvailability(
   return ok(ask);
 }
 
+/**
+ * The invitation's SEQUENCE: seconds since 1970, so each one sent replaces the
+ * one before in the calendar it was added to.
+ * ponytail: overflows a 32-bit SEQUENCE in 2038; a stored counter then.
+ */
+const sequenceAt = (at: string): number => Math.floor(Date.parse(at) / 1000);
+
 /** An invitation as the email's attachment: drawn by Gmail and Outlook as one, with Add to calendar. */
 const inviteFile = (text: string): MailAttachment => ({
   filename: 'invite.ics',
@@ -1183,6 +1192,32 @@ export async function requestMoreTimes(
     },
   );
   return ok(link);
+}
+
+/**
+ * The meeting link for a booked interview, when none was made for it (no
+ * calendar connected) or it changed: the candidate and the panel get the
+ * invitation again with it, replacing the one they have.
+ */
+export async function setInterviewLink(
+  ctx: Ctx,
+  interviewId: string,
+  videoUrl: string,
+): Promise<Result<InterviewRecord>> {
+  const interview = await ctx.tx.interviews.get(interviewId);
+  if (interview === null) return err(notFound('interview'));
+  const loaded = await loadApplication(ctx, interview.applicationId);
+  if (!loaded.ok) return loaded;
+  if (!may(ctx.viewer, loaded.value.facts, 'interview.schedule')) return err(forbidden());
+  if (interview.state !== 'scheduled')
+    return err(failure('NOT_SCHEDULED', 'Only a booked interview takes a meeting link'));
+  if (!/^https:\/\/\S+$/u.test(videoUrl))
+    return err(failure('LINK', 'A meeting link starts with https://'));
+  const next = { ...interview, videoUrl, place: null };
+  await ctx.tx.interviews.save(next);
+  await invite(ctx, next, false);
+  await inviteTeam(ctx, next, loaded.value.candidate.name, false);
+  return ok(next);
 }
 
 export async function setInterviewState(
@@ -1471,6 +1506,8 @@ export async function kit(
     job: { id: string; title: string };
     names: Readonly<Record<string, string>>;
     me: string;
+    /** Whether the viewer books it, so may give its meeting link. */
+    schedules: boolean;
   }>
 > {
   const person = asPerson(ctx);
@@ -1496,6 +1533,7 @@ export async function kit(
     job: { id: job?.id ?? '', title: job?.title ?? '' },
     names: await namesOf(ctx, interview.interviewerIds),
     me: person.value,
+    schedules: may(ctx.viewer, loaded.value.facts, 'interview.schedule'),
   });
 }
 

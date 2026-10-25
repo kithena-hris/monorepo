@@ -1347,6 +1347,10 @@
     "text": "A Meet link is made on the organiser’s calendar at booking and sent with the invitation.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, WhereFields: text inside <FieldDescription>."
   },
+  "interviews.add_link_and_send": {
+    "text": "Add link and send",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <Button>."
+  },
   "interviews.add_the_interviews_to_the_jobs": {
     "text": "Add the interviews to the job’s plan first.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the description of <EmptyState>."
@@ -1434,6 +1438,10 @@
   "interviews.candidates_book_you_inside_these_hours": {
     "text": "Candidates book you inside these hours, Monday to Friday, around anything on your connected calendar.",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, Hours: text inside <CardDescription>."
+  },
+  "interviews.change_the_link_invitation_again": {
+    "text": "Changing it sends the candidate and the panel the invitation again.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <FieldDescription>."
   },
   "interviews.choose_them_above": {
     "text": "Choose them above.",
@@ -1599,6 +1607,10 @@
     "text": "Mark dealt with",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, AskRow: text inside <Button>."
   },
+  "interviews.meeting_link": {
+    "text": "Meeting link",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <FieldLabel>."
+  },
   "interviews.microsoft_365": {
     "text": "Microsoft 365",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, PROVIDER: text built in code."
@@ -1634,6 +1646,10 @@
   "interviews.no_interviewers_yet": {
     "text": "No interviewers yet",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, ScheduleBody: the title of <EmptyState>."
+  },
+  "interviews.no_link_was_made_paste_one": {
+    "text": "No link was made for this interview. Paste one from Meet, Teams or Zoom; the candidate and the panel get the invitation again with it.",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <FieldDescription>."
   },
   "interviews.no_scorecard_on_this_interview_give": {
     "text": "No scorecard on this interview; give the overall recommendation.",
@@ -1926,6 +1942,10 @@
   "interviews.tone": {
     "text": "Tone: {{tone}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, DebriefBody: text inside <Badge>. Filled in: {{tone}}."
+  },
+  "interviews.update_link_and_send": {
+    "text": "Update link and send",
+    "context": "Recruiting: jobs, candidates, interviews, offers. interviews.tsx, MeetingLink: text inside <Button>."
   },
   "interviews.video_link": {
     "text": "Video link",
