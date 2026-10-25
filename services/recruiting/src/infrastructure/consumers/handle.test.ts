@@ -90,6 +90,14 @@ describe('a signed envelope from Documents', () => {
     expect(await consume(completed(null))).toBe('ignored');
     expect(await consume(completed('people:letter:abc'))).toBe('ignored');
     expect(await consume(completed('recruiting:offer:nobody:1'))).toBe('applied');
+    // Published before Documents named itself the actor: an outside signer or the seal as a user.
+    for (const userId of ['signer', 'system'])
+      expect(
+        await consume({
+          ...completed('recruiting:offer:nobody:1'),
+          actor: { kind: 'user', userId },
+        }),
+      ).toBe('applied');
   });
 
   it('changes nothing for a contract that was never sent, and is not applied without the use cases', async () => {
