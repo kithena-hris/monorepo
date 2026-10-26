@@ -13,7 +13,9 @@ import {
   ProbationReviewed,
   TenantAdministratorNamed,
   TenantAdministratorRemoved,
+  TenantAmended,
   TenantEntitlementsChanged,
+  TenantProvisioned,
   type EventDefinition,
   type EventEnvelope,
   type CalendarDate,
@@ -274,6 +276,25 @@ export function performanceConsumer(deps: Deps): (raw: unknown) => Promise<Outco
           named ? tx.admins.add(e.payload.accountId) : tx.admins.remove(e.payload.accountId),
         );
         return 'applied';
+      }
+      /*
+       * The label the company's app is served on, for the button in
+       * Performance's emails (`appUrl`). The newest wins, as entitlements do.
+       */
+      case TenantProvisioned.name:
+      case TenantAmended.name: {
+        const e =
+          name === TenantProvisioned.name
+            ? parse(TenantProvisioned, raw)
+            : parse(TenantAmended, raw);
+        if (!e) return 'rejected';
+        return deps.uow.run(e.tenantId, async (tx) => {
+          const kept = (await tx.settings.get('host')) as { asOf: string } | null;
+          if (kept !== null && Date.parse(kept.asOf) >= Date.parse(e.occurredAt))
+            return 'unchanged';
+          await tx.settings.set('host', { slug: e.payload.slug, asOf: e.occurredAt });
+          return 'applied';
+        });
       }
       case TenantEntitlementsChanged.name: {
         const e = parse(TenantEntitlementsChanged, raw);

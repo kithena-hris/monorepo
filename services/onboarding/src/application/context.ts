@@ -9,7 +9,7 @@ import {
 } from '@kithena/domain-kit';
 import type { CalendarDate, Instant } from '@kithena/contracts';
 
-import type { Caller, Deps, Member, Tx, MailWords } from './ports.js';
+import type { Caller, Deps, MailParts, Member, Tx, MailWords } from './ports.js';
 
 /**
  * What every use case starts from (ONB-008): who is asking, today, and the
@@ -25,6 +25,7 @@ export interface Outgoing {
   readonly subject: string;
   readonly text: string;
   readonly dedupeKey: string;
+  readonly parts?: MailParts;
 }
 
 export interface Roles {
@@ -158,6 +159,7 @@ export async function deliver(
         subject: m.subject,
         text: m.text,
         dedupeKey: m.dedupeKey,
+        ...(m.parts === undefined ? {} : { parts: m.parts }),
       });
     } catch {
       // ponytail: a lost welcome is retried by nothing; a delivery queue when one is missed.

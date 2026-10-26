@@ -31,7 +31,17 @@ import {
   type Review,
 } from '../domain/review.js';
 import { published, type Template } from '../domain/template.js';
-import { audit, event, hrOnly, names, notFound, publish, type Ctx, mailWords } from './context.js';
+import {
+  appUrl,
+  audit,
+  event,
+  hrOnly,
+  names,
+  notFound,
+  publish,
+  type Ctx,
+  mailWords,
+} from './context.js';
 import type { LiveChange } from './ports.js';
 import { people, subtitle, team, type Person } from './members.js';
 import { settingsOf } from './settings.js';
@@ -903,6 +913,7 @@ export async function remind(
     )
       authors.add(n.by);
   const members = await ctx.members();
+  const open = await appUrl(ctx, '/performance/reviews');
   for (const a of authors) {
     const email = members.find((m) => m.personId === a)?.workEmail;
     if (email)
@@ -910,10 +921,18 @@ export async function remind(
         to: email,
         subject: t('email.cycles.reminder', 'Reminder: {{name}}', { name: c.name }),
         text: t(
-          'email.cycles.hi_you_have_reviews_to_write',
-          'Hi {{name}}, you have reviews to write in {{name2}}. Open Kithena to continue.',
+          'email.cycles.hi_you_still_have_reviews',
+          'Hi {{name}}, you still have reviews to write in {{name2}}. HR sent this reminder; your drafts are where you left them.',
           { name: name(a), name2: c.name },
         ),
+        parts: {
+          facts: [{ label: t('email.cycles.cycle', 'Cycle'), value: c.name }],
+          ...(open === null
+            ? {}
+            : {
+                action: { label: t('email.cycles.open_my_reviews', 'Open my reviews'), href: open },
+              }),
+        },
         dedupeKey: `remind:${id}:${a}:${ctx.today}`,
         ...(c.reminders.chat ? {} : { chat: false as const }),
       });

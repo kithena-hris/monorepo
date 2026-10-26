@@ -193,6 +193,14 @@ export interface UnitOfWork {
   tenants(): Promise<readonly TenantId[]>;
 }
 
+export interface MailParts {
+  readonly heading?: string;
+  readonly facts?: readonly { readonly label: string; readonly value: string }[];
+  readonly action?: { readonly label: string; readonly href: string };
+  readonly steps?: readonly string[];
+  readonly note?: string;
+}
+
 export interface Mailer {
   send(message: {
     readonly tenantId: string;
@@ -206,6 +214,8 @@ export interface Mailer {
     readonly accountId?: string;
     /** Something for them to do, pushed at once, rather than news. */
     readonly urgent?: boolean;
+    /** What messaging lays out beside the words: a heading, facts, one button, what happens next. */
+    readonly parts?: MailParts;
   }): Promise<void>;
   /**
    * The company's language and this module's words in it: every email is
@@ -358,4 +368,6 @@ export interface Deps {
   readonly chat?: Chat;
   /** The tools a person may link, by source (`slack`, `github`); a tool without one is not offered. */
   readonly tools?: Readonly<Partial<Record<string, ToolConnector>>>;
+  /** The company's app, `https://{slug}.app.kithena.com`, for an email's button; none, no button. */
+  readonly appBase?: string;
 }

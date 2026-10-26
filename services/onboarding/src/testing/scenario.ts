@@ -48,7 +48,7 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   const tenantId = TenantId.parse(randomUUID());
   const hr = randomUUID();
   const people = { manager: randomUUID(), buddy: randomUUID(), it: randomUUID() };
-  const sent: { to: string; text: string }[] = [];
+  const sent: { to: string; link: string }[] = [];
   let today = '2026-10-15';
   const deps: Deps = {
     uow: h.uow,
@@ -59,7 +59,7 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
     jobsOrigin: 'https://jobs.example',
     mailer: {
       send: (m) => {
-        sent.push({ to: m.to, text: m.text });
+        sent.push({ to: m.to, link: m.parts?.action?.href ?? '' });
         return Promise.resolve();
       },
     },
@@ -173,7 +173,8 @@ export async function welcomeAndReview(h: Harness): Promise<void> {
   // The same handover again changes nothing.
   expect(await consume(envelope(CandidateHired.name, handover(applicationId)))).toBe('applied');
   expect((await h.events(tenantId)).map((e) => e.eventName)).toEqual(['onboarding.plan.started']);
-  const link = sent.find((m) => m.to === 'yuki@example.com')?.text ?? '';
+  // The welcome's button carries the hire's link.
+  const link = sent.find((m) => m.to === 'yuki@example.com')?.link ?? '';
   const token = /#(\S+)/u.exec(link)?.[1] ?? '';
   expect(token.startsWith(`${tenantId}.`)).toBe(true);
 

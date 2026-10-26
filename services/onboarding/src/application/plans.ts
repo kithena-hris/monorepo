@@ -21,7 +21,16 @@ import {
   type PlanTask,
 } from '../domain/plan.js';
 import { decideProbation } from '../domain/probation.js';
-import { event, forbidden, hrOnly, notFound, publish, type Ctx, mailWords } from './context.js';
+import {
+  event,
+  forbidden,
+  hrOnly,
+  mailWords,
+  nameOf,
+  notFound,
+  publish,
+  type Ctx,
+} from './context.js';
 import type { PlanRecord } from './ports.js';
 
 /**
@@ -42,7 +51,7 @@ async function holidaysOf(ctx: Ctx, country: string): Promise<ReadonlySet<string
 
 /** A hire from any source: one plan per hire, the same source id twice changes nothing but a moved start. */
 export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRecord>> {
-  const { t } = await mailWords(ctx);
+  const { t, language } = await mailWords(ctx);
   const known =
     (await ctx.tx.hires.bySource(hire.source, hire.externalId)) ??
     // People's event for somebody Recruiting already handed over: the same person.
@@ -109,6 +118,19 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
       plan.startDate,
     ),
   );
+  const manager = await nameOf(ctx, plan.managerId);
+  const firstDay = new Intl.DateTimeFormat(language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${plan.startDate}T00:00:00Z`));
+  // What the hire does before day one, in the plan's order: the email's steps.
+  const before = plan.tasks
+    .filter((x) => x.phase === 'before_start' && x.ownerRole === 'new_hire')
+    .slice(0, 4)
+    .map((x) => x.title.slice(0, 300));
   ctx.mail.push({
     to: hire.email,
     subject: t(
@@ -116,15 +138,42 @@ export async function intake(ctx: Ctx, hire: HireIntake): Promise<Result<PlanRec
       'Welcome: what happens before your first day',
     ),
     text: t(
-      'email.plans.hello_were_glad_youre_joining_us',
-      'Hello {{givenName}},\n\nWe’re glad you’re joining us on {{startDate}}. Your first days, who meets you and what to do beforehand are here:\n{{jobsOrigin}}/welcome#{{token}}\n\nThe link is yours alone; please don’t share it.',
-      {
-        givenName: hire.givenName,
-        startDate: plan.startDate,
-        jobsOrigin: ctx.deps.jobsOrigin,
-        token,
-      },
+      'email.plans.hello_glad_youre_joining',
+      'Hello {{givenName}},\n\nWe’re glad you’re joining us. Your welcome page has your first days, who meets you and what to do before you start; anything you fill in there reaches the right person on its own.',
+      { givenName: hire.givenName },
     ),
+    parts: {
+      heading: t('email.plans.welcome_name', 'Welcome, {{givenName}}', {
+        givenName: hire.givenName,
+      }),
+      facts: [
+        { label: t('email.plans.first_day', 'First day'), value: firstDay },
+        ...(manager === null
+          ? []
+          : [{ label: t('email.plans.your_manager', 'Your manager'), value: manager }]),
+        ...(plan.department === null
+          ? []
+          : [{ label: t('email.plans.team', 'Team'), value: plan.department }]),
+        ...(plan.location === null
+          ? []
+          : [{ label: t('email.plans.where', 'Where'), value: plan.location }]),
+      ],
+      action: {
+        label: t('email.plans.see_your_first_days', 'See your first days'),
+        href: `${ctx.deps.jobsOrigin}/welcome#${token}`,
+      },
+      steps: [
+        ...before,
+        t('email.plans.on_day_one_meets_you', 'On {{firstDay}}, {{who}} meets you', {
+          firstDay,
+          who: manager ?? t('email.plans.your_team', 'your team'),
+        }),
+      ],
+      note: t(
+        'email.plans.the_link_is_yours_alone',
+        'The link is yours alone; please don’t share it.',
+      ),
+    },
     dedupeKey: `onboarding:welcome:${plan.id}`,
   });
   return ok(plan);

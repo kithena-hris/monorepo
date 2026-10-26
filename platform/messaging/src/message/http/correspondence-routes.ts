@@ -61,7 +61,7 @@ const Request = z.object({
         .nullable()
         .optional(),
       facts: z
-        .array(z.object({ label: z.string().min(1).max(120), value: z.string().min(1).max(500) }))
+        .array(z.object({ label: z.string().max(120), value: z.string().max(500) }))
         .max(8)
         .optional(),
       action: z

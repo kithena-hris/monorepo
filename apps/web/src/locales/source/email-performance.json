@@ -1,43 +1,119 @@
 {
-  "email.cycles.hi_you_have_reviews_to_write": {
-    "text": "Hi {{name}}, you have reviews to write in {{name2}}. Open Kithena to continue.",
+  "email.cycles.cycle": {
+    "text": "Cycle",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/cycles.ts: a \"label\" value."
+  },
+  "email.cycles.hi_you_still_have_reviews": {
+    "text": "Hi {{name}}, you still have reviews to write in {{name2}}. HR sent this reminder; your drafts are where you left them.",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/cycles.ts: a \"text\" value. Filled in: {{name}}, {{name2}}."
+  },
+  "email.cycles.open_my_reviews": {
+    "text": "Open my reviews",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/cycles.ts: a \"label\" value."
   },
   "email.cycles.reminder": {
     "text": "Reminder: {{name}}",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/cycles.ts: a \"subject\" value. Filled in: {{name}}."
   },
+  "email.feedback.about": {
+    "text": "About",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
+  },
+  "email.feedback.asked_by": {
+    "text": "Asked by",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
+  },
   "email.feedback.asked_for_your_feedback": {
     "text": "{{name}} asked for your feedback",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"subject\" value. Filled in: {{name}}."
+  },
+  "email.feedback.by": {
+    "text": "By",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
+  },
+  "email.feedback.give_feedback": {
+    "text": "Give feedback",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
   },
   "email.feedback.on": {
     "text": " on {{topic}}",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"value\" value. Filled in: {{topic}}."
   },
+  "email.feedback.question": {
+    "text": "Question",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
+  },
+  "email.feedback.topic": {
+    "text": "Topic",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"label\" value."
+  },
   "email.feedback.would_like_your_feedback_answer_in": {
     "text": "{{name}} would like your feedback{{value}}. Answer in Kithena, under Performance › Feedback.",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/feedback.ts: a \"text\" value. Filled in: {{name}}, {{value}}."
+  },
+  "email.launch.about": {
+    "text": "About",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
+  "email.launch.cycle": {
+    "text": "Cycle",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
+  "email.launch.cycle_has_started": {
+    "text": "{{name}} has started",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"heading\" value. Filled in: {{name}}."
+  },
+  "email.launch.due": {
+    "text": "Due",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
   },
   "email.launch.due_a_review_in": {
     "text": "Due {{due}}: a review in {{name}}",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"subject\" value. Filled in: {{due}}, {{name}}."
   },
-  "email.launch.hi_has_started_your_reviews_are": {
-    "text": "Hi {{name}}, {{name2}} has started. Your reviews are in Kithena, under Performance › My reviews.",
+  "email.launch.first_due": {
+    "text": "First due",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
+  "email.launch.has_started_each_saves_as_you_go": {
+    "text": "Hi {{name}}, {{name2}} has started and you have reviews to write. Each one saves as you go, so you can start now and finish later.",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"text\" value. Filled in: {{name}}, {{name2}}."
   },
   "email.launch.hi_your_review_about_in_is": {
     "text": "Hi {{name}}, your review about {{name2}} in {{name3}} is due {{due}}.",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"text\" value. Filled in: {{name}}, {{name2}}, {{name3}}, {{due}}."
   },
+  "email.launch.open_my_reviews": {
+    "text": "Open my reviews",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
+  "email.launch.open_the_review": {
+    "text": "Open the review",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
   "email.launch.overdue_a_review_in": {
     "text": "Overdue: a review in {{name}}",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"subject\" value. Filled in: {{name}}."
   },
+  "email.launch.to_write": {
+    "text": "To write",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"label\" value."
+  },
+  "email.launch.you": {
+    "text": "You",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"value\" value."
+  },
   "email.launch.you_have_reviews_to_write": {
     "text": "You have reviews to write: {{name}}",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"subject\" value. Filled in: {{name}}."
+  },
+  "email.launch.your_draft_saves_as_you_write": {
+    "text": "Your draft saves as you write; submit it when it is ready.",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"note\" value."
+  },
+  "email.launch.your_self_review": {
+    "text": "Your self review",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/launch.ts: a \"value\" value."
   },
   "email.learning.cancelled": {
     "text": "Cancelled",
@@ -47,6 +123,10 @@
     "text": "Invitation",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"value\" value."
   },
+  "email.learning.join_online": {
+    "text": "Join online",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"label\" value."
+  },
   "email.learning.on_utc_is_cancelled": {
     "text": "{{title}} on {{when}} (UTC) is cancelled.",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"text\" value. Filled in: {{title}}, {{when}}."
@@ -54,6 +134,14 @@
   "email.learning.utc": {
     "text": "{{value}}: {{title}}, {{when}} UTC",
     "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"subject\" value. Filled in: {{value}}, {{title}}, {{when}}."
+  },
+  "email.learning.when": {
+    "text": "When",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"label\" value."
+  },
+  "email.learning.where": {
+    "text": "Where",
+    "context": "An email to an employee about performance reviews, feedback or learning sessions. application/learning.ts: a \"label\" value."
   },
   "email.learning.you_are_invited_to_on_utc": {
     "text": "You are invited to {{title}} on {{when}} (UTC){{value}}. The invitation is attached for your calendar.",

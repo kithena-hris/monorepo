@@ -5,7 +5,9 @@ import { logger } from '@kithena/telemetry';
 import { move, remindersFor, remindsOn, type Cycle } from '../domain/cycle.js';
 import { isSubmitted } from '../domain/review.js';
 import {
+  appUrl,
   contextOf,
+  dayIn,
   deliver,
   event,
   names,
@@ -147,7 +149,7 @@ export async function runLaunch(deps: Deps, tenantId: TenantId, cycleId: string)
 
 /** The last batch: every review shown at once, the cycle in progress, the writers told. */
 async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
-  const { t } = await mailWords(ctx);
+  const { t, language } = await mailWords(ctx);
   const reviews = await ctx.tx.reviews.find({ cycleId: c.id });
   for (const r of reviews) if (r.hidden) await ctx.tx.reviews.save({ ...r, hidden: false });
   const live = move(c, 'in_progress');
@@ -164,8 +166,11 @@ async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
   );
   const name = await names(ctx);
   const members = await ctx.members();
+  const open = await appUrl(ctx, '/performance/reviews');
   for (const author of new Set(reviews.map((r) => r.authorId))) {
     const email = members.find((m) => m.personId === author)?.workEmail;
+    const mine = reviews.filter((r) => r.authorId === author);
+    const first = mine.map((r) => r.due).toSorted()[0];
     if (email)
       ctx.mail.push({
         to: email,
@@ -175,10 +180,39 @@ async function reveal(ctx: Ctx, c: Cycle): Promise<void> {
           { name: c.name },
         ),
         text: t(
-          'email.launch.hi_has_started_your_reviews_are',
-          'Hi {{name}}, {{name2}} has started. Your reviews are in Kithena, under Performance › My reviews.',
+          'email.launch.has_started_each_saves_as_you_go',
+          'Hi {{name}}, {{name2}} has started and you have reviews to write. Each one saves as you go, so you can start now and finish later.',
           { name: name(author), name2: c.name },
         ),
+        parts: {
+          heading: t('email.launch.cycle_has_started', '{{name}} has started', { name: c.name }),
+          facts: [
+            {
+              label: t('email.launch.to_write', 'To write'),
+              value: mine
+                .map((r) =>
+                  r.kind === 'self'
+                    ? t('email.launch.your_self_review', 'Your self review')
+                    : name(r.subjectId),
+                )
+                .join(', ')
+                .slice(0, 500),
+            },
+            ...(first === undefined
+              ? []
+              : [
+                  {
+                    label: t('email.launch.first_due', 'First due'),
+                    value: dayIn(language, first),
+                  },
+                ]),
+          ],
+          ...(open === null
+            ? {}
+            : {
+                action: { label: t('email.launch.open_my_reviews', 'Open my reviews'), href: open },
+              }),
+        },
         dedupeKey: `launch:${c.id}:${author}`,
         ...(c.reminders.chat ? {} : { chat: false as const }),
       });
@@ -250,7 +284,7 @@ async function releaseOnDate(ctx: Ctx, c: Cycle): Promise<void> {
 
 /** The day's reminders (§8.4), once a day: before, on and after the deadline, by each cycle's rules. */
 async function dailyReminders(ctx: Ctx): Promise<void> {
-  const { t } = await mailWords(ctx);
+  const { t, language } = await mailWords(ctx);
   const last = (await ctx.tx.settings.get('reminders')) as { day?: string } | null;
   if (last?.day === ctx.today) return;
   await ctx.tx.settings.set('reminders', { day: ctx.today });
@@ -271,6 +305,8 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
       const days = Math.round((Date.parse(r.due) - Date.parse(ctx.today)) / 86_400_000);
       const due = remindsOn(rules.rules, days);
       const email = members.find((m) => m.personId === r.authorId)?.workEmail;
+      const on = dayIn(language, r.due);
+      const href = due && email ? await appUrl(ctx, `/performance/reviews/${r.id}`) : null;
       if (due && email)
         ctx.mail.push({
           to: email,
@@ -280,14 +316,31 @@ async function dailyReminders(ctx: Ctx): Promise<void> {
                   name: c.name,
                 })
               : t('email.launch.due_a_review_in', 'Due {{due}}: a review in {{name}}', {
-                  due: r.due,
+                  due: on,
                   name: c.name,
                 }),
           text: t(
             'email.launch.hi_your_review_about_in_is',
             'Hi {{name}}, your review about {{name2}} in {{name3}} is due {{due}}.',
-            { name: name(r.authorId), name2: name(r.subjectId), name3: c.name, due: r.due },
+            { name: name(r.authorId), name2: name(r.subjectId), name3: c.name, due: on },
           ),
+          parts: {
+            facts: [
+              {
+                label: t('email.launch.about', 'About'),
+                value: r.kind === 'self' ? t('email.launch.you', 'You') : name(r.subjectId),
+              },
+              { label: t('email.launch.cycle', 'Cycle'), value: c.name },
+              { label: t('email.launch.due', 'Due'), value: on },
+            ],
+            ...(href === null
+              ? {}
+              : { action: { label: t('email.launch.open_the_review', 'Open the review'), href } }),
+            note: t(
+              'email.launch.your_draft_saves_as_you_write',
+              'Your draft saves as you write; submit it when it is ready.',
+            ),
+          },
           dedupeKey: `reminder:${r.id}:${ctx.today}`,
           ...(rules.chat
             ? rules.email

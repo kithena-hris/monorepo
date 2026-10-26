@@ -134,12 +134,22 @@ export interface Mailer {
     readonly subject: string;
     readonly text: string;
     readonly dedupeKey: string;
+    readonly parts?: MailParts;
   }): Promise<void>;
   /**
    * The company's language and this module's words in it: every email is
    * written in the company's language, whatever its reader chose for screens.
    */
   words?(tenantId: string): Promise<MailWords>;
+}
+
+/** What messaging lays out beside the words: a heading, facts, one button, what happens next. */
+export interface MailParts {
+  readonly heading?: string;
+  readonly facts?: readonly { readonly label: string; readonly value: string }[];
+  readonly action?: { readonly label: string; readonly href: string };
+  readonly steps?: readonly string[];
+  readonly note?: string;
 }
 
 /** A language and this module's words for its emails in it. */

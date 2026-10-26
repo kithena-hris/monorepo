@@ -232,6 +232,104 @@ const UPDATE_WORDS: Readonly<
   ],
 };
 
+/**
+ * Each task topic's heading, button and what happens once it is done: the
+ * email says what the task is and where it leads, not only that one exists.
+ */
+const TASK_SHAPE: Readonly<
+  Record<
+    InboxTaskTopic,
+    (t: Words) => {
+      readonly heading: string;
+      readonly action: string;
+      readonly steps: readonly string[];
+    }
+  >
+> = {
+  details: (t) => ({
+    heading: t('notice.task.details.heading', 'A few details for your record'),
+    action: t('notice.task.details.action', 'Add the details'),
+    steps: [
+      t('notice.task.details.step_fill', 'Fill them in from your Inbox; it takes a minute or two'),
+      t('notice.task.details.step_reaches', 'They reach your record, and whoever asked is told'),
+    ],
+  }),
+  correction: (t) => ({
+    heading: t('notice.task.correction.heading', 'A detail to correct'),
+    action: t('notice.task.correction.action', 'Correct it'),
+    steps: [
+      t('notice.task.correction.step_see', 'See what was asked and why, in your Inbox'),
+      t('notice.task.correction.step_send', 'Send the corrected detail; it is checked again'),
+    ],
+  }),
+  document_sign: (t) => ({
+    heading: t('notice.task.document_sign.heading', 'A document to sign'),
+    action: t('notice.task.document_sign.action', 'Read and sign'),
+    steps: [
+      t(
+        'notice.task.document_sign.step_read',
+        'Read the document; nothing is signed until you say so',
+      ),
+      t('notice.task.document_sign.step_sign', 'Sign it, and everyone after you is asked in turn'),
+      t('notice.task.document_sign.step_copy', 'A signed copy is kept with your record'),
+    ],
+  }),
+  document_acknowledge: (t) => ({
+    heading: t('notice.task.document_acknowledge.heading', 'A document to read'),
+    action: t('notice.task.document_acknowledge.action', 'Read it'),
+    steps: [
+      t('notice.task.document_acknowledge.step_read', 'Read the document'),
+      t(
+        'notice.task.document_acknowledge.step_ack',
+        'Say you have read it; the date is kept with your record',
+      ),
+    ],
+  }),
+  document_countersign: (t) => ({
+    heading: t('notice.task.document_countersign.heading', 'A document to countersign'),
+    action: t('notice.task.document_countersign.action', 'Countersign'),
+    steps: [
+      t('notice.task.document_countersign.step_check', 'Check what they signed'),
+      t(
+        'notice.task.document_countersign.step_sign',
+        'Countersign, and everyone receives the completed copy',
+      ),
+    ],
+  }),
+  time_off_approval: (t) => ({
+    heading: t('notice.task.time_off_approval.heading', 'Time off to decide'),
+    action: t('notice.task.time_off_approval.action', 'Decide'),
+    steps: [
+      t(
+        'notice.task.time_off_approval.step_see',
+        'See the dates, their balance and who else is away then',
+      ),
+      t(
+        'notice.task.time_off_approval.step_decide',
+        'Approve or decline, with a note if you like; they hear at once',
+      ),
+    ],
+  }),
+  team_task: (t) => ({
+    heading: t('notice.task.team_task.heading', 'A task for your team'),
+    action: t('notice.task.team_task.action', 'See the task'),
+    steps: [
+      t('notice.task.team_task.step_take', 'Take it, so nobody else starts on it'),
+      t('notice.task.team_task.step_done', 'Do it from your Inbox; the team sees it is done'),
+    ],
+  }),
+};
+
+/** Each update topic's heading. */
+const UPDATE_HEADING: Readonly<Record<InboxUpdateTopic, (t: Words) => string>> = {
+  decided: (t) => t('notice.update.decided.heading', 'Your request was decided'),
+  answered: (t) => t('notice.update.answered.heading', 'You have an answer'),
+  document_shared: (t) => t('notice.update.document_shared.heading', 'A document for you'),
+  document_returned: (t) => t('notice.update.document_returned.heading', 'Your document came back'),
+  team_news: (t) => t('notice.update.team_news.heading', 'News about your team'),
+  calendar: (t) => t('notice.update.calendar.heading', 'Your calendar changed'),
+};
+
 /** A nudge's heading fits a subject line; its sentence or two fit a phone's screen. */
 export const NUDGE_HEADING_MAX = 120;
 export const NUDGE_LEDE_MAX = 600;
@@ -490,15 +588,17 @@ const COPY: {
   }),
   inbox_task: ({ topic }, company, t) => {
     const [subject, opening] = TASK_WORDS[topic](t, company);
+    const shape = TASK_SHAPE[topic](t);
     return {
       subject,
-      heading: t('notice.inbox_task.heading', 'Something needs you'),
+      heading: shape.heading,
       lede: t(
         'notice.inbox_task.lede',
         '{{opening}} It is in your Inbox at {{company}}, with everything you need to do it.',
         { opening, company },
       ),
-      action: t('notice.inbox_task.action', 'Open your Inbox'),
+      action: shape.action,
+      steps: shape.steps,
       footer: t(
         'notice.inbox_task.footer',
         'Sent by Kithena on behalf of {{company}}. Choose which tasks reach you by email in Settings, Notifications.',
@@ -510,7 +610,7 @@ const COPY: {
     const [subject, opening] = UPDATE_WORDS[topic](t, company);
     return {
       subject,
-      heading: t('notice.inbox_update.heading', 'An update for you'),
+      heading: UPDATE_HEADING[topic](t),
       lede: t(
         'notice.inbox_update.lede',
         '{{opening}} Nothing is owed; it is in your Inbox at {{company}}.',

@@ -18,6 +18,18 @@ describe('correspondence', () => {
     expect(r.value.text).toContain('1. Send their invitation');
   });
 
+  it('leaves out a fact with nothing to say', () => {
+    const r = renderCorrespondence('Feedback', 'Asked.', 'Acme', {
+      facts: [
+        { label: 'Topic', value: ' ' },
+        { label: 'Asked by', value: 'Ana Ruiz' },
+      ],
+    });
+    if (!r.ok) throw new Error('expected an email');
+    expect(r.value.text).toContain('Asked by: Ana Ruiz');
+    expect(r.value.text).not.toContain('Topic');
+  });
+
   it('tells a candidate to reply, and a member where they choose what reaches them', () => {
     const toCandidate = renderCorrespondence('Hello', 'Thanks.', 'Acme', parts);
     const toMember = renderCorrespondence('Hello', 'Thanks.', 'Acme', parts, undefined, {
