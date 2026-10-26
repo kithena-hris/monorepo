@@ -2115,6 +2115,114 @@
     "text": "Tomorrow morning",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/model.ts: a \"label\" value."
   },
+  "inbox.module-actions.acknowledged": {
+    "text": "Acknowledged",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: the onPress of <Button>."
+  },
+  "inbox.module-actions.add": {
+    "text": "Add",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <Button>."
+  },
+  "inbox.module-actions.approve_all": {
+    "text": "Approve all",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <Button>."
+  },
+  "inbox.module-actions.approved": {
+    "text": "Approved",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: the onPress of <Button>."
+  },
+  "inbox.module-actions.cancel": {
+    "text": "Cancel",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <Button>."
+  },
+  "inbox.module-actions.change": {
+    "text": "Change",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <Button>."
+  },
+  "inbox.module-actions.choose_a_file": {
+    "text": "Choose a file",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <ActionSheetItem>."
+  },
+  "inbox.module-actions.decline": {
+    "text": "Decline",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: the accessibilityLabel of <Button>."
+  },
+  "inbox.module-actions.decline_the_unlock": {
+    "text": "Decline the unlock",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <DialogTitle>."
+  },
+  "inbox.module-actions.declined": {
+    "text": "Declined",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text built in code."
+  },
+  "inbox.module-actions.do_it": {
+    "text": "Do it",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, OnboardingActions: text inside <Button>."
+  },
+  "inbox.module-actions.done": {
+    "text": "Done: {{title}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, OnboardingActions: the onPress of <Button>. Filled in: {{title}}."
+  },
+  "inbox.module-actions.grant": {
+    "text": "Grant",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <Button>."
+  },
+  "inbox.module-actions.granted": {
+    "text": "Granted",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text built in code."
+  },
+  "inbox.module-actions.ive_read_it": {
+    "text": "I’ve read it",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <Button>."
+  },
+  "inbox.module-actions.mark_done": {
+    "text": "Mark done",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, OnboardingActions: text inside <Button>."
+  },
+  "inbox.module-actions.read": {
+    "text": "Read",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <Button>."
+  },
+  "inbox.module-actions.reason": {
+    "text": "Reason",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: the placeholder of <Textarea>."
+  },
+  "inbox.module-actions.refuse": {
+    "text": "Refuse",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <Button>."
+  },
+  "inbox.module-actions.refused": {
+    "text": "Refused",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text built in code."
+  },
+  "inbox.module-actions.scan_it": {
+    "text": "Scan it",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text inside <ActionSheetItem>."
+  },
+  "inbox.module-actions.sent_your": {
+    "text": "Sent your {{name}}",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: text built in code. Filled in: {{name}}."
+  },
+  "inbox.module-actions.that_did_not_work": {
+    "text": "That did not work",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, DocumentsActions: a \"title\" value."
+  },
+  "inbox.module-actions.they": {
+    "text": "They",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text built in code."
+  },
+  "inbox.module-actions.unlock": {
+    "text": "Unlock",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <Button>."
+  },
+  "inbox.module-actions.unlocked": {
+    "text": "Unlocked",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text built in code."
+  },
+  "inbox.module-actions.who_sees_your_reason": {
+    "text": "{{who}} sees your reason.",
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, PerformanceActions: text inside <DialogDescription>. Filled in: {{who}}."
+  },
   "inbox.notifications.a_daily_digest_at": {
     "text": "A daily digest at {{digestAt}}",
     "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/notifications.tsx, NotificationSettings: the description of <ListItem>. Filled in: {{digestAt}}."
@@ -2589,7 +2697,7 @@
   },
   "inbox.task-card.that_did_not_work": {
     "text": "That did not work",
-    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/task-card.tsx, useInboxWrite: a \"title\" value."
+    "context": "Kithena’s phone app: People, Time Off, the Inbox, Documents, Recruiting, Onboarding and Performance, on a phone. inbox/module-actions.tsx, useInboxWrite: a \"title\" value."
   },
   "inbox.task-card.type_your_full_name_to_sign": {
     "text": "Type your full name to sign",

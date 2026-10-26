@@ -70,6 +70,7 @@ import { ask, formInputs, useSigned, type Signed } from '../people/api';
 import { shareBase64 } from '../people/media';
 import type { PeopleRoutes, PeopleScreen } from '../people/routes';
 import { changeInbox, readInbox, useInbox } from './api';
+import { ModuleActions } from './module-actions';
 import { RowBadges } from './row-badges';
 import {
   days,
@@ -543,15 +544,24 @@ function plain({ item, signed, navigation }: BodyArgs): Body {
   return {
     content: item.summary === null ? null : <Text tone="muted">{item.summary}</Text>,
     foot: (
-      <Button
-        className="flex-1"
-        startIcon={<Icon icon={ArrowUpRight} />}
-        onPress={() => {
+      <ModuleActions
+        item={item}
+        navigation={navigation}
+        open={() => {
           openIn(signed, navigation, item);
         }}
-      >
-        {t('inbox.item.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
-      </Button>
+        fallback={
+          <Button
+            className="flex-1"
+            startIcon={<Icon icon={ArrowUpRight} />}
+            onPress={() => {
+              openIn(signed, navigation, item);
+            }}
+          >
+            {t('inbox.item.open_in', 'Open in {{openIn}}', { openIn: item.openIn })}
+          </Button>
+        }
+      />
     ),
   };
 }

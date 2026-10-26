@@ -34,7 +34,8 @@ import { changeInbox, useInbox } from './api';
 import { tasksOf, todoBrief, updatesBrief, updatesOf } from './brief';
 import { HandOver } from './hand-over';
 import { d, str } from './item';
-import { TaskCard, useInboxWrite } from './task-card';
+import { useInboxWrite } from './module-actions';
+import { TaskCard } from './task-card';
 import { ago, iconOf, moduleName, type Group, type Item, type LaneName } from './model';
 import { t as tr } from '../i18n';
 
