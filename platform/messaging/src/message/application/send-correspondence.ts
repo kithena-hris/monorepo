@@ -34,6 +34,8 @@ export interface SendCorrespondenceRequest {
     readonly { readonly filename: string; readonly base64: string }[] | undefined;
   /** Structure beside the words, drawn by this service (`correspondence.ts`), never markup. */
   readonly parts?: CorrespondenceParts | undefined;
+  /** A member of the company rather than a candidate: their footer, and where they change what reaches them. */
+  readonly member?: { readonly manageHref: string | null } | undefined;
 }
 
 export type SendCorrespondence = (
@@ -74,6 +76,7 @@ export function sendCorrespondence(deps: {
         themeId: parts.themeId ?? brand?.themeId ?? null,
       },
       await (deps.language ?? inEnglish)(request.tenantId),
+      request.member ?? null,
     );
     if (!message.ok) return refuse('unrenderable');
     const digest = createHash('sha256')

@@ -119,7 +119,22 @@ export function correspondenceRoutes({
         fields: parsed.error.issues.map((i) => i.path.join('.')),
       });
     const { accountId, urgent, ...asked } = parsed.data;
-    const sent = await send(asked);
+    // A member hears where to choose what reaches them: their notification settings, on the company's app.
+    const origin = (() => {
+      try {
+        return asked.parts?.action?.href === undefined
+          ? null
+          : new URL(asked.parts.action.href).origin;
+      } catch {
+        return null;
+      }
+    })();
+    const sent = await send({
+      ...asked,
+      ...(accountId === undefined
+        ? {}
+        : { member: { manageHref: origin === null ? null : `${origin}/settings/notifications` } }),
+    });
     if (sent.ok && push !== undefined && accountId !== undefined) {
       await push(asked.tenantId, accountId, {
         title: asked.parts?.heading ?? asked.subject,

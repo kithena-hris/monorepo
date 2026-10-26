@@ -32,6 +32,8 @@ export interface SendNoticeRequest {
   readonly dedupeKey: string;
   /** A signer's copy, attached (`document_signed`, `document_completed`). */
   readonly attachment?: { readonly fileName: string; readonly base64: string } | undefined;
+  /** What the item is, when the module named it: heads the card and stands among its facts. */
+  readonly preview?: { readonly title: string | null; readonly body: string | null } | undefined;
 }
 
 export type SendNotice = (
@@ -63,10 +65,14 @@ export function sendNotice(deps: SendNoticeDeps): SendNotice {
 
     const words = await (deps.language ?? inEnglish)(request.tenantId);
     const brand = (await deps.brand?.(request.tenantId).catch(() => null)) ?? null;
-    const message = renderNotice(request.notice, request.url, request.companyName, words, {
-      logoUrl: brand?.logoUrl ?? null,
-      themeId: brand?.themeId ?? null,
-    });
+    const message = renderNotice(
+      request.notice,
+      request.url,
+      request.companyName,
+      words,
+      { logoUrl: brand?.logoUrl ?? null, themeId: brand?.themeId ?? null },
+      request.preview ?? null,
+    );
     if (!message.ok) return refuse('unrenderable');
 
     const kind = request.notice.kind;
