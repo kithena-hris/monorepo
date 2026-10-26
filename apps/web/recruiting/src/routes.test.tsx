@@ -634,7 +634,10 @@ describe('R11, a candidate', () => {
     expect(screen.getByRole('link', { name: 'Onboarding plan' }).getAttribute('href')).toBe(
       '/onboarding/plans/p9',
     );
-    expect(screen.getByRole('button', { name: 'Schedule' })).toBeTruthy();
+    // Set up and invited from their record, where HR fills in the rest first.
+    expect(screen.getByRole('link', { name: 'Set up and invite' }).getAttribute('href')).toBe(
+      '/people/pe1?invite=1',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Met' }));
     await waitFor(() => {
       expect(calls.at(-1)).toEqual({

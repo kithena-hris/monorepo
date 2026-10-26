@@ -292,17 +292,15 @@ describe('a first passkey', () => {
     expect(Number([...live][0]?.['n'])).toBe(1);
   });
 
-  it('refuses to activate an account whose employment has not started', async () => {
-    // A hire entered three weeks early has an invited account and, now, a valid
-    // passkey. Those three weeks are still not employment.
+  it('activates an account whose employment has not started', async () => {
+    // A hire invited weeks early signs up then, and is onboarding until the day.
     await invitedAccount('2026-06-01');
-    const { result, refusals } = await enrol(softwareAuthenticator('early'), {
+    const { result } = await enrol(softwareAuthenticator('early'), {
       clockAt: '2026-05-01T09:00:00.000Z',
     });
 
-    expect(result.ok).toBe(false);
-    expect(refusals).toContain('EMPLOYMENT_NOT_STARTED');
-    expect(await statusOfAccount()).toBe('invited');
+    expect(result.ok).toBe(true);
+    expect(await statusOfAccount()).toBe('active');
   });
 });
 

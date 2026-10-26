@@ -1,5 +1,4 @@
 import {
-  DatePicker,
   Dialog,
   DialogBody,
   DialogContent,
@@ -73,13 +72,7 @@ import { AskList } from './interviews';
 import { Journey } from './journey';
 import { OfferModal } from './offers';
 import { RejectDialog, type Rejecting } from './reject-dialog';
-import type {
-  CandidateData,
-  CandidatesData,
-  OfferData,
-  PoolsData,
-  ScreenProps,
-} from './types';
+import type { CandidateData, CandidatesData, OfferData, PoolsData, ScreenProps } from './types';
 import { t as tr } from './i18n';
 
 /**
@@ -498,7 +491,6 @@ function AccountCard({
 }): JSX.Element | null {
   const act = useAct(props);
   const [account, setAccount] = useState<HireAccount | null | 'loading' | 'absent'>('loading');
-  const [sendOn, setSendOn] = useState<string | null>(null);
   const load = (): void => {
     void act.call('HireAccount', { email }).then((done) => {
       const found = done.ok ? ((done.data as HireAccount | null) ?? null) : 'absent';
@@ -508,18 +500,6 @@ function AccountCard({
   };
   useEffect(load, [email]);
   if (account === 'absent') return null;
-  const invite = (on: string | null): void => {
-    act.run(
-      'InviteHire',
-      { personId: account === 'loading' || account === null ? '' : account.personId, sendOn: on },
-      (made) => {
-        setAccount(made as HireAccount);
-        setSendOn(null);
-      },
-      undefined,
-      on === null ? 'now' : 'schedule',
-    );
-  };
   const said =
     account === 'loading'
       ? tr('candidate.account_loading', 'Looking up {{name}}’s account…', { name })
@@ -588,39 +568,13 @@ function AccountCard({
       <Refusal error={act.error} />
       {live ? (
         <div className="flex flex-wrap items-end gap-3">
-          <Button
-            disabled={act.pending}
-            loading={act.busy('now')}
-            startIcon={<icons.email aria-hidden />}
-            onClick={() => {
-              invite(null);
-            }}
-          >
-            {account.state === 'invited'
-              ? tr('candidate.send_invitation_again', 'Send it again')
-              : tr('candidate.send_invitation_now', 'Send the invitation now')}
+          <Button asChild startIcon={<icons.email aria-hidden />}>
+            <a href={`/people/${account.personId}?invite=1`}>
+              {account.state === 'not_invited'
+                ? tr('candidate.set_up_and_invite', 'Set up and invite')
+                : tr('candidate.change_the_invitation', 'Change or send again')}
+            </a>
           </Button>
-          {account.state === 'invited' ? null : (
-            <>
-              <DatePicker
-                label={tr('candidate.or_send_it_on', 'Or send it on')}
-                value={sendOn ?? account.sendOn}
-                onChange={(d) => {
-                  setSendOn(d);
-                }}
-              />
-              <Button
-                variant="secondary"
-                disabled={sendOn === null || act.pending}
-                loading={act.busy('schedule')}
-                onClick={() => {
-                  invite(sendOn);
-                }}
-              >
-                {tr('candidate.schedule_invitation', 'Schedule')}
-              </Button>
-            </>
-          )}
         </div>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
+  capitalisedName,
   toPeopleTerms,
   type CandidateHired,
   type EventEnvelope,
@@ -60,8 +61,9 @@ export interface HiresFromRecruiting {
 export function attributesOf(payload: Hired['payload']): Record<string, unknown> {
   const terms = toPeopleTerms(payload.terms);
   return {
-    given_name: payload.candidate.givenName,
-    family_name: payload.candidate.familyName,
+    // As typed on an application, often in lower case; the record holds it capitalised.
+    given_name: capitalisedName(payload.candidate.givenName),
+    family_name: capitalisedName(payload.candidate.familyName),
     work_email: payload.candidate.email,
     ...(payload.candidate.phone === null ? {} : { mobile_phone: payload.candidate.phone }),
     ...(payload.managerId === null ? {} : { manager_id: payload.managerId }),

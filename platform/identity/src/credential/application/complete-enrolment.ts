@@ -122,8 +122,7 @@ export interface CompleteEnrolmentRequest {
  * work out, and not telling them turns a solvable problem into a support call.
  * The reasons are a closed set, so no detail leaks by accident.
  */
-export type EnrolmentRefusal =
-  'link_invalid' | 'link_used_or_expired' | 'employment_not_started' | 'passkey_rejected';
+export type EnrolmentRefusal = 'link_invalid' | 'link_used_or_expired' | 'passkey_rejected';
 
 const refusalOf = (reason: EnrolmentRefusal): ReturnType<typeof failure> =>
   failure('ENROLMENT_FAILED', 'Could not complete enrolment', [reason]);
@@ -197,12 +196,7 @@ export function completeEnrolment(deps: CompleteEnrolmentDeps): CompleteEnrolmen
       request.answers,
     );
     if (!enrolled.ok) {
-      return refuse(
-        enrolled.error.code,
-        enrolled.error.code === 'EMPLOYMENT_NOT_STARTED'
-          ? 'employment_not_started'
-          : 'link_invalid',
-      );
+      return refuse(enrolled.error.code, 'link_invalid');
     }
 
     return ok({ accountId: spent.accountId, credentialId });

@@ -23,11 +23,9 @@ import { deliveryNote, type Delivery } from '../lib/delivery';
  * the only route to an enrolment link was creating a whole new tenant, or the
  * seed script.
  *
- * One required field. A start date and a time zone matter — `Account.enrol`
- * refuses a passkey before the start date, which is what stops a hire entered
- * three weeks early logging in during those three weeks — but somebody being
- * added today should not have to think about either, so they sit behind a
- * disclosure and default to today in UTC.
+ * One required field. A start date and a time zone go on the account, but
+ * somebody being added today should not have to think about either, so they
+ * sit behind a disclosure and default to today in UTC.
  *
  * `useActionState` with a `FormData` action rather than `onSubmit`: it is the
  * documented shape in this version of Next, and it brings the pending state,

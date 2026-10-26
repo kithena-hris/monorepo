@@ -3,6 +3,7 @@ import {
   Alert,
   Button,
   Combobox,
+  DatePicker,
   Field,
   FieldControl,
   FieldDescription,
@@ -20,6 +21,7 @@ import {
 import { useNavigate } from '@modern-js/runtime/router';
 
 import {
+  capitalisedName,
   checkPersonName,
   checkPersonProfile,
   checkSignupAnswers,
@@ -104,12 +106,7 @@ type State =
  * the secret. Withholding the reason from them would turn a solvable problem
  * into a support call and protect nobody.
  */
-type Reason =
-  | 'link_invalid'
-  | 'link_used_or_expired'
-  | 'employment_not_started'
-  | 'passkey_rejected'
-  | 'cancelled';
+type Reason = 'link_invalid' | 'link_used_or_expired' | 'passkey_rejected' | 'cancelled';
 
 /** An answer as the form holds it: text for everything but a yes/no. */
 type Answer = string | boolean;
@@ -122,10 +119,6 @@ const MESSAGES: Record<Reason, { title: string; body: string }> = {
   link_invalid: {
     title: 'This link is not valid',
     body: 'Check you opened the most recent link, or ask your HR team to send another.',
-  },
-  employment_not_started: {
-    title: 'Your start date has not arrived yet',
-    body: 'You can set up your passkey on your first day.',
   },
   passkey_rejected: {
     title: 'That passkey could not be accepted',
@@ -175,11 +168,9 @@ export default function Enrol(): JSX.Element {
   /**
    * When their employment starts, as the registry holds it.
    *
-   * Shown on the review step and never editable here. `Account.enrol` refuses a
-   * passkey before this date, so somebody who could change it on the way in
-   * could walk past their own start-date check — and a person who cannot sign
-   * in yet is far better served by being told why than by a refusal after the
-   * ceremony has spent the link.
+   * Shown on the review step and never editable here: it is the contract's,
+   * and HR's to change. Signing up before it is expected — the person is
+   * onboarding until the day.
    */
   const [employmentStart, setEmploymentStart] = useState<string | null>(null);
   /**
@@ -380,9 +371,10 @@ export default function Enrol(): JSX.Element {
             // drop it back to the browser's default.
             setDraft((currentDraft) => ({
               ...currentDraft,
-              given: name.given,
-              family: name.family,
-              preferred: name.preferred ?? '',
+              // A name on file typed in lower case is shown capitalised, to confirm as theirs.
+              given: capitalisedName(name.given),
+              family: capitalisedName(name.family),
+              preferred: capitalisedName(name.preferred ?? ''),
             }));
             setOnFile(true);
           }
@@ -1100,6 +1092,16 @@ function Question({
         );
       case 'phone':
         return <PhoneField label={question.label} value={text} onValueChange={onChange} />;
+      case 'date':
+        return (
+          <DatePicker
+            label={question.label}
+            value={text === '' ? null : text}
+            onChange={(next) => {
+              onChange(next ?? '');
+            }}
+          />
+        );
       case 'signature':
         return (
           <SignatureInput
@@ -1141,7 +1143,6 @@ function Question({
 const INPUT_TYPE: Partial<Record<SignupQuestion['dataType'], string>> = {
   number: 'number',
   decimal: 'number',
-  date: 'date',
   email: 'email',
   url: 'url',
 };

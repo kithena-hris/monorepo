@@ -165,7 +165,6 @@ export async function recruitingAct(
   if (name === 'DraftContract') return draftContract(variables);
   if (name === 'PreviewContract') return previewContract(variables);
   if (name === 'HireAccount') return hireAccount(variables);
-  if (name === 'InviteHire') return inviteHire(variables);
   if (name === 'StartContractUpload') return startContractUpload(variables);
   if (name === 'SendOwnContract') return sendOwnContract(variables);
   if (!WRITES.has(name as OperationName))
@@ -290,19 +289,6 @@ async function hireAccount(variables: Readonly<Record<string, unknown>>): Promis
   return found.ok
     ? { ok: true, data: found.data ?? null }
     : { ok: false, message: found.message, code: found.code };
-}
-
-/** Invite the hire to the company now, or on the day given (their calendar). */
-async function inviteHire(variables: Readonly<Record<string, unknown>>): Promise<Done> {
-  const personId = typeof variables['personId'] === 'string' ? variables['personId'] : '';
-  const sendOn = typeof variables['sendOn'] === 'string' ? variables['sendOn'] : null;
-  const invited = await people<unknown>('InvitePerson', {
-    personId,
-    sendOn,
-  });
-  return invited.ok
-    ? { ok: true, data: invited.data }
-    : { ok: false, message: invited.message, code: invited.code };
 }
 
 /**

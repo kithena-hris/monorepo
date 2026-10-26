@@ -62,7 +62,6 @@ export type ProvisioningRoute = 'people_module' | 'admin_api' | 'scim';
  */
 export type SecondChannel = 'in_person' | 'known_value';
 
-
 export interface AccountSnapshot {
   readonly id: string;
   readonly identityId: string;
@@ -269,10 +268,9 @@ export class Account extends AggregateRoot<string> {
   /**
    * Register the first credential. The account becomes usable.
    *
-   * Two gates, and they fail differently on purpose: a wrong state is a
-   * programming or workflow error, while a start date in the future is a
-   * perfectly ordinary thing to be told about and the caller should be able to
-   * say so to a person.
+   * Before the start date too: a hire signs up when the invitation arrives and
+   * is onboarding until their first day (People's `onboarding`), finishing
+   * their plan, forms and documents before it rather than on it.
    */
   /**
    * A replacement passkey for somebody who lost the one they had.
@@ -282,10 +280,6 @@ export class Account extends AggregateRoot<string> {
    * anybody reading the event stream afterwards. An account that enrolled twice
    * is not a thing that happens; an account that recovered is, and it is worth
    * being able to count.
-   *
-   * No employment-start check. That gate exists so a new hire cannot sign in
-   * before their first day; somebody recovering has been working here, and
-   * re-applying it would refuse the one case this exists for.
    *
    * **The old credential is revoked by the caller, not here.** The aggregate
    * does not own credentials — they belong to the human rather than to the job,
@@ -331,14 +325,6 @@ export class Account extends AggregateRoot<string> {
   ): Result<void> {
     if (this.#kind === 'support') return err(SupportAccount);
     if (this.#status !== 'invited') return err(InvalidTransition(this.#status, 'enrolled'));
-
-    if (ctx.clock.date(this.#timeZone) < this.#employmentStart) {
-      return err(
-        failure('EMPLOYMENT_NOT_STARTED', `Employment begins on ${this.#employmentStart}`, [
-          'employmentStart',
-        ]),
-      );
-    }
 
     this.#status = 'active';
     this.#raise('identity.account.enrolled', { accountId: this.id, credentialId }, ctx);
