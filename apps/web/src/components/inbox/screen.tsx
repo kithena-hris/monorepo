@@ -291,7 +291,7 @@ function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenP
 
   const toolbar = (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchField
           className="min-w-40 flex-1"
           label={
