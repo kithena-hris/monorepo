@@ -17456,7 +17456,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "de": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -34538,7 +34546,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "en-GB": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -51620,7 +51636,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "en-US": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -68702,7 +68726,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "es": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -86161,7 +86193,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "fr": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -103620,7 +103660,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "hi": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -120702,7 +120750,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "it": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -138161,7 +138217,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "nl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -155243,7 +155307,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "pl": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -173079,7 +173151,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "pt": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -190538,7 +190618,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "ru": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -208374,7 +208462,15 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   },
   "ta": {
     "documents:answers.hr_asked": "7906a82368ed",
@@ -225456,6 +225552,14 @@
     "people:profile.invitation.when_it_goes": "2744ab8e85d3",
     "recruiting:candidate.change_the_invitation": "af63b840e4b7",
     "recruiting:candidate.set_up_and_invite": "8b55ff888bd7",
-    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7"
+    "shell:components.inbox.detail-people.set_up_and_invite": "8b55ff888bd7",
+    "people:settings.field-registry.core": "70ea1983c983",
+    "people:record.attribute-input.after_the_start_on": "403e3e478c5b",
+    "people:record.attribute-input.days": "ab51004e9d71",
+    "people:record.attribute-input.length_of_probation": "fb17a08ae61a",
+    "people:record.attribute-input.months": "168374334431",
+    "people:record.attribute-input.or": "7175517a370b",
+    "people:record.attribute-input.unit": "4e545960f1bf",
+    "people:record.attribute-input.weeks": "eb0d2375b518"
   }
 }

@@ -1356,6 +1356,10 @@ async function hireFromOffer(
         pay: {
           base: { amountMinor: version.pay.baseMinor, currency: version.pay.currency },
           frequency: version.pay.frequency,
+          variableTarget: amount(version.pay.variableTargetMinor, version.pay.currency),
+          signOnBonus: amount(version.pay.signOnMinor, version.pay.currency),
+          relocation: amount(version.pay.relocationMinor, version.pay.currency),
+          equity: version.pay.equity,
         },
         benefits: version.benefitIds.map((benefitId) => ({
           benefitId,
@@ -1503,3 +1507,7 @@ export async function worksCouncilDecides(
   });
   return ok(true);
 }
+
+/** An offer's amount for the hire event: none when the offer has none. */
+const amount = (amountMinor: number, currency: string) =>
+  amountMinor === 0 ? null : { amountMinor, currency };

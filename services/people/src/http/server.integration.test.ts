@@ -1236,7 +1236,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     );
     expect(ownChoices.map((x) => [x.header, x.status, x.key, x.adds])).toEqual([
       ['Employment Type', 'mapped', 'employment_type', ['Full-time', 'Part-time']],
-      ['Work Arrangement', 'mapped', 'work_model', []],
+      // A core field every company has, with every value the file uses: nothing to add.
+      ['Work Arrangement', 'mapped', 'work_model', null],
     ]);
     const mapping = Object.fromEntries(
       columns.map((x) => [x.index, x.status === 'mapped' ? x.key : null]),
@@ -1256,7 +1257,24 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     // Employment type and work model are People's own: mapped onto them, never a second field.
     expect(view.choices.map((c) => [c.header, c.key, c.added])).toEqual([
       ['Employment Type', 'employment_type', ['Full-time', 'Part-time']],
-      ['Work Arrangement', 'work_model', []],
+      // How often payroll pays: Bi-weekly and Monthly are People's own.
+      ['Pay Frequency', 'pay_frequency', ['Monthly (14 payments)']],
+    ]);
+    // Core fields every company has: the file's columns land on them, never a second field.
+    expect(
+      columns
+        .filter((x) =>
+          ['Date of Birth', 'Personal Email', 'Mobile Phone', 'FTE', 'Job Title'].includes(
+            x.header,
+          ),
+        )
+        .map((x) => [x.header, x.status, x.key]),
+    ).toEqual([
+      ['Date of Birth', 'mapped', 'date_of_birth'],
+      ['Personal Email', 'mapped', 'personal_email'],
+      ['Mobile Phone', 'mapped', 'mobile_phone'],
+      ['FTE', 'mapped', 'fte'],
+      ['Job Title', 'mapped', 'job_title'],
     ]);
     expect(view.blocked).toBeNull();
     const proposals = view.proposals.map(({ counts: _c, sensitive: _s, ...p }) => p);
@@ -1332,14 +1350,13 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     });
     expect(of('Annual Base Salary').field.dataType).toBe('money');
     for (const h of [
-      'FTE',
       'Standard Weekly Hours',
       'Annual Leave Balance (days)',
       'Sick Leave Balance (days)',
     ]) {
       expect([h, of(h).field.dataType]).toEqual([h, 'decimal']);
     }
-    for (const h of ['Passport Expiry', 'Last Raise Date', 'Leave Start Date', 'Date of Birth']) {
+    for (const h of ['Passport Expiry', 'Last Raise Date', 'Leave Start Date']) {
       expect([h, of(h).field.dataType]).toEqual([h, 'date']);
     }
     // Pay: confidential, HR and finance, changes approved.
@@ -1399,8 +1416,6 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     }
     // Personal contact and address: the person's and HR's.
     for (const h of [
-      'Personal Email',
-      'Mobile Phone',
       'Home Address Line 1',
       'Home City',
       'Home Postal Code',
@@ -1513,7 +1528,8 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
     expect(plan.steps.map((s) => s.title)).toEqual(
       expect.arrayContaining([
         'Employment Type → Employment type; added Full-time and Part-time',
-        'Work Arrangement → Work model',
+        // Work Arrangement's values are all People's own already: nothing to add, no step.
+        'Pay Frequency → Pay frequency; added Monthly (14 payments)',
         '5 people already left (offboarded from their termination date); 2 are serving notice (offboarding scheduled); 3 are on leave',
       ]),
     );
@@ -1545,10 +1561,11 @@ describe('a realistic 105-column HR export, into a company with nothing publishe
       columns: { existing: number; created: number; kithena: number; leftOut: number };
     }>(c.graph, { ...step, proposals }, 'meridian-run');
     expect(done).toMatchObject({ created: 100, blocked: 0, held: 0 });
-    // 15 to People's own (employment type, work model, Department and the four
-    // lifecycle columns among them), 87 new, 2 ids, and Manager Employee Number
+    // 21 to People's own (employment type, work model, Department, the four
+    // lifecycle columns and the core fields — date of birth, personal email,
+    // mobile, FTE, job title, pay frequency — among them), 81 new, 2 ids, and Manager Employee Number
     // left out: the manager is read from Manager Email.
-    expect(done.columns).toEqual({ existing: 15, created: 87, kithena: 2, leftOut: 1 });
+    expect(done.columns).toEqual({ existing: 21, created: 81, kithena: 2, leftOut: 1 });
 
     // The requests: one per person, listing every detail asked of them that
     // the file left empty; none for anybody who has left, nor per field.

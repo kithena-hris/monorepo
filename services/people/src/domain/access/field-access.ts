@@ -253,6 +253,12 @@ export function canWrite(definition: AttributeDefinition, viewer: ViewerRelation
     );
   }
 
+  // Kithena writes it (the employee number): nobody types it, an administrator included.
+  if (definition.ownership.every((role) => role === 'system')) {
+    return err(
+      failure('FIELD_NOT_WRITABLE', `${definition.key} is set by Kithena`, [definition.key]),
+    );
+  }
   if (administers(definition, viewer)) return ok(undefined);
   const roles = rolesOf(viewer);
   if (definition.ownership.some((role) => roles.has(role))) return ok(undefined);

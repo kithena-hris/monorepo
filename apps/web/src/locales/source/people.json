@@ -6819,6 +6819,10 @@
     "text": "{{name}}, {{title}}",
     "context": "People: employee records, org chart, HR settings. profile/reporting-line.tsx, ReportingLine: the content of <Tooltip>. Filled in: {{name}}, {{title}}."
   },
+  "record.attribute-input.after_the_start_on": {
+    "text": "after the start, {{date}}",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: text inside <span>. Filled in: {{date}}."
+  },
   "record.attribute-input.changed_by": {
     "text": "Changed by {{ownedBy}}.",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeInput: text built in code. Filled in: {{ownedBy}}."
@@ -6830,6 +6834,10 @@
   "record.attribute-input.choose_a_person": {
     "text": "Choose a person",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, PersonPicker: the placeholder of <Combobox>."
+  },
+  "record.attribute-input.days": {
+    "text": "days",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: a \"days\" value."
   },
   "record.attribute-input.fills_this_in": {
     "text": "{{value}} fills this in.",
@@ -6847,9 +6855,17 @@
     "text": "Kept in {{place}}; change it there.",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeInput: text built in code. Filled in: {{place}}."
   },
+  "record.attribute-input.length_of_probation": {
+    "text": "Length of probation",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: the aria-label of <Input>."
+  },
   "record.attribute-input.missing": {
     "text": "Missing",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeControl: text inside <DatePicker>."
+  },
+  "record.attribute-input.months": {
+    "text": "months",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: a \"months\" value."
   },
   "record.attribute-input.no_end_date_indefinite": {
     "text": "No end date (indefinite)",
@@ -6867,6 +6883,10 @@
     "text": "Nothing to choose from",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeControl: the placeholder of <SelectValue>."
   },
+  "record.attribute-input.or": {
+    "text": "or",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: text inside <span>."
+  },
   "record.attribute-input.required": {
     "text": "{{label}} (required)",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeInput: the label of <TagsInput>. Filled in: {{label}}."
@@ -6882,6 +6902,14 @@
   "record.attribute-input.type_to_search": {
     "text": "Type to search",
     "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AttributeControl: the searchPlaceholder of <Combobox>."
+  },
+  "record.attribute-input.unit": {
+    "text": "Unit",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: the aria-label of <SelectTrigger>."
+  },
+  "record.attribute-input.weeks": {
+    "text": "weeks",
+    "context": "People: employee records, org chart, HR settings. record/attribute-input.tsx, AfterStart: a \"weeks\" value."
   },
   "record.display.indefinite": {
     "text": "Indefinite",
@@ -9566,6 +9594,10 @@
   "settings.field-registry.confidential_or_encrypted_never_shared_with": {
     "text": "Confidential or encrypted: never shared with the assistant.",
     "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, AssistantShare: text inside <p>."
+  },
+  "settings.field-registry.core": {
+    "text": "Core",
+    "context": "People: employee records, org chart, HR settings. settings/field-registry.tsx, Badges: text inside <Badge>."
   },
   "settings.field-registry.count_fields_match_one": {
     "text": "{{count}} field matches",

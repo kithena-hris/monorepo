@@ -60,6 +60,7 @@ import {
 import {
   AttributeInput,
   LegalName,
+  StartDate,
   PeopleSearch,
   type SearchPeople,
 } from '../record/attribute-input';
@@ -509,6 +510,13 @@ function Record({
     .join(' ');
   return (
     <LegalName value={legalName}>
+      <StartDate
+        value={
+          typeof values['contract_start'] === 'string'
+            ? values['contract_start']
+            : (state.employment?.periods.at(-1)?.startedOn ?? '')
+        }
+      >
       <Stack gap={6}>
         <div className="flex flex-col gap-4">
           {frame.breadcrumb}
@@ -1173,6 +1181,7 @@ function Record({
         )}
       </Stack>
       {managerConfirm.dialog}
+      </StartDate>
     </LegalName>
   );
 }

@@ -206,7 +206,7 @@ beforeAll(async () => {
       editing: null,
     });
   for (const [key, label, over] of [
-    ['job_title', 'Job title', {}],
+    // Job title is a core field every company has.
     ['department', 'Department', { dataType: 'select', options: DEPARTMENTS }],
     // Nobody has these: Missing details has a gap per person, two per person in all.
     ['desk', 'Desk', { requiredness: 'always' }],

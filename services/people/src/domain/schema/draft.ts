@@ -610,6 +610,14 @@ export class SchemaDraft {
     }
     if (current.origin === 'tenant') return ok(undefined);
 
+    // What Kithena writes (the employee number) stays Kithena's to write.
+    const kithenas = (owners: readonly WriterRole[]) => owners.every((r) => r === 'system');
+    if (kithenas(current.ownership) && !kithenas(next.ownership)) {
+      return err(
+        failure('OWNERSHIP_FIXED', `${current.key} is set by Kithena, not typed`, ['ownership']),
+      );
+    }
+
     if (!classificationAtLeastAsStrict(next.classification, current.classification)) {
       return err(
         failure(

@@ -1,16 +1,17 @@
 import type { AttributeDefinitionInput } from '@kithena/contracts';
 
+import { builtInChoices } from '../domain/import/aliases.js';
 import type { SectionInput } from '../domain/schema/draft.js';
 
 /**
  * The fields every company has, whatever its country (PRD §8.2 step 6c,
  * Appendix A "core"): what the setup wizard publishes beside a country pack.
  *
- * Only the ones Kithena's own screens and the importer read by key — the
- * name, the work email, the manager, the employee number — each in the typed
- * column `core.ts` maps it to. The rest of Appendix A is the tenant's to add;
- * a default nobody asked for is a field somebody must later explain to a
- * works council.
+ * Every company has the same personal, employment and pay fields, under the
+ * same keys and types, so a company is set up without designing a form first
+ * and payroll (and a preliminary payroll export) reads one shape everywhere.
+ * A company relabels them and may make them stricter; it cannot archive one or
+ * change its type (`SchemaDraft`). The rest of Appendix A is the tenant's to add.
  *
  * Seeded like a pack, through the draft's own checks, and never overwriting
  * what a tenant already has.
@@ -31,6 +32,15 @@ const employment: SectionInput = {
   label: text('Employment'),
   order: 1,
   defaultVisibility: ['self', 'manager', 'hr'],
+  origin: 'core',
+};
+
+/** Pay: the person, HR and finance, never the manager or the directory. */
+const compensation: SectionInput = {
+  key: 'compensation',
+  label: text('Compensation'),
+  order: 2,
+  defaultVisibility: ['self', 'hr', 'finance'],
   origin: 'core',
 };
 
@@ -77,6 +87,9 @@ function field(
 export const CHOICE_LABELS: Readonly<Record<string, string>> = {
   employment_type: 'Employment type',
   work_model: 'Work model',
+  working_pattern: 'Working pattern',
+  pay_frequency: 'Pay frequency',
+  pay_basis: 'Pay basis',
 };
 
 export const choiceField = (
@@ -138,11 +151,226 @@ export const SIGNATURE_FIELD: AttributeDefinitionInput = field({
   classification: identity,
 });
 
+/** What somebody tells HR about themselves: theirs to fill in while onboarding. */
+const own = {
+  ownership: ['employee', 'hr'],
+  visibility: ['self', 'hr'],
+  collectAt: 'onboarding',
+} satisfies Partial<AttributeDefinitionInput>;
+
+/** How to reach somebody outside work: theirs and HR's, and confidential. */
+const personalContact = {
+  classification: 'confidential',
+  piiKind: 'contact',
+  exportable: true,
+  aiEligible: false,
+} as const;
+
+/** Somebody's job and terms, HR's to fill in, filled from the contract on a hire. */
+const terms = {
+  sectionKey: 'employment',
+  ownership: ['hr'],
+  visibility: ['self', 'manager', 'hr'],
+  collectAt: 'hr_only',
+  classification: { ...identity, piiKind: 'none' },
+} satisfies Partial<AttributeDefinitionInput>;
+
+/** Pay, HR's and finance's to fill in, filled from the offer on a hire. */
+const pay = {
+  sectionKey: 'compensation',
+  ownership: ['hr', 'finance'],
+  visibility: ['self', 'hr', 'finance'],
+  collectAt: 'hr_only',
+  classification: {
+    classification: 'confidential',
+    piiKind: 'financial',
+    exportable: true,
+    aiEligible: false,
+  },
+} satisfies Partial<AttributeDefinitionInput>;
+
+const date = (range: 'any' | 'past' | 'future' = 'any') =>
+  ({
+    dataType: 'date',
+    typeConfig: { kind: 'date', range },
+  }) satisfies Partial<AttributeDefinitionInput>;
+
+/** In the record's own currency, sealed as financial data always is (`people.person_secret`). */
+const money = {
+  dataType: 'money',
+  typeConfig: { kind: 'money', currency: null, minMinor: null, maxMinor: null },
+  encrypted: true,
+} satisfies Partial<AttributeDefinitionInput>;
+
+/** How pay is paid, not an amount: confidential, and plain so it can be a choice. */
+const howPaid = {
+  classification: { ...pay.classification, piiKind: 'none' },
+} satisfies Partial<AttributeDefinitionInput>;
+
+/**
+ * The personal, employment and pay fields beyond the name, the work email and
+ * the placement. Existing companies get any they lack from `pickedFields`.
+ */
+export const STANDARD_FIELDS: readonly AttributeDefinitionInput[] = [
+  field({
+    ...own,
+    key: 'date_of_birth',
+    sectionKey: 'personal',
+    label: 'Date of birth',
+    order: 4,
+    ...date('past'),
+    classification: identity,
+  }),
+  field({
+    ...own,
+    key: 'personal_email',
+    sectionKey: 'personal',
+    label: 'Personal email',
+    order: 5,
+    dataType: 'email',
+    typeConfig: { kind: 'email' },
+    classification: personalContact,
+  }),
+  field({
+    ...own,
+    key: 'mobile_phone',
+    sectionKey: 'personal',
+    label: 'Mobile phone',
+    order: 6,
+    dataType: 'phone',
+    typeConfig: { kind: 'phone' },
+    classification: personalContact,
+  }),
+  field({
+    ...own,
+    key: 'home_address',
+    sectionKey: 'personal',
+    label: 'Home address',
+    order: 7,
+    dataType: 'address',
+    typeConfig: { kind: 'address' },
+    classification: personalContact,
+  }),
+  field({
+    ...terms,
+    key: 'job_title',
+    label: 'Job title',
+    order: 6,
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+    visibility: [...everyone],
+    classification: { ...identity, piiKind: 'none', aiEligible: true },
+    effectiveDated: true,
+  }),
+  choiceField('employment_type', { sectionKey: 'employment', order: 7 }, builtInChoices('employment_type')),
+  field({ ...terms, key: 'contract_start', label: 'Contract start', order: 8, ...date() }),
+  field({ ...terms, key: 'contract_end', label: 'Contract end', order: 9, ...date() }),
+  field({ ...terms, key: 'probation_end', label: 'Probation end', order: 10, ...date() }),
+  choiceField('working_pattern', { sectionKey: 'employment', order: 11 }, [
+    { value: 'full_time', label: 'Full-time' },
+    { value: 'part_time', label: 'Part-time' },
+  ]),
+  field({
+    ...terms,
+    key: 'fte',
+    label: 'FTE',
+    order: 12,
+    dataType: 'decimal',
+    typeConfig: { kind: 'decimal', min: 0, max: 1, decimals: 4 },
+    effectiveDated: true,
+  }),
+  choiceField('work_model', { sectionKey: 'employment', order: 13 }, builtInChoices('work_model')),
+  field({
+    ...terms,
+    key: 'notice_period_employee',
+    label: 'Notice period (employee)',
+    order: 14,
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+  }),
+  field({
+    ...terms,
+    key: 'notice_period_employer',
+    label: 'Notice period (employer)',
+    order: 15,
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+  }),
+  field({ ...pay, ...money, key: 'base_salary', label: 'Base salary', order: 0 }),
+  // What the base salary is quoted per, as the offer states it.
+  {
+    ...choiceField('pay_basis', { sectionKey: 'compensation', order: 1 }, [
+      { value: 'year', label: 'Per year' },
+      { value: 'month', label: 'Per month' },
+      { value: 'hour', label: 'Per hour' },
+    ]),
+    ownership: pay.ownership,
+    visibility: pay.visibility,
+    ...howPaid,
+    effectiveDated: false,
+  },
+  // How often payroll pays; a company's own (an import's) are added to these.
+  {
+    ...choiceField(
+      'pay_frequency',
+      { sectionKey: 'compensation', order: 2 },
+      builtInChoices('pay_frequency'),
+    ),
+    ownership: pay.ownership,
+    visibility: pay.visibility,
+    ...howPaid,
+    effectiveDated: false,
+  },
+  field({
+    ...pay,
+    ...howPaid,
+    key: 'payments_per_year',
+    label: 'Payments per year',
+    order: 3,
+    dataType: 'number',
+    typeConfig: { kind: 'number', min: 1, max: 14, decimals: 0 },
+  }),
+  field({ ...pay, ...money, key: 'variable_pay_target', label: 'Variable pay target', order: 4 }),
+  field({ ...pay, ...money, key: 'sign_on_bonus', label: 'Sign-on bonus', order: 5 }),
+  field({ ...pay, ...money, key: 'relocation_allowance', label: 'Relocation allowance', order: 6 }),
+  field({
+    ...pay,
+    key: 'equity',
+    label: 'Equity',
+    order: 7,
+    dataType: 'text',
+    // "1200 × options vesting over four years": an offer's description runs to 300.
+    typeConfig: { kind: 'text', maxLength: 400 },
+    encrypted: true,
+  }),
+];
+
+/**
+ * The employee number: given by People to every record as it is created, in
+ * its entity's scheme (Settings › Organisation, `00001` until HR sets one),
+ * and never typed or changed. Existing companies' fields become this from
+ * `pickedFields`.
+ */
+export const EMPLOYEE_NUMBER_FIELD: AttributeDefinitionInput = field({
+    key: 'employee_number',
+    sectionKey: 'employment',
+    label: 'Employee number',
+    order: 1,
+    dataType: 'text',
+    typeConfig: { kind: 'text' },
+    // People writes it on every new record (`nextNumber`); nobody types it.
+    ownership: ['system'],
+    required: true,
+    visibility: ['self', 'manager', 'hr'],
+    collectAt: 'hr_only',
+    classification: { ...identity, piiKind: 'none' },
+  });
+
 export const CORE_PACK: {
   readonly sections: readonly SectionInput[];
   readonly attributes: readonly AttributeDefinitionInput[];
 } = {
-  sections: [personal, employment],
+  sections: [personal, employment, compensation],
   attributes: [
     field({
       key: 'given_name',
@@ -195,18 +423,7 @@ export const CORE_PACK: {
       classification: { ...identity, piiKind: 'contact' },
       includeInDirectory: true,
     }),
-    field({
-      key: 'employee_number',
-      sectionKey: 'employment',
-      label: 'Employee number',
-      order: 1,
-      dataType: 'text',
-      typeConfig: { kind: 'text' },
-      ownership: ['hr'],
-      visibility: ['self', 'manager', 'hr'],
-      collectAt: 'hr_only',
-      classification: { ...identity, piiKind: 'none' },
-    }),
+    EMPLOYEE_NUMBER_FIELD,
     field({
       key: 'manager_id',
       sectionKey: 'employment',
@@ -251,5 +468,6 @@ export const CORE_PACK: {
     }),
     DEPARTMENT_FIELD,
     SIGNATURE_FIELD,
+    ...STANDARD_FIELDS,
   ],
 };

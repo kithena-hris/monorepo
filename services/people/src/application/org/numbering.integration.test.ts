@@ -233,9 +233,9 @@ describe('hiring', () => {
     expect(await numberOf(11)).toBeNull();
   });
 
-  it('leaves an entity with no scheme unnumbered', async () => {
+  it('numbers an entity HR has not set a scheme for from 00001', async () => {
     expect((await hire(13)).ok).toBe(true);
-    expect(await numberOf(13)).toBeNull();
+    expect(await numberOf(13)).toBe('00001');
   });
 });
 
@@ -255,7 +255,10 @@ describe('a number typed or imported', () => {
   });
 
   it('is skipped by the next hire when somebody elsewhere already holds it', async () => {
-    // France does not number; somebody there was given what Spain hands out next.
+    // France numbers in Spain's format too, and somebody there was given what Spain hands out next.
+    await inTenant(ACME, ({ tx }) =>
+      numbering.save(tx, ACME, FRANCE, { prefix: 'ES-', digits: 5, start: 1 }),
+    );
     expect((await write(13, 'ES-00501')).ok).toBe(true);
     expect((await hire(14)).ok).toBe(true);
     expect(await numberOf(14)).toBe('ES-00502');

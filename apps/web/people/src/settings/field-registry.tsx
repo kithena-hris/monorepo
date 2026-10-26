@@ -984,6 +984,12 @@ function Badges({ field }: { readonly field: RegistryField }): JSX.Element {
           {pending.text}
         </Badge>
       )}
+      {/* Every company has it, under the same key and type, for payroll and every module. */}
+      {field.origin === 'core' ? (
+        <Badge tone="info" size="sm">
+          {t('settings.field-registry.core', 'Core')}
+        </Badge>
+      ) : null}
       {field.review === true ? (
         <Badge tone="warning" size="sm">
           {t('settings.field-registry.values_to_review', 'Values to review')}

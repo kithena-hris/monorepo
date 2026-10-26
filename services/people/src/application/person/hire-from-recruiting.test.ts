@@ -59,7 +59,14 @@ const hired = {
       documents: ['contract'],
       conditions: [],
     },
-    pay: { base: { amountMinor: 4_200_000, currency: 'EUR' }, frequency: 'year' },
+    pay: {
+      base: { amountMinor: 4_200_000, currency: 'EUR' },
+      frequency: 'year',
+      variableTarget: null,
+      signOnBonus: { amountMinor: 500_000, currency: 'EUR' },
+      relocation: null,
+      equity: { description: 'options', units: 1200 },
+    },
     benefits: [],
     startDate: '2026-11-02',
     managerId: null,
@@ -115,9 +122,16 @@ describe('a hire Recruiting made', () => {
       employment_type: 'permanent',
       probation_end: '2027-05-02',
       fte: '1.0000',
+      // The offer's pay, for the Compensation fields.
+      base_salary: { amountMinor: 4_200_000, currency: 'EUR' },
+      pay_basis: 'year',
+      payments_per_year: 14,
+      sign_on_bonus: { amountMinor: 500_000, currency: 'EUR' },
+      equity: '1200 × options',
     });
     expect(attributes).not.toHaveProperty('manager_id');
     expect(attributes).not.toHaveProperty('contract_end');
+    expect(attributes).not.toHaveProperty('variable_pay_target');
   });
 
   it('becomes a pre-hire with what the schema defines, once', async () => {

@@ -18,7 +18,9 @@ import { valueSchemaFor } from './values.js';
  * A hire Recruiting made, as People's own record (Recruiting PRD §21.4,
  * REC-141): `recruiting.candidate.hired` creates the person in `pre_hire`
  * from the start date, with the name, the work email, the manager, the
- * placement and the employment terms the company's schema has a field for,
+ * placement, the contract's terms (probation end among them) and the offer's
+ * pay (base, what it is quoted per, payments a year, variable target, sign-on, relocation,
+ * equity) in the fields the company's schema has (the core ones, `CORE_PACK`),
  * and the signature they signed the contract with in the company's signature
  * field, so the first document they sign in Kithena is signed with it;
  * `recruiting.prehire.cancelled` discards it before the start.
@@ -71,7 +73,17 @@ export function attributesOf(payload: Hired['payload']): Record<string, unknown>
     ...(payload.locationId === null ? {} : { location_id: payload.locationId }),
     legal_entity_id: payload.legalEntityId,
     base_salary: payload.pay.base,
-    pay_frequency: payload.pay.frequency,
+    // What the salary is quoted per; how often payroll pays is HR's to say.
+    pay_basis: payload.pay.frequency,
+    payments_per_year: payload.terms.paymentsPerYear,
+    ...(payload.pay.variableTarget === null
+      ? {}
+      : { variable_pay_target: payload.pay.variableTarget }),
+    ...(payload.pay.signOnBonus === null ? {} : { sign_on_bonus: payload.pay.signOnBonus }),
+    ...(payload.pay.relocation === null ? {} : { relocation_allowance: payload.pay.relocation }),
+    ...(payload.pay.equity === null
+      ? {}
+      : { equity: `${String(payload.pay.equity.units)} × ${payload.pay.equity.description}` }),
     ...Object.fromEntries(Object.entries(terms).filter(([, v]) => v !== null)),
   };
 }

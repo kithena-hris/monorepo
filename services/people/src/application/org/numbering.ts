@@ -36,6 +36,8 @@ export interface EmployeeNumbers {
     tenantId: string,
     legalEntityId: string,
   ): Promise<(NumberingScheme & { readonly sequence: number }) | null>;
+  /** Everybody on the books without a number, by id: whom `PersonAccess.number` numbers. */
+  unnumbered(tx: PostgresJsDatabase, tenantId: string): Promise<readonly string[]>;
   /** Whether anybody in the tenant already holds this exact number. */
   taken(tx: PostgresJsDatabase, tenantId: string, employeeNumber: string): Promise<boolean>;
   /** A number written by hand or by an import: the sequence moves past it. */

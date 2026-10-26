@@ -155,6 +155,15 @@ describe('a core attribute', () => {
     expect(lowered.error.code).toBe('REQUIREDNESS_LOWERED');
   });
 
+  it('stays Kithena’s to write once Kithena writes it', () => {
+    const d = draft();
+    expect(d.updateAttribute('employee_number', { ownership: ['system'] }).ok).toBe(true);
+    const typed = d.updateAttribute('employee_number', { ownership: ['hr'] });
+    expect(typed.ok).toBe(false);
+    if (typed.ok) return;
+    expect(typed.error.code).toBe('OWNERSHIP_FIXED');
+  });
+
   it('cannot be archived at all', () => {
     // Kithena ships it and something depends on it. Deprecating a tenant's own
     // field is their business; deprecating `employee_number` is not.

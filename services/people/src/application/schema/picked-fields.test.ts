@@ -91,9 +91,13 @@ describe('departments and managers picked, never typed', () => {
     expect(c.now().attribute('org_unit_id')?.dataType).toBe('org_unit_ref');
     expect(c.now().attribute('department')?.deprecatedAt).not.toBeNull();
     expect(c.now().attribute('manager_employee_number')?.deprecatedAt).not.toBeNull();
-    // People's signature field too, for a company that had none.
-    expect(c.saved.toSorted()).toEqual(['department', 'manager_employee_number', 'org_unit_id',
-      'signature']);
+    // People's signature field too, for a company that had none, and every core field it lacked.
+    expect(c.saved).toEqual(
+      expect.arrayContaining(['department', 'manager_employee_number', 'org_unit_id', 'signature']),
+    );
+    expect(c.now().attribute('base_salary')?.origin).toBe('core');
+    expect(c.now().section('compensation')).toBeDefined();
+    expect(c.now().attribute('probation_end')?.dataType).toBe('date');
     // Again: nothing left to do, nothing published.
     expect(await c.run()).toEqual(ok({ version: null }));
   });

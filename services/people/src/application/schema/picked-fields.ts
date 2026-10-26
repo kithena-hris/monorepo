@@ -2,7 +2,12 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { ok, type Result } from '@kithena/domain-kit';
 import type { Actor } from '@kithena/contracts';
 
-import { DEPARTMENT_FIELD, SIGNATURE_FIELD } from '../../country-packs/core.js';
+import {
+  CORE_PACK,
+  DEPARTMENT_FIELD,
+  EMPLOYEE_NUMBER_FIELD,
+  SIGNATURE_FIELD,
+} from '../../country-packs/core.js';
 import { SchemaDraft } from '../../domain/schema/draft.js';
 import type { FoldSectionsDeps } from './fold-sections.js';
 
@@ -20,10 +25,14 @@ import type { FoldSectionsDeps } from './fold-sections.js';
  * values stay in history and in exports. Idempotent, so it runs every day.
  *
  * A company with no signature field gains People's own (`SIGNATURE_FIELD`) the
- * same way, so a hire's contract signature always has somewhere to go.
+ * same way, so a hire's contract signature always has somewhere to go, and
+ * every core section and field it lacks (`CORE_PACK`): the personal,
+ * employment and pay fields every company has. A company's own field under a
+ * core key is left as it is. The employee number becomes Kithena's to give and
+ * required, and People numbers whoever has none (`PersonAccess.number`).
  */
 
-export const PICKED_REASON = 'Departments and managers are picked, not typed';
+export const PICKED_REASON = 'Every company has the core fields; departments and managers are picked, not typed';
 const ACTOR: Actor = { kind: 'system', process: 'people-picked-fields' };
 const OWN = 'department';
 /** A company's own field for the manager, by its key: `supervisor_id`, `manager_employee_number`. */
@@ -40,8 +49,28 @@ function apply(
   draft: SchemaDraft,
   retire: boolean,
   deps: PickedFieldsDeps,
-): { readonly added: readonly string[]; readonly retired: readonly string[] } {
+): {
+  readonly sections: readonly string[];
+  readonly added: readonly string[];
+  readonly retired: readonly string[];
+} {
+  const sections = CORE_PACK.sections
+    .filter((s) => draft.section(s.key) === undefined && draft.addSection(s).ok)
+    .map((s) => s.key);
+  // The employee number Kithena gives and nobody types (`EMPLOYEE_NUMBER_FIELD`).
+  const number = draft.attribute(EMPLOYEE_NUMBER_FIELD.key);
+  const locked =
+    number !== undefined &&
+    number.origin === 'core' &&
+    number.ownership.some((r) => r !== 'system') &&
+    draft.updateAttribute(number.key, {
+      ownership: EMPLOYEE_NUMBER_FIELD.ownership,
+      requiredness: EMPLOYEE_NUMBER_FIELD.requiredness,
+    }).ok
+      ? number.key
+      : null;
   const added = [
+    locked,
     draft.attribute(DEPARTMENT_FIELD.key) === undefined && draft.addAttribute(DEPARTMENT_FIELD).ok
       ? DEPARTMENT_FIELD.key
       : null,
@@ -50,6 +79,9 @@ function apply(
     !draft.addAttribute(SIGNATURE_FIELD).ok
       ? null
       : SIGNATURE_FIELD.key,
+    ...CORE_PACK.attributes
+      .filter((a) => a.key !== DEPARTMENT_FIELD.key && a.key !== SIGNATURE_FIELD.key)
+      .map((a) => (draft.attribute(a.key) === undefined && draft.addAttribute(a).ok ? a.key : null)),
   ].filter((k) => k !== null);
   const retired = draft
     .liveAttributes()
@@ -62,7 +94,7 @@ function apply(
     )
     .map((a) => a.key)
     .filter((key) => draft.archiveAttribute(key, deps.clock).ok);
-  return { added, retired };
+  return { sections, added, retired };
 }
 
 export function pickedFields(deps: PickedFieldsDeps) {
@@ -84,7 +116,7 @@ export function pickedFields(deps: PickedFieldsDeps) {
 
     // The version first: a refusal returns before any draft row is written.
     let version: number | null = null;
-    if (changed.added.length > 0 || changed.retired.length > 0) {
+    if (changed.sections.length > 0 || changed.added.length > 0 || changed.retired.length > 0) {
       const published = await deps.publisher.publish(tx, {
         tenantId,
         actor: ACTOR,
@@ -99,6 +131,10 @@ export function pickedFields(deps: PickedFieldsDeps) {
     }
     const draft = SchemaDraft.rehydrate(stored.sections, stored.attributes);
     const drafted = apply(draft, retire, deps);
+    for (const key of drafted.sections) {
+      const section = draft.section(key);
+      if (section !== undefined) await deps.draft.saveSection(tx, tenantId, section);
+    }
     for (const key of [...drafted.added, ...drafted.retired]) {
       const attribute = draft.attribute(key);
       if (attribute !== undefined) await deps.draft.saveAttribute(tx, tenantId, attribute);

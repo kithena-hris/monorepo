@@ -34,6 +34,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 
+import { longDate } from './display';
 import { FileInput, isFileField } from './files';
 import { INDEFINITE, isMissing, signatureOf, type AttributeValue, type RecordField } from './model';
 import { SensitiveMark } from './pending';
@@ -246,6 +247,97 @@ export interface CellPlace {
  */
 export const LegalName = createContext('');
 
+/**
+ * The person's start date (their contract's, else their employment's), for a
+ * probation end set as a length after it. Empty where the screen does not know it.
+ */
+export const StartDate = createContext('');
+
+export type PeriodUnit = 'days' | 'weeks' | 'months';
+
+/**
+ * The last day of a period of `count` units starting on `start`, as Recruiting
+ * counts a contract's probation (`endOf`): a month on is the same day, clamped
+ * to the month's end, and the period ends the day before.
+ */
+export function periodEnd(start: string, count: number, unit: PeriodUnit): string {
+  const [y = 0, m = 1, d = 1] = start.split('-').map(Number);
+  const day = (at: Date) => at.toISOString().slice(0, 10);
+  if (unit !== 'months') {
+    return day(new Date(Date.UTC(y, m - 1, d + count * (unit === 'weeks' ? 7 : 1) - 1)));
+  }
+  const last = new Date(Date.UTC(y, m - 1 + count + 1, 0)).getUTCDate();
+  return day(new Date(Date.UTC(y, m - 1 + count, Math.min(d, last) - 1)));
+}
+
+/** "6 months after the start date": the date it lands on, set as it is typed. */
+function AfterStart({
+  start,
+  disabled,
+  onChange,
+}: {
+  readonly start: string;
+  readonly disabled: boolean;
+  readonly onChange: (value: string) => void;
+}): JSX.Element {
+  const [count, setCount] = useState('');
+  const [unit, setUnit] = useState<PeriodUnit>('months');
+  const set = (nextCount: string, nextUnit: PeriodUnit) => {
+    setCount(nextCount);
+    setUnit(nextUnit);
+    const n = Number(nextCount);
+    if (Number.isInteger(n) && n > 0 && n <= 1000) onChange(periodEnd(start, n, nextUnit));
+  };
+  const units: Record<PeriodUnit, string> = {
+    days: t('record.attribute-input.days', 'days'),
+    weeks: t('record.attribute-input.weeks', 'weeks'),
+    months: t('record.attribute-input.months', 'months'),
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-fg-muted text-sm">{t('record.attribute-input.or', 'or')}</span>
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={1}
+        className="w-20"
+        aria-label={t('record.attribute-input.length_of_probation', 'Length of probation')}
+        value={count}
+        disabled={disabled}
+        onChange={(e) => {
+          set(e.target.value, unit);
+        }}
+      />
+      <Select
+        value={unit}
+        disabled={disabled}
+        onValueChange={(next) => {
+          set(count, next as PeriodUnit);
+        }}
+      >
+        <SelectTrigger
+          className="w-32"
+          aria-label={t('record.attribute-input.unit', 'Unit')}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(units) as PeriodUnit[]).map((u) => (
+            <SelectItem key={u} value={u}>
+              {units[u]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <span className="text-fg-muted text-sm">
+        {t('record.attribute-input.after_the_start_on', 'after the start, {{date}}', {
+          date: longDate(start),
+        })}
+      </span>
+    </div>
+  );
+}
+
 export function AttributeControl({
   field,
   value,
@@ -271,6 +363,7 @@ export function AttributeControl({
   readonly 'aria-required'?: boolean;
 }): JSX.Element | null {
   const legalName = useContext(LegalName);
+  const start = useContext(StartDate);
   const size = cell === undefined ? 'md' : 'sm';
   const opened = cell?.open === true ? { defaultOpen: true } : {};
   const named = cell === undefined ? {} : { 'aria-label': label };
@@ -314,6 +407,16 @@ export function AttributeControl({
           }}
         />
       );
+      // A probation end typed, or set as a length after the start: a hire made
+      // outside Kithena has no contract here to take it from.
+      if (field.key === 'probation_end' && cell === undefined && start !== '') {
+        return (
+          <div className="flex flex-col gap-2">
+            {picker}
+            <AfterStart start={start} disabled={disabled} onChange={onChange} />
+          </div>
+        );
+      }
       // A grid cell has room for the date only; "Indefinite" is set in the form.
       if (field.openEnded !== true || cell !== undefined) return picker;
       return (
