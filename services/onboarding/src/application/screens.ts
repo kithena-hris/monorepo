@@ -1,4 +1,10 @@
-import type { CalendarDate, InboxItem, Instant } from '@kithena/contracts';
+import type {
+  CalendarDate,
+  InboxItem,
+  Instant,
+  OnboardingTaskDetail,
+  TaskKind,
+} from '@kithena/contracts';
 import { err, ok, type Result } from '@kithena/domain-kit';
 
 import { dueText, parseDue, progress, startIfDue, type Template } from '../domain/plan.js';
@@ -265,6 +271,8 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
       title: string;
       dueOn: CalendarDate;
       late: boolean;
+      kind: TaskKind;
+      link: string | null;
     }[];
   };
   return {
@@ -292,7 +300,12 @@ export async function onboardingInbox(ctx: Ctx): Promise<{ items: InboxItem[] }>
         team: null,
         replies: 0,
         message: null,
-        detail: null,
+        detail: {
+          planId: r.planId,
+          taskId: r.taskId,
+          kind: r.kind,
+          link: r.link,
+        } satisfies OnboardingTaskDetail,
       })),
   };
 }

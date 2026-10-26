@@ -1199,6 +1199,98 @@
     "text": "When",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/dated-dialogs.tsx, SnoozeDialog: text inside <FieldLabel>."
   },
+  "components.inbox.detail-documents.acknowledged": {
+    "text": "Acknowledged",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: the onClick of <Button>."
+  },
+  "components.inbox.detail-documents.drop_a_file_or_choose_one": {
+    "text": "Drop a file, or choose one",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the label of <Dropzone>."
+  },
+  "components.inbox.detail-documents.grant": {
+    "text": "Grant",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text inside <Button>."
+  },
+  "components.inbox.detail-documents.granted": {
+    "text": "Granted",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: the onClick of <Button>."
+  },
+  "components.inbox.detail-documents.i_have_read_and_understood_it": {
+    "text": "I have read and understood it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: text inside <Button>."
+  },
+  "components.inbox.detail-documents.it_is_in_your_documents": {
+    "text": "It is in your documents, private to you and HR",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the onClick of <Button>."
+  },
+  "components.inbox.detail-documents.open_in_documents": {
+    "text": "Open in Documents",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, DocumentsBody: text inside <a>."
+  },
+  "components.inbox.detail-documents.pdfs_images_office_files": {
+    "text": "PDFs, images, Office files and CSV, up to 100 MB",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the hint of <Actions>."
+  },
+  "components.inbox.detail-documents.read_it": {
+    "text": "Read it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: text inside <a>."
+  },
+  "components.inbox.detail-documents.read_it_then_say_so": {
+    "text": "Read it, then say so here. Your acknowledgement is recorded with the date.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Acknowledge: text inside <p>."
+  },
+  "components.inbox.detail-documents.refuse": {
+    "text": "Refuse",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text inside <Button>."
+  },
+  "components.inbox.detail-documents.refused": {
+    "text": "Refused",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: the onClick of <Button>."
+  },
+  "components.inbox.detail-documents.see_the_document": {
+    "text": "See the document",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text inside <a>."
+  },
+  "components.inbox.detail-documents.sent_your": {
+    "text": "Sent your {{name}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: the onClick of <Button>. Filled in: {{name}}."
+  },
+  "components.inbox.detail-documents.the_file_could_not_be_uploaded": {
+    "text": "The file could not be uploaded. Try again.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx: a \"message\" value."
+  },
+  "components.inbox.detail-documents.they": {
+    "text": "They",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: text built in code."
+  },
+  "components.inbox.detail-documents.upload_and_send": {
+    "text": "Upload and send",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Request: text inside <Button>."
+  },
+  "components.inbox.detail-documents.who_can_open_it_now": {
+    "text": "{{who}} can open it now",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: the onClick of <Button>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-documents.who_is_told": {
+    "text": "{{who}} is told it was refused",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-documents.tsx, Access: the onClick of <Button>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-onboarding.do_it": {
+    "text": "Do it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <a>."
+  },
+  "components.inbox.detail-onboarding.done": {
+    "text": "Done: {{title}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: the onClick of <Button>. Filled in: {{title}}."
+  },
+  "components.inbox.detail-onboarding.mark_done": {
+    "text": "Mark done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <Button>."
+  },
+  "components.inbox.detail-onboarding.see_the_plan": {
+    "text": "See the plan",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-onboarding.tsx, OnboardingBody: text inside <a>."
+  },
   "components.inbox.detail-people.a_change_to_this_goes_to": {
     "text": "A change to this goes to HR before it is on your record.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, FieldInput: text inside <FieldDescription>."
@@ -1774,6 +1866,62 @@
   "components.inbox.detail-people.youre_on_it": {
     "text": "You’re on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-people.tsx, Integration: the hint of <Actions>."
+  },
+  "components.inbox.detail-performance.approve_all": {
+    "text": "Approve all",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: text inside <Button>."
+  },
+  "components.inbox.detail-performance.approved": {
+    "text": "Approved",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: the onClick of <Button>."
+  },
+  "components.inbox.detail-performance.change_someone": {
+    "text": "Change someone",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: text inside <a>."
+  },
+  "components.inbox.detail-performance.decline": {
+    "text": "Decline",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: text inside <Button>."
+  },
+  "components.inbox.detail-performance.decline_the_unlock": {
+    "text": "Decline the unlock",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the title of <NoteDialog>."
+  },
+  "components.inbox.detail-performance.declined": {
+    "text": "Declined",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the onConfirm of <NoteDialog>."
+  },
+  "components.inbox.detail-performance.open_in_performance": {
+    "text": "Open in Performance",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, PerformanceBody: text inside <a>."
+  },
+  "components.inbox.detail-performance.reason": {
+    "text": "Reason",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the label of <NoteDialog>."
+  },
+  "components.inbox.detail-performance.they": {
+    "text": "They",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: text built in code."
+  },
+  "components.inbox.detail-performance.they_are_asked_for_their_review": {
+    "text": "Each is asked for their review",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Nominations: the onClick of <Button>."
+  },
+  "components.inbox.detail-performance.unlock": {
+    "text": "Unlock",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: text inside <Button>."
+  },
+  "components.inbox.detail-performance.unlocked": {
+    "text": "Unlocked",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the onClick of <Button>."
+  },
+  "components.inbox.detail-performance.who_can_edit_it_again": {
+    "text": "{{who}} can edit it again",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the onClick of <Button>. Filled in: {{who}}."
+  },
+  "components.inbox.detail-performance.who_sees_your_reason": {
+    "text": "{{who}} sees your reason.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/detail-performance.tsx, Unlock: the description of <NoteDialog>. Filled in: {{who}}."
   },
   "components.inbox.detail-recruiting.a_month": {
     "text": "a month",

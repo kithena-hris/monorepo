@@ -83,3 +83,13 @@ export const HireIntake = z.object({
   probationExtensionMonths: z.int().min(0).max(12).nullable().register(policy, asInternal()),
 });
 export type HireIntake = z.infer<typeof HireIntake>;
+
+/** An onboarding task in the Inbox (ONB-012), ticked off there; what it links opens beside it. */
+export const OnboardingTaskDetail = z.object({
+  planId: z.string().min(1).max(64).register(policy, asPublic()),
+  taskId: z.string().min(1).max(64).register(policy, asPublic()),
+  kind: TaskKind,
+  /** A People form, a Documents request or a policy, when the kind links one. */
+  link: z.string().max(500).nullable().register(policy, asPublic()),
+});
+export type OnboardingTaskDetail = z.infer<typeof OnboardingTaskDetail>;

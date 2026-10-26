@@ -1,4 +1,8 @@
-import { PERFORMANCE_INBOX_KINDS, type InboxItem } from '@kithena/contracts';
+import {
+  PERFORMANCE_INBOX_KINDS,
+  type InboxItem,
+  type PerformanceInboxDetail,
+} from '@kithena/contracts';
 import { err, ok, type Result } from '@kithena/domain-kit';
 
 import { label } from '../domain/cycle.js';
@@ -278,6 +282,11 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
           at: n.at as InboxItem['at'],
           dueVerb: 'decide',
           link: `/performance/nominations/${n.id}`,
+          detail: {
+            kind: 'nominations',
+            nominationId: n.id,
+            nominees: n.nominees.map((x) => ({ personId: x.personId, name: name(x.personId) })),
+          } satisfies PerformanceInboxDetail,
         });
     }
     for (const q of await ctx.tx.requests.find())
@@ -349,6 +358,7 @@ export async function inbox(ctx: Ctx): Promise<InboxItem[]> {
         dueVerb: 'decide',
         message: r.unlock?.reason ?? null,
         link: '/performance/unlocks',
+        detail: { kind: 'unlock', reviewId: r.id } satisfies PerformanceInboxDetail,
       });
   return items.toSorted((a, b) => b.at.localeCompare(a.at));
 }

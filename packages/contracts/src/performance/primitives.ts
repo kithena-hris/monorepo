@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { asPublic, policy } from '../classification.js';
+import { asInternal, asPublic, policy } from '../classification.js';
 
 /**
  * Performance's vocabulary (Performance PRD §6, PRF-010): its ids, a cycle's
@@ -85,3 +85,28 @@ export const PERFORMANCE_INBOX_KINDS = {
   /** A manager review its writer no longer writes: the subject reports to someone else (§8.8). */
   managerChanged: 'performance.manager-changed',
 } as const;
+
+/**
+ * What a Performance task in the Inbox carries so it is decided there: an
+ * unlock asked for, granted or declined; the peers nominated for someone,
+ * approved as they stand. Writing a review or feedback opens Performance.
+ */
+export const PerformanceInboxDetail = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('unlock'),
+    reviewId: z.string().min(1).max(64).register(policy, asPublic()),
+  }),
+  z.object({
+    kind: z.literal('nominations'),
+    nominationId: z.string().min(1).max(64).register(policy, asPublic()),
+    nominees: z
+      .array(
+        z.object({
+          personId: z.string().min(1).max(64).register(policy, asPublic()),
+          name: z.string().max(200).register(policy, asInternal('identity')),
+        }),
+      )
+      .max(50),
+  }),
+]);
+export type PerformanceInboxDetail = z.infer<typeof PerformanceInboxDetail>;
