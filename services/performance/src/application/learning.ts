@@ -117,7 +117,7 @@ async function invite(
         // Only a real link becomes the button: messaging refuses anything else, and the email with it.
         ...(method === 'REQUEST' &&
         session.online !== null &&
-        /^https:\/\//u.test(session.online) &&
+        session.online.startsWith('https://') &&
         URL.canParse(session.online)
           ? {
               action: {
