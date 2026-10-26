@@ -54,7 +54,7 @@ export function answerInbox(
     Math.round((Date.parse(`${due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS);
   const tasks = items.filter((i) => i.counted);
   const requests = items.filter((i) => i.lane === 'request');
-  const unread = items.filter((i) => i.unread);
+  const unread = items.filter((i) => i.unread && i.lane === 'update');
   const chip = (i: Shown, hint: string | null) => ({
     id: i.id,
     title: i.title,

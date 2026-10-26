@@ -251,7 +251,7 @@ export function InboxDetail({
   const canAsk = item.kind === 'people.details' && item.lane === 'task' && item.outcome === null;
   const copy = (): void => {
     void navigator.clipboard.writeText(
-      `${window.location.origin}/inbox/${laneOf(item)}?item=${encodeURIComponent(item.id)}`,
+      `${window.location.origin}/inbox?item=${encodeURIComponent(item.id)}`,
     );
     toast({ title: t('components.inbox.detail.link_copied', 'Link copied'), tone: 'success' });
   };

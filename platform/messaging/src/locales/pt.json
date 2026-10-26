@@ -166,5 +166,8 @@
   "notice.webhook_disabled.footer": "Enviado pelo Kithena porque este endereço é o contacto de alertas de um endpoint de webhook em Pessoas de {{company}}.",
   "notice.webhook_disabled.heading": "Deixámos de enviar para um dos seus webhooks",
   "notice.webhook_disabled.lede": "Há 24 horas que nenhum envio para {{host}} tem êxito, pelo que o Kithena desativou esse endpoint. Os eventos gerados enquanto estiver desativado não lhe são enviados. Depois de corrigido o recetor, reative o endpoint e repita a entrega que falhou.",
-  "notice.webhook_disabled.subject": "{{company}}: um webhook de Pessoas foi desativado"
+  "notice.webhook_disabled.subject": "{{company}}: um webhook de Pessoas foi desativado",
+  "push.in_company": "Na {{company}}",
+  "push.inbox_task": "Algo precisa de si",
+  "push.inbox_update": "Uma atualização para si"
 }

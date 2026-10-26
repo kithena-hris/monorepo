@@ -133,6 +133,19 @@ export async function readNotifications<T>(signed: Signed): Promise<Answer<T>> {
   return call<T>(signed, '/api/mobile/notifications');
 }
 
+/** This phone's push token, kept with the account so Kithena pushes to it (`/api/mobile/push`). */
+export async function savePushToken(
+  signed: Signed,
+  token: string,
+  label: string,
+): Promise<boolean> {
+  const done = await call<unknown>(signed, '/api/mobile/push', {
+    method: 'POST',
+    body: JSON.stringify({ token, label }),
+  });
+  return done.ok;
+}
+
 export async function saveNotifications(signed: Signed, value: unknown): Promise<string | null> {
   const done = await call<unknown>(signed, '/api/mobile/notifications', {
     method: 'PUT',

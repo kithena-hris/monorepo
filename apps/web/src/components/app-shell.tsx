@@ -271,6 +271,7 @@ const HOST_PAGES = new Set([
   '/inbox/todo',
   '/inbox/updates',
   '/inbox/requests',
+  '/inbox/snoozed',
   '/inbox/done',
   '/people/menu',
   '/settings',
@@ -358,6 +359,17 @@ function useShortcutsFor({
   const router = useRouter();
   const pathname = usePathname();
   const commands = useScreenCommands();
+  // A push arrived (`public/push-sw.js`): the bell and the Inbox catch up now, not on the next visit.
+  useEffect(() => {
+    const worker = 'serviceWorker' in navigator ? navigator.serviceWorker : null;
+    const heard = (event: MessageEvent<unknown>): void => {
+      if ((event.data as { type?: unknown } | null)?.type === 'kithena:push') router.refresh();
+    };
+    worker?.addEventListener('message', heard);
+    return () => {
+      worker?.removeEventListener('message', heard);
+    };
+  }, [router]);
   // Shown as chosen at once; the server's answer replaces it, or a refusal restores it.
   const [prefs, setPrefs] = useState(saved);
   useEffect(() => {
@@ -780,7 +792,7 @@ export function AppShell({
                                         ?.name ?? ''
                                     ]?.sections ?? []),
                                 area.href,
-                              ) ?? (area.href === '/inbox' ? '/inbox/todo' : area.href)) as Route
+                              ) ?? area.href) as Route
                             }
                             onClick={() => {
                               setPressed({ href: area.href, from: pathname });
@@ -1618,7 +1630,7 @@ function MobileTabs({
             current: isCurrent('/people', pathname) && !isCurrent('/people/me', pathname),
           },
           {
-            href: '/inbox/todo',
+            href: '/inbox',
             label: tr('components.app-shell.inbox', 'Inbox'),
             icon: <icons.inbox />,
             current: isCurrent('/inbox', pathname),

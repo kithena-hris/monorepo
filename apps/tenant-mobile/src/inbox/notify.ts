@@ -4,7 +4,9 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
 import type { Signed } from '../people/api';
-import { changeInbox, readInbox, readNotifications } from './api';
+import { Platform } from 'react-native';
+
+import { changeInbox, readInbox, readNotifications, savePushToken } from './api';
 import { whatToSay, type Settings } from './say';
 import { t as tr } from '../i18n';
 
@@ -16,9 +18,10 @@ import { t as tr } from '../i18n';
  * person chose in Me › Settings › Notifications. Quiet hours hold them, except
  * a task due today.
  *
- * ponytail: raised by the app from its own read, so nothing arrives while it is
- * closed; Expo's push service from the server is the upgrade once the app has
- * a build with a push credential.
+ * Pushed by Kithena once this phone has a push token (a build with the Expo
+ * project's id): Messaging then sends each one as it happens, closed app or
+ * not, and the app stops raising its own, so nothing is said twice. Without
+ * one, the app raises them from its own reads.
  */
 
 const CATEGORY = 'inbox-task';
@@ -70,8 +73,30 @@ Notifications.setNotificationHandler({
     }),
 });
 
-/** Read the Inbox and say what is new, as the person chose. */
-async function check(signed: Signed): Promise<void> {
+/** This phone's push token, kept with the account; false when the build has no Expo project id. */
+async function registerForPush(signed: Signed): Promise<boolean> {
+  try {
+    if (!(await ready())) return false;
+    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    return await savePushToken(signed, token, Platform.OS === 'ios' ? 'iPhone' : 'Android phone');
+  } catch {
+    return false;
+  }
+}
+
+/** The item a push names: `/inbox?item=…`. */
+const itemOf = (data: Record<string, unknown>): string | null => {
+  if (typeof data['id'] === 'string') return data['id'];
+  if (typeof data['path'] !== 'string') return null;
+  try {
+    return new URL(data['path'], 'https://app.invalid').searchParams.get('item');
+  } catch {
+    return null;
+  }
+};
+
+/** Read the Inbox and say what is new, as the person chose; only the badge when pushed to. */
+async function check(signed: Signed, pushed: boolean): Promise<void> {
   const [answer, chosen] = await Promise.all([
     readInbox(signed, 30_000),
     readNotifications<Settings>(signed),
@@ -83,7 +108,7 @@ async function check(signed: Signed): Promise<void> {
   const { tasks, updates } = whatToSay(answer.data, settings, already, new Date());
   await Notifications.setBadgeCountAsync(answer.data.counts.todo).catch(() => false);
   // The first read after installing only learns what is there: nothing is new to it.
-  if (!first && (tasks.length > 0 || updates.length > 0) && (await ready())) {
+  if (!pushed && !first && (tasks.length > 0 || updates.length > 0) && (await ready())) {
     for (const t of tasks) {
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -136,17 +161,21 @@ async function check(signed: Signed): Promise<void> {
 export function useInboxNotifications(signed: Signed, openItem: (id: string) => void): void {
   const open = useRef(openItem);
   open.current = openItem;
+  const pushed = useRef(false);
   useEffect(() => {
-    void check(signed);
+    void registerForPush(signed).then((ok) => {
+      pushed.current = ok;
+      void check(signed, ok);
+    });
     const timer = setInterval(() => {
-      if (AppState.currentState === 'active') void check(signed);
+      if (AppState.currentState === 'active') void check(signed, pushed.current);
     }, 5 * 60_000);
     const state = AppState.addEventListener('change', (s) => {
-      if (s === 'active') void check(signed);
+      if (s === 'active') void check(signed, pushed.current);
     });
     const pressed = Notifications.addNotificationResponseReceivedListener((response) => {
-      const id = (response.notification.request.content.data as { id?: unknown }).id;
-      if (typeof id !== 'string') return;
+      const id = itemOf(response.notification.request.content.data ?? {});
+      if (id === null) return;
       if (response.actionIdentifier === 'tomorrow') {
         const at = new Date();
         at.setDate(at.getDate() + 1);

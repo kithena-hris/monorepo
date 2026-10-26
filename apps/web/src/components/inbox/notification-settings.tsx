@@ -38,6 +38,7 @@ import { saveNotifications } from '../../app/(app)/settings/notifications/action
 import { moduleName, type Mute } from '../../lib/inbox/model';
 import { TASK_ROWS, UPDATE_ROWS, type Notifications } from '../../lib/inbox/notifications';
 import { t as tr } from '../../lib/t';
+import { PushDevice } from '../push-device';
 
 /**
  * Settings › You › Notifications (P1): tasks (the Inbox always has them, the
@@ -90,6 +91,7 @@ function EmailSelect({
 export function NotificationSettings(props: {
   readonly initial: Notifications;
   readonly muted: readonly Mute[];
+  readonly vapidKey: string | null;
 }): JSX.Element {
   return (
     <ToastProvider>
@@ -101,9 +103,11 @@ export function NotificationSettings(props: {
 function Settings({
   initial,
   muted,
+  vapidKey,
 }: {
   readonly initial: Notifications;
   readonly muted: readonly Mute[];
+  readonly vapidKey: string | null;
 }): JSX.Element {
   const [n, setN] = useState(initial);
   const [pending, start] = useTransition();
@@ -156,6 +160,7 @@ function Settings({
       />
       <div className="grid gap-4 @4xl/page:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col gap-4">
+          <PushDevice vapidKey={vapidKey} />
           <Card>
             <CardHeader>
               <CardTitle level={2}>

@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { compose, type RequestHandler } from '../src/composition.js';
+import { compose, vapidFrom, type RequestHandler } from '../src/composition.js';
 
 /*
  * The one field Vercel's Node runtime adds that this file reads: the parsed
@@ -87,6 +87,7 @@ function routes(): RequestHandler {
     cronSecret: process.env['CRON_SECRET'],
     inboundDomain: process.env['INBOUND_DOMAIN'],
     recruitingUrl: process.env['RECRUITING_URL'],
+    ...vapidFrom(process.env),
   });
   return handler;
 }

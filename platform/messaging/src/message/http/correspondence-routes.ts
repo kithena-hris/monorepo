@@ -3,6 +3,7 @@ import * as z from 'zod';
 import { presentsInternalToken } from '@kithena/auth-kit';
 
 import { readJsonBody } from '../../shared/http.js';
+import { pushLine, type Push } from '../application/push.js';
 import type { SendCorrespondence } from '../application/send-correspondence.js';
 import { STATUS, refusalOf } from './messaging-routes.js';
 
@@ -23,6 +24,13 @@ const Request = z.object({
   replyTo: z.string().min(3).max(320).nullable(),
   companyName: z.string().min(1).max(120).default('Kithena'),
   dedupeKey: z.string().min(1).max(200),
+  /**
+   * The recipient's account, when they are a member of the company: their
+   * devices hear of it too, in the same words, if they turned push on.
+   */
+  accountId: z.uuid().optional(),
+  /** Whether it is something to do (shown at once) rather than news. */
+  urgent: z.boolean().default(false),
   /** A calendar invitation or a drawn PDF, by kind of file only: at most two, each small. */
   attachments: z
     .array(
@@ -73,8 +81,11 @@ const Request = z.object({
 export function correspondenceRoutes({
   send,
   internalTokens,
+  push,
 }: {
   readonly send: SendCorrespondence;
+  /** A member's devices; absent, the email alone. */
+  readonly push?: Push;
   /** Each sending module's own secret; an empty one opens nothing. */
   readonly internalTokens: readonly string[];
 }) {
@@ -103,7 +114,17 @@ export function correspondenceRoutes({
         code: 'MALFORMED_REQUEST',
         fields: parsed.error.issues.map((i) => i.path.join('.')),
       });
-    const sent = await send(parsed.data);
+    const { accountId, urgent, ...asked } = parsed.data;
+    const sent = await send(asked);
+    if (sent.ok && push !== undefined && accountId !== undefined) {
+      await push(asked.tenantId, accountId, {
+        title: asked.parts?.heading ?? asked.subject,
+        body: pushLine(asked.text),
+        url: asked.parts?.action?.href ?? '/inbox',
+        tag: asked.dedupeKey,
+        urgent,
+      }).catch(() => 0);
+    }
     if (!sent.ok) {
       const reason = refusalOf(sent.error.path?.[0]);
       return json(STATUS[reason], { code: sent.error.code, reason });

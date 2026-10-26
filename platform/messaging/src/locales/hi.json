@@ -162,5 +162,8 @@
   "notice.webhook_disabled.footer": "Kithena ने यह इसलिए भेजा क्योंकि यह पता {{company}} के कर्मचारी में एक वेबहुक एंडपॉइंट का अलर्ट संपर्क है।",
   "notice.webhook_disabled.heading": "हमने आपके एक वेबहुक पर भेजना बंद कर दिया है",
   "notice.webhook_disabled.lede": "24 घंटों से {{host}} पर कुछ भी सफलतापूर्वक नहीं भेजा जा सका, इसलिए Kithena ने वह एंडपॉइंट बंद कर दिया। बंद रहने के दौरान हुए इवेंट उस पर नहीं भेजे जाते। रिसीवर ठीक होने पर एंडपॉइंट फिर चालू करें और असफल डिलीवरी दोबारा चलाएँ।",
-  "notice.webhook_disabled.subject": "{{company}}: एक कर्मचारी वेबहुक बंद कर दिया गया"
+  "notice.webhook_disabled.subject": "{{company}}: एक कर्मचारी वेबहुक बंद कर दिया गया",
+  "push.in_company": "{{company}} में",
+  "push.inbox_task": "किसी चीज़ को आपकी ज़रूरत है",
+  "push.inbox_update": "आपके लिए एक अपडेट"
 }

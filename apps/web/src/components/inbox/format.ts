@@ -158,7 +158,7 @@ export function homeToDo(peek: InboxPeek): {
     };
   };
   return {
-    href: '/inbox/todo',
+    href: '/inbox',
     tasks: peek.todo.map((i) => row(i, 'todo')),
     waiting: peek.requests.map((i) => row(i, 'requests')),
   };

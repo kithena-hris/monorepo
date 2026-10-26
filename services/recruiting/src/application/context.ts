@@ -38,6 +38,8 @@ export interface Outgoing {
   readonly companyName?: string;
   readonly parts?: MailParts;
   readonly attachments?: readonly MailAttachment[];
+  /** A member's account: their devices hear of it too, if they turned push on. */
+  readonly accountId?: string;
 }
 
 export interface Ctx {
@@ -272,6 +274,7 @@ export async function deliver(
           : { companyName: m.companyName ?? brand.companyName ?? '' }),
         parts: { ...brand.parts, ...m.parts },
         ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
+        ...(m.accountId === undefined ? {} : { accountId: m.accountId, urgent: true }),
       });
     } catch {
       // ponytail: a lost notice is retried by nothing; a delivery queue when one is missed.

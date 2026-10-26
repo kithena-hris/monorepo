@@ -216,9 +216,11 @@ export interface InboxNotifier {
     tenantId: string,
     to: Recipient,
     notice: InboxNotice,
-    /** The item, as the Inbox addresses it: `/inbox/todo?item=…`. */
+    /** The item, as the Inbox addresses it: `/inbox?item=…`. */
     itemPath: string,
     /** What makes a retry the same message. */
     dedupeKey: string,
+    /** The item's own name for a push to their devices: a document's file name. */
+    about?: string,
   ): Promise<void>;
 }

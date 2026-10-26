@@ -20,6 +20,7 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
   Each section is a `Card` with a `CardHeader` and at most one action. Cards are never nested. J and K walk the board behind the overlay.
 
   A stage's work belongs to it. Before the offer stage, the spotlight books interviews and shows the time requests still open; from the offer stage on, those actions are gone and the interviews read as history. Leaving a stage closes its open time requests; going back before the offer stage withdraws the open offer; arriving at the offer stage drafts a new one from the job (`stage-work.ts` in the service). Coming back to a stage is a new visit with new work.
+
 - **Journey** (`journey.tsx`): Reach's `Timeline`, one item per visit to a stage, newest first, the current one pulsing with "Now". Inside each visit, what happened while the candidate was there: emails, time requests and their answers, interviews (upcoming ones marked), scorecards, offers. Offered times show under their day as badges, the chosen one in success.
 - **Offer** (`offers.tsx`): one centred column, no tabs and no steps: the checks and the total first, then Pay, Dates, Contract, Time and place, Probation and notice, Clauses and Benefits, each filled from the job and the country pack, and the rules that applied last. It opens as a `ModalPage size="column"` over the page it came from (`?offer=` on the offers list, the board or a candidate), and as a page of its own from a link. Money is a `CurrencyField` (the currency inside); every other number is a `NumberField` with its unit inside, a length in the unit the law gives it. There is no Save button: a press saves at once, typing saves once it pauses, and "Saved" sits beside the title. Benefits use the job's `BenefitPicker`, with a `TagsInput` for benefits written in for this offer alone.
 - **Board** (`pipeline.tsx`): the `Kanban` fills from its top to the window's bottom (`useFillHeight`), so each column scrolls on its own. A sideways swipe anywhere on the board scrolls the board (the column lists contain only vertical scrolling), the scrollbar sits under the columns rather than on their edge, and columns snap only under a finger. The whole card drags (`dragActivator: { mode: 'card' }`), and a press opens the spotlight (`onCardOpen`). A card reads:
@@ -34,6 +35,20 @@ The tenant app draws only from Reach (`packages/ui`): its tokens, components and
   - its state.
 
   A row opens the board. Its `RowMenu` carries the lifecycle from `job-actions.tsx`: edit, dashboard, archive, bring back, and delete for a job nobody applied to.
+
+## Inbox
+
+- **One feed** (`components/inbox/screen.tsx`, `lib/inbox/model.ts` `feedOf`), never lanes in tabs. Sections, in order, each a lean heading with its count:
+  - **New**: arrived and not opened, newest first. A task is new until opened, for a week; an update until read. Its heading carries **Mark all seen**, its count is the one accent badge, and a task in it says **Needs you** on its row.
+  - **Needs you**: tasks, overdue first, somebody else's last.
+  - **Waiting on others**: the person's requests.
+  - **For your information**: read updates, newest first.
+- **Three of one kind stack** under one row (`StackRow`): the first item, "and N more like it", and its count; pressing it opens the rest beneath it.
+- **The toolbar**: search, a filter menu for the module (an icon until one is chosen, then its name), the view menu (Inbox, Snoozed, Done) and Select. Under a finger, Select is gone: rows swipe instead. Under it, choice chips with counts: All, Needs you, Waiting, Updates.
+- **Every view is an address**: `/inbox`, `/inbox/todo`, `/inbox/requests`, `/inbox/updates`, `/inbox/snoozed`, `/inbox/done`, each with `?item=`.
+- **An item stays where it was while you are there**: opening one marks it seen without moving it; the next visit, or Mark all seen, sorts again.
+- **The item opens beside the list** (`ListDetail`, list 30rem) and is done there: each module's kind has its own body, and Open in … is the fallback, never the first action.
+- **Push** (Settings › Notifications): one card, "Push notifications on this device", above the rows; the rows' Phone switches route to every device a person turned push on for.
 
 ## Colour and motion
 

@@ -49,7 +49,7 @@ function Cards({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
         <CardHeader className="pb-2">
           <CardTitle level={2}>{tr('components.inbox.home-card.to_do', 'To do')}</CardTitle>
           <Button asChild size="sm" variant="link">
-            <a href="/inbox/todo">{tr('components.inbox.home-card.open_inbox', 'Open Inbox')}</a>
+            <a href="/inbox">{tr('components.inbox.home-card.open_inbox', 'Open Inbox')}</a>
           </Button>
         </CardHeader>
         <CardContent>
@@ -78,7 +78,7 @@ function Cards({ inbox }: { readonly inbox: Promise<InboxPeek> }): JSX.Element {
                     supporting={<RowBadges item={t} now={peek.now} zone={peek.zone} />}
                     meta={t.count === null ? since(t.at, peek.now) : String(t.count)}
                   >
-                    <a href={`/inbox/todo?item=${encodeURIComponent(t.id)}`}>{t.title}</a>
+                    <a href={`/inbox?item=${encodeURIComponent(t.id)}`}>{t.title}</a>
                   </ListItem>
                 );
               })}

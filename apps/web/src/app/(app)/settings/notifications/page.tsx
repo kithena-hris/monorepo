@@ -16,5 +16,12 @@ import { readPreference } from '../../../../lib/preferences';
  */
 export default async function NotificationsSettings(): Promise<JSX.Element> {
   const [saved, state] = await Promise.all([readPreference('notifications'), inboxState()]);
-  return <NotificationSettings initial={notificationsOf(saved)} muted={state.muted} />;
+  return (
+    <NotificationSettings
+      initial={notificationsOf(saved)}
+      muted={state.muted}
+      // Kithena's half of Web Push, public by design; absent, this browser cannot be pushed to.
+      vapidKey={process.env['PUSH_VAPID_PUBLIC_KEY'] ?? null}
+    />
+  );
 }

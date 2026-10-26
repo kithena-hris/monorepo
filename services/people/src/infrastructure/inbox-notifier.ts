@@ -29,7 +29,7 @@ export function inboxNotifierFrom(
   const endpoint = new URL('/api/internal/messaging/notice', url).toString();
   const companyOf = tenantCompanies(base, org);
   return {
-    async notify(tenantId, to, notice, itemPath, dedupeKey) {
+    async notify(tenantId, to, notice, itemPath, dedupeKey, about) {
       const found = await service.inTenant(tenantId, async ({ tx }) => {
         const rows = await tx.execute<{ work_email: string | null; account: string | null }>(
           'personId' in to
@@ -55,6 +55,7 @@ export function inboxNotifierFrom(
           companyName: found.company.name,
           dedupeKey,
           notice,
+          ...(about === undefined ? {} : { preview: { body: about.slice(0, 300) } }),
         }),
         signal: AbortSignal.timeout(5000),
       });

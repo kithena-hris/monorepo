@@ -49,7 +49,8 @@ export async function tellMembers(
   const sent = new Set<string>();
   for (const id of new Set(personIds)) {
     if (id === null || !(await emailsOn(ctx, id))) continue;
-    const email = (await ctx.tx.members.get(id as never))?.workEmail;
+    const member = await ctx.tx.members.get(id as never);
+    const email = member?.workEmail;
     if (!email || sent.has(email)) continue;
     sent.add(email);
     ctx.mail.push({
@@ -58,6 +59,7 @@ export async function tellMembers(
       text,
       dedupeKey: `${dedupe}:${email}`,
       ...(parts === undefined ? {} : { parts }),
+      ...(member.accountId === null ? {} : { accountId: member.accountId }),
     });
   }
 }
@@ -86,4 +88,4 @@ export async function appUrl(ctx: Ctx, path: string): Promise<string | null> {
 
 /** An Inbox task, as the Inbox addresses it: the email's button opens the task itself. */
 export const inboxTask = (itemId: string): string =>
-  `/inbox/todo?item=${encodeURIComponent(itemId)}`;
+  `/inbox?item=${encodeURIComponent(itemId)}`;

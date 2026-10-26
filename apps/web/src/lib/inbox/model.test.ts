@@ -5,6 +5,7 @@ import {
   countsOf,
   changed,
   EMPTY_STATE,
+  feedOf,
   filtered,
   groupsOf,
   itemsOf,
@@ -202,5 +203,55 @@ describe('an id that names a prototype property', () => {
     });
     expect(Object.hasOwn(snoozed.snoozed, '__proto__')).toBe(true);
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+  });
+});
+
+describe('the feed: new on top, then what each needs from you', () => {
+  const at = (h: number) => `2026-10-07T0${String(h)}:00:00.000Z`;
+  const items = [
+    item({ id: 'fresh-task', lane: 'task', at: at(9) }),
+    item({ id: 'old-task', lane: 'task', at: '2026-09-01T09:00:00.000Z', due: '2026-10-01' }),
+    item({ id: 'later-task', lane: 'task', at: '2026-09-02T09:00:00.000Z', due: '2026-10-20' }),
+    item({ id: 'fresh-news', lane: 'update', at: at(8) }),
+    item({ id: 'old-news', lane: 'update', at: at(1) }),
+    item({ id: 'asked', lane: 'request', at: at(2) }),
+    ...[3, 4, 5].map((h) =>
+      item({
+        id: `card-${String(h)}`,
+        lane: 'task',
+        kind: 'recruiting.scorecard',
+        at: '2026-09-0' + String(h) + 'T09:00:00.000Z',
+      }),
+    ),
+  ];
+  const shown = shape(items, { ...EMPTY_STATE, read: ['old-news'] }, NOW);
+
+  it('puts what arrived and is unopened first, newest first, and nowhere else', () => {
+    const feed = feedOf(shown);
+    expect(feed[0]?.key).toBe('new');
+    expect(feed[0]?.entries.map((e) => (e.kind === 'item' ? e.item.id : e.key))).toEqual([
+      'fresh-task',
+      'fresh-news',
+    ]);
+    const rest = feed.slice(1).flatMap((s) => s.entries);
+    expect(rest.some((e) => e.kind === 'item' && e.item.id === 'fresh-task')).toBe(false);
+  });
+
+  it('then Needs you by urgency with three of a kind stacked, Waiting on others, For your information', () => {
+    const feed = feedOf(shown);
+    expect(feed.map((s) => s.key)).toEqual(['new', 'needs', 'waiting', 'fyi']);
+    const needs = feed[1]?.entries ?? [];
+    expect(needs[0]).toMatchObject({ kind: 'item', item: { id: 'old-task' } });
+    expect(needs.find((e) => e.kind === 'stack')).toMatchObject({
+      kind: 'stack',
+      key: 'recruiting.scorecard',
+    });
+    expect(feed[2]?.entries).toMatchObject([{ kind: 'item', item: { id: 'asked' } }]);
+    expect(feed[3]?.entries).toMatchObject([{ kind: 'item', item: { id: 'old-news' } }]);
+  });
+
+  it('counts a task weeks old as seen, so a first visit is not all new', () => {
+    expect(shown.find((i) => i.id === 'old-task')?.unread).toBe(false);
+    expect(shown.find((i) => i.id === 'fresh-task')?.unread).toBe(true);
   });
 });

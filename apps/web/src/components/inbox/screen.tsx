@@ -1,5 +1,23 @@
 'use client';
 
+/*
+ * THESIS: the Inbox is a triage desk. What is new is on top, then each item
+ * where it belongs by what it needs from you, and every task is done where it
+ * sits. It refuses the tabbed mailbox, where the same work hides behind lanes.
+ * OWN-WORLD: Reach, restrained. Canvas neutrals; the accent only for what is
+ * new, the chosen filter and the primary action. Rows are Reach list items,
+ * sections are lean headings with their count, three of a kind stack.
+ * STORY: open it, see what arrived since last time, act in the pane, then work
+ * down Needs you; Waiting on others and For your information are a glance.
+ * FIRST VIEWPORT: the header with what is new and what needs you; a search, the
+ * view menu (Inbox, Snoozed, Done) and filter chips (All, Needs you, Waiting,
+ * For your information) over a 28rem list; the open item beside it.
+ * FORM: one feed, newest first, then grouped (the brief's, over the roll's
+ * board; seed 8c567a2a).
+ * FINISH: unreviewed and undocumented is unfinished; this build ends with the
+ * finish review, the verdict, and DESIGN.md
+ */
+
 import {
   Button,
   EmptyState,
@@ -14,7 +32,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  TertiaryNav,
+  Badge,
+  ChipGroup,
+  ChipGroupItem,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
   ToastProvider,
 } from '@reach/ui';
 import { TimeOffApprovalDetail } from '@kithena/contracts';
@@ -31,13 +57,15 @@ import {
 } from 'react';
 
 import {
-  LANE_OF,
+  feedOf,
   filtered,
   groupsOf,
   moduleName,
   snoozedOf,
-  type LaneName,
+  type Entry,
+  type SectionKey,
   type Shown,
+  type View,
 } from '../../lib/inbox/model';
 import type { InboxRead } from '../../lib/inbox/sources';
 import {
@@ -51,8 +79,8 @@ import {
 import { Waking } from '../waking';
 import { InboxDetail } from './detail';
 import { BulkDecideDialog, type Candidate } from './dialogs';
-import { shortDay } from './format';
 import { InboxRow } from './rows';
+import { StackRow } from './stack';
 import { t } from '../../lib/t';
 
 // Picks a date or time: its own chunk, fetched when it opens (`dated-dialogs.tsx`).
@@ -73,7 +101,7 @@ const HandOverDialog = lazy(() =>
 
 export interface InboxScreenProps {
   readonly read: InboxRead & { readonly zone: string };
-  readonly lane: LaneName;
+  readonly view: View;
   readonly item: string | null;
   readonly source: string | null;
   readonly q: string | null;
@@ -82,20 +110,30 @@ export interface InboxScreenProps {
   readonly approves: boolean;
 }
 
-const LABEL: Readonly<Record<LaneName, string>> = {
-  get todo() {
-    return t('components.inbox.screen.lane_todo', 'To do');
-  },
-  get updates() {
-    return t('components.inbox.screen.lane_updates', 'Updates');
-  },
-  get requests() {
-    return t('components.inbox.screen.lane_requests', 'My requests');
-  },
-  get done() {
-    return t('components.inbox.screen.lane_done', 'Done');
-  },
+/** The feed's filters, and the lane each keeps. */
+const FILTERS = ['all', 'todo', 'requests', 'updates'] as const;
+type Filter = (typeof FILTERS)[number];
+const LANE: Readonly<Record<Exclude<Filter, 'all'>, Shown['lane']>> = {
+  todo: 'task',
+  requests: 'request',
+  updates: 'update',
 };
+
+const FILTER_LABEL: Readonly<Record<Filter, () => string>> = {
+  all: () => t('components.inbox.screen.filter_all', 'All'),
+  todo: () => t('components.inbox.screen.filter_needs_you', 'Needs you'),
+  requests: () => t('components.inbox.screen.filter_waiting_short', 'Waiting'),
+  updates: () => t('components.inbox.screen.filter_updates', 'Updates'),
+};
+
+const SECTION_LABEL: Readonly<Record<SectionKey, () => string>> = {
+  new: () => t('components.inbox.screen.section_new', 'New'),
+  needs: () => t('components.inbox.screen.section_needs', 'Needs you'),
+  waiting: () => t('components.inbox.screen.section_waiting', 'Waiting on others'),
+  fyi: () => t('components.inbox.screen.section_fyi', 'For your information'),
+};
+
+const path = (view: View): string => (view === 'all' ? '/inbox' : `/inbox/${view}`);
 
 const query = (params: Record<string, string | null>): string => {
   const search = new URLSearchParams(
@@ -112,14 +150,15 @@ export function InboxScreen(props: InboxScreenProps): JSX.Element {
   );
 }
 
-function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenProps): JSX.Element {
+function Screen({ read, view, item, source, q, outcome, approves }: InboxScreenProps): JSX.Element {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(item);
   const [search, setSearch] = useState(q ?? '');
   const [selecting, setSelecting] = useState(false);
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [readHere, setReadHere] = useState<ReadonlySet<string>>(new Set());
-  const [showSnoozed, setShowSnoozed] = useState(false);
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [sorted, setSorted] = useState(false);
   const [dialog, setDialog] = useState<
     | { readonly kind: 'bulk'; readonly decision: 'approve' | 'decline' }
     | {
@@ -133,34 +172,57 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
   const [, start] = useTransition();
   const { now, zone } = read;
 
-  // What was read here shows as read at once; the account catches up behind.
+  // What was opened here shows as seen at once; the account catches up behind.
   const items = useMemo(
     () => read.items.map((i) => (readHere.has(i.id) ? { ...i, unread: false } : i)),
     [read.items, readHere],
   );
+  const fresh = items.filter((i) => i.unread);
   const counts = {
+    fresh: fresh.length,
     todo: read.counts.todo,
-    updates: items.filter((i) => i.unread).length,
     requests: read.counts.requests,
+    updates: items.filter((i) => i.unread && i.lane === 'update').length,
   };
-  const inLane = filtered(
-    items.filter((i) => i.lane === LANE_OF[lane]),
+  const feed = view !== 'snoozed' && view !== 'done';
+  // Where each sits is as it was when the page came: opening one here does not move it.
+  // Mark all seen sorts them again, as asked.
+  const shown = filtered(
+    (sorted ? items : read.items).filter((i) =>
+      view === 'done'
+        ? i.lane === 'done'
+        : view === 'snoozed'
+          ? i.lane === 'task' && i.snoozedUntil !== null
+          : view === 'all'
+            ? true
+            : i.lane === LANE[view],
+    ),
     { source, q: search, outcome },
   );
-  const groups = groupsOf(inLane, lane, now, zone);
-  const snoozed = lane === 'todo' ? snoozedOf(inLane) : [];
-  const ordered = [...groups.flatMap((g) => g.items), ...(showSnoozed ? snoozed : [])];
+  const sections = feed ? feedOf(shown) : [];
+  const doneGroups = view === 'done' ? groupsOf(shown, 'done', now, zone) : [];
+  const snoozed = view === 'snoozed' ? shown : [];
+  const snoozedCount = snoozedOf(items).length;
+  const ordered = feed
+    ? sections.flatMap((s) =>
+        s.entries.flatMap((e) =>
+          e.kind === 'item' ? [e.item] : open.has(e.key) ? e.items : [e.items[0] as Shown],
+        ),
+      )
+    : view === 'done'
+      ? doneGroups.flatMap((g) => g.items)
+      : snoozed;
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
   // The address follows what is open and what the list shows, without a fetch.
   useEffect(() => {
-    const next = `/inbox/${lane}${query({ item: selectedId, source, q: search, outcome })}`;
+    const next = `${path(view)}${query({ item: selectedId, source, q: search, outcome })}`;
     if (`${window.location.pathname}${window.location.search}` !== next) {
       window.history.replaceState(window.history.state, '', next);
     }
-  }, [lane, selectedId, source, search, outcome]);
+  }, [view, selectedId, source, search, outcome]);
 
-  const open = (i: Shown): void => {
+  const openItem = (i: Shown): void => {
     setSelectedId(i.id);
     if (i.unread) {
       setReadHere((was) => new Set([...was, i.id]));
@@ -176,15 +238,26 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
       ordered.find((i) => i.id !== selectedId);
     setSelectedId(after?.id ?? null);
   };
-  const filter = (k: 'source' | 'outcome', v: string): void => {
+  const go = (to: View, keep: { source?: string | null; outcome?: string | null } = {}): void => {
     router.replace(
-      `/inbox/${lane}${query({ source: k === 'source' ? v : source, outcome: k === 'outcome' ? v : outcome, q: search })}`,
+      `${path(to)}${query({
+        source: keep.source === undefined ? source : keep.source,
+        outcome: keep.outcome === undefined ? (to === 'done' ? outcome : null) : keep.outcome,
+        q: search,
+      })}`,
       { scroll: false },
     );
   };
+  const markSeen = (ids: readonly string[]): void => {
+    setReadHere((was) => new Set([...was, ...ids]));
+    start(async () => {
+      await markRead(ids);
+    });
+  };
 
   // Bulk: updates are read or tidied; time-off approvals decided together (G3).
-  const picked = inLane.filter((i) => checked.has(i.id));
+  const picked = shown.filter((i) => checked.has(i.id));
+  const allUpdates = picked.length > 0 && picked.every((i) => i.lane === 'update');
   const sameKind = picked.length > 0 && picked.every((i) => i.kind === 'timeoff.approval');
   const bulkWarning = (): string | null => {
     let worst: { out: number; of: number; team: string } | null = null;
@@ -209,71 +282,148 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         );
   };
 
-  const tabs = (
-    <TertiaryNav
-      label={t('components.inbox.screen.inbox', 'Inbox')}
-      orientation="horizontal"
-      variant="line"
-      current="page"
-      touchLayout="pills"
-      activeId={lane}
-      items={(['todo', 'updates', 'requests', 'done'] as const).map((l) => ({
-        id: l,
-        href: `/inbox/${l}`,
-        label: LABEL[l],
-        ...(l === 'done' ? {} : { count: counts[l] }),
-      }))}
-    />
-  );
+  const viewLabel =
+    view === 'done'
+      ? t('components.inbox.screen.view_done', 'Done')
+      : view === 'snoozed'
+        ? t('components.inbox.screen.view_snoozed', 'Snoozed')
+        : t('components.inbox.screen.view_inbox', 'Inbox');
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
-      <SearchField
-        className="min-w-40 flex-1"
-        label={
-          lane === 'done'
-            ? t('components.inbox.screen.search_done', 'Search done')
-            : t('components.inbox.screen.search', 'Search')
-        }
-        value={search}
-        onValueChange={setSearch}
-        variant="field"
-      />
-      {read.modules.length > 1 ? (
-        <Select
-          value={source ?? 'all'}
-          onValueChange={(v) => {
-            filter('source', v === 'all' ? '' : v);
-          }}
-        >
-          <SelectTrigger
-            aria-label={t('components.inbox.screen.source', 'Source')}
-            className="w-auto"
+    <div className="flex flex-col gap-2.5 border-b border-border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchField
+          className="min-w-40 flex-1"
+          label={
+            view === 'done'
+              ? t('components.inbox.screen.search_done', 'Search done')
+              : t('components.inbox.screen.search', 'Search')
+          }
+          value={search}
+          onValueChange={setSearch}
+          variant="field"
+          placeholder={t('components.inbox.screen.search_your_inbox', 'Search your Inbox')}
+        />
+        {feed && read.modules.length > 1 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {source === null ? (
+                <Button
+                  variant="secondary"
+                  startIcon={<icons.filter aria-hidden />}
+                  aria-label={t('components.inbox.screen.filter_by_module', 'Filter by module')}
+                />
+              ) : (
+                <Button variant="secondary" startIcon={<icons.filter aria-hidden />}>
+                  {moduleName(source)}
+                </Button>
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuRadioGroup
+                value={source ?? 'all'}
+                onValueChange={(v) => {
+                  go(view, { source: v === 'all' ? null : v });
+                }}
+              >
+                <DropdownMenuRadioItem value="all">
+                  {t('components.inbox.screen.every_module', 'Every module')}
+                </DropdownMenuRadioItem>
+                {read.modules.map((m) => (
+                  <DropdownMenuRadioItem key={m} value={m}>
+                    {moduleName(m)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              endIcon={<icons.expand aria-hidden />}
+              aria-label={t('components.inbox.screen.view', 'View: {{view}}', { view: viewLabel })}
+            >
+              {viewLabel}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => {
+                go('all', { outcome: null });
+              }}
+            >
+              {t('components.inbox.screen.view_inbox', 'Inbox')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                go('snoozed', { outcome: null });
+              }}
+            >
+              {snoozedCount === 0
+                ? t('components.inbox.screen.view_snoozed', 'Snoozed')
+                : t('components.inbox.screen.view_snoozed_count', 'Snoozed ({{count}})', {
+                    count: String(snoozedCount),
+                  })}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                go('done');
+              }}
+            >
+              {t('components.inbox.screen.view_done', 'Done')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {view === 'done' || view === 'snoozed' ? null : (
+          <Button
+            variant="ghost"
+            // Under a finger a row is swiped, not ticked.
+            className="touch:hidden"
+            onClick={() => {
+              setSelecting((s) => !s);
+              setChecked(new Set());
+            }}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {t('components.inbox.screen.all_sources', 'All sources')}
-            </SelectItem>
-            {read.modules.map((m) => (
-              <SelectItem key={m} value={m}>
-                {moduleName(m)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
-      {lane === 'done' ? (
+            {selecting
+              ? t('components.inbox.screen.done_selecting', 'Done selecting')
+              : t('components.inbox.screen.select', 'Select')}
+          </Button>
+        )}
+      </div>
+      {feed ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ChipGroup
+            type="single"
+            scroll
+            aria-label={t('components.inbox.screen.show', 'Show')}
+            value={view}
+            onValueChange={(v) => {
+              if (v !== '') go(v as View);
+            }}
+            className="min-w-0"
+          >
+            {FILTERS.map((f) => {
+              const n = f === 'all' ? counts.fresh : counts[f];
+              return (
+                <ChipGroupItem key={f} value={f}>
+                  {n > 0 ? `${FILTER_LABEL[f]()} · ${String(n)}` : FILTER_LABEL[f]()}
+                </ChipGroupItem>
+              );
+            })}
+          </ChipGroup>
+        </div>
+      ) : view === 'done' ? (
         <Select
           value={outcome ?? 'all'}
           onValueChange={(v) => {
-            filter('outcome', v === 'all' ? '' : v);
+            go('done', { outcome: v === 'all' ? null : v });
           }}
         >
           <SelectTrigger
             aria-label={t('components.inbox.screen.outcome', 'Outcome')}
-            className="w-auto"
+            className="w-auto self-start"
           >
             <SelectValue />
           </SelectTrigger>
@@ -295,34 +445,6 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           </SelectContent>
         </Select>
       ) : null}
-      {lane === 'updates' || lane === 'todo' ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setSelecting((s) => !s);
-            setChecked(new Set());
-          }}
-        >
-          {selecting
-            ? t('components.inbox.screen.done_selecting', 'Done selecting')
-            : t('components.inbox.screen.select', 'Select')}
-        </Button>
-      ) : null}
-      {lane === 'updates' && counts.updates > 0 ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={t('components.inbox.screen.mark_all_read', 'Mark all read')}
-          startIcon={<icons.confirm aria-hidden />}
-          onClick={() => {
-            setReadHere(new Set(items.filter((i) => i.unread).map((i) => i.id)));
-            start(async () => {
-              await markAllRead();
-            });
-          }}
-        />
-      ) : null}
     </div>
   );
 
@@ -334,15 +456,12 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             length: String(picked.length),
           })}
         </span>
-        {lane === 'updates' ? (
+        {allUpdates ? (
           <>
             <Button
               size="sm"
               onClick={() => {
-                setReadHere((was) => new Set([...was, ...picked.map((p) => p.id)]));
-                start(async () => {
-                  await markRead(picked.map((p) => p.id));
-                });
+                markSeen(picked.map((p) => p.id));
                 setChecked(new Set());
               }}
             >
@@ -389,129 +508,197 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         ) : (
           <span className="text-sm text-fg-muted">
             {t(
-              'components.inbox.screen.only_time_off_approvals_can_be',
-              'Only time-off approvals can be decided together',
+              'components.inbox.screen.updates_or_time_off_together',
+              'Updates are read or tidied together, and time-off approvals decided together',
             )}
           </span>
         )}
       </div>
     ) : null;
 
-  const empty: ReactNode =
-    lane === 'todo' && search === '' && source === null ? (
-      <EmptyState
-        icon={<icons.success />}
-        title={t('components.inbox.screen.nothing_needs_you', 'Nothing needs you')}
-        description={
-          counts.updates > 0
-            ? t(
-                'components.inbox.screen.new_tasks_appear_here_and_on',
-                {
-                  one: 'New tasks appear here and on the red number. You have {{count}} unread update.',
-                  other:
-                    'New tasks appear here and on the red number. You have {{count}} unread updates.',
-                },
-                { count: counts.updates },
-              )
-            : t(
-                'components.inbox.screen.new_tasks_appear_here_and_on_2',
-                'New tasks appear here and on the red number.',
-              )
-        }
-        {...(counts.updates > 0
+  const filteredEmpty = search !== '' || source !== null;
+  const empty: ReactNode = filteredEmpty ? (
+    <EmptyState
+      icon={<icons.search />}
+      title={t('components.inbox.screen.nothing_matches', 'Nothing matches')}
+      description={t(
+        'components.inbox.screen.try_another_search_or_source',
+        'Try another search or module.',
+      )}
+    />
+  ) : view === 'done' ? (
+    <EmptyState
+      icon={<icons.archive />}
+      title={t('components.inbox.screen.nothing_done_yet', 'Nothing done yet')}
+      description={t(
+        'components.inbox.screen.finished_tasks_decided_requests_and_older',
+        'Finished tasks, decided requests and older updates stay here, for as long as your record does.',
+      )}
+    />
+  ) : view === 'snoozed' ? (
+    <EmptyState
+      icon={<icons.scheduled />}
+      title={t('components.inbox.screen.nothing_snoozed', 'Nothing snoozed')}
+      description={t(
+        'components.inbox.screen.snooze_puts_a_task_away',
+        'Snooze puts a task away until the day you pick; it comes back as new.',
+      )}
+    />
+  ) : (
+    <EmptyState
+      icon={<icons.success />}
+      title={t('components.inbox.screen.all_caught_up', 'You are all caught up')}
+      description={t(
+        'components.inbox.screen.new_work_arrives_here',
+        'New work arrives here first, and on your phone and desktop if you turn on push notifications.',
+      )}
+      action={
+        <Button asChild size="sm">
+          <a href="/settings/notifications">
+            {t('components.inbox.screen.notification_settings', 'Notification settings')}
+          </a>
+        </Button>
+      }
+    />
+  );
+
+  const current = new Map(items.map((i) => [i.id, i]));
+  const row = (placed: Shown, inNew = false): JSX.Element => {
+    const i = current.get(placed.id) ?? placed;
+    return (
+      <InboxRow
+        key={i.id}
+        item={i}
+        now={now}
+        zone={zone}
+        href={`${path(view)}${query({ item: i.id, source, q: search, outcome })}`}
+        selected={i.id === selectedId}
+        selecting={selecting}
+        checked={checked.has(i.id)}
+        fresh={inNew}
+        onCheck={(on) => {
+          setChecked((was) => {
+            const n = new Set(was);
+            if (on) n.add(i.id);
+            else n.delete(i.id);
+            return n;
+          });
+        }}
+        onOpen={() => {
+          openItem(i);
+        }}
+        {...(i.lane === 'update'
           ? {
-              action: (
-                <Button asChild size="sm">
-                  <a href="/inbox/updates">
-                    {t('components.inbox.screen.see_updates', 'See updates')}
-                  </a>
-                </Button>
-              ),
+              swipe: [
+                {
+                  label: i.unread
+                    ? t('components.inbox.screen.read', 'Read')
+                    : t('components.inbox.screen.unread', 'Unread'),
+                  tone: 'accent' as const,
+                  onSelect: () => {
+                    if (i.unread) setReadHere((was) => new Set([...was, i.id]));
+                    start(async () => {
+                      await markRead([i.id], i.unread);
+                    });
+                  },
+                },
+                {
+                  label: t('components.inbox.screen.done', 'Done'),
+                  onSelect: () => {
+                    start(async () => {
+                      await moveToDone([i.id]);
+                    });
+                  },
+                },
+              ],
             }
           : {})}
       />
+    );
+  };
+
+  const entry = (e: Entry, inNew: boolean): JSX.Element | JSX.Element[] =>
+    e.kind === 'item' ? (
+      row(e.item, inNew)
     ) : (
-      <EmptyState
-        icon={<icons.inbox />}
-        title={
-          search === ''
-            ? t('components.inbox.screen.nothing_in', 'Nothing in {{LABEL}}', {
-                LABEL: LABEL[lane],
-              })
-            : t('components.inbox.screen.nothing_matches', 'Nothing matches')
-        }
-        description={
-          lane === 'requests'
-            ? t(
-                'components.inbox.screen.what_you_ask_for_appears_here',
-                'What you ask for appears here until it is decided. Decided requests move to Done, and you get an update.',
-              )
-            : lane === 'updates'
-              ? t(
-                  'components.inbox.screen.news_from_every_module_you_use',
-                  'News from every module you use lands here. Nothing is owed.',
-                )
-              : lane === 'done'
-                ? t(
-                    'components.inbox.screen.finished_tasks_decided_requests_and_older',
-                    'Finished tasks, decided requests and older updates stay here, for as long as your record does.',
-                  )
-                : t(
-                    'components.inbox.screen.try_another_search_or_source',
-                    'Try another search or source.',
-                  )
-        }
-      />
+      <StackRow
+        key={e.key}
+        items={e.items}
+        open={open.has(e.key)}
+        onToggle={() => {
+          setOpen((was) => {
+            const n = new Set(was);
+            if (n.has(e.key)) n.delete(e.key);
+            else n.add(e.key);
+            return n;
+          });
+        }}
+      >
+        {e.items.map((i) => row(i))}
+      </StackRow>
     );
 
-  const row = (i: Shown): JSX.Element => (
-    <InboxRow
-      key={i.id}
-      item={i}
-      now={now}
-      zone={zone}
-      href={`/inbox/${lane}${query({ item: i.id, source, q: search, outcome })}`}
-      selected={i.id === selectedId}
-      selecting={selecting}
-      checked={checked.has(i.id)}
-      onCheck={(on) => {
-        setChecked((was) => {
-          const n = new Set(was);
-          if (on) n.add(i.id);
-          else n.delete(i.id);
-          return n;
-        });
-      }}
-      onOpen={() => {
-        open(i);
-      }}
-      {...(i.lane === 'update'
-        ? {
-            swipe: [
-              {
-                label: i.unread
-                  ? t('components.inbox.screen.read', 'Read')
-                  : t('components.inbox.screen.unread', 'Unread'),
-                tone: 'accent' as const,
-                onSelect: () => {
-                  if (i.unread) setReadHere((was) => new Set([...was, i.id]));
-                  start(async () => {
-                    await markRead([i.id], i.unread);
-                  });
-                },
-              },
-              {
-                label: t('components.inbox.screen.done', 'Done'),
-                onSelect: () => {
-                  start(async () => {
-                    await moveToDone([i.id]);
-                  });
-                },
-              },
-            ],
-          }
-        : {})}
-    />
+  const heading = (key: SectionKey, count: number): JSX.Element => (
+    <div className="sticky top-0 z-10 flex items-center gap-2 bg-surface/95 px-4.5 pt-4 pb-1.5 backdrop-blur-sm">
+      <h2 className="text-sm font-semibold text-fg">{SECTION_LABEL[key]()}</h2>
+      <Badge
+        size="sm"
+        tone={key === 'new' ? 'accent' : 'neutral'}
+        variant={key === 'new' ? 'solid' : 'soft'}
+      >
+        {String(count)}
+      </Badge>
+      <span className="flex-1" />
+      {key === 'new' ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setReadHere((was) => new Set([...was, ...fresh.map((i) => i.id)]));
+            setSorted(true);
+            start(async () => {
+              await markRead(fresh.map((i) => i.id));
+              await markAllRead();
+            });
+          }}
+        >
+          {t('components.inbox.screen.mark_all_seen', 'Mark all seen')}
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  const body: ReactNode = feed ? (
+    sections.length === 0 ? (
+      <div className="p-6">{empty}</div>
+    ) : (
+      sections.map((s) => (
+        <section key={s.key} aria-label={SECTION_LABEL[s.key]()}>
+          {heading(
+            s.key,
+            s.entries.reduce((n, e) => n + (e.kind === 'item' ? 1 : e.items.length), 0),
+          )}
+          <List navigable>{s.entries.flatMap((e) => entry(e, s.key === 'new'))}</List>
+        </section>
+      ))
+    )
+  ) : view === 'done' ? (
+    doneGroups.length === 0 ? (
+      <div className="p-6">{empty}</div>
+    ) : (
+      doneGroups.map((g) => (
+        <section key={g.label ?? 'all'} aria-label={g.label ?? viewLabel}>
+          {g.label === null ? null : (
+            <h2 className="px-4.5 pt-4 pb-1.5 text-sm font-semibold text-fg">{g.label}</h2>
+          )}
+          <List navigable>{g.items.map((i) => row(i))}</List>
+        </section>
+      ))
+    )
+  ) : snoozed.length === 0 ? (
+    <div className="p-6">{empty}</div>
+  ) : (
+    <List navigable>{snoozed.map((i) => row(i))}</List>
   );
 
   const list = (
@@ -531,11 +718,10 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
         </p>
       )}
       <div
-        className="flex-1 overflow-y-auto py-1"
+        className="flex-1 overflow-y-auto pb-2"
         onKeyDown={(event) => {
-          // D5: X selects the row in focus, as in Review; updates and approvals only.
-          if (event.key !== 'x' || event.metaKey || event.ctrlKey || event.altKey) return;
-          if (lane !== 'updates' && lane !== 'todo') return;
+          // D5: X selects the row in focus, as in Review.
+          if (event.key !== 'x' || event.metaKey || event.ctrlKey || event.altKey || !feed) return;
           const href = (event.target as HTMLElement).closest('a')?.getAttribute('href') ?? '';
           const id = new URL(href, 'http://inbox').searchParams.get('item');
           if (id === null) return;
@@ -549,62 +735,42 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
           });
         }}
       >
-        {groups.length === 0 && snoozed.length === 0 ? (
-          <div className="p-6">{empty}</div>
-        ) : (
-          groups.map((g) => (
-            <section key={g.label ?? 'all'} aria-label={g.label ?? LABEL[lane]}>
-              {g.label === null ? null : (
-                <h2 className="px-4.5 pt-3 pb-1 text-xs font-semibold tracking-wide text-fg-subtle uppercase">
-                  {g.label}
-                </h2>
-              )}
-              <List navigable>{g.items.map(row)}</List>
-            </section>
-          ))
-        )}
-        {snoozed.length === 0 ? null : (
-          <div className="px-3 py-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              fullWidth
-              startIcon={<icons.scheduled aria-hidden />}
-              endIcon={showSnoozed ? <icons.collapse aria-hidden /> : <icons.expand aria-hidden />}
-              aria-expanded={showSnoozed}
-              onClick={() => {
-                setShowSnoozed((s) => !s);
-              }}
-            >
-              {snoozed.length === 1 && snoozed[0]?.snoozedUntil != null
-                ? t('components.inbox.screen.one_snoozed_until', '1 snoozed until {{day}}', {
-                    day: shortDay(snoozed[0].snoozedUntil.slice(0, 10)),
-                  })
-                : t(
-                    'components.inbox.screen.snoozed_count',
-                    { one: '{{count}} snoozed', other: '{{count}} snoozed' },
-                    {
-                      count: snoozed.length,
-                    },
-                  )}
-            </Button>
-            {showSnoozed ? <List navigable>{snoozed.map(row)}</List> : null}
-          </div>
-        )}
+        {body}
       </div>
     </div>
   );
+
+  const summary =
+    counts.fresh === 0 && counts.todo === 0
+      ? t('components.inbox.screen.nothing_new', 'Nothing new, nothing waiting on you')
+      : [
+          counts.fresh === 0
+            ? null
+            : t(
+                'components.inbox.screen.count_new',
+                { one: '{{count}} new', other: '{{count}} new' },
+                { count: counts.fresh },
+              ),
+          counts.todo === 0
+            ? null
+            : t(
+                'components.inbox.screen.count_need_you',
+                { one: '{{count}} needs you', other: '{{count}} need you' },
+                { count: counts.todo },
+              ),
+        ]
+          .filter((x) => x !== null)
+          .join(' · ');
 
   return (
     <div className="flex h-[calc(100dvh-7rem)] flex-col gap-4 touch:h-auto">
       <PageHeader
         title={t('components.inbox.screen.inbox', 'Inbox')}
-        tabs={tabs}
+        description={summary}
         actions={
           <>
             {approves ? (
               <Button
-                size="sm"
                 startIcon={<icons.transfer aria-hidden />}
                 onClick={() => {
                   start(async () => {
@@ -616,7 +782,7 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
                 {t('components.inbox.screen.hand_over', 'Hand over')}
               </Button>
             ) : null}
-            <Button asChild variant="ghost" size="sm" startIcon={<icons.settings aria-hidden />}>
+            <Button asChild variant="ghost" startIcon={<icons.settings aria-hidden />}>
               <a href="/settings/notifications">
                 {t('components.inbox.screen.notifications', 'Notifications')}
               </a>
@@ -632,16 +798,16 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
       >
         <ListDetail
           className="min-h-0 flex-1"
-          listWidth="26rem"
+          listWidth="30rem"
           splitFrom="lg"
-          listLabel={LABEL[lane]}
+          listLabel={viewLabel}
           detailLabel={t('components.inbox.screen.item', 'Item')}
           selected={selected !== null}
           onBack={() => {
             setSelectedId(null);
           }}
           backLabel={t('components.inbox.screen.back_to', 'Back to {{LABEL}}', {
-            LABEL: LABEL[lane],
+            LABEL: viewLabel,
           })}
           list={list}
           detail={
@@ -661,11 +827,18 @@ function Screen({ read, lane, item, source, q, outcome, approves }: InboxScreenP
             <div className="grid h-full place-items-center rounded-2xl bg-surface shadow-sm">
               <EmptyState
                 icon={<icons.inbox />}
-                title={t(
-                  'components.inbox.screen.choose_something_from_the_list',
-                  'Choose something from the list',
+                title={
+                  counts.fresh > 0
+                    ? t('components.inbox.screen.start_with_whats_new', 'Start with what is new')
+                    : t(
+                        'components.inbox.screen.choose_something_from_the_list',
+                        'Choose something from the list',
+                      )
+                }
+                description={t(
+                  'components.inbox.screen.it_opens_here_to_act_on',
+                  'It opens here, and what it asks of you is done here too.',
                 )}
-                description={t('components.inbox.screen.it_opens_here', 'It opens here.')}
               />
             </div>
           }

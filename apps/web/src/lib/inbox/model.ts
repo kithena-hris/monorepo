@@ -18,11 +18,19 @@ export const LANE_OF: Readonly<Record<LaneName, InboxLane>> = {
   requests: 'request',
   done: 'done',
 };
+/** Where the web's Inbox is: the feed, filtered to one kind of item or not; or Snoozed, or Done. */
+export const VIEWS = ['all', 'todo', 'requests', 'updates', 'snoozed', 'done'] as const;
+export type View = (typeof VIEWS)[number];
+export const viewOf = (value: string | undefined): View | null =>
+  VIEWS.find((v) => v === value) ?? null;
+
 export const laneName = (value: string | undefined): LaneName =>
   LANES.find((l) => l === value) ?? 'todo';
 
 /** Updates are tidied into Done after this long (A3). */
 export const UPDATE_DAYS = 30;
+/** A task is new until opened, for this long: older ones were there before the feed. */
+export const NEW_DAYS = 7;
 const DAY_MS = 86_400_000;
 
 /** A kind or a whole module muted, and where (D6): Done keeps them either way. */
@@ -108,13 +116,17 @@ export function shape(items: readonly InboxItem[], state: InboxState, now: strin
       lane === 'task' && until !== undefined && Date.parse(until) > nowMs ? until : null;
     const takenByOther = item.team !== null && item.team.takenBy !== null && !item.team.mine;
     const cancelled = lane === 'task' && item.outcome !== null;
+    const seen = read.has(item.id) || (state.readBefore !== null && item.at <= state.readBefore);
+    const fresh = nowMs - Date.parse(item.at) < NEW_DAYS * DAY_MS;
     return {
       ...item,
       lane,
+      // An update until it is read; a task until it is opened, while it is fresh and live.
       unread:
-        lane === 'update' &&
-        (unread.has(item.id) ||
-          (!read.has(item.id) && (state.readBefore === null || item.at > state.readBefore))),
+        (lane === 'update' && (unread.has(item.id) || !seen)) ||
+        (lane === 'task' &&
+          (unread.has(item.id) ||
+            (!seen && fresh && snoozedUntil === null && !takenByOther && !cancelled))),
       snoozedUntil,
       counted: lane === 'task' && snoozedUntil === null && !takenByOther && !cancelled,
       dim: takenByOther || cancelled,
@@ -134,7 +146,7 @@ export interface Counts {
 export function countsOf(items: readonly Shown[]): Counts {
   return {
     todo: items.filter((i) => i.counted).length,
-    updates: items.filter((i) => i.unread).length,
+    updates: items.filter((i) => i.unread && i.lane === 'update').length,
     requests: items.filter((i) => i.lane === 'request').length,
   };
 }
@@ -245,6 +257,70 @@ export function groupsOf(
     put(day.slice(0, 4) === year ? MONTH.format(new Date(`${day}T12:00:00Z`)) : day.slice(0, 4), i);
   }
   return [...groups].map(([label, g]) => ({ label, items: g }));
+}
+
+/** A row of the feed: one item, or several of one kind stacked under one line. */
+export type Entry =
+  | { readonly kind: 'item'; readonly item: Shown }
+  | { readonly kind: 'stack'; readonly key: string; readonly items: readonly Shown[] };
+
+export type SectionKey = 'new' | 'needs' | 'waiting' | 'fyi';
+
+export interface Section {
+  readonly key: SectionKey;
+  readonly entries: readonly Entry[];
+}
+
+/** Three of one kind or more stack under one line, in the place of the first of them. */
+const STACK_FROM = 3;
+
+function stacked(items: readonly Shown[]): Entry[] {
+  const byKind = new Map<string, Shown[]>();
+  for (const i of items) byKind.set(i.kind, [...(byKind.get(i.kind) ?? []), i]);
+  const placed = new Set<string>();
+  return items.flatMap((i): Entry[] => {
+    const same = byKind.get(i.kind) ?? [];
+    if (same.length < STACK_FROM || i.count !== null) return [{ kind: 'item', item: i }];
+    if (placed.has(i.kind)) return [];
+    placed.add(i.kind);
+    return [{ kind: 'stack', key: i.kind, items: same }];
+  });
+}
+
+/**
+ * The Inbox as one feed: what is new and unopened first, newest first; then
+ * what needs the person (the tasks, the most urgent first, three of a kind
+ * stacked), what waits on others (their requests), and what is only for
+ * their information (read updates, newest first). Snoozed tasks and Done are
+ * views of their own. An empty section is left out.
+ */
+export function feedOf(items: readonly Shown[]): Section[] {
+  const live = items.filter(
+    (i) => i.lane !== 'done' && !(i.lane === 'task' && i.snoozedUntil !== null),
+  );
+  const fresh = live.filter((i) => i.unread).toSorted(newest);
+  const rest = live.filter((i) => !i.unread);
+  const tasks = rest.filter((i) => i.lane === 'task');
+  const sections: Section[] = [
+    { key: 'new', entries: fresh.map((item) => ({ kind: 'item', item })) },
+    {
+      key: 'needs',
+      // Somebody else's or cancelled ones last: they are only there to be seen.
+      entries: stacked([
+        ...tasks.filter((i) => !i.dim).toSorted(byDue),
+        ...tasks.filter((i) => i.dim).toSorted(newest),
+      ]),
+    },
+    {
+      key: 'waiting',
+      entries: rest
+        .filter((i) => i.lane === 'request')
+        .toSorted(newest)
+        .map((item) => ({ kind: 'item', item })),
+    },
+    { key: 'fyi', entries: stacked(rest.filter((i) => i.lane === 'update').toSorted(newest)) },
+  ];
+  return sections.filter((s) => s.entries.length > 0);
 }
 
 /** The snoozed tasks, folded into one line under To do (C9). */

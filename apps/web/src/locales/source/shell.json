@@ -207,6 +207,10 @@
     "text": "That did not save; try again",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
   },
+  "app.app.settings.notifications.actions.this_browser_did_not_give_a_subscription": {
+    "text": "This browser did not give a subscription Kithena can push to",
+    "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
+  },
   "app.app.settings.notifications.actions.those_settings_are_not_ones_kithena_knows": {
     "text": "Those settings are not ones Kithena knows",
     "context": "the app’s frame: navigation, account menu, inbox, search. app/(app)/settings/notifications/actions.ts: a \"message\" value."
@@ -2703,6 +2707,10 @@
     "text": "{{value}} is on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>. Filled in: {{value}}."
   },
+  "components.inbox.rows.needs_you": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
+  },
   "components.inbox.rows.new": {
     "text": "New",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
@@ -2735,12 +2743,12 @@
     "text": "You are on it",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/rows.tsx, RowBadges: text inside <Badge>."
   },
+  "components.inbox.screen.all_caught_up": {
+    "text": "You are all caught up",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
   "components.inbox.screen.all_outcomes": {
     "text": "All outcomes",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <SelectItem>."
-  },
-  "components.inbox.screen.all_sources": {
-    "text": "All sources",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <SelectItem>."
   },
   "components.inbox.screen.approve": {
@@ -2755,6 +2763,22 @@
     "text": "Choose something from the list",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
   },
+  "components.inbox.screen.count_need_you_one": {
+    "text": "{{count}} needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.screen.count_need_you_other": {
+    "text": "{{count}} need you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.screen.count_new_one": {
+    "text": "{{count}} new",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.screen.count_new_other": {
+    "text": "{{count}} new",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
   "components.inbox.screen.decline": {
     "text": "Decline",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
@@ -2767,6 +2791,30 @@
     "text": "Done selecting",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
   },
+  "components.inbox.screen.every_module": {
+    "text": "Every module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuRadioItem>."
+  },
+  "components.inbox.screen.filter_all": {
+    "text": "All",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"all\" value."
+  },
+  "components.inbox.screen.filter_by_module": {
+    "text": "Filter by module",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
+  },
+  "components.inbox.screen.filter_needs_you": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"todo\" value."
+  },
+  "components.inbox.screen.filter_updates": {
+    "text": "Updates",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"updates\" value."
+  },
+  "components.inbox.screen.filter_waiting_short": {
+    "text": "Waiting",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, FILTER_LABEL: a \"requests\" value."
+  },
   "components.inbox.screen.finished_tasks_decided_requests_and_older": {
     "text": "Finished tasks, decided requests and older updates stay here, for as long as your record does.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
@@ -2777,35 +2825,19 @@
   },
   "components.inbox.screen.inbox": {
     "text": "Inbox",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <TertiaryNav>."
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <PageHeader>."
   },
-  "components.inbox.screen.it_opens_here": {
-    "text": "It opens here.",
+  "components.inbox.screen.it_opens_here_to_act_on": {
+    "text": "It opens here, and what it asks of you is done here too.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
   "components.inbox.screen.item": {
     "text": "Item",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the detailLabel of <ListDetail>."
   },
-  "components.inbox.screen.lane_done": {
-    "text": "Done",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
-  },
-  "components.inbox.screen.lane_requests": {
-    "text": "My requests",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
-  },
-  "components.inbox.screen.lane_todo": {
-    "text": "To do",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
-  },
-  "components.inbox.screen.lane_updates": {
-    "text": "Updates",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, LABEL: text built in code."
-  },
-  "components.inbox.screen.mark_all_read": {
-    "text": "Mark all read",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>."
+  "components.inbox.screen.mark_all_seen": {
+    "text": "Mark all seen",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
   },
   "components.inbox.screen.mark_read": {
     "text": "Mark read",
@@ -2823,45 +2855,33 @@
     "text": "Move to Done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>."
   },
-  "components.inbox.screen.new_tasks_appear_here_and_on_2": {
-    "text": "New tasks appear here and on the red number.",
+  "components.inbox.screen.new_work_arrives_here": {
+    "text": "New work arrives here first, and on your phone and desktop if you turn on push notifications.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
-  "components.inbox.screen.new_tasks_appear_here_and_on_one": {
-    "text": "New tasks appear here and on the red number. You have {{count}} unread update.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
-  },
-  "components.inbox.screen.new_tasks_appear_here_and_on_other": {
-    "text": "New tasks appear here and on the red number. You have {{count}} unread updates.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>. Filled in: {{count}}. Plural: the words for any other {{count}}."
-  },
-  "components.inbox.screen.news_from_every_module_you_use": {
-    "text": "News from every module you use lands here. Nothing is owed.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
-  },
-  "components.inbox.screen.nothing_in": {
-    "text": "Nothing in {{LABEL}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>. Filled in: {{LABEL}}."
+  "components.inbox.screen.nothing_done_yet": {
+    "text": "Nothing done yet",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
   },
   "components.inbox.screen.nothing_matches": {
     "text": "Nothing matches",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
   },
-  "components.inbox.screen.nothing_needs_you": {
-    "text": "Nothing needs you",
+  "components.inbox.screen.nothing_new": {
+    "text": "Nothing new, nothing waiting on you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  },
+  "components.inbox.screen.nothing_snoozed": {
+    "text": "Nothing snoozed",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
+  },
+  "components.inbox.screen.notification_settings": {
+    "text": "Notification settings",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the action of <a>."
   },
   "components.inbox.screen.notifications": {
     "text": "Notifications",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the actions of <a>."
-  },
-  "components.inbox.screen.one_snoozed_until": {
-    "text": "1 snoozed until {{day}}",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{day}}."
-  },
-  "components.inbox.screen.only_time_off_approvals_can_be": {
-    "text": "Only time-off approvals can be decided together",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>."
   },
   "components.inbox.screen.outcome": {
     "text": "Outcome",
@@ -2879,9 +2899,25 @@
     "text": "Search done",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the label of <SearchField>."
   },
-  "components.inbox.screen.see_updates": {
-    "text": "See updates",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <a>."
+  "components.inbox.screen.search_your_inbox": {
+    "text": "Search your Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the placeholder of <SearchField>."
+  },
+  "components.inbox.screen.section_fyi": {
+    "text": "For your information",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"fyi\" value."
+  },
+  "components.inbox.screen.section_needs": {
+    "text": "Needs you",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"needs\" value."
+  },
+  "components.inbox.screen.section_new": {
+    "text": "New",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"new\" value."
+  },
+  "components.inbox.screen.section_waiting": {
+    "text": "Waiting on others",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, SECTION_LABEL: a \"waiting\" value."
   },
   "components.inbox.screen.select": {
     "text": "Select",
@@ -2891,24 +2927,24 @@
     "text": "{{length}} selected",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>. Filled in: {{length}}."
   },
-  "components.inbox.screen.snoozed_count_one": {
-    "text": "{{count}} snoozed",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  "components.inbox.screen.show": {
+    "text": "Show",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <ChipGroup>."
   },
-  "components.inbox.screen.snoozed_count_other": {
-    "text": "{{count}} snoozed",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <Button>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  "components.inbox.screen.snooze_puts_a_task_away": {
+    "text": "Snooze puts a task away until the day you pick; it comes back as new.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
-  "components.inbox.screen.source": {
-    "text": "Source",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <SelectTrigger>."
+  "components.inbox.screen.start_with_whats_new": {
+    "text": "Start with what is new",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the title of <EmptyState>."
   },
   "components.inbox.screen.the_team": {
     "text": "the team",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: a \"team\" value."
   },
   "components.inbox.screen.try_another_search_or_source": {
-    "text": "Try another search or source.",
+    "text": "Try another search or module.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
   },
   "components.inbox.screen.unread": {
@@ -2919,9 +2955,41 @@
     "text": "Up to {{out}} of {{of}} people in {{team}} would be out at once.",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code. Filled in: {{out}}, {{of}}, {{team}}."
   },
-  "components.inbox.screen.what_you_ask_for_appears_here": {
-    "text": "What you ask for appears here until it is decided. Decided requests move to Done, and you get an update.",
-    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the description of <EmptyState>."
+  "components.inbox.screen.updates_or_time_off_together": {
+    "text": "Updates are read or tidied together, and time-off approvals decided together",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <span>."
+  },
+  "components.inbox.screen.view": {
+    "text": "View: {{view}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: the aria-label of <Button>. Filled in: {{view}}."
+  },
+  "components.inbox.screen.view_done": {
+    "text": "Done",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  },
+  "components.inbox.screen.view_inbox": {
+    "text": "Inbox",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  },
+  "components.inbox.screen.view_snoozed": {
+    "text": "Snoozed",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text built in code."
+  },
+  "components.inbox.screen.view_snoozed_count": {
+    "text": "Snoozed ({{count}})",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/screen.tsx, Screen: text inside <DropdownMenuItem>. Filled in: {{count}}."
+  },
+  "components.inbox.stack.more_like_this_one": {
+    "text": "and {{count}} more like it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/stack.tsx, StackRow: the description of <ListItem>. Filled in: {{count}}. Plural: the words for a {{count}} of one."
+  },
+  "components.inbox.stack.more_like_this_other": {
+    "text": "and {{count}} more like it",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/stack.tsx, StackRow: the description of <ListItem>. Filled in: {{count}}. Plural: the words for any other {{count}}."
+  },
+  "components.inbox.stack.where": {
+    "text": "{{module}} › {{area}}",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/inbox/stack.tsx, StackRow: text built in code. Filled in: {{module}}, {{area}}."
   },
   "components.kiosk-shell.hr_may_have_revoked_it_register": {
     "text": "HR may have revoked it. Register the kiosk again in Settings, Time off, Integrations, and paste the new token here.",
@@ -3118,6 +3186,38 @@
   "components.people-screen.the_upload_did_not_go_through_try_the_upload_did_not_go_through": {
     "text": "The upload did not go through; try again",
     "context": "the app’s frame: navigation, account menu, inbox, search. components/people-screen.tsx, PeopleScreen: a \"message\" value."
+  },
+  "components.push-device.blocked": {
+    "text": "Notifications are blocked for Kithena in this browser. Allow them in the site settings, then come back.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
+  },
+  "components.push-device.not_turned_on": {
+    "text": "Not turned on",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: the title of <Alert>."
+  },
+  "components.push-device.on": {
+    "text": "On",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Badge>."
+  },
+  "components.push-device.push_on_this_device": {
+    "text": "Push notifications on this device",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardTitle>."
+  },
+  "components.push-device.this_browser_cannot": {
+    "text": "This browser cannot receive push notifications from Kithena. On a phone, the Kithena app can.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
+  },
+  "components.push-device.turn_off": {
+    "text": "Turn off on this device",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Button>."
+  },
+  "components.push-device.turn_on": {
+    "text": "Turn on push notifications",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <Button>."
+  },
+  "components.push-device.what_reaches_this_device": {
+    "text": "What you route to your phone below reaches this device too, the moment it arrives, even with Kithena closed.",
+    "context": "the app’s frame: navigation, account menu, inbox, search. components/push-device.tsx, PushDevice: text inside <CardDescription>."
   },
   "components.remote-screen.is_unavailable": {
     "text": "{{area}} is unavailable",

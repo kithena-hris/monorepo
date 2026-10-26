@@ -167,5 +167,8 @@
   "notice.webhook_disabled.footer": "Envoyé par Kithena parce que cette adresse est le contact d’alerte d’un point de terminaison webhook dans Collaborateurs chez {{company}}.",
   "notice.webhook_disabled.heading": "Nous avons arrêté les envois vers l’un de vos webhooks",
   "notice.webhook_disabled.lede": "Aucun envoi vers {{host}} n’a réussi depuis 24 heures ; Kithena a donc désactivé ce point de terminaison. Les événements survenus pendant ce temps ne lui sont pas envoyés. Une fois le récepteur réparé, réactivez le point de terminaison et rejouez la livraison qui a échoué.",
-  "notice.webhook_disabled.subject": "{{company}} : un webhook Collaborateurs a été désactivé"
+  "notice.webhook_disabled.subject": "{{company}} : un webhook Collaborateurs a été désactivé",
+  "push.in_company": "Chez {{company}}",
+  "push.inbox_task": "Quelque chose vous attend",
+  "push.inbox_update": "Une nouvelle pour vous"
 }

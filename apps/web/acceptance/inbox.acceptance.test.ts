@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
 import { chromium, type Browser, type BrowserContext } from 'playwright';
 
 import { ADMIN, EMPLOYEE, TENANT, startStack, type Stack } from './stack';
@@ -352,6 +352,33 @@ describe('The Inbox', () => {
     const html = (await response?.text()) ?? '';
     say(`inbox page, server render: ${(performance.now() - start).toFixed(0)} ms`);
     expect(html).toContain('Adam Ruiz added what you asked for');
+    await priya.close();
+  });
+
+  it('is one feed: what is new on top, then what each item needs, drawn on a desk and a phone', async () => {
+    const priya = await signedIn(ADMIN.session);
+    const page = await priya.newPage();
+    await page.goto(`${stack.shell}/inbox`);
+    await page.getByRole('heading', { name: 'Inbox', level: 1 }).waitFor({ timeout: 30_000 });
+    const shots = process.env['ACCEPTANCE_SHOTS'];
+    if (shots !== undefined) {
+      mkdirSync(shots, { recursive: true });
+      await page.screenshot({ path: `${shots}/inbox-desk.png` });
+      const first = page.locator('main section').getByRole('link').first();
+      if ((await first.count()) > 0) {
+        await first.click();
+        await page.getByRole('article').waitFor();
+        await page.screenshot({ path: `${shots}/inbox-desk-open.png` });
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${stack.shell}/inbox`);
+      await page.getByRole('heading', { name: 'Inbox', level: 1 }).waitFor();
+      await page.screenshot({ path: `${shots}/inbox-phone.png`, fullPage: true });
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.goto(`${stack.shell}/settings/notifications`);
+      await page.getByRole('heading', { name: 'Push notifications on this device' }).waitFor();
+      await page.screenshot({ path: `${shots}/notifications-desk.png` });
+    }
     await priya.close();
   });
 });

@@ -48,6 +48,8 @@ export default tseslint.config(
       // `public/` because a worker is fetched by URL and Next compiles nothing
       // there. `apps/web/src/lib/kiosk-sw.test.ts` runs it.
       'apps/web/public/kiosk-sw.js',
+      // And the push worker, the same way: `apps/web/src/lib/push/push-sw.test.ts` runs it.
+      'apps/web/public/push-sw.js',
       // The federation runtime the shell's build bundles for every remote
       // (`apps/web/src/lib/mf-runtime.ts`): generated, minified, git-ignored.
       'apps/web/public/_mf/**',
