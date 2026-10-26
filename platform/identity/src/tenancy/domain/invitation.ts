@@ -109,11 +109,7 @@ export function mayWithdrawInvitation(status: string): Result<void> {
     case 'suspended':
     case 'terminated':
       return err(
-        failure(
-          'NOT_AN_INVITATION',
-          'This account is not an outstanding invitation',
-          ['status'],
-        ),
+        failure('NOT_AN_INVITATION', 'This account is not an outstanding invitation', ['status']),
       );
     default:
       return err(AccountUnknownState);
@@ -209,13 +205,9 @@ export interface EmploymentRecord {
 /**
  * The employment an invitation is against.
  *
- * This matters more than it looks, and it is the reason the invite endpoint
- * takes these at all. `Account.enrol` refuses a passkey before the start date,
- * so an account commissioned with today's date can be enrolled the moment the
- * link arrives — which is correct for somebody starting today and wrong for the
- * hire entered three weeks early, who could then be logging in for three weeks
- * before they are employed. Defaulting the date silently made that gate
- * unreachable; taking it explicitly is what turns it back on.
+ * The start date is the account's record of when employment begins, which
+ * People and the sign-up page show. It does not hold the account back: a hire
+ * signs up when the link arrives and is onboarding until the day.
  *
  * The time zone is not decoration either. A start date is a calendar date, and
  * "has the 1st arrived" has no answer without one — ending or beginning access

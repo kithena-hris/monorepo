@@ -5,11 +5,8 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withTenant } from '@kithena/db-kit';
-import { fixedClock } from '@kithena/domain-kit';
 import { startPostgres } from '@kithena/testing';
 
-import { Account } from '../domain/account.js';
-import { drizzleAccountRepository } from '../infrastructure/drizzle-account-repository.js';
 import { peopleConsumer } from './people.js';
 
 /**
@@ -59,7 +56,9 @@ beforeAll(async () => {
       (${TENANT}::uuid, 'acme', 'Acme', 'active'),
       (${OTHER_TENANT}::uuid, 'globex', 'Globex', 'active')
   `);
-  await admin.execute(sql`INSERT INTO platform.identity (id) VALUES (${IDENTITY}::uuid), (${OTHER_IDENTITY}::uuid)`);
+  await admin.execute(
+    sql`INSERT INTO platform.identity (id) VALUES (${IDENTITY}::uuid), (${OTHER_IDENTITY}::uuid)`,
+  );
   await admin.execute(sql`
     INSERT INTO platform.account
       (id, tenant_id, identity_id, status, work_email, time_zone, employment_start, session_limit,
@@ -145,23 +144,9 @@ async function row(accountId: string, tenantId = TENANT) {
 }
 
 describe('a corrected start date', () => {
-  it('re-gates an invited account, which cannot enrol before the new date', async () => {
+  it('moves an invited account to the new date', async () => {
     expect(await consume(facts(INVITED, { employmentStart: '2026-05-01' }))).toBe('applied');
     expect((await row(INVITED))?.employment_start).toBe('2026-05-01');
-
-    // The old start has passed; the corrected one has not.
-    const refused = await withTenant(db, TENANT, async (tx) => {
-      const snapshot = await drizzleAccountRepository().load(tx, INVITED);
-      if (!snapshot) throw new Error('no account');
-      return Account.rehydrate(snapshot).enrol('01890000-0000-7000-8000-0000000000e1', {
-        clock: fixedClock('2026-04-15T09:00:00.000Z'),
-        newEventId: () => '01890000-0000-7000-8000-0000000000e2',
-        actor: { kind: 'system', process: 'test' },
-        correlationId: '00000000-0000-4000-8000-0000000000c1',
-        causationId: null,
-      });
-    });
-    expect(!refused.ok && refused.error.code).toBe('EMPLOYMENT_NOT_STARTED');
   });
 
   it('leaves an active account active', async () => {
@@ -190,7 +175,10 @@ describe('a corrected name', () => {
     expect(await consume(facts(ACTIVE, { name: null, employmentStart: '2026-07-01' }))).toBe(
       'applied',
     );
-    expect(await row(ACTIVE)).toMatchObject({ given_name: 'Grace', employment_start: '2026-07-01' });
+    expect(await row(ACTIVE)).toMatchObject({
+      given_name: 'Grace',
+      employment_start: '2026-07-01',
+    });
   });
 
   it('leaves a name identity cannot store rather than stalling on it', async () => {
@@ -198,7 +186,10 @@ describe('a corrected name', () => {
     expect(await consume(facts(ACTIVE, { name: long, employmentStart: '2026-08-01' }))).toBe(
       'applied',
     );
-    expect(await row(ACTIVE)).toMatchObject({ given_name: 'Grace', employment_start: '2026-08-01' });
+    expect(await row(ACTIVE)).toMatchObject({
+      given_name: 'Grace',
+      employment_start: '2026-08-01',
+    });
   });
 });
 

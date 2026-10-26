@@ -579,6 +579,10 @@
     "text": "Candidates",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Candidates: the title of <PageHeader>."
   },
+  "candidate.change_the_invitation": {
+    "text": "Change or send again",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <a>."
+  },
   "candidate.checked_by_the_candidate": {
     "text": "Checked by the candidate {{confirmedAt}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, ReadCv: text inside <Badge>. Filled in: {{confirmedAt}}."
@@ -915,10 +919,6 @@
     "text": "Open the offer",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, OfferCard: text inside <Button>."
   },
-  "candidate.or_send_it_on": {
-    "text": "Or send it on",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: the label of <DatePicker>."
-  },
   "candidate.partly_met": {
     "text": "Partly met",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, VERDICT: a \"partly_met\" value."
@@ -1031,10 +1031,6 @@
     "text": "Schedule interview",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: a \"label\" value."
   },
-  "candidate.schedule_invitation": {
-    "text": "Schedule",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
-  },
   "candidate.scorecard_owed": {
     "text": "Scorecard owed",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Spotlight: text inside <span>."
@@ -1055,14 +1051,6 @@
     "text": "Send",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Messages: text inside <Button>."
   },
-  "candidate.send_invitation_again": {
-    "text": "Send it again",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
-  },
-  "candidate.send_invitation_now": {
-    "text": "Send the invitation now",
-    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <Button>."
-  },
   "candidate.sends": {
     "text": "Sends {{sendAt}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: the meta of <ChatMessage>. Filled in: {{sendAt}}."
@@ -1070,6 +1058,10 @@
   "candidate.sent": {
     "text": "Sent {{sentAt}}",
     "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, Email: the meta of <ChatMessage>. Filled in: {{sentAt}}."
+  },
+  "candidate.set_up_and_invite": {
+    "text": "Set up and invite",
+    "context": "Recruiting: jobs, candidates, interviews, offers. candidate.tsx, AccountCard: text inside <a>."
   },
   "candidate.show_less": {
     "text": "Show less",

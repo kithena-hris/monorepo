@@ -11,7 +11,6 @@ import {
   ChatLog,
   ChatMessage,
   Checkbox,
-  DatePicker,
   Field,
   FieldControl,
   FieldDescription,
@@ -61,7 +60,7 @@ import {
   undoAsk,
   withdrawChange,
 } from '../../app/(app)/inbox/actions';
-import { checkIdentifiers, invitePerson, saveOwnSection } from '../../app/(app)/people/actions';
+import { checkIdentifiers, saveOwnSection } from '../../app/(app)/people/actions';
 import { Actions, type BodyProps } from './pane';
 import { ConfirmDialog, NoteDialog, SendBackDialog, SignDialog } from './dialogs';
 import { firstName, when } from './format';
@@ -1441,60 +1440,22 @@ function Integration({ item, zone, act }: BodyProps): JSX.Element {
 /** Everything else People posts: the item, and where it lives. */
 /** A pre-hire to set up: their record, filled in from the contract, where the invitation is sent. */
 /**
- * A hire to set up: invite them to sign up from here, now or on a day, or
- * open their record first to check what the contract filled in. The task
- * goes once the invitation is sent or scheduled.
+ * A hire to set up: their record opens with the set-up dialog up, where HR
+ * fills in their manager, department and the rest, and sends the invitation
+ * now or on a day. The task goes once it is sent or scheduled.
  */
-function SetUp({ item, act }: BodyProps): JSX.Element {
+function SetUp({ item }: BodyProps): JSX.Element {
   const personId = item.id.replace(/^people:setup:/u, '');
-  const [sendOn, setSendOn] = useState<string | null>(null);
-  const invite = (on: string | null): void => {
-    act.run(() => invitePerson(personId, on), {
-      title:
-        on === null
-          ? t('components.inbox.detail-people.invitation_sent', 'Invitation sent')
-          : t('components.inbox.detail-people.invitation_scheduled', 'Invitation scheduled'),
-      next: true,
-    });
-  };
   return (
     <div className="flex flex-col gap-3">
       {item.summary === null ? null : <p className="text-base text-fg-muted">{item.summary}</p>}
       <Actions>
-        <Button
-          variant="primary"
-          loading={act.pending && sendOn === null}
-          disabled={act.pending}
-          startIcon={<icons.email aria-hidden />}
-          onClick={() => {
-            invite(null);
-          }}
-        >
-          {t('components.inbox.detail-people.send_invitation_now', 'Send the invitation now')}
-        </Button>
-        <Button asChild variant="secondary" startIcon={<icons.person aria-hidden />}>
-          <a href={item.link}>
-            {t('components.inbox.detail-people.open_the_record', 'Open their record')}
+        <Button asChild variant="primary" startIcon={<icons.email aria-hidden />}>
+          <a href={`/people/${personId}?invite=1`}>
+            {t('components.inbox.detail-people.set_up_and_invite', 'Set up and invite')}
           </a>
         </Button>
       </Actions>
-      <div className="flex flex-wrap items-end gap-3">
-        <DatePicker
-          label={t('components.inbox.detail-people.or_send_it_on', 'Or send it on')}
-          value={sendOn}
-          onChange={setSendOn}
-        />
-        <Button
-          variant="secondary"
-          disabled={sendOn === null || act.pending}
-          loading={act.pending && sendOn !== null}
-          onClick={() => {
-            invite(sendOn);
-          }}
-        >
-          {t('components.inbox.detail-people.schedule_invitation', 'Schedule')}
-        </Button>
-      </div>
     </div>
   );
 }

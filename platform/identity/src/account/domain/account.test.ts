@@ -61,43 +61,15 @@ const session = (id: string, slot: number, lastSeen: string): Session => ({
 
 /* ------------------------------------------------------ effective dating -- */
 
-describe('a hire cannot log in before their start date', () => {
-  const beforeStart = fixedClock('2026-02-20T09:00:00.000Z');
-  const afterStart = fixedClock('2026-03-02T09:00:00.000Z');
-
-  it('refuses enrolment while the start date is in the future', () => {
-    // HR enters a hire three weeks early, which is normal and good. Those
-    // three weeks are not employment, and an account that works during them is
-    // an account that works before anyone has signed anything.
+describe('a hire signs up before their start date', () => {
+  it('enrols while the start date is still in the future', () => {
+    // A hire invited three weeks early signs up then, and People has them
+    // onboarding until the day: the plan, the forms and the documents are done
+    // before the first morning rather than during it.
     const account = Account.rehydrate(snapshot({ status: 'invited' }));
 
-    const result = account.enrol('cred-1', context(beforeStart));
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.code).toBe('EMPLOYMENT_NOT_STARTED');
-  });
-
-  it('allows enrolment once the start date has arrived', () => {
-    const account = Account.rehydrate(snapshot({ status: 'invited' }));
-    expect(account.enrol('cred-1', context(afterStart)).ok).toBe(true);
+    expect(account.enrol('cred-1', context(fixedClock('2026-02-20T09:00:00.000Z'))).ok).toBe(true);
     expect(account.status).toBe('active');
-  });
-
-  it('decides "has the day arrived" in the employee\'s own zone', () => {
-    // 2026-03-01T00:30Z is already the 1st in Madrid and still the 28th of
-    // February in Los Angeles. A start date is a calendar date, so the answer
-    // depends on whose calendar — and getting this wrong lets someone in a day
-    // early or locks them out for a day, depending on which way the sign goes.
-    const justAfterMidnightUtc = fixedClock('2026-03-01T00:30:00.000Z');
-
-    const madrid = Account.rehydrate(snapshot({ status: 'invited', timeZone: 'Europe/Madrid' }));
-    const losAngeles = Account.rehydrate(
-      snapshot({ status: 'invited', timeZone: 'America/Los_Angeles' }),
-    );
-
-    expect(madrid.enrol('c', context(justAfterMidnightUtc)).ok).toBe(true);
-    expect(losAngeles.enrol('c', context(justAfterMidnightUtc)).ok).toBe(false);
   });
 });
 

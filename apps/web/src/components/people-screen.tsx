@@ -605,6 +605,7 @@ export function PeopleScreen(input: PeopleScreenProps): JSX.Element {
           load: loadable,
           // A link from the overview to one missing detail.
           ...(search['field'] === undefined ? {} : { focusField: search['field'] }),
+          ...(search['invite'] === '1' ? { openInvite: true } : {}),
           // The section being edited and what is open over the record, in the
           // address so a link opens them in the server's HTML; the screen
           // checks each is one this record and viewer offer.

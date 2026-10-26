@@ -756,7 +756,7 @@ describe('what is open over the record, in the address', () => {
 });
 
 describe('a hire who has not started, to HR', () => {
-  it('offers the invitation to sign up, now or on a day, from the start date on the contract', async () => {
+  it('sets the hire up and invites them from one dialog, now or on a day', async () => {
     const hire: ProfileState = {
       ...asHr,
       values: { ...asHr.values, work_email: 'yuki@example.com' },
@@ -782,16 +782,26 @@ describe('a hire who has not started, to HR', () => {
     const send = vi.fn(() =>
       Promise.resolve({
         ok: true as const,
-        invitation: { state: 'invited' as const, sendOn: '2026-10-25', sentAt: '2026-10-25T09:00:00Z' },
+        invitation: {
+          state: 'invited' as const,
+          sendOn: '2026-10-25',
+          sentAt: '2026-10-25T09:00:00Z',
+        },
       }),
     );
     const { container } = render(
-      <Profile load={{ status: 'ready', data: hire }} onSave={vi.fn()} invitation={{ read, send }} />,
+      <Profile
+        load={{ status: 'ready', data: hire }}
+        onSave={vi.fn()}
+        invitation={{ read, send }}
+      />,
     );
     expect(await screen.findByRole('heading', { name: 'Invitation to sign up' })).toBeTruthy();
     expect(read).toHaveBeenCalledWith('yuki@example.com');
     expect(screen.getByText(/Starts .*2026, from their contract\./u)).toBeTruthy();
-    await fast().click(screen.getByRole('button', { name: 'Send the invitation now' }));
+    await fast().click(screen.getByRole('button', { name: 'Set up and invite' }));
+    expect(await screen.findByRole('dialog', { name: /Set up .* and invite them/u })).toBeTruthy();
+    await fast().click(screen.getByRole('button', { name: 'Save and send' }));
     expect(send).toHaveBeenCalledWith(null);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Send it again' })).toBeTruthy();
@@ -799,4 +809,3 @@ describe('a hire who has not started, to HR', () => {
     expect(await axeViolations(container)).toEqual([]);
   });
 });
-

@@ -205,6 +205,8 @@ export interface ProfileProps {
   readonly onPhoto?: (file: File) => Promise<PhotoOutcome>;
   /** Open with this field's section in edit mode and the cursor in it: a link to one missing detail. */
   readonly focusField?: string;
+  /** Arrived to invite them (`?invite=1`): the set-up dialog is open. */
+  readonly openInvite?: boolean;
   /** The section being edited (`?edit=<key>`), held by the host; null for none. */
   readonly editing?: string | null;
   readonly onEditingChange?: (section: string | null) => void;
@@ -305,6 +307,7 @@ function Record({
   onViewAs,
   onPhoto,
   focusField,
+  openInvite,
   onRequest,
   onAsk,
   onSendDocument,
@@ -677,6 +680,13 @@ function Record({
             email={values['work_email']}
             startsOn={state.employment?.periods.at(-1)?.startedOn ?? null}
             actions={invitation}
+            sections={state.sections}
+            values={values}
+            onSave={onSave}
+            onSaved={(applied) => {
+              setValues((v) => ({ ...v, ...applied }));
+            }}
+            openAtStart={openInvite === true}
           />
         )}
         {moving === null || onMove === undefined || !state.calendar ? null : (
