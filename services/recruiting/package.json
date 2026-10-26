@@ -37,6 +37,6 @@
   "devDependencies": {
     "@types/pdfkit": "^0.17.6",
     "@kithena/testing": "workspace:*",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }
